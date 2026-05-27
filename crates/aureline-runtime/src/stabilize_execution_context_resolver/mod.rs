@@ -689,7 +689,9 @@ impl FindingKind {
                 "surface_binding_not_permitted_on_row_class"
             }
             Self::ResolverStateNotApplicable => "resolver_state_not_applicable",
-            Self::ResolverStateNotPermittedOnRowClass => "resolver_state_not_permitted_on_row_class",
+            Self::ResolverStateNotPermittedOnRowClass => {
+                "resolver_state_not_permitted_on_row_class"
+            }
             Self::LineageAdmissionMissingExecutionContextId => {
                 "lineage_admission_missing_execution_context_id"
             }
@@ -1208,10 +1210,7 @@ impl StabilizeExecutionContextResolverTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingDowngradeAutomation,
                     FindingSeverity::Blocker,
-                    format!(
-                        "row {} has no bound downgrade-automation class",
-                        row.row_id
-                    ),
+                    format!("row {} has no bound downgrade-automation class", row.row_id),
                 ));
             }
             if !row.evidence_class.is_bound() {
@@ -1283,7 +1282,10 @@ impl StabilizeExecutionContextResolverTruthPacket {
             }
 
             if row.row_class.requires_surface_binding()
-                && matches!(row.surface_binding_class, SurfaceBindingClass::NotApplicable)
+                && matches!(
+                    row.surface_binding_class,
+                    SurfaceBindingClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::SurfaceBindingNotApplicable,
@@ -1295,7 +1297,10 @@ impl StabilizeExecutionContextResolverTruthPacket {
                 ));
             }
             if !row.row_class.requires_surface_binding()
-                && !matches!(row.surface_binding_class, SurfaceBindingClass::NotApplicable)
+                && !matches!(
+                    row.surface_binding_class,
+                    SurfaceBindingClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::SurfaceBindingNotPermittedOnRowClass,
@@ -1720,9 +1725,10 @@ impl Error for StabilizeExecutionContextResolverTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_stabilize_execution_context_resolver_truth_packet(
-) -> Result<StabilizeExecutionContextResolverTruthPacket, StabilizeExecutionContextResolverTruthArtifactError>
-{
+pub fn current_stable_stabilize_execution_context_resolver_truth_packet() -> Result<
+    StabilizeExecutionContextResolverTruthPacket,
+    StabilizeExecutionContextResolverTruthArtifactError,
+> {
     let packet: StabilizeExecutionContextResolverTruthPacket =
         serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1904,10 +1910,7 @@ mod tests {
         }
     }
 
-    fn lineage_row(
-        prefix: &str,
-        lane: ExecutionLaneClass,
-    ) -> StabilizeExecutionContextResolverRow {
+    fn lineage_row(prefix: &str, lane: ExecutionLaneClass) -> StabilizeExecutionContextResolverRow {
         StabilizeExecutionContextResolverRow {
             row_id: format!("row:{prefix}:lineage_admission"),
             lane_class: lane,
@@ -1930,9 +1933,7 @@ mod tests {
         }
     }
 
-    fn projection(
-        surface: ConsumerSurface,
-    ) -> StabilizeExecutionContextResolverConsumerProjection {
+    fn projection(surface: ConsumerSurface) -> StabilizeExecutionContextResolverConsumerProjection {
         StabilizeExecutionContextResolverConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
@@ -2013,7 +2014,10 @@ mod tests {
             "launch_stable_below"
         );
         assert_eq!(SupportClass::SupportUnbound.as_str(), "support_unbound");
-        assert_eq!(SurfaceBindingClass::SupportExport.as_str(), "support_export");
+        assert_eq!(
+            SurfaceBindingClass::SupportExport.as_str(),
+            "support_export"
+        );
         assert_eq!(ResolverStateClass::WrongTarget.as_str(), "wrong_target");
         assert_eq!(
             ResolverStateClass::RestoreNoRerun.as_str(),
@@ -2046,8 +2050,7 @@ mod tests {
 
     #[test]
     fn baseline_materialization_is_stable() {
-        let packet =
-            StabilizeExecutionContextResolverTruthPacket::materialize(sample_input());
+        let packet = StabilizeExecutionContextResolverTruthPacket::materialize(sample_input());
         assert_eq!(
             packet.promotion_state,
             PromotionState::Stable,
@@ -2168,9 +2171,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != ConsumerSurface::ConformanceDashboard);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != ConsumerSurface::ConformanceDashboard
+        });
         let packet = StabilizeExecutionContextResolverTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet

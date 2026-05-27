@@ -274,7 +274,8 @@ fn checked_in_artifact_covers_required_surfaces_states_and_admissions_per_launch
         if !lane_claims_launch {
             continue;
         }
-        for surface in StabilizeExecutionContextResolverSurfaceBindingClass::REQUIRED_FOR_LAUNCH_STABLE
+        for surface in
+            StabilizeExecutionContextResolverSurfaceBindingClass::REQUIRED_FOR_LAUNCH_STABLE
         {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required

@@ -711,9 +711,7 @@ impl InspectorParityFindingKind {
             Self::MissingIdentity => "missing_identity",
             Self::MissingExecutionLaneCoverage => "missing_execution_lane_coverage",
             Self::MissingInspectorFieldCoverage => "missing_inspector_field_coverage",
-            Self::MissingParitySurfaceBindingCoverage => {
-                "missing_parity_surface_binding_coverage"
-            }
+            Self::MissingParitySurfaceBindingCoverage => "missing_parity_surface_binding_coverage",
             Self::MissingRecoveryStateCoverage => "missing_recovery_state_coverage",
             Self::MissingToolchainManagerAdmission => "missing_toolchain_manager_admission",
             Self::MissingLineageAdmission => "missing_lineage_admission",
@@ -1089,7 +1087,9 @@ impl InspectorParityTruthPacket {
         for row in &self.rows {
             set.insert(row.row_class);
         }
-        set.into_iter().map(InspectorParityRowClass::as_str).collect()
+        set.into_iter()
+            .map(InspectorParityRowClass::as_str)
+            .collect()
     }
 
     /// Returns the unique support-class tokens observed across rows.
@@ -1181,12 +1181,13 @@ impl InspectorParityTruthPacket {
         }
     }
 
-    fn derived_findings(&self, include_record_fields: bool) -> Vec<InspectorParityValidationFinding> {
+    fn derived_findings(
+        &self,
+        include_record_fields: bool,
+    ) -> Vec<InspectorParityValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND {
             findings.push(InspectorParityValidationFinding::new(
                 InspectorParityFindingKind::WrongRecordKind,
                 InspectorParityFindingSeverity::Blocker,
@@ -1283,10 +1284,7 @@ impl InspectorParityTruthPacket {
                 findings.push(InspectorParityValidationFinding::new(
                     InspectorParityFindingKind::MissingDowngradeAutomation,
                     InspectorParityFindingSeverity::Blocker,
-                    format!(
-                        "row {} has no bound downgrade-automation class",
-                        row.row_id
-                    ),
+                    format!("row {} has no bound downgrade-automation class", row.row_id),
                 ));
             }
             if !row.evidence_class.is_bound() {
@@ -1358,7 +1356,10 @@ impl InspectorParityTruthPacket {
             }
 
             if row.row_class.requires_inspector_field()
-                && matches!(row.inspector_field_class, InspectorFieldClass::NotApplicable)
+                && matches!(
+                    row.inspector_field_class,
+                    InspectorFieldClass::NotApplicable
+                )
             {
                 findings.push(InspectorParityValidationFinding::new(
                     InspectorParityFindingKind::InspectorFieldNotApplicable,
@@ -1370,7 +1371,10 @@ impl InspectorParityTruthPacket {
                 ));
             }
             if !row.row_class.requires_inspector_field()
-                && !matches!(row.inspector_field_class, InspectorFieldClass::NotApplicable)
+                && !matches!(
+                    row.inspector_field_class,
+                    InspectorFieldClass::NotApplicable
+                )
             {
                 findings.push(InspectorParityValidationFinding::new(
                     InspectorParityFindingKind::InspectorFieldNotPermittedOnRowClass,
@@ -1456,13 +1460,15 @@ impl InspectorParityTruthPacket {
                 ));
             }
 
-            if matches!(row.row_class, InspectorParityRowClass::ToolchainManagerAdmission)
-                && row
-                    .toolchain_manager_id_binding
-                    .as_deref()
-                    .map(str::trim)
-                    .map(str::is_empty)
-                    .unwrap_or(true)
+            if matches!(
+                row.row_class,
+                InspectorParityRowClass::ToolchainManagerAdmission
+            ) && row
+                .toolchain_manager_id_binding
+                .as_deref()
+                .map(str::trim)
+                .map(str::is_empty)
+                .unwrap_or(true)
             {
                 findings.push(InspectorParityValidationFinding::new(
                     InspectorParityFindingKind::ToolchainManagerAdmissionMissingManagerId,
@@ -1520,7 +1526,10 @@ impl InspectorParityTruthPacket {
             for field in InspectorFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(row.row_class, InspectorParityRowClass::InspectorFieldAdmission)
+                        && matches!(
+                            row.row_class,
+                            InspectorParityRowClass::InspectorFieldAdmission
+                        )
                         && row.inspector_field_class == field
                 });
                 if !covered {
@@ -1818,7 +1827,9 @@ pub enum InspectorParityTruthArtifactError {
 impl fmt::Display for InspectorParityTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(formatter, "inspector-parity packet parse failed: {error}"),
+            Self::Packet(error) => {
+                write!(formatter, "inspector-parity packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -1994,10 +2005,7 @@ mod tests {
         }
     }
 
-    fn toolchain_manager_row(
-        prefix: &str,
-        lane: InspectorParityLaneClass,
-    ) -> InspectorParityRow {
+    fn toolchain_manager_row(prefix: &str, lane: InspectorParityLaneClass) -> InspectorParityRow {
         InspectorParityRow {
             row_id: format!("row:{prefix}:toolchain_manager_admission"),
             lane_class: lane,
@@ -2094,8 +2102,14 @@ mod tests {
     fn sample_input() -> InspectorParityTruthPacketInput {
         let mut rows = Vec::new();
         rows.extend(lane_rows(InspectorParityLaneClass::LocalLane, "local"));
-        rows.extend(lane_rows(InspectorParityLaneClass::RemoteHelperLane, "remote"));
-        rows.extend(lane_rows(InspectorParityLaneClass::ContainerLane, "container"));
+        rows.extend(lane_rows(
+            InspectorParityLaneClass::RemoteHelperLane,
+            "remote",
+        ));
+        rows.extend(lane_rows(
+            InspectorParityLaneClass::ContainerLane,
+            "container",
+        ));
         rows.extend(lane_rows(InspectorParityLaneClass::ManagedLane, "managed"));
         InspectorParityTruthPacketInput {
             packet_id: "packet:m4:finalize_environment_and_toolchain_manager_parity_across_ui"
@@ -2213,20 +2227,24 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::MissingEvidenceClass));
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::LaunchStableWithUnboundBinding));
+        assert!(packet.validation_findings.iter().any(
+            |finding| finding.finding_kind == InspectorParityFindingKind::MissingEvidenceClass
+        ));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::LaunchStableWithUnboundBinding));
     }
 
     #[test]
     fn missing_inspector_field_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, InspectorParityRowClass::InspectorFieldAdmission)
-                && row.inspector_field_class == InspectorFieldClass::PolicySource
+            !(matches!(
+                row.row_class,
+                InspectorParityRowClass::InspectorFieldAdmission
+            ) && row.inspector_field_class == InspectorFieldClass::PolicySource
                 && row.lane_class == InspectorParityLaneClass::LocalLane)
         });
         let packet = InspectorParityTruthPacket::materialize(input);
@@ -2234,9 +2252,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::MissingInspectorFieldCoverage));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::MissingInspectorFieldCoverage));
     }
 
     #[test]
@@ -2252,9 +2272,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::MissingParitySurfaceBindingCoverage));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::MissingParitySurfaceBindingCoverage));
     }
 
     #[test]
@@ -2270,9 +2292,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::MissingRecoveryStateCoverage));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::MissingRecoveryStateCoverage));
     }
 
     #[test]
@@ -2353,9 +2377,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::NarrowedRowMissingDisclosureRef));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::NarrowedRowMissingDisclosureRef));
     }
 
     #[test]
@@ -2369,9 +2395,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::MissingConsumerProjection));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::MissingConsumerProjection));
     }
 
     #[test]
@@ -2387,9 +2415,11 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::ParitySurfaceVocabularyCollapsed));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::ParitySurfaceVocabularyCollapsed));
     }
 
     #[test]
@@ -2401,8 +2431,10 @@ mod tests {
             packet.promotion_state,
             InspectorParityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == InspectorParityFindingKind::RawSourceMaterialPresent));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == InspectorParityFindingKind::RawSourceMaterialPresent));
     }
 }

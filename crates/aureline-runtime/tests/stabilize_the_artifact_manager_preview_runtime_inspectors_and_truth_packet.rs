@@ -1,9 +1,10 @@
-//! Fixture-driven coverage for the stable request-workspace and
-//! API-request execution-context reuse truth packet covering the
-//! request_workspace_lane, api_request_lane, response_trust_lane, and
-//! data_action_lane plus the four-wedge admission coverage, the six
-//! auth-source-mode admissions, the six connection-state admissions,
-//! the eight streaming-response-state admissions, the eight
+//! Fixture-driven coverage for the stable artifact-manager /
+//! preview-runtime-inspector / evidence-export truth packet covering
+//! the artifact_manager_lane, preview_runtime_inspector_lane,
+//! signal_slice_lane, and evidence_export_lane plus the four-wedge
+//! admission coverage, the four signal-slice kind admissions, the six
+//! slice-freshness admissions, the five replay-chronology state
+//! admissions, the five retention-class admissions, the seven
 //! consumer-surface bindings, and the lineage_admission row binding
 //! `execution_context_id`.
 
@@ -11,26 +12,24 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
-    current_stable_request_execution_context_truth_packet, RequestExecutionAuthSourceModeClass,
-    RequestExecutionConnectionStateClass, RequestExecutionConsumerProjectionSurface,
-    RequestExecutionConsumerSurfaceClass, RequestExecutionContextTruthPacket,
-    RequestExecutionContextTruthPacketInput, RequestExecutionLaneClass,
-    RequestExecutionPromotionState, RequestExecutionRowClass,
-    RequestExecutionStreamingResponseStateClass, RequestExecutionSupportClass,
-    RequestExecutionWedgeClass, REQUEST_EXECUTION_CONTEXT_TRUTH_ARTIFACT_DOC_REF,
-    REQUEST_EXECUTION_CONTEXT_TRUTH_DOC_REF, REQUEST_EXECUTION_CONTEXT_TRUTH_FIXTURE_DIR,
-    REQUEST_EXECUTION_CONTEXT_TRUTH_PACKET_ARTIFACT_REF,
-    REQUEST_EXECUTION_CONTEXT_TRUTH_SCHEMA_REF,
+    current_stable_evidence_export_truth_packet, EvidenceExportConsumerProjectionSurface,
+    EvidenceExportConsumerSurfaceClass, EvidenceExportLaneClass, EvidenceExportPromotionState,
+    EvidenceExportReplayChronologyStateClass, EvidenceExportRetentionClass, EvidenceExportRowClass,
+    EvidenceExportSignalSliceKindClass, EvidenceExportSliceFreshnessClass,
+    EvidenceExportSupportClass, EvidenceExportTruthPacket, EvidenceExportTruthPacketInput,
+    EvidenceExportWedgeClass, EVIDENCE_EXPORT_TRUTH_ARTIFACT_DOC_REF,
+    EVIDENCE_EXPORT_TRUTH_DOC_REF, EVIDENCE_EXPORT_TRUTH_FIXTURE_DIR,
+    EVIDENCE_EXPORT_TRUTH_PACKET_ARTIFACT_REF, EVIDENCE_EXPORT_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct RequestExecutionFixture {
+struct EvidenceExportFixture {
     record_kind: String,
     schema_version: u32,
     case_name: String,
     scenario: String,
-    input: RequestExecutionContextTruthPacketInput,
+    input: EvidenceExportTruthPacketInput,
     expect: ExpectedFixture,
 }
 
@@ -43,9 +42,10 @@ struct ExpectedFixture {
     row_class_tokens: Vec<String>,
     support_class_tokens: Vec<String>,
     wedge_tokens: Vec<String>,
-    auth_source_tokens: Vec<String>,
-    connection_state_tokens: Vec<String>,
-    streaming_response_state_tokens: Vec<String>,
+    signal_slice_kind_tokens: Vec<String>,
+    slice_freshness_tokens: Vec<String>,
+    replay_chronology_state_tokens: Vec<String>,
+    retention_class_tokens: Vec<String>,
     consumer_surface_tokens: Vec<String>,
     known_limit_tokens: Vec<String>,
     downgrade_automation_tokens: Vec<String>,
@@ -72,9 +72,9 @@ fn assert_exists(rel: &str) {
     );
 }
 
-fn load_fixture(file_name: &str) -> RequestExecutionFixture {
+fn load_fixture(file_name: &str) -> EvidenceExportFixture {
     let path = repo_root()
-        .join(REQUEST_EXECUTION_CONTEXT_TRUTH_FIXTURE_DIR)
+        .join(EVIDENCE_EXPORT_TRUTH_FIXTURE_DIR)
         .join(file_name);
     let payload = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("fixture {path:?} must read: {err}"));
@@ -95,7 +95,7 @@ fn assert_fixture_matches(file_name: &str) {
     let fixture = load_fixture(file_name);
     assert_eq!(
         fixture.record_kind,
-        "finalize_request_workspace_and_api_request_execution_context_truth_stable_case",
+        "stabilize_the_artifact_manager_preview_runtime_inspectors_and_truth_stable_case",
         "fixture {file_name} declares unexpected record_kind",
     );
     assert_eq!(fixture.schema_version, 1);
@@ -106,7 +106,7 @@ fn assert_fixture_matches(file_name: &str) {
     );
 
     let expect = &fixture.expect;
-    let packet = RequestExecutionContextTruthPacket::materialize(fixture.input.clone());
+    let packet = EvidenceExportTruthPacket::materialize(fixture.input.clone());
     assert_eq!(
         packet.promotion_state.as_str(),
         expect.promotion_state,
@@ -145,19 +145,24 @@ fn assert_fixture_matches(file_name: &str) {
     );
     assert_token_set_matches(&packet.wedge_tokens(), &expect.wedge_tokens, "wedge");
     assert_token_set_matches(
-        &packet.auth_source_tokens(),
-        &expect.auth_source_tokens,
-        "auth_source",
+        &packet.signal_slice_kind_tokens(),
+        &expect.signal_slice_kind_tokens,
+        "signal_slice_kind",
     );
     assert_token_set_matches(
-        &packet.connection_state_tokens(),
-        &expect.connection_state_tokens,
-        "connection_state",
+        &packet.slice_freshness_tokens(),
+        &expect.slice_freshness_tokens,
+        "slice_freshness",
     );
     assert_token_set_matches(
-        &packet.streaming_response_state_tokens(),
-        &expect.streaming_response_state_tokens,
-        "streaming_response_state",
+        &packet.replay_chronology_state_tokens(),
+        &expect.replay_chronology_state_tokens,
+        "replay_chronology_state",
+    );
+    assert_token_set_matches(
+        &packet.retention_class_tokens(),
+        &expect.retention_class_tokens,
+        "retention_class",
     );
     assert_token_set_matches(
         &packet.consumer_surface_tokens(),
@@ -210,11 +215,11 @@ fn assert_fixture_matches(file_name: &str) {
 
 #[test]
 fn schema_doc_fixture_and_artifact_exist_on_disk() {
-    assert_exists(REQUEST_EXECUTION_CONTEXT_TRUTH_SCHEMA_REF);
-    assert_exists(REQUEST_EXECUTION_CONTEXT_TRUTH_DOC_REF);
-    assert_exists(REQUEST_EXECUTION_CONTEXT_TRUTH_ARTIFACT_DOC_REF);
-    assert_exists(REQUEST_EXECUTION_CONTEXT_TRUTH_FIXTURE_DIR);
-    assert_exists(REQUEST_EXECUTION_CONTEXT_TRUTH_PACKET_ARTIFACT_REF);
+    assert_exists(EVIDENCE_EXPORT_TRUTH_SCHEMA_REF);
+    assert_exists(EVIDENCE_EXPORT_TRUTH_DOC_REF);
+    assert_exists(EVIDENCE_EXPORT_TRUTH_ARTIFACT_DOC_REF);
+    assert_exists(EVIDENCE_EXPORT_TRUTH_FIXTURE_DIR);
+    assert_exists(EVIDENCE_EXPORT_TRUTH_PACKET_ARTIFACT_REF);
 }
 
 #[test]
@@ -228,23 +233,23 @@ fn launch_stable_with_unbound_evidence_blocks_stable() {
 }
 
 #[test]
-fn missing_auth_source_for_launch_stable_blocks_stable() {
-    assert_fixture_matches("missing_auth_source_for_launch_stable_blocks_stable.json");
+fn missing_signal_slice_kind_for_launch_stable_blocks_stable() {
+    assert_fixture_matches("missing_signal_slice_kind_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
-fn missing_streaming_state_for_launch_stable_blocks_stable() {
-    assert_fixture_matches("missing_streaming_state_for_launch_stable_blocks_stable.json");
+fn missing_slice_freshness_for_launch_stable_blocks_stable() {
+    assert_fixture_matches("missing_slice_freshness_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
-fn approval_review_truth_without_attestation_blocks_stable() {
-    assert_fixture_matches("approval_review_truth_without_attestation_blocks_stable.json");
+fn missing_replay_chronology_state_for_launch_stable_blocks_stable() {
+    assert_fixture_matches("missing_replay_chronology_state_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
-fn silent_deferred_queue_admitted_blocks_stable() {
-    assert_fixture_matches("silent_deferred_queue_admitted_blocks_stable.json");
+fn cross_surface_evidence_lineage_without_attestation_blocks_stable() {
+    assert_fixture_matches("cross_surface_evidence_lineage_without_attestation_blocks_stable.json");
 }
 
 #[test]
@@ -258,10 +263,8 @@ fn narrowed_row_missing_disclosure_ref_blocks_stable() {
 }
 
 #[test]
-fn projection_collapses_streaming_response_state_vocabulary_blocks_stable() {
-    assert_fixture_matches(
-        "projection_collapses_streaming_response_state_vocabulary_blocks_stable.json",
-    );
+fn projection_collapses_slice_freshness_vocabulary_blocks_stable() {
+    assert_fixture_matches("projection_collapses_slice_freshness_vocabulary_blocks_stable.json");
 }
 
 #[test]
@@ -271,21 +274,18 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_request_execution_context_truth_packet()
-        .expect("checked-in packet validates");
-    assert_eq!(
-        packet.promotion_state,
-        RequestExecutionPromotionState::Stable
-    );
+    let packet =
+        current_stable_evidence_export_truth_packet().expect("checked-in packet validates");
+    assert_eq!(packet.promotion_state, EvidenceExportPromotionState::Stable);
     assert!(packet.validate().is_empty());
-    for required in RequestExecutionLaneClass::REQUIRED {
+    for required in EvidenceExportLaneClass::REQUIRED {
         assert!(
             packet.rows.iter().any(|row| row.lane_class == required),
-            "stable packet must include row for execution-context lane {}",
+            "stable packet must include row for evidence-export lane {}",
             required.as_str()
         );
     }
-    for surface in RequestExecutionConsumerProjectionSurface::REQUIRED {
+    for surface in EvidenceExportConsumerProjectionSurface::REQUIRED {
         assert!(
             packet.has_projection_for(surface),
             "stable packet must preserve {} consumer projection",
@@ -295,63 +295,72 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 }
 
 #[test]
-fn checked_in_artifact_covers_required_wedges_sources_states_and_admissions_per_launch_stable_lane()
-{
-    let packet = current_stable_request_execution_context_truth_packet()
-        .expect("checked-in packet validates");
-    for required in RequestExecutionLaneClass::REQUIRED {
+fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
+    let packet =
+        current_stable_evidence_export_truth_packet().expect("checked-in packet validates");
+    for required in EvidenceExportLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required
-                && row.row_class == RequestExecutionRowClass::ExecutionContextReuseQuality
-                && row.support_class == RequestExecutionSupportClass::LaunchStable
+                && row.row_class == EvidenceExportRowClass::EvidenceExportQuality
+                && row.support_class == EvidenceExportSupportClass::LaunchStable
         });
         if !lane_claims_launch {
             continue;
         }
-        for wedge in RequestExecutionWedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
+        for wedge in EvidenceExportWedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class == RequestExecutionRowClass::WedgeAdmission
+                    && row.row_class == EvidenceExportRowClass::WedgeAdmission
                     && row.wedge_class == wedge),
                 "stable packet must cover wedge {} on lane {}",
                 wedge.as_str(),
                 required.as_str()
             );
         }
-        for mode in RequestExecutionAuthSourceModeClass::REQUIRED_FOR_LAUNCH_STABLE {
+        for kind in EvidenceExportSignalSliceKindClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class == RequestExecutionRowClass::AuthSourceAdmission
-                    && row.auth_source_mode == mode),
-                "stable packet must cover auth source mode {} on lane {}",
-                mode.as_str(),
+                    && row.row_class == EvidenceExportRowClass::SignalSliceKindAdmission
+                    && row.signal_slice_kind_class == kind),
+                "stable packet must cover signal-slice kind {} on lane {}",
+                kind.as_str(),
                 required.as_str()
             );
         }
-        for state in RequestExecutionConnectionStateClass::REQUIRED_FOR_LAUNCH_STABLE {
+        for freshness in EvidenceExportSliceFreshnessClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class == RequestExecutionRowClass::ConnectionStateAdmission
-                    && row.connection_state_class == state),
-                "stable packet must cover connection state {} on lane {}",
+                    && row.row_class == EvidenceExportRowClass::SliceFreshnessAdmission
+                    && row.slice_freshness_class == freshness),
+                "stable packet must cover slice freshness {} on lane {}",
+                freshness.as_str(),
+                required.as_str()
+            );
+        }
+        for state in EvidenceExportReplayChronologyStateClass::REQUIRED_FOR_LAUNCH_STABLE {
+            assert!(
+                packet.rows.iter().any(|row| row.lane_class == required
+                    && row.row_class == EvidenceExportRowClass::ReplayChronologyAdmission
+                    && row.replay_chronology_state_class == state),
+                "stable packet must cover replay-chronology state {} on lane {}",
                 state.as_str(),
                 required.as_str()
             );
         }
-        for state in RequestExecutionStreamingResponseStateClass::REQUIRED_FOR_LAUNCH_STABLE {
+        for retention in EvidenceExportRetentionClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class == RequestExecutionRowClass::StreamingResponseStateAdmission
-                    && row.streaming_response_state_class == state),
-                "stable packet must cover streaming response state {} on lane {}",
-                state.as_str(),
+                    && row.row_class == EvidenceExportRowClass::RetentionClassAdmission
+                    && row.retention_class == retention),
+                "stable packet must cover retention class {} on lane {}",
+                retention.as_str(),
                 required.as_str()
             );
         }
-        for surface in RequestExecutionConsumerSurfaceClass::REQUIRED_FOR_LAUNCH_STABLE {
+        for surface in EvidenceExportConsumerSurfaceClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class == RequestExecutionRowClass::ConsumerSurfaceBinding
+                    && row.row_class == EvidenceExportRowClass::ConsumerSurfaceBinding
                     && row.consumer_surface_class == surface),
                 "stable packet must cover consumer surface {} on lane {}",
                 surface.as_str(),
@@ -360,7 +369,7 @@ fn checked_in_artifact_covers_required_wedges_sources_states_and_admissions_per_
         }
         assert!(
             packet.rows.iter().any(|row| row.lane_class == required
-                && row.row_class == RequestExecutionRowClass::LineageAdmission
+                && row.row_class == EvidenceExportRowClass::LineageAdmission
                 && row
                     .execution_context_id_binding
                     .as_deref()
@@ -372,18 +381,10 @@ fn checked_in_artifact_covers_required_wedges_sources_states_and_admissions_per_
         );
         assert!(
             packet.rows.iter().any(|row| row.lane_class == required
-                && row.row_class == RequestExecutionRowClass::WedgeAdmission
-                && row.wedge_class == RequestExecutionWedgeClass::ApprovalReviewTruth
-                && row.approval_review_attested),
-            "stable packet must include an approval_review_truth wedge_admission attesting mutation-review enforcement on lane {}",
-            required.as_str()
-        );
-        assert!(
-            packet.rows.iter().any(|row| row.lane_class == required
-                && row.row_class == RequestExecutionRowClass::ConnectionStateAdmission
-                && row.connection_state_class == RequestExecutionConnectionStateClass::ReconciliationPending
-                && row.silent_deferred_queue_blocked),
-            "stable packet must include a reconciliation_pending connection_state_admission row attesting silent-deferred-queue blocking on lane {}",
+                && row.row_class == EvidenceExportRowClass::WedgeAdmission
+                && row.wedge_class == EvidenceExportWedgeClass::CrossSurfaceEvidenceLineageTruth
+                && row.cross_surface_evidence_lineage_attested),
+            "stable packet must include a cross_surface_evidence_lineage_truth wedge_admission attesting cross-surface evidence lineage on lane {}",
             required.as_str()
         );
     }

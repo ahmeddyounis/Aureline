@@ -563,9 +563,7 @@ impl KnownLimitClass {
             Self::NotebookBridgeSubsetOnly => "notebook_bridge_subset_only",
             Self::WedgeAdmissionSubsetOnly => "wedge_admission_subset_only",
             Self::AdapterDescriptorFieldSubsetOnly => "adapter_descriptor_field_subset_only",
-            Self::AttachLaunchParitySurfaceSubsetOnly => {
-                "attach_launch_parity_surface_subset_only"
-            }
+            Self::AttachLaunchParitySurfaceSubsetOnly => "attach_launch_parity_surface_subset_only",
             Self::CrashIsolationAssertionSubsetOnly => "crash_isolation_assertion_subset_only",
             Self::AttachLaunchPostureDriftDeclared => "attach_launch_posture_drift_declared",
             Self::BetaCapabilitySampleOnly => "beta_capability_sample_only",
@@ -1365,7 +1363,8 @@ impl DebuggerStabilizationTruthPacket {
                 "debugger-stabilization truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields && self.schema_version != DEBUGGER_STABILIZATION_TRUTH_SCHEMA_VERSION
+        if include_record_fields
+            && self.schema_version != DEBUGGER_STABILIZATION_TRUTH_SCHEMA_VERSION
         {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongSchemaVersion,
@@ -1653,7 +1652,9 @@ impl DebuggerStabilizationTruthPacket {
                 ));
             }
 
-            if row.attach_launch_posture_class.requires_explicit_disclosure()
+            if row
+                .attach_launch_posture_class
+                .requires_explicit_disclosure()
                 && row.disclosure_ref.is_none()
             {
                 findings.push(ValidationFinding::new(
@@ -2105,7 +2106,10 @@ impl DebuggerStabilizationTruthSupportExport {
                 == self.debugger_stabilization_truth_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self.debugger_stabilization_truth_packet.validate().is_empty()
+            && self
+                .debugger_stabilization_truth_packet
+                .validate()
+                .is_empty()
     }
 }
 
@@ -2178,10 +2182,7 @@ mod tests {
         DEBUGGER_STABILIZATION_TRUTH_FIXTURE_DIR.to_owned()
     }
 
-    fn quality_row(
-        prefix: &str,
-        lane: DebuggerStabilizationLaneClass,
-    ) -> DebuggerStabilizationRow {
+    fn quality_row(prefix: &str, lane: DebuggerStabilizationLaneClass) -> DebuggerStabilizationRow {
         DebuggerStabilizationRow {
             row_id: format!("row:{prefix}:quality"),
             lane_class: lane,
@@ -2339,10 +2340,7 @@ mod tests {
         }
     }
 
-    fn lineage_row(
-        prefix: &str,
-        lane: DebuggerStabilizationLaneClass,
-    ) -> DebuggerStabilizationRow {
+    fn lineage_row(prefix: &str, lane: DebuggerStabilizationLaneClass) -> DebuggerStabilizationRow {
         DebuggerStabilizationRow {
             row_id: format!("row:{prefix}:lineage_admission"),
             lane_class: lane,
@@ -2416,7 +2414,10 @@ mod tests {
 
     fn sample_input() -> DebuggerStabilizationTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(DebuggerStabilizationLaneClass::LocalLane, "local"));
+        rows.extend(lane_rows(
+            DebuggerStabilizationLaneClass::LocalLane,
+            "local",
+        ));
         rows.extend(lane_rows(
             DebuggerStabilizationLaneClass::RemoteHelperLane,
             "remote",
@@ -2585,8 +2586,10 @@ mod tests {
                     == AttachLaunchParitySurfaceClass::CliHeadless
             {
                 row.attach_launch_posture_class = AttachLaunchPostureClass::Limited;
-                row.disclosure_ref =
-                    Some(format!("{}#auto_narrow_on_attach_launch_posture_drift", doc_ref()));
+                row.disclosure_ref = Some(format!(
+                    "{}#auto_narrow_on_attach_launch_posture_drift",
+                    doc_ref()
+                ));
                 break;
             }
         }
@@ -2624,8 +2627,10 @@ mod tests {
     fn lineage_admission_without_execution_context_id_blocks() {
         let mut input = sample_input();
         for row in &mut input.rows {
-            if matches!(row.row_class, DebuggerStabilizationRowClass::LineageAdmission)
-                && row.lane_class == DebuggerStabilizationLaneClass::LocalLane
+            if matches!(
+                row.row_class,
+                DebuggerStabilizationRowClass::LineageAdmission
+            ) && row.lane_class == DebuggerStabilizationLaneClass::LocalLane
             {
                 row.execution_context_id_binding = None;
                 break;

@@ -630,7 +630,9 @@ impl CapsuleResolutionDowngradeAutomationClass {
             Self::AutoNarrowOnCapsuleFieldGap => "auto_narrow_on_capsule_field_gap",
             Self::AutoNarrowOnFingerprintGap => "auto_narrow_on_fingerprint_gap",
             Self::AutoNarrowOnInvalidationReasonGap => "auto_narrow_on_invalidation_reason_gap",
-            Self::AutoNarrowOnProjectDoctorFindingGap => "auto_narrow_on_project_doctor_finding_gap",
+            Self::AutoNarrowOnProjectDoctorFindingGap => {
+                "auto_narrow_on_project_doctor_finding_gap"
+            }
             Self::AutoNarrowOnMaterializedIdentityDrift => {
                 "auto_narrow_on_materialized_identity_drift"
             }
@@ -836,12 +838,8 @@ impl CapsuleResolutionFindingKind {
             Self::MissingCapsuleFieldCoverage => "missing_capsule_field_coverage",
             Self::MissingPrebuildFingerprintCoverage => "missing_prebuild_fingerprint_coverage",
             Self::MissingInvalidationReasonCoverage => "missing_invalidation_reason_coverage",
-            Self::MissingProjectDoctorFindingCoverage => {
-                "missing_project_doctor_finding_coverage"
-            }
-            Self::MissingMaterializedIdentityAdmission => {
-                "missing_materialized_identity_admission"
-            }
+            Self::MissingProjectDoctorFindingCoverage => "missing_project_doctor_finding_coverage",
+            Self::MissingMaterializedIdentityAdmission => "missing_materialized_identity_admission",
             Self::MissingSupportClass => "missing_support_class",
             Self::MissingKnownLimit => "missing_known_limit",
             Self::MissingDowngradeAutomation => "missing_downgrade_automation",
@@ -1354,8 +1352,7 @@ impl CapsuleResolutionTruthPacket {
     ) -> Vec<CapsuleResolutionValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != CAPSULE_RESOLUTION_TRUTH_PACKET_RECORD_KIND
+        if include_record_fields && self.record_kind != CAPSULE_RESOLUTION_TRUTH_PACKET_RECORD_KIND
         {
             findings.push(CapsuleResolutionValidationFinding::new(
                 CapsuleResolutionFindingKind::WrongRecordKind,
@@ -1363,8 +1360,7 @@ impl CapsuleResolutionTruthPacket {
                 "capsule-resolution packet has the wrong record kind",
             ));
         }
-        if include_record_fields && self.schema_version != CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION
-        {
+        if include_record_fields && self.schema_version != CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION {
             findings.push(CapsuleResolutionValidationFinding::new(
                 CapsuleResolutionFindingKind::WrongSchemaVersion,
                 CapsuleResolutionFindingSeverity::Blocker,
@@ -1454,10 +1450,7 @@ impl CapsuleResolutionTruthPacket {
                 findings.push(CapsuleResolutionValidationFinding::new(
                     CapsuleResolutionFindingKind::MissingDowngradeAutomation,
                     CapsuleResolutionFindingSeverity::Blocker,
-                    format!(
-                        "row {} has no bound downgrade-automation class",
-                        row.row_id
-                    ),
+                    format!("row {} has no bound downgrade-automation class", row.row_id),
                 ));
             }
             if !row.evidence_class.is_bound() {
@@ -1694,7 +1687,8 @@ impl CapsuleResolutionTruthPacket {
                 }
                 if requested_bound
                     && materialized_bound
-                    && row.requested_artifact_identity_binding == row.materialized_runtime_identity_binding
+                    && row.requested_artifact_identity_binding
+                        == row.materialized_runtime_identity_binding
                     && !row.no_silent_prebuild_reuse
                 {
                     findings.push(CapsuleResolutionValidationFinding::new(
@@ -2241,7 +2235,10 @@ mod tests {
                 CapsuleResolutionDowngradeAutomationClass::AutoNarrowOnInvalidationReasonGap,
             confidence_class: CapsuleResolutionConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
-            disclosure_ref: Some(format!("{}#auto_narrow_on_invalidation_reason_gap", doc_ref())),
+            disclosure_ref: Some(format!(
+                "{}#auto_narrow_on_invalidation_reason_gap",
+                doc_ref()
+            )),
             requested_artifact_identity_binding: None,
             materialized_runtime_identity_binding: None,
             no_silent_prebuild_reuse: false,
@@ -2329,8 +2326,8 @@ mod tests {
         CapsuleResolutionConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            capsule_resolution_packet_id_ref:
-                "packet:m4:harden_environment_capsule_resolution".to_owned(),
+            capsule_resolution_packet_id_ref: "packet:m4:harden_environment_capsule_resolution"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,
@@ -2369,18 +2366,27 @@ mod tests {
 
     fn sample_input() -> CapsuleResolutionTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(CapsuleResolutionLaneClass::DevcontainerLane, "devcontainer"));
+        rows.extend(lane_rows(
+            CapsuleResolutionLaneClass::DevcontainerLane,
+            "devcontainer",
+        ));
         rows.extend(lane_rows(CapsuleResolutionLaneClass::NixLane, "nix"));
-        rows.extend(lane_rows(CapsuleResolutionLaneClass::ComposeLane, "compose"));
-        rows.extend(lane_rows(CapsuleResolutionLaneClass::ShellSdkLane, "shell_sdk"));
+        rows.extend(lane_rows(
+            CapsuleResolutionLaneClass::ComposeLane,
+            "compose",
+        ));
+        rows.extend(lane_rows(
+            CapsuleResolutionLaneClass::ShellSdkLane,
+            "shell_sdk",
+        ));
         rows.extend(lane_rows(
             CapsuleResolutionLaneClass::TemplatePrebuildLane,
             "template_prebuild",
         ));
         CapsuleResolutionTruthPacketInput {
             packet_id: "packet:m4:harden_environment_capsule_resolution".to_owned(),
-            workflow_or_surface_id:
-                "workflow.runtime.harden_environment_capsule_resolution".to_owned(),
+            workflow_or_surface_id: "workflow.runtime.harden_environment_capsule_resolution"
+                .to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_lanes: CapsuleResolutionLaneClass::REQUIRED.to_vec(),
             rows,
@@ -2512,12 +2518,16 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::MissingEvidenceClass));
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::LaunchStableWithUnboundBinding));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::MissingEvidenceClass));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::LaunchStableWithUnboundBinding));
     }
 
     #[test]
@@ -2536,9 +2546,11 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::MissingPrebuildFingerprintCoverage));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::MissingPrebuildFingerprintCoverage));
     }
 
     #[test]
@@ -2559,9 +2571,11 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
+        assert!(packet.validation_findings.iter().any(|finding| {
+            finding
             .finding_kind
-            == CapsuleResolutionFindingKind::MaterializedIdentityAdmissionAdmitsSilentPrebuildReuse));
+            == CapsuleResolutionFindingKind::MaterializedIdentityAdmissionAdmitsSilentPrebuildReuse
+        }));
     }
 
     #[test]
@@ -2574,9 +2588,11 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::NarrowedRowMissingDisclosureRef));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::NarrowedRowMissingDisclosureRef));
     }
 
     #[test]
@@ -2590,9 +2606,11 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::MissingConsumerProjection));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::MissingConsumerProjection));
     }
 
     #[test]
@@ -2608,9 +2626,11 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::InvalidationReasonVocabularyCollapsed));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::InvalidationReasonVocabularyCollapsed));
     }
 
     #[test]
@@ -2622,8 +2642,10 @@ mod tests {
             packet.promotion_state,
             CapsuleResolutionPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CapsuleResolutionFindingKind::RawSourceMaterialPresent));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == CapsuleResolutionFindingKind::RawSourceMaterialPresent));
     }
 }

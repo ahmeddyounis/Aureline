@@ -242,9 +242,7 @@ fn missing_watch_mode_support_for_launch_stable_blocks_stable() {
 
 #[test]
 fn missing_selector_durability_for_launch_stable_blocks_stable() {
-    assert_fixture_matches(
-        "missing_selector_durability_for_launch_stable_blocks_stable.json",
-    );
+    assert_fixture_matches("missing_selector_durability_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
@@ -330,8 +328,7 @@ fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
                 required.as_str()
             );
         }
-        for posture in TestExplorerStabilizationDiscoveryPostureClass::REQUIRED_FOR_LAUNCH_STABLE
-        {
+        for posture in TestExplorerStabilizationDiscoveryPostureClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
                     && row.row_class
@@ -342,9 +339,7 @@ fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
                 required.as_str()
             );
         }
-        for support in
-            TestExplorerStabilizationWatchModeSupportClass::REQUIRED_FOR_LAUNCH_STABLE
-        {
+        for support in TestExplorerStabilizationWatchModeSupportClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
                     && row.row_class

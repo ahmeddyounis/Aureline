@@ -815,9 +815,7 @@ impl FindingKind {
             Self::MissingLaneCoverage => "missing_lane_coverage",
             Self::MissingWedgeAdmissionCoverage => "missing_wedge_admission_coverage",
             Self::MissingInspectorStateCoverage => "missing_inspector_state_coverage",
-            Self::MissingMappingFidelityBadgeCoverage => {
-                "missing_mapping_fidelity_badge_coverage"
-            }
+            Self::MissingMappingFidelityBadgeCoverage => "missing_mapping_fidelity_badge_coverage",
             Self::MissingInspectorSurfaceCoverage => "missing_inspector_surface_coverage",
             Self::MissingLineageAdmission => "missing_lineage_admission",
             Self::MissingSupportClass => "missing_support_class",
@@ -1206,7 +1204,9 @@ impl DebugFidelityTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter().map(DebugFidelityLaneClass::as_str).collect()
+        set.into_iter()
+            .map(DebugFidelityLaneClass::as_str)
+            .collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1315,9 +1315,7 @@ impl DebugFidelityTruthPacket {
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != DEBUG_FIDELITY_TRUTH_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != DEBUG_FIDELITY_TRUTH_PACKET_RECORD_KIND {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongRecordKind,
                 FindingSeverity::Blocker,
@@ -1513,7 +1511,10 @@ impl DebugFidelityTruthPacket {
             }
 
             if row.row_class.requires_inspector_state()
-                && matches!(row.inspector_state_class, InspectorStateClass::NotApplicable)
+                && matches!(
+                    row.inspector_state_class,
+                    InspectorStateClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::InspectorStateNotApplicable,
@@ -1525,7 +1526,10 @@ impl DebugFidelityTruthPacket {
                 ));
             }
             if !row.row_class.requires_inspector_state()
-                && !matches!(row.inspector_state_class, InspectorStateClass::NotApplicable)
+                && !matches!(
+                    row.inspector_state_class,
+                    InspectorStateClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::InspectorStateNotPermittedOnRowClass,
@@ -1982,8 +1986,7 @@ impl DebugFidelityTruthSupportExport {
     pub fn is_export_safe(&self) -> bool {
         self.record_kind == DEBUG_FIDELITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND
             && self.schema_version == DEBUG_FIDELITY_TRUTH_SCHEMA_VERSION
-            && self.debug_fidelity_truth_packet_id_ref
-                == self.debug_fidelity_truth_packet.packet_id
+            && self.debug_fidelity_truth_packet_id_ref == self.debug_fidelity_truth_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
             && self.debug_fidelity_truth_packet.validate().is_empty()
@@ -2003,7 +2006,10 @@ impl fmt::Display for DebugFidelityTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => {
-                write!(formatter, "debug-fidelity truth packet parse failed: {error}")
+                write!(
+                    formatter,
+                    "debug-fidelity truth packet parse failed: {error}"
+                )
             }
             Self::Validation(findings) => {
                 let tokens = findings
@@ -2278,8 +2284,14 @@ mod tests {
     fn sample_input() -> DebugFidelityTruthPacketInput {
         let mut rows = Vec::new();
         rows.extend(lane_rows(DebugFidelityLaneClass::LocalLane, "local"));
-        rows.extend(lane_rows(DebugFidelityLaneClass::RemoteHelperLane, "remote"));
-        rows.extend(lane_rows(DebugFidelityLaneClass::ContainerLane, "container"));
+        rows.extend(lane_rows(
+            DebugFidelityLaneClass::RemoteHelperLane,
+            "remote",
+        ));
+        rows.extend(lane_rows(
+            DebugFidelityLaneClass::ContainerLane,
+            "container",
+        ));
         rows.extend(lane_rows(
             DebugFidelityLaneClass::NotebookBridgeLane,
             "notebook",
@@ -2326,10 +2338,19 @@ mod tests {
             "inspector_surface_binding"
         );
         assert_eq!(SupportClass::LaunchStable.as_str(), "launch_stable");
-        assert_eq!(WedgeClass::BreakpointFidelity.as_str(), "breakpoint_fidelity");
-        assert_eq!(WedgeClass::DebugConsoleFidelity.as_str(), "debug_console_fidelity");
+        assert_eq!(
+            WedgeClass::BreakpointFidelity.as_str(),
+            "breakpoint_fidelity"
+        );
+        assert_eq!(
+            WedgeClass::DebugConsoleFidelity.as_str(),
+            "debug_console_fidelity"
+        );
         assert_eq!(InspectorStateClass::Live.as_str(), "live");
-        assert_eq!(InspectorStateClass::PolicyBlocked.as_str(), "policy_blocked");
+        assert_eq!(
+            InspectorStateClass::PolicyBlocked.as_str(),
+            "policy_blocked"
+        );
         assert_eq!(MappingFidelityBadgeClass::Exact.as_str(), "exact");
         assert_eq!(MappingFidelityBadgeClass::Mismatched.as_str(), "mismatched");
         assert_eq!(

@@ -96,8 +96,7 @@ fn assert_token_set_matches(observed: &[&str], expected: &[String], label: &str)
 fn assert_fixture_matches(file_name: &str) {
     let fixture = load_fixture(file_name);
     assert_eq!(
-        fixture.record_kind,
-        "stabilize_debugger_host_and_adapter_negotiation_truth_stable_case",
+        fixture.record_kind, "stabilize_debugger_host_and_adapter_negotiation_truth_stable_case",
         "fixture {file_name} declares unexpected record_kind",
     );
     assert_eq!(fixture.schema_version, 1);
@@ -263,8 +262,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_debugger_stabilization_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_debugger_stabilization_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         DebuggerStabilizationPromotionState::Stable
@@ -289,8 +288,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 #[test]
 fn checked_in_artifact_covers_required_wedges_fields_surfaces_and_assertions_per_launch_stable_lane(
 ) {
-    let packet = current_stable_debugger_stabilization_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_debugger_stabilization_truth_packet().expect("checked-in packet validates");
     for required in DebuggerStabilizationLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required
@@ -321,7 +320,8 @@ fn checked_in_artifact_covers_required_wedges_fields_surfaces_and_assertions_per
                 required.as_str()
             );
         }
-        for surface in DebuggerStabilizationAttachLaunchParitySurfaceClass::REQUIRED_FOR_LAUNCH_STABLE
+        for surface in
+            DebuggerStabilizationAttachLaunchParitySurfaceClass::REQUIRED_FOR_LAUNCH_STABLE
         {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
@@ -333,7 +333,8 @@ fn checked_in_artifact_covers_required_wedges_fields_surfaces_and_assertions_per
                 required.as_str()
             );
         }
-        for assertion in DebuggerStabilizationCrashIsolationAssertionClass::REQUIRED_FOR_LAUNCH_STABLE
+        for assertion in
+            DebuggerStabilizationCrashIsolationAssertionClass::REQUIRED_FOR_LAUNCH_STABLE
         {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required

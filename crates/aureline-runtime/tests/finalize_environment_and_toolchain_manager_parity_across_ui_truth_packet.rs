@@ -238,9 +238,12 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_inspector_parity_truth_packet()
-        .expect("checked-in packet validates");
-    assert_eq!(packet.promotion_state, InspectorParityPromotionState::Stable);
+    let packet =
+        current_stable_inspector_parity_truth_packet().expect("checked-in packet validates");
+    assert_eq!(
+        packet.promotion_state,
+        InspectorParityPromotionState::Stable
+    );
     assert!(packet.validate().is_empty());
     for required in InspectorParityLaneClass::REQUIRED {
         assert!(
@@ -260,8 +263,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_required_fields_surfaces_and_admissions_per_launch_stable_lane() {
-    let packet = current_stable_inspector_parity_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_inspector_parity_truth_packet().expect("checked-in packet validates");
     for required in InspectorParityLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required

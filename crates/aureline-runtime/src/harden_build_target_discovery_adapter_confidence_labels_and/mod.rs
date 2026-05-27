@@ -1224,7 +1224,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter().map(BuildTargetHardeningLaneClass::as_str).collect()
+        set.into_iter()
+            .map(BuildTargetHardeningLaneClass::as_str)
+            .collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1233,7 +1235,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.row_class);
         }
-        set.into_iter().map(BuildTargetHardeningRowClass::as_str).collect()
+        set.into_iter()
+            .map(BuildTargetHardeningRowClass::as_str)
+            .collect()
     }
 
     /// Returns the unique support-class tokens observed across rows.
@@ -1242,7 +1246,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.support_class);
         }
-        set.into_iter().map(BuildTargetHardeningSupportClass::as_str).collect()
+        set.into_iter()
+            .map(BuildTargetHardeningSupportClass::as_str)
+            .collect()
     }
 
     /// Returns the unique wedge tokens observed across rows.
@@ -1269,7 +1275,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.discovery_freshness_class);
         }
-        set.into_iter().map(DiscoveryFreshnessClass::as_str).collect()
+        set.into_iter()
+            .map(DiscoveryFreshnessClass::as_str)
+            .collect()
     }
 
     /// Returns the unique adapter-confidence label tokens observed across rows.
@@ -1278,7 +1286,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.adapter_confidence_label_class);
         }
-        set.into_iter().map(AdapterConfidenceLabelClass::as_str).collect()
+        set.into_iter()
+            .map(AdapterConfidenceLabelClass::as_str)
+            .collect()
     }
 
     /// Returns the unique target-graph snapshot tokens observed across rows.
@@ -1287,7 +1297,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.target_graph_snapshot_class);
         }
-        set.into_iter().map(TargetGraphSnapshotClass::as_str).collect()
+        set.into_iter()
+            .map(TargetGraphSnapshotClass::as_str)
+            .collect()
     }
 
     /// Returns the unique consumer-surface tokens observed across rows.
@@ -1323,7 +1335,9 @@ impl BuildTargetHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.downgrade_automation_class);
         }
-        set.into_iter().map(DowngradeAutomationClass::as_str).collect()
+        set.into_iter()
+            .map(DowngradeAutomationClass::as_str)
+            .collect()
     }
 
     /// Builds a support export wrapping the exact packet shown to product surfaces.
@@ -1419,7 +1433,10 @@ impl BuildTargetHardeningTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::SecretsPresent,
                     FindingSeverity::Blocker,
-                    format!("row {} admits raw secret values past the boundary", row.row_id),
+                    format!(
+                        "row {} admits raw secret values past the boundary",
+                        row.row_id
+                    ),
                 ));
             }
             if !row.ambient_authority_excluded {
@@ -1451,10 +1468,7 @@ impl BuildTargetHardeningTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingDowngradeAutomation,
                     FindingSeverity::Blocker,
-                    format!(
-                        "row {} has no bound downgrade-automation class",
-                        row.row_id
-                    ),
+                    format!("row {} has no bound downgrade-automation class", row.row_id),
                 ));
             }
             if !row.evidence_class.is_bound() {
@@ -1503,7 +1517,9 @@ impl BuildTargetHardeningTruthPacket {
                     ),
                 ));
             }
-            if row.downgrade_automation_class.requires_explicit_disclosure()
+            if row
+                .downgrade_automation_class
+                .requires_explicit_disclosure()
                 && row.disclosure_ref.is_none()
             {
                 findings.push(ValidationFinding::new(
@@ -1555,7 +1571,10 @@ impl BuildTargetHardeningTruthPacket {
 
             // discovery-source binding rules
             if row.row_class.requires_discovery_source()
-                && matches!(row.discovery_source_class, DiscoverySourceClass::NotApplicable)
+                && matches!(
+                    row.discovery_source_class,
+                    DiscoverySourceClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::DiscoverySourceNotApplicable,
@@ -1567,7 +1586,10 @@ impl BuildTargetHardeningTruthPacket {
                 ));
             }
             if !row.row_class.requires_discovery_source()
-                && !matches!(row.discovery_source_class, DiscoverySourceClass::NotApplicable)
+                && !matches!(
+                    row.discovery_source_class,
+                    DiscoverySourceClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::DiscoverySourceNotPermittedOnRowClass,
@@ -1685,7 +1707,10 @@ impl BuildTargetHardeningTruthPacket {
 
             // consumer-surface binding rules
             if row.row_class.requires_consumer_surface()
-                && matches!(row.consumer_surface_class, ConsumerSurfaceClass::NotApplicable)
+                && matches!(
+                    row.consumer_surface_class,
+                    ConsumerSurfaceClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ConsumerSurfaceNotApplicable,
@@ -1697,7 +1722,10 @@ impl BuildTargetHardeningTruthPacket {
                 ));
             }
             if !row.row_class.requires_consumer_surface()
-                && !matches!(row.consumer_surface_class, ConsumerSurfaceClass::NotApplicable)
+                && !matches!(
+                    row.consumer_surface_class,
+                    ConsumerSurfaceClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ConsumerSurfaceNotPermittedOnRowClass,
@@ -1712,13 +1740,15 @@ impl BuildTargetHardeningTruthPacket {
             }
 
             // lineage admission rules
-            if matches!(row.row_class, BuildTargetHardeningRowClass::LineageAdmission)
-                && row
-                    .execution_context_id_binding
-                    .as_deref()
-                    .map(str::trim)
-                    .map(str::is_empty)
-                    .unwrap_or(true)
+            if matches!(
+                row.row_class,
+                BuildTargetHardeningRowClass::LineageAdmission
+            ) && row
+                .execution_context_id_binding
+                .as_deref()
+                .map(str::trim)
+                .map(str::is_empty)
+                .unwrap_or(true)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::LineageAdmissionMissingExecutionContextId,
@@ -1746,7 +1776,10 @@ impl BuildTargetHardeningTruthPacket {
             }
 
             if matches!(row.confidence_class, ConfidenceClass::LowConfidence)
-                && matches!(row.support_class, BuildTargetHardeningSupportClass::LaunchStable)
+                && matches!(
+                    row.support_class,
+                    BuildTargetHardeningSupportClass::LaunchStable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::LaunchStableWithUnboundBinding,
@@ -1907,7 +1940,10 @@ impl BuildTargetHardeningTruthPacket {
 
             let has_lineage = self.rows.iter().any(|row| {
                 row.lane_class == *lane
-                    && matches!(row.row_class, BuildTargetHardeningRowClass::LineageAdmission)
+                    && matches!(
+                        row.row_class,
+                        BuildTargetHardeningRowClass::LineageAdmission
+                    )
                     && row
                         .execution_context_id_binding
                         .as_deref()
@@ -2076,9 +2112,8 @@ impl BuildTargetHardeningTruthPacket {
 
         if include_record_fields {
             let mut without_promotion = findings.clone();
-            without_promotion.retain(|finding| {
-                finding.finding_kind != FindingKind::PromotionStateMismatch
-            });
+            without_promotion
+                .retain(|finding| finding.finding_kind != FindingKind::PromotionStateMismatch);
             let derived = promotion_state_for_findings(&without_promotion);
             if self.promotion_state != derived {
                 findings.push(ValidationFinding::new(
@@ -2198,10 +2233,7 @@ mod tests {
         BUILD_TARGET_HARDENING_TRUTH_FIXTURE_DIR.to_owned()
     }
 
-    fn quality_row(
-        prefix: &str,
-        lane: BuildTargetHardeningLaneClass,
-    ) -> BuildTargetHardeningRow {
+    fn quality_row(prefix: &str, lane: BuildTargetHardeningLaneClass) -> BuildTargetHardeningRow {
         BuildTargetHardeningRow {
             row_id: format!("row:{prefix}:quality"),
             lane_class: lane,
@@ -2441,10 +2473,7 @@ mod tests {
         }
     }
 
-    fn lineage_row(
-        prefix: &str,
-        lane: BuildTargetHardeningLaneClass,
-    ) -> BuildTargetHardeningRow {
+    fn lineage_row(prefix: &str, lane: BuildTargetHardeningLaneClass) -> BuildTargetHardeningRow {
         BuildTargetHardeningRow {
             row_id: format!("row:{prefix}:lineage_admission"),
             lane_class: lane,
@@ -2462,9 +2491,7 @@ mod tests {
             confidence_class: ConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
             disclosure_ref: Some(format!("{}#auto_narrow_on_lineage_break", doc_ref())),
-            execution_context_id_binding: Some(format!(
-                "exec:m4:build_target:{prefix}:lineage"
-            )),
+            execution_context_id_binding: Some(format!("exec:m4:build_target:{prefix}:lineage")),
             cross_surface_target_parity_attested: false,
             raw_source_material_excluded: true,
             secrets_excluded: true,
@@ -2555,10 +2582,7 @@ mod tests {
 
     #[test]
     fn closed_tokens_are_pinned() {
-        assert_eq!(
-            BuildTargetHardeningLaneClass::RunLane.as_str(),
-            "run_lane"
-        );
+        assert_eq!(BuildTargetHardeningLaneClass::RunLane.as_str(), "run_lane");
         assert_eq!(
             BuildTargetHardeningLaneClass::TargetGraphSnapshotLane.as_str(),
             "target_graph_snapshot_lane"
@@ -2588,10 +2612,7 @@ mod tests {
             "resolver_unavailable"
         );
         assert_eq!(DiscoveryFreshnessClass::FreshProbe.as_str(), "fresh_probe");
-        assert_eq!(
-            DiscoveryFreshnessClass::Unknown.as_str(),
-            "unknown"
-        );
+        assert_eq!(DiscoveryFreshnessClass::Unknown.as_str(), "unknown");
         assert_eq!(
             AdapterConfidenceLabelClass::AdapterAuthoritativeMatch.as_str(),
             "adapter_authoritative_match"
@@ -2666,8 +2687,10 @@ mod tests {
     fn missing_discovery_source_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, BuildTargetHardeningRowClass::DiscoverySourceAdmission)
-                && row.discovery_source_class == DiscoverySourceClass::ResolverUnavailable
+            !(matches!(
+                row.row_class,
+                BuildTargetHardeningRowClass::DiscoverySourceAdmission
+            ) && row.discovery_source_class == DiscoverySourceClass::ResolverUnavailable
                 && row.lane_class == BuildTargetHardeningLaneClass::RunLane)
         });
         let packet = BuildTargetHardeningTruthPacket::materialize(input);
@@ -2708,10 +2731,13 @@ mod tests {
         });
         let packet = BuildTargetHardeningTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet
-            .validation_findings
-            .iter()
-            .any(|finding| finding.finding_kind == FindingKind::MissingTargetGraphSnapshotCoverage));
+        assert!(
+            packet
+                .validation_findings
+                .iter()
+                .any(|finding| finding.finding_kind
+                    == FindingKind::MissingTargetGraphSnapshotCoverage)
+        );
     }
 
     #[test]
@@ -2737,8 +2763,10 @@ mod tests {
     fn lineage_admission_without_execution_context_id_blocks() {
         let mut input = sample_input();
         for row in &mut input.rows {
-            if matches!(row.row_class, BuildTargetHardeningRowClass::LineageAdmission)
-                && row.lane_class == BuildTargetHardeningLaneClass::RunLane
+            if matches!(
+                row.row_class,
+                BuildTargetHardeningRowClass::LineageAdmission
+            ) && row.lane_class == BuildTargetHardeningLaneClass::RunLane
             {
                 row.execution_context_id_binding = None;
                 break;

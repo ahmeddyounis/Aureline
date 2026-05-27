@@ -12,11 +12,10 @@ use std::path::{Path, PathBuf};
 use aureline_runtime::{
     current_stable_capsule_resolution_truth_packet, CapsuleFieldClass,
     CapsuleResolutionConsumerSurface, CapsuleResolutionDowngradeAutomationClass,
-    CapsuleResolutionEvidenceClass, CapsuleResolutionFindingKind,
-    CapsuleResolutionKnownLimitClass, CapsuleResolutionLaneClass,
-    CapsuleResolutionPromotionState, CapsuleResolutionRowClass, CapsuleResolutionSupportClass,
-    CapsuleResolutionTruthPacket, CapsuleResolutionTruthPacketInput, InvalidationReasonClass,
-    PrebuildFingerprintComponentClass, ProjectDoctorFindingClass,
+    CapsuleResolutionEvidenceClass, CapsuleResolutionFindingKind, CapsuleResolutionKnownLimitClass,
+    CapsuleResolutionLaneClass, CapsuleResolutionPromotionState, CapsuleResolutionRowClass,
+    CapsuleResolutionSupportClass, CapsuleResolutionTruthPacket, CapsuleResolutionTruthPacketInput,
+    InvalidationReasonClass, PrebuildFingerprintComponentClass, ProjectDoctorFindingClass,
     CAPSULE_RESOLUTION_TRUTH_ARTIFACT_DOC_REF, CAPSULE_RESOLUTION_TRUTH_DOC_REF,
     CAPSULE_RESOLUTION_TRUTH_FIXTURE_DIR, CAPSULE_RESOLUTION_TRUTH_PACKET_ARTIFACT_REF,
     CAPSULE_RESOLUTION_TRUTH_SCHEMA_REF,
@@ -92,8 +91,7 @@ fn assert_token_set_matches(observed: &[&str], expected: &[String], label: &str)
 fn assert_fixture_matches(file_name: &str) {
     let fixture = load_fixture(file_name);
     assert_eq!(
-        fixture.record_kind,
-        "harden_environment_capsule_resolution_truth_stable_case",
+        fixture.record_kind, "harden_environment_capsule_resolution_truth_stable_case",
         "fixture {file_name} declares unexpected record_kind",
     );
     assert_eq!(fixture.schema_version, 1);
@@ -231,9 +229,7 @@ fn missing_prebuild_fingerprint_component_blocks_stable() {
 
 #[test]
 fn materialized_identity_admits_silent_prebuild_reuse_blocks_stable() {
-    assert_fixture_matches(
-        "materialized_identity_admits_silent_prebuild_reuse_blocks_stable.json",
-    );
+    assert_fixture_matches("materialized_identity_admits_silent_prebuild_reuse_blocks_stable.json");
 }
 
 #[test]
@@ -255,8 +251,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_capsule_resolution_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_capsule_resolution_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         CapsuleResolutionPromotionState::Stable
@@ -280,8 +276,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
-    let packet = current_stable_capsule_resolution_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_capsule_resolution_truth_packet().expect("checked-in packet validates");
     for required in CapsuleResolutionLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required
@@ -324,8 +320,7 @@ fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
         for finding in ProjectDoctorFindingClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class
-                        == CapsuleResolutionRowClass::ProjectDoctorFindingAdmission
+                    && row.row_class == CapsuleResolutionRowClass::ProjectDoctorFindingAdmission
                     && row.project_doctor_finding_class == finding),
                 "stable packet must cover the {} Project Doctor finding on the {} lane",
                 finding.as_str(),

@@ -240,9 +240,7 @@ fn missing_discovery_source_for_launch_stable_blocks_stable() {
 
 #[test]
 fn missing_adapter_confidence_label_for_launch_stable_blocks_stable() {
-    assert_fixture_matches(
-        "missing_adapter_confidence_label_for_launch_stable_blocks_stable.json",
-    );
+    assert_fixture_matches("missing_adapter_confidence_label_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
@@ -281,7 +279,10 @@ fn raw_source_material_blocks_stable() {
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
     let packet =
         current_stable_build_target_hardening_truth_packet().expect("checked-in packet validates");
-    assert_eq!(packet.promotion_state, BuildTargetHardeningPromotionState::Stable);
+    assert_eq!(
+        packet.promotion_state,
+        BuildTargetHardeningPromotionState::Stable
+    );
     assert!(packet.validate().is_empty());
     for required in BuildTargetHardeningLaneClass::REQUIRED {
         assert!(

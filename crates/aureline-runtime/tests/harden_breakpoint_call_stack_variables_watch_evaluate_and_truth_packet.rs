@@ -225,9 +225,7 @@ fn missing_inspector_state_for_launch_stable_blocks_stable() {
 
 #[test]
 fn missing_mapping_fidelity_badge_for_launch_stable_blocks_stable() {
-    assert_fixture_matches(
-        "missing_mapping_fidelity_badge_for_launch_stable_blocks_stable.json",
-    );
+    assert_fixture_matches("missing_mapping_fidelity_badge_for_launch_stable_blocks_stable.json");
 }
 
 #[test]
@@ -242,9 +240,7 @@ fn narrowed_row_missing_disclosure_ref_blocks_stable() {
 
 #[test]
 fn projection_collapses_inspector_state_vocabulary_blocks_stable() {
-    assert_fixture_matches(
-        "projection_collapses_inspector_state_vocabulary_blocks_stable.json",
-    );
+    assert_fixture_matches("projection_collapses_inspector_state_vocabulary_blocks_stable.json");
 }
 
 #[test]
@@ -254,12 +250,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet =
-        current_stable_debug_fidelity_truth_packet().expect("checked-in packet validates");
-    assert_eq!(
-        packet.promotion_state,
-        DebugFidelityPromotionState::Stable
-    );
+    let packet = current_stable_debug_fidelity_truth_packet().expect("checked-in packet validates");
+    assert_eq!(packet.promotion_state, DebugFidelityPromotionState::Stable);
     assert!(packet.validate().is_empty());
     for required in DebugFidelityLaneClass::REQUIRED {
         assert!(
@@ -279,8 +271,7 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_required_wedges_states_badges_and_surfaces_per_launch_stable_lane() {
-    let packet =
-        current_stable_debug_fidelity_truth_packet().expect("checked-in packet validates");
+    let packet = current_stable_debug_fidelity_truth_packet().expect("checked-in packet validates");
     for required in DebugFidelityLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required
@@ -353,10 +344,7 @@ fn checked_in_artifact_covers_required_wedges_states_badges_and_surfaces_per_lau
 
 #[test]
 fn closed_debug_fidelity_truth_tokens_are_pinned() {
-    assert_eq!(
-        DebugFidelityLaneClass::LocalLane.as_str(),
-        "local_lane"
-    );
+    assert_eq!(DebugFidelityLaneClass::LocalLane.as_str(), "local_lane");
     assert_eq!(
         DebugFidelityLaneClass::NotebookBridgeLane.as_str(),
         "notebook_bridge_lane"

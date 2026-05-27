@@ -429,12 +429,8 @@ pub enum WatchModeSupportClass {
 
 impl WatchModeSupportClass {
     /// Every required watch-mode support class for a `launch_stable` lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 4] = [
-        Self::Live,
-        Self::Reduced,
-        Self::Polling,
-        Self::Unavailable,
-    ];
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 4] =
+        [Self::Live, Self::Reduced, Self::Polling, Self::Unavailable];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -670,9 +666,7 @@ impl KnownLimitClass {
             Self::WatchModeSupportSubsetOnly => "watch_mode_support_subset_only",
             Self::SelectorDurabilitySubsetOnly => "selector_durability_subset_only",
             Self::ConsumerSurfaceSubsetOnly => "consumer_surface_subset_only",
-            Self::TestIdentityAttestationSkewDeclared => {
-                "test_identity_attestation_skew_declared"
-            }
+            Self::TestIdentityAttestationSkewDeclared => "test_identity_attestation_skew_declared",
             Self::WatchModeSupportAttestationSkewDeclared => {
                 "watch_mode_support_attestation_skew_declared"
             }
@@ -747,9 +741,7 @@ impl DowngradeAutomationClass {
             Self::AutoNarrowOnTestIdentityGap => "auto_narrow_on_test_identity_gap",
             Self::AutoNarrowOnDiscoveryPostureGap => "auto_narrow_on_discovery_posture_gap",
             Self::AutoNarrowOnWatchModeSupportGap => "auto_narrow_on_watch_mode_support_gap",
-            Self::AutoNarrowOnSelectorDurabilityGap => {
-                "auto_narrow_on_selector_durability_gap"
-            }
+            Self::AutoNarrowOnSelectorDurabilityGap => "auto_narrow_on_selector_durability_gap",
             Self::AutoNarrowOnConsumerSurfaceGap => "auto_narrow_on_consumer_surface_gap",
             Self::AutoNarrowOnTestIdentityAttestationGap => {
                 "auto_narrow_on_test_identity_attestation_gap"
@@ -2426,11 +2418,7 @@ mod tests {
         }
     }
 
-    fn wedge_row(
-        prefix: &str,
-        lane: TestExplorerLaneClass,
-        wedge: WedgeClass,
-    ) -> TestExplorerRow {
+    fn wedge_row(prefix: &str, lane: TestExplorerLaneClass, wedge: WedgeClass) -> TestExplorerRow {
         TestExplorerRow {
             row_id: format!("row:{prefix}:wedge:{}", wedge.as_str()),
             lane_class: lane,
@@ -2582,8 +2570,7 @@ mod tests {
             consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
             evidence_class: EvidenceClass::AutomatedFunctionalEvidence,
             known_limit_class: KnownLimitClass::NoneDeclared,
-            downgrade_automation_class:
-                DowngradeAutomationClass::AutoNarrowOnSelectorDurabilityGap,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnSelectorDurabilityGap,
             confidence_class: TestExplorerConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
             disclosure_ref: Some(format!(
@@ -2622,14 +2609,10 @@ mod tests {
             downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnConsumerSurfaceGap,
             confidence_class: TestExplorerConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
-            disclosure_ref: Some(format!(
-                "{}#auto_narrow_on_consumer_surface_gap",
-                doc_ref()
-            )),
+            disclosure_ref: Some(format!("{}#auto_narrow_on_consumer_surface_gap", doc_ref())),
             execution_context_id_binding: None,
             attests_test_identity_preserved: surface.requires_test_identity_attestation(),
-            attests_watch_mode_support_preserved: surface
-                .requires_watch_mode_support_attestation(),
+            attests_watch_mode_support_preserved: surface.requires_watch_mode_support_attestation(),
             attests_durable_selector_preserved: surface.requires_durable_selector_attestation(),
             raw_source_material_excluded: true,
             secrets_excluded: true,
@@ -2656,9 +2639,7 @@ mod tests {
             confidence_class: TestExplorerConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
             disclosure_ref: Some(format!("{}#auto_narrow_on_lineage_break", doc_ref())),
-            execution_context_id_binding: Some(format!(
-                "exec:m4:{prefix}:test_explorer_lineage"
-            )),
+            execution_context_id_binding: Some(format!("exec:m4:{prefix}:test_explorer_lineage")),
             attests_test_identity_preserved: false,
             attests_watch_mode_support_preserved: false,
             attests_durable_selector_preserved: false,
@@ -2722,18 +2703,13 @@ mod tests {
     fn sample_input() -> TestExplorerStabilizationTruthPacketInput {
         let mut rows = Vec::new();
         rows.extend(lane_rows(TestExplorerLaneClass::LocalLane, "local"));
-        rows.extend(lane_rows(
-            TestExplorerLaneClass::RemoteHelperLane,
-            "remote",
-        ));
+        rows.extend(lane_rows(TestExplorerLaneClass::RemoteHelperLane, "remote"));
         rows.extend(lane_rows(TestExplorerLaneClass::ContainerLane, "container"));
         rows.extend(lane_rows(TestExplorerLaneClass::NotebookLane, "notebook"));
         TestExplorerStabilizationTruthPacketInput {
-            packet_id: "packet:m4:stabilize_the_test_explorer_inline_results_watch_mode"
-                .to_owned(),
+            packet_id: "packet:m4:stabilize_the_test_explorer_inline_results_watch_mode".to_owned(),
             workflow_or_surface_id:
-                "workflow.runtime.stabilize_the_test_explorer_inline_results_watch_mode"
-                    .to_owned(),
+                "workflow.runtime.stabilize_the_test_explorer_inline_results_watch_mode".to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_lanes: TestExplorerLaneClass::REQUIRED.to_vec(),
             rows,
