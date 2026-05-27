@@ -41,6 +41,7 @@ pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
+pub mod finalize_request_workspace_and_api_request_execution_context;
 pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
 pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
@@ -233,6 +234,35 @@ pub use finalize_environment_and_toolchain_manager_parity_across_ui::{
     INSPECTOR_PARITY_TRUTH_FIXTURE_DIR, INSPECTOR_PARITY_TRUTH_PACKET_ARTIFACT_REF,
     INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND, INSPECTOR_PARITY_TRUTH_SCHEMA_REF,
     INSPECTOR_PARITY_TRUTH_SCHEMA_VERSION, INSPECTOR_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use finalize_request_workspace_and_api_request_execution_context::{
+    current_stable_request_execution_context_truth_packet,
+    AuthSourceModeClass as RequestExecutionAuthSourceModeClass,
+    ConfidenceClass as RequestExecutionConfidenceClass,
+    ConnectionStateClass as RequestExecutionConnectionStateClass,
+    ConsumerProjection as RequestExecutionConsumerProjection,
+    ConsumerProjectionSurface as RequestExecutionConsumerProjectionSurface,
+    ConsumerSurfaceClass as RequestExecutionConsumerSurfaceClass,
+    DowngradeAutomationClass as RequestExecutionDowngradeAutomationClass,
+    EvidenceClass as RequestExecutionEvidenceClass,
+    FindingKind as RequestExecutionFindingKind,
+    FindingSeverity as RequestExecutionFindingSeverity,
+    KnownLimitClass as RequestExecutionKnownLimitClass,
+    PromotionState as RequestExecutionPromotionState,
+    RequestExecutionContextRow, RequestExecutionContextTruthArtifactError,
+    RequestExecutionContextTruthPacket, RequestExecutionContextTruthPacketInput,
+    RequestExecutionContextTruthSupportExport, RequestExecutionLaneClass,
+    RequestExecutionRowClass,
+    RequestExecutionSupportClass,
+    StreamingResponseStateClass as RequestExecutionStreamingResponseStateClass,
+    ValidationFinding as RequestExecutionValidationFinding,
+    WedgeClass as RequestExecutionWedgeClass,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_ARTIFACT_DOC_REF,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_DOC_REF, REQUEST_EXECUTION_CONTEXT_TRUTH_FIXTURE_DIR,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_PACKET_ARTIFACT_REF,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_PACKET_RECORD_KIND,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_SCHEMA_REF, REQUEST_EXECUTION_CONTEXT_TRUTH_SCHEMA_VERSION,
+    REQUEST_EXECUTION_CONTEXT_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use harden_breakpoint_call_stack_variables_watch_evaluate_and::{
     current_stable_debug_fidelity_truth_packet,
