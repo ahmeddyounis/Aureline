@@ -11,6 +11,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
+pub mod c_and_cpp_daily_driver_quality_truth_packet;
 pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
@@ -35,6 +36,33 @@ pub mod tree_sitter;
 pub mod tsjs;
 pub mod vue_advanced_workflow_pack_truth_packet;
 
+pub use c_and_cpp_daily_driver_quality_truth_packet::{
+    current_stable_c_and_cpp_daily_driver_quality_truth_packet,
+    CAndCppDailyDriverQualityConsumerProjection, CAndCppDailyDriverQualityRow,
+    CAndCppDailyDriverQualityTruthArtifactError, CAndCppDailyDriverQualityTruthPacket,
+    CAndCppDailyDriverQualityTruthPacketInput, CAndCppDailyDriverQualityTruthSupportExport,
+    ConsumerSurface as CAndCppDailyDriverConsumerSurface,
+    DailyDriverConfidenceClass as CAndCppDailyDriverConfidenceClass,
+    DailyDriverRowClass as CAndCppDailyDriverQualityRowClass,
+    DailyLoopStepClass as CAndCppDailyDriverStepClass,
+    DowngradeAutomationClass as CAndCppDailyDriverDowngradeAutomationClass,
+    EvidenceClass as CAndCppDailyDriverEvidenceClass,
+    FindingKind as CAndCppDailyDriverQualityFindingKind,
+    FindingSeverity as CAndCppDailyDriverQualityFindingSeverity,
+    KnownLimitClass as CAndCppDailyDriverKnownLimitClass,
+    LanguageLaneClass as CAndCppDailyDriverLanguageLaneClass,
+    PromotionState as CAndCppDailyDriverQualityPromotionState,
+    SupportClass as CAndCppDailyDriverSupportClass,
+    ValidationFinding as CAndCppDailyDriverQualityValidationFinding,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use daily_driver_quality_truth_packet::{
     current_stable_daily_driver_quality_truth_packet,
     ConsumerSurface as DailyDriverQualityConsumerSurface,
