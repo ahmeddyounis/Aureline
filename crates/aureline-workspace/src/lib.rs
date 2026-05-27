@@ -46,6 +46,7 @@ pub mod state_packages;
 pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;
+pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod workset_scope_ux_lineage;
 pub mod workset_switcher;
 pub mod worksets;
@@ -595,6 +596,31 @@ pub use scope_propagation::{
     SCOPE_PROPAGATION_ALPHA_RECORD_KIND, SCOPE_PROPAGATION_ALPHA_SCHEMA_VERSION,
     SCOPE_PROPAGATION_ALPHA_SHARED_CONTRACT_REF,
     SCOPE_PROPAGATION_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_migration_wizard_import_fidelity_for_editor_launch_paths::{
+    project_migration_wizard_import_fidelity_packet, EditorLaunchPathRecord,
+    EditorLaunchPathSummary, ImportMappingDiagnosticRecord, ImportOutcomeLabel,
+    LaunchPathState, MigrationWizardImportFidelityCommandClass,
+    MigrationWizardImportFidelityCommandRecord, MigrationWizardImportFidelityError,
+    MigrationWizardImportFidelityInput, MigrationWizardImportFidelityInspectionRecord,
+    MigrationWizardImportFidelityPacket, MigrationWizardImportFidelityProjection,
+    MigrationWizardImportFidelityRecord, MigrationWizardImportFidelitySupportExportPacket,
+    MigrationWizardImportFidelityValidationError, RollbackCheckpointRecord, RollbackCheckpointState,
+    TargetFamilyOutcome,
+    EDITOR_LAUNCH_PATH_RECORD_KIND, IMPORT_DIAGNOSTIC_ACTION_CLASSES,
+    IMPORT_DIAGNOSTIC_REASON_CLASSES, IMPORT_MAPPING_DIAGNOSTIC_RECORD_KIND,
+    IMPORT_OUTCOME_LABELS, IMPORT_TARGET_FAMILIES,
+    LAUNCH_PATH_STATES, MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_CLASSES,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_RECORD_KIND,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_CONSUMER_SURFACES,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_INSPECTION_RECORD_KIND,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_INVALIDATION_REASONS,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_PACKET_RECORD_KIND,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_RECORD_KIND,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    ROLLBACK_CHECKPOINT_RECORD_KIND, ROLLBACK_CHECKPOINT_STATES, SOURCE_EDITOR_ECOSYSTEMS,
 };
 
 pub use worksets::{
