@@ -14,6 +14,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
 pub mod landing;
@@ -58,6 +59,28 @@ pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
     REWRITE_FLOW_INSPECTION_RECORD_KIND, REWRITE_FLOW_INVALIDATION_REASONS,
     REWRITE_FLOW_OPERATION_KINDS, REWRITE_FLOW_RECORD_KIND, REWRITE_FLOW_STATES,
     REWRITE_FLOW_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+};
+pub use harden_browser_handoff_and_in_product_review_boundaries::{
+    project_review_boundary_hardening_packet, BoundaryFreshnessObservationInput,
+    BoundaryFreshnessObservationRecord, BoundaryHardeningCommandInput,
+    BoundaryHardeningCommandRecord, BoundaryHardeningInspectionRecord,
+    BoundaryHardeningSupportExportInput, BoundaryHardeningSupportExportPacket,
+    BoundaryOwnershipSignalInput, BoundaryOwnershipSignalRecord, BrowserHandoffBoundaryInput,
+    BrowserHandoffBoundaryRecord, InProductReviewBoundaryInput, InProductReviewBoundaryRecord,
+    ProviderSourceIdentityInput, ProviderSourceIdentityRecord, ReturnPathInput, ReturnPathRecord,
+    ReviewBoundaryHardeningError, ReviewBoundaryHardeningInput, ReviewBoundaryHardeningPacket,
+    ReviewBoundaryHardeningProjection, ReviewBoundaryHardeningRecord,
+    ReviewBoundaryHardeningValidationError, BOUNDARY_AUTHORITY_CLASSES,
+    BOUNDARY_FRESHNESS_CLASSES, BOUNDARY_FRESHNESS_OBSERVATION_RECORD_KIND,
+    BOUNDARY_HARDENING_COMMAND_CLASSES, BOUNDARY_HARDENING_COMMAND_RECORD_KIND,
+    BOUNDARY_HARDENING_CONSUMER_SURFACES, BOUNDARY_HARDENING_INSPECTION_RECORD_KIND,
+    BOUNDARY_HARDENING_INVALIDATION_REASONS, BOUNDARY_HARDENING_STATES,
+    BOUNDARY_HARDENING_SUPPORT_EXPORT_PACKET_RECORD_KIND, BOUNDARY_OWNERSHIP_CLASSES,
+    BOUNDARY_OWNERSHIP_SIGNAL_RECORD_KIND, BROWSER_HANDOFF_BOUNDARY_RECORD_KIND,
+    HANDOFF_BOUNDARY_CLASSES, IN_PRODUCT_REVIEW_BOUNDARY_RECORD_KIND,
+    PROVIDER_SOURCE_IDENTITY_RECORD_KIND, RETURN_PATH_CLASSES, RETURN_PATH_RECORD_KIND,
+    REVIEW_BOUNDARY_HARDENING_PACKET_RECORD_KIND, REVIEW_BOUNDARY_HARDENING_RECORD_KIND,
+    REVIEW_BOUNDARY_HARDENING_SCHEMA_VERSION,
 };
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,

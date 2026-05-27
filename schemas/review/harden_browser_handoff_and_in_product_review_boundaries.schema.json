@@ -1,0 +1,591 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/harden_browser_handoff_and_in_product_review_boundaries.schema.json",
+  "title": "Aureline review boundary hardening packet",
+  "description": "Boundary schema for the review-boundary-hardening packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, a review_stabilization_record summary, a review_boundary_hardening_record, a review_browser_handoff_boundary_record, a review_in_product_review_boundary_record, a review_provider_source_identity_record, a review_return_path_record, a review_boundary_freshness_observation_record, review_boundary_ownership_signal_records, command-graph operation records, and a metadata-safe support/export packet. Raw URLs and raw provider payloads do not cross this boundary. Provider identity, source identity, and return paths are explicit so the stable line never hides hosted authority behind local chrome.",
+  "type": "object",
+  "$ref": "#/$defs/review_boundary_hardening_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion"
+      ]
+    },
+    "boundary_hardening_state": {
+      "type": "string",
+      "enum": [
+        "boundary_hardened",
+        "boundary_degraded_provider_overlay_stale",
+        "boundary_degraded_missing_return_path",
+        "boundary_degraded_hidden_authority",
+        "boundary_degraded_freshness_unknown",
+        "boundary_degraded_ownership_ambiguous"
+      ]
+    },
+    "handoff_boundary_class": {
+      "type": "string",
+      "enum": [
+        "handoff_reversible_typed",
+        "handoff_typed_no_return_path",
+        "handoff_untyped",
+        "handoff_not_required",
+        "handoff_authority_revoked"
+      ]
+    },
+    "boundary_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "provider_authoritative",
+        "local_and_provider_agree",
+        "local_and_provider_disagree",
+        "provider_overlay_missing"
+      ]
+    },
+    "return_path_class": {
+      "type": "string",
+      "enum": [
+        "return_to_review_anchor",
+        "return_to_workspace",
+        "return_to_change_lineage",
+        "return_to_landing_strip",
+        "return_path_missing",
+        "return_path_expired"
+      ]
+    },
+    "boundary_freshness_class": {
+      "type": "string",
+      "enum": [
+        "boundary_fresh",
+        "boundary_stale_within_grace",
+        "boundary_stale_blocks_mutation",
+        "boundary_freshness_unknown"
+      ]
+    },
+    "boundary_ownership_class": {
+      "type": "string",
+      "enum": [
+        "ownership_advisory_at_boundary",
+        "ownership_enforceable_at_boundary",
+        "ownership_conflict_at_boundary",
+        "ownership_not_disclosed"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_boundary",
+        "approve_boundary",
+        "refresh_provider_identity",
+        "refresh_return_path",
+        "invalidate_boundary",
+        "request_browser_handoff",
+        "return_to_product_scope",
+        "audit_boundary_state"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "provider_overlay_stale",
+        "missing_return_path",
+        "hidden_authority_detected",
+        "freshness_unknown",
+        "ownership_ambiguous",
+        "browser_handoff_untyped",
+        "approval_invalidated",
+        "anchor_drifted"
+      ]
+    },
+    "review_workspace_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id",
+        "review_workspace_source_class",
+        "provider_authority_class",
+        "review_workspace_lifecycle_state",
+        "freshness_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_record" },
+        "review_workspace_schema_version": { "type": "integer", "const": 1 },
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_source_class": { "$ref": "#/$defs/opaque_id" },
+        "provider_authority_class": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_lifecycle_state": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "review_stabilization_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id",
+        "review_workspace_id_ref",
+        "landing_candidate_id_ref",
+        "stabilization_state",
+        "review_pack_digest_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "required_check_ids",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "stabilization_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_state": { "type": "string" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "boundary_hardening_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id",
+        "review_workspace_id_ref",
+        "stabilization_id_ref",
+        "boundary_hardening_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_state": { "$ref": "#/$defs/boundary_hardening_state" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "browser_handoff_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "handoff_boundary_class",
+        "handoff_id_ref",
+        "destination_class",
+        "destination_ref",
+        "object_identity_ref",
+        "reason_code",
+        "return_path_present",
+        "reversible",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_browser_handoff_boundary_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_boundary_class": { "$ref": "#/$defs/handoff_boundary_class" },
+        "handoff_id_ref": { "type": "string" },
+        "destination_class": { "type": "string" },
+        "destination_ref": { "type": "string" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "type": "string" },
+        "return_path_present": { "type": "boolean" },
+        "reversible": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "in_product_review_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "boundary_authority_class",
+        "local_authoritative",
+        "provider_authoritative",
+        "local_provider_agree",
+        "hidden_authority_detected",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_in_product_review_boundary_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_authority_class": { "$ref": "#/$defs/boundary_authority_class" },
+        "local_authoritative": { "type": "boolean" },
+        "provider_authoritative": { "type": "boolean" },
+        "local_provider_agree": { "type": "boolean" },
+        "hidden_authority_detected": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "provider_source_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "provider_class",
+        "connected_provider_record_id_ref",
+        "provider_object_identity_ref",
+        "source_class",
+        "actor_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_provider_source_identity_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_class": { "type": "string" },
+        "connected_provider_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "type": "string" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "return_path_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "return_path_class",
+        "return_anchor_kind",
+        "return_anchor_ref",
+        "replay_posture",
+        "expired",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_return_path_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_path_class": { "$ref": "#/$defs/return_path_class" },
+        "return_anchor_kind": { "type": "string" },
+        "return_anchor_ref": { "type": "string" },
+        "replay_posture": { "type": "string" },
+        "expired": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "boundary_freshness_observation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "boundary_freshness_class",
+        "provider_overlay_freshness_class",
+        "last_fetched_at",
+        "blocks_mutation_when_stale",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_freshness_observation_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_freshness_class": { "$ref": "#/$defs/boundary_freshness_class" },
+        "provider_overlay_freshness_class": { "type": "string" },
+        "last_fetched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "blocks_mutation_when_stale": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "boundary_ownership_signal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "boundary_ownership_class",
+        "scope_pattern",
+        "owner_ref",
+        "enforceable",
+        "advisory",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_ownership_signal_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_ownership_class": { "$ref": "#/$defs/boundary_ownership_class" },
+        "scope_pattern": { "type": "string" },
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "enforceable": { "type": "boolean" },
+        "advisory": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "boundary_hardening_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_command_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "type": "string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "boundary_hardening_id_ref",
+        "review_workspace_id_ref",
+        "stabilization_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_support_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "raw_url_export_allowed": { "type": "boolean", "const": false },
+        "raw_provider_payload_export_allowed": { "type": "boolean", "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id_ref",
+        "review_workspace_id_ref",
+        "boundary_hardened",
+        "boundary_degraded_provider_overlay_stale",
+        "boundary_degraded_missing_return_path",
+        "boundary_degraded_hidden_authority",
+        "boundary_degraded_freshness_unknown",
+        "boundary_degraded_ownership_ambiguous",
+        "handoff_reversible_typed",
+        "in_product_local_authoritative",
+        "in_product_provider_authoritative",
+        "local_provider_agree",
+        "hidden_authority_detected",
+        "return_path_present_and_valid",
+        "boundary_fresh_or_within_grace",
+        "boundary_freshness_blocks_mutation",
+        "enforceable_ownership_at_boundary",
+        "advisory_ownership_at_boundary",
+        "ownership_conflict_at_boundary",
+        "actionable",
+        "invalidated",
+        "command_count",
+        "boundary_ownership_signal_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_inspection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardened": { "type": "boolean" },
+        "boundary_degraded_provider_overlay_stale": { "type": "boolean" },
+        "boundary_degraded_missing_return_path": { "type": "boolean" },
+        "boundary_degraded_hidden_authority": { "type": "boolean" },
+        "boundary_degraded_freshness_unknown": { "type": "boolean" },
+        "boundary_degraded_ownership_ambiguous": { "type": "boolean" },
+        "handoff_reversible_typed": { "type": "boolean" },
+        "in_product_local_authoritative": { "type": "boolean" },
+        "in_product_provider_authoritative": { "type": "boolean" },
+        "local_provider_agree": { "type": "boolean" },
+        "hidden_authority_detected": { "type": "boolean" },
+        "return_path_present_and_valid": { "type": "boolean" },
+        "boundary_fresh_or_within_grace": { "type": "boolean" },
+        "boundary_freshness_blocks_mutation": { "type": "boolean" },
+        "enforceable_ownership_at_boundary": { "type": "boolean" },
+        "advisory_ownership_at_boundary": { "type": "boolean" },
+        "ownership_conflict_at_boundary": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "invalidated": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "boundary_ownership_signal_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_boundary_hardening_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "stabilization",
+        "boundary_hardening",
+        "browser_handoff_boundary",
+        "in_product_boundary",
+        "provider_source_identity",
+        "return_path",
+        "boundary_freshness",
+        "boundary_ownership_signals",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_packet" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "packet_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "review_workspace": { "$ref": "#/$defs/review_workspace_record_summary" },
+        "stabilization": { "$ref": "#/$defs/review_stabilization_record_summary" },
+        "boundary_hardening": { "$ref": "#/$defs/boundary_hardening_record" },
+        "browser_handoff_boundary": { "$ref": "#/$defs/browser_handoff_boundary_record" },
+        "in_product_boundary": { "$ref": "#/$defs/in_product_review_boundary_record" },
+        "provider_source_identity": { "$ref": "#/$defs/provider_source_identity_record" },
+        "return_path": { "$ref": "#/$defs/return_path_record" },
+        "boundary_freshness": { "$ref": "#/$defs/boundary_freshness_observation_record" },
+        "boundary_ownership_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_ownership_signal_record" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_record" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export_packet" },
+        "inspection": { "$ref": "#/$defs/inspection_record" }
+      }
+    }
+  }
+}
