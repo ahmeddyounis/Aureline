@@ -12,6 +12,7 @@ pub mod branches;
 pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
+pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod mutations;
 pub mod publish;
@@ -77,6 +78,24 @@ pub use conflicts::{
     GitConflictSurfaceRecord, GitConflictSurfaceState, GitExternalChangeHandoffInput,
     GIT_CONFLICT_HANDOFF_PACKET_RECORD_KIND, GIT_CONFLICT_SUPPORT_EXPORT_RECORD_KIND,
     GIT_CONFLICT_SURFACE_RECORD_KIND,
+};
+pub use harden_conflict_resolution_external_change_reconciliation_and_merge::{
+    build_stable_conflict_session_packet, parse_stable_conflict_session_record,
+    project_stable_conflict_session, ConflictProvenanceInput, ConflictProvenanceRecord,
+    ConflictResolutionMode, StableConflictAuditEvent, StableConflictSessionCommandInput,
+    StableConflictSessionCommandRecord, StableConflictSessionError, StableConflictSessionInput,
+    StableConflictSessionInspectionRecord, StableConflictSessionPacket,
+    StableConflictSessionProjection, StableConflictSessionRecord,
+    StableConflictSessionRestartSnapshot, StableConflictSessionSupportExport,
+    StableConflictSessionSupportExportInput, StableConflictSessionSupportExportPacket,
+    StableConflictValidationError, CONFLICT_INPUT_FRESHNESS_CLASSES,
+    CONFLICT_PROVENANCE_SOURCE_CLASSES, CONFLICT_RESOLUTION_MODES,
+    STABLE_CONFLICT_AUDIT_EVENTS, STABLE_CONFLICT_COMMAND_CLASSES,
+    STABLE_CONFLICT_CONSUMER_SURFACES, STABLE_CONFLICT_OPERATION_KINDS,
+    STABLE_CONFLICT_SESSION_COMMAND_RECORD_KIND, STABLE_CONFLICT_SESSION_INSPECTION_RECORD_KIND,
+    STABLE_CONFLICT_SESSION_LIFECYCLE_STATES, STABLE_CONFLICT_SESSION_PACKET_RECORD_KIND,
+    STABLE_CONFLICT_SESSION_RECORD_KIND, STABLE_CONFLICT_SESSION_SCHEMA_VERSION,
+    STABLE_CONFLICT_SESSION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
 };
 pub use mutations::{
     GitMutationActivityRecord, GitMutationActorRef, GitMutationBackend, GitMutationBackendError,
