@@ -1,0 +1,656 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/finalize_issue_and_work_item_linkage_with_branch.schema.json",
+  "title": "Aureline work-item linkage finalization packet",
+  "description": "Boundary schema for the work-item linkage finalization packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, a review_stabilization_record summary, a work_item_linkage_finalization_record, work_item_detail_surface_records, status_transition_sheet_records, offline_handoff_continuity_records, branch_work_item_link_records, review_work_item_link_records, publish_later_continuity_records, command-graph operation records, and a metadata-safe support/export packet. Every work-item detail surface discloses its write mode, every transition sheet previews provider side effects and preserves local draft on failure, offline handoffs survive restart/reconnect/export-import, and branch/review links are previewable before publish.",
+  "type": "object",
+  "$ref": "#/$defs/work_item_linkage_finalization_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion",
+        "offline_handoff"
+      ]
+    },
+    "finalization_state": {
+      "type": "string",
+      "enum": [
+        "finalized_current",
+        "finalized_stale_provider_overlay",
+        "finalized_partial_work_item_scope",
+        "finalized_diverged_requires_review",
+        "finalized_offline_handoff_only"
+      ]
+    },
+    "write_mode_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "comment_or_link",
+        "full_edit",
+        "offline_capture_only",
+        "policy_blocked"
+      ]
+    },
+    "work_item_linkage_command_class": {
+      "type": "string",
+      "enum": [
+        "preview_linkage",
+        "confirm_status_transition",
+        "save_local_draft",
+        "queue_publish_later",
+        "export_offline_handoff",
+        "refresh_provider_overlay",
+        "invalidate_linkage"
+      ]
+    },
+    "row_posture_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_current",
+        "provider_authoritative_stale",
+        "local_draft_unpublished",
+        "sync_pending",
+        "offline_captured",
+        "policy_blocked"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_grace",
+        "stale_blocks_mutation",
+        "freshness_unknown"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "close_linked_issue",
+        "reopen_linked_issue",
+        "transition_status",
+        "add_comment",
+        "attach_evidence",
+        "notify_subscribers"
+      ]
+    },
+    "issue_to_branch_link_class": {
+      "type": "string",
+      "enum": [
+        "linked_local_branch_or_worktree_no_provider_overlay",
+        "linked_provider_branch_authoritative",
+        "link_pending_provider_confirmation",
+        "link_diverged_requires_review",
+        "link_not_established"
+      ]
+    },
+    "linked_review_class": {
+      "type": "string",
+      "enum": [
+        "linked_review_only_no_provider_overlay",
+        "linked_provider_review_authoritative",
+        "review_pending_provider_confirmation",
+        "review_diverged_requires_review",
+        "review_not_established"
+      ]
+    },
+    "link_source_class": {
+      "type": "string",
+      "enum": [
+        "local_git_worktree",
+        "local_review_workspace",
+        "provider_git_host",
+        "provider_issue_tracker",
+        "imported_bundle",
+        "browser_handoff"
+      ]
+    },
+    "link_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_grace",
+        "stale_blocks_mutation",
+        "freshness_unknown"
+      ]
+    },
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "draining",
+        "drained",
+        "failed",
+        "retry_pending"
+      ]
+    },
+    "drain_state": {
+      "type": "string",
+      "enum": [
+        "awaiting_drain",
+        "drain_in_progress",
+        "drain_complete",
+        "drain_failed"
+      ]
+    },
+    "retry_route_class": {
+      "type": "string",
+      "enum": [
+        "retry_provider_publish",
+        "retry_local_export",
+        "retry_offline_handoff",
+        "retry_manual_intervention"
+      ]
+    },
+    "work_item_linkage_finalization_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "linkage_finalization_id",
+        "review_workspace_id_ref",
+        "stabilization_id_ref",
+        "finalization_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_linkage_finalization_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "linkage_finalization_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "finalization_state": { "$ref": "#/$defs/finalization_state" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "work_item_detail_surface_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "detail_surface_id",
+        "linkage_finalization_id_ref",
+        "provider_work_item_detail_record_id_ref",
+        "canonical_provider_id",
+        "provider_owned_id",
+        "write_mode_disclosure_class",
+        "row_posture_class",
+        "freshness_class",
+        "freshness_observed_at",
+        "provider_authoritative_state_visible",
+        "local_draft_state_visible",
+        "sync_pending_state_visible",
+        "offline_captured_state_visible",
+        "branch_local_locator_ref",
+        "review_workspace_record_id_ref",
+        "validation_evidence_record_id_refs",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_detail_surface_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "detail_surface_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_work_item_detail_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_provider_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_owned_id": { "$ref": "#/$defs/opaque_id" },
+        "write_mode_disclosure_class": { "$ref": "#/$defs/write_mode_disclosure_class" },
+        "row_posture_class": { "$ref": "#/$defs/row_posture_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "provider_authoritative_state_visible": { "type": "boolean" },
+        "local_draft_state_visible": { "type": "boolean" },
+        "sync_pending_state_visible": { "type": "boolean" },
+        "offline_captured_state_visible": { "type": "boolean" },
+        "branch_local_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "validation_evidence_record_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "previewed_side_effect": {
+      "type": "object",
+      "required": [
+        "side_effect_id",
+        "side_effect_class",
+        "target_scope",
+        "summary_label"
+      ],
+      "properties": {
+        "side_effect_id": { "$ref": "#/$defs/opaque_id" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "target_scope": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "status_transition_sheet_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "transition_sheet_id",
+        "linkage_finalization_id_ref",
+        "provider_status_transition_packet_record_id_ref",
+        "provider_transition_review_record_id_ref",
+        "previewed_side_effects",
+        "confirm_action_available",
+        "export_action_available",
+        "cancel_action_available",
+        "local_draft_preserved_on_failure",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "status_transition_sheet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "transition_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_status_transition_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_transition_review_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "previewed_side_effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/previewed_side_effect" }
+        },
+        "confirm_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean" },
+        "cancel_action_available": { "type": "boolean" },
+        "local_draft_preserved_on_failure": { "type": "boolean" },
+        "publish_later_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "offline_handoff_continuity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "offline_handoff_continuity_id",
+        "linkage_finalization_id_ref",
+        "provider_offline_handoff_packet_record_id_ref",
+        "survives_restart",
+        "survives_reconnect",
+        "survives_export_import",
+        "destination_provider_target",
+        "queued_actions_preserved",
+        "redaction_choices_preserved",
+        "selected_evidence_preserved",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "offline_handoff_continuity_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "offline_handoff_continuity_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "survives_restart": { "type": "boolean" },
+        "survives_reconnect": { "type": "boolean" },
+        "survives_export_import": { "type": "boolean" },
+        "destination_provider_target": { "$ref": "#/$defs/opaque_id" },
+        "queued_actions_preserved": { "type": "boolean" },
+        "redaction_choices_preserved": { "type": "boolean" },
+        "selected_evidence_preserved": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "branch_work_item_link_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "branch_link_id",
+        "linkage_finalization_id_ref",
+        "work_item_detail_surface_id_ref",
+        "branch_local_locator_ref",
+        "issue_to_branch_link_class",
+        "link_source_class",
+        "link_freshness_class",
+        "previewable_before_publish",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_work_item_link_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "branch_link_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_surface_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "branch_local_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "issue_to_branch_link_class": { "$ref": "#/$defs/issue_to_branch_link_class" },
+        "link_source_class": { "$ref": "#/$defs/link_source_class" },
+        "link_freshness_class": { "$ref": "#/$defs/link_freshness_class" },
+        "previewable_before_publish": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_work_item_link_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "review_link_id",
+        "linkage_finalization_id_ref",
+        "work_item_detail_surface_id_ref",
+        "review_workspace_record_id_ref",
+        "linked_review_class",
+        "link_source_class",
+        "link_freshness_class",
+        "previewable_before_publish",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_work_item_link_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "review_link_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_surface_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_review_class": { "$ref": "#/$defs/linked_review_class" },
+        "link_source_class": { "$ref": "#/$defs/link_source_class" },
+        "link_freshness_class": { "$ref": "#/$defs/link_freshness_class" },
+        "previewable_before_publish": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "publish_later_continuity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "continuity_id",
+        "linkage_finalization_id_ref",
+        "publish_later_queue_item_record_id_ref",
+        "provider_descriptor_ref",
+        "queue_state",
+        "drain_state",
+        "retry_route_class",
+        "survives_restart",
+        "survives_reconnect",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "publish_later_continuity_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "continuity_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "queue_state": { "$ref": "#/$defs/queue_state" },
+        "drain_state": { "$ref": "#/$defs/drain_state" },
+        "retry_route_class": { "$ref": "#/$defs/retry_route_class" },
+        "survives_restart": { "type": "boolean" },
+        "survives_reconnect": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "work_item_linkage_command_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "linkage_finalization_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "actionable",
+        "blocked_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_linkage_command_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/work_item_linkage_command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "type": "string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "work_item_linkage_support_export_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "linkage_finalization_id_ref",
+        "review_workspace_id_ref",
+        "stabilization_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_linkage_support_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "work_item_linkage_inspection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "linkage_finalization_id_ref",
+        "review_workspace_id_ref",
+        "finalized_current",
+        "finalized_stale_provider_overlay",
+        "finalized_partial_work_item_scope",
+        "finalized_diverged_requires_review",
+        "finalized_offline_handoff_only",
+        "provider_authoritative_surface_present",
+        "local_draft_surface_present",
+        "sync_pending_surface_present",
+        "offline_captured_surface_present",
+        "write_mode_disclosed_on_all_surfaces",
+        "transition_sheet_present",
+        "local_draft_preserved_on_failure",
+        "offline_handoff_survives_restart",
+        "offline_handoff_survives_reconnect",
+        "branch_link_previewable",
+        "review_link_previewable",
+        "publish_later_survives_restart",
+        "publish_later_survives_reconnect",
+        "actionable",
+        "invalidated",
+        "command_count",
+        "detail_surface_count",
+        "transition_sheet_count",
+        "offline_handoff_continuity_count",
+        "branch_link_count",
+        "review_link_count",
+        "publish_later_continuity_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_linkage_inspection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "linkage_finalization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "finalized_current": { "type": "boolean" },
+        "finalized_stale_provider_overlay": { "type": "boolean" },
+        "finalized_partial_work_item_scope": { "type": "boolean" },
+        "finalized_diverged_requires_review": { "type": "boolean" },
+        "finalized_offline_handoff_only": { "type": "boolean" },
+        "provider_authoritative_surface_present": { "type": "boolean" },
+        "local_draft_surface_present": { "type": "boolean" },
+        "sync_pending_surface_present": { "type": "boolean" },
+        "offline_captured_surface_present": { "type": "boolean" },
+        "write_mode_disclosed_on_all_surfaces": { "type": "boolean" },
+        "transition_sheet_present": { "type": "boolean" },
+        "local_draft_preserved_on_failure": { "type": "boolean" },
+        "offline_handoff_survives_restart": { "type": "boolean" },
+        "offline_handoff_survives_reconnect": { "type": "boolean" },
+        "branch_link_previewable": { "type": "boolean" },
+        "review_link_previewable": { "type": "boolean" },
+        "publish_later_survives_restart": { "type": "boolean" },
+        "publish_later_survives_reconnect": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "invalidated": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "detail_surface_count": { "type": "integer", "minimum": 0 },
+        "transition_sheet_count": { "type": "integer", "minimum": 0 },
+        "offline_handoff_continuity_count": { "type": "integer", "minimum": 0 },
+        "branch_link_count": { "type": "integer", "minimum": 0 },
+        "review_link_count": { "type": "integer", "minimum": 0 },
+        "publish_later_continuity_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "work_item_linkage_finalization_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "stabilization",
+        "linkage_finalization",
+        "detail_surfaces",
+        "transition_sheets",
+        "offline_handoff_continuities",
+        "branch_links",
+        "review_links",
+        "publish_later_continuities",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_linkage_finalization_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_workspace": {
+          "type": "object",
+          "description": "Summary of the review_workspace_record from the workspace beta packet."
+        },
+        "stabilization": {
+          "type": "object",
+          "description": "Summary of the review_stabilization_record from the stabilization packet."
+        },
+        "linkage_finalization": { "$ref": "#/$defs/work_item_linkage_finalization_record" },
+        "detail_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/work_item_detail_surface_record" }
+        },
+        "transition_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/status_transition_sheet_record" }
+        },
+        "offline_handoff_continuities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/offline_handoff_continuity_record" }
+        },
+        "branch_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/branch_work_item_link_record" }
+        },
+        "review_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_work_item_link_record" }
+        },
+        "publish_later_continuities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/publish_later_continuity_record" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/work_item_linkage_command_record" }
+        },
+        "support_export": { "$ref": "#/$defs/work_item_linkage_support_export_packet" },
+        "inspection": { "$ref": "#/$defs/work_item_linkage_inspection_record" }
+      }
+    }
+  }
+}

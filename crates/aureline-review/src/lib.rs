@@ -14,6 +14,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
@@ -41,6 +42,29 @@ pub use change_inspector::{
 pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
+pub use finalize_issue_and_work_item_linkage_with_branch::{
+    project_work_item_linkage_finalization_packet, OfflineHandoffContinuityInput,
+    OfflineHandoffContinuityRecord, PreviewedSideEffectInput, PreviewedSideEffectRecord,
+    PublishLaterContinuityInput, PublishLaterContinuityRecord, StatusTransitionSheetInput,
+    StatusTransitionSheetRecord, WorkItemBranchLinkInput, WorkItemBranchLinkRecord,
+    WorkItemDetailSurfaceInput, WorkItemDetailSurfaceRecord, WorkItemLinkageCommandInput,
+    WorkItemLinkageCommandRecord, WorkItemLinkageFinalizationError,
+    WorkItemLinkageFinalizationInput, WorkItemLinkageFinalizationPacket,
+    WorkItemLinkageFinalizationProjection, WorkItemLinkageFinalizationRecord,
+    WorkItemLinkageFinalizationValidationError, WorkItemLinkageInspectionRecord,
+    WorkItemLinkageSupportExportInput, WorkItemLinkageSupportExportPacket,
+    WorkItemLinkageFinalizationProjection as WorkItemLinkageProjection,
+    WorkItemReviewLinkInput, WorkItemReviewLinkRecord, FINALIZATION_STATES,
+    OFFLINE_HANDOFF_CONTINUITY_RECORD_KIND, PUBLISH_LATER_CONTINUITY_RECORD_KIND,
+    STATUS_TRANSITION_SHEET_RECORD_KIND, WORK_ITEM_BRANCH_LINK_RECORD_KIND,
+    WORK_ITEM_DETAIL_SURFACE_RECORD_KIND, WORK_ITEM_LINKAGE_COMMAND_CLASSES,
+    WORK_ITEM_LINKAGE_COMMAND_RECORD_KIND, WORK_ITEM_LINKAGE_CONSUMER_SURFACES,
+    WORK_ITEM_LINKAGE_FINALIZATION_PACKET_RECORD_KIND,
+    WORK_ITEM_LINKAGE_FINALIZATION_RECORD_KIND, WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
+    WORK_ITEM_LINKAGE_INSPECTION_RECORD_KIND, WORK_ITEM_LINKAGE_INVALIDATION_REASONS,
+    WORK_ITEM_LINKAGE_SUPPORT_EXPORT_PACKET_RECORD_KIND, WORK_ITEM_REVIEW_LINK_RECORD_KIND,
+    WRITE_MODE_DISCLOSURE_CLASSES,
 };
 pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
     project_diff_first_rewrite_flow_packet, DiffFirstRewriteFlowPacket,
