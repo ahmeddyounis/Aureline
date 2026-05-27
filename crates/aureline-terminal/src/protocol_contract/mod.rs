@@ -105,7 +105,10 @@ impl TerminalSessionClass {
 
     /// True when the row backs a live or recoverable interactive shell.
     pub const fn is_interactive_class(self) -> bool {
-        matches!(self, Self::LocalTerminal | Self::RemoteTerminal | Self::SharedTerminal)
+        matches!(
+            self,
+            Self::LocalTerminal | Self::RemoteTerminal | Self::SharedTerminal
+        )
     }
 
     /// True when the row is evidence-only.
@@ -750,7 +753,9 @@ impl TerminalSessionSummary {
             clipboard_posture: default_clipboard,
             clipboard_posture_token: default_clipboard.as_str().to_owned(),
             bracketed_paste: TerminalBracketedPasteClass::NotAdvertised,
-            bracketed_paste_token: TerminalBracketedPasteClass::NotAdvertised.as_str().to_owned(),
+            bracketed_paste_token: TerminalBracketedPasteClass::NotAdvertised
+                .as_str()
+                .to_owned(),
             linkification: TerminalLinkificationClass::Disabled,
             linkification_token: TerminalLinkificationClass::Disabled.as_str().to_owned(),
             shared_role: TerminalSharedRoleClass::NotShared,
@@ -877,11 +882,13 @@ impl TerminalSessionSummary {
         self.live_authority = TerminalLiveAuthorityClass::InspectOnly;
         self.live_authority_token = TerminalLiveAuthorityClass::InspectOnly.as_str().to_owned();
         self.bracketed_paste = TerminalBracketedPasteClass::ForcedNoAutoSubmit;
-        self.bracketed_paste_token =
-            TerminalBracketedPasteClass::ForcedNoAutoSubmit.as_str().to_owned();
+        self.bracketed_paste_token = TerminalBracketedPasteClass::ForcedNoAutoSubmit
+            .as_str()
+            .to_owned();
         self.clipboard_posture = TerminalClipboardPostureClass::NotApplicable;
-        self.clipboard_posture_token =
-            TerminalClipboardPostureClass::NotApplicable.as_str().to_owned();
+        self.clipboard_posture_token = TerminalClipboardPostureClass::NotApplicable
+            .as_str()
+            .to_owned();
         self
     }
 
@@ -906,11 +913,13 @@ impl TerminalSessionSummary {
         summary.live_authority = live;
         summary.live_authority_token = live.as_str().to_owned();
         summary.clipboard_posture = TerminalClipboardPostureClass::NotApplicable;
-        summary.clipboard_posture_token =
-            TerminalClipboardPostureClass::NotApplicable.as_str().to_owned();
+        summary.clipboard_posture_token = TerminalClipboardPostureClass::NotApplicable
+            .as_str()
+            .to_owned();
         summary.bracketed_paste = TerminalBracketedPasteClass::ForcedNoAutoSubmit;
-        summary.bracketed_paste_token =
-            TerminalBracketedPasteClass::ForcedNoAutoSubmit.as_str().to_owned();
+        summary.bracketed_paste_token = TerminalBracketedPasteClass::ForcedNoAutoSubmit
+            .as_str()
+            .to_owned();
         summary
     }
 
@@ -1002,9 +1011,8 @@ impl TerminalSessionSummary {
         checks.insert("shared_role_consistency");
 
         if self.shared_role.requires_control_grant() && self.control_grant_ref.is_none() {
-            errors.push(
-                "active_writer_grantee shared_role must cite a control_grant_ref".to_owned(),
-            );
+            errors
+                .push("active_writer_grantee shared_role must cite a control_grant_ref".to_owned());
         }
         checks.insert("control_grant_required");
 
@@ -1034,9 +1042,7 @@ impl TerminalSessionSummary {
         }
         checks.insert("fresh_session_command_id");
 
-        if self.live_authority.requires_renewed_intent()
-            && !self.recovery.renewed_intent_required
-        {
+        if self.live_authority.requires_renewed_intent() && !self.recovery.renewed_intent_required {
             errors.push(
                 "live_authority requires renewed intent but recovery.renewed_intent_required is false"
                     .to_owned(),
@@ -1245,7 +1251,9 @@ impl TerminalExportPacket {
             .to_owned();
         self.promoted_range_provenance = Some(slice.provenance.clone());
         self.transcript = Some(slice.transcript.clone());
-        self.summary = self.summary.as_evidence_view(TerminalSessionClass::AiPromotedSlice);
+        self.summary = self
+            .summary
+            .as_evidence_view(TerminalSessionClass::AiPromotedSlice);
         self.promoted_slice = Some(slice);
         self
     }
@@ -1268,7 +1276,8 @@ impl TerminalExportPacket {
         if self.export_class_token != self.export_class.as_str() {
             errors.push("export_class_token must mirror export_class".to_owned());
         }
-        if self.scrollback_redaction_class_token != self.export_class.scrollback_redaction().as_str()
+        if self.scrollback_redaction_class_token
+            != self.export_class.scrollback_redaction().as_str()
         {
             errors.push(
                 "scrollback_redaction_class_token must mirror export_class.scrollback_redaction()"
@@ -1284,9 +1293,8 @@ impl TerminalExportPacket {
         if matches!(self.export_class, TerminalExportClass::MetadataOnly)
             && self.transcript.is_some()
         {
-            errors.push(
-                "metadata_only export packets must omit the transcript snapshot".to_owned(),
-            );
+            errors
+                .push("metadata_only export packets must omit the transcript snapshot".to_owned());
         }
         if matches!(self.export_class, TerminalExportClass::AiPromotedSlice)
             && self.promoted_slice.is_none()
@@ -1549,8 +1557,11 @@ mod tests {
         host.quarantine(&id, "mono:1", "terminal_protocol_violation_budget_exceeded")
             .unwrap();
         let prior = host.session(&id).expect("session exists");
-        let declined =
-            decline_session_restore(prior, RestoreDeclinedReason::DeclinedByPolicy, "mono:restart");
+        let declined = decline_session_restore(
+            prior,
+            RestoreDeclinedReason::DeclinedByPolicy,
+            "mono:restart",
+        );
         let header = TerminalHeaderRecord::project_restored(&declined);
 
         let summary = TerminalSessionSummary::from_restored_header(

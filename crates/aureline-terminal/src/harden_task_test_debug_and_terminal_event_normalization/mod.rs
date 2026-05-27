@@ -1,58 +1,61 @@
-//! Integrated-terminal stabilization truth packet for the M4 stable
-//! lane.
+//! Task / test / debug / terminal event-normalization truth packet
+//! for the M4 stable lane.
 //!
-//! This module pins how local, remote/helper, container, and restored
-//! terminal sessions expose one boundary truth that downstream
-//! consumers (terminal pane chips, transcript export surface, browser
-//! handoff, restore surface, CLI/headless inspector, support export,
-//! release proof index, Help/About proof card, and the conformance
-//! dashboard) read verbatim. Surfaces MUST NOT mint local copies,
-//! paraphrase fields, or fork their own host-boundary, clipboard, or
-//! transcript-versus-live semantics; they project this packet.
+//! This module pins how task, test, debug, and terminal event streams
+//! normalize into one export-safe execution ledger. Surfaces (editor
+//! run surface, task panel, test runner surface, debug surface,
+//! terminal pane, CLI/headless inspector, AI tool surface, review
+//! surface, support export, release proof index, Help/About proof
+//! card, and the conformance dashboard) read this packet verbatim;
+//! they MUST NOT mint local envelope copies, paraphrase fields,
+//! collapse the canonical lifecycle into display text, or flatten
+//! adapter-isolated source-kind detail into a single undifferentiated
+//! event stream.
 //!
 //! The packet refuses to certify a launch-stable lane whose
-//! `terminal_stabilization_quality` row cannot prove:
+//! `event_normalization_quality` row cannot prove:
 //!
-//! - the four wedges (`host_boundary_chip`, `clipboard_posture`,
-//!   `transcript_export`, `restore_no_rerun`) each have a structured
-//!   wedge_admission row,
-//! - each typed host-boundary field is admitted exactly once
-//!   (`host_or_session_identity`, `route_cue`, `trust_state`,
-//!   `restore_state`, `target_or_cwd_hint`) via one
-//!   `host_boundary_field_binding` row per field,
-//! - each clipboard-posture surface is admitted exactly once
-//!   (`clipboard_route_local_vs_remote`, `bracketed_paste_state`,
-//!   `multiline_paste_guardrail`, `admin_suppression`,
-//!   `high_risk_paste_review`) via one `clipboard_posture_binding`
-//!   row per surface,
-//! - each transcript-export field is admitted exactly once
-//!   (`transcript_versus_live_session`, `host_session_boundary_cue`,
-//!   `redaction_state`) via one `transcript_export_field_binding`
-//!   row per field,
-//! - one `restore_no_rerun_attestation` row attests that restored
-//!   sessions are transcript-only and that no silent rerun is
-//!   permitted (`attests_no_silent_rerun: true`),
-//! - one stable `execution_context_id` lineage object threads through
-//!   every surface that consumes the terminal session.
+//! - the four wedges (`envelope_canonicalization`,
+//!   `source_kind_negotiation`, `lifecycle_normalization`,
+//!   `export_preservation`) each have a structured wedge_admission
+//!   row,
+//! - each canonical envelope field is admitted exactly once
+//!   (`event_id`, `workspace_id`, `target_id`, `source_kind`,
+//!   `confidence`, `timestamp`, `execution_context_id`,
+//!   `payload_kind`, `raw_payload_ref`, `provenance`) via one
+//!   `envelope_field_binding` row per field,
+//! - each canonical source kind is admitted exactly once (`native`,
+//!   `bsp`, `bazel_bep`, `structured_output`, `heuristic_parser`)
+//!   via one `source_kind_binding` row per kind,
+//! - each canonical lifecycle event is admitted exactly once
+//!   (`task_queued`, `target_graph_ready`, `task_started`,
+//!   `progress_updated`, `diagnostic_emitted`, `test_case_started`,
+//!   `test_case_finished`, `artifact_published`, `task_finished`)
+//!   via one `lifecycle_event_binding` row per event,
+//! - one `raw_payload_retention_attestation` row attests that
+//!   replay, export, and support packets preserve `source_kind`,
+//!   `confidence`, and the adapter raw payload reference rather than
+//!   flattening them away (`attests_raw_payload_retained: true`),
+//! - one stable `execution_context_id` lineage object threads
+//!   through every emitted envelope and downstream consumer surface.
 //!
-//! Every row binds a closed `terminal_stabilization_lane_class`,
-//! `terminal_stabilization_row_class`, `support_class`,
-//! `wedge_class`, `host_boundary_field_class`,
-//! `clipboard_posture_class`, `transcript_export_field_class`,
-//! `evidence_class`, `known_limit_class`,
+//! Every row binds a closed `event_normalization_lane_class`,
+//! `event_normalization_row_class`, `support_class`, `wedge_class`,
+//! `envelope_field_class`, `source_kind_class`,
+//! `lifecycle_event_class`, `evidence_class`, `known_limit_class`,
 //! `downgrade_automation_class`, and
-//! `terminal_stabilization_confidence_class` plus an `evidence_refs`
+//! `event_normalization_confidence_class` plus an `evidence_refs`
 //! array and a `disclosure_ref` whenever the row is narrowed below
 //! launch-stable, declares a non-`none_declared` known limit, or
 //! binds a non-`none` downgrade automation.
 //!
 //! The packet is intentionally metadata-only — it never admits raw
 //! command lines, raw process environment bytes, raw scrollback
-//! bodies, raw secrets, or ambient credentials past the boundary. A
-//! row that claims `launch_stable` while leaving its support, known
-//! limit, downgrade automation, or evidence class unbound is refused;
-//! the validator narrows below launch-stable instead of inheriting an
-//! adjacent certified row.
+//! bodies, secrets, or ambient credentials past the boundary. A row
+//! that claims `launch_stable` while leaving its support, known
+//! limit, downgrade automation, or evidence class unbound is
+//! refused; the validator narrows below launch-stable instead of
+//! inheriting an adjacent certified row.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -60,98 +63,106 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// Stable record-kind tag for [`TerminalStabilizationTruthPacket`].
-pub const TERMINAL_STABILIZATION_TRUTH_PACKET_RECORD_KIND: &str =
-    "stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth_stable_packet";
+/// Stable record-kind tag for [`EventNormalizationTruthPacket`].
+pub const EVENT_NORMALIZATION_TRUTH_PACKET_RECORD_KIND: &str =
+    "harden_task_test_debug_and_terminal_event_normalization_truth_stable_packet";
 
-/// Stable record-kind tag for [`TerminalStabilizationTruthSupportExport`].
-pub const TERMINAL_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND: &str =
-    "stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth_support_export";
+/// Stable record-kind tag for [`EventNormalizationTruthSupportExport`].
+pub const EVENT_NORMALIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND: &str =
+    "harden_task_test_debug_and_terminal_event_normalization_truth_support_export";
 
-/// Integer schema version for the terminal-stabilization truth packet.
-pub const TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION: u32 = 1;
+/// Integer schema version for the event-normalization truth packet.
+pub const EVENT_NORMALIZATION_TRUTH_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema.
-pub const TERMINAL_STABILIZATION_TRUTH_SCHEMA_REF: &str =
-    "schemas/runtime/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth.schema.json";
+pub const EVENT_NORMALIZATION_TRUTH_SCHEMA_REF: &str =
+    "schemas/runtime/harden_task_test_debug_and_terminal_event_normalization_truth.schema.json";
 
 /// Repo-relative path of the reviewer contract doc.
-pub const TERMINAL_STABILIZATION_TRUTH_DOC_REF: &str =
-    "docs/runtime/m4/stabilize-integrated-terminal-boundaries-clipboard-posture-transcript-export.md";
+pub const EVENT_NORMALIZATION_TRUTH_DOC_REF: &str =
+    "docs/runtime/m4/harden-task-test-debug-and-terminal-event-normalization.md";
 
 /// Repo-relative path of the human-readable reviewer artifact.
-pub const TERMINAL_STABILIZATION_TRUTH_ARTIFACT_DOC_REF: &str =
-    "artifacts/runtime/m4/stabilize-integrated-terminal-boundaries-clipboard-posture-transcript-export.md";
+pub const EVENT_NORMALIZATION_TRUTH_ARTIFACT_DOC_REF: &str =
+    "artifacts/runtime/m4/harden-task-test-debug-and-terminal-event-normalization.md";
 
 /// Repo-relative path of the protected fixture corpus directory.
-pub const TERMINAL_STABILIZATION_TRUTH_FIXTURE_DIR: &str =
-    "fixtures/runtime/m4/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export";
+pub const EVENT_NORMALIZATION_TRUTH_FIXTURE_DIR: &str =
+    "fixtures/runtime/m4/harden_task_test_debug_and_terminal_event_normalization";
 
 /// Repo-relative path of the checked-in stable packet.
-pub const TERMINAL_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF: &str =
-    "artifacts/runtime/m4/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth_packet.json";
+pub const EVENT_NORMALIZATION_TRUTH_PACKET_ARTIFACT_REF: &str =
+    "artifacts/runtime/m4/harden_task_test_debug_and_terminal_event_normalization_truth_packet.json";
 
-/// Closed terminal-stabilization lane vocabulary. Every required lane
+/// Closed event-normalization lane vocabulary. Every required lane
 /// MUST have at least one row in any stable packet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TerminalStabilizationLaneClass {
-    /// Local-host terminal sessions.
-    LocalLane,
-    /// Remote / helper attach terminal sessions (SSH, remote agent).
-    RemoteHelperLane,
-    /// Container-attached terminal sessions.
-    ContainerLane,
-    /// Restored transcript-only sessions (restore-no-rerun lane).
-    RestoredLane,
+pub enum EventNormalizationLaneClass {
+    /// Task event-normalization lane (task runner output → canonical envelope).
+    TaskLane,
+    /// Test event-normalization lane (test runner output → canonical envelope).
+    TestLane,
+    /// Debug event-normalization lane (debug adapter output → canonical envelope).
+    DebugLane,
+    /// Terminal event-normalization lane (terminal scrollback / OSC → canonical envelope).
+    TerminalLane,
 }
 
-impl TerminalStabilizationLaneClass {
-    /// Every required terminal-stabilization lane, in declaration order.
+impl EventNormalizationLaneClass {
+    /// Every required event-normalization lane, in declaration order.
     pub const REQUIRED: [Self; 4] = [
-        Self::LocalLane,
-        Self::RemoteHelperLane,
-        Self::ContainerLane,
-        Self::RestoredLane,
+        Self::TaskLane,
+        Self::TestLane,
+        Self::DebugLane,
+        Self::TerminalLane,
     ];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::LocalLane => "local_lane",
-            Self::RemoteHelperLane => "remote_helper_lane",
-            Self::ContainerLane => "container_lane",
-            Self::RestoredLane => "restored_lane",
+            Self::TaskLane => "task_lane",
+            Self::TestLane => "test_lane",
+            Self::DebugLane => "debug_lane",
+            Self::TerminalLane => "terminal_lane",
         }
     }
 }
 
-/// Closed terminal-stabilization row vocabulary the packet certifies.
+/// Closed event-normalization row vocabulary the packet certifies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TerminalStabilizationRowClass {
-    /// The lane's headline terminal-stabilization qualification row.
-    TerminalStabilizationQuality,
-    /// A row admitting one of the four wedges (host_boundary_chip,
-    /// clipboard_posture, transcript_export, restore_no_rerun).
+pub enum EventNormalizationRowClass {
+    /// The lane's headline event-normalization qualification row.
+    EventNormalizationQuality,
+    /// A row admitting one of the four wedges
+    /// (`envelope_canonicalization`, `source_kind_negotiation`,
+    /// `lifecycle_normalization`, `export_preservation`).
     WedgeAdmission,
-    /// A row binding one typed host-boundary field exposed to the
-    /// user before copy, paste, rerun, browser handoff, or transcript
-    /// export.
-    HostBoundaryFieldBinding,
-    /// A row binding one clipboard-posture surface (local-vs-remote
-    /// route, bracketed paste, multiline paste guardrail, admin
-    /// suppression, high-risk paste review).
-    ClipboardPostureBinding,
-    /// A row binding one transcript-export field (transcript vs live
-    /// session, host/session boundary cue, redaction state).
-    TranscriptExportFieldBinding,
-    /// A row attesting restored sessions are transcript-only and that
-    /// no silent rerun is permitted.
-    RestoreNoRerunAttestation,
-    /// A row binding the stable `execution_context_id` (or equivalent
-    /// lineage object) into emitted terminal-session truth and
-    /// downstream consumer surfaces.
+    /// A row binding one canonical envelope field
+    /// (`event_id`, `workspace_id`, `target_id`, `source_kind`,
+    /// `confidence`, `timestamp`, `execution_context_id`,
+    /// `payload_kind`, `raw_payload_ref`, `provenance`).
+    EnvelopeFieldBinding,
+    /// A row binding one canonical source kind (`native`, `bsp`,
+    /// `bazel_bep`, `structured_output`, `heuristic_parser`).
+    SourceKindBinding,
+    /// A row binding one canonical lifecycle event
+    /// (`task_queued`, `target_graph_ready`, `task_started`,
+    /// `progress_updated`, `diagnostic_emitted`, `test_case_started`,
+    /// `test_case_finished`, `artifact_published`, `task_finished`).
+    LifecycleEventBinding,
+    /// A row binding one downstream consumer surface to the shared
+    /// execution ledger.
+    ConsumerSurfaceBinding,
+    /// A row attesting that replay, export, and support packets
+    /// preserve `source_kind`, `confidence`, and the adapter raw
+    /// payload reference (no flattening into one undifferentiated
+    /// ledger).
+    RawPayloadRetentionAttestation,
+    /// A row binding the stable `execution_context_id` lineage
+    /// object into emitted envelopes and downstream consumer
+    /// surfaces.
     LineageAdmission,
     /// Disclosed known-limit row attached to a lane.
     KnownLimit,
@@ -159,16 +170,17 @@ pub enum TerminalStabilizationRowClass {
     DowngradeAutomation,
 }
 
-impl TerminalStabilizationRowClass {
+impl EventNormalizationRowClass {
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::TerminalStabilizationQuality => "terminal_stabilization_quality",
+            Self::EventNormalizationQuality => "event_normalization_quality",
             Self::WedgeAdmission => "wedge_admission",
-            Self::HostBoundaryFieldBinding => "host_boundary_field_binding",
-            Self::ClipboardPostureBinding => "clipboard_posture_binding",
-            Self::TranscriptExportFieldBinding => "transcript_export_field_binding",
-            Self::RestoreNoRerunAttestation => "restore_no_rerun_attestation",
+            Self::EnvelopeFieldBinding => "envelope_field_binding",
+            Self::SourceKindBinding => "source_kind_binding",
+            Self::LifecycleEventBinding => "lifecycle_event_binding",
+            Self::ConsumerSurfaceBinding => "consumer_surface_binding",
+            Self::RawPayloadRetentionAttestation => "raw_payload_retention_attestation",
             Self::LineageAdmission => "lineage_admission",
             Self::KnownLimit => "known_limit",
             Self::DowngradeAutomation => "downgrade_automation",
@@ -180,28 +192,31 @@ impl TerminalStabilizationRowClass {
         matches!(self, Self::WedgeAdmission)
     }
 
-    /// True when this row class requires a bound host-boundary field.
-    pub const fn requires_host_boundary_field(self) -> bool {
-        matches!(self, Self::HostBoundaryFieldBinding)
+    /// True when this row class requires a bound envelope field.
+    pub const fn requires_envelope_field(self) -> bool {
+        matches!(self, Self::EnvelopeFieldBinding)
     }
 
-    /// True when this row class requires a bound clipboard-posture
-    /// surface.
-    pub const fn requires_clipboard_posture(self) -> bool {
-        matches!(self, Self::ClipboardPostureBinding)
+    /// True when this row class requires a bound source kind.
+    pub const fn requires_source_kind(self) -> bool {
+        matches!(self, Self::SourceKindBinding)
     }
 
-    /// True when this row class requires a bound transcript-export
-    /// field.
-    pub const fn requires_transcript_export_field(self) -> bool {
-        matches!(self, Self::TranscriptExportFieldBinding)
+    /// True when this row class requires a bound lifecycle event.
+    pub const fn requires_lifecycle_event(self) -> bool {
+        matches!(self, Self::LifecycleEventBinding)
+    }
+
+    /// True when this row class requires a bound consumer surface.
+    pub const fn requires_consumer_surface(self) -> bool {
+        matches!(self, Self::ConsumerSurfaceBinding)
     }
 }
 
-/// Closed support-class vocabulary applied to a terminal-stabilization
-/// row. A row is never `launch_stable` while its known limit, downgrade
-/// automation, or evidence class is unbound; the validator demotes it
-/// instead of inheriting an adjacent launch-stable row.
+/// Closed support-class vocabulary applied to an event-normalization
+/// row. A row is never `launch_stable` while its known limit,
+/// downgrade automation, or evidence class is unbound; the validator
+/// demotes it instead of inheriting an adjacent launch-stable row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SupportClass {
@@ -244,26 +259,26 @@ impl SupportClass {
     }
 }
 
-/// Closed terminal-stabilization wedge vocabulary. Every lane claiming
+/// Closed event-normalization wedge vocabulary. Every lane claiming
 /// `launch_stable` MUST publish a `wedge_admission` row for each
 /// required wedge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WedgeClass {
-    /// Host-boundary chip wedge (the typed chip carrying host, route,
-    /// trust, restore, and target/cwd hints shown before any mutating
-    /// action).
-    HostBoundaryChip,
-    /// Clipboard posture wedge (local-vs-remote route, bracketed
-    /// paste, multiline guardrail, admin suppression, high-risk paste
-    /// review).
-    ClipboardPosture,
-    /// Transcript export wedge (transcript-vs-live, host/session
-    /// boundary cue, redaction state).
-    TranscriptExport,
-    /// Restore-no-rerun wedge (restored sessions are transcript-only
-    /// and never silently rerun).
-    RestoreNoRerun,
+    /// Envelope canonicalization wedge (one envelope shape across
+    /// task / test / debug / terminal lanes).
+    EnvelopeCanonicalization,
+    /// Source-kind negotiation wedge (adapter-isolated capability
+    /// negotiation for native, BSP, Bazel BEP, structured-output,
+    /// and heuristic-parser sources).
+    SourceKindNegotiation,
+    /// Lifecycle normalization wedge (the canonical lifecycle set
+    /// emitted by every lane).
+    LifecycleNormalization,
+    /// Export preservation wedge (replay / export / support packets
+    /// preserve source_kind, confidence, and adapter raw payload
+    /// reference).
+    ExportPreservation,
     /// The row is not bound to a wedge.
     NotApplicable,
 }
@@ -271,153 +286,191 @@ pub enum WedgeClass {
 impl WedgeClass {
     /// Every required wedge for a `launch_stable` lane.
     pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 4] = [
-        Self::HostBoundaryChip,
-        Self::ClipboardPosture,
-        Self::TranscriptExport,
-        Self::RestoreNoRerun,
+        Self::EnvelopeCanonicalization,
+        Self::SourceKindNegotiation,
+        Self::LifecycleNormalization,
+        Self::ExportPreservation,
     ];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::HostBoundaryChip => "host_boundary_chip",
-            Self::ClipboardPosture => "clipboard_posture",
-            Self::TranscriptExport => "transcript_export",
-            Self::RestoreNoRerun => "restore_no_rerun",
+            Self::EnvelopeCanonicalization => "envelope_canonicalization",
+            Self::SourceKindNegotiation => "source_kind_negotiation",
+            Self::LifecycleNormalization => "lifecycle_normalization",
+            Self::ExportPreservation => "export_preservation",
             Self::NotApplicable => "not_applicable",
         }
     }
 }
 
-/// Closed host-boundary-field vocabulary. Every lane claiming
-/// `launch_stable` MUST publish a `host_boundary_field_binding` row
-/// for each required field so the typed host-boundary chip carries
-/// one truth.
+/// Closed canonical-envelope-field vocabulary. Every lane claiming
+/// `launch_stable` MUST publish an `envelope_field_binding` row for
+/// each required field so downstream surfaces never invent a second
+/// truth model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum HostBoundaryFieldClass {
-    /// Host or session identity (host id, session id, attached
-    /// transport).
-    HostOrSessionIdentity,
-    /// Local-versus-remote route cue.
-    RouteCue,
-    /// Trust state (trusted, untrusted, degraded).
-    TrustState,
-    /// Restore state (live, restored transcript, reconnecting,
-    /// blocked).
-    RestoreState,
-    /// Target or cwd hint surfaced beside the chip.
-    TargetOrCwdHint,
-    /// The row is not bound to a host-boundary field.
+pub enum EnvelopeFieldClass {
+    /// Stable event id.
+    EventId,
+    /// Workspace id the event was emitted in.
+    WorkspaceId,
+    /// Target id the event was emitted for.
+    TargetId,
+    /// Source kind (native / bsp / bazel_bep / structured_output /
+    /// heuristic_parser).
+    SourceKind,
+    /// Confidence flag on the envelope.
+    Confidence,
+    /// Capture timestamp.
+    Timestamp,
+    /// Execution-context id threading lineage.
+    ExecutionContextId,
+    /// Payload kind discriminator for the envelope payload.
+    PayloadKind,
+    /// Reference to the retained raw adapter payload.
+    RawPayloadRef,
+    /// Provenance object for the envelope.
+    Provenance,
+    /// The row is not bound to an envelope field.
     NotApplicable,
 }
 
-impl HostBoundaryFieldClass {
-    /// Every required host-boundary field per `launch_stable` lane.
+impl EnvelopeFieldClass {
+    /// Every required canonical envelope field for a
+    /// `launch_stable` lane, in declaration order.
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 10] = [
+        Self::EventId,
+        Self::WorkspaceId,
+        Self::TargetId,
+        Self::SourceKind,
+        Self::Confidence,
+        Self::Timestamp,
+        Self::ExecutionContextId,
+        Self::PayloadKind,
+        Self::RawPayloadRef,
+        Self::Provenance,
+    ];
+
+    /// Stable token used in fixtures, schemas, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EventId => "event_id",
+            Self::WorkspaceId => "workspace_id",
+            Self::TargetId => "target_id",
+            Self::SourceKind => "source_kind",
+            Self::Confidence => "confidence",
+            Self::Timestamp => "timestamp",
+            Self::ExecutionContextId => "execution_context_id",
+            Self::PayloadKind => "payload_kind",
+            Self::RawPayloadRef => "raw_payload_ref",
+            Self::Provenance => "provenance",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Closed canonical source-kind vocabulary. Every lane claiming
+/// `launch_stable` MUST publish a `source_kind_binding` row for each
+/// required source kind so adapter capability negotiation and raw
+/// payload retention stay adapter-isolated rather than flattened
+/// into one undifferentiated ledger.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceKindClass {
+    /// Native adapter source.
+    Native,
+    /// Build Server Protocol (BSP) source.
+    Bsp,
+    /// Bazel Build Event Protocol (BEP) source.
+    BazelBep,
+    /// Structured-output source (machine-readable runner output).
+    StructuredOutput,
+    /// Heuristic-parser source (regex / pattern-recognized output).
+    HeuristicParser,
+    /// The row is not bound to a source kind.
+    NotApplicable,
+}
+
+impl SourceKindClass {
+    /// Every required source kind for a `launch_stable` lane.
     pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 5] = [
-        Self::HostOrSessionIdentity,
-        Self::RouteCue,
-        Self::TrustState,
-        Self::RestoreState,
-        Self::TargetOrCwdHint,
+        Self::Native,
+        Self::Bsp,
+        Self::BazelBep,
+        Self::StructuredOutput,
+        Self::HeuristicParser,
     ];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::HostOrSessionIdentity => "host_or_session_identity",
-            Self::RouteCue => "route_cue",
-            Self::TrustState => "trust_state",
-            Self::RestoreState => "restore_state",
-            Self::TargetOrCwdHint => "target_or_cwd_hint",
+            Self::Native => "native",
+            Self::Bsp => "bsp",
+            Self::BazelBep => "bazel_bep",
+            Self::StructuredOutput => "structured_output",
+            Self::HeuristicParser => "heuristic_parser",
             Self::NotApplicable => "not_applicable",
         }
     }
 }
 
-/// Closed clipboard-posture vocabulary. Every lane claiming
-/// `launch_stable` MUST publish a `clipboard_posture_binding` row for
-/// each posture surface so copy, paste, and protocol-driven clipboard
-/// writes never bypass the explicit policy.
+/// Closed canonical lifecycle-event vocabulary. Every lane claiming
+/// `launch_stable` MUST publish a `lifecycle_event_binding` row for
+/// each required lifecycle event so local, remote/helper, and
+/// imported-provider lanes serialize into the same lifecycle set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ClipboardPostureClass {
-    /// Local-versus-remote clipboard route.
-    ClipboardRouteLocalVsRemote,
-    /// Bracketed-paste state fidelity (mode tracked, escapes handled
-    /// safely).
-    BracketedPasteState,
-    /// Multiline paste guardrail (review/confirm path for multiline
-    /// or newline-terminating paste).
-    MultilinePasteGuardrail,
-    /// Admin / privileged-shell suppression of clipboard writes from
-    /// protocol escapes.
-    AdminSuppression,
-    /// High-risk paste review (sensitive target / broad-input review
-    /// step).
-    HighRiskPasteReview,
-    /// The row is not bound to a clipboard-posture surface.
+pub enum LifecycleEventClass {
+    /// Task queued event.
+    TaskQueued,
+    /// Target graph ready event.
+    TargetGraphReady,
+    /// Task started event.
+    TaskStarted,
+    /// Progress updated event.
+    ProgressUpdated,
+    /// Diagnostic emitted event.
+    DiagnosticEmitted,
+    /// Test case started event.
+    TestCaseStarted,
+    /// Test case finished event.
+    TestCaseFinished,
+    /// Artifact published event.
+    ArtifactPublished,
+    /// Task finished event.
+    TaskFinished,
+    /// The row is not bound to a lifecycle event.
     NotApplicable,
 }
 
-impl ClipboardPostureClass {
-    /// Every required clipboard-posture surface per `launch_stable`
-    /// lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 5] = [
-        Self::ClipboardRouteLocalVsRemote,
-        Self::BracketedPasteState,
-        Self::MultilinePasteGuardrail,
-        Self::AdminSuppression,
-        Self::HighRiskPasteReview,
+impl LifecycleEventClass {
+    /// Every required lifecycle event for a `launch_stable` lane, in
+    /// declaration order.
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 9] = [
+        Self::TaskQueued,
+        Self::TargetGraphReady,
+        Self::TaskStarted,
+        Self::ProgressUpdated,
+        Self::DiagnosticEmitted,
+        Self::TestCaseStarted,
+        Self::TestCaseFinished,
+        Self::ArtifactPublished,
+        Self::TaskFinished,
     ];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::ClipboardRouteLocalVsRemote => "clipboard_route_local_vs_remote",
-            Self::BracketedPasteState => "bracketed_paste_state",
-            Self::MultilinePasteGuardrail => "multiline_paste_guardrail",
-            Self::AdminSuppression => "admin_suppression",
-            Self::HighRiskPasteReview => "high_risk_paste_review",
-            Self::NotApplicable => "not_applicable",
-        }
-    }
-}
-
-/// Closed transcript-export field vocabulary. Every lane claiming
-/// `launch_stable` MUST publish a `transcript_export_field_binding`
-/// row for each required field so transcript export and browser
-/// handoff never blur live-versus-transcript semantics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TranscriptExportFieldClass {
-    /// Transcript-versus-live-session distinction surfaced before
-    /// export / reopen.
-    TranscriptVersusLiveSession,
-    /// Host / session boundary cue carried in the export header.
-    HostSessionBoundaryCue,
-    /// Redaction state of the exported transcript (which scrollback
-    /// classes are redacted, which are preserved).
-    RedactionState,
-    /// The row is not bound to a transcript-export field.
-    NotApplicable,
-}
-
-impl TranscriptExportFieldClass {
-    /// Every required transcript-export field per `launch_stable`
-    /// lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 3] = [
-        Self::TranscriptVersusLiveSession,
-        Self::HostSessionBoundaryCue,
-        Self::RedactionState,
-    ];
-
-    /// Stable token used in fixtures, schemas, and support exports.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::TranscriptVersusLiveSession => "transcript_versus_live_session",
-            Self::HostSessionBoundaryCue => "host_session_boundary_cue",
-            Self::RedactionState => "redaction_state",
+            Self::TaskQueued => "task_queued",
+            Self::TargetGraphReady => "target_graph_ready",
+            Self::TaskStarted => "task_started",
+            Self::ProgressUpdated => "progress_updated",
+            Self::DiagnosticEmitted => "diagnostic_emitted",
+            Self::TestCaseStarted => "test_case_started",
+            Self::TestCaseFinished => "test_case_finished",
+            Self::ArtifactPublished => "artifact_published",
+            Self::TaskFinished => "task_finished",
             Self::NotApplicable => "not_applicable",
         }
     }
@@ -470,35 +523,34 @@ impl EvidenceClass {
     }
 }
 
-/// Closed known-limit vocabulary attached to a terminal-stabilization
+/// Closed known-limit vocabulary attached to an event-normalization
 /// row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KnownLimitClass {
     /// No known limit beyond canonical truth.
     NoneDeclared,
-    /// The lane only certifies the local subset.
-    LocalLaneSubsetOnly,
-    /// The lane only certifies the remote/helper subset.
-    RemoteHelperSubsetOnly,
-    /// The lane only certifies the container subset.
-    ContainerSubsetOnly,
-    /// The lane only certifies the restored-transcript subset.
-    RestoredSubsetOnly,
+    /// The lane only certifies the task subset.
+    TaskLaneSubsetOnly,
+    /// The lane only certifies the test subset.
+    TestLaneSubsetOnly,
+    /// The lane only certifies the debug subset.
+    DebugLaneSubsetOnly,
+    /// The lane only certifies the terminal subset.
+    TerminalLaneSubsetOnly,
     /// The lane only certifies a subset of the four required wedges.
     WedgeAdmissionSubsetOnly,
-    /// The lane only certifies a subset of the five host-boundary
-    /// fields.
-    HostBoundaryFieldSubsetOnly,
-    /// The lane only certifies a subset of the five clipboard-posture
-    /// surfaces.
-    ClipboardPostureSubsetOnly,
-    /// The lane only certifies a subset of the three transcript-export
-    /// fields.
-    TranscriptExportFieldSubsetOnly,
-    /// The lane admits silent rerun on restore (never qualifies
-    /// stable).
-    RestoreAdmitsSilentRerun,
+    /// The lane only certifies a subset of the ten envelope fields.
+    EnvelopeFieldSubsetOnly,
+    /// The lane only certifies a subset of the five source kinds.
+    SourceKindSubsetOnly,
+    /// The lane only certifies a subset of the nine lifecycle events.
+    LifecycleEventSubsetOnly,
+    /// The lane only certifies a subset of the required consumer surfaces.
+    ConsumerSurfaceSubsetOnly,
+    /// The lane admits flattening source_kind/confidence on export
+    /// (never qualifies stable).
+    ExportFlattensSourceKindOrConfidence,
     /// The lane is at beta-grade-only capability sample.
     BetaCapabilitySampleOnly,
     /// The row has no bound known-limit class; this never qualifies
@@ -511,15 +563,18 @@ impl KnownLimitClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::NoneDeclared => "none_declared",
-            Self::LocalLaneSubsetOnly => "local_lane_subset_only",
-            Self::RemoteHelperSubsetOnly => "remote_helper_subset_only",
-            Self::ContainerSubsetOnly => "container_subset_only",
-            Self::RestoredSubsetOnly => "restored_subset_only",
+            Self::TaskLaneSubsetOnly => "task_lane_subset_only",
+            Self::TestLaneSubsetOnly => "test_lane_subset_only",
+            Self::DebugLaneSubsetOnly => "debug_lane_subset_only",
+            Self::TerminalLaneSubsetOnly => "terminal_lane_subset_only",
             Self::WedgeAdmissionSubsetOnly => "wedge_admission_subset_only",
-            Self::HostBoundaryFieldSubsetOnly => "host_boundary_field_subset_only",
-            Self::ClipboardPostureSubsetOnly => "clipboard_posture_subset_only",
-            Self::TranscriptExportFieldSubsetOnly => "transcript_export_field_subset_only",
-            Self::RestoreAdmitsSilentRerun => "restore_admits_silent_rerun",
+            Self::EnvelopeFieldSubsetOnly => "envelope_field_subset_only",
+            Self::SourceKindSubsetOnly => "source_kind_subset_only",
+            Self::LifecycleEventSubsetOnly => "lifecycle_event_subset_only",
+            Self::ConsumerSurfaceSubsetOnly => "consumer_surface_subset_only",
+            Self::ExportFlattensSourceKindOrConfidence => {
+                "export_flattens_source_kind_or_confidence"
+            }
             Self::BetaCapabilitySampleOnly => "beta_capability_sample_only",
             Self::LimitUnbound => "limit_unbound",
         }
@@ -546,18 +601,17 @@ pub enum DowngradeAutomationClass {
     None,
     /// Automatically narrow when a required wedge admission is missing.
     AutoNarrowOnWedgeAdmissionGap,
-    /// Automatically narrow when a required host-boundary field is
-    /// unbound.
-    AutoNarrowOnHostBoundaryFieldGap,
-    /// Automatically narrow when a clipboard-posture surface binding
-    /// is missing.
-    AutoNarrowOnClipboardPostureGap,
-    /// Automatically narrow when a transcript-export field binding is
-    /// missing.
-    AutoNarrowOnTranscriptExportFieldGap,
-    /// Automatically narrow when restored sessions admit silent
-    /// rerun.
-    AutoNarrowOnRestoreAdmitsSilentRerun,
+    /// Automatically narrow when a required envelope field is unbound.
+    AutoNarrowOnEnvelopeFieldGap,
+    /// Automatically narrow when a required source kind binding is missing.
+    AutoNarrowOnSourceKindGap,
+    /// Automatically narrow when a required lifecycle event binding is missing.
+    AutoNarrowOnLifecycleEventGap,
+    /// Automatically narrow when a required consumer surface binding is missing.
+    AutoNarrowOnConsumerSurfaceGap,
+    /// Automatically narrow when export flattens source_kind / confidence /
+    /// raw payload retention.
+    AutoNarrowOnExportFlattening,
     /// Automatically narrow when the lineage object breaks.
     AutoNarrowOnLineageBreak,
     /// Automatically block when required evidence is missing.
@@ -574,14 +628,11 @@ impl DowngradeAutomationClass {
         match self {
             Self::None => "none",
             Self::AutoNarrowOnWedgeAdmissionGap => "auto_narrow_on_wedge_admission_gap",
-            Self::AutoNarrowOnHostBoundaryFieldGap => "auto_narrow_on_host_boundary_field_gap",
-            Self::AutoNarrowOnClipboardPostureGap => "auto_narrow_on_clipboard_posture_gap",
-            Self::AutoNarrowOnTranscriptExportFieldGap => {
-                "auto_narrow_on_transcript_export_field_gap"
-            }
-            Self::AutoNarrowOnRestoreAdmitsSilentRerun => {
-                "auto_narrow_on_restore_admits_silent_rerun"
-            }
+            Self::AutoNarrowOnEnvelopeFieldGap => "auto_narrow_on_envelope_field_gap",
+            Self::AutoNarrowOnSourceKindGap => "auto_narrow_on_source_kind_gap",
+            Self::AutoNarrowOnLifecycleEventGap => "auto_narrow_on_lifecycle_event_gap",
+            Self::AutoNarrowOnConsumerSurfaceGap => "auto_narrow_on_consumer_surface_gap",
+            Self::AutoNarrowOnExportFlattening => "auto_narrow_on_export_flattening",
             Self::AutoNarrowOnLineageBreak => "auto_narrow_on_lineage_break",
             Self::AutoBlockOnMissingEvidence => "auto_block_on_missing_evidence",
             Self::ManualOnlyPendingReview => "manual_only_pending_review",
@@ -589,8 +640,8 @@ impl DowngradeAutomationClass {
         }
     }
 
-    /// True when this automation class satisfies the automation-binding
-    /// invariant.
+    /// True when this automation class satisfies the
+    /// automation-binding invariant.
     pub const fn is_bound(self) -> bool {
         !matches!(self, Self::AutomationUnbound)
     }
@@ -602,10 +653,10 @@ impl DowngradeAutomationClass {
     }
 }
 
-/// Closed confidence-class vocabulary for a terminal-stabilization row.
+/// Closed confidence-class vocabulary for an event-normalization row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TerminalStabilizationConfidenceClass {
+pub enum EventNormalizationConfidenceClass {
     /// High confidence — the lane can certify launch-stable.
     HighConfidence,
     /// Medium confidence — the lane narrows below launch-stable.
@@ -615,7 +666,7 @@ pub enum TerminalStabilizationConfidenceClass {
     LowConfidence,
 }
 
-impl TerminalStabilizationConfidenceClass {
+impl EventNormalizationConfidenceClass {
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -675,16 +726,18 @@ pub enum FindingKind {
     MissingLaneCoverage,
     /// A lane claiming launch_stable is missing a required wedge admission.
     MissingWedgeAdmissionCoverage,
-    /// A lane claiming launch_stable is missing a required host-boundary field.
-    MissingHostBoundaryFieldCoverage,
-    /// A lane claiming launch_stable is missing a required clipboard-posture surface.
-    MissingClipboardPostureCoverage,
-    /// A lane claiming launch_stable is missing a required transcript-export field.
-    MissingTranscriptExportFieldCoverage,
-    /// A lane claiming launch_stable is missing the restore-no-rerun attestation row.
-    MissingRestoreNoRerunAttestation,
-    /// A restore-no-rerun attestation admits silent rerun.
-    RestoreNoRerunAttestationAdmitsSilentRerun,
+    /// A lane claiming launch_stable is missing a required envelope field binding.
+    MissingEnvelopeFieldCoverage,
+    /// A lane claiming launch_stable is missing a required source-kind binding.
+    MissingSourceKindCoverage,
+    /// A lane claiming launch_stable is missing a required lifecycle-event binding.
+    MissingLifecycleEventCoverage,
+    /// A lane claiming launch_stable is missing a required consumer-surface binding.
+    MissingConsumerSurfaceCoverage,
+    /// A lane claiming launch_stable is missing the raw-payload retention attestation.
+    MissingRawPayloadRetentionAttestation,
+    /// A raw-payload retention attestation admits flattening.
+    RawPayloadRetentionAttestationAdmitsFlattening,
     /// A lane claiming launch_stable is missing the required lineage admission row.
     MissingLineageAdmission,
     /// A row has no bound support class.
@@ -709,21 +762,25 @@ pub enum FindingKind {
     WedgeNotApplicable,
     /// A non-wedge row binds a wedge it cannot certify.
     WedgeNotPermittedOnRowClass,
-    /// A host-boundary-field row drops its field binding.
-    HostBoundaryFieldNotApplicable,
-    /// A non-host-boundary-field row binds a field it cannot certify.
-    HostBoundaryFieldNotPermittedOnRowClass,
-    /// A clipboard-posture row drops its surface binding.
-    ClipboardPostureNotApplicable,
-    /// A non-clipboard-posture row binds a surface it cannot certify.
-    ClipboardPostureNotPermittedOnRowClass,
-    /// A transcript-export-field row drops its field binding.
-    TranscriptExportFieldNotApplicable,
-    /// A non-transcript-export-field row binds a field it cannot certify.
-    TranscriptExportFieldNotPermittedOnRowClass,
+    /// An envelope-field row drops its field binding.
+    EnvelopeFieldNotApplicable,
+    /// A non-envelope-field row binds an envelope field it cannot certify.
+    EnvelopeFieldNotPermittedOnRowClass,
+    /// A source-kind row drops its kind binding.
+    SourceKindNotApplicable,
+    /// A non-source-kind row binds a kind it cannot certify.
+    SourceKindNotPermittedOnRowClass,
+    /// A lifecycle-event row drops its event binding.
+    LifecycleEventNotApplicable,
+    /// A non-lifecycle-event row binds an event it cannot certify.
+    LifecycleEventNotPermittedOnRowClass,
+    /// A consumer-surface row drops its surface binding.
+    ConsumerSurfaceNotApplicable,
+    /// A non-consumer-surface row binds a surface it cannot certify.
+    ConsumerSurfaceNotPermittedOnRowClass,
     /// A lineage-admission row does not bind a lineage object id.
     LineageAdmissionMissingExecutionContextId,
-    /// A row admits raw command lines, env bytes, or other private material.
+    /// A row admits raw command lines, env bytes, scrollback, or other private material.
     RawSourceMaterialPresent,
     /// A row admits secrets past the boundary.
     SecretsPresent,
@@ -741,12 +798,12 @@ pub enum FindingKind {
     SupportClassVocabularyCollapsed,
     /// A projection collapses the wedge vocabulary.
     WedgeVocabularyCollapsed,
-    /// A projection collapses the host-boundary-field vocabulary.
-    HostBoundaryFieldVocabularyCollapsed,
-    /// A projection collapses the clipboard-posture vocabulary.
-    ClipboardPostureVocabularyCollapsed,
-    /// A projection collapses the transcript-export-field vocabulary.
-    TranscriptExportFieldVocabularyCollapsed,
+    /// A projection collapses the envelope-field vocabulary.
+    EnvelopeFieldVocabularyCollapsed,
+    /// A projection collapses the source-kind vocabulary.
+    SourceKindVocabularyCollapsed,
+    /// A projection collapses the lifecycle-event vocabulary.
+    LifecycleEventVocabularyCollapsed,
     /// A projection collapses the known-limit vocabulary.
     KnownLimitVocabularyCollapsed,
     /// A projection collapses the downgrade-automation vocabulary.
@@ -766,14 +823,15 @@ impl FindingKind {
             Self::MissingIdentity => "missing_identity",
             Self::MissingLaneCoverage => "missing_lane_coverage",
             Self::MissingWedgeAdmissionCoverage => "missing_wedge_admission_coverage",
-            Self::MissingHostBoundaryFieldCoverage => "missing_host_boundary_field_coverage",
-            Self::MissingClipboardPostureCoverage => "missing_clipboard_posture_coverage",
-            Self::MissingTranscriptExportFieldCoverage => {
-                "missing_transcript_export_field_coverage"
+            Self::MissingEnvelopeFieldCoverage => "missing_envelope_field_coverage",
+            Self::MissingSourceKindCoverage => "missing_source_kind_coverage",
+            Self::MissingLifecycleEventCoverage => "missing_lifecycle_event_coverage",
+            Self::MissingConsumerSurfaceCoverage => "missing_consumer_surface_coverage",
+            Self::MissingRawPayloadRetentionAttestation => {
+                "missing_raw_payload_retention_attestation"
             }
-            Self::MissingRestoreNoRerunAttestation => "missing_restore_no_rerun_attestation",
-            Self::RestoreNoRerunAttestationAdmitsSilentRerun => {
-                "restore_no_rerun_attestation_admits_silent_rerun"
+            Self::RawPayloadRetentionAttestationAdmitsFlattening => {
+                "raw_payload_retention_attestation_admits_flattening"
             }
             Self::MissingLineageAdmission => "missing_lineage_admission",
             Self::MissingSupportClass => "missing_support_class",
@@ -789,17 +847,19 @@ impl FindingKind {
             Self::MissingEvidenceRefs => "missing_evidence_refs",
             Self::WedgeNotApplicable => "wedge_not_applicable",
             Self::WedgeNotPermittedOnRowClass => "wedge_not_permitted_on_row_class",
-            Self::HostBoundaryFieldNotApplicable => "host_boundary_field_not_applicable",
-            Self::HostBoundaryFieldNotPermittedOnRowClass => {
-                "host_boundary_field_not_permitted_on_row_class"
+            Self::EnvelopeFieldNotApplicable => "envelope_field_not_applicable",
+            Self::EnvelopeFieldNotPermittedOnRowClass => {
+                "envelope_field_not_permitted_on_row_class"
             }
-            Self::ClipboardPostureNotApplicable => "clipboard_posture_not_applicable",
-            Self::ClipboardPostureNotPermittedOnRowClass => {
-                "clipboard_posture_not_permitted_on_row_class"
+            Self::SourceKindNotApplicable => "source_kind_not_applicable",
+            Self::SourceKindNotPermittedOnRowClass => "source_kind_not_permitted_on_row_class",
+            Self::LifecycleEventNotApplicable => "lifecycle_event_not_applicable",
+            Self::LifecycleEventNotPermittedOnRowClass => {
+                "lifecycle_event_not_permitted_on_row_class"
             }
-            Self::TranscriptExportFieldNotApplicable => "transcript_export_field_not_applicable",
-            Self::TranscriptExportFieldNotPermittedOnRowClass => {
-                "transcript_export_field_not_permitted_on_row_class"
+            Self::ConsumerSurfaceNotApplicable => "consumer_surface_not_applicable",
+            Self::ConsumerSurfaceNotPermittedOnRowClass => {
+                "consumer_surface_not_permitted_on_row_class"
             }
             Self::LineageAdmissionMissingExecutionContextId => {
                 "lineage_admission_missing_execution_context_id"
@@ -813,13 +873,9 @@ impl FindingKind {
             Self::RowClassVocabularyCollapsed => "row_class_vocabulary_collapsed",
             Self::SupportClassVocabularyCollapsed => "support_class_vocabulary_collapsed",
             Self::WedgeVocabularyCollapsed => "wedge_vocabulary_collapsed",
-            Self::HostBoundaryFieldVocabularyCollapsed => {
-                "host_boundary_field_vocabulary_collapsed"
-            }
-            Self::ClipboardPostureVocabularyCollapsed => "clipboard_posture_vocabulary_collapsed",
-            Self::TranscriptExportFieldVocabularyCollapsed => {
-                "transcript_export_field_vocabulary_collapsed"
-            }
+            Self::EnvelopeFieldVocabularyCollapsed => "envelope_field_vocabulary_collapsed",
+            Self::SourceKindVocabularyCollapsed => "source_kind_vocabulary_collapsed",
+            Self::LifecycleEventVocabularyCollapsed => "lifecycle_event_vocabulary_collapsed",
             Self::KnownLimitVocabularyCollapsed => "known_limit_vocabulary_collapsed",
             Self::DowngradeAutomationVocabularyCollapsed => {
                 "downgrade_automation_vocabulary_collapsed"
@@ -834,16 +890,22 @@ impl FindingKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConsumerSurface {
-    /// Terminal pane chrome (per-pane host-boundary chip).
+    /// Editor run / launch surface.
+    EditorRunSurface,
+    /// Task panel surface.
+    TaskPanel,
+    /// Test runner surface.
+    TestRunnerSurface,
+    /// Debug surface.
+    DebugSurface,
+    /// Terminal pane surface.
     TerminalPane,
-    /// Transcript export surface (export header + body envelope).
-    TranscriptExportSurface,
-    /// Browser handoff surface (open-in-browser / preview handoff).
-    BrowserHandoffSurface,
-    /// Restore surface (transcript-only reopen, restore-no-rerun cue).
-    RestoreSurface,
     /// CLI / headless inspection surface.
     CliHeadless,
+    /// AI tool / agent surface.
+    AiToolSurface,
+    /// Review surface (PR / change review).
+    ReviewSurface,
     /// Support export bundle surface.
     SupportExport,
     /// Release proof index entry.
@@ -856,12 +918,15 @@ pub enum ConsumerSurface {
 
 impl ConsumerSurface {
     /// Every required consumer surface, in declaration order.
-    pub const REQUIRED: [Self; 9] = [
+    pub const REQUIRED: [Self; 12] = [
+        Self::EditorRunSurface,
+        Self::TaskPanel,
+        Self::TestRunnerSurface,
+        Self::DebugSurface,
         Self::TerminalPane,
-        Self::TranscriptExportSurface,
-        Self::BrowserHandoffSurface,
-        Self::RestoreSurface,
         Self::CliHeadless,
+        Self::AiToolSurface,
+        Self::ReviewSurface,
         Self::SupportExport,
         Self::ReleaseProofIndex,
         Self::HelpAbout,
@@ -871,11 +936,14 @@ impl ConsumerSurface {
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::EditorRunSurface => "editor_run_surface",
+            Self::TaskPanel => "task_panel",
+            Self::TestRunnerSurface => "test_runner_surface",
+            Self::DebugSurface => "debug_surface",
             Self::TerminalPane => "terminal_pane",
-            Self::TranscriptExportSurface => "transcript_export_surface",
-            Self::BrowserHandoffSurface => "browser_handoff_surface",
-            Self::RestoreSurface => "restore_surface",
             Self::CliHeadless => "cli_headless",
+            Self::AiToolSurface => "ai_tool_surface",
+            Self::ReviewSurface => "review_surface",
             Self::SupportExport => "support_export",
             Self::ReleaseProofIndex => "release_proof_index",
             Self::HelpAbout => "help_about",
@@ -909,25 +977,27 @@ impl ValidationFinding {
     }
 }
 
-/// One terminal-stabilization truth row.
+/// One event-normalization truth row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TerminalStabilizationRow {
+pub struct EventNormalizationRow {
     /// Stable row id within the packet.
     pub row_id: String,
-    /// Terminal-stabilization lane this row certifies.
-    pub lane_class: TerminalStabilizationLaneClass,
+    /// Event-normalization lane this row certifies.
+    pub lane_class: EventNormalizationLaneClass,
     /// Row class.
-    pub row_class: TerminalStabilizationRowClass,
+    pub row_class: EventNormalizationRowClass,
     /// Support class claimed by the row.
     pub support_class: SupportClass,
     /// Wedge bound by the row (or `not_applicable`).
     pub wedge_class: WedgeClass,
-    /// Host-boundary field bound by the row (or `not_applicable`).
-    pub host_boundary_field_class: HostBoundaryFieldClass,
-    /// Clipboard-posture surface bound by the row (or `not_applicable`).
-    pub clipboard_posture_class: ClipboardPostureClass,
-    /// Transcript-export field bound by the row (or `not_applicable`).
-    pub transcript_export_field_class: TranscriptExportFieldClass,
+    /// Envelope field bound by the row (or `not_applicable`).
+    pub envelope_field_class: EnvelopeFieldClass,
+    /// Source kind bound by the row (or `not_applicable`).
+    pub source_kind_class: SourceKindClass,
+    /// Lifecycle event bound by the row (or `not_applicable`).
+    pub lifecycle_event_class: LifecycleEventClass,
+    /// Consumer surface bound by the row (or `not_applicable`).
+    pub consumer_surface_class: ConsumerSurfaceBindingClass,
     /// Evidence class backing the row.
     pub evidence_class: EvidenceClass,
     /// Known-limit class disclosed by the row.
@@ -935,7 +1005,7 @@ pub struct TerminalStabilizationRow {
     /// Downgrade-automation class bound to the row.
     pub downgrade_automation_class: DowngradeAutomationClass,
     /// Confidence class for the row.
-    pub confidence_class: TerminalStabilizationConfidenceClass,
+    pub confidence_class: EventNormalizationConfidenceClass,
     /// Evidence refs cited by the row.
     #[serde(default)]
     pub evidence_refs: Vec<String>,
@@ -948,12 +1018,14 @@ pub struct TerminalStabilizationRow {
     /// token. Required when `row_class == LineageAdmission`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_context_id_binding: Option<String>,
-    /// For restore_no_rerun_attestation rows, true when the row
-    /// attests no silent rerun on restore.
+    /// For raw_payload_retention_attestation rows, true when the row
+    /// attests that replay/export/support packets preserve
+    /// `source_kind`, `confidence`, and adapter raw payload reference.
     #[serde(default)]
-    pub attests_no_silent_rerun: bool,
+    pub attests_raw_payload_retained: bool,
     /// True when raw command lines, raw process environment bytes,
-    /// or raw scrollback bodies are excluded from this row.
+    /// raw scrollback bodies, or raw capsule bodies are excluded
+    /// from this row.
     pub raw_source_material_excluded: bool,
     /// True when secrets are excluded from this row.
     pub secrets_excluded: bool,
@@ -963,7 +1035,7 @@ pub struct TerminalStabilizationRow {
     pub captured_at: String,
 }
 
-impl TerminalStabilizationRow {
+impl EventNormalizationRow {
     fn all_bindings_satisfied(&self) -> bool {
         self.support_class.is_bound()
             && self.known_limit_class.is_bound()
@@ -972,15 +1044,75 @@ impl TerminalStabilizationRow {
     }
 }
 
+/// Closed consumer-surface-binding vocabulary used by row-level
+/// surface bindings. Distinct from the top-level [`ConsumerSurface`]
+/// which is the full required projection set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConsumerSurfaceBindingClass {
+    /// Editor run surface.
+    EditorRunSurface,
+    /// Task panel surface.
+    TaskPanel,
+    /// Test runner surface.
+    TestRunnerSurface,
+    /// Debug surface.
+    DebugSurface,
+    /// Terminal pane surface.
+    TerminalPane,
+    /// CLI / headless inspector surface.
+    CliHeadless,
+    /// AI tool surface.
+    AiToolSurface,
+    /// Review surface.
+    ReviewSurface,
+    /// Support export surface.
+    SupportExport,
+    /// The row is not bound to a consumer surface.
+    NotApplicable,
+}
+
+impl ConsumerSurfaceBindingClass {
+    /// Every required consumer surface binding for a
+    /// `launch_stable` lane.
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 9] = [
+        Self::EditorRunSurface,
+        Self::TaskPanel,
+        Self::TestRunnerSurface,
+        Self::DebugSurface,
+        Self::TerminalPane,
+        Self::CliHeadless,
+        Self::AiToolSurface,
+        Self::ReviewSurface,
+        Self::SupportExport,
+    ];
+
+    /// Stable token used in fixtures, schemas, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EditorRunSurface => "editor_run_surface",
+            Self::TaskPanel => "task_panel",
+            Self::TestRunnerSurface => "test_runner_surface",
+            Self::DebugSurface => "debug_surface",
+            Self::TerminalPane => "terminal_pane",
+            Self::CliHeadless => "cli_headless",
+            Self::AiToolSurface => "ai_tool_surface",
+            Self::ReviewSurface => "review_surface",
+            Self::SupportExport => "support_export",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
 /// Consumer projection proving a surface reads this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TerminalStabilizationConsumerProjection {
+pub struct EventNormalizationConsumerProjection {
     /// Consumer surface class.
     pub consumer_surface: ConsumerSurface,
     /// Stable projection ref.
     pub projection_ref: String,
-    /// Terminal-stabilization packet id consumed by the projection.
-    pub terminal_stabilization_truth_packet_id_ref: String,
+    /// Event-normalization packet id consumed by the projection.
+    pub event_normalization_truth_packet_id_ref: String,
     /// Rendered-at timestamp.
     pub rendered_at: String,
     /// True when the surface preserves the same packet id.
@@ -993,12 +1125,12 @@ pub struct TerminalStabilizationConsumerProjection {
     pub preserves_support_class_vocabulary: bool,
     /// True when the wedge vocabulary is preserved verbatim.
     pub preserves_wedge_vocabulary: bool,
-    /// True when the host-boundary-field vocabulary is preserved verbatim.
-    pub preserves_host_boundary_field_vocabulary: bool,
-    /// True when the clipboard-posture vocabulary is preserved verbatim.
-    pub preserves_clipboard_posture_vocabulary: bool,
-    /// True when the transcript-export-field vocabulary is preserved verbatim.
-    pub preserves_transcript_export_field_vocabulary: bool,
+    /// True when the envelope-field vocabulary is preserved verbatim.
+    pub preserves_envelope_field_vocabulary: bool,
+    /// True when the source-kind vocabulary is preserved verbatim.
+    pub preserves_source_kind_vocabulary: bool,
+    /// True when the lifecycle-event vocabulary is preserved verbatim.
+    pub preserves_lifecycle_event_vocabulary: bool,
     /// True when the known-limit vocabulary is preserved verbatim.
     pub preserves_known_limit_vocabulary: bool,
     /// True when the downgrade-automation vocabulary is preserved verbatim.
@@ -1013,17 +1145,17 @@ pub struct TerminalStabilizationConsumerProjection {
     pub ambient_authority_excluded: bool,
 }
 
-impl TerminalStabilizationConsumerProjection {
+impl EventNormalizationConsumerProjection {
     fn preserves_truth_for(&self, packet_id: &str) -> bool {
-        self.terminal_stabilization_truth_packet_id_ref == packet_id
+        self.event_normalization_truth_packet_id_ref == packet_id
             && self.preserves_same_packet
             && self.preserves_lane_vocabulary
             && self.preserves_row_class_vocabulary
             && self.preserves_support_class_vocabulary
             && self.preserves_wedge_vocabulary
-            && self.preserves_host_boundary_field_vocabulary
-            && self.preserves_clipboard_posture_vocabulary
-            && self.preserves_transcript_export_field_vocabulary
+            && self.preserves_envelope_field_vocabulary
+            && self.preserves_source_kind_vocabulary
+            && self.preserves_lifecycle_event_vocabulary
             && self.preserves_known_limit_vocabulary
             && self.preserves_downgrade_automation_vocabulary
             && self.preserves_evidence_class_vocabulary
@@ -1034,34 +1166,34 @@ impl TerminalStabilizationConsumerProjection {
     }
 }
 
-/// Constructor input for [`TerminalStabilizationTruthPacket::materialize`].
+/// Constructor input for
+/// [`EventNormalizationTruthPacket::materialize`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TerminalStabilizationTruthPacketInput {
+pub struct EventNormalizationTruthPacketInput {
     /// Stable packet id.
     pub packet_id: String,
     /// Claimed workflow or surface id.
     pub workflow_or_surface_id: String,
     /// Capture timestamp for the packet.
     pub generated_at: String,
-    /// Terminal-stabilization lanes the packet covers.
+    /// Event-normalization lanes the packet covers.
     #[serde(default)]
-    pub covered_lanes: Vec<TerminalStabilizationLaneClass>,
-    /// Terminal-stabilization rows.
+    pub covered_lanes: Vec<EventNormalizationLaneClass>,
+    /// Event-normalization rows.
     #[serde(default)]
-    pub rows: Vec<TerminalStabilizationRow>,
+    pub rows: Vec<EventNormalizationRow>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
-    pub consumer_projections: Vec<TerminalStabilizationConsumerProjection>,
+    pub consumer_projections: Vec<EventNormalizationConsumerProjection>,
     /// Source contracts consumed by the packet.
     #[serde(default)]
     pub source_contract_refs: Vec<String>,
 }
 
-/// Terminal-stabilization truth packet certifying local, remote/helper,
-/// container, and restored terminal sessions at the M4 launch-stable
-/// grade.
+/// Event-normalization truth packet certifying task, test, debug, and
+/// terminal event-normalization lanes at the M4 launch-stable grade.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TerminalStabilizationTruthPacket {
+pub struct EventNormalizationTruthPacket {
     /// Stable record kind.
     pub record_kind: String,
     /// Schema version.
@@ -1072,15 +1204,15 @@ pub struct TerminalStabilizationTruthPacket {
     pub workflow_or_surface_id: String,
     /// Packet capture timestamp.
     pub generated_at: String,
-    /// Terminal-stabilization lanes the packet covers.
+    /// Event-normalization lanes the packet covers.
     #[serde(default)]
-    pub covered_lanes: Vec<TerminalStabilizationLaneClass>,
-    /// Terminal-stabilization rows.
+    pub covered_lanes: Vec<EventNormalizationLaneClass>,
+    /// Event-normalization rows.
     #[serde(default)]
-    pub rows: Vec<TerminalStabilizationRow>,
+    pub rows: Vec<EventNormalizationRow>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
-    pub consumer_projections: Vec<TerminalStabilizationConsumerProjection>,
+    pub consumer_projections: Vec<EventNormalizationConsumerProjection>,
     /// Source contract refs consumed by the packet.
     #[serde(default)]
     pub source_contract_refs: Vec<String>,
@@ -1091,12 +1223,12 @@ pub struct TerminalStabilizationTruthPacket {
     pub validation_findings: Vec<ValidationFinding>,
 }
 
-impl TerminalStabilizationTruthPacket {
+impl EventNormalizationTruthPacket {
     /// Materializes a packet and records derived validation findings.
-    pub fn materialize(input: TerminalStabilizationTruthPacketInput) -> Self {
+    pub fn materialize(input: EventNormalizationTruthPacketInput) -> Self {
         let mut packet = Self {
-            record_kind: TERMINAL_STABILIZATION_TRUTH_PACKET_RECORD_KIND.to_owned(),
-            schema_version: TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION,
+            record_kind: EVENT_NORMALIZATION_TRUTH_PACKET_RECORD_KIND.to_owned(),
+            schema_version: EVENT_NORMALIZATION_TRUTH_SCHEMA_VERSION,
             packet_id: input.packet_id,
             workflow_or_surface_id: input.workflow_or_surface_id,
             generated_at: input.generated_at,
@@ -1113,7 +1245,7 @@ impl TerminalStabilizationTruthPacket {
         packet
     }
 
-    /// Re-validates the packet against stable terminal-stabilization
+    /// Re-validates the packet against stable event-normalization
     /// invariants.
     pub fn validate(&self) -> Vec<ValidationFinding> {
         self.derived_findings(true)
@@ -1142,7 +1274,7 @@ impl TerminalStabilizationTruthPacket {
             set.insert(row.lane_class);
         }
         set.into_iter()
-            .map(TerminalStabilizationLaneClass::as_str)
+            .map(EventNormalizationLaneClass::as_str)
             .collect()
     }
 
@@ -1153,7 +1285,7 @@ impl TerminalStabilizationTruthPacket {
             set.insert(row.row_class);
         }
         set.into_iter()
-            .map(TerminalStabilizationRowClass::as_str)
+            .map(EventNormalizationRowClass::as_str)
             .collect()
     }
 
@@ -1175,34 +1307,42 @@ impl TerminalStabilizationTruthPacket {
         set.into_iter().map(WedgeClass::as_str).collect()
     }
 
-    /// Returns the unique host-boundary-field tokens observed across rows.
-    pub fn host_boundary_field_tokens(&self) -> Vec<&'static str> {
+    /// Returns the unique envelope-field tokens observed across rows.
+    pub fn envelope_field_tokens(&self) -> Vec<&'static str> {
         let mut set = BTreeSet::new();
         for row in &self.rows {
-            set.insert(row.host_boundary_field_class);
+            set.insert(row.envelope_field_class);
         }
-        set.into_iter()
-            .map(HostBoundaryFieldClass::as_str)
-            .collect()
+        set.into_iter().map(EnvelopeFieldClass::as_str).collect()
     }
 
-    /// Returns the unique clipboard-posture tokens observed across rows.
-    pub fn clipboard_posture_tokens(&self) -> Vec<&'static str> {
+    /// Returns the unique source-kind tokens observed across rows.
+    pub fn source_kind_tokens(&self) -> Vec<&'static str> {
         let mut set = BTreeSet::new();
         for row in &self.rows {
-            set.insert(row.clipboard_posture_class);
+            set.insert(row.source_kind_class);
         }
-        set.into_iter().map(ClipboardPostureClass::as_str).collect()
+        set.into_iter().map(SourceKindClass::as_str).collect()
     }
 
-    /// Returns the unique transcript-export-field tokens observed across rows.
-    pub fn transcript_export_field_tokens(&self) -> Vec<&'static str> {
+    /// Returns the unique lifecycle-event tokens observed across rows.
+    pub fn lifecycle_event_tokens(&self) -> Vec<&'static str> {
         let mut set = BTreeSet::new();
         for row in &self.rows {
-            set.insert(row.transcript_export_field_class);
+            set.insert(row.lifecycle_event_class);
+        }
+        set.into_iter().map(LifecycleEventClass::as_str).collect()
+    }
+
+    /// Returns the unique consumer-surface-binding tokens observed
+    /// across rows.
+    pub fn consumer_surface_binding_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.consumer_surface_class);
         }
         set.into_iter()
-            .map(TranscriptExportFieldClass::as_str)
+            .map(ConsumerSurfaceBindingClass::as_str)
             .collect()
     }
 
@@ -1240,38 +1380,36 @@ impl TerminalStabilizationTruthPacket {
         &self,
         export_id: impl Into<String>,
         exported_at: impl Into<String>,
-    ) -> TerminalStabilizationTruthSupportExport {
-        TerminalStabilizationTruthSupportExport {
-            record_kind: TERMINAL_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
-            schema_version: TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION,
+    ) -> EventNormalizationTruthSupportExport {
+        EventNormalizationTruthSupportExport {
+            record_kind: EVENT_NORMALIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: EVENT_NORMALIZATION_TRUTH_SCHEMA_VERSION,
             export_id: export_id.into(),
-            terminal_stabilization_truth_packet_id_ref: self.packet_id.clone(),
+            event_normalization_truth_packet_id_ref: self.packet_id.clone(),
             exported_at: exported_at.into(),
             raw_private_material_excluded: true,
             ambient_authority_excluded: true,
-            terminal_stabilization_truth_packet: self.clone(),
+            event_normalization_truth_packet: self.clone(),
         }
     }
 
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != TERMINAL_STABILIZATION_TRUTH_PACKET_RECORD_KIND
+        if include_record_fields && self.record_kind != EVENT_NORMALIZATION_TRUTH_PACKET_RECORD_KIND
         {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongRecordKind,
                 FindingSeverity::Blocker,
-                "terminal-stabilization truth packet has the wrong record kind",
+                "event-normalization truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields
-            && self.schema_version != TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION
+        if include_record_fields && self.schema_version != EVENT_NORMALIZATION_TRUTH_SCHEMA_VERSION
         {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongSchemaVersion,
                 FindingSeverity::Blocker,
-                "terminal-stabilization truth packet has the wrong schema version",
+                "event-normalization truth packet has the wrong schema version",
             ));
         }
         if self.packet_id.trim().is_empty()
@@ -1288,7 +1426,7 @@ impl TerminalStabilizationTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingLaneCoverage,
                 FindingSeverity::Blocker,
-                "packet must declare at least one covered terminal-stabilization lane",
+                "packet must declare at least one covered event-normalization lane",
             ));
         }
 
@@ -1298,10 +1436,7 @@ impl TerminalStabilizationTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingLaneCoverage,
                     FindingSeverity::Blocker,
-                    format!(
-                        "no row covers terminal-stabilization lane {}",
-                        lane.as_str()
-                    ),
+                    format!("no row covers event-normalization lane {}", lane.as_str()),
                 ));
             }
         }
@@ -1319,7 +1454,7 @@ impl TerminalStabilizationTruthPacket {
                     FindingKind::RawSourceMaterialPresent,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} admits raw command lines, raw env bytes, or raw scrollback bodies past the boundary",
+                        "row {} admits raw command lines, raw env bytes, raw scrollback bodies, or raw capsule bodies past the boundary",
                         row.row_id
                     ),
                 ));
@@ -1458,114 +1593,133 @@ impl TerminalStabilizationTruthPacket {
                 ));
             }
 
-            if row.row_class.requires_host_boundary_field()
-                && matches!(
-                    row.host_boundary_field_class,
-                    HostBoundaryFieldClass::NotApplicable
-                )
+            if row.row_class.requires_envelope_field()
+                && matches!(row.envelope_field_class, EnvelopeFieldClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::HostBoundaryFieldNotApplicable,
+                    FindingKind::EnvelopeFieldNotApplicable,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} is a host_boundary_field_binding but has no bound host-boundary field",
+                        "row {} is an envelope_field_binding but has no bound envelope field",
                         row.row_id
                     ),
                 ));
             }
-            if !row.row_class.requires_host_boundary_field()
-                && !matches!(
-                    row.host_boundary_field_class,
-                    HostBoundaryFieldClass::NotApplicable
-                )
+            if !row.row_class.requires_envelope_field()
+                && !matches!(row.envelope_field_class, EnvelopeFieldClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::HostBoundaryFieldNotPermittedOnRowClass,
+                    FindingKind::EnvelopeFieldNotPermittedOnRowClass,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} has row class {} but binds host-boundary field {}; only host_boundary_field_binding rows may bind a field",
+                        "row {} has row class {} but binds envelope field {}; only envelope_field_binding rows may bind a field",
                         row.row_id,
                         row.row_class.as_str(),
-                        row.host_boundary_field_class.as_str()
+                        row.envelope_field_class.as_str()
                     ),
                 ));
             }
 
-            if row.row_class.requires_clipboard_posture()
-                && matches!(
-                    row.clipboard_posture_class,
-                    ClipboardPostureClass::NotApplicable
-                )
+            if row.row_class.requires_source_kind()
+                && matches!(row.source_kind_class, SourceKindClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::ClipboardPostureNotApplicable,
+                    FindingKind::SourceKindNotApplicable,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} is a clipboard_posture_binding but has no bound clipboard-posture surface",
+                        "row {} is a source_kind_binding but has no bound source kind",
                         row.row_id
                     ),
                 ));
             }
-            if !row.row_class.requires_clipboard_posture()
-                && !matches!(
-                    row.clipboard_posture_class,
-                    ClipboardPostureClass::NotApplicable
-                )
+            if !row.row_class.requires_source_kind()
+                && !matches!(row.source_kind_class, SourceKindClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::ClipboardPostureNotPermittedOnRowClass,
+                    FindingKind::SourceKindNotPermittedOnRowClass,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} has row class {} but binds clipboard-posture surface {}; only clipboard_posture_binding rows may bind a surface",
+                        "row {} has row class {} but binds source kind {}; only source_kind_binding rows may bind a kind",
                         row.row_id,
                         row.row_class.as_str(),
-                        row.clipboard_posture_class.as_str()
+                        row.source_kind_class.as_str()
                     ),
                 ));
             }
 
-            if row.row_class.requires_transcript_export_field()
+            if row.row_class.requires_lifecycle_event()
                 && matches!(
-                    row.transcript_export_field_class,
-                    TranscriptExportFieldClass::NotApplicable
+                    row.lifecycle_event_class,
+                    LifecycleEventClass::NotApplicable
                 )
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::TranscriptExportFieldNotApplicable,
+                    FindingKind::LifecycleEventNotApplicable,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} is a transcript_export_field_binding but has no bound transcript-export field",
+                        "row {} is a lifecycle_event_binding but has no bound lifecycle event",
                         row.row_id
                     ),
                 ));
             }
-            if !row.row_class.requires_transcript_export_field()
+            if !row.row_class.requires_lifecycle_event()
                 && !matches!(
-                    row.transcript_export_field_class,
-                    TranscriptExportFieldClass::NotApplicable
+                    row.lifecycle_event_class,
+                    LifecycleEventClass::NotApplicable
                 )
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::TranscriptExportFieldNotPermittedOnRowClass,
+                    FindingKind::LifecycleEventNotPermittedOnRowClass,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} has row class {} but binds transcript-export field {}; only transcript_export_field_binding rows may bind a field",
+                        "row {} has row class {} but binds lifecycle event {}; only lifecycle_event_binding rows may bind an event",
                         row.row_id,
                         row.row_class.as_str(),
-                        row.transcript_export_field_class.as_str()
+                        row.lifecycle_event_class.as_str()
                     ),
                 ));
             }
 
-            if matches!(
-                row.row_class,
-                TerminalStabilizationRowClass::LineageAdmission
-            ) && row
-                .execution_context_id_binding
-                .as_deref()
-                .map(str::trim)
-                .map(str::is_empty)
-                .unwrap_or(true)
+            if row.row_class.requires_consumer_surface()
+                && matches!(
+                    row.consumer_surface_class,
+                    ConsumerSurfaceBindingClass::NotApplicable
+                )
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ConsumerSurfaceNotApplicable,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} is a consumer_surface_binding but has no bound consumer surface",
+                        row.row_id
+                    ),
+                ));
+            }
+            if !row.row_class.requires_consumer_surface()
+                && !matches!(
+                    row.consumer_surface_class,
+                    ConsumerSurfaceBindingClass::NotApplicable
+                )
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ConsumerSurfaceNotPermittedOnRowClass,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} has row class {} but binds consumer surface {}; only consumer_surface_binding rows may bind a surface",
+                        row.row_id,
+                        row.row_class.as_str(),
+                        row.consumer_surface_class.as_str()
+                    ),
+                ));
+            }
+
+            if matches!(row.row_class, EventNormalizationRowClass::LineageAdmission)
+                && row
+                    .execution_context_id_binding
+                    .as_deref()
+                    .map(str::trim)
+                    .map(str::is_empty)
+                    .unwrap_or(true)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::LineageAdmissionMissingExecutionContextId,
@@ -1579,14 +1733,14 @@ impl TerminalStabilizationTruthPacket {
 
             if matches!(
                 row.row_class,
-                TerminalStabilizationRowClass::RestoreNoRerunAttestation
-            ) && !row.attests_no_silent_rerun
+                EventNormalizationRowClass::RawPayloadRetentionAttestation
+            ) && !row.attests_raw_payload_retained
             {
                 findings.push(ValidationFinding::new(
-                    FindingKind::RestoreNoRerunAttestationAdmitsSilentRerun,
+                    FindingKind::RawPayloadRetentionAttestationAdmitsFlattening,
                     FindingSeverity::Blocker,
                     format!(
-                        "row {} is a restore_no_rerun_attestation but admits silent rerun",
+                        "row {} is a raw_payload_retention_attestation but admits flattening source_kind, confidence, or raw payload retention",
                         row.row_id
                     ),
                 ));
@@ -1594,7 +1748,7 @@ impl TerminalStabilizationTruthPacket {
 
             if matches!(
                 row.confidence_class,
-                TerminalStabilizationConfidenceClass::LowConfidence
+                EventNormalizationConfidenceClass::LowConfidence
             ) && matches!(row.support_class, SupportClass::LaunchStable)
             {
                 findings.push(ValidationFinding::new(
@@ -1613,7 +1767,7 @@ impl TerminalStabilizationTruthPacket {
                 row.lane_class == *lane
                     && matches!(
                         row.row_class,
-                        TerminalStabilizationRowClass::TerminalStabilizationQuality
+                        EventNormalizationRowClass::EventNormalizationQuality
                     )
                     && matches!(row.support_class, SupportClass::LaunchStable)
             });
@@ -1624,7 +1778,7 @@ impl TerminalStabilizationTruthPacket {
             for wedge in WedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(row.row_class, TerminalStabilizationRowClass::WedgeAdmission)
+                        && matches!(row.row_class, EventNormalizationRowClass::WedgeAdmission)
                         && row.wedge_class == wedge
                 });
                 if !covered {
@@ -1640,21 +1794,21 @@ impl TerminalStabilizationTruthPacket {
                 }
             }
 
-            for field in HostBoundaryFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
+            for field in EnvelopeFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
                         && matches!(
                             row.row_class,
-                            TerminalStabilizationRowClass::HostBoundaryFieldBinding
+                            EventNormalizationRowClass::EnvelopeFieldBinding
                         )
-                        && row.host_boundary_field_class == field
+                        && row.envelope_field_class == field
                 });
                 if !covered {
                     findings.push(ValidationFinding::new(
-                        FindingKind::MissingHostBoundaryFieldCoverage,
+                        FindingKind::MissingEnvelopeFieldCoverage,
                         FindingSeverity::Blocker,
                         format!(
-                            "lane {} claims launch_stable but has no host_boundary_field_binding row for {}",
+                            "lane {} claims launch_stable but has no envelope_field_binding row for {}",
                             lane.as_str(),
                             field.as_str()
                         ),
@@ -1662,21 +1816,62 @@ impl TerminalStabilizationTruthPacket {
                 }
             }
 
-            for surface in ClipboardPostureClass::REQUIRED_FOR_LAUNCH_STABLE {
+            for kind in SourceKindClass::REQUIRED_FOR_LAUNCH_STABLE {
+                let covered = self.rows.iter().any(|row| {
+                    row.lane_class == *lane
+                        && matches!(row.row_class, EventNormalizationRowClass::SourceKindBinding)
+                        && row.source_kind_class == kind
+                });
+                if !covered {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::MissingSourceKindCoverage,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "lane {} claims launch_stable but has no source_kind_binding row for {}",
+                            lane.as_str(),
+                            kind.as_str()
+                        ),
+                    ));
+                }
+            }
+
+            for event in LifecycleEventClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
                         && matches!(
                             row.row_class,
-                            TerminalStabilizationRowClass::ClipboardPostureBinding
+                            EventNormalizationRowClass::LifecycleEventBinding
                         )
-                        && row.clipboard_posture_class == surface
+                        && row.lifecycle_event_class == event
                 });
                 if !covered {
                     findings.push(ValidationFinding::new(
-                        FindingKind::MissingClipboardPostureCoverage,
+                        FindingKind::MissingLifecycleEventCoverage,
                         FindingSeverity::Blocker,
                         format!(
-                            "lane {} claims launch_stable but has no clipboard_posture_binding row for {}",
+                            "lane {} claims launch_stable but has no lifecycle_event_binding row for {}",
+                            lane.as_str(),
+                            event.as_str()
+                        ),
+                    ));
+                }
+            }
+
+            for surface in ConsumerSurfaceBindingClass::REQUIRED_FOR_LAUNCH_STABLE {
+                let covered = self.rows.iter().any(|row| {
+                    row.lane_class == *lane
+                        && matches!(
+                            row.row_class,
+                            EventNormalizationRowClass::ConsumerSurfaceBinding
+                        )
+                        && row.consumer_surface_class == surface
+                });
+                if !covered {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::MissingConsumerSurfaceCoverage,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "lane {} claims launch_stable but has no consumer_surface_binding row for {}",
                             lane.as_str(),
                             surface.as_str()
                         ),
@@ -1684,42 +1879,20 @@ impl TerminalStabilizationTruthPacket {
                 }
             }
 
-            for field in TranscriptExportFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
-                let covered = self.rows.iter().any(|row| {
-                    row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            TerminalStabilizationRowClass::TranscriptExportFieldBinding
-                        )
-                        && row.transcript_export_field_class == field
-                });
-                if !covered {
-                    findings.push(ValidationFinding::new(
-                        FindingKind::MissingTranscriptExportFieldCoverage,
-                        FindingSeverity::Blocker,
-                        format!(
-                            "lane {} claims launch_stable but has no transcript_export_field_binding row for {}",
-                            lane.as_str(),
-                            field.as_str()
-                        ),
-                    ));
-                }
-            }
-
-            let has_restore_no_rerun = self.rows.iter().any(|row| {
+            let has_retention = self.rows.iter().any(|row| {
                 row.lane_class == *lane
                     && matches!(
                         row.row_class,
-                        TerminalStabilizationRowClass::RestoreNoRerunAttestation
+                        EventNormalizationRowClass::RawPayloadRetentionAttestation
                     )
-                    && row.attests_no_silent_rerun
+                    && row.attests_raw_payload_retained
             });
-            if !has_restore_no_rerun {
+            if !has_retention {
                 findings.push(ValidationFinding::new(
-                    FindingKind::MissingRestoreNoRerunAttestation,
+                    FindingKind::MissingRawPayloadRetentionAttestation,
                     FindingSeverity::Blocker,
                     format!(
-                        "lane {} claims launch_stable but has no restore_no_rerun_attestation row attesting no silent rerun",
+                        "lane {} claims launch_stable but has no raw_payload_retention_attestation row attesting preserved source_kind, confidence, and raw payload retention",
                         lane.as_str()
                     ),
                 ));
@@ -1727,10 +1900,7 @@ impl TerminalStabilizationTruthPacket {
 
             let has_lineage = self.rows.iter().any(|row| {
                 row.lane_class == *lane
-                    && matches!(
-                        row.row_class,
-                        TerminalStabilizationRowClass::LineageAdmission
-                    )
+                    && matches!(row.row_class, EventNormalizationRowClass::LineageAdmission)
                     && row
                         .execution_context_id_binding
                         .as_deref()
@@ -1769,7 +1939,7 @@ impl TerminalStabilizationTruthPacket {
                     FindingKind::ConsumerProjectionDrift,
                     FindingSeverity::Blocker,
                     format!(
-                        "projection {} does not preserve terminal-stabilization truth",
+                        "projection {} does not preserve event-normalization truth",
                         projection.projection_ref
                     ),
                 ));
@@ -1814,32 +1984,32 @@ impl TerminalStabilizationTruthPacket {
                     ),
                 ));
             }
-            if !projection.preserves_host_boundary_field_vocabulary {
+            if !projection.preserves_envelope_field_vocabulary {
                 findings.push(ValidationFinding::new(
-                    FindingKind::HostBoundaryFieldVocabularyCollapsed,
+                    FindingKind::EnvelopeFieldVocabularyCollapsed,
                     FindingSeverity::Blocker,
                     format!(
-                        "projection {} collapses the host-boundary-field vocabulary",
+                        "projection {} collapses the envelope-field vocabulary",
                         projection.projection_ref
                     ),
                 ));
             }
-            if !projection.preserves_clipboard_posture_vocabulary {
+            if !projection.preserves_source_kind_vocabulary {
                 findings.push(ValidationFinding::new(
-                    FindingKind::ClipboardPostureVocabularyCollapsed,
+                    FindingKind::SourceKindVocabularyCollapsed,
                     FindingSeverity::Blocker,
                     format!(
-                        "projection {} collapses the clipboard-posture vocabulary",
+                        "projection {} collapses the source-kind vocabulary",
                         projection.projection_ref
                     ),
                 ));
             }
-            if !projection.preserves_transcript_export_field_vocabulary {
+            if !projection.preserves_lifecycle_event_vocabulary {
                 findings.push(ValidationFinding::new(
-                    FindingKind::TranscriptExportFieldVocabularyCollapsed,
+                    FindingKind::LifecycleEventVocabularyCollapsed,
                     FindingSeverity::Blocker,
                     format!(
-                        "projection {} collapses the transcript-export-field vocabulary",
+                        "projection {} collapses the lifecycle-event vocabulary",
                         projection.projection_ref
                     ),
                 ));
@@ -1912,7 +2082,7 @@ fn promotion_state_for_findings(findings: &[ValidationFinding]) -> PromotionStat
 
 /// Support-export wrapper that preserves the product packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TerminalStabilizationTruthSupportExport {
+pub struct EventNormalizationTruthSupportExport {
     /// Stable record kind.
     pub record_kind: String,
     /// Schema version.
@@ -1920,7 +2090,7 @@ pub struct TerminalStabilizationTruthSupportExport {
     /// Stable export id.
     pub export_id: String,
     /// Packet id preserved by the export.
-    pub terminal_stabilization_truth_packet_id_ref: String,
+    pub event_normalization_truth_packet_id_ref: String,
     /// Export timestamp.
     pub exported_at: String,
     /// True when raw private material is excluded.
@@ -1928,40 +2098,37 @@ pub struct TerminalStabilizationTruthSupportExport {
     /// True when ambient credentials/authority are excluded.
     pub ambient_authority_excluded: bool,
     /// Exact product packet preserved by the export.
-    pub terminal_stabilization_truth_packet: TerminalStabilizationTruthPacket,
+    pub event_normalization_truth_packet: EventNormalizationTruthPacket,
 }
 
-impl TerminalStabilizationTruthSupportExport {
+impl EventNormalizationTruthSupportExport {
     /// Returns true when the export preserves the same packet id safely.
     pub fn is_export_safe(&self) -> bool {
-        self.record_kind == TERMINAL_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND
-            && self.schema_version == TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION
-            && self.terminal_stabilization_truth_packet_id_ref
-                == self.terminal_stabilization_truth_packet.packet_id
+        self.record_kind == EVENT_NORMALIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND
+            && self.schema_version == EVENT_NORMALIZATION_TRUTH_SCHEMA_VERSION
+            && self.event_normalization_truth_packet_id_ref
+                == self.event_normalization_truth_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self
-                .terminal_stabilization_truth_packet
-                .validate()
-                .is_empty()
+            && self.event_normalization_truth_packet.validate().is_empty()
     }
 }
 
 /// Errors emitted when reading the checked-in stable packet.
 #[derive(Debug)]
-pub enum TerminalStabilizationTruthArtifactError {
+pub enum EventNormalizationTruthArtifactError {
     /// Packet failed to parse.
     Packet(serde_json::Error),
     /// Packet failed validation.
     Validation(Vec<ValidationFinding>),
 }
 
-impl fmt::Display for TerminalStabilizationTruthArtifactError {
+impl fmt::Display for EventNormalizationTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => write!(
                 formatter,
-                "terminal-stabilization truth packet parse failed: {error}"
+                "event-normalization truth packet parse failed: {error}"
             ),
             Self::Validation(findings) => {
                 let tokens = findings
@@ -1971,35 +2138,33 @@ impl fmt::Display for TerminalStabilizationTruthArtifactError {
                     .join(",");
                 write!(
                     formatter,
-                    "terminal-stabilization truth packet failed validation: {tokens}"
+                    "event-normalization truth packet failed validation: {tokens}"
                 )
             }
         }
     }
 }
 
-impl Error for TerminalStabilizationTruthArtifactError {}
+impl Error for EventNormalizationTruthArtifactError {}
 
-/// Returns the checked-in stable terminal-stabilization truth packet.
+/// Returns the checked-in stable event-normalization truth packet.
 ///
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse
 /// or validate.
-pub fn current_stable_terminal_stabilization_truth_packet(
-) -> Result<TerminalStabilizationTruthPacket, TerminalStabilizationTruthArtifactError> {
-    let packet: TerminalStabilizationTruthPacket = serde_json::from_str(include_str!(concat!(
+pub fn current_stable_event_normalization_truth_packet(
+) -> Result<EventNormalizationTruthPacket, EventNormalizationTruthArtifactError> {
+    let packet: EventNormalizationTruthPacket = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../artifacts/runtime/m4/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth_packet.json"
+        "/../../artifacts/runtime/m4/harden_task_test_debug_and_terminal_event_normalization_truth_packet.json"
     )))
-    .map_err(TerminalStabilizationTruthArtifactError::Packet)?;
+    .map_err(EventNormalizationTruthArtifactError::Packet)?;
     let findings = packet.validate();
     if findings.is_empty() {
         Ok(packet)
     } else {
-        Err(TerminalStabilizationTruthArtifactError::Validation(
-            findings,
-        ))
+        Err(EventNormalizationTruthArtifactError::Validation(findings))
     }
 }
 
@@ -2008,36 +2173,32 @@ mod tests {
     use super::*;
 
     fn doc_ref() -> String {
-        TERMINAL_STABILIZATION_TRUTH_DOC_REF.to_owned()
+        EVENT_NORMALIZATION_TRUTH_DOC_REF.to_owned()
     }
 
     fn fixture_ref() -> String {
-        TERMINAL_STABILIZATION_TRUTH_FIXTURE_DIR.to_owned()
+        EVENT_NORMALIZATION_TRUTH_FIXTURE_DIR.to_owned()
     }
 
-    fn base_row(
-        prefix: &str,
-        lane: TerminalStabilizationLaneClass,
-        suffix: &str,
-        row_class: TerminalStabilizationRowClass,
-    ) -> TerminalStabilizationRow {
-        TerminalStabilizationRow {
-            row_id: format!("row:{prefix}:{suffix}"),
+    fn quality_row(prefix: &str, lane: EventNormalizationLaneClass) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:quality"),
             lane_class: lane,
-            row_class,
+            row_class: EventNormalizationRowClass::EventNormalizationQuality,
             support_class: SupportClass::LaunchStable,
             wedge_class: WedgeClass::NotApplicable,
-            host_boundary_field_class: HostBoundaryFieldClass::NotApplicable,
-            clipboard_posture_class: ClipboardPostureClass::NotApplicable,
-            transcript_export_field_class: TranscriptExportFieldClass::NotApplicable,
-            evidence_class: EvidenceClass::FixtureRepoEvidence,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::ReleaseEvidenceReview,
             known_limit_class: KnownLimitClass::NoneDeclared,
-            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnLineageBreak,
-            confidence_class: TerminalStabilizationConfidenceClass::HighConfidence,
-            evidence_refs: vec![fixture_ref()],
-            disclosure_ref: Some(format!("{}#auto_narrow_on_lineage_break", doc_ref())),
+            downgrade_automation_class: DowngradeAutomationClass::AutoBlockOnMissingEvidence,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![doc_ref(), fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_block_on_missing_evidence", doc_ref())),
             execution_context_id_binding: None,
-            attests_no_silent_rerun: false,
+            attests_raw_payload_retained: false,
             raw_source_material_excluded: true,
             secrets_excluded: true,
             ambient_authority_excluded: true,
@@ -2045,151 +2206,223 @@ mod tests {
         }
     }
 
-    fn quality_row(prefix: &str, lane: TerminalStabilizationLaneClass) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            "quality",
-            TerminalStabilizationRowClass::TerminalStabilizationQuality,
-        );
-        row.evidence_class = EvidenceClass::ReleaseEvidenceReview;
-        row.downgrade_automation_class = DowngradeAutomationClass::AutoBlockOnMissingEvidence;
-        row.disclosure_ref = Some(format!("{}#auto_block_on_missing_evidence", doc_ref()));
-        row.evidence_refs = vec![doc_ref(), fixture_ref()];
-        row
-    }
-
     fn wedge_row(
         prefix: &str,
-        lane: TerminalStabilizationLaneClass,
+        lane: EventNormalizationLaneClass,
         wedge: WedgeClass,
-    ) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            &format!("wedge:{}", wedge.as_str()),
-            TerminalStabilizationRowClass::WedgeAdmission,
-        );
-        row.wedge_class = wedge;
-        row.evidence_class = EvidenceClass::ConformanceSuiteEvidence;
-        row.downgrade_automation_class = DowngradeAutomationClass::AutoNarrowOnWedgeAdmissionGap;
-        row.disclosure_ref = Some(format!("{}#auto_narrow_on_wedge_admission_gap", doc_ref()));
-        row
+    ) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:wedge:{}", wedge.as_str()),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::WedgeAdmission,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: wedge,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::ConformanceSuiteEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnWedgeAdmissionGap,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_wedge_admission_gap", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn host_field_row(
+    fn envelope_row(
         prefix: &str,
-        lane: TerminalStabilizationLaneClass,
-        field: HostBoundaryFieldClass,
-    ) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            &format!("host_boundary:{}", field.as_str()),
-            TerminalStabilizationRowClass::HostBoundaryFieldBinding,
-        );
-        row.host_boundary_field_class = field;
-        row.evidence_class = EvidenceClass::AutomatedFunctionalEvidence;
-        row.downgrade_automation_class = DowngradeAutomationClass::AutoNarrowOnHostBoundaryFieldGap;
-        row.disclosure_ref = Some(format!(
-            "{}#auto_narrow_on_host_boundary_field_gap",
-            doc_ref()
-        ));
-        row
+        lane: EventNormalizationLaneClass,
+        field: EnvelopeFieldClass,
+    ) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:field:{}", field.as_str()),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::EnvelopeFieldBinding,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: field,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::AutomatedFunctionalEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnEnvelopeFieldGap,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_envelope_field_gap", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn clipboard_row(
+    fn source_kind_row(
         prefix: &str,
-        lane: TerminalStabilizationLaneClass,
-        surface: ClipboardPostureClass,
-    ) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            &format!("clipboard:{}", surface.as_str()),
-            TerminalStabilizationRowClass::ClipboardPostureBinding,
-        );
-        row.clipboard_posture_class = surface;
-        row.evidence_class = EvidenceClass::ConformanceSuiteEvidence;
-        row.downgrade_automation_class = DowngradeAutomationClass::AutoNarrowOnClipboardPostureGap;
-        row.disclosure_ref = Some(format!(
-            "{}#auto_narrow_on_clipboard_posture_gap",
-            doc_ref()
-        ));
-        row
+        lane: EventNormalizationLaneClass,
+        kind: SourceKindClass,
+    ) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:source_kind:{}", kind.as_str()),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::SourceKindBinding,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: kind,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::ConformanceSuiteEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnSourceKindGap,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_source_kind_gap", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn transcript_row(
+    fn lifecycle_row(
         prefix: &str,
-        lane: TerminalStabilizationLaneClass,
-        field: TranscriptExportFieldClass,
-    ) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            &format!("transcript_export:{}", field.as_str()),
-            TerminalStabilizationRowClass::TranscriptExportFieldBinding,
-        );
-        row.transcript_export_field_class = field;
-        row.evidence_class = EvidenceClass::AutomatedFunctionalEvidence;
-        row.downgrade_automation_class =
-            DowngradeAutomationClass::AutoNarrowOnTranscriptExportFieldGap;
-        row.disclosure_ref = Some(format!(
-            "{}#auto_narrow_on_transcript_export_field_gap",
-            doc_ref()
-        ));
-        row
+        lane: EventNormalizationLaneClass,
+        event: LifecycleEventClass,
+    ) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:lifecycle:{}", event.as_str()),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::LifecycleEventBinding,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: event,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::AutomatedFunctionalEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnLifecycleEventGap,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_lifecycle_event_gap", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn restore_row(prefix: &str, lane: TerminalStabilizationLaneClass) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            "restore_no_rerun",
-            TerminalStabilizationRowClass::RestoreNoRerunAttestation,
-        );
-        row.evidence_class = EvidenceClass::FailureRecoveryDrillEvidence;
-        row.downgrade_automation_class =
-            DowngradeAutomationClass::AutoNarrowOnRestoreAdmitsSilentRerun;
-        row.disclosure_ref = Some(format!(
-            "{}#auto_narrow_on_restore_admits_silent_rerun",
-            doc_ref()
-        ));
-        row.attests_no_silent_rerun = true;
-        row
+    fn consumer_row(
+        prefix: &str,
+        lane: EventNormalizationLaneClass,
+        surface: ConsumerSurfaceBindingClass,
+    ) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:consumer:{}", surface.as_str()),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::ConsumerSurfaceBinding,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: surface,
+            evidence_class: EvidenceClass::ConformanceSuiteEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnConsumerSurfaceGap,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_consumer_surface_gap", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn lineage_row(prefix: &str, lane: TerminalStabilizationLaneClass) -> TerminalStabilizationRow {
-        let mut row = base_row(
-            prefix,
-            lane,
-            "lineage_admission",
-            TerminalStabilizationRowClass::LineageAdmission,
-        );
-        row.evidence_class = EvidenceClass::AutomatedFunctionalEvidence;
-        row.downgrade_automation_class = DowngradeAutomationClass::AutoNarrowOnLineageBreak;
-        row.disclosure_ref = Some(format!("{}#auto_narrow_on_lineage_break", doc_ref()));
-        row.execution_context_id_binding =
-            Some(format!("exec:m4:{prefix}:terminal_session_lineage"));
-        row
+    fn retention_row(prefix: &str, lane: EventNormalizationLaneClass) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:retention"),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::RawPayloadRetentionAttestation,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::FailureRecoveryDrillEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnExportFlattening,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_export_flattening", doc_ref())),
+            execution_context_id_binding: None,
+            attests_raw_payload_retained: true,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
     }
 
-    fn projection(surface: ConsumerSurface) -> TerminalStabilizationConsumerProjection {
-        TerminalStabilizationConsumerProjection {
+    fn lineage_row(prefix: &str, lane: EventNormalizationLaneClass) -> EventNormalizationRow {
+        EventNormalizationRow {
+            row_id: format!("row:{prefix}:lineage_admission"),
+            lane_class: lane,
+            row_class: EventNormalizationRowClass::LineageAdmission,
+            support_class: SupportClass::LaunchStable,
+            wedge_class: WedgeClass::NotApplicable,
+            envelope_field_class: EnvelopeFieldClass::NotApplicable,
+            source_kind_class: SourceKindClass::NotApplicable,
+            lifecycle_event_class: LifecycleEventClass::NotApplicable,
+            consumer_surface_class: ConsumerSurfaceBindingClass::NotApplicable,
+            evidence_class: EvidenceClass::AutomatedFunctionalEvidence,
+            known_limit_class: KnownLimitClass::NoneDeclared,
+            downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnLineageBreak,
+            confidence_class: EventNormalizationConfidenceClass::HighConfidence,
+            evidence_refs: vec![fixture_ref()],
+            disclosure_ref: Some(format!("{}#auto_narrow_on_lineage_break", doc_ref())),
+            execution_context_id_binding: Some(format!("exec:m4:{prefix}:event_normalization")),
+            attests_raw_payload_retained: false,
+            raw_source_material_excluded: true,
+            secrets_excluded: true,
+            ambient_authority_excluded: true,
+            captured_at: "2026-05-26T12:00:00Z".to_owned(),
+        }
+    }
+
+    fn projection(surface: ConsumerSurface) -> EventNormalizationConsumerProjection {
+        EventNormalizationConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            terminal_stabilization_truth_packet_id_ref:
-                "packet:m4:stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export"
-                    .to_owned(),
+            event_normalization_truth_packet_id_ref:
+                "packet:m4:harden_task_test_debug_and_terminal_event_normalization".to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,
             preserves_row_class_vocabulary: true,
             preserves_support_class_vocabulary: true,
             preserves_wedge_vocabulary: true,
-            preserves_host_boundary_field_vocabulary: true,
-            preserves_clipboard_posture_vocabulary: true,
-            preserves_transcript_export_field_vocabulary: true,
+            preserves_envelope_field_vocabulary: true,
+            preserves_source_kind_vocabulary: true,
+            preserves_lifecycle_event_vocabulary: true,
             preserves_known_limit_vocabulary: true,
             preserves_downgrade_automation_vocabulary: true,
             preserves_evidence_class_vocabulary: true,
@@ -2199,55 +2432,45 @@ mod tests {
         }
     }
 
-    fn lane_rows(
-        lane: TerminalStabilizationLaneClass,
-        prefix: &str,
-    ) -> Vec<TerminalStabilizationRow> {
-        let mut rows = vec![quality_row(prefix, lane)];
+    fn lane_rows(lane: EventNormalizationLaneClass, prefix: &str) -> Vec<EventNormalizationRow> {
+        let mut out = vec![quality_row(prefix, lane)];
         for wedge in WedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
-            rows.push(wedge_row(prefix, lane, wedge));
+            out.push(wedge_row(prefix, lane, wedge));
         }
-        for field in HostBoundaryFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
-            rows.push(host_field_row(prefix, lane, field));
+        for field in EnvelopeFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
+            out.push(envelope_row(prefix, lane, field));
         }
-        for surface in ClipboardPostureClass::REQUIRED_FOR_LAUNCH_STABLE {
-            rows.push(clipboard_row(prefix, lane, surface));
+        for kind in SourceKindClass::REQUIRED_FOR_LAUNCH_STABLE {
+            out.push(source_kind_row(prefix, lane, kind));
         }
-        for field in TranscriptExportFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
-            rows.push(transcript_row(prefix, lane, field));
+        for event in LifecycleEventClass::REQUIRED_FOR_LAUNCH_STABLE {
+            out.push(lifecycle_row(prefix, lane, event));
         }
-        rows.push(restore_row(prefix, lane));
-        rows.push(lineage_row(prefix, lane));
-        rows
+        for surface in ConsumerSurfaceBindingClass::REQUIRED_FOR_LAUNCH_STABLE {
+            out.push(consumer_row(prefix, lane, surface));
+        }
+        out.push(retention_row(prefix, lane));
+        out.push(lineage_row(prefix, lane));
+        out
     }
 
-    fn sample_input() -> TerminalStabilizationTruthPacketInput {
+    fn sample_input() -> EventNormalizationTruthPacketInput {
         let mut rows = Vec::new();
+        rows.extend(lane_rows(EventNormalizationLaneClass::TaskLane, "task"));
+        rows.extend(lane_rows(EventNormalizationLaneClass::TestLane, "test"));
+        rows.extend(lane_rows(EventNormalizationLaneClass::DebugLane, "debug"));
         rows.extend(lane_rows(
-            TerminalStabilizationLaneClass::LocalLane,
-            "local",
+            EventNormalizationLaneClass::TerminalLane,
+            "terminal",
         ));
-        rows.extend(lane_rows(
-            TerminalStabilizationLaneClass::RemoteHelperLane,
-            "remote",
-        ));
-        rows.extend(lane_rows(
-            TerminalStabilizationLaneClass::ContainerLane,
-            "container",
-        ));
-        rows.extend(lane_rows(
-            TerminalStabilizationLaneClass::RestoredLane,
-            "restored",
-        ));
-        TerminalStabilizationTruthPacketInput {
-            packet_id:
-                "packet:m4:stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export"
-                    .to_owned(),
+        EventNormalizationTruthPacketInput {
+            packet_id: "packet:m4:harden_task_test_debug_and_terminal_event_normalization"
+                .to_owned(),
             workflow_or_surface_id:
-                "workflow.runtime.stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export"
+                "workflow.runtime.harden_task_test_debug_and_terminal_event_normalization"
                     .to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
-            covered_lanes: TerminalStabilizationLaneClass::REQUIRED.to_vec(),
+            covered_lanes: EventNormalizationLaneClass::REQUIRED.to_vec(),
             rows,
             consumer_projections: ConsumerSurface::REQUIRED
                 .iter()
@@ -2260,42 +2483,66 @@ mod tests {
 
     #[test]
     fn closed_tokens_are_pinned() {
+        assert_eq!(EventNormalizationLaneClass::TaskLane.as_str(), "task_lane");
+        assert_eq!(EventNormalizationLaneClass::TestLane.as_str(), "test_lane");
         assert_eq!(
-            TerminalStabilizationLaneClass::LocalLane.as_str(),
-            "local_lane"
+            EventNormalizationLaneClass::DebugLane.as_str(),
+            "debug_lane"
         );
         assert_eq!(
-            TerminalStabilizationLaneClass::RestoredLane.as_str(),
-            "restored_lane"
-        );
-        assert_eq!(WedgeClass::HostBoundaryChip.as_str(), "host_boundary_chip");
-        assert_eq!(WedgeClass::RestoreNoRerun.as_str(), "restore_no_rerun");
-        assert_eq!(HostBoundaryFieldClass::RouteCue.as_str(), "route_cue");
-        assert_eq!(
-            ClipboardPostureClass::BracketedPasteState.as_str(),
-            "bracketed_paste_state"
+            EventNormalizationLaneClass::TerminalLane.as_str(),
+            "terminal_lane"
         );
         assert_eq!(
-            ClipboardPostureClass::HighRiskPasteReview.as_str(),
-            "high_risk_paste_review"
+            EventNormalizationRowClass::EventNormalizationQuality.as_str(),
+            "event_normalization_quality"
+        );
+        assert_eq!(SupportClass::LaunchStable.as_str(), "launch_stable");
+        assert_eq!(
+            WedgeClass::EnvelopeCanonicalization.as_str(),
+            "envelope_canonicalization"
         );
         assert_eq!(
-            TranscriptExportFieldClass::TranscriptVersusLiveSession.as_str(),
-            "transcript_versus_live_session"
+            WedgeClass::ExportPreservation.as_str(),
+            "export_preservation"
+        );
+        assert_eq!(EnvelopeFieldClass::EventId.as_str(), "event_id");
+        assert_eq!(EnvelopeFieldClass::Provenance.as_str(), "provenance");
+        assert_eq!(SourceKindClass::BazelBep.as_str(), "bazel_bep");
+        assert_eq!(
+            SourceKindClass::HeuristicParser.as_str(),
+            "heuristic_parser"
+        );
+        assert_eq!(LifecycleEventClass::TaskQueued.as_str(), "task_queued");
+        assert_eq!(LifecycleEventClass::TaskFinished.as_str(), "task_finished");
+        assert_eq!(
+            ConsumerSurfaceBindingClass::AiToolSurface.as_str(),
+            "ai_tool_surface"
+        );
+        assert_eq!(EvidenceClass::EvidenceUnbound.as_str(), "evidence_unbound");
+        assert_eq!(KnownLimitClass::LimitUnbound.as_str(), "limit_unbound");
+        assert_eq!(
+            DowngradeAutomationClass::AutomationUnbound.as_str(),
+            "automation_unbound"
         );
         assert_eq!(
             ConsumerSurface::ConformanceDashboard.as_str(),
             "conformance_dashboard"
         );
+        assert_eq!(PromotionState::BlocksStable.as_str(), "blocks_stable");
         assert_eq!(
-            FindingKind::RestoreNoRerunAttestationAdmitsSilentRerun.as_str(),
-            "restore_no_rerun_attestation_admits_silent_rerun"
+            FindingKind::LaunchStableWithUnboundBinding.as_str(),
+            "launch_stable_with_unbound_binding"
+        );
+        assert_eq!(
+            FindingKind::RawPayloadRetentionAttestationAdmitsFlattening.as_str(),
+            "raw_payload_retention_attestation_admits_flattening"
         );
     }
 
     #[test]
     fn baseline_materialization_is_stable() {
-        let packet = TerminalStabilizationTruthPacket::materialize(sample_input());
+        let packet = EventNormalizationTruthPacket::materialize(sample_input());
         assert_eq!(
             packet.promotion_state,
             PromotionState::Stable,
@@ -2310,7 +2557,7 @@ mod tests {
         assert!(packet.is_stable());
         assert!(packet
             .support_export(
-                "support:m4:stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export",
+                "support:m4:harden_task_test_debug_and_terminal_event_normalization",
                 "2026-05-26T12:00:10Z"
             )
             .is_export_safe());
@@ -2320,55 +2567,88 @@ mod tests {
     fn launch_stable_with_unbound_evidence_blocks() {
         let mut input = sample_input();
         input.rows[0].evidence_class = EvidenceClass::EvidenceUnbound;
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::MissingEvidenceClass));
+            .any(|finding| finding.finding_kind == FindingKind::MissingEvidenceClass));
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::LaunchStableWithUnboundBinding));
+            .any(|finding| finding.finding_kind == FindingKind::LaunchStableWithUnboundBinding));
     }
 
     #[test]
-    fn missing_clipboard_posture_blocks() {
+    fn missing_source_kind_for_launch_stable_blocks() {
+        let mut input = sample_input();
+        input.rows.retain(|row| {
+            !(matches!(row.row_class, EventNormalizationRowClass::SourceKindBinding)
+                && row.source_kind_class == SourceKindClass::BazelBep
+                && row.lane_class == EventNormalizationLaneClass::TaskLane)
+        });
+        let packet = EventNormalizationTruthPacket::materialize(input);
+        assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind == FindingKind::MissingSourceKindCoverage));
+    }
+
+    #[test]
+    fn missing_lifecycle_event_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
             !(matches!(
                 row.row_class,
-                TerminalStabilizationRowClass::ClipboardPostureBinding
-            ) && row.clipboard_posture_class == ClipboardPostureClass::HighRiskPasteReview
-                && row.lane_class == TerminalStabilizationLaneClass::LocalLane)
+                EventNormalizationRowClass::LifecycleEventBinding
+            ) && row.lifecycle_event_class == LifecycleEventClass::TestCaseFinished
+                && row.lane_class == EventNormalizationLaneClass::TestLane)
         });
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::MissingClipboardPostureCoverage));
+            .any(|finding| finding.finding_kind == FindingKind::MissingLifecycleEventCoverage));
     }
 
     #[test]
-    fn restore_attestation_admits_silent_rerun_blocks() {
+    fn retention_admitting_flattening_blocks() {
         let mut input = sample_input();
         for row in &mut input.rows {
             if matches!(
                 row.row_class,
-                TerminalStabilizationRowClass::RestoreNoRerunAttestation
-            ) && row.lane_class == TerminalStabilizationLaneClass::RestoredLane
+                EventNormalizationRowClass::RawPayloadRetentionAttestation
+            ) && row.lane_class == EventNormalizationLaneClass::TaskLane
             {
-                row.attests_no_silent_rerun = false;
+                row.attests_raw_payload_retained = false;
                 break;
             }
         }
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet
-            .validation_findings
-            .iter()
-            .any(|f| f.finding_kind == FindingKind::RestoreNoRerunAttestationAdmitsSilentRerun));
+        assert!(packet.validation_findings.iter().any(|finding| {
+            finding.finding_kind == FindingKind::RawPayloadRetentionAttestationAdmitsFlattening
+        }));
+    }
+
+    #[test]
+    fn lineage_admission_without_execution_context_id_blocks() {
+        let mut input = sample_input();
+        for row in &mut input.rows {
+            if matches!(row.row_class, EventNormalizationRowClass::LineageAdmission)
+                && row.lane_class == EventNormalizationLaneClass::DebugLane
+            {
+                row.execution_context_id_binding = None;
+                break;
+            }
+        }
+        let packet = EventNormalizationTruthPacket::materialize(input);
+        assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
+        assert!(packet.validation_findings.iter().any(|finding| {
+            finding.finding_kind == FindingKind::LineageAdmissionMissingExecutionContextId
+        }));
     }
 
     #[test]
@@ -2376,12 +2656,12 @@ mod tests {
         let mut input = sample_input();
         input.rows[0].support_class = SupportClass::LaunchStableBelow;
         input.rows[0].disclosure_ref = None;
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::NarrowedRowMissingDisclosureRef));
+            .any(|finding| finding.finding_kind == FindingKind::NarrowedRowMissingDisclosureRef));
     }
 
     #[test]
@@ -2389,40 +2669,40 @@ mod tests {
         let mut input = sample_input();
         input
             .consumer_projections
-            .retain(|p| p.consumer_surface != ConsumerSurface::ConformanceDashboard);
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+            .retain(|projection| projection.consumer_surface != ConsumerSurface::AiToolSurface);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::MissingConsumerProjection));
+            .any(|finding| finding.finding_kind == FindingKind::MissingConsumerProjection));
     }
 
     #[test]
-    fn collapsed_clipboard_posture_vocabulary_blocks() {
+    fn collapsed_source_kind_vocabulary_blocks() {
         let mut input = sample_input();
         for projection in &mut input.consumer_projections {
             if projection.consumer_surface == ConsumerSurface::HelpAbout {
-                projection.preserves_clipboard_posture_vocabulary = false;
+                projection.preserves_source_kind_vocabulary = false;
             }
         }
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::ClipboardPostureVocabularyCollapsed));
+            .any(|finding| finding.finding_kind == FindingKind::SourceKindVocabularyCollapsed));
     }
 
     #[test]
     fn raw_source_material_blocks_promotion() {
         let mut input = sample_input();
         input.rows[0].raw_source_material_excluded = false;
-        let packet = TerminalStabilizationTruthPacket::materialize(input);
+        let packet = EventNormalizationTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
             .iter()
-            .any(|f| f.finding_kind == FindingKind::RawSourceMaterialPresent));
+            .any(|finding| finding.finding_kind == FindingKind::RawSourceMaterialPresent));
     }
 }
