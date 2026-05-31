@@ -14,6 +14,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod finalize_git_and_review_support_export_packets_timeline;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
@@ -46,6 +47,21 @@ pub use change_inspector::{
 pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
+pub use finalize_git_and_review_support_export_packets_timeline::{
+    project_git_review_timeline_packet, GitReviewSupportExportInput, GitReviewSupportExportPacket,
+    GitReviewSupportExportTimelinePacket, GitReviewTimelineError, GitReviewTimelineInput,
+    GitReviewTimelineInspectionRecord, GitReviewTimelineProjection, GitReviewTimelineTruthRecord,
+    GitReviewTimelineValidationError, OperatorPlaybookInput, OperatorPlaybookRecord,
+    OperatorPlaybookStepInput, OperatorPlaybookStepRecord, TimelineEventInput, TimelineEventRecord,
+    CHRONOLOGY_STATES, GIT_REVIEW_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    GIT_REVIEW_TIMELINE_CONSUMER_SURFACES, GIT_REVIEW_TIMELINE_INSPECTION_RECORD_KIND,
+    GIT_REVIEW_TIMELINE_INVALIDATION_REASONS, GIT_REVIEW_TIMELINE_PACKET_RECORD_KIND,
+    GIT_REVIEW_TIMELINE_SCHEMA_VERSION, GIT_REVIEW_TIMELINE_TRUTH_RECORD_KIND,
+    OPERATOR_PLAYBOOK_RECORD_KIND, OPERATOR_PLAYBOOK_STATES, OPERATOR_PLAYBOOK_STEP_RECORD_KIND,
+    PLAYBOOK_STEP_AUTHORITY_CLASSES, PLAYBOOK_STEP_COMMAND_CLASSES, TIMELINE_CLOCK_SOURCE_CLASSES,
+    TIMELINE_EVENT_KINDS, TIMELINE_EVENT_RECORD_KIND, TIMELINE_EVENT_SOURCE_CLASSES,
+    TIMELINE_FRESHNESS_CLASSES,
 };
 pub use finalize_issue_and_work_item_linkage_with_branch::{
     project_work_item_linkage_finalization_packet, OfflineHandoffContinuityInput,

@@ -1,0 +1,693 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/git_review_support_export_timeline.schema.json",
+  "title": "Aureline Git/review support-export timeline packet",
+  "description": "Boundary schema for the finalized Git/review support-export timeline packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, a git_review_timeline_truth_record, ordered timeline_event_records carrying explicit clock source/actor/lineage/freshness, operator_playbook_records with their playbook step records, and a metadata-safe support/export packet. Raw URLs and raw provider payloads do not cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/git_review_timeline_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion",
+        "operator_playbook_view"
+      ]
+    },
+    "chronology_state": {
+      "type": "string",
+      "enum": [
+        "chronology_current",
+        "chronology_stale",
+        "chronology_reconstructed",
+        "chronology_gap_detected"
+      ]
+    },
+    "clock_source_class": {
+      "type": "string",
+      "enum": [
+        "local_monotonic",
+        "local_wall_clock",
+        "provider_reported",
+        "imported_bundle",
+        "reconstructed_from_lineage"
+      ]
+    },
+    "event_source_class": {
+      "type": "string",
+      "enum": [
+        "local_git",
+        "review_workspace",
+        "provider_linked",
+        "browser_handoff",
+        "migration_import",
+        "ai_evidence"
+      ]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "commit_recorded",
+        "review_state_transition",
+        "merge_landed",
+        "rebase_applied",
+        "checkpoint_created",
+        "provider_publish",
+        "import_applied",
+        "comment_posted",
+        "approval_recorded",
+        "approval_invalidated"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale",
+        "superseded",
+        "unverified"
+      ]
+    },
+    "playbook_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready",
+        "in_progress",
+        "completed",
+        "blocked"
+      ]
+    },
+    "playbook_step_command_class": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "preview",
+        "apply_with_checkpoint",
+        "revert",
+        "export",
+        "handoff",
+        "escalate"
+      ]
+    },
+    "playbook_step_authority_class": {
+      "type": "string",
+      "enum": [
+        "advisory_only",
+        "previewable_local_apply",
+        "checkpointed_reversible",
+        "requires_human_approval",
+        "hosted_provider_mutation"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "chronology_gap",
+        "clock_source_unverified",
+        "event_unattributed",
+        "non_monotonic_ordering",
+        "playbook_step_authority_exceeded",
+        "support_export_stale",
+        "lineage_break"
+      ]
+    },
+    "git_review_timeline_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "timeline_truth",
+        "timeline_events",
+        "playbooks",
+        "playbook_steps",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "git_review_timeline_packet"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "review_workspace": {
+          "$ref": "#/$defs/review_workspace_record"
+        },
+        "timeline_truth": {
+          "$ref": "#/$defs/git_review_timeline_truth_record"
+        },
+        "timeline_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeline_event_record"
+          }
+        },
+        "playbooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operator_playbook_record"
+          }
+        },
+        "playbook_steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operator_playbook_step_record"
+          }
+        },
+        "support_export": {
+          "$ref": "#/$defs/git_review_support_export_packet"
+        },
+        "inspection": {
+          "$ref": "#/$defs/git_review_timeline_inspection_record"
+        }
+      }
+    },
+    "review_workspace_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "review_workspace_record"
+        },
+        "review_workspace_schema_version": {
+          "type": "integer"
+        },
+        "review_workspace_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_source_class": {
+          "type": "string"
+        },
+        "provider_authority_class": {
+          "type": "string"
+        },
+        "review_workspace_lifecycle_state": {
+          "type": "string"
+        },
+        "freshness_class": {
+          "type": "string"
+        }
+      }
+    },
+    "git_review_timeline_truth_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "timeline_id",
+        "review_workspace_id_ref",
+        "chronology_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "git_review_timeline_truth_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "timeline_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "chronology_state": {
+          "$ref": "#/$defs/chronology_state"
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/invalidation_reason"
+          }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "timeline_event_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "timeline_id_ref",
+        "event_id",
+        "sequence_index",
+        "event_kind",
+        "event_source_class",
+        "clock_source_class",
+        "recorded_at",
+        "actor_ref",
+        "target_object_ref",
+        "freshness_class",
+        "reversible",
+        "discloses_hosted_authority",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "timeline_event_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "timeline_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "sequence_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_kind": {
+          "$ref": "#/$defs/event_kind"
+        },
+        "event_source_class": {
+          "$ref": "#/$defs/event_source_class"
+        },
+        "clock_source_class": {
+          "$ref": "#/$defs/clock_source_class"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "target_object_ref": {
+          "type": "string"
+        },
+        "lineage_parent_ref": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "discloses_hosted_authority": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "operator_playbook_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "timeline_id_ref",
+        "playbook_id",
+        "playbook_state",
+        "step_count",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "operator_playbook_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "timeline_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "playbook_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "playbook_state": {
+          "$ref": "#/$defs/playbook_state"
+        },
+        "step_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "operator_playbook_step_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "timeline_id_ref",
+        "playbook_id_ref",
+        "step_id",
+        "step_index",
+        "command_class",
+        "authority_class",
+        "preview_supported",
+        "reversible",
+        "checkpoint_required",
+        "discloses_hosted_authority",
+        "would_broaden_authority",
+        "target_object_ref",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "operator_playbook_step_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "timeline_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "playbook_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "step_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_class": {
+          "$ref": "#/$defs/playbook_step_command_class"
+        },
+        "authority_class": {
+          "$ref": "#/$defs/playbook_step_authority_class"
+        },
+        "preview_supported": {
+          "type": "boolean"
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "checkpoint_required": {
+          "type": "boolean"
+        },
+        "discloses_hosted_authority": {
+          "type": "boolean"
+        },
+        "would_broaden_authority": {
+          "type": "boolean"
+        },
+        "target_object_ref": {
+          "type": "string"
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "git_review_support_export_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "timeline_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "timeline_event_id_refs",
+        "playbook_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "git_review_support_export_packet"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "support_export_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "timeline_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "reopen_context_ref": {
+          "type": "string"
+        },
+        "reopen_command_id_ref": {
+          "type": "string"
+        },
+        "timeline_event_id_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "playbook_id_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/consumer_surface"
+          }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "raw_url_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_provider_payload_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "git_review_timeline_inspection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "timeline_id_ref",
+        "review_workspace_id_ref",
+        "chronology_current",
+        "chronology_stale",
+        "chronology_reconstructed",
+        "chronology_gap_detected",
+        "monotonic_ordering_preserved",
+        "all_events_attributed",
+        "all_events_have_clock_source",
+        "all_hosted_events_disclosed",
+        "lineage_resolves",
+        "all_mutating_steps_reversible_or_checkpointed",
+        "all_mutating_steps_previewable",
+        "all_hosted_steps_disclosed",
+        "no_authority_broadening",
+        "actionable",
+        "invalidated",
+        "timeline_event_count",
+        "playbook_count",
+        "playbook_step_count",
+        "support_export_reopenable",
+        "raw_escape_hatches_absent",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "git_review_timeline_inspection_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "timeline_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "chronology_current": {
+          "type": "boolean"
+        },
+        "chronology_stale": {
+          "type": "boolean"
+        },
+        "chronology_reconstructed": {
+          "type": "boolean"
+        },
+        "chronology_gap_detected": {
+          "type": "boolean"
+        },
+        "monotonic_ordering_preserved": {
+          "type": "boolean"
+        },
+        "all_events_attributed": {
+          "type": "boolean"
+        },
+        "all_events_have_clock_source": {
+          "type": "boolean"
+        },
+        "all_hosted_events_disclosed": {
+          "type": "boolean"
+        },
+        "lineage_resolves": {
+          "type": "boolean"
+        },
+        "all_mutating_steps_reversible_or_checkpointed": {
+          "type": "boolean"
+        },
+        "all_mutating_steps_previewable": {
+          "type": "boolean"
+        },
+        "all_hosted_steps_disclosed": {
+          "type": "boolean"
+        },
+        "no_authority_broadening": {
+          "type": "boolean"
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "invalidated": {
+          "type": "boolean"
+        },
+        "timeline_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playbook_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playbook_step_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "support_export_reopenable": {
+          "type": "boolean"
+        },
+        "raw_escape_hatches_absent": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    }
+  }
+}
