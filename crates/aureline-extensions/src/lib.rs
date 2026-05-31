@@ -154,6 +154,7 @@ pub mod review_alpha;
 pub mod revocation;
 pub mod runtime;
 pub mod sdk_v1;
+pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod supervision;
 pub mod webview_boundary;
 
@@ -405,4 +406,35 @@ pub use webview_boundary::{
     EXTENSION_WEBVIEW_BOUNDARY_SCHEMA_VERSION, EXTENSION_WEBVIEW_BOUNDARY_SHARED_CONTRACT_REF,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_ROW_RECORD_KIND,
+};
+pub use stabilize_extension_runtime_v1_abi_capability_envelopes_and::{
+    project_stable_runtime_abi, project_stable_runtime_abi_support_export,
+    ActivationBudget as StableRuntimeActivationBudget,
+    ActivationBudgetInput as StableRuntimeActivationBudgetInput,
+    ActiveContributionInspectorEntry, ActiveContributionInspectorEntryInput, CapabilityEnvelope,
+    CapabilityEnvelopeInput,
+    DowngradedHostBanner, HostIsolationPosture, HostIsolationPostureInput,
+    RuntimeAbiIdentity, RuntimeAbiIdentityInput, RuntimeAbiQualificationClaim,
+    RuntimeAbiQualificationClaimInput, RuntimeClassDeclaration, RuntimeClassDeclarationInput,
+    SandboxProfileBinding, SandboxProfileBindingInput, StableRuntimeAbiError,
+    StableRuntimeAbiInput, StableRuntimeAbiInspection, StableRuntimeAbiPacket,
+    StableRuntimeAbiProjection, StableRuntimeAbiSupportExport, StableRuntimeAbiValidationError,
+    ACTIVATION_BUDGET_CLASSES, ACTIVATION_BUDGET_RECORD_KIND,
+    ACTIVE_CONTRIBUTION_INSPECTOR_ENTRY_RECORD_KIND, BACKEND_CLASSIFICATION_CLASSES,
+    CAPABILITY_ENVELOPE_RECORD_KIND, CLAIM_BASIS_CLASSES as STABLE_RUNTIME_ABI_CLAIM_BASIS_CLASSES,
+    CONTRIBUTION_HOST_STATE_CLASSES, CONTRIBUTION_KIND_CLASSES, DOWNGRADED_HOST_BANNER_RECORD_KIND,
+    EXECUTION_LOCUS_CLASSES, HOST_ISOLATION_POSTURE_RECORD_KIND, ISOLATION_BOUNDARY_CLASSES,
+    LIFECYCLE_STATE_CLASSES as STABLE_RUNTIME_ABI_LIFECYCLE_STATE_CLASSES,
+    NON_EXECUTING_RUNTIME_CLASSES, RESTART_POSTURE_CLASSES as STABLE_RUNTIME_ABI_RESTART_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES, RUNTIME_ABI_DOWNGRADE_REASONS, RUNTIME_ABI_IDENTITY_RECORD_KIND,
+    RUNTIME_ABI_QUALIFICATION_CLAIM_RECORD_KIND, RUNTIME_CLASSES,
+    RUNTIME_CLASS_DECLARATION_RECORD_KIND, SANDBOXED_RUNTIME_CLASSES,
+    SANDBOX_ENFORCEMENT_STATES, SANDBOX_PROFILE_BINDING_RECORD_KIND,
+    STABILITY_TIERS as STABLE_RUNTIME_ABI_STABILITY_TIERS, STABLE_RUNTIME_ABI_CONSUMER_SURFACES,
+    STABLE_RUNTIME_ABI_INSPECTION_RECORD_KIND, STABLE_RUNTIME_ABI_PACKET_RECORD_KIND,
+    STABLE_RUNTIME_ABI_PUBLISHED_VERSION, STABLE_RUNTIME_ABI_SCHEMA_REF,
+    STABLE_RUNTIME_ABI_SCHEMA_VERSION, STABLE_RUNTIME_ABI_SUPPORT_EXPORT_RECORD_KIND,
+    STABLE_TIERS as STABLE_RUNTIME_ABI_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as STABLE_RUNTIME_ABI_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as STABLE_RUNTIME_ABI_TRUST_TIER_CLASSES,
 };
