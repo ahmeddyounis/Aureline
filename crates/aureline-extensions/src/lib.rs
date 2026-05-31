@@ -140,6 +140,7 @@ pub mod collections;
 pub mod compatibility_matrix;
 pub mod conformance_reports;
 pub mod fact_grid;
+pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod locale_support;
@@ -406,6 +407,43 @@ pub use webview_boundary::{
     EXTENSION_WEBVIEW_BOUNDARY_SCHEMA_VERSION, EXTENSION_WEBVIEW_BOUNDARY_SHARED_CONTRACT_REF,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
     EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_ROW_RECORD_KIND,
+};
+pub use finalize_wasm_host_quotas_crash_loop_quarantine_and::{
+    project_stable_wasm_host_governance, project_stable_wasm_host_governance_support_export,
+    CrashLoopGovernance, CrashLoopGovernanceInput, GovernanceDowngradedHostBanner,
+    GovernanceIdentity, GovernanceIdentityInput, GovernanceQualificationClaim,
+    GovernanceQualificationClaimInput, GovernanceRuntimeClassDeclaration,
+    GovernanceRuntimeClassDeclarationInput, GovernedContributionEntry,
+    GovernedContributionEntryInput, HostQuotaAxis, HostQuotaAxisInput, QuarantinePosture,
+    QuarantinePostureInput, RestartBudgetGovernance, RestartBudgetGovernanceInput,
+    StableWasmHostGovernanceError, StableWasmHostGovernanceInput, StableWasmHostGovernanceInspection,
+    StableWasmHostGovernancePacket, StableWasmHostGovernanceProjection,
+    StableWasmHostGovernanceSupportExport, StableWasmHostGovernanceValidationError,
+    CLAIM_BASIS_CLASSES as WASM_HOST_GOVERNANCE_CLAIM_BASIS_CLASSES,
+    CONTRIBUTION_HOST_STATE_CLASSES as WASM_HOST_GOVERNANCE_CONTRIBUTION_HOST_STATE_CLASSES,
+    CONTRIBUTION_KIND_CLASSES as WASM_HOST_GOVERNANCE_CONTRIBUTION_KIND_CLASSES,
+    CRASH_LOOP_GOVERNANCE_RECORD_KIND, CRASH_LOOP_STATE_CLASSES,
+    EXECUTION_LOCUS_CLASSES as WASM_HOST_GOVERNANCE_EXECUTION_LOCUS_CLASSES,
+    GOVERNANCE_DOWNGRADED_HOST_BANNER_RECORD_KIND, GOVERNANCE_DOWNGRADE_REASONS,
+    GOVERNANCE_IDENTITY_RECORD_KIND, GOVERNANCE_QUALIFICATION_CLAIM_RECORD_KIND,
+    GOVERNANCE_RUNTIME_CLASS_DECLARATION_RECORD_KIND, GOVERNED_CONTRIBUTION_ENTRY_RECORD_KIND,
+    HOST_QUOTA_AXIS_RECORD_KIND,
+    LIFECYCLE_STATE_CLASSES as WASM_HOST_GOVERNANCE_LIFECYCLE_STATE_CLASSES,
+    QUARANTINE_POSTURE_RECORD_KIND, QUARANTINE_STATE_CLASSES, QUOTA_AXIS_CLASSES,
+    QUOTA_ENFORCEMENT_STATES, QUOTA_PRESSURE_CLASSES, RECOVERY_PRECONDITION_CLASSES,
+    RESTART_BUDGET_GOVERNANCE_RECORD_KIND,
+    RESTART_POSTURE_CLASSES as WASM_HOST_GOVERNANCE_RESTART_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as WASM_HOST_GOVERNANCE_RUNNABLE_LIFECYCLE_STATES,
+    RUNTIME_CLASSES as WASM_HOST_GOVERNANCE_RUNTIME_CLASSES,
+    STABILITY_TIERS as WASM_HOST_GOVERNANCE_STABILITY_TIERS,
+    STABLE_GOVERNANCE_PUBLISHED_VERSION, STABLE_TIERS as WASM_HOST_GOVERNANCE_STABLE_TIERS,
+    STABLE_WASM_HOST_GOVERNANCE_CONSUMER_SURFACES,
+    STABLE_WASM_HOST_GOVERNANCE_INSPECTION_RECORD_KIND,
+    STABLE_WASM_HOST_GOVERNANCE_PACKET_RECORD_KIND, STABLE_WASM_HOST_GOVERNANCE_SCHEMA_REF,
+    STABLE_WASM_HOST_GOVERNANCE_SCHEMA_VERSION,
+    STABLE_WASM_HOST_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
+    SUPPORT_CLAIM_CLASSES as WASM_HOST_GOVERNANCE_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as WASM_HOST_GOVERNANCE_TRUST_TIER_CLASSES,
 };
 pub use stabilize_extension_runtime_v1_abi_capability_envelopes_and::{
     project_stable_runtime_abi, project_stable_runtime_abi_support_export,

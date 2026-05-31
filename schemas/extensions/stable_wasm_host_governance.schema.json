@@ -1,0 +1,524 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_wasm_host_governance.schema.json",
+  "title": "Aureline stable Wasm host quota, crash-loop, and restart-budget governance packet",
+  "description": "Cross-tool boundary schema for the stable Wasm-host-governance packet emitted by crates/aureline-extensions. One packet binds a stable_wasm_host_governance_identity (which pins the governed runtime v1 beta admission contract, the published governance contract version, the publisher trust tier, and the lifecycle state), a runtime-class declaration, the Wasm host quota axes (linear_memory / execution_fuel / table_elements / instance_count / epoch_deadline / host_call_egress, each carrying a declared bound ref, an observed peak ref, a fail-closed enforcement state, an observed pressure class, and a bounded flag), the crash-loop governance window with its disable/quarantine thresholds and current trip state, the restart-budget governance snapshot, a derived quarantine posture, the active-contribution inspector entries (each attributable even when quarantined, bridged, or downgraded), the qualification claim after the governance posture is applied (with automatic narrowing below Stable), a downgraded-host banner, and an inspection projection. A stable effective tier may only render when the row pins the published governance contract version, is enforcement-backed, holds every quota axis bounded and enforced as published with no breach, keeps the crash-loop window clear of a disable/quarantine trip, keeps the restart budget bounded and not exhausted, keeps the quarantine posture nominal, keeps the trust tier out of quarantine, stays runnable, keeps every contribution nominal, and is fully attributed. An unbounded quota or an unbounded restart posture can never ride the stable line; when any condition fails the visible tier narrows below Stable (beta / preview / withdrawn) with machine-readable reasons and a banner is raised. The Rust types in crates/aureline-extensions/src/finalize_wasm_host_quotas_crash_loop_quarantine_and/ are the source of truth. Raw manifest bytes, raw signatures, raw policy bodies, raw paths, raw tokens, raw runtime payload bytes, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_wasm_host_governance_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "quarantine_rule_ref": {
+      "type": "string",
+      "pattern": "^quarantine_rule:"
+    },
+    "runtime_class": {
+      "type": "string",
+      "enum": [
+        "passive_package",
+        "wasm_capability_sandbox",
+        "declarative_host_rendered_view",
+        "external_host",
+        "compatibility_bridge",
+        "remote_side_component"
+      ]
+    },
+    "execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "editor_in_process_isolated",
+        "dedicated_subprocess",
+        "helper_binary",
+        "remote_agent",
+        "bridged_foreign_runtime",
+        "host_rendered_no_extension_code",
+        "passive_no_execution"
+      ]
+    },
+    "quota_axis_class": {
+      "type": "string",
+      "enum": [
+        "linear_memory",
+        "execution_fuel",
+        "table_elements",
+        "instance_count",
+        "epoch_deadline",
+        "host_call_egress"
+      ]
+    },
+    "quota_enforcement_state_class": {
+      "type": "string",
+      "enum": ["enforced_as_published", "fail_closed_downgraded", "unenforceable_refused"]
+    },
+    "quota_pressure_class": {
+      "type": "string",
+      "enum": ["nominal", "approaching_limit", "soft_breach", "hard_breach", "not_applicable"]
+    },
+    "crash_loop_state_class": {
+      "type": "string",
+      "enum": ["nominal", "window_open", "disable_tripped", "quarantine_tripped"]
+    },
+    "restart_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_restart_attempted",
+        "one_warm_restart_under_budget",
+        "exponential_backoff_bounded",
+        "restart_budget_unbounded_refused"
+      ]
+    },
+    "quarantine_state_class": {
+      "type": "string",
+      "enum": ["none_nominal", "throttled", "disabled_until_next_session", "quarantined"]
+    },
+    "recovery_precondition_class": {
+      "type": "string",
+      "enum": [
+        "none_not_recovering",
+        "resource_returned_to_nominal",
+        "crash_loop_window_cleared",
+        "admin_cleared_quarantine",
+        "user_explicit_reenable",
+        "next_session_cold_start"
+      ]
+    },
+    "visibility_surface_class": {
+      "type": "string",
+      "enum": [
+        "not_visible_nominal_row",
+        "runtime_status_pill_only",
+        "install_review_and_inspector",
+        "install_review_and_pill",
+        "inspector_and_pill",
+        "install_review_inspector_and_pill"
+      ]
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "contribution_kind_class": {
+      "type": "string",
+      "enum": ["command", "panel", "provider", "background_lane", "view"]
+    },
+    "contribution_host_state_class": {
+      "type": "string",
+      "enum": [
+        "running_nominal",
+        "bridged",
+        "downgraded_narrower_profile",
+        "quarantined",
+        "failed"
+      ]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["enforcement_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_governance_ready_claim",
+        "beta_governance_partial_claim",
+        "preview_governance_experimental_claim",
+        "withdrawn_no_governance_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "governance_version_mismatch",
+        "catalog_only_trust_not_enforcement_backed",
+        "quota_enforcement_unverified",
+        "quota_axis_soft_breached",
+        "quota_axis_hard_breached",
+        "quota_unbounded_refused",
+        "crash_loop_window_breached",
+        "crash_loop_quarantine_active",
+        "restart_budget_exhausted",
+        "restart_posture_unbounded",
+        "contribution_not_nominal",
+        "trust_tier_quarantined",
+        "lifecycle_not_runnable",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "install_review",
+        "runtime_inspector",
+        "quarantine_flow",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "stable_wasm_host_governance_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "runtime_contract_ref",
+        "extension_identity_ref",
+        "extension_version",
+        "source_package_ref",
+        "governance_contract_version",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "runtime_contract_ref": { "type": "string", "pattern": "^runtime_v1_beta:" },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "governance_contract_version": { "type": "integer", "minimum": 0 },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "stable_wasm_host_governance_runtime_class_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "runtime_class", "execution_locus_class"],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_runtime_class_declaration" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" }
+      }
+    },
+    "stable_wasm_host_quota_axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "axis_class",
+        "declared_limit_ref",
+        "observed_peak_ref",
+        "enforcement_state_class",
+        "pressure_class",
+        "bounded"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_quota_axis" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "axis_class": { "$ref": "#/$defs/quota_axis_class" },
+        "declared_limit_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_peak_ref": { "$ref": "#/$defs/opaque_id" },
+        "enforcement_state_class": { "$ref": "#/$defs/quota_enforcement_state_class" },
+        "pressure_class": { "$ref": "#/$defs/quota_pressure_class" },
+        "bounded": { "type": "boolean" }
+      }
+    },
+    "stable_crash_loop_governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "window_ref",
+        "distinct_failures",
+        "disable_threshold",
+        "quarantine_threshold",
+        "state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_crash_loop_governance" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "window_ref": { "$ref": "#/$defs/opaque_id" },
+        "distinct_failures": { "type": "integer", "minimum": 0 },
+        "disable_threshold": { "type": "integer", "minimum": 1 },
+        "quarantine_threshold": { "type": "integer", "minimum": 1 },
+        "state_class": { "$ref": "#/$defs/crash_loop_state_class" },
+        "trigger_rule_ref": { "$ref": "#/$defs/quarantine_rule_ref" }
+      }
+    },
+    "stable_restart_budget_governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "restart_posture_class",
+        "attempts_used",
+        "attempts_remaining"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_restart_budget_governance" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "restart_posture_class": { "$ref": "#/$defs/restart_posture_class" },
+        "attempts_used": { "type": "integer", "minimum": 0 },
+        "attempts_remaining": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "stable_quarantine_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "quarantine_state_class",
+        "recovery_precondition_class",
+        "visibility_surface_class",
+        "blocks_activation"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_quarantine_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "quarantine_state_class": { "$ref": "#/$defs/quarantine_state_class" },
+        "recovery_precondition_class": { "$ref": "#/$defs/recovery_precondition_class" },
+        "trigger_rule_ref": { "$ref": "#/$defs/quarantine_rule_ref" },
+        "visibility_surface_class": { "$ref": "#/$defs/visibility_surface_class" },
+        "blocks_activation": { "type": "boolean" }
+      }
+    },
+    "stable_governed_contribution_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "contribution_id",
+        "contribution_kind_class",
+        "source_package_ref",
+        "runtime_class",
+        "execution_locus_class",
+        "trust_tier_class",
+        "used_permission_refs",
+        "last_known_good_host_ref",
+        "host_state_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_governed_contribution_entry" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "contribution_id": { "$ref": "#/$defs/opaque_id" },
+        "contribution_kind_class": { "$ref": "#/$defs/contribution_kind_class" },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "used_permission_refs": { "$ref": "#/$defs/ref_list" },
+        "last_known_good_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_state_class": { "$ref": "#/$defs/contribution_host_state_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_wasm_host_governance_qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_wasm_host_governance_downgraded_host_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_downgraded_host_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason" },
+        "last_known_good_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_wasm_host_governance_inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "runtime_class",
+        "execution_locus_class",
+        "effective_tier",
+        "stable_claim",
+        "governance_version_current",
+        "all_quotas_enforced_as_published",
+        "allows_unbounded_quota",
+        "quota_axis_count",
+        "breached_quota_axis_count",
+        "crash_loop_state_class",
+        "crash_loop_distinct_failures",
+        "restart_posture_class",
+        "restart_attempts_remaining",
+        "restart_budget_exhausted",
+        "quarantine_state_class",
+        "trust_tier_class",
+        "lifecycle_runnable",
+        "downgraded",
+        "downgraded_host_banner_required",
+        "blocks_activation",
+        "attribution_complete",
+        "active_contribution_count",
+        "quarantined_contribution_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "governance_version_current": { "type": "boolean" },
+        "all_quotas_enforced_as_published": { "type": "boolean" },
+        "allows_unbounded_quota": { "const": false },
+        "quota_axis_count": { "type": "integer", "minimum": 0 },
+        "breached_quota_axis_count": { "type": "integer", "minimum": 0 },
+        "crash_loop_state_class": { "$ref": "#/$defs/crash_loop_state_class" },
+        "crash_loop_distinct_failures": { "type": "integer", "minimum": 0 },
+        "restart_posture_class": { "$ref": "#/$defs/restart_posture_class" },
+        "restart_attempts_remaining": { "type": "integer", "minimum": 0 },
+        "restart_budget_exhausted": { "type": "boolean" },
+        "quarantine_state_class": { "$ref": "#/$defs/quarantine_state_class" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_runnable": { "type": "boolean" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_host_banner_required": { "type": "boolean" },
+        "blocks_activation": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "active_contribution_count": { "type": "integer", "minimum": 0 },
+        "quarantined_contribution_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_wasm_host_governance_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "runtime_class_declaration",
+        "quota_axes",
+        "crash_loop",
+        "restart_budget",
+        "quarantine_posture",
+        "contributions",
+        "claim",
+        "downgraded_host_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_unbounded_quota",
+        "allows_unbounded_restart",
+        "allows_catalog_only_trust",
+        "allows_silent_quarantine",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_wasm_host_governance_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/stable_wasm_host_governance_identity" },
+        "runtime_class_declaration": {
+          "$ref": "#/$defs/stable_wasm_host_governance_runtime_class_declaration"
+        },
+        "quota_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_wasm_host_quota_axis" }
+        },
+        "crash_loop": { "$ref": "#/$defs/stable_crash_loop_governance" },
+        "restart_budget": { "$ref": "#/$defs/stable_restart_budget_governance" },
+        "quarantine_posture": { "$ref": "#/$defs/stable_quarantine_posture" },
+        "contributions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_governed_contribution_entry" }
+        },
+        "claim": { "$ref": "#/$defs/stable_wasm_host_governance_qualification_claim" },
+        "downgraded_host_banner": {
+          "$ref": "#/$defs/stable_wasm_host_governance_downgraded_host_banner"
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_unbounded_quota": { "const": false },
+        "allows_unbounded_restart": { "const": false },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_silent_quarantine": { "const": false },
+        "inspection": { "$ref": "#/$defs/stable_wasm_host_governance_inspection" }
+      }
+    }
+  }
+}
