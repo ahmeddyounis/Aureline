@@ -110,6 +110,17 @@
 //!   [`conformance_reports::ReviewSeverityClass`] and
 //!   [`conformance_reports::ReviewLifecycleClass`] across authoring surfaces,
 //!   install review, marketplace facts, and support packets.
+//! - one [`stabilize_external_host_contracts_for_language_tools_debuggers::StableExternalHostContractPacket`]
+//!   that stabilizes the external-host contract for language tools, debuggers,
+//!   CLIs, and database / infrastructure adapters: it carries a typed data-plane
+//!   contract (connection / target class, auth-source mode, read-only-vs-write
+//!   posture, local / tunneled / remote / managed origin, result / export safety,
+//!   and control-plane-boundary truth) for database / infra adapters, plus a
+//!   reconnect / replay safety record that keeps connection state honest and
+//!   refuses to silently re-run a query, apply-capable action, or control-plane
+//!   mutation after a host restart. It derives the stability qualification with
+//!   automatic narrowing below Stable and projects an
+//!   [`stabilize_external_host_contracts_for_language_tools_debuggers::ExternalHostContractSupportExport`].
 //! - the [`appearance_conformance`] module that makes extension-UI appearance
 //!   inheritance a first-class compatibility dimension: an
 //!   [`appearance_conformance::AppearanceConformanceRow`] joins each declared
@@ -156,6 +167,7 @@ pub mod revocation;
 pub mod runtime;
 pub mod sdk_v1;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
+pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
 pub mod supervision;
 pub mod webview_boundary;
 
@@ -375,6 +387,41 @@ pub use sdk_v1::{
     SAMPLE_PACK_EXTENSION_RECORD_KIND, SDK_V1_API_SURFACE_RECORD_KIND,
     SDK_V1_MANIFEST_AUTHORING_GUIDE_RECORD_KIND, SDK_V1_STARTER_PACK_RECORD_KIND,
     SDK_V1_STARTER_PACK_SCHEMA_VERSION, SDK_V1_STARTER_PACK_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_external_host_contracts_for_language_tools_debuggers::{
+    project_stable_external_host_contract, project_stable_external_host_contract_support_export,
+    ExternalHostActivationBudget, ExternalHostActivationBudgetInput,
+    ExternalHostCapabilityEnvelope, ExternalHostCapabilityEnvelopeInput,
+    ExternalHostContractIdentity, ExternalHostContractIdentityInput,
+    ExternalHostContractInspection, ExternalHostContractSupportExport,
+    ExternalHostContributionEntry, ExternalHostContributionEntryInput,
+    ExternalHostDataPlaneContract, ExternalHostDataPlaneContractInput,
+    ExternalHostDowngradedBanner, ExternalHostKindDeclaration, ExternalHostKindDeclarationInput,
+    ExternalHostQualificationClaim, ExternalHostQualificationClaimInput,
+    ExternalHostReconnectReplaySafety, ExternalHostReconnectReplaySafetyInput,
+    ExternalHostSandboxBinding, ExternalHostSandboxBindingInput, StableExternalHostContractInput,
+    StableExternalHostContractPacket, StableExternalHostContractProjection, StableExternalHostError,
+    StableExternalHostValidationError, ADAPTER_ORIGIN_CLASSES, AUTH_SOURCE_MODE_CLASSES,
+    CONNECTION_STATE_CLASSES, CONNECTION_TARGET_CLASSES, CONTROL_PLANE_BOUNDARY_CLASSES,
+    DATA_PLANE_HOST_KINDS, EXTERNAL_HOST_BACKEND_CLASSES, EXTERNAL_HOST_DOWNGRADE_REASONS,
+    EXTERNAL_HOST_EXECUTION_LOCUS_CLASSES, EXTERNAL_HOST_KIND_CLASSES,
+    HOST_PROTOCOL_CLASSES, PENDING_SIDE_EFFECT_CLASSES, REATTACH_POLICY_CLASSES,
+    RESULT_EXPORT_SAFETY_CLASSES, SIDE_EFFECTING_PENDING_CLASSES,
+    EXTERNAL_HOST_SUPPORT_EXPORT_RECORD_KIND, STABLE_EXTERNAL_HOST_CONSUMER_SURFACES,
+    STABLE_EXTERNAL_HOST_PACKET_RECORD_KIND, STABLE_EXTERNAL_HOST_PUBLISHED_ABI_VERSION,
+    STABLE_EXTERNAL_HOST_SCHEMA_REF, STABLE_EXTERNAL_HOST_SCHEMA_VERSION, WRITE_POSTURE_CLASSES,
+    ACTIVATION_BUDGET_CLASSES as EXTERNAL_HOST_ACTIVATION_BUDGET_CLASSES,
+    CLAIM_BASIS_CLASSES as EXTERNAL_HOST_CLAIM_BASIS_CLASSES,
+    CONTRIBUTION_HOST_STATE_CLASSES as EXTERNAL_HOST_CONTRIBUTION_HOST_STATE_CLASSES,
+    CONTRIBUTION_KIND_CLASSES as EXTERNAL_HOST_CONTRIBUTION_KIND_CLASSES,
+    LIFECYCLE_STATE_CLASSES as EXTERNAL_HOST_LIFECYCLE_STATE_CLASSES,
+    RESTART_POSTURE_CLASSES as EXTERNAL_HOST_RESTART_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as EXTERNAL_HOST_RUNNABLE_LIFECYCLE_STATES,
+    SANDBOX_ENFORCEMENT_STATES as EXTERNAL_HOST_SANDBOX_ENFORCEMENT_STATES,
+    STABILITY_TIERS as EXTERNAL_HOST_STABILITY_TIERS,
+    STABLE_TIERS as EXTERNAL_HOST_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as EXTERNAL_HOST_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as EXTERNAL_HOST_TRUST_TIER_CLASSES,
 };
 pub use supervision::{
     evaluate_extension_host_supervision, project_extension_host_supervision_support_export,

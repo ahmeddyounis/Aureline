@@ -1,0 +1,607 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_external_host_contract.schema.json",
+  "title": "Aureline stable external-host contract packet",
+  "description": "Cross-tool boundary schema for the stable external-host contract packet emitted by crates/aureline-extensions. One packet stabilizes the external-host contract for language tools, debuggers, CLIs, and database / infrastructure adapters. It binds a stable_external_host_identity (which pins the stabilized runtime v1 beta admission contract, the published ABI contract version, the publisher trust tier, and the lifecycle state), a stable_external_host_kind_declaration (language_tool / debug_adapter / cli_tool / database_adapter / infra_adapter) with its execution locus and host protocol, a stable_external_host_sandbox_binding carrying the published sandbox_profile_id, its backend classification, and a fail-closed enforcement state, a stable_external_host_capability_envelope that never widens (granted ⊆ negotiated ⊆ declared), an OPTIONAL stable_external_host_data_plane_contract that is REQUIRED for database / infra adapters and forbidden for other host kinds (carrying connection / target class, auth-source mode, read-only-versus-write-capable posture, local / tunneled / remote / managed origin, result / export safety, and control-plane-boundary truth as typed fields), a stable_external_host_reconnect_replay_safety record (keeping connection state honest and proving a reattach with possible side effects requires an explicit replay or review path, never a silent re-run), a stable_external_host_activation_budget, the active-contribution inspector entries (each attributable even when quarantined, dirty, or downgraded), the stable_external_host_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_external_host_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published ABI version, is enforcement-backed, enforces its sandbox profile as published, keeps its trust tier out of quarantine, stays runnable, keeps every contribution nominal, holds a bounded activation cost, is fully attributed, keeps an honest non-dirty connection, has no side-effecting reattach pending review, and — for an adapter — sources auth from a managed broker (never ambient), bounds its result / export, and never exposes an unguarded mutating control plane. An external host may never widen to ambient full-user execution and may never silently re-run a query, apply-capable action, or control-plane mutation after restart. The Rust types in crates/aureline-extensions/src/stabilize_external_host_contracts_for_language_tools_debuggers/ are the source of truth. Raw manifest bytes, raw signatures, raw policy bodies, raw paths, raw tokens, raw connection strings, raw credentials, raw query / payload bytes, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_external_host_contract_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "host_kind_class": {
+      "type": "string",
+      "enum": ["language_tool", "debug_adapter", "cli_tool", "database_adapter", "infra_adapter"]
+    },
+    "protocol_class": {
+      "type": "string",
+      "enum": [
+        "language_server_protocol",
+        "debug_adapter_protocol",
+        "cli_invocation",
+        "database_wire_protocol",
+        "infra_control_api",
+        "custom_host_protocol"
+      ]
+    },
+    "execution_locus_class": {
+      "type": "string",
+      "enum": ["dedicated_subprocess", "helper_binary", "remote_agent", "managed_service_endpoint"]
+    },
+    "backend_classification_class": {
+      "type": "string",
+      "enum": [
+        "os_process_sandbox",
+        "seatbelt_sandbox_profile",
+        "landlock_seccomp_profile",
+        "app_container_profile",
+        "remote_enforced_envelope"
+      ]
+    },
+    "sandbox_enforcement_state_class": {
+      "type": "string",
+      "enum": ["enforced_as_published", "fail_closed_downgraded", "unenforceable_refused"]
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "contribution_kind_class": {
+      "type": "string",
+      "enum": ["language_feature", "debug_session", "command", "data_query", "control_action"]
+    },
+    "contribution_host_state_class": {
+      "type": "string",
+      "enum": ["running_nominal", "downgraded_narrower_profile", "quarantined", "failed"]
+    },
+    "connection_target_class": {
+      "type": "string",
+      "enum": [
+        "relational_database",
+        "document_database",
+        "key_value_store",
+        "message_broker",
+        "object_store",
+        "container_runtime",
+        "orchestrator_control_plane",
+        "cloud_resource_manager",
+        "secrets_manager",
+        "generic_endpoint"
+      ]
+    },
+    "auth_source_mode_class": {
+      "type": "string",
+      "enum": [
+        "workspace_credential_broker",
+        "host_managed_keychain",
+        "external_secret_reference",
+        "ephemeral_session_token",
+        "interactive_user_prompt",
+        "ambient_environment"
+      ]
+    },
+    "write_posture_class": {
+      "type": "string",
+      "enum": ["read_only", "write_capable", "control_plane_mutating"]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": ["local", "tunneled", "remote", "managed"]
+    },
+    "result_export_safety_class": {
+      "type": "string",
+      "enum": ["bounded_redacted", "bounded_full", "streamed_capped", "unbounded_unsafe"]
+    },
+    "control_plane_boundary_class": {
+      "type": "string",
+      "enum": ["no_control_plane", "read_only_observability", "gated_apply_with_review", "unguarded_mutating"]
+    },
+    "connection_state_class": {
+      "type": "string",
+      "enum": [
+        "connected_nominal",
+        "disconnected_clean",
+        "reconnect_pending",
+        "disconnected_dirty",
+        "quarantined"
+      ]
+    },
+    "reattach_policy_class": {
+      "type": "string",
+      "enum": [
+        "stateless_safe_resume",
+        "explicit_replay_required",
+        "explicit_review_required",
+        "blocked_pending_operator"
+      ]
+    },
+    "pending_side_effect_class": {
+      "type": "string",
+      "enum": ["none", "query_results_only", "apply_capable", "control_plane_mutation"]
+    },
+    "restart_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_restart_attempted",
+        "one_warm_restart_under_budget",
+        "exponential_backoff_bounded"
+      ]
+    },
+    "activation_budget_class": {
+      "type": "string",
+      "enum": ["within_budget", "approaching_budget", "over_budget_throttled", "unbounded_refused"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["enforcement_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_external_host_ready_claim",
+        "beta_external_host_partial_claim",
+        "preview_external_host_experimental_claim",
+        "withdrawn_no_external_host_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "abi_version_mismatch",
+        "catalog_only_trust_not_enforcement_backed",
+        "sandbox_fail_closed_downgraded",
+        "sandbox_unenforceable",
+        "trust_tier_quarantined",
+        "lifecycle_not_runnable",
+        "contribution_quarantined",
+        "contribution_host_downgraded",
+        "activation_cost_over_budget",
+        "activation_cost_unbounded",
+        "attribution_incomplete",
+        "ambient_auth_source",
+        "unbounded_result_export",
+        "unguarded_control_plane_mutation",
+        "connection_state_dirty",
+        "reattach_review_pending"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "install_review",
+        "runtime_inspector",
+        "quarantine_flow",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "ref_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "stable_external_host_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "runtime_contract_ref",
+        "extension_identity_ref",
+        "extension_version",
+        "source_package_ref",
+        "abi_contract_version",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "runtime_contract_ref": { "type": "string", "pattern": "^runtime_v1_beta:" },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "abi_contract_version": { "type": "integer", "minimum": 0 },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "stable_external_host_kind_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "host_kind_class",
+        "execution_locus_class",
+        "protocol_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_kind_declaration" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "host_kind_class": { "$ref": "#/$defs/host_kind_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "protocol_class": { "$ref": "#/$defs/protocol_class" }
+      }
+    },
+    "stable_external_host_sandbox_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "sandbox_profile_id",
+        "backend_classification_class",
+        "enforcement_state_class",
+        "platform_backend_label",
+        "widens_to_ambient_full_user"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_sandbox_binding" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "sandbox_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "backend_classification_class": { "$ref": "#/$defs/backend_classification_class" },
+        "enforcement_state_class": { "$ref": "#/$defs/sandbox_enforcement_state_class" },
+        "platform_backend_label": { "$ref": "#/$defs/reviewable_label" },
+        "widens_to_ambient_full_user": { "const": false }
+      }
+    },
+    "stable_external_host_capability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "declared_capability_refs",
+        "negotiated_capability_refs",
+        "granted_capability_refs",
+        "narrowing_reasons_recorded"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_capability_envelope" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "declared_capability_refs": { "$ref": "#/$defs/ref_list" },
+        "negotiated_capability_refs": { "$ref": "#/$defs/ref_list" },
+        "granted_capability_refs": { "$ref": "#/$defs/ref_list" },
+        "narrowing_reasons_recorded": { "type": "boolean" }
+      }
+    },
+    "stable_external_host_data_plane_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "connection_target_class",
+        "auth_source_mode_class",
+        "write_posture_class",
+        "origin_class",
+        "result_export_safety_class",
+        "control_plane_boundary_class",
+        "target_descriptor_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_data_plane_contract" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "connection_target_class": { "$ref": "#/$defs/connection_target_class" },
+        "auth_source_mode_class": { "$ref": "#/$defs/auth_source_mode_class" },
+        "write_posture_class": { "$ref": "#/$defs/write_posture_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "result_export_safety_class": { "$ref": "#/$defs/result_export_safety_class" },
+        "control_plane_boundary_class": { "$ref": "#/$defs/control_plane_boundary_class" },
+        "target_descriptor_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "stable_external_host_reconnect_replay_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "connection_state_class",
+        "restart_posture_class",
+        "quarantine_active",
+        "pending_reattach_side_effect_class",
+        "reattach_policy_class",
+        "silently_reruns_side_effects"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_reconnect_replay_safety" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "connection_state_class": { "$ref": "#/$defs/connection_state_class" },
+        "restart_posture_class": { "$ref": "#/$defs/restart_posture_class" },
+        "quarantine_active": { "type": "boolean" },
+        "pending_reattach_side_effect_class": { "$ref": "#/$defs/pending_side_effect_class" },
+        "reattach_policy_class": { "$ref": "#/$defs/reattach_policy_class" },
+        "silently_reruns_side_effects": { "const": false }
+      },
+      "comment": "A reattach whose pending_reattach_side_effect_class is apply_capable or control_plane_mutation must not claim reattach_policy_class stateless_safe_resume; that constraint is enforced by the producing crate.",
+      "not": {
+        "properties": {
+          "pending_reattach_side_effect_class": {
+            "enum": ["apply_capable", "control_plane_mutation"]
+          },
+          "reattach_policy_class": { "const": "stateless_safe_resume" }
+        },
+        "required": ["pending_reattach_side_effect_class", "reattach_policy_class"]
+      }
+    },
+    "stable_external_host_activation_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_class",
+        "declared_cost_ref",
+        "observed_cost_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_activation_budget" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "declared_cost_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_cost_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "stable_external_host_contribution_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "contribution_id",
+        "contribution_kind_class",
+        "source_package_ref",
+        "trust_tier_class",
+        "used_permission_refs",
+        "last_known_good_host_ref",
+        "host_state_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_contribution_entry" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "contribution_id": { "$ref": "#/$defs/opaque_id" },
+        "contribution_kind_class": { "$ref": "#/$defs/contribution_kind_class" },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "used_permission_refs": { "$ref": "#/$defs/ref_list" },
+        "last_known_good_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_state_class": { "$ref": "#/$defs/contribution_host_state_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_external_host_qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_external_host_downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason" },
+        "last_known_good_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_external_host_contract_inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "host_kind_class",
+        "protocol_class",
+        "execution_locus_class",
+        "effective_tier",
+        "stable_claim",
+        "abi_version_current",
+        "sandbox_enforced_as_published",
+        "widens_to_ambient_full_user",
+        "capability_envelope_well_formed",
+        "trust_tier_class",
+        "lifecycle_runnable",
+        "data_plane_contract_present",
+        "connection_state_class",
+        "reattach_policy_class",
+        "pending_reattach_side_effect_class",
+        "silently_reruns_side_effects",
+        "reattach_review_pending",
+        "downgraded",
+        "downgraded_host_banner_required",
+        "attribution_complete",
+        "active_contribution_count",
+        "quarantined_contribution_count",
+        "downgraded_contribution_count",
+        "declared_capability_count",
+        "negotiated_capability_count",
+        "granted_capability_count",
+        "activation_budget_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_contract_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_kind_class": { "$ref": "#/$defs/host_kind_class" },
+        "protocol_class": { "$ref": "#/$defs/protocol_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "abi_version_current": { "type": "boolean" },
+        "sandbox_enforced_as_published": { "type": "boolean" },
+        "widens_to_ambient_full_user": { "const": false },
+        "capability_envelope_well_formed": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_runnable": { "type": "boolean" },
+        "data_plane_contract_present": { "type": "boolean" },
+        "write_posture_class": { "$ref": "#/$defs/write_posture_class" },
+        "auth_source_mode_class": { "$ref": "#/$defs/auth_source_mode_class" },
+        "control_plane_boundary_class": { "$ref": "#/$defs/control_plane_boundary_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "result_export_safety_class": { "$ref": "#/$defs/result_export_safety_class" },
+        "connection_state_class": { "$ref": "#/$defs/connection_state_class" },
+        "reattach_policy_class": { "$ref": "#/$defs/reattach_policy_class" },
+        "pending_reattach_side_effect_class": { "$ref": "#/$defs/pending_side_effect_class" },
+        "silently_reruns_side_effects": { "const": false },
+        "reattach_review_pending": { "type": "boolean" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_host_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "active_contribution_count": { "type": "integer", "minimum": 0 },
+        "quarantined_contribution_count": { "type": "integer", "minimum": 0 },
+        "downgraded_contribution_count": { "type": "integer", "minimum": 0 },
+        "declared_capability_count": { "type": "integer", "minimum": 0 },
+        "negotiated_capability_count": { "type": "integer", "minimum": 0 },
+        "granted_capability_count": { "type": "integer", "minimum": 0 },
+        "activation_budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_external_host_contract_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "host_kind_declaration",
+        "sandbox_binding",
+        "capability_envelope",
+        "reconnect_replay_safety",
+        "activation_budget",
+        "contributions",
+        "claim",
+        "downgraded_host_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_ambient_full_user_widening",
+        "allows_catalog_only_trust",
+        "allows_unbounded_activation_cost",
+        "allows_silent_host_downgrade",
+        "allows_silent_side_effect_replay",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_external_host_contract_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/stable_external_host_identity" },
+        "host_kind_declaration": { "$ref": "#/$defs/stable_external_host_kind_declaration" },
+        "sandbox_binding": { "$ref": "#/$defs/stable_external_host_sandbox_binding" },
+        "capability_envelope": { "$ref": "#/$defs/stable_external_host_capability_envelope" },
+        "data_plane_contract": { "$ref": "#/$defs/stable_external_host_data_plane_contract" },
+        "reconnect_replay_safety": {
+          "$ref": "#/$defs/stable_external_host_reconnect_replay_safety"
+        },
+        "activation_budget": { "$ref": "#/$defs/stable_external_host_activation_budget" },
+        "contributions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_external_host_contribution_entry" }
+        },
+        "claim": { "$ref": "#/$defs/stable_external_host_qualification_claim" },
+        "downgraded_host_banner": { "$ref": "#/$defs/stable_external_host_downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_ambient_full_user_widening": { "const": false },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "allows_silent_host_downgrade": { "const": false },
+        "allows_silent_side_effect_replay": { "const": false },
+        "inspection": { "$ref": "#/$defs/stable_external_host_contract_inspection" }
+      },
+      "comment": "A database_adapter or infra_adapter host_kind_class MUST carry a data_plane_contract; all other host kinds MUST NOT. That cross-field constraint is enforced by the producing crate.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "host_kind_declaration": {
+                "properties": {
+                  "host_kind_class": { "enum": ["database_adapter", "infra_adapter"] }
+                }
+              }
+            }
+          },
+          "then": { "required": ["data_plane_contract"] }
+        }
+      ]
+    }
+  }
+}
