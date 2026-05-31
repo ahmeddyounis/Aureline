@@ -17,6 +17,7 @@ pub mod archetypes;
 pub mod bundles;
 pub mod cache_storage_class_lineage;
 pub mod canonical_identity_lineage;
+pub mod certify_launch_bundles_imported_user_handoff_bundles_and;
 pub mod entry;
 pub mod entry_flows;
 pub mod entry_hardening_lineage;
@@ -231,6 +232,21 @@ pub use bundles::{
     WORKFLOW_BUNDLE_ROLLBACK_PATH_CLASSES, WORKFLOW_BUNDLE_SAFE_TO_REMOVE_CLASSES,
     WORKFLOW_BUNDLE_SOURCE_CLASSES, WORKFLOW_BUNDLE_STATUS_CLASSES,
     WORKFLOW_BUNDLE_SUPPORT_CLAIM_CLASSES, WORKFLOW_BUNDLE_SUPPORT_CLASSES,
+};
+
+pub use certify_launch_bundles_imported_user_handoff_bundles_and::{
+    project_bundle_archetype_certification, BundleArchetypeCertificationInput,
+    BundleArchetypeCertificationInspection, BundleArchetypeCertificationPacket,
+    BundleArchetypeCertificationProjection, BundleCertificationClaim,
+    BundleCertificationClaimInput, BundleCertificationError, BundleCertificationValidationError,
+    CertifiedBundleIdentity, CertifiedBundleIdentityInput, CompatibilityScorecard,
+    CompatibilityScorecardInput, CompatibilityScorecardRow, CompatibilityScorecardRowInput,
+    ImportedHandoffReport, ImportedHandoffReportInput, BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_REF,
+    BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_VERSION, BUNDLE_ARCHETYPE_CLASSES, BUNDLE_CLASSES,
+    BUNDLE_SOURCE_CLASSES as BUNDLE_CERTIFICATION_SOURCE_CLASSES,
+    BUNDLE_CERTIFICATION_CONSUMER_SURFACES, BUNDLE_CERTIFICATION_DOWNGRADE_REASONS,
+    BRIDGE_STATE_CLASSES, CERTIFICATION_STATE_CLASSES, EFFECTIVE_BADGE_CLASSES,
+    STABLE_BADGE_CLASSES, SUPPORT_CLAIM_CLASSES as BUNDLE_CERTIFICATION_SUPPORT_CLAIM_CLASSES,
 };
 
 pub use save::{
