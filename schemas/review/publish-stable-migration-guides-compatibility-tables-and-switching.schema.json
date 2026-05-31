@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/publish-stable-migration-guides-compatibility-tables-and-switching.schema.json",
+  "title": "Aureline migration-switching publication packet",
+  "description": "Boundary schema for the migration-switching publication packet emitted by crates/aureline-workspace. One packet binds a migration_guide_identity, a machine-readable migration_compatibility_table whose rows map each source capability to an exact/translated/partial/shimmed/unsupported outcome, the disclosed switching_known_limits, the stable_qualification_claim after the table and known-limits are applied (with automatic narrowing below Stable), a provider_handoff_disclosure that is explicit about source/actor/freshness/target/return-path, and an inspection projection. A stable tier (stable) may only render when it resolves to a current table with no unsupported core capability and no unresolved blocking known-limit, is reversible, and is fully attributed; switch-readiness is never implied from prose alone.",
+  "type": "object",
+  "$ref": "#/$defs/migration_switching_publication_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "source_tool": {
+      "type": "string",
+      "enum": ["vs_code_code_oss", "jetbrains_family", "vim_neovim", "emacs"]
+    },
+    "launch_cohort": {
+      "type": "string",
+      "enum": [
+        "solo_switcher",
+        "team_pilot",
+        "org_rollout",
+        "design_partner",
+        "imported_user"
+      ]
+    },
+    "outcome_label": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_current",
+        "aging_within_window",
+        "stale_past_window",
+        "evidence_unknown"
+      ]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "prose_only"]
+    },
+    "known_limit_severity_class": {
+      "type": "string",
+      "enum": ["blocking", "major", "minor", "informational"]
+    },
+    "known_limit_workaround_class": {
+      "type": "string",
+      "enum": ["native_alternative", "bridge_available", "manual_step", "no_workaround"]
+    },
+    "handoff_source_class": {
+      "type": "string",
+      "enum": ["local_only", "hosted_provider", "browser_handoff", "mirror_offline"]
+    },
+    "handoff_actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "aureline_runtime",
+        "hosted_provider_service",
+        "browser_session"
+      ]
+    },
+    "handoff_freshness_class": {
+      "type": "string",
+      "enum": ["live_current", "cached_disclosed", "snapshot_dated", "freshness_unknown"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_switch_ready_claim",
+        "beta_switch_partial_claim",
+        "preview_switch_experimental_claim",
+        "withdrawn_no_switch_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "evidence_freshness_expired",
+        "compatibility_table_unsupported_present",
+        "known_limit_blocking_unresolved",
+        "prose_only_claim",
+        "missing_compatibility_table",
+        "not_reversible",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "migration_center",
+        "docs_help_surface",
+        "release_packet",
+        "switch_planner",
+        "support_export",
+        "about_surface",
+        "cli_inspector"
+      ]
+    },
+    "migration_guide_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "guide_id",
+        "guide_revision",
+        "source_tool",
+        "launch_cohort",
+        "guide_ref",
+        "evidence_freshness_class",
+        "freshness_expires_at",
+        "reversible",
+        "previewable"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_guide_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "guide_id": { "$ref": "#/$defs/opaque_id" },
+        "guide_revision": { "type": "integer", "minimum": 0 },
+        "source_tool": { "$ref": "#/$defs/source_tool" },
+        "launch_cohort": { "$ref": "#/$defs/launch_cohort" },
+        "guide_ref": { "type": "string", "minLength": 1 },
+        "evidence_freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "freshness_expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reversible": { "type": "boolean" },
+        "previewable": { "type": "boolean" }
+      }
+    },
+    "migration_compatibility_table_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "capability_area",
+        "source_feature_ref",
+        "outcome_label",
+        "is_core_capability",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_compatibility_table_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "capability_area": { "type": "string", "minLength": 1 },
+        "source_feature_ref": { "$ref": "#/$defs/opaque_id" },
+        "outcome_label": { "$ref": "#/$defs/outcome_label" },
+        "is_core_capability": { "type": "boolean" },
+        "derived_from_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "guide_section_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "migration_compatibility_table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "table_id",
+        "table_ref",
+        "generated_at",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_compatibility_table" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "table_id": { "$ref": "#/$defs/opaque_id" },
+        "table_ref": { "type": "string", "minLength": 1 },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/migration_compatibility_table_row" }
+        }
+      }
+    },
+    "switching_known_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "limit_id",
+        "capability_area",
+        "severity_class",
+        "workaround_class",
+        "blocks_stable_switch",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "switching_known_limit" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "limit_id": { "$ref": "#/$defs/opaque_id" },
+        "capability_area": { "type": "string", "minLength": 1 },
+        "severity_class": { "$ref": "#/$defs/known_limit_severity_class" },
+        "workaround_class": { "$ref": "#/$defs/known_limit_workaround_class" },
+        "workaround_ref": { "$ref": "#/$defs/opaque_id" },
+        "blocks_stable_switch": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "compatibility_table_ref": { "type": "string", "minLength": 1 },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "A stable effective tier must be evidence-backed, never downgraded, and name a compatibility table.",
+          "if": {
+            "properties": { "effective_tier": { "const": "stable" } }
+          },
+          "then": {
+            "properties": {
+              "claim_basis_class": { "const": "evidence_backed" },
+              "downgraded": { "const": false }
+            },
+            "required": ["compatibility_table_ref"]
+          }
+        },
+        {
+          "description": "A downgraded claim must carry at least one reason.",
+          "if": { "properties": { "downgraded": { "const": true } } },
+          "then": {
+            "properties": {
+              "downgrade_reasons": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "provider_handoff_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "source_class",
+        "actor_class",
+        "freshness_class",
+        "target_label",
+        "return_path_label",
+        "discloses_ownership"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_handoff_disclosure" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "source_class": { "$ref": "#/$defs/handoff_source_class" },
+        "actor_class": { "$ref": "#/$defs/handoff_actor_class" },
+        "freshness_class": { "$ref": "#/$defs/handoff_freshness_class" },
+        "target_label": { "$ref": "#/$defs/reviewable_label" },
+        "return_path_label": { "$ref": "#/$defs/reviewable_label" },
+        "discloses_ownership": { "type": "boolean" }
+      }
+    },
+    "migration_switching_publication_inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "guide_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "resolves_to_current_compatibility_table",
+        "downgraded",
+        "no_prose_only_stable_claim",
+        "identity_consistent",
+        "reversible",
+        "previewable",
+        "attribution_complete",
+        "compatibility_row_count",
+        "known_limit_count",
+        "blocking_known_limit_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_switching_publication_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "guide_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "resolves_to_current_compatibility_table": { "type": "boolean" },
+        "downgraded": { "type": "boolean" },
+        "no_prose_only_stable_claim": { "const": true },
+        "identity_consistent": { "const": true },
+        "reversible": { "type": "boolean" },
+        "previewable": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "compatibility_row_count": { "type": "integer", "minimum": 1 },
+        "known_limit_count": { "type": "integer", "minimum": 0 },
+        "blocking_known_limit_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "migration_switching_publication_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "compatibility_table",
+        "known_limits",
+        "claim",
+        "handoff_disclosure",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_hidden_provider_mutation",
+        "allows_unattributed_handoff",
+        "allows_irreversible_switch_without_disclosure",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_switching_publication_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/migration_guide_identity" },
+        "compatibility_table": { "$ref": "#/$defs/migration_compatibility_table" },
+        "known_limits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/switching_known_limit" }
+        },
+        "claim": { "$ref": "#/$defs/stable_qualification_claim" },
+        "handoff_disclosure": { "$ref": "#/$defs/provider_handoff_disclosure" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_hidden_provider_mutation": { "const": false },
+        "allows_unattributed_handoff": { "const": false },
+        "allows_irreversible_switch_without_disclosure": { "const": false },
+        "inspection": { "$ref": "#/$defs/migration_switching_publication_inspection" }
+      }
+    }
+  }
+}

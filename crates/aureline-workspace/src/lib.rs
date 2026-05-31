@@ -48,6 +48,7 @@ pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
+pub mod publish_stable_migration_guides_compatibility_tables_and_switching;
 pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod workset_scope_ux_lineage;
 pub mod workset_switcher;
@@ -674,4 +675,27 @@ pub use worksets::{
     WorksetScopeBetaSupportExport, WorksetScopeBetaTruth, WorksetScopeConsumerBinding,
     WorksetScopeConsumerClass, WORKSET_SCOPE_BETA_SCHEMA_VERSION,
     WORKSET_SCOPE_BETA_SUPPORT_EXPORT_RECORD_KIND, WORKSET_SCOPE_BETA_TRUTH_RECORD_KIND,
+};
+
+pub use publish_stable_migration_guides_compatibility_tables_and_switching::{
+    project_migration_switching_publication, MigrationCompatibilityTable,
+    MigrationCompatibilityTableInput, MigrationCompatibilityTableRow,
+    MigrationCompatibilityTableRowInput, MigrationGuideIdentity, MigrationGuideIdentityInput,
+    MigrationSwitchingError, MigrationSwitchingPublicationInput,
+    MigrationSwitchingPublicationInspection, MigrationSwitchingPublicationPacket,
+    MigrationSwitchingPublicationProjection, MigrationSwitchingValidationError,
+    ProviderHandoffDisclosure, ProviderHandoffDisclosureInput, StableQualificationClaim,
+    StableQualificationClaimInput, SwitchingKnownLimit, SwitchingKnownLimitInput,
+    CLAIM_BASIS_CLASSES as MIGRATION_SWITCHING_CLAIM_BASIS_CLASSES, COMPATIBILITY_OUTCOME_LABELS,
+    GUIDE_EVIDENCE_FRESHNESS_CLASSES, HANDOFF_ACTOR_CLASSES, HANDOFF_FRESHNESS_CLASSES,
+    HANDOFF_SOURCE_CLASSES, KNOWN_LIMIT_SEVERITY_CLASSES, KNOWN_LIMIT_WORKAROUND_CLASSES,
+    LAUNCH_COHORTS, MIGRATION_COMPATIBILITY_TABLE_RECORD_KIND,
+    MIGRATION_COMPATIBILITY_TABLE_ROW_RECORD_KIND, MIGRATION_GUIDE_IDENTITY_RECORD_KIND,
+    MIGRATION_SOURCE_TOOLS, MIGRATION_SWITCHING_CONSUMER_SURFACES,
+    MIGRATION_SWITCHING_PUBLICATION_INSPECTION_RECORD_KIND,
+    MIGRATION_SWITCHING_PUBLICATION_PACKET_RECORD_KIND, MIGRATION_SWITCHING_PUBLICATION_SCHEMA_REF,
+    MIGRATION_SWITCHING_PUBLICATION_SCHEMA_VERSION, PROVIDER_HANDOFF_DISCLOSURE_RECORD_KIND,
+    STABILITY_TIERS, STABLE_QUALIFICATION_CLAIM_RECORD_KIND, STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as MIGRATION_SWITCHING_SUPPORT_CLAIM_CLASSES, SWITCHING_KNOWN_LIMIT_RECORD_KIND,
+    SWITCH_DOWNGRADE_REASONS,
 };
