@@ -26,7 +26,12 @@
 //! provider-neutral kill switch that fails closed across every provider, model,
 //! and external-tool route, a fully reversible backout posture, cross-wedge
 //! command parity, and exportable evidence/rollback lineage on claimed stable
-//! runs.
+//! runs. The optional AI-adjacent surface audit lane exposes one
+//! [`audit_optional_ai_adjacent_surfaces::OptionalAiAdjacentSurfaceAuditPacket`]
+//! object that enforces every exposed optional AI surface family — notebook,
+//! voice, browser companion, preview/designer, and background branch
+//! automation — carries its own current qualification proof or is visibly
+//! labeled below Stable instead of inheriting Stable from core AI graduation.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -48,6 +53,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
+pub mod audit_optional_ai_adjacent_surfaces;
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
