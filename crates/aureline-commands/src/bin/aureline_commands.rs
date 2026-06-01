@@ -1,4 +1,5 @@
 use aureline_commands::alpha::alpha_command_registry;
+use aureline_commands::finalize_command_parity::current_finalize_command_parity_export;
 use aureline_commands::registry::seeded_registry;
 
 fn main() {
@@ -69,6 +70,60 @@ fn main() {
     push_json_array(&mut out, &alpha_registry.surface_family_set);
     out.push_str(",\n    \"disabled_reason_vocabulary_ref\": ");
     push_json_string(&mut out, &alpha_registry.disabled_reason_vocabulary_ref);
+    out.push_str("\n  },\n");
+
+    // Project the finalized command-parity lane so the headless surface — itself
+    // one of the parity surfaces — can read the same discoverability truth (one
+    // canonical record, alias set, footer actions, and query-session privacy
+    // posture) that the palette, menus, keybindings, and docs/help project.
+    let parity = current_finalize_command_parity_export()
+        .expect("checked finalized command parity export validates");
+    out.push_str("  \"command_parity_finalization\": {\n");
+    out.push_str("    \"packet_id\": ");
+    push_json_string(&mut out, &parity.packet_id);
+    out.push_str(",\n    \"command_family_id\": ");
+    push_json_string(&mut out, &parity.command_family_id);
+    out.push_str(",\n    \"claimed_stable\": ");
+    out.push_str(if parity.claimed_stable {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"canonical_command_id\": ");
+    push_json_string(
+        &mut out,
+        &parity.discoverability_record.canonical_command_id,
+    );
+    out.push_str(",\n    \"alias_set\": ");
+    push_json_array(&mut out, &parity.discoverability_record.alias_set);
+    out.push_str(",\n    \"discoverability_surfaces\": ");
+    let discoverability_surfaces = parity
+        .projection_rows
+        .iter()
+        .map(|row| row.surface_class.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &discoverability_surfaces);
+    out.push_str(",\n    \"modifier_action_footer\": ");
+    let modifier_action_footer = parity
+        .footer_contract
+        .actions
+        .iter()
+        .map(|action| action.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &modifier_action_footer);
+    out.push_str(",\n    \"query_history_policy\": ");
+    push_json_string(
+        &mut out,
+        parity.query_session_privacy.history_policy.as_str(),
+    );
+    out.push_str(",\n    \"query_session_local_first\": ");
+    out.push_str(if parity.query_session_privacy.local_first {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"evidence_id\": ");
+    push_json_string(&mut out, &parity.evidence_export.evidence_id);
     out.push_str("\n  }\n}\n");
     print!("{out}");
 }

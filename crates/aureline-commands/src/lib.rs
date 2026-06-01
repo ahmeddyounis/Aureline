@@ -17,6 +17,7 @@ pub mod alpha;
 pub mod authority;
 pub mod descriptor;
 pub mod enablement;
+pub mod finalize_command_parity;
 pub mod invocation;
 pub mod registry;
 pub mod stabilize_command_contract;
@@ -36,6 +37,20 @@ pub use descriptor::{
 pub use enablement::{
     CommandEnablementContext, DisabledReasonCode, DisabledReasonRecord, EnablementDecisionClass,
     EnablementSnapshot, PreflightDecision, PreflightDecisionClass,
+};
+pub use finalize_command_parity::{
+    current_finalize_command_parity_export, ClearHistoryRuleClass,
+    CommandParityFinalizationArtifactError, CommandParityFinalizationPacket,
+    CommandParityFinalizationPacketInput, CommandParityFinalizationViolation,
+    DisabledReasonChipRow, DiscoverabilityProjectionRow, DiscoverabilityRecord,
+    DiscoverabilitySurfaceClass, HistoryPolicyClass, ModifierActionClass,
+    ModifierActionFooterContract, QuerySessionPrivacyContract, RedactionPostureClass,
+    FINALIZE_COMMAND_PARITY_ARTIFACT_REF, FINALIZE_COMMAND_PARITY_DESCRIPTOR_CONTRACT_REF,
+    FINALIZE_COMMAND_PARITY_DISCOVERABILITY_CONTRACT_REF, FINALIZE_COMMAND_PARITY_DOC_REF,
+    FINALIZE_COMMAND_PARITY_FIXTURE_DIR, FINALIZE_COMMAND_PARITY_PALETTE_ROW_CONTRACT_REF,
+    FINALIZE_COMMAND_PARITY_QUERY_SESSION_CONTRACT_REF, FINALIZE_COMMAND_PARITY_RECORD_KIND,
+    FINALIZE_COMMAND_PARITY_SCHEMA_REF, FINALIZE_COMMAND_PARITY_SCHEMA_VERSION,
+    FINALIZE_COMMAND_PARITY_SUMMARY_REF,
 };
 pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
