@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai-route-receipt.schema.json",
+  "title": "Aureline AI route and spend truth record",
+  "$comment": "Rust owner: aureline_ai::stabilize_ai_route_and_spend_truth::AiRouteSpendTruthPacket.",
+  "description": "Boundary schema for the metadata-only AI route and spend truth record. For one material AI action and one evidence id, the packet binds the preflight estimate card (estimate-before-send), the live run strip (live-route truth), the post-run receipt (after completion or failure), the distinct quota-family summary (composer, review, agent/background, generation, tool/connector-assisted), and the route-downgrade banner that preserves both the original and current routes; plus the non-AI fallback path that always remains, the typed provider/model/external-tool registry resolution (provider id, model id/version, transport, auth mode, retention, region, quota family, local-model-pack provenance, execution locus), and the cumulative-spend posture a visible batch/agent lane must carry to claim the Stable line. It does not re-derive routing, spend-receipt, registry, or run-history truth; it re-exports those classes verbatim and references their receipts by id. It carries refs, registry ids, state tokens, coarse classes, counts, and review labels only. It never carries raw provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "action_id",
+    "display_label",
+    "action_flow_class",
+    "material_action",
+    "claimed_stable",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "registry_resolution",
+    "preflight",
+    "live_run",
+    "receipt",
+    "quota_summary",
+    "downgrade",
+    "fallback",
+    "evidence_export",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_route_spend_truth" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "action_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "action_flow_class": { "$ref": "#/$defs/action_flow_class" },
+    "material_action": { "type": "boolean" },
+    "claimed_stable": { "type": "boolean" },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "registry_resolution": { "$ref": "#/$defs/registry_resolution" },
+    "preflight": { "$ref": "#/$defs/preflight_estimate_card" },
+    "live_run": { "$ref": "#/$defs/live_run_strip" },
+    "receipt": { "$ref": "#/$defs/post_run_receipt" },
+    "quota_summary": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/quota_summary_row" }
+    },
+    "downgrade": { "$ref": "#/$defs/route_downgrade_banner" },
+    "fallback": { "$ref": "#/$defs/non_ai_fallback_path" },
+    "cumulative_spend": { "$ref": "#/$defs/cumulative_spend_posture" },
+    "evidence_export": { "$ref": "#/$defs/route_spend_evidence_export" },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "route_class": {
+      "type": "string",
+      "enum": ["local", "byok", "managed", "enterprise_gateway"],
+      "description": "Coarse route class an AI action intends to use or actually ran on."
+    },
+    "action_flow_class": {
+      "type": "string",
+      "enum": ["composer", "review", "agent_background", "generation", "tool_connector_assisted"],
+      "description": "Quota-family flow that owns the budget a material AI action draws from. The five flows stay distinct so a blocked action explains which budget closed and who owns it."
+    },
+    "run_phase_class": {
+      "type": "string",
+      "enum": ["preflight_estimate", "dispatching", "streaming", "settling", "settled"],
+      "description": "Live run-strip phase for an in-flight or settled AI action."
+    },
+    "run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed_clean",
+        "completed_with_downgrade",
+        "failed_after_dispatch",
+        "blocked_before_dispatch",
+        "cancelled_by_user"
+      ],
+      "description": "Terminal outcome class carried by the post-run receipt."
+    },
+    "cost_measurement_class": {
+      "type": "string",
+      "enum": ["estimate_band", "actual_measured", "actual_unverified"],
+      "description": "How the cost class in a receipt was established."
+    },
+    "cost_envelope_class": {
+      "type": "string",
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_per_request_low_volume_band",
+        "metered_per_request_medium_volume_band",
+        "metered_per_request_high_volume_band",
+        "metered_per_token_low_volume_band",
+        "metered_per_token_medium_volume_band",
+        "metered_per_token_high_volume_band",
+        "flat_fee_subscription_band",
+        "enterprise_pooled_quota_band",
+        "vendor_hosted_entitlement_band",
+        "estimated_unverified_band",
+        "envelope_unknown_unverified_cost"
+      ],
+      "description": "Coarse cost band re-exported from the routing-cost contract."
+    },
+    "latency_envelope_class": {
+      "type": "string",
+      "enum": [
+        "p50_under_50ms_p99_under_250ms",
+        "p50_under_250ms_p99_under_1000ms",
+        "p50_under_1s_p99_under_5s",
+        "p50_under_5s_p99_under_30s",
+        "p50_over_5s_long_running",
+        "streaming_first_token_under_500ms",
+        "streaming_first_token_over_500ms",
+        "interactive_envelope_unspecified",
+        "background_envelope_unspecified",
+        "envelope_unknown_unverified"
+      ],
+      "description": "Coarse latency band re-exported from the routing-cost contract."
+    },
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "per_user_local_no_limit",
+        "per_user_local_soft_throttle",
+        "per_user_byok_vendor_quota",
+        "per_user_byok_organization_quota",
+        "enterprise_gateway_pooled_quota",
+        "vendor_hosted_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered",
+        "policy_enforced_quota_override",
+        "quota_unknown_unverified"
+      ],
+      "description": "Quota family (billing structure) re-exported from the provider/model registry contract."
+    },
+    "quota_scope_class": {
+      "type": "string",
+      "enum": [
+        "personal",
+        "workspace",
+        "organisation",
+        "deployment_profile",
+        "byok_provider",
+        "enterprise_pool",
+        "vendor_hosted_entitlement",
+        "local_device"
+      ],
+      "description": "Owner scope re-exported from the routing contract."
+    },
+    "quota_state_class": {
+      "type": "string",
+      "enum": ["within_limit", "warning", "exhausted", "grace", "paused_by_policy", "stale", "unknown_unverified"],
+      "description": "Current quota state re-exported from the routing contract."
+    },
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "in_process_call",
+        "local_http_loopback",
+        "remote_https",
+        "remote_grpc_over_tls",
+        "extension_mediated_transport",
+        "disabled_no_transport"
+      ],
+      "description": "Transport class re-exported from the provider/model registry contract."
+    },
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_local_only",
+        "signed_manifest_only_local_pack",
+        "byok_api_key",
+        "enterprise_gateway_managed_credential",
+        "vendor_hosted_first_party_managed_credential",
+        "extension_provided_auth",
+        "disabled_no_auth"
+      ],
+      "description": "Auth mode re-exported from the provider/model registry contract."
+    },
+    "retention_stance_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_local_only",
+        "no_retention_promised_body_discarded",
+        "bounded_retention_operator_access_only",
+        "bounded_retention_with_user_export",
+        "bounded_retention_with_legal_hold_only",
+        "unbounded_retention_not_used_for_training",
+        "unbounded_retention_used_for_training",
+        "retention_unknown_unverified",
+        "retention_policy_blocked"
+      ],
+      "description": "Retention stance re-exported from the provider/model registry contract."
+    },
+    "region_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "single_region_pinned",
+        "multi_region_pinned",
+        "region_failover_bounded_set",
+        "region_unpinned_vendor_default",
+        "region_unknown_unverified",
+        "region_policy_blocked"
+      ],
+      "description": "Region posture re-exported from the provider/model registry contract."
+    },
+    "execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sandbox_process",
+        "local_companion_service",
+        "byok_remote_vendor_direct",
+        "byok_remote_self_hosted_direct",
+        "enterprise_gateway_brokered",
+        "vendor_hosted_first_party_managed",
+        "extension_provided_locus",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ],
+      "description": "Execution locus re-exported from the routing contract."
+    },
+    "route_change_cause_class": {
+      "type": "string",
+      "enum": [
+        "no_route_change",
+        "policy_override",
+        "fallback_after_quota_exhaustion",
+        "fallback_after_budget_exhaustion",
+        "fallback_after_circuit_open",
+        "fallback_after_provider_disabled",
+        "user_explicit_choice"
+      ],
+      "description": "Route-change cause re-exported from the routing contract."
+    },
+    "local_resource_class": {
+      "type": "string",
+      "enum": ["wall_time", "memory", "battery", "accelerator"],
+      "description": "Scarce local-resource class surfaced so `local` is never implied free."
+    },
+    "resource_cost_band_class": {
+      "type": "string",
+      "enum": ["negligible", "low", "moderate", "high", "constrained"],
+      "description": "Coarse cost band for a scarce local resource."
+    },
+    "stable_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Stable-qualification posture for a visible batch/agent lane."
+    },
+    "local_resource_cost_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource_class", "cost_band"],
+      "properties": {
+        "resource_class": { "$ref": "#/$defs/local_resource_class" },
+        "cost_band": { "$ref": "#/$defs/resource_cost_band_class" }
+      },
+      "description": "One scarce local-resource cost row."
+    },
+    "registry_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolved",
+        "provider_id",
+        "provider_label",
+        "model_id",
+        "model_version",
+        "model_label",
+        "transport_class",
+        "auth_mode",
+        "retention_posture",
+        "region_posture",
+        "quota_family",
+        "execution_locus",
+        "external_tool_locus_refs"
+      ],
+      "properties": {
+        "resolved": { "type": "boolean" },
+        "provider_id": { "type": "string", "minLength": 1 },
+        "provider_label": { "type": "string", "minLength": 1 },
+        "model_id": { "type": "string", "minLength": 1 },
+        "model_version": { "type": "string", "minLength": 1 },
+        "model_label": { "type": "string", "minLength": 1 },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode_class" },
+        "retention_posture": { "$ref": "#/$defs/retention_stance_class" },
+        "region_posture": { "$ref": "#/$defs/region_posture_class" },
+        "quota_family": { "$ref": "#/$defs/quota_family_class" },
+        "execution_locus": { "$ref": "#/$defs/execution_locus_class" },
+        "local_model_pack_provenance_ref": { "type": "string", "minLength": 1 },
+        "external_tool_locus_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Typed provider/model/external-tool registry resolution. The route class must agree with the execution locus, and a local route must disclose its model-pack provenance ref so a local pack stays visible."
+    },
+    "preflight_estimate_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shown_before_send",
+        "intended_route_class",
+        "estimated_cost_band",
+        "estimated_latency_band",
+        "quota_family_flow",
+        "quota_family",
+        "local_resource_costs",
+        "approval_note_label",
+        "policy_note_label"
+      ],
+      "properties": {
+        "shown_before_send": { "type": "boolean" },
+        "intended_route_class": { "$ref": "#/$defs/route_class" },
+        "estimated_cost_band": { "$ref": "#/$defs/cost_envelope_class" },
+        "estimated_latency_band": { "$ref": "#/$defs/latency_envelope_class" },
+        "quota_family_flow": { "$ref": "#/$defs/action_flow_class" },
+        "quota_family": { "$ref": "#/$defs/quota_family_class" },
+        "local_resource_costs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_resource_cost_row" }
+        },
+        "approval_note_label": { "type": "string", "minLength": 1 },
+        "policy_note_label": { "type": "string", "minLength": 1 }
+      },
+      "description": "Preflight estimate card shown before send. A material action must show it before send; a local route must surface at least one non-negligible scarce-resource cost class."
+    },
+    "live_run_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "phase",
+        "current_route_class",
+        "current_provider_label",
+        "current_model_label",
+        "route_disclosed"
+      ],
+      "properties": {
+        "present": { "type": "boolean" },
+        "phase": { "$ref": "#/$defs/run_phase_class" },
+        "current_route_class": { "$ref": "#/$defs/route_class" },
+        "current_provider_label": { "type": "string", "minLength": 1 },
+        "current_model_label": { "type": "string", "minLength": 1 },
+        "route_disclosed": { "type": "boolean" }
+      },
+      "description": "Live run strip carrying current route truth. A material action must be present and disclose its route while in flight."
+    },
+    "post_run_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "outcome",
+        "actual_route_class",
+        "actual_cost_band",
+        "cost_measurement",
+        "quota_family_flow",
+        "quota_family",
+        "route_receipt_ref",
+        "spend_receipt_ref"
+      ],
+      "properties": {
+        "present": { "type": "boolean" },
+        "outcome": { "$ref": "#/$defs/run_outcome_class" },
+        "actual_route_class": { "$ref": "#/$defs/route_class" },
+        "actual_cost_band": { "$ref": "#/$defs/cost_envelope_class" },
+        "cost_measurement": { "$ref": "#/$defs/cost_measurement_class" },
+        "quota_family_flow": { "$ref": "#/$defs/action_flow_class" },
+        "quota_family": { "$ref": "#/$defs/quota_family_class" },
+        "route_receipt_ref": { "type": "string", "minLength": 1 },
+        "spend_receipt_ref": { "type": "string", "minLength": 1 }
+      },
+      "description": "Post-run receipt carried after completion or failure. A dispatched material action must carry route and spend receipt refs and an actual (not estimate) cost-measurement class."
+    },
+    "quota_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_class",
+        "quota_family",
+        "quota_scope",
+        "quota_state",
+        "budget_owner_label",
+        "blocked_this_action"
+      ],
+      "properties": {
+        "flow_class": { "$ref": "#/$defs/action_flow_class" },
+        "quota_family": { "$ref": "#/$defs/quota_family_class" },
+        "quota_scope": { "$ref": "#/$defs/quota_scope_class" },
+        "quota_state": { "$ref": "#/$defs/quota_state_class" },
+        "budget_owner_label": { "type": "string", "minLength": 1 },
+        "blocked_this_action": { "type": "boolean" }
+      },
+      "description": "One distinct quota-family summary row. The summary must cover all five flows; a row that blocked the owning action must line up with a blocked outcome or a disclosed downgrade."
+    },
+    "route_downgrade_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgraded",
+        "cause",
+        "original_route_class",
+        "original_provider_label",
+        "original_model_label",
+        "current_route_class",
+        "current_provider_label",
+        "current_model_label",
+        "both_routes_preserved",
+        "silent_switch"
+      ],
+      "properties": {
+        "downgraded": { "type": "boolean" },
+        "cause": { "$ref": "#/$defs/route_change_cause_class" },
+        "original_route_class": { "$ref": "#/$defs/route_class" },
+        "original_provider_label": { "type": "string", "minLength": 1 },
+        "original_model_label": { "type": "string", "minLength": 1 },
+        "current_route_class": { "$ref": "#/$defs/route_class" },
+        "current_provider_label": { "type": "string", "minLength": 1 },
+        "current_model_label": { "type": "string", "minLength": 1 },
+        "both_routes_preserved": { "type": "boolean" },
+        "silent_switch": { "type": "boolean" },
+        "disclosure_ref": { "type": "string", "minLength": 1 }
+      },
+      "description": "Route-downgrade banner. Silent route switching is forbidden; a downgrade must preserve both the original and current routes, name a real cause, and disclose it."
+    },
+    "non_ai_fallback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "fallback_label", "fallback_command_ref", "reachable_without_ai"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "fallback_label": { "type": "string", "minLength": 1 },
+        "fallback_command_ref": { "type": "string", "minLength": 1 },
+        "reachable_without_ai": { "type": "boolean" }
+      },
+      "description": "Non-AI fallback path that always remains so users are never stranded in an AI-only dead end."
+    },
+    "cumulative_spend_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_visible",
+        "lane_label",
+        "cumulative_receipt_available",
+        "cumulative_spend_band",
+        "remaining_budget_band",
+        "hop_count",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "lane_visible": { "type": "boolean" },
+        "lane_label": { "type": "string", "minLength": 1 },
+        "cumulative_receipt_available": { "type": "boolean" },
+        "cumulative_spend_band": { "$ref": "#/$defs/cost_envelope_class" },
+        "remaining_budget_band": { "$ref": "#/$defs/cost_envelope_class" },
+        "hop_count": { "type": "integer", "minimum": 0 },
+        "qualification": { "$ref": "#/$defs/stable_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      },
+      "description": "Cumulative-spend posture for a visible batch or branch-agent lane. A lane that cannot show cumulative receipt truth must narrow below Stable rather than claiming it."
+    },
+    "route_spend_evidence_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "json_export_ref",
+        "markdown_summary_ref",
+        "admin_inspector_ref",
+        "support_export_ref",
+        "export_lineage_refs"
+      ],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1 },
+        "json_export_ref": { "type": "string", "minLength": 1 },
+        "markdown_summary_ref": { "type": "string", "minLength": 1 },
+        "admin_inspector_ref": { "type": "string", "minLength": 1 },
+        "support_export_ref": { "type": "string", "minLength": 1 },
+        "export_lineage_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Exportable evidence lineage. The shared evidence id is the join key admin and support exports reconstruct the same provider/model route, budget family, downgrade reason, and actual receipt class from."
+    }
+  }
+}

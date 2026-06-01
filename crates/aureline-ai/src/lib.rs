@@ -52,6 +52,7 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 pub mod run_history;
+pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
@@ -235,6 +236,19 @@ pub use tool_gateway::{
     TOOL_GATEWAY_CONFORMANCE_ARTIFACT_REF, TOOL_GATEWAY_CONFORMANCE_PACKET_RECORD_KIND,
     TOOL_GATEWAY_DESCRIPTOR_RECORD_KIND, TOOL_GATEWAY_DESCRIPTOR_SCHEMA_REF,
     TOOL_GATEWAY_FIXTURE_DIR, TOOL_GATEWAY_SCHEMA_VERSION, TOOL_GATEWAY_SURFACE_ROW_RECORD_KIND,
+};
+pub use stabilize_ai_route_and_spend_truth::{
+    current_stable_ai_route_spend_truth_export, AiActionFlowClass, AiRouteSpendTruthArtifactError,
+    AiRouteSpendTruthPacket, AiRouteSpendTruthPacketInput, AiRouteSpendTruthViolation,
+    CostMeasurementClass, CumulativeSpendPosture, LiveRunStrip, LocalResourceClass,
+    LocalResourceCostRow, NonAiFallbackPath, PostRunReceipt, PreflightEstimateCard,
+    QuotaSummaryRow, ResourceCostBandClass, RouteClass, RouteDowngradeBanner,
+    RouteRegistryResolution, RouteSpendEvidenceExport, RunOutcomeClass, RunPhaseClass,
+    StableQualificationClass, AI_ROUTE_SPEND_TRUTH_AI_DOC_REF,
+    AI_ROUTE_SPEND_TRUTH_ARTIFACT_REF, AI_ROUTE_SPEND_TRUTH_BUDGET_CONTRACT_REF,
+    AI_ROUTE_SPEND_TRUTH_FIXTURE_DIR, AI_ROUTE_SPEND_TRUTH_RECEIPT_CONTRACT_REF,
+    AI_ROUTE_SPEND_TRUTH_RECORD_KIND, AI_ROUTE_SPEND_TRUTH_SCHEMA_REF,
+    AI_ROUTE_SPEND_TRUTH_SCHEMA_VERSION, AI_ROUTE_SPEND_TRUTH_SUMMARY_REF,
 };
 pub use stabilize_prompt_composer::{
     current_stable_prompt_composer_stabilization_export, AttachmentTaintClass, CompareAnswerRow,
