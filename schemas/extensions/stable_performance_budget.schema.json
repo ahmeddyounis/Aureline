@@ -1,0 +1,527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_performance_budget.schema.json",
+  "title": "Aureline stable performance-budget packet",
+  "description": "Cross-tool boundary schema for the stable performance-budget packet emitted by crates/aureline-extensions. One packet binds a stable_performance_budget_identity (performance-profile descriptor ref, row identity, package identity, the pinned performance-budget profile version, the publisher namespace, the pinned benchmark-evidence ref, the publisher trust tier, and the lifecycle state), a stable_performance_measurement (worst-case budget axis, measured p50 / p95, sample count, benchmark-lab trace and corpus refs, measurement freshness, and a trace-attested flag), a stable_performance_budget_enforcement (budget status against the published p50 / p95 ceilings, enforcement mode, threshold-adjustment posture), a stable_performance_budget_waiver (waiver state, ref, and authority), a stable_performance_cost_explanation (headline cost class, dominant cost factor, explained flag, explanation ref), a stable_performance_permission_posture (declared / effective refs and a no-widening flag), a stable_performance_compatibility (parity label, scorecard ref, verified flag), a stable_performance_install_posture (install scope and disclosure, revocation posture, mirrorability, rollback support), the stable_performance_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_performance_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published profile version, is evidence-backed, keeps its trust tier out of quarantine, stays runnable, keeps its cost bounded and within the published p50 / p95 budget, keeps the budget enforced, keeps a fresh and attested benchmark measurement, carries an active waiver for any relaxed threshold and a recorded waiver hook for any tightened / narrowed threshold, explains its cost to the user, never widens permissions, keeps verified non-parity-limited compatibility, discloses its install scope, keeps a clean revocation posture, stays mirrorable, and is fully attributed. An unbounded budget or cost withdraws the row; a catalog-asserted basis or an unenforced budget narrows below Stable. The Rust types in crates/aureline-extensions/src/harden_extension_performance_inspection_budget_enforcement_and_user/ are the source of truth. Raw artifact bytes, raw trace payloads, raw permission contents, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_performance_budget_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "budget_axis_class": {
+      "type": "string",
+      "enum": [
+        "activation_cold_start",
+        "activation_warm_start",
+        "main_thread_block",
+        "background_cpu",
+        "memory_footprint",
+        "io_throughput",
+        "host_rpc_latency",
+        "render_frame"
+      ]
+    },
+    "budget_status_class": {
+      "type": "string",
+      "enum": ["within_budget", "over_budget", "unbounded", "not_measured"]
+    },
+    "measurement_freshness_class": {
+      "type": "string",
+      "enum": ["fresh", "stale", "expired", "not_measured"]
+    },
+    "enforcement_mode_class": {
+      "type": "string",
+      "enum": ["enforced", "advisory", "unenforced"]
+    },
+    "threshold_adjustment_class": {
+      "type": "string",
+      "enum": ["unchanged", "tightened", "narrowed", "relaxed"]
+    },
+    "waiver_state_class": {
+      "type": "string",
+      "enum": ["none", "active", "expired", "revoked"]
+    },
+    "waiver_authority_class": {
+      "type": "string",
+      "enum": ["publisher", "admin", "release_engineering"]
+    },
+    "cost_class": {
+      "type": "string",
+      "enum": ["negligible", "light", "moderate", "heavy", "unbounded"]
+    },
+    "compatibility_label_class": {
+      "type": "string",
+      "enum": ["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"]
+    },
+    "install_scope_class": {
+      "type": "string",
+      "enum": ["user", "workspace", "machine", "portable"]
+    },
+    "revocation_posture_class": {
+      "type": "string",
+      "enum": ["clean", "advisory", "quarantined", "revoked"]
+    },
+    "mirrorability_class": {
+      "type": "string",
+      "enum": ["mirrorable", "mirror_pinned", "not_mirrorable"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_performance_budget_claim",
+        "beta_performance_budget_partial_claim",
+        "preview_performance_budget_experimental_claim",
+        "withdrawn_no_performance_budget_claim"
+      ]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "performance_budget_version_not_published",
+        "catalog_only_trust_not_evidence_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_runnable",
+        "budget_unbounded",
+        "budget_over",
+        "budget_not_measured",
+        "measurement_stale",
+        "measurement_expired",
+        "measurement_not_measured",
+        "enforcement_advisory",
+        "enforcement_unenforced",
+        "threshold_relaxed_without_waiver",
+        "threshold_adjustment_missing_waiver",
+        "waiver_expired",
+        "waiver_revoked",
+        "cost_unbounded",
+        "cost_not_explained",
+        "permission_widened",
+        "compatibility_unsupported",
+        "compatibility_parity_limited",
+        "compatibility_not_verified",
+        "install_scope_not_disclosed",
+        "revocation_posture_quarantined",
+        "revocation_posture_revoked",
+        "revocation_posture_advisory",
+        "not_mirrorable",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "marketplace_result_row",
+        "marketplace_detail_page",
+        "install_review",
+        "extension_detail_view",
+        "performance_inspector",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "performance_profile_ref",
+        "row_identity_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "performance_budget_version",
+        "publisher_namespace",
+        "benchmark_evidence_ref",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_budget_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "performance_profile_ref": {
+          "type": "string",
+          "pattern": "^performance_profile:"
+        },
+        "row_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "performance_budget_version": { "type": "integer", "minimum": 0 },
+        "publisher_namespace": { "$ref": "#/$defs/opaque_id" },
+        "benchmark_evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_axis_class",
+        "measured_p50",
+        "measured_p95",
+        "sample_count",
+        "corpus_metadata_ref",
+        "benchmark_trace_ref",
+        "measurement_freshness_class",
+        "trace_attested",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_measurement" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_axis_class": { "$ref": "#/$defs/budget_axis_class" },
+        "measured_p50": { "type": "integer", "minimum": 0 },
+        "measured_p95": { "type": "integer", "minimum": 0 },
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "corpus_metadata_ref": { "$ref": "#/$defs/opaque_id" },
+        "benchmark_trace_ref": { "$ref": "#/$defs/opaque_id" },
+        "measurement_freshness_class": { "$ref": "#/$defs/measurement_freshness_class" },
+        "trace_attested": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_status_class",
+        "published_p50_budget",
+        "published_p95_budget",
+        "enforcement_mode_class",
+        "threshold_adjustment_class",
+        "budget_profile_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_budget_enforcement" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_status_class": { "$ref": "#/$defs/budget_status_class" },
+        "published_p50_budget": { "type": "integer", "minimum": 0 },
+        "published_p95_budget": { "type": "integer", "minimum": 0 },
+        "enforcement_mode_class": { "$ref": "#/$defs/enforcement_mode_class" },
+        "threshold_adjustment_class": { "$ref": "#/$defs/threshold_adjustment_class" },
+        "budget_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "waiver_state_class", "waiver_ref", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_performance_budget_waiver" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "waiver_state_class": { "$ref": "#/$defs/waiver_state_class" },
+        "waiver_ref": { "type": "string" },
+        "waiver_authority_class": { "$ref": "#/$defs/waiver_authority_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "cost_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "cost_class",
+        "dominant_cost_factor_class",
+        "cost_explained",
+        "explanation_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_cost_explanation" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "cost_class": { "$ref": "#/$defs/cost_class" },
+        "dominant_cost_factor_class": { "$ref": "#/$defs/budget_axis_class" },
+        "cost_explained": { "type": "boolean" },
+        "explanation_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "permission_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "declared_permission_ref",
+        "effective_permission_ref",
+        "widened",
+        "reconsent_required",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_permission_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "declared_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "widened": { "type": "boolean" },
+        "reconsent_required": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "compatibility_label_class",
+        "scorecard_ref",
+        "compatibility_verified",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_compatibility" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "scorecard_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatibility_verified": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "install_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "install_scope_class",
+        "install_scope_disclosed",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "rollback_supported",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_install_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "install_scope_class": { "$ref": "#/$defs/install_scope_class" },
+        "install_scope_disclosed": { "type": "boolean" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "rollback_supported": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_performance_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "profile_version_current",
+        "trust_tier_class",
+        "lifecycle_runnable",
+        "budget_axis_class",
+        "measured_p50",
+        "measured_p95",
+        "published_p50_budget",
+        "published_p95_budget",
+        "budget_status_class",
+        "within_budget",
+        "budget_enforced",
+        "measurement_freshness_class",
+        "trace_attested",
+        "threshold_adjustment_class",
+        "waiver_state_class",
+        "cost_class",
+        "cost_explained",
+        "permissions_not_widened",
+        "compatibility_label_class",
+        "compatibility_verified",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "downgraded",
+        "downgraded_banner_required",
+        "attribution_complete",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_budget_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "profile_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_runnable": { "type": "boolean" },
+        "budget_axis_class": { "$ref": "#/$defs/budget_axis_class" },
+        "measured_p50": { "type": "integer", "minimum": 0 },
+        "measured_p95": { "type": "integer", "minimum": 0 },
+        "published_p50_budget": { "type": "integer", "minimum": 0 },
+        "published_p95_budget": { "type": "integer", "minimum": 0 },
+        "budget_status_class": { "$ref": "#/$defs/budget_status_class" },
+        "within_budget": { "type": "boolean" },
+        "budget_enforced": { "type": "boolean" },
+        "measurement_freshness_class": { "$ref": "#/$defs/measurement_freshness_class" },
+        "trace_attested": { "type": "boolean" },
+        "threshold_adjustment_class": { "$ref": "#/$defs/threshold_adjustment_class" },
+        "waiver_state_class": { "$ref": "#/$defs/waiver_state_class" },
+        "cost_class": { "$ref": "#/$defs/cost_class" },
+        "cost_explained": { "type": "boolean" },
+        "permissions_not_widened": { "type": "boolean" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "compatibility_verified": { "type": "boolean" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_performance_budget_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "measurement",
+        "enforcement",
+        "waiver",
+        "cost_explanation",
+        "permission_posture",
+        "compatibility",
+        "install_posture",
+        "claim",
+        "downgraded_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_catalog_only_trust",
+        "allows_ambient_extension_privilege",
+        "allows_unbounded_activation_cost",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_performance_budget_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "measurement": { "$ref": "#/$defs/measurement" },
+        "enforcement": { "$ref": "#/$defs/enforcement" },
+        "waiver": { "$ref": "#/$defs/waiver" },
+        "cost_explanation": { "$ref": "#/$defs/cost_explanation" },
+        "permission_posture": { "$ref": "#/$defs/permission_posture" },
+        "compatibility": { "$ref": "#/$defs/compatibility" },
+        "install_posture": { "$ref": "#/$defs/install_posture" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_banner": { "$ref": "#/$defs/downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_ambient_extension_privilege": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}

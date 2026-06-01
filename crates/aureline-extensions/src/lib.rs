@@ -171,6 +171,22 @@
 //!   runtime-class truth into a
 //!   [`finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::StableMarketplaceCatalogTruthSupportExport`]
 //!   for support, mirror, and partner consumers.
+//! - one [`harden_extension_performance_inspection_budget_enforcement_and_user::StablePerformanceBudgetPacket`]
+//!   that hardens extension performance inspection, budget enforcement, and the
+//!   user-visible cost explanation for the stable line: it binds the inspected
+//!   worst-case measurement (budget axis, measured p50 / p95, sample count,
+//!   benchmark-lab trace, corpus metadata, freshness, and trace-attested flag), the
+//!   budget enforcement against the published p50 / p95 ceilings (status,
+//!   enforcement mode, threshold-adjustment posture), the waiver hook that backs any
+//!   intentional threshold tightening / narrowing / relaxation, the user-visible
+//!   cost explanation (cost class, dominant factor, explained flag), the permission
+//!   posture, compatibility, and install posture, then derives the stability
+//!   qualification with automatic narrowing below Stable so an unbounded activation
+//!   cost, a catalog-only (unenforced) budget, or a permission widened beyond the
+//!   declared manifest can never ride a stable performance claim. It cross-checks the
+//!   numeric p50 / p95 measurement against the published budget so the inspected cost
+//!   and the budget status can never contradict, and projects a
+//!   [`harden_extension_performance_inspection_budget_enforcement_and_user::StablePerformanceBudgetSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -193,6 +209,7 @@ pub mod finalize_extension_bridge_and_certification_scope_and_downgrade;
 pub mod finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation;
 pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
+pub mod harden_extension_performance_inspection_budget_enforcement_and_user;
 pub mod harden_install_review_update_review_disable_rollback_and;
 pub mod install_review;
 pub mod lifecycle_metadata;
@@ -750,6 +767,41 @@ pub use stabilize_sdk_schemas_samples_templates_and_conformance_kits::{
     STABLE_TIERS as SDK_AUTHOR_LANE_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as SDK_AUTHOR_LANE_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as SDK_AUTHOR_LANE_TRUST_TIER_CLASSES,
+};
+pub use harden_extension_performance_inspection_budget_enforcement_and_user::{
+    project_stable_performance_budget, project_stable_performance_budget_support_export,
+    PerformanceBudgetEnforcement, PerformanceBudgetEnforcementInput, PerformanceBudgetIdentity,
+    PerformanceBudgetIdentityInput, PerformanceBudgetWaiver, PerformanceBudgetWaiverInput,
+    PerformanceCompatibility, PerformanceCompatibilityInput, PerformanceCostExplanation,
+    PerformanceCostExplanationInput, PerformanceDowngradedBanner, PerformanceInstallPosture,
+    PerformanceInstallPostureInput, PerformanceMeasurement, PerformanceMeasurementInput,
+    PerformancePermissionPosture, PerformancePermissionPostureInput, PerformanceQualificationClaim,
+    PerformanceQualificationClaimInput, StablePerformanceBudgetError, StablePerformanceBudgetInput,
+    StablePerformanceBudgetInspection, StablePerformanceBudgetPacket,
+    StablePerformanceBudgetProjection, StablePerformanceBudgetSupportExport,
+    StablePerformanceBudgetValidationError, BUDGET_AXIS_CLASSES, BUDGET_STATUS_CLASSES,
+    COST_CLASSES, ENFORCEMENT_MODE_CLASSES, MEASUREMENT_FRESHNESS_CLASSES,
+    PERFORMANCE_BUDGET_DOWNGRADE_REASONS, PERFORMANCE_BUDGET_ENFORCEMENT_RECORD_KIND,
+    PERFORMANCE_BUDGET_IDENTITY_RECORD_KIND, PERFORMANCE_BUDGET_WAIVER_RECORD_KIND,
+    PERFORMANCE_COMPATIBILITY_RECORD_KIND, PERFORMANCE_COST_EXPLANATION_RECORD_KIND,
+    PERFORMANCE_DOWNGRADED_BANNER_RECORD_KIND, PERFORMANCE_INSTALL_POSTURE_RECORD_KIND,
+    PERFORMANCE_MEASUREMENT_RECORD_KIND, PERFORMANCE_PERMISSION_POSTURE_RECORD_KIND,
+    PERFORMANCE_QUALIFICATION_CLAIM_RECORD_KIND, STABLE_PERFORMANCE_BUDGET_CONSUMER_SURFACES,
+    STABLE_PERFORMANCE_BUDGET_INSPECTION_RECORD_KIND, STABLE_PERFORMANCE_BUDGET_PACKET_RECORD_KIND,
+    STABLE_PERFORMANCE_BUDGET_PUBLISHED_PROFILE_VERSION, STABLE_PERFORMANCE_BUDGET_SCHEMA_REF,
+    STABLE_PERFORMANCE_BUDGET_SCHEMA_VERSION, STABLE_PERFORMANCE_BUDGET_SUPPORT_EXPORT_RECORD_KIND,
+    THRESHOLD_ADJUSTMENT_CLASSES, WAIVER_AUTHORITY_CLASSES, WAIVER_STATE_CLASSES,
+    CLAIM_BASIS_CLASSES as PERFORMANCE_BUDGET_CLAIM_BASIS_CLASSES,
+    COMPATIBILITY_LABEL_CLASSES as PERFORMANCE_BUDGET_COMPATIBILITY_LABEL_CLASSES,
+    INSTALL_SCOPE_CLASSES as PERFORMANCE_BUDGET_INSTALL_SCOPE_CLASSES,
+    LIFECYCLE_STATE_CLASSES as PERFORMANCE_BUDGET_LIFECYCLE_STATE_CLASSES,
+    MIRRORABILITY_CLASSES as PERFORMANCE_BUDGET_MIRRORABILITY_CLASSES,
+    REVOCATION_POSTURE_CLASSES as PERFORMANCE_BUDGET_REVOCATION_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as PERFORMANCE_BUDGET_RUNNABLE_LIFECYCLE_STATES,
+    STABILITY_TIERS as PERFORMANCE_BUDGET_STABILITY_TIERS,
+    STABLE_TIERS as PERFORMANCE_BUDGET_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as PERFORMANCE_BUDGET_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as PERFORMANCE_BUDGET_TRUST_TIER_CLASSES,
 };
 pub use harden_install_review_update_review_disable_rollback_and::{
     project_stable_lifecycle_flow, project_stable_lifecycle_flow_support_export,
