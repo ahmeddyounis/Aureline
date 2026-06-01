@@ -18,6 +18,7 @@ pub mod authority;
 pub mod descriptor;
 pub mod enablement;
 pub mod finalize_command_parity;
+pub mod finalize_traffic_origin_and_exposure_chips;
 pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod registry;
@@ -53,6 +54,23 @@ pub use finalize_command_parity::{
     FINALIZE_COMMAND_PARITY_QUERY_SESSION_CONTRACT_REF, FINALIZE_COMMAND_PARITY_RECORD_KIND,
     FINALIZE_COMMAND_PARITY_SCHEMA_REF, FINALIZE_COMMAND_PARITY_SCHEMA_VERSION,
     FINALIZE_COMMAND_PARITY_SUMMARY_REF,
+};
+pub use finalize_traffic_origin_and_exposure_chips::{
+    current_traffic_origin_exposure_chips_export, ExposureChipClass,
+    FinalizeTrafficOriginExposureChipsArtifactError, FinalizeTrafficOriginExposureChipsPacket,
+    FinalizeTrafficOriginExposureChipsPacketInput, FinalizeTrafficOriginExposureChipsViolation,
+    PortExplainabilityRecord, PortProtocolClass, PublishTargetClass,
+    PublishTargetExplainabilityRecord, TrafficOriginChipRow, TrafficOriginClass,
+    TunnelExplainabilityRecord, TunnelKindClass,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_ARTIFACT_REF,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_DESCRIPTOR_CONTRACT_REF,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_DOC_REF,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_FIXTURE_DIR,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_PARITY_CONTRACT_REF,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_RECORD_KIND,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_REF,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_VERSION,
+    FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SUMMARY_REF,
 };
 pub use harden_high_risk_command::{
     current_high_risk_command_hardening_export, ApprovalAuthorityClass, ApprovalLineageContract,
