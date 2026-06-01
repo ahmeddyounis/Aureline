@@ -187,6 +187,22 @@
 //!   numeric p50 / p95 measurement against the published budget so the inspected cost
 //!   and the budget status can never contradict, and projects a
 //!   [`harden_extension_performance_inspection_budget_enforcement_and_user::StablePerformanceBudgetSupportExport`].
+//! - one [`stabilize_policy_pack_diff_explain_export_and_admin::StablePolicyPackGovernancePacket`]
+//!   that stabilizes the admin-facing governance of an extension on a claimed
+//!   enterprise lane: it binds the policy-pack diff (base / target pack versions,
+//!   completeness, added / removed / modified rule counts, breaking-change
+//!   acknowledgement), the policy-decision explanation (decision, typed reason,
+//!   governing-rule ref, explained flag), the admin-facing export (scope, mechanical /
+//!   hand-authored source, redaction posture), the enterprise-lane binding (lane class,
+//!   attested / asserted claim, tenancy scope), the permission posture (declared /
+//!   effective / policy-cap refs and a no-widening flag), compatibility, and install /
+//!   activation-cost / revocation / mirror posture, then derives the stability
+//!   qualification with automatic narrowing below Stable so a widened permission, an
+//!   unbounded activation cost, a private export, a hand-authored export, an unexplained
+//!   decision, or an unattested enterprise lane can never ride a stable governance
+//!   claim. It cross-checks the diff counts against the completeness and base / target
+//!   versions, and projects a
+//!   [`stabilize_policy_pack_diff_explain_export_and_admin::StablePolicyPackGovernanceSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -228,6 +244,7 @@ pub mod sdk_v1;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
 pub mod stabilize_mirror_manual_import_offline_catalog_and_publisher;
+pub mod stabilize_policy_pack_diff_explain_export_and_admin;
 pub mod stabilize_sdk_schemas_samples_templates_and_conformance_kits;
 pub mod supervision;
 pub mod webview_boundary;
@@ -834,4 +851,43 @@ pub use harden_install_review_update_review_disable_rollback_and::{
     STABLE_TIERS as LIFECYCLE_FLOW_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as LIFECYCLE_FLOW_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as LIFECYCLE_FLOW_TRUST_TIER_CLASSES,
+};
+pub use stabilize_policy_pack_diff_explain_export_and_admin::{
+    project_stable_policy_pack_governance, project_stable_policy_pack_governance_support_export,
+    AdminGovernanceExport, AdminGovernanceExportInput, EnterpriseLaneBinding,
+    EnterpriseLaneBindingInput, PolicyDecisionExplain, PolicyDecisionExplainInput,
+    PolicyGovernanceCompatibility, PolicyGovernanceCompatibilityInput,
+    PolicyGovernanceDowngradedBanner, PolicyGovernanceIdentity, PolicyGovernanceIdentityInput,
+    PolicyGovernanceInstallPosture, PolicyGovernanceInstallPostureInput,
+    PolicyGovernancePermissionPosture, PolicyGovernancePermissionPostureInput,
+    PolicyGovernanceQualificationClaim, PolicyGovernanceQualificationClaimInput, PolicyPackDiff,
+    PolicyPackDiffInput, StablePolicyPackGovernanceError, StablePolicyPackGovernanceInput,
+    StablePolicyPackGovernanceInspection, StablePolicyPackGovernancePacket,
+    StablePolicyPackGovernanceProjection, StablePolicyPackGovernanceSupportExport,
+    StablePolicyPackGovernanceValidationError, ACTIVATION_COST_CLASSES,
+    ADMIN_GOVERNANCE_EXPORT_RECORD_KIND, DECISION_CLASSES, DECISION_REASON_CLASSES,
+    DIFF_COMPLETENESS_CLASSES, ENTERPRISE_LANE_BINDING_RECORD_KIND, ENTERPRISE_LANE_CLASSES,
+    EXPORT_REDACTION_CLASSES, EXPORT_SCOPE_CLASSES, EXPORT_SOURCE_CLASSES, LANE_CLAIM_BASIS_CLASSES,
+    POLICY_DECISION_EXPLAIN_RECORD_KIND, POLICY_GOVERNANCE_COMPATIBILITY_RECORD_KIND,
+    POLICY_GOVERNANCE_DOWNGRADED_BANNER_RECORD_KIND, POLICY_GOVERNANCE_IDENTITY_RECORD_KIND,
+    POLICY_GOVERNANCE_INSTALL_POSTURE_RECORD_KIND,
+    POLICY_GOVERNANCE_PERMISSION_POSTURE_RECORD_KIND,
+    POLICY_GOVERNANCE_QUALIFICATION_CLAIM_RECORD_KIND, POLICY_PACK_DIFF_RECORD_KIND,
+    POLICY_PACK_GOVERNANCE_DOWNGRADE_REASONS, STABLE_POLICY_PACK_GOVERNANCE_CONSUMER_SURFACES,
+    STABLE_POLICY_PACK_GOVERNANCE_INSPECTION_RECORD_KIND,
+    STABLE_POLICY_PACK_GOVERNANCE_PACKET_RECORD_KIND,
+    STABLE_POLICY_PACK_GOVERNANCE_PUBLISHED_PROFILE_VERSION,
+    STABLE_POLICY_PACK_GOVERNANCE_SCHEMA_REF, STABLE_POLICY_PACK_GOVERNANCE_SCHEMA_VERSION,
+    STABLE_POLICY_PACK_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND, TENANCY_SCOPE_CLASSES,
+    CLAIM_BASIS_CLASSES as POLICY_GOVERNANCE_CLAIM_BASIS_CLASSES,
+    COMPATIBILITY_LABEL_CLASSES as POLICY_GOVERNANCE_COMPATIBILITY_LABEL_CLASSES,
+    INSTALL_SCOPE_CLASSES as POLICY_GOVERNANCE_INSTALL_SCOPE_CLASSES,
+    LIFECYCLE_STATE_CLASSES as POLICY_GOVERNANCE_LIFECYCLE_STATE_CLASSES,
+    MIRRORABILITY_CLASSES as POLICY_GOVERNANCE_MIRRORABILITY_CLASSES,
+    REVOCATION_POSTURE_CLASSES as POLICY_GOVERNANCE_REVOCATION_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as POLICY_GOVERNANCE_RUNNABLE_LIFECYCLE_STATES,
+    STABILITY_TIERS as POLICY_GOVERNANCE_STABILITY_TIERS,
+    STABLE_TIERS as POLICY_GOVERNANCE_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as POLICY_GOVERNANCE_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as POLICY_GOVERNANCE_TRUST_TIER_CLASSES,
 };
