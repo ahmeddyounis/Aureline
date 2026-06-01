@@ -1,0 +1,585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_marketplace_catalog_truth.schema.json",
+  "title": "Aureline stable marketplace catalog-truth packet",
+  "description": "Cross-tool boundary schema for the stable marketplace catalog-truth packet emitted by crates/aureline-extensions. One packet binds a stable_marketplace_catalog_truth_identity (catalog descriptor ref, package identity, the pinned catalog-truth version, the publisher trust tier, and the lifecycle state), a stable_marketplace_catalog_provenance posture (mechanically sourced from one registry/status model), a stable_marketplace_catalog_surface_boundary (runtime class, host boundary, hosted-surface and browser-handoff implications, runtime-class-verified flag, and reduced accessibility / theming parity), a stable_marketplace_catalog_discoverability_posture (ranked / penalized / quarantined, kept separate from provenance and support-class truth and explainable without raw install count), the machine-readable compatibility scorecards (each with a parity band, freshness window, evidence source, and downgrade state), a stable_marketplace_catalog_compatibility_summary derived from the scorecards, a stable_marketplace_catalog_activation_budget, a stable_marketplace_catalog_support_class (with a profile-limited flag and the runtime profile it was verified on), a stable_marketplace_catalog_publisher_continuity binding, a stable_marketplace_catalog_view_alignment, the stable_marketplace_catalog_truth_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_marketplace_catalog_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published catalog-truth version, is evidence-backed, keeps its trust tier out of quarantine, stays installable, keeps its provenance out of under-review, is ranked normally, carries a verified runtime class, discloses any hosted-surface or browser-handoff boundary, ships at least one compatibility scorecard with no inherited / unsupported / not-yet-run / stale / parity-limited evidence, keeps its activation cost within budget, keeps a stable-grade non-profile-limited support class, keeps its publisher continuity current, keeps its truth aligned across all views, and is fully attributed. A catalog-asserted claim basis, an unbounded activation cost, an inherited-parity scorecard, a quarantined or under-review row, or an unverified runtime class narrows or withdraws the row. The Rust types in crates/aureline-extensions/src/finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation/ are the source of truth. Raw scorecard bytes, raw evidence payloads, raw install counts, raw operator notes, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_marketplace_catalog_truth_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "provenance_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "official_pack", "enterprise_approved", "community", "under_review"]
+    },
+    "runtime_class": {
+      "type": "string",
+      "enum": [
+        "passive_package",
+        "wasm_capability_sandbox",
+        "declarative_host_rendered_view",
+        "external_host",
+        "compatibility_bridge",
+        "remote_side_component"
+      ]
+    },
+    "host_boundary_class": {
+      "type": "string",
+      "enum": [
+        "in_process_passive",
+        "wasm_sandbox",
+        "supervised_external_process",
+        "host_rendered_surface",
+        "hosted_remote_surface",
+        "browser_handoff"
+      ]
+    },
+    "ranking_state_class": {
+      "type": "string",
+      "enum": [
+        "ranked_normally",
+        "penalized_staleness",
+        "penalized_performance",
+        "penalized_trust",
+        "quarantined"
+      ]
+    },
+    "scorecard_subject_class": {
+      "type": "string",
+      "enum": ["imported_extension", "bridge_class", "workflow_bundle", "certified_reference_workspace"]
+    },
+    "parity_band_class": {
+      "type": "string",
+      "enum": ["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"]
+    },
+    "freshness_window_class": {
+      "type": "string",
+      "enum": ["current", "aging", "stale", "expired", "not_evaluated"]
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": ["conformance_suite", "certified_workspace", "bridge_matrix", "vendor_attested", "inherited_from_adjacent"]
+    },
+    "scorecard_downgrade_state_class": {
+      "type": "string",
+      "enum": ["none", "narrowed", "downgraded", "unsupported"]
+    },
+    "activation_budget_class": {
+      "type": "string",
+      "enum": ["within_budget", "over_budget", "unbounded", "not_measured"]
+    },
+    "support_class_class": {
+      "type": "string",
+      "enum": ["certified", "supported", "limited", "community", "experimental", "unsupported"]
+    },
+    "publisher_continuity_class": {
+      "type": "string",
+      "enum": ["current", "stale", "missing", "revoked"]
+    },
+    "catalog_view_class": {
+      "type": "string",
+      "enum": ["public_registry", "approved_mirror", "side_load"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_catalog_truth_claim",
+        "beta_catalog_truth_partial_claim",
+        "preview_catalog_truth_experimental_claim",
+        "withdrawn_no_catalog_truth_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "catalog_version_not_published",
+        "catalog_only_trust_not_evidence_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_installable",
+        "provenance_under_review",
+        "quarantined_from_discovery",
+        "ranking_penalized",
+        "runtime_class_unverified",
+        "hosted_surface_boundary_undisclosed",
+        "missing_required_scorecard",
+        "compatibility_unsupported",
+        "compatibility_parity_limited",
+        "scorecard_parity_inherited",
+        "scorecard_evidence_not_run",
+        "scorecard_freshness_stale",
+        "activation_cost_unbounded",
+        "activation_cost_over_budget",
+        "activation_cost_not_measured",
+        "support_class_below_stable_grade",
+        "support_class_limited",
+        "support_class_profile_limited",
+        "publisher_continuity_revoked",
+        "publisher_continuity_missing",
+        "publisher_continuity_stale",
+        "views_not_aligned",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "marketplace_result_row",
+        "marketplace_detail_page",
+        "marketplace_compare_row",
+        "install_review",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector",
+        "mirror_packet"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "catalog_descriptor_ref",
+        "row_identity_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "catalog_version",
+        "source_package_ref",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_truth_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "catalog_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "row_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "catalog_version": { "type": "integer", "minimum": 0 },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "provenance_class",
+        "mechanically_sourced",
+        "status_source_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_provenance" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "mechanically_sourced": { "type": "boolean" },
+        "status_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "surface_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "runtime_class",
+        "host_boundary_class",
+        "runtime_class_verified",
+        "hosted_surface_implication",
+        "browser_handoff_implication",
+        "surface_boundary_disclosed",
+        "reduced_accessibility_parity",
+        "reduced_theming_parity",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_surface_boundary" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "runtime_class_verified": { "type": "boolean" },
+        "hosted_surface_implication": { "type": "boolean" },
+        "browser_handoff_implication": { "type": "boolean" },
+        "surface_boundary_disclosed": { "type": "boolean" },
+        "reduced_accessibility_parity": { "type": "boolean" },
+        "reduced_theming_parity": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "discoverability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "ranking_state_class",
+        "ranking_explained_without_install_count",
+        "ranking_rationale_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_discoverability_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "ranking_state_class": { "$ref": "#/$defs/ranking_state_class" },
+        "ranking_explained_without_install_count": { "type": "boolean" },
+        "ranking_rationale_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "scorecard_id",
+        "subject_class",
+        "parity_band_class",
+        "freshness_window_class",
+        "evidence_source_class",
+        "downgrade_state_class",
+        "scorecard_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_compatibility_scorecard" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "scorecard_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_class": { "$ref": "#/$defs/scorecard_subject_class" },
+        "parity_band_class": { "$ref": "#/$defs/parity_band_class" },
+        "freshness_window_class": { "$ref": "#/$defs/freshness_window_class" },
+        "evidence_source_class": { "$ref": "#/$defs/evidence_source_class" },
+        "downgrade_state_class": { "$ref": "#/$defs/scorecard_downgrade_state_class" },
+        "scorecard_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "compatibility_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "scorecard_count",
+        "inherited_count",
+        "not_evaluated_count",
+        "stale_count",
+        "unsupported_count",
+        "parity_limited_count",
+        "present_subjects",
+        "has_scorecard",
+        "no_inherited_parity",
+        "all_scorecards_supportable"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_compatibility_summary" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "scorecard_count": { "type": "integer", "minimum": 0 },
+        "inherited_count": { "type": "integer", "minimum": 0 },
+        "not_evaluated_count": { "type": "integer", "minimum": 0 },
+        "stale_count": { "type": "integer", "minimum": 0 },
+        "unsupported_count": { "type": "integer", "minimum": 0 },
+        "parity_limited_count": { "type": "integer", "minimum": 0 },
+        "present_subjects": { "type": "array", "items": { "$ref": "#/$defs/scorecard_subject_class" } },
+        "has_scorecard": { "type": "boolean" },
+        "no_inherited_parity": { "type": "boolean" },
+        "all_scorecards_supportable": { "type": "boolean" }
+      }
+    },
+    "activation_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_class",
+        "measured_cost_ref",
+        "budget_ceiling_ref",
+        "measured_surface_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_activation_budget" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "measured_cost_ref": { "$ref": "#/$defs/opaque_id" },
+        "budget_ceiling_ref": { "$ref": "#/$defs/opaque_id" },
+        "measured_surface_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "support_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_class_class",
+        "profile_limited",
+        "verified_runtime_profile_ref",
+        "evidence_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_support_class" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_class_class": { "$ref": "#/$defs/support_class_class" },
+        "profile_limited": { "type": "boolean" },
+        "verified_runtime_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "publisher_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "continuity_state_class", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_publisher_continuity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "continuity_state_class": { "$ref": "#/$defs/publisher_continuity_class" },
+        "continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "view_alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "aligned_views",
+        "runtime_class_preserved_across_views",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_view_alignment" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "aligned_views": { "type": "array", "items": { "$ref": "#/$defs/catalog_view_class" } },
+        "runtime_class_preserved_across_views": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_truth_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "catalog_version_current",
+        "trust_tier_class",
+        "provenance_class",
+        "lifecycle_installable",
+        "ranking_state_class",
+        "runtime_class",
+        "host_boundary_class",
+        "runtime_class_verified",
+        "surface_boundary_disclosed",
+        "support_class_class",
+        "support_profile_limited",
+        "activation_budget_class",
+        "activation_within_budget",
+        "publisher_continuity_class",
+        "compatibility_stable_backable",
+        "views_aligned",
+        "downgraded",
+        "downgraded_banner_required",
+        "attribution_complete",
+        "scorecard_count",
+        "inherited_scorecard_count",
+        "unsupported_scorecard_count",
+        "stale_scorecard_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_truth_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "catalog_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "lifecycle_installable": { "type": "boolean" },
+        "ranking_state_class": { "$ref": "#/$defs/ranking_state_class" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "host_boundary_class": { "$ref": "#/$defs/host_boundary_class" },
+        "runtime_class_verified": { "type": "boolean" },
+        "surface_boundary_disclosed": { "type": "boolean" },
+        "support_class_class": { "$ref": "#/$defs/support_class_class" },
+        "support_profile_limited": { "type": "boolean" },
+        "activation_budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "activation_within_budget": { "type": "boolean" },
+        "publisher_continuity_class": { "$ref": "#/$defs/publisher_continuity_class" },
+        "compatibility_stable_backable": { "type": "boolean" },
+        "views_aligned": { "type": "boolean" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "scorecard_count": { "type": "integer", "minimum": 0 },
+        "inherited_scorecard_count": { "type": "integer", "minimum": 0 },
+        "unsupported_scorecard_count": { "type": "integer", "minimum": 0 },
+        "stale_scorecard_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_marketplace_catalog_truth_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "provenance",
+        "surface_boundary",
+        "discoverability",
+        "scorecards",
+        "compatibility_summary",
+        "activation_budget",
+        "support_class",
+        "publisher_continuity",
+        "view_alignment",
+        "claim",
+        "downgraded_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_catalog_only_trust",
+        "allows_unbounded_activation_cost",
+        "allows_inherited_parity_stable_claim",
+        "allows_ranking_implied_trust",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_marketplace_catalog_truth_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "surface_boundary": { "$ref": "#/$defs/surface_boundary" },
+        "discoverability": { "$ref": "#/$defs/discoverability" },
+        "scorecards": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scorecard" }
+        },
+        "compatibility_summary": { "$ref": "#/$defs/compatibility_summary" },
+        "activation_budget": { "$ref": "#/$defs/activation_budget" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "publisher_continuity": { "$ref": "#/$defs/publisher_continuity" },
+        "view_alignment": { "$ref": "#/$defs/view_alignment" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_banner": { "$ref": "#/$defs/downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "allows_inherited_parity_stable_claim": { "const": false },
+        "allows_ranking_implied_trust": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}

@@ -155,6 +155,22 @@
 //!   or a nonconformant artifact can never ride a stable author-lane claim. It
 //!   projects a
 //!   [`stabilize_sdk_schemas_samples_templates_and_conformance_kits::StableSdkAuthorLaneSupportExport`].
+//! - one [`finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::StableMarketplaceCatalogTruthPacket`]
+//!   that finalizes marketplace catalog truth for the stable line: it binds the row
+//!   identity, the mechanically-sourced provenance posture, the surface boundary
+//!   (runtime class, host boundary, hosted-surface / browser-handoff implications, and
+//!   reduced accessibility / theming parity), the discoverability posture (ranked /
+//!   penalized / quarantined) kept separate from provenance and support-class truth,
+//!   the machine-readable compatibility scorecards (each with a parity band, freshness
+//!   window, evidence source, and downgrade state), the activation budget, the support
+//!   class (with profile-limited and verified-runtime-profile truth), the
+//!   publisher-continuity binding, and the cross-view alignment, then derives the
+//!   stability qualification with automatic narrowing below Stable so catalog-only
+//!   trust, an unbounded activation cost, inherited parity, ranking-implied trust, or a
+//!   quarantined / under-review row can never ride a stable catalog claim. It preserves
+//!   runtime-class truth into a
+//!   [`finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::StableMarketplaceCatalogTruthSupportExport`]
+//!   for support, mirror, and partner consumers.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -173,6 +189,7 @@ pub mod collections;
 pub mod compatibility_matrix;
 pub mod conformance_reports;
 pub mod fact_grid;
+pub mod finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation;
 pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
 pub mod install_review;
@@ -252,6 +269,52 @@ pub use fact_grid::{
     QuarantineRevocationState, ScriptRiskClass, ScriptRiskDisclosure,
     MARKETPLACE_FACT_GRID_RECORD_KIND, MARKETPLACE_FACT_GRID_SCHEMA_VERSION,
     MARKETPLACE_FACT_GRID_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::{
+    project_stable_marketplace_catalog_truth,
+    project_stable_marketplace_catalog_truth_support_export, DowngradedCatalogBanner,
+    MarketplaceCatalogActivationBudget, MarketplaceCatalogActivationBudgetInput,
+    MarketplaceCatalogDiscoverabilityPosture, MarketplaceCatalogDiscoverabilityPostureInput,
+    MarketplaceCatalogProvenance, MarketplaceCatalogProvenanceInput,
+    MarketplaceCatalogPublisherContinuity, MarketplaceCatalogPublisherContinuityInput,
+    MarketplaceCatalogSupportClass, MarketplaceCatalogSupportClassInput,
+    MarketplaceCatalogSurfaceBoundary, MarketplaceCatalogSurfaceBoundaryInput,
+    MarketplaceCatalogTruthIdentity, MarketplaceCatalogTruthIdentityInput,
+    MarketplaceCatalogTruthQualificationClaim, MarketplaceCatalogTruthQualificationClaimInput,
+    MarketplaceCatalogViewAlignment, MarketplaceCatalogViewAlignmentInput,
+    MarketplaceCompatibilityScorecard, MarketplaceCompatibilityScorecardInput,
+    MarketplaceCompatibilitySummary, StableMarketplaceCatalogTruthError,
+    StableMarketplaceCatalogTruthInput, StableMarketplaceCatalogTruthInspection,
+    StableMarketplaceCatalogTruthPacket, StableMarketplaceCatalogTruthProjection,
+    StableMarketplaceCatalogTruthSupportExport, StableMarketplaceCatalogTruthValidationError,
+    DOWNGRADED_CATALOG_BANNER_RECORD_KIND, MARKETPLACE_CATALOG_ACTIVATION_BUDGET_RECORD_KIND,
+    MARKETPLACE_CATALOG_DISCOVERABILITY_POSTURE_RECORD_KIND,
+    MARKETPLACE_CATALOG_DOWNGRADE_REASONS, MARKETPLACE_CATALOG_PROVENANCE_RECORD_KIND,
+    MARKETPLACE_CATALOG_PUBLISHER_CONTINUITY_RECORD_KIND,
+    MARKETPLACE_CATALOG_SUPPORT_CLASS_RECORD_KIND,
+    MARKETPLACE_CATALOG_SURFACE_BOUNDARY_RECORD_KIND,
+    MARKETPLACE_CATALOG_TRUTH_IDENTITY_RECORD_KIND,
+    MARKETPLACE_CATALOG_TRUTH_QUALIFICATION_CLAIM_RECORD_KIND,
+    MARKETPLACE_CATALOG_VIEW_ALIGNMENT_RECORD_KIND, MARKETPLACE_COMPATIBILITY_SCORECARD_RECORD_KIND,
+    MARKETPLACE_COMPATIBILITY_SUMMARY_RECORD_KIND,
+    STABLE_MARKETPLACE_CATALOG_CONSUMER_SURFACES, STABLE_MARKETPLACE_CATALOG_PUBLISHED_VERSION,
+    STABLE_MARKETPLACE_CATALOG_TRUTH_INSPECTION_RECORD_KIND,
+    STABLE_MARKETPLACE_CATALOG_TRUTH_PACKET_RECORD_KIND,
+    STABLE_MARKETPLACE_CATALOG_TRUTH_SCHEMA_REF, STABLE_MARKETPLACE_CATALOG_TRUTH_SCHEMA_VERSION,
+    STABLE_MARKETPLACE_CATALOG_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+    CATALOG_VIEW_CLASSES as MARKETPLACE_CATALOG_VIEW_CLASSES,
+    EVIDENCE_SOURCE_CLASSES as MARKETPLACE_CATALOG_EVIDENCE_SOURCE_CLASSES,
+    FRESHNESS_WINDOW_CLASSES as MARKETPLACE_CATALOG_FRESHNESS_WINDOW_CLASSES,
+    HOST_BOUNDARY_CLASSES as MARKETPLACE_CATALOG_HOST_BOUNDARY_CLASSES,
+    PARITY_BAND_CLASSES as MARKETPLACE_CATALOG_PARITY_BAND_CLASSES,
+    PROVENANCE_CLASSES as MARKETPLACE_CATALOG_PROVENANCE_CLASSES,
+    RANKING_STATE_CLASSES as MARKETPLACE_CATALOG_RANKING_STATE_CLASSES,
+    RUNTIME_CLASSES as MARKETPLACE_CATALOG_RUNTIME_CLASSES,
+    SCORECARD_SUBJECT_CLASSES as MARKETPLACE_CATALOG_SCORECARD_SUBJECT_CLASSES,
+    STABILITY_TIERS as MARKETPLACE_CATALOG_STABILITY_TIERS,
+    STABLE_TIERS as MARKETPLACE_CATALOG_STABLE_TIERS,
+    SUPPORT_CLASS_CLASSES as MARKETPLACE_CATALOG_SUPPORT_CLASS_CLASSES,
+    TRUST_TIER_CLASSES as MARKETPLACE_CATALOG_TRUST_TIER_CLASSES,
 };
 pub use install_review::{
     evaluate_install_review_alpha, project_install_review_alpha_surface,
