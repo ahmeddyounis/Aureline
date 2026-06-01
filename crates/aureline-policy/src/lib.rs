@@ -18,6 +18,7 @@ pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod runtime_authority_issuers;
 pub mod simulation;
+pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
 pub mod stabilize_deployment_and_residency_truth;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
 
@@ -184,4 +185,17 @@ pub use finalize_backup_restore_failover_and_local_core_continuity::{
     BACKUP_RESTORE_FAILOVER_ROW_RECORD_KIND, BACKUP_RESTORE_FAILOVER_SCHEMA_VERSION,
     BACKUP_RESTORE_FAILOVER_SHARED_CONTRACT_REF, BACKUP_RESTORE_FAILOVER_SUMMARY_RECORD_KIND,
     BACKUP_RESTORE_FAILOVER_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_approval_ticket_audit_and_target_identity_lineage::{
+    audit_stabilize_approval_ticket_page, seeded_stabilize_approval_ticket_page,
+    validate_stabilize_approval_ticket_page, StabilizeApprovalTicketDefect,
+    StabilizeApprovalTicketNarrowReasonClass, StabilizeApprovalTicketPage,
+    StabilizeApprovalTicketQualificationClass, StabilizeApprovalTicketRow,
+    StabilizeApprovalTicketSummary, StabilizeApprovalTicketSupportExport,
+    APPROVAL_TICKET_BETA_CONTRACT_REF, STABILIZE_APPROVAL_TICKET_ARTIFACT_REF,
+    STABILIZE_APPROVAL_TICKET_DEFECT_RECORD_KIND, STABILIZE_APPROVAL_TICKET_DOC_REF,
+    STABILIZE_APPROVAL_TICKET_PAGE_RECORD_KIND, STABILIZE_APPROVAL_TICKET_ROW_RECORD_KIND,
+    STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION, STABILIZE_APPROVAL_TICKET_SHARED_CONTRACT_REF,
+    STABILIZE_APPROVAL_TICKET_SUPPORT_EXPORT_RECORD_KIND,
 };
