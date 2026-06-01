@@ -21,6 +21,7 @@ pub mod finalize_command_parity;
 pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod registry;
+pub mod stabilize_client_origin_route_class;
 pub mod stabilize_command_contract;
 
 pub use alpha::{
@@ -71,6 +72,22 @@ pub use invocation::{
 pub use registry::{
     CommandDescriptorPublicContractRecord, CommandPreviewGateMetadata, CommandRegistry,
     CommandRegistryEntryRecord, CommandRegistrySeedRecord, RegistryError,
+};
+pub use stabilize_client_origin_route_class::{
+    current_client_origin_route_class_export, ActionRouteClass, ApprovalScopeRecord,
+    CapabilityBoundaryClass, CapabilityRouteInspector, ClientOriginClass,
+    ClientOriginRouteClassArtifactError, ClientOriginRouteClassPacket,
+    ClientOriginRouteClassPacketInput, ClientOriginRouteClassViolation, InspectorSurfaceRow,
+    RevalidationTriggerClass, TargetContextClass,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_ARTIFACT_REF,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_DESCRIPTOR_CONTRACT_REF,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_DOC_REF,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_FIXTURE_DIR,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_PARITY_CONTRACT_REF,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_RECORD_KIND,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_SCHEMA_REF,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_SCHEMA_VERSION,
+    STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_SUMMARY_REF,
 };
 pub use stabilize_command_contract::{
     current_stable_command_contract_stabilization_export, CommandContractEvidenceExport,
