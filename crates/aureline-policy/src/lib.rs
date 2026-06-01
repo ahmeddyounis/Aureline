@@ -11,6 +11,7 @@
 pub mod authority;
 pub mod runtime_authority_issuers;
 pub mod simulation;
+pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
 
 pub use authority::{
     audit_authority_ticket_page, seeded_authority_ticket_page, validate_authority_ticket_page,
@@ -65,4 +66,17 @@ pub use simulation::{
     POLICY_SIMULATION_REMEMBERED_DECISION_RECORD_KIND, POLICY_SIMULATION_SHARED_CONTRACT_REF,
     POLICY_SIMULATION_STATE_AT_ACTION_RECORD_KIND, POLICY_SIMULATION_SUMMARY_RECORD_KIND,
     POLICY_SIMULATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_effective_policy_remembered_decision_waiver_expiry_and::{
+    audit_effective_policy_stabilize_page, seeded_effective_policy_stabilize_page,
+    validate_effective_policy_stabilize_page, EffectivePolicyStabilizeDefect,
+    EffectivePolicyStabilizeNarrowReasonClass, EffectivePolicyStabilizePage,
+    EffectivePolicyStabilizeQualificationClass, EffectivePolicyStabilizeRow,
+    EffectivePolicyStabilizeSummary, EffectivePolicyStabilizeSupportExport,
+    EFFECTIVE_POLICY_STABILIZE_ARTIFACT_REF, EFFECTIVE_POLICY_STABILIZE_DEFECT_RECORD_KIND,
+    EFFECTIVE_POLICY_STABILIZE_DOC_REF, EFFECTIVE_POLICY_STABILIZE_PAGE_RECORD_KIND,
+    EFFECTIVE_POLICY_STABILIZE_ROW_RECORD_KIND, EFFECTIVE_POLICY_STABILIZE_SCHEMA_VERSION,
+    EFFECTIVE_POLICY_STABILIZE_SHARED_CONTRACT_REF,
+    EFFECTIVE_POLICY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
 };
