@@ -123,6 +123,7 @@ pub mod provisioning;
 pub mod region_and_tenant;
 pub mod secret_broker;
 pub mod secrets;
+pub mod stabilize_system_browser_auth_passkey_capable_step_up;
 pub mod system_browser;
 pub mod trust;
 pub mod workspace_trust;
@@ -394,4 +395,19 @@ pub use workspace_trust::{
     WORKSPACE_TRUST_BETA_ROW_RECORD_KIND, WORKSPACE_TRUST_BETA_SCHEMA_VERSION,
     WORKSPACE_TRUST_BETA_SHARED_CONTRACT_REF, WORKSPACE_TRUST_BETA_SUPPORT_EXPORT_RECORD_KIND,
     WORKSPACE_TRUST_BETA_SUPPORT_ROW_RECORD_KIND, WORKSPACE_TRUST_BETA_SURFACE_FAMILIES,
+};
+
+pub use stabilize_system_browser_auth_passkey_capable_step_up::{
+    audit_stabilize_pages as audit_system_browser_auth_stabilize_pages,
+    seeded_system_browser_auth_stabilize_page,
+    validate_system_browser_auth_stabilize_page, SystemBrowserAuthStabilizeDefect,
+    SystemBrowserAuthStabilizeNarrowReasonClass, SystemBrowserAuthStabilizePage,
+    SystemBrowserAuthStabilizeQualificationClass, SystemBrowserAuthStabilizeRow,
+    SystemBrowserAuthStabilizeSummary, SystemBrowserAuthStabilizeSupportExport,
+    SYSTEM_BROWSER_AUTH_STABILIZE_ARTIFACT_REF, SYSTEM_BROWSER_AUTH_STABILIZE_DEFECT_RECORD_KIND,
+    SYSTEM_BROWSER_AUTH_STABILIZE_DOC_REF, SYSTEM_BROWSER_AUTH_STABILIZE_PAGE_RECORD_KIND,
+    SYSTEM_BROWSER_AUTH_STABILIZE_ROW_RECORD_KIND,
+    SYSTEM_BROWSER_AUTH_STABILIZE_SCHEMA_VERSION,
+    SYSTEM_BROWSER_AUTH_STABILIZE_SHARED_CONTRACT_REF,
+    SYSTEM_BROWSER_AUTH_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
 };
