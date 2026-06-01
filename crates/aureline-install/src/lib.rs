@@ -14,6 +14,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
+pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod ownership_audit;
 pub mod profile_cards;
 pub mod repair_verify;
@@ -97,4 +98,15 @@ pub use topology::{
     INSTALL_DIAGNOSTICS_PACKET_RECORD_KIND, INSTALL_DIAGNOSTICS_SCHEMA_VERSION,
     INSTALL_DIAGNOSTICS_SUPPORT_EXPORT_RECORD_KIND, INSTALL_TOPOLOGY_ALPHA_PACKET_RECORD_KIND,
     INSTALL_TOPOLOGY_ALPHA_SCHEMA_VERSION,
+};
+
+pub use harden_installation_topology_state_root_audits_silent_deployment::{
+    HardenInstallTopologyCoverage, HardenInstallTopologyDefect, HardenInstallTopologyPage,
+    HardenInstallTopologySummary, HardenInstallTopologySupportExport,
+    HardenInstallTopologyValidationFinding, HardenInstallTopologyValidationReport,
+    ManagedFleetAuditRow, NarrowReasonToken, QualificationToken, REQUIRED_FLEET_EVIDENCE,
+    SilentDeploymentAuditRow, StateRootAuditEntry, HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND,
+    HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION, HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF,
+    HARDEN_INSTALL_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND, audit_harden_install_topology_page,
+    seeded_harden_install_topology_page, validate_harden_install_topology_page,
 };
