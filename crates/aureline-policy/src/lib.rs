@@ -11,6 +11,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
 pub mod authority;
+pub mod finalize_backup_restore_failover_and_local_core_continuity;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
@@ -168,4 +169,19 @@ pub use stabilize_deployment_and_residency_truth::{
     DEPLOYMENT_RESIDENCY_STABILIZE_SCHEMA_VERSION,
     DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF,
     DEPLOYMENT_RESIDENCY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_backup_restore_failover_and_local_core_continuity::{
+    audit_backup_restore_failover_page, seeded_backup_restore_failover_page,
+    validate_backup_restore_failover_page, BackupDeclaration, BackupRestoreFailoverDefect,
+    BackupRestoreFailoverNarrowReasonClass, BackupRestoreFailoverPage,
+    BackupRestoreFailoverQualificationClass, BackupRestoreFailoverRow,
+    BackupRestoreFailoverSummary, BackupRestoreFailoverSupportExport, BackupStateClass,
+    EnterpriseProfileClass, FailoverBehaviorClass, FailoverContinuityDeclaration,
+    LocalCoreContinuityPostureClass, RestoreTestDeclaration, RestoreTestPostureClass,
+    BACKUP_RESTORE_FAILOVER_ARTIFACT_REF, BACKUP_RESTORE_FAILOVER_DEFECT_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_DOC_REF, BACKUP_RESTORE_FAILOVER_PAGE_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_ROW_RECORD_KIND, BACKUP_RESTORE_FAILOVER_SCHEMA_VERSION,
+    BACKUP_RESTORE_FAILOVER_SHARED_CONTRACT_REF, BACKUP_RESTORE_FAILOVER_SUMMARY_RECORD_KIND,
+    BACKUP_RESTORE_FAILOVER_SUPPORT_EXPORT_RECORD_KIND,
 };
