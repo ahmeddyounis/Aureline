@@ -10,6 +10,7 @@
 
 pub mod authority;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
+pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod runtime_authority_issuers;
 pub mod simulation;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
@@ -80,6 +81,24 @@ pub use stabilize_effective_policy_remembered_decision_waiver_expiry_and::{
     EFFECTIVE_POLICY_STABILIZE_ROW_RECORD_KIND, EFFECTIVE_POLICY_STABILIZE_SCHEMA_VERSION,
     EFFECTIVE_POLICY_STABILIZE_SHARED_CONTRACT_REF,
     EFFECTIVE_POLICY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use harden_enterprise_network_proxy_pac_manual_system_proxy::{
+    audit_harden_enterprise_network_proxy_page, seeded_harden_enterprise_network_proxy_page,
+    validate_harden_enterprise_network_proxy_page, BootstrapCredentialDeclaration,
+    BootstrapCredentialKind, HardenEnterpriseNetworkProxyDefect,
+    HardenEnterpriseNetworkProxyNarrowReasonClass, HardenEnterpriseNetworkProxyPage,
+    HardenEnterpriseNetworkProxyQualificationClass, HardenEnterpriseNetworkProxyRow,
+    HardenEnterpriseNetworkProxySummary, HardenEnterpriseNetworkProxySupportExport,
+    ProxyPrecedenceClass, ProxyRouteClass, ProxySelectorReasonClass, RouteClientCertPostureClass,
+    TlsVerificationPostureClass, HARDEN_ENTERPRISE_NETWORK_PROXY_ARTIFACT_REF,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_DEFECT_RECORD_KIND, HARDEN_ENTERPRISE_NETWORK_PROXY_DOC_REF,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_PAGE_RECORD_KIND,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_ROW_RECORD_KIND,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_SCHEMA_VERSION,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_SHARED_CONTRACT_REF,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_SUMMARY_RECORD_KIND,
+    HARDEN_ENTERPRISE_NETWORK_PROXY_SUPPORT_EXPORT_RECORD_KIND, NETWORK_TRUST_BETA_CONTRACT_REF,
 };
 
 pub use finalize_signed_policy_bundle_offline_entitlement_and_mirror::{
