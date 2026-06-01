@@ -8,7 +8,7 @@
 //! expiry, last-access posture, and revocation behavior are all reviewable
 //! before and after the route becomes reachable.
 //!
-//! Three principal models live here:
+//! Four principal models live here:
 //!
 //! - [`route_governance::RouteObject`] — the stable route-truth row consumed
 //!   by UI, audits, issue reports, and support exports. Mirrors the boundary
@@ -22,6 +22,11 @@
 //!   (update, marketplace, AI, docs, provider, remote, mirror/offline)
 //!   inspectable through one typed vocabulary instead of subsystem-specific
 //!   status strings.
+//! - [`finalize_qualification_rows_for_desktop_local_remote_helper::QualificationMatrixPage`]
+//!   — the stable qualification-matrix proof packet covering desktop-local,
+//!   remote/helper, provider-linked, state/schema, and accessibility surfaces
+//!   across all deployment profiles (local OSS, self-hosted, managed, and
+//!   air-gapped).
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -32,8 +37,26 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-remote/0.0.0")]
 
+pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
+
+pub use finalize_qualification_rows_for_desktop_local_remote_helper::{
+    audit_qualification_matrix_page, seeded_qualification_matrix_page,
+    seeded_qualification_snapshot, validate_qualification_matrix_page,
+    AccessibilityFeatureClass, DeploymentProfileClass,
+    DependencyClass as QualificationDependencyClass, FailureDowngradeClass, MatrixSurfaceClass,
+    NarrowReasonClass, QualificationMatrixDefect, QualificationMatrixPage,
+    QualificationMatrixRow, QualificationMatrixSummary, QualificationMatrixSupportExport,
+    QualificationRecord, QualificationSnapshot, QualificationTierClass,
+    QUALIFICATION_MATRIX_ARTIFACT_REF, QUALIFICATION_MATRIX_DEFECT_RECORD_KIND,
+    QUALIFICATION_MATRIX_DOC_REF, QUALIFICATION_MATRIX_PAGE_RECORD_KIND,
+    QUALIFICATION_MATRIX_ROW_RECORD_KIND, QUALIFICATION_MATRIX_SCHEMA_VERSION,
+    QUALIFICATION_MATRIX_SHARED_CONTRACT_REF,
+    QUALIFICATION_MATRIX_SUMMARY_RECORD_KIND, QUALIFICATION_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
+    QUALIFICATION_RECORD_KIND, REQUIRED_ACCESSIBILITY_FEATURES, REQUIRED_ROW_COUNT,
+    REQUIRED_SURFACE_PROFILE_PAIRS,
+};
 
 pub use route_governance::{
     AudienceBlock, AudienceClass, AuthBlock, AuthSourceClass, ControlledExposureLabel,
