@@ -203,6 +203,25 @@
 //!   claim. It cross-checks the diff counts against the completeness and base / target
 //!   versions, and projects a
 //!   [`stabilize_policy_pack_diff_explain_export_and_admin::StablePolicyPackGovernanceSupportExport`].
+//! - one [`publish_stable_sdk_deprecation_policy_manifest_version_windows::StableSdkDeprecationPolicyPacket`]
+//!   that publishes the stable SDK / deprecation policy, the manifest version windows,
+//!   and the ecosystem migration guidance for a claimed stable extension row: it binds
+//!   the SDK deprecation policy (stage, last-supported version, replacement package /
+//!   API, whether pinning to a last-known-good version is allowed, and the named
+//!   affected dependency edges), the deprecation propagation (whether the deprecation
+//!   flows into install-time warnings, marketplace cards, dependency-resolution output,
+//!   the migration docs, and a compatibility shim), the manifest version window
+//!   (min / max / published / row version), the ecosystem migration guidance (outcome
+//!   `exact` / `translated` / `partial` / `shimmed` / `unsupported`, shim availability,
+//!   and a preserved rollback checkpoint / diagnostics when a mapping is not exact), the
+//!   permission posture, compatibility, and install / activation-cost / revocation /
+//!   mirror posture, then derives the stability qualification with automatic narrowing
+//!   below Stable so a removed / sunset SDK, an unnamed replacement or window, an
+//!   unpropagated deprecation, an out-of-window manifest version, an unsupported /
+//!   partial migration, a widened permission, an unbounded activation cost, or a
+//!   catalog-asserted basis can never ride a stable SDK-policy claim. It cross-checks
+//!   the manifest-window bounds and the migration / shim consistency, and projects a
+//!   [`publish_stable_sdk_deprecation_policy_manifest_version_windows::StableSdkDeprecationPolicySupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -236,6 +255,7 @@ pub mod marketplace_truth;
 pub mod mirror_import;
 pub mod permission_manifest;
 pub mod publication;
+pub mod publish_stable_sdk_deprecation_policy_manifest_version_windows;
 pub mod registry;
 pub mod review_alpha;
 pub mod revocation;
@@ -890,4 +910,42 @@ pub use stabilize_policy_pack_diff_explain_export_and_admin::{
     STABLE_TIERS as POLICY_GOVERNANCE_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as POLICY_GOVERNANCE_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as POLICY_GOVERNANCE_TRUST_TIER_CLASSES,
+};
+pub use publish_stable_sdk_deprecation_policy_manifest_version_windows::{
+    project_stable_sdk_deprecation_policy, project_stable_sdk_deprecation_policy_support_export,
+    DeprecationPropagation, DeprecationPropagationInput, EcosystemMigrationGuidance,
+    EcosystemMigrationGuidanceInput, ManifestVersionWindow, ManifestVersionWindowInput,
+    SdkDeprecationPolicy, SdkDeprecationPolicyInput, SdkPolicyCompatibility,
+    SdkPolicyCompatibilityInput, SdkPolicyDowngradedBanner, SdkPolicyIdentity, SdkPolicyIdentityInput,
+    SdkPolicyInstallPosture, SdkPolicyInstallPostureInput, SdkPolicyPermissionPosture,
+    SdkPolicyPermissionPostureInput, SdkPolicyQualificationClaim, SdkPolicyQualificationClaimInput,
+    StableSdkDeprecationPolicyError, StableSdkDeprecationPolicyInput,
+    StableSdkDeprecationPolicyInspection, StableSdkDeprecationPolicyPacket,
+    StableSdkDeprecationPolicyProjection, StableSdkDeprecationPolicySupportExport,
+    StableSdkDeprecationPolicyValidationError, DEPRECATION_PROPAGATION_RECORD_KIND,
+    DEPRECATION_STAGE_CLASSES, ECOSYSTEM_MIGRATION_GUIDANCE_RECORD_KIND,
+    MANIFEST_VERSION_WINDOW_RECORD_KIND, MIGRATION_OUTCOME_CLASSES, PIN_POLICY_CLASSES,
+    REPLACEMENT_KIND_CLASSES, SDK_DEPRECATION_POLICY_DOWNGRADE_REASONS,
+    SDK_DEPRECATION_POLICY_RECORD_KIND, SDK_POLICY_COMPATIBILITY_RECORD_KIND,
+    SDK_POLICY_DOWNGRADED_BANNER_RECORD_KIND, SDK_POLICY_IDENTITY_RECORD_KIND,
+    SDK_POLICY_INSTALL_POSTURE_RECORD_KIND, SDK_POLICY_PERMISSION_POSTURE_RECORD_KIND,
+    SDK_POLICY_QUALIFICATION_CLAIM_RECORD_KIND, SHIM_AVAILABILITY_CLASSES,
+    STABLE_SDK_DEPRECATION_POLICY_CONSUMER_SURFACES,
+    STABLE_SDK_DEPRECATION_POLICY_INSPECTION_RECORD_KIND,
+    STABLE_SDK_DEPRECATION_POLICY_PACKET_RECORD_KIND,
+    STABLE_SDK_DEPRECATION_POLICY_PUBLISHED_PROFILE_VERSION,
+    STABLE_SDK_DEPRECATION_POLICY_SCHEMA_REF, STABLE_SDK_DEPRECATION_POLICY_SCHEMA_VERSION,
+    STABLE_SDK_DEPRECATION_POLICY_SUPPORT_EXPORT_RECORD_KIND,
+    ACTIVATION_COST_CLASSES as SDK_POLICY_ACTIVATION_COST_CLASSES,
+    CLAIM_BASIS_CLASSES as SDK_POLICY_CLAIM_BASIS_CLASSES,
+    COMPATIBILITY_LABEL_CLASSES as SDK_POLICY_COMPATIBILITY_LABEL_CLASSES,
+    INSTALL_SCOPE_CLASSES as SDK_POLICY_INSTALL_SCOPE_CLASSES,
+    LIFECYCLE_STATE_CLASSES as SDK_POLICY_LIFECYCLE_STATE_CLASSES,
+    MIRRORABILITY_CLASSES as SDK_POLICY_MIRRORABILITY_CLASSES,
+    REVOCATION_POSTURE_CLASSES as SDK_POLICY_REVOCATION_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as SDK_POLICY_RUNNABLE_LIFECYCLE_STATES,
+    STABILITY_TIERS as SDK_POLICY_STABILITY_TIERS,
+    STABLE_TIERS as SDK_POLICY_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as SDK_POLICY_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as SDK_POLICY_TRUST_TIER_CLASSES,
 };

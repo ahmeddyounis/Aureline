@@ -1,0 +1,527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_sdk_deprecation_policy.schema.json",
+  "title": "Aureline stable SDK / deprecation policy packet",
+  "description": "Cross-tool boundary schema for the stable SDK / deprecation policy packet emitted by crates/aureline-extensions. One packet binds a stable_sdk_policy_identity (SDK-policy descriptor ref, row identity, package identity, SDK channel id, SDK-policy version, the pinned published profile version, the publisher namespace, the pinned policy-evidence ref, the publisher trust tier, and the lifecycle state), a stable_sdk_deprecation_policy (deprecation stage, last-supported version, replacement package / API kind and ref, whether pinning to a last-known-good version is allowed, the support-window ref, and the named affected dependency edges), a stable_deprecation_propagation (whether the deprecation flows into install-time warnings, marketplace cards, dependency-resolution output, the migration docs, and a compatibility shim), a stable_manifest_version_window (min / max / published / row manifest versions), a stable_ecosystem_migration_guidance (migration outcome exact / translated / partial / shimmed / unsupported, migration-doc ref, shim availability, a preserved-rollback-checkpoint flag, and a diagnostics ref), a stable_sdk_policy_permission_posture (declared / effective / policy-cap refs and a no-widening flag), a stable_sdk_policy_compatibility (parity label, scorecard ref, verified flag), a stable_sdk_policy_install_posture (install scope and disclosure, activation cost class, revocation posture, mirrorability, rollback support), the stable_sdk_policy_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_sdk_policy_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published SDK-policy profile version, is evidence-backed, keeps its trust tier out of quarantine, stays runnable, keeps its SDK out of the sunset window and out of removal, names a replacement and last-supported window and the affected dependency edges and propagates the deprecation into the install warning / marketplace card / dependency resolution and the migration docs whenever the SDK is deprecated, keeps the row manifest version inside the supported window, surfaces an exact / translated / shimmed migration with a preserved rollback checkpoint when a mapping is not exact, never widens permissions beyond the declared manifest or policy cap, keeps its activation cost bounded, keeps verified non-parity-limited compatibility, discloses its install scope, keeps a clean revocation posture, stays mirrorable, and is fully attributed. A widened permission set, an unbounded activation cost, an unsupported migration, a removed SDK, an unsupported compatibility, or a quarantined / revoked revocation posture withdraws the row; a catalog-asserted basis, an unpublished profile version, a missing replacement / window, a missing migration doc, an out-of-window manifest version, or a missing rollback checkpoint narrows below Stable. The Rust types in crates/aureline-extensions/src/publish_stable_sdk_deprecation_policy_manifest_version_windows/ are the source of truth. Raw SDK bytes, raw manifest contents, raw permission contents, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_sdk_deprecation_policy_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "optional_ref": {
+      "type": "string",
+      "description": "Opaque ref or version token; may be empty when not applicable (e.g. while the SDK is active)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "deprecation_stage_class": {
+      "type": "string",
+      "enum": ["active", "deprecated", "sunset", "removed"]
+    },
+    "replacement_kind_class": {
+      "type": "string",
+      "enum": ["replacement_package", "replacement_api", "superseded_no_replacement", "none"]
+    },
+    "pin_policy_class": {
+      "type": "string",
+      "enum": ["pin_allowed", "pin_discouraged", "pin_blocked"]
+    },
+    "migration_outcome_class": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "shim_availability_class": {
+      "type": "string",
+      "enum": ["no_shim_needed", "shim_available", "shim_unavailable"]
+    },
+    "activation_cost_class": {
+      "type": "string",
+      "enum": ["negligible", "light", "moderate", "heavy", "unbounded"]
+    },
+    "compatibility_label_class": {
+      "type": "string",
+      "enum": ["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"]
+    },
+    "install_scope_class": {
+      "type": "string",
+      "enum": ["user", "workspace", "machine", "portable"]
+    },
+    "revocation_posture_class": {
+      "type": "string",
+      "enum": ["clean", "advisory", "quarantined", "revoked"]
+    },
+    "mirrorability_class": {
+      "type": "string",
+      "enum": ["mirrorable", "mirror_pinned", "not_mirrorable"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_sdk_policy_claim",
+        "beta_sdk_policy_partial_claim",
+        "preview_sdk_policy_experimental_claim",
+        "withdrawn_no_sdk_policy_claim"
+      ]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "sdk_policy_version_not_published",
+        "catalog_only_trust_not_evidence_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_runnable",
+        "deprecation_stage_removed",
+        "deprecation_in_sunset_window",
+        "replacement_path_missing",
+        "last_supported_window_missing",
+        "affected_dependency_edges_unnamed",
+        "deprecation_propagation_incomplete",
+        "migration_docs_missing",
+        "manifest_version_out_of_window",
+        "migration_outcome_unsupported",
+        "migration_outcome_partial",
+        "rollback_checkpoint_not_preserved",
+        "permission_widened",
+        "activation_cost_unbounded",
+        "compatibility_unsupported",
+        "compatibility_parity_limited",
+        "compatibility_not_verified",
+        "install_scope_not_disclosed",
+        "revocation_posture_quarantined",
+        "revocation_posture_revoked",
+        "revocation_posture_advisory",
+        "not_mirrorable",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "sdk_migration_console",
+        "deprecation_policy_view",
+        "dependency_resolution_output",
+        "install_review",
+        "marketplace_card",
+        "extension_detail_view",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "sdk_policy_ref",
+        "row_identity_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "sdk_channel_id",
+        "sdk_policy_version",
+        "published_policy_version",
+        "publisher_namespace",
+        "policy_evidence_ref",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "sdk_policy_ref": { "type": "string", "pattern": "^sdk_policy:" },
+        "row_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "sdk_channel_id": { "$ref": "#/$defs/opaque_id" },
+        "sdk_policy_version": { "type": "integer", "minimum": 0 },
+        "published_policy_version": { "type": "integer", "minimum": 0 },
+        "publisher_namespace": { "$ref": "#/$defs/opaque_id" },
+        "policy_evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "deprecation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "deprecation_stage_class",
+        "last_supported_version",
+        "replacement_kind_class",
+        "replacement_ref",
+        "pin_policy_class",
+        "support_window_ref",
+        "affected_dependency_edge_count",
+        "dependency_edges_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_deprecation_policy" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "deprecation_stage_class": { "$ref": "#/$defs/deprecation_stage_class" },
+        "last_supported_version": { "$ref": "#/$defs/optional_ref" },
+        "replacement_kind_class": { "$ref": "#/$defs/replacement_kind_class" },
+        "replacement_ref": { "$ref": "#/$defs/optional_ref" },
+        "pin_policy_class": { "$ref": "#/$defs/pin_policy_class" },
+        "support_window_ref": { "$ref": "#/$defs/optional_ref" },
+        "affected_dependency_edge_count": { "type": "integer", "minimum": 0 },
+        "dependency_edges_ref": { "$ref": "#/$defs/optional_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "propagation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "surfaces_in_install_warning",
+        "surfaces_in_marketplace_card",
+        "surfaces_in_dependency_resolution",
+        "surfaces_in_migration_docs",
+        "surfaces_in_compat_shim",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_deprecation_propagation" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "surfaces_in_install_warning": { "type": "boolean" },
+        "surfaces_in_marketplace_card": { "type": "boolean" },
+        "surfaces_in_dependency_resolution": { "type": "boolean" },
+        "surfaces_in_migration_docs": { "type": "boolean" },
+        "surfaces_in_compat_shim": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "manifest_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "min_supported_manifest_version",
+        "max_supported_manifest_version",
+        "published_manifest_version",
+        "row_manifest_version",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_manifest_version_window" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "min_supported_manifest_version": { "type": "integer", "minimum": 0 },
+        "max_supported_manifest_version": { "type": "integer", "minimum": 0 },
+        "published_manifest_version": { "type": "integer", "minimum": 0 },
+        "row_manifest_version": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_outcome_class",
+        "migration_doc_ref",
+        "shim_availability_class",
+        "rollback_checkpoint_preserved",
+        "diagnostics_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_ecosystem_migration_guidance" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "migration_outcome_class": { "$ref": "#/$defs/migration_outcome_class" },
+        "migration_doc_ref": { "$ref": "#/$defs/opaque_id" },
+        "shim_availability_class": { "$ref": "#/$defs/shim_availability_class" },
+        "rollback_checkpoint_preserved": { "type": "boolean" },
+        "diagnostics_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "permission_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "declared_permission_ref",
+        "effective_permission_ref",
+        "policy_cap_ref",
+        "widened",
+        "reconsent_required",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_permission_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "declared_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_cap_ref": { "$ref": "#/$defs/opaque_id" },
+        "widened": { "type": "boolean" },
+        "reconsent_required": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "compatibility_label_class",
+        "scorecard_ref",
+        "compatibility_verified",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_compatibility" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "scorecard_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatibility_verified": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "install_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "install_scope_class",
+        "install_scope_disclosed",
+        "activation_cost_class",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "rollback_supported",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_install_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "install_scope_class": { "$ref": "#/$defs/install_scope_class" },
+        "install_scope_disclosed": { "type": "boolean" },
+        "activation_cost_class": { "$ref": "#/$defs/activation_cost_class" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "rollback_supported": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_policy_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "profile_version_current",
+        "trust_tier_class",
+        "lifecycle_runnable",
+        "deprecation_stage_class",
+        "replacement_named",
+        "pin_policy_class",
+        "affected_dependency_edge_count",
+        "core_propagation_complete",
+        "surfaces_in_migration_docs",
+        "min_supported_manifest_version",
+        "max_supported_manifest_version",
+        "row_manifest_version",
+        "manifest_within_window",
+        "migration_outcome_class",
+        "shim_availability_class",
+        "rollback_checkpoint_preserved",
+        "permissions_not_widened",
+        "activation_cost_class",
+        "compatibility_label_class",
+        "compatibility_verified",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "downgraded",
+        "downgraded_banner_required",
+        "attribution_complete",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_deprecation_policy_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "profile_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_runnable": { "type": "boolean" },
+        "deprecation_stage_class": { "$ref": "#/$defs/deprecation_stage_class" },
+        "replacement_named": { "type": "boolean" },
+        "pin_policy_class": { "$ref": "#/$defs/pin_policy_class" },
+        "affected_dependency_edge_count": { "type": "integer", "minimum": 0 },
+        "core_propagation_complete": { "type": "boolean" },
+        "surfaces_in_migration_docs": { "type": "boolean" },
+        "min_supported_manifest_version": { "type": "integer", "minimum": 0 },
+        "max_supported_manifest_version": { "type": "integer", "minimum": 0 },
+        "row_manifest_version": { "type": "integer", "minimum": 0 },
+        "manifest_within_window": { "type": "boolean" },
+        "migration_outcome_class": { "$ref": "#/$defs/migration_outcome_class" },
+        "shim_availability_class": { "$ref": "#/$defs/shim_availability_class" },
+        "rollback_checkpoint_preserved": { "type": "boolean" },
+        "permissions_not_widened": { "type": "boolean" },
+        "activation_cost_class": { "$ref": "#/$defs/activation_cost_class" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "compatibility_verified": { "type": "boolean" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_sdk_deprecation_policy_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "deprecation",
+        "propagation",
+        "manifest_window",
+        "migration",
+        "permission_posture",
+        "compatibility",
+        "install_posture",
+        "claim",
+        "downgraded_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_catalog_only_trust",
+        "allows_ambient_extension_privilege",
+        "allows_unbounded_activation_cost",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_deprecation_policy_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "deprecation": { "$ref": "#/$defs/deprecation" },
+        "propagation": { "$ref": "#/$defs/propagation" },
+        "manifest_window": { "$ref": "#/$defs/manifest_window" },
+        "migration": { "$ref": "#/$defs/migration" },
+        "permission_posture": { "$ref": "#/$defs/permission_posture" },
+        "compatibility": { "$ref": "#/$defs/compatibility" },
+        "install_posture": { "$ref": "#/$defs/install_posture" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_banner": { "$ref": "#/$defs/downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_ambient_extension_privilege": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}
