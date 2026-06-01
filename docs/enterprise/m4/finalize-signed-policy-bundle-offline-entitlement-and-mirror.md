@@ -1,0 +1,128 @@
+# Finalize signed policy-bundle, offline-entitlement grace, and mirror/manual-import verification flows
+
+This lane makes signed policy-bundle delivery — including offline-entitlement
+grace-window handling and mirror/manual-import verification — visible and
+verifiable enough that product, security review, support export, and release
+packets can all explain: where the bundle came from, who signed it, what its
+last-known-good revision is, whether a grace window is active, what capability
+consequences follow when the grace window closes, and what the pre-apply
+simulation showed before the bundle was applied. The runtime owner is
+`aureline_policy::finalize_signed_policy_bundle_offline_entitlement_and_mirror`.
+
+The packet does **not** re-derive raw policy rule text, raw entitlement
+payloads, or raw identity truth. The upstream
+`aureline_auth::offline_entitlements` verifier beta audit remains canonical for
+its own slice. This packet re-exports those qualification tokens verbatim and
+adds the finalize invariants needed for a single evidence packet.
+
+## Contract
+
+For the stable claim to hold, **all eight** of the following conditions must be
+verified simultaneously:
+
+1. **Upstream verifier clean** — `aureline_auth::offline_entitlements::audit_offline_entitlement_verifier_beta_rows` returns zero defects for the embedded verifier page.
+2. **All five import flows covered** — at least one row exists for each of: `online`, `mirror`, `manual_import`, `air_gapped`, and `offline_grace`.
+3. **Epoch states inspectable** — every row carries non-empty `epoch_ref`, `epoch_digest`, `trust_root_ref`, and `last_successful_validation_time`, preserving the same inspect/export vocabulary across all import paths.
+4. **Grace windows declared** — every stale row (in-grace or grace-expired) carries a non-empty `grace_window_end` and a human-readable `staleness_label`; staleness is never surfaced as a generic authentication failure.
+5. **Simulation packets present before apply** — every row's `PolicyBundleSimulationPacket` carries at least one `affected_surface`, proving the pre-apply inspection ran and was exported; `inspectable_before_apply` must be `true`.
+6. **Widening rows require approval** — when a row has `widens_managed_claims: true`, its simulation packet must carry a non-empty `approval_owner_ref` and a non-empty `expiry_posture_token`.
+7. **Expiry posture declared** — every simulation packet carries a non-empty `expiry_posture_token`.
+8. **Local-core continuity explicit** — all rows carry `local_core_continuity_explicit: true` so the local-editing floor cannot be silently removed by a managed capability change.
+
+## Required behavior
+
+`validate_finalize_signed_policy_bundle_page` rejects a page when its `defects` list is non-empty.
+
+`audit_finalize_signed_policy_bundle_page` runs the combined check and returns a
+typed `Vec<FinalizeSignedPolicyBundleDefect>`. Each defect carries a closed
+`narrow_reason_token` and an export-safe `note`. The absence of defects is the
+stable claim.
+
+Two conditions force `Withdrawn` immediately and cannot be overridden:
+
+- A `RawPrivateMaterialExposed` defect in the upstream offline-entitlement
+  verifier page (narrow reason: `raw_private_material_exposed`). The function
+  returns immediately with this single defect and skips all other checks.
+- A stale bundle row with an empty `staleness_label` (narrow reason:
+  `staleness_disguised_as_auth_failure`). Entitlement staleness must never be
+  disguised as a generic authentication failure; when the staleness label is
+  missing the packet cannot make a claimable qualification.
+
+A missing required import flow narrows to `Preview` rather than `Beta` because
+the coverage gap prevents any verifiable claim for that flow.
+
+## Import flows
+
+| Flow token | Description |
+| --- | --- |
+| `online` | Bundle fetched from the live signed origin. |
+| `mirror` | Bundle served from a declared signed mirror. |
+| `manual_import` | Bundle imported as a signed file by an admin action. |
+| `air_gapped` | Bundle transferred via an air-gapped signed media exchange. |
+| `offline_grace` | Bundle used under a declared offline-grace window; last-known-good authority is extended while the primary path is unavailable. |
+
+All five flows must be covered for a stable claim. All five carry the same
+epoch inspection vocabulary (`epoch_ref`, `epoch_digest`, `trust_root_ref`,
+`last_successful_validation_time`) so mirror and manual-import rows can be
+compared directly with online rows by support and audit tooling.
+
+## Bundle kinds
+
+| Kind token | Description |
+| --- | --- |
+| `policy_bundle` | Signed policy bundle authorising managed narrowing rules. |
+| `entitlement_snapshot` | Signed entitlement snapshot describing plan, seat, and quota state. |
+
+The seeded page covers both kinds for every import flow (10 rows total).
+
+## Pre-apply simulation packet
+
+Every row carries a `PolicyBundleSimulationPacket` before the apply is permitted.
+The packet surfaces:
+
+- `changed_feature_areas` — feature areas whose effective policy would change.
+- `previous_values_summary` / `simulated_values_summary` — export-safe before/after maps.
+- `affected_surfaces` — surfaces affected by the apply (must be non-empty to prove the inspection ran).
+- `degraded_mode_consequences` — consequences if the apply runs without full verification.
+- `offline_or_stale_policy_notes` — grace-specific or stale-path notes.
+- `approval_owner_ref` — required when `widens_managed_claims: true`.
+- `expiry_posture_token` — required on every row.
+
+## Offline-grace state
+
+Grace-window and staleness state is carried in `OfflineGraceState`:
+
+- `grace_posture` — `not_in_grace`, `in_grace`, or `grace_expired`.
+- `grace_window_start` / `grace_window_end` — bounds on the grace extension.
+- `last_known_good_revision` — opaque ref to the last-verified bundle revision.
+- `staleness_label` — explicit human-readable label (must be non-empty when stale).
+- `blocked_capability_consequences` — export-safe labels for capabilities blocked when grace expires.
+
+## Boundary
+
+The following material stays outside this packet's support boundary:
+
+- Raw policy bundle bodies or raw rule text.
+- Raw entitlement payloads.
+- Raw identities, raw hostnames, raw file paths, raw extension ids.
+- Raw credentials or secret material.
+- Raw exception justification text.
+
+Every exported field carries either a closed-vocabulary token, a plain-language
+label, an opaque ref, a count, or a schema-version integer.
+
+## Truth source
+
+The seeded proof packet is `seeded_finalize_signed_policy_bundle_page()` in
+[`/crates/aureline-policy/src/finalize_signed_policy_bundle_offline_entitlement_and_mirror/mod.rs`](../../../crates/aureline-policy/src/finalize_signed_policy_bundle_offline_entitlement_and_mirror/mod.rs).
+
+That function is the single inspectable record for this lane. Dashboards,
+Help/About surfaces, and support exports should ingest it rather than cloning
+status text or maintaining parallel bundle-signed checks.
+
+## Canonical paths
+
+- Runtime owner: `aureline_policy::finalize_signed_policy_bundle_offline_entitlement_and_mirror`
+- Artifact: `artifacts/enterprise/m4/finalize-signed-policy-bundle-offline-entitlement-and-mirror.md`
+- Fixtures: `fixtures/enterprise/m4/finalize-signed-policy-bundle-offline-entitlement-and-mirror/`
+- Schema: `schemas/enterprise/finalize-signed-policy-bundle-offline-entitlement-and-mirror.schema.json`

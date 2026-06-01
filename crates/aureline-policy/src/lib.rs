@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
 pub mod authority;
+pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod runtime_authority_issuers;
 pub mod simulation;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
@@ -79,4 +80,21 @@ pub use stabilize_effective_policy_remembered_decision_waiver_expiry_and::{
     EFFECTIVE_POLICY_STABILIZE_ROW_RECORD_KIND, EFFECTIVE_POLICY_STABILIZE_SCHEMA_VERSION,
     EFFECTIVE_POLICY_STABILIZE_SHARED_CONTRACT_REF,
     EFFECTIVE_POLICY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_signed_policy_bundle_offline_entitlement_and_mirror::{
+    audit_finalize_signed_policy_bundle_page, seeded_finalize_signed_policy_bundle_page,
+    validate_finalize_signed_policy_bundle_page, BundleImportFlowClass, BundleKindClass,
+    FinalizeSignedPolicyBundleDefect, FinalizeSignedPolicyBundleNarrowReasonClass,
+    FinalizeSignedPolicyBundlePage, FinalizeSignedPolicyBundleQualificationClass,
+    FinalizeSignedPolicyBundleRow, FinalizeSignedPolicyBundleSummary,
+    FinalizeSignedPolicyBundleSupportExport, GracePostureClass, OfflineGraceState,
+    PolicyBundleSimulationPacket, PolicyEpochState,
+    OFFLINE_ENTITLEMENT_VERIFIER_CONTRACT_REF,
+    SIGNED_POLICY_BUNDLE_FINALIZE_ARTIFACT_REF, SIGNED_POLICY_BUNDLE_FINALIZE_DEFECT_RECORD_KIND,
+    SIGNED_POLICY_BUNDLE_FINALIZE_DOC_REF, SIGNED_POLICY_BUNDLE_FINALIZE_PAGE_RECORD_KIND,
+    SIGNED_POLICY_BUNDLE_FINALIZE_ROW_RECORD_KIND, SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION,
+    SIGNED_POLICY_BUNDLE_FINALIZE_SHARED_CONTRACT_REF,
+    SIGNED_POLICY_BUNDLE_FINALIZE_SUMMARY_RECORD_KIND,
+    SIGNED_POLICY_BUNDLE_FINALIZE_SUPPORT_EXPORT_RECORD_KIND,
 };
