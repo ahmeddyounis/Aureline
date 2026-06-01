@@ -144,6 +144,17 @@
 //!   never widened implicitly. It derives the stability qualification with
 //!   automatic narrowing below Stable and projects a
 //!   [`harden_extension_manifest_permission_display_lifecycle_labels_and::StableManifestHardeningSupportExport`].
+//! - one [`stabilize_sdk_schemas_samples_templates_and_conformance_kits::StableSdkAuthorLanePacket`]
+//!   that stabilizes the SDK schemas, sample extensions, project templates, and
+//!   conformance kits for the stable extension-author lane: it binds the kit
+//!   artifacts (each with a kind, host class, published-version pin, and
+//!   conformance state), the aggregate conformance summary, the worst-case
+//!   activation-budget instrumentation, and the publisher-continuity binding, then
+//!   derives the stability qualification with automatic narrowing below Stable so
+//!   ambient template privilege, catalog-only trust, an unbounded activation cost,
+//!   or a nonconformant artifact can never ride a stable author-lane claim. It
+//!   projects a
+//!   [`stabilize_sdk_schemas_samples_templates_and_conformance_kits::StableSdkAuthorLaneSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -180,6 +191,7 @@ pub mod runtime;
 pub mod sdk_v1;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
+pub mod stabilize_sdk_schemas_samples_templates_and_conformance_kits;
 pub mod supervision;
 pub mod webview_boundary;
 
@@ -569,4 +581,32 @@ pub use harden_extension_manifest_permission_display_lifecycle_labels_and::{
     STABLE_TIERS as MANIFEST_HARDENING_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as MANIFEST_HARDENING_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as MANIFEST_HARDENING_TRUST_TIER_CLASSES,
+};
+pub use stabilize_sdk_schemas_samples_templates_and_conformance_kits::{
+    project_stable_sdk_author_lane, project_stable_sdk_author_lane_support_export,
+    DowngradedLaneBanner, SdkActivationBudget, SdkActivationBudgetInput, SdkAuthorLaneIdentity,
+    SdkAuthorLaneIdentityInput, SdkAuthorLaneQualificationClaim,
+    SdkAuthorLaneQualificationClaimInput, SdkConformanceSummary, SdkKitArtifact, SdkKitArtifactInput,
+    SdkPublisherContinuity, SdkPublisherContinuityInput, StableSdkAuthorLaneError,
+    StableSdkAuthorLaneInput, StableSdkAuthorLaneInspection, StableSdkAuthorLanePacket,
+    StableSdkAuthorLaneProjection, StableSdkAuthorLaneSupportExport,
+    StableSdkAuthorLaneValidationError, ARTIFACT_HOST_CLASSES, ARTIFACT_KIND_CLASSES,
+    CONFORMANCE_STATE_CLASSES, DOWNGRADED_LANE_BANNER_RECORD_KIND, PUBLISHER_CONTINUITY_CLASSES,
+    REQUIRED_ARTIFACT_KINDS, SDK_ACTIVATION_BUDGET_RECORD_KIND,
+    SDK_AUTHOR_LANE_DOWNGRADE_REASONS, SDK_AUTHOR_LANE_IDENTITY_RECORD_KIND,
+    SDK_AUTHOR_LANE_QUALIFICATION_CLAIM_RECORD_KIND, SDK_CONFORMANCE_SUMMARY_RECORD_KIND,
+    SDK_KIT_ARTIFACT_RECORD_KIND, SDK_PUBLISHER_CONTINUITY_RECORD_KIND,
+    STABLE_SDK_AUTHOR_LANE_CONSUMER_SURFACES, STABLE_SDK_AUTHOR_LANE_INSPECTION_RECORD_KIND,
+    STABLE_SDK_AUTHOR_LANE_PACKET_RECORD_KIND,
+    STABLE_SDK_AUTHOR_LANE_PUBLISHED_ARTIFACT_VERSION,
+    STABLE_SDK_AUTHOR_LANE_PUBLISHED_SDK_VERSION, STABLE_SDK_AUTHOR_LANE_SCHEMA_REF,
+    STABLE_SDK_AUTHOR_LANE_SCHEMA_VERSION, STABLE_SDK_AUTHOR_LANE_SUPPORT_EXPORT_RECORD_KIND,
+    ACTIVATION_BUDGET_CLASSES as SDK_AUTHOR_LANE_ACTIVATION_BUDGET_CLASSES,
+    CLAIM_BASIS_CLASSES as SDK_AUTHOR_LANE_CLAIM_BASIS_CLASSES,
+    INSTALLABLE_LIFECYCLE_STATES as SDK_AUTHOR_LANE_INSTALLABLE_LIFECYCLE_STATES,
+    LIFECYCLE_STATE_CLASSES as SDK_AUTHOR_LANE_LIFECYCLE_STATE_CLASSES,
+    STABILITY_TIERS as SDK_AUTHOR_LANE_STABILITY_TIERS,
+    STABLE_TIERS as SDK_AUTHOR_LANE_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as SDK_AUTHOR_LANE_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as SDK_AUTHOR_LANE_TRUST_TIER_CLASSES,
 };

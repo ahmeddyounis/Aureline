@@ -1,0 +1,386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_sdk_author_lane.schema.json",
+  "title": "Aureline stable SDK author-lane packet",
+  "description": "Cross-tool boundary schema for the stable SDK author-lane packet emitted by crates/aureline-extensions. One packet binds a stable_sdk_author_lane_identity (which pins the SDK starter-pack ref, the published SDK version, the publisher trust tier, and the lifecycle state), the kit artifacts (the published SDK schemas, the canonical sample extensions, the project templates, and the conformance kit, each with an artifact kind, a host class, a published-version ref, a pinned schema version, a conformance state, and whether it scaffolds a bounded permission set), a stable_sdk_conformance_summary derived from the artifacts (conformant/nonconformant/not-run/waived counts, present kinds, and any missing required kinds), a stable_sdk_activation_budget instrumenting the worst-case sample, a stable_sdk_publisher_continuity binding, the stable_sdk_author_lane_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_sdk_downgraded_lane_banner, and an inspection projection. A stable effective tier may only render when the lane pins the published SDK version, is conformance-backed, keeps its trust tier out of quarantine, stays installable, ships every required artifact kind, keeps every artifact conformant and pinned to the published schema version, keeps its activation cost bounded and within budget, keeps its publisher continuity current, and is fully attributed. A sample or template that scaffolds an unbounded permission set widens template authority implicitly and withdraws the lane; an unbounded activation cost or a nonconformant artifact withdraws the lane; a catalog-asserted claim basis narrows it. The Rust types in crates/aureline-extensions/src/stabilize_sdk_schemas_samples_templates_and_conformance_kits/ are the source of truth. Raw schema bytes, raw sample/template sources, raw signatures, raw paths, raw tokens, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_sdk_author_lane_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "artifact_kind_class": {
+      "type": "string",
+      "enum": ["sdk_schema", "sample_extension", "project_template", "conformance_kit"]
+    },
+    "artifact_host_class": {
+      "type": "string",
+      "enum": ["wasm", "external_host", "webview", "headless", "not_applicable"]
+    },
+    "conformance_state_class": {
+      "type": "string",
+      "enum": ["conformant", "nonconformant", "not_run", "waived"]
+    },
+    "activation_budget_class": {
+      "type": "string",
+      "enum": ["within_budget", "over_budget", "unbounded", "not_measured"]
+    },
+    "publisher_continuity_class": {
+      "type": "string",
+      "enum": ["current", "stale", "missing", "revoked"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["conformance_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_author_lane_ready_claim",
+        "beta_author_lane_partial_claim",
+        "preview_author_lane_experimental_claim",
+        "withdrawn_no_author_lane_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "sdk_version_not_published",
+        "catalog_only_trust_not_conformance_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_installable",
+        "missing_required_artifact_kind",
+        "artifact_below_published_version",
+        "artifact_above_published_version",
+        "artifact_nonconformant",
+        "artifact_conformance_not_run",
+        "ambient_template_privilege",
+        "activation_cost_unbounded",
+        "activation_cost_over_budget",
+        "activation_cost_not_measured",
+        "publisher_continuity_revoked",
+        "publisher_continuity_missing",
+        "publisher_continuity_stale",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "sdk_docs_surface",
+        "author_onboarding",
+        "publication_review",
+        "conformance_dashboard",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "starter_pack_ref",
+        "lane_identity_ref",
+        "sdk_version",
+        "source_package_ref",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_author_lane_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "starter_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "lane_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "sdk_version": { "type": "integer", "minimum": 0 },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "kit_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "artifact_id",
+        "artifact_kind_class",
+        "host_class",
+        "published_version_ref",
+        "artifact_schema_version",
+        "conformance_state_class",
+        "conformance_report_ref",
+        "declares_bounded_permissions",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_kit_artifact" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_kind_class": { "$ref": "#/$defs/artifact_kind_class" },
+        "host_class": { "$ref": "#/$defs/artifact_host_class" },
+        "published_version_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_schema_version": { "type": "integer", "minimum": 0 },
+        "conformance_state_class": { "$ref": "#/$defs/conformance_state_class" },
+        "conformance_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "declares_bounded_permissions": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "conformance_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "artifact_count",
+        "conformant_count",
+        "nonconformant_count",
+        "not_run_count",
+        "waived_count",
+        "present_kinds",
+        "missing_required_kinds",
+        "all_conformant",
+        "all_required_kinds_present"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_conformance_summary" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "artifact_count": { "type": "integer", "minimum": 0 },
+        "conformant_count": { "type": "integer", "minimum": 0 },
+        "nonconformant_count": { "type": "integer", "minimum": 0 },
+        "not_run_count": { "type": "integer", "minimum": 0 },
+        "waived_count": { "type": "integer", "minimum": 0 },
+        "present_kinds": { "type": "array", "items": { "$ref": "#/$defs/artifact_kind_class" } },
+        "missing_required_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_kind_class" }
+        },
+        "all_conformant": { "type": "boolean" },
+        "all_required_kinds_present": { "type": "boolean" }
+      }
+    },
+    "activation_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_class",
+        "measured_cost_ref",
+        "budget_ceiling_ref",
+        "measured_sample_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_activation_budget" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "measured_cost_ref": { "$ref": "#/$defs/opaque_id" },
+        "budget_ceiling_ref": { "$ref": "#/$defs/opaque_id" },
+        "measured_sample_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "publisher_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "continuity_state_class", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_publisher_continuity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "continuity_state_class": { "$ref": "#/$defs/publisher_continuity_class" },
+        "continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_author_lane_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_lane_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_downgraded_lane_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "sdk_version_current",
+        "trust_tier_class",
+        "lifecycle_installable",
+        "lane_conformant",
+        "activation_budget_class",
+        "activation_within_budget",
+        "publisher_continuity_class",
+        "downgraded",
+        "downgraded_lane_banner_required",
+        "attribution_complete",
+        "ambient_template_privilege_present",
+        "artifact_count",
+        "conformant_artifact_count",
+        "nonconformant_artifact_count",
+        "stale_version_artifact_count",
+        "missing_required_kind_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_author_lane_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "sdk_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_installable": { "type": "boolean" },
+        "lane_conformant": { "type": "boolean" },
+        "activation_budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "activation_within_budget": { "type": "boolean" },
+        "publisher_continuity_class": { "$ref": "#/$defs/publisher_continuity_class" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_lane_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "ambient_template_privilege_present": { "type": "boolean" },
+        "artifact_count": { "type": "integer", "minimum": 0 },
+        "conformant_artifact_count": { "type": "integer", "minimum": 0 },
+        "nonconformant_artifact_count": { "type": "integer", "minimum": 0 },
+        "stale_version_artifact_count": { "type": "integer", "minimum": 0 },
+        "missing_required_kind_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_sdk_author_lane_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "artifacts",
+        "conformance_summary",
+        "activation_budget",
+        "publisher_continuity",
+        "claim",
+        "downgraded_lane_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_ambient_template_privilege",
+        "allows_catalog_only_trust",
+        "allows_unbounded_activation_cost",
+        "allows_nonconformant_stable_claim",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_sdk_author_lane_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/kit_artifact" }
+        },
+        "conformance_summary": { "$ref": "#/$defs/conformance_summary" },
+        "activation_budget": { "$ref": "#/$defs/activation_budget" },
+        "publisher_continuity": { "$ref": "#/$defs/publisher_continuity" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_lane_banner": { "$ref": "#/$defs/downgraded_lane_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_ambient_template_privilege": { "const": false },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "allows_nonconformant_stable_claim": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}
