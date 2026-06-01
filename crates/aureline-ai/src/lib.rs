@@ -57,6 +57,7 @@ pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
 pub mod prompt_composer;
+pub mod publish_stable_ai_graduation_packets;
 pub mod registry;
 pub mod routing;
 pub mod routing_policy;
