@@ -45,6 +45,7 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 pub mod run_history;
+pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
 
@@ -199,4 +200,18 @@ pub use tool_gateway::{
     TOOL_GATEWAY_CONFORMANCE_ARTIFACT_REF, TOOL_GATEWAY_CONFORMANCE_PACKET_RECORD_KIND,
     TOOL_GATEWAY_DESCRIPTOR_RECORD_KIND, TOOL_GATEWAY_DESCRIPTOR_SCHEMA_REF,
     TOOL_GATEWAY_FIXTURE_DIR, TOOL_GATEWAY_SCHEMA_VERSION, TOOL_GATEWAY_SURFACE_ROW_RECORD_KIND,
+};
+pub use stabilize_prompt_composer::{
+    current_stable_prompt_composer_stabilization_export, AttachmentTaintClass, CompareAnswerRow,
+    ComposerSurfaceClass, ContextDriftBanner, ContextParityClass, DriftSourceClass,
+    ForkedThreadLineage, InclusionPostureClass, OmittedContextReviewRow, PinnedContextRow,
+    PinnedFreshnessStateClass, PromptComposerStabilizationArtifactError,
+    PromptComposerStabilizationInput, PromptComposerStabilizationPacket,
+    PromptComposerStabilizationViolation, RememberPreview, RetentionLocusClass, ReuseAudienceClass,
+    StableAttachmentSemanticRow, StableAttachmentSourceClass, SurfaceConsistencyRow,
+    ThreadHeaderRow, ThreadRetentionModeClass, PROMPT_COMPOSER_STABILIZATION_AI_DOC_REF,
+    PROMPT_COMPOSER_STABILIZATION_ARTIFACT_REF, PROMPT_COMPOSER_STABILIZATION_BASE_CONTRACT_REF,
+    PROMPT_COMPOSER_STABILIZATION_BETA_ARTIFACT_REF, PROMPT_COMPOSER_STABILIZATION_FIXTURE_DIR,
+    PROMPT_COMPOSER_STABILIZATION_RECORD_KIND, PROMPT_COMPOSER_STABILIZATION_SCHEMA_REF,
+    PROMPT_COMPOSER_STABILIZATION_SCHEMA_VERSION, PROMPT_COMPOSER_STABILIZATION_SUMMARY_REF,
 };
