@@ -19,6 +19,7 @@ pub mod descriptor;
 pub mod enablement;
 pub mod finalize_command_parity;
 pub mod finalize_traffic_origin_and_exposure_chips;
+pub mod harden_ai_and_command_support_export_parity_audit;
 pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod registry;
@@ -71,6 +72,24 @@ pub use finalize_traffic_origin_and_exposure_chips::{
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_REF,
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_VERSION,
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SUMMARY_REF,
+};
+pub use harden_ai_and_command_support_export_parity_audit::{
+    current_harden_ai_and_command_support_export_parity_audit_export,
+    AiAndCommandSupportExportParityAuditArtifactError,
+    AiAndCommandSupportExportParityAuditViolation, AuditLineageContract,
+    AuditLineageRequirementClass, ExportParityContract, ExportParityRequirementClass,
+    HardenAiAndCommandSupportExportParityAuditPacket,
+    HardenAiAndCommandSupportExportParityAuditPacketInput, ShiproomInclusionClass,
+    ShiproomInclusionContract, SupportExportParityRow, SupportExportSurfaceClass,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_ARTIFACT_REF,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_DESCRIPTOR_CONTRACT_REF,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_DOC_REF,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_FIXTURE_DIR,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_PARITY_CONTRACT_REF,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_RECORD_KIND,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_SCHEMA_REF,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_SCHEMA_VERSION,
+    HARDEN_AI_COMMAND_SUPPORT_EXPORT_PARITY_AUDIT_SUMMARY_REF,
 };
 pub use harden_high_risk_command::{
     current_high_risk_command_hardening_export, ApprovalAuthorityClass, ApprovalLineageContract,
