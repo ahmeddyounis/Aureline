@@ -1,0 +1,564 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_mirror_import_truth.schema.json",
+  "title": "Aureline stable mirror/manual import-truth packet",
+  "description": "Cross-tool boundary schema for the stable mirror/manual import-truth packet emitted by crates/aureline-extensions. One packet binds a stable_mirror_import_truth_identity (catalog descriptor ref, row identity, package identity, the pinned import-truth version, the publisher namespace, the source artifact ref, the publisher trust tier, and the lifecycle state), a stable_mirror_import_source_class (import route, source visibility, source-class-preserved flag, last-known-good pin, and offline-explainable flag), a stable_mirror_import_continuity binding (publisher-transfer continuity event and state, cooldown, audit trail and lineage, user/admin notification, high-trust auto-update gating, and transfer-history preservation), a stable_mirror_import_mapping_outcome (exact / translated / partial / shimmed / unsupported, generated from the real imported artifact, with a preserved rollback checkpoint and diagnostics on failure), a stable_mirror_import_permission_posture (declared / effective refs and a no-widening flag), a stable_mirror_import_compatibility (parity label, evidence source, verified flag), a stable_mirror_import_activation_budget, a stable_mirror_import_install_posture (install scope and disclosure, revocation posture, mirrorability, rollback support), the stable_mirror_import_truth_qualification_claim after the posture is applied (with automatic narrowing below Stable), a stable_mirror_import_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published import-truth version, is evidence-backed, keeps its trust tier out of quarantine, stays installable, preserves its source class, stays explainable offline, pins a last-known-good, keeps its publisher-transfer continuity current (and gates high-trust auto-update behind delay / audit / notification for any transfer event), maps exactly or by a verified translation from the real artifact, never widens permissions on import, keeps verified non-inherited non-parity-limited compatibility, keeps its activation cost within budget, discloses its install scope, keeps a clean revocation posture, stays mirrorable, and is fully attributed. A catalog-asserted claim basis, a widened permission set, an unbounded activation cost, a disputed / revoked continuity, an ungated transfer auto-update, an unsupported mapping, or a missing rollback checkpoint narrows or withdraws the row. The Rust types in crates/aureline-extensions/src/stabilize_mirror_manual_import_offline_catalog_and_publisher/ are the source of truth. Raw artifact bytes, raw evidence payloads, raw permission contents, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_mirror_import_truth_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "import_route_class": {
+      "type": "string",
+      "enum": ["primary_catalog", "approved_mirror", "offline_bundle", "manual_artifact"]
+    },
+    "source_visibility_class": {
+      "type": "string",
+      "enum": ["fully_disclosed", "source_class_only", "opaque"]
+    },
+    "continuity_event_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "namespace_reservation",
+        "ownership_transfer",
+        "signer_key_rotation",
+        "orphaning_succession",
+        "approved_mirror_promotion"
+      ]
+    },
+    "continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "in_cooldown",
+        "pending_notification",
+        "disputed",
+        "orphaned",
+        "revoked",
+        "stale",
+        "missing"
+      ]
+    },
+    "mapping_outcome_class": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "compatibility_label_class": {
+      "type": "string",
+      "enum": ["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"]
+    },
+    "compatibility_evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "conformance_suite",
+        "certified_workspace",
+        "bridge_matrix",
+        "vendor_attested",
+        "inherited_from_adjacent"
+      ]
+    },
+    "activation_budget_class": {
+      "type": "string",
+      "enum": ["within_budget", "over_budget", "unbounded", "not_measured"]
+    },
+    "install_scope_class": {
+      "type": "string",
+      "enum": ["user", "workspace", "machine", "portable"]
+    },
+    "revocation_posture_class": {
+      "type": "string",
+      "enum": ["clean", "advisory", "quarantined", "revoked"]
+    },
+    "mirrorability_class": {
+      "type": "string",
+      "enum": ["mirrorable", "mirror_pinned", "not_mirrorable"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_import_truth_claim",
+        "beta_import_truth_partial_claim",
+        "preview_import_truth_experimental_claim",
+        "withdrawn_no_import_truth_claim"
+      ]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "import_version_not_published",
+        "catalog_only_trust_not_evidence_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_installable",
+        "source_class_not_preserved",
+        "offline_not_explainable",
+        "last_known_good_not_pinned",
+        "continuity_event_in_cooldown",
+        "continuity_pending_notification",
+        "continuity_disputed",
+        "continuity_orphaned",
+        "continuity_revoked",
+        "continuity_stale",
+        "continuity_missing",
+        "high_trust_auto_update_not_gated",
+        "audit_lineage_incomplete",
+        "transfer_history_not_preserved",
+        "user_admin_not_notified",
+        "mapping_outcome_unsupported",
+        "mapping_outcome_shimmed",
+        "mapping_outcome_partial",
+        "mapping_not_from_real_artifact",
+        "mapping_rollback_checkpoint_missing",
+        "permission_widened_on_import",
+        "compatibility_unsupported",
+        "compatibility_parity_limited",
+        "compatibility_evidence_inherited",
+        "compatibility_not_verified",
+        "activation_cost_unbounded",
+        "activation_cost_over_budget",
+        "activation_cost_not_measured",
+        "install_scope_not_disclosed",
+        "revocation_posture_quarantined",
+        "revocation_posture_revoked",
+        "revocation_posture_advisory",
+        "not_mirrorable",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "marketplace_result_row",
+        "marketplace_detail_page",
+        "install_review",
+        "side_load_review",
+        "mirror_bundle_review",
+        "offline_catalog_view",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "catalog_descriptor_ref",
+        "row_identity_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "import_version",
+        "publisher_namespace",
+        "source_artifact_ref",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_truth_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "catalog_descriptor_ref": {
+          "type": "string",
+          "pattern": "^catalog_descriptor:"
+        },
+        "row_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "import_version": { "type": "integer", "minimum": 0 },
+        "publisher_namespace": { "$ref": "#/$defs/opaque_id" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "source_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "import_route_class",
+        "source_visibility_class",
+        "source_class_preserved",
+        "last_known_good_ref",
+        "last_known_good_pinned",
+        "offline_explainable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_source_class" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "import_route_class": { "$ref": "#/$defs/import_route_class" },
+        "source_visibility_class": { "$ref": "#/$defs/source_visibility_class" },
+        "source_class_preserved": { "type": "boolean" },
+        "last_known_good_ref": { "$ref": "#/$defs/opaque_id" },
+        "last_known_good_pinned": { "type": "boolean" },
+        "offline_explainable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "continuity_event_class",
+        "continuity_state_class",
+        "cooldown_satisfied",
+        "audit_trail_ref",
+        "audit_lineage_preserved",
+        "user_notified",
+        "admin_notified",
+        "high_trust_auto_update_gated",
+        "transfer_history_preserved",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_continuity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "continuity_event_class": { "$ref": "#/$defs/continuity_event_class" },
+        "continuity_state_class": { "$ref": "#/$defs/continuity_state_class" },
+        "cooldown_satisfied": { "type": "boolean" },
+        "audit_trail_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_lineage_preserved": { "type": "boolean" },
+        "user_notified": { "type": "boolean" },
+        "admin_notified": { "type": "boolean" },
+        "high_trust_auto_update_gated": { "type": "boolean" },
+        "transfer_history_preserved": { "type": "boolean" },
+        "continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "mapping_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "outcome_class",
+        "generated_from_real_artifact",
+        "rollback_checkpoint_ref",
+        "checkpoint_preserved",
+        "diagnostics_ref",
+        "mapping_failed",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_mapping_outcome" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "outcome_class": { "$ref": "#/$defs/mapping_outcome_class" },
+        "generated_from_real_artifact": { "type": "boolean" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_preserved": { "type": "boolean" },
+        "diagnostics_ref": { "$ref": "#/$defs/opaque_id" },
+        "mapping_failed": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "permission_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "declared_permission_ref",
+        "effective_permission_ref",
+        "widened_on_import",
+        "reconsent_required",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_permission_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "declared_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_permission_ref": { "$ref": "#/$defs/opaque_id" },
+        "widened_on_import": { "type": "boolean" },
+        "reconsent_required": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "compatibility_label_class",
+        "compatibility_window_ref",
+        "evidence_source_class",
+        "compatibility_verified",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_compatibility" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "compatibility_window_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_source_class": { "$ref": "#/$defs/compatibility_evidence_source_class" },
+        "compatibility_verified": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "activation_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "budget_class",
+        "measured_cost_ref",
+        "budget_ceiling_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_activation_budget" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "measured_cost_ref": { "$ref": "#/$defs/opaque_id" },
+        "budget_ceiling_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "install_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "install_scope_class",
+        "install_scope_disclosed",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "rollback_supported",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_install_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "install_scope_class": { "$ref": "#/$defs/install_scope_class" },
+        "install_scope_disclosed": { "type": "boolean" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "rollback_supported": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_truth_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "effective_tier",
+        "stable_claim",
+        "import_version_current",
+        "trust_tier_class",
+        "import_route_class",
+        "lifecycle_installable",
+        "source_class_preserved",
+        "offline_explainable",
+        "last_known_good_pinned",
+        "continuity_event_class",
+        "continuity_state_class",
+        "auto_update_safely_gated",
+        "audit_lineage_preserved",
+        "transfer_history_preserved",
+        "notification_satisfied",
+        "mapping_outcome_class",
+        "mapping_stable_grade",
+        "rollback_checkpoint_preserved",
+        "permissions_not_widened",
+        "compatibility_label_class",
+        "compatibility_verified",
+        "activation_budget_class",
+        "activation_within_budget",
+        "revocation_posture_class",
+        "mirrorability_class",
+        "downgraded",
+        "downgraded_banner_required",
+        "attribution_complete",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_truth_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "import_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "import_route_class": { "$ref": "#/$defs/import_route_class" },
+        "lifecycle_installable": { "type": "boolean" },
+        "source_class_preserved": { "type": "boolean" },
+        "offline_explainable": { "type": "boolean" },
+        "last_known_good_pinned": { "type": "boolean" },
+        "continuity_event_class": { "$ref": "#/$defs/continuity_event_class" },
+        "continuity_state_class": { "$ref": "#/$defs/continuity_state_class" },
+        "auto_update_safely_gated": { "type": "boolean" },
+        "audit_lineage_preserved": { "type": "boolean" },
+        "transfer_history_preserved": { "type": "boolean" },
+        "notification_satisfied": { "type": "boolean" },
+        "mapping_outcome_class": { "$ref": "#/$defs/mapping_outcome_class" },
+        "mapping_stable_grade": { "type": "boolean" },
+        "rollback_checkpoint_preserved": { "type": "boolean" },
+        "permissions_not_widened": { "type": "boolean" },
+        "compatibility_label_class": { "$ref": "#/$defs/compatibility_label_class" },
+        "compatibility_verified": { "type": "boolean" },
+        "activation_budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "activation_within_budget": { "type": "boolean" },
+        "revocation_posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_mirror_import_truth_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "source_class",
+        "continuity",
+        "mapping_outcome",
+        "permission_posture",
+        "compatibility",
+        "activation_budget",
+        "install_posture",
+        "claim",
+        "downgraded_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_catalog_only_trust",
+        "allows_ambient_privilege",
+        "allows_unbounded_activation_cost",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_mirror_import_truth_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "continuity": { "$ref": "#/$defs/continuity" },
+        "mapping_outcome": { "$ref": "#/$defs/mapping_outcome" },
+        "permission_posture": { "$ref": "#/$defs/permission_posture" },
+        "compatibility": { "$ref": "#/$defs/compatibility" },
+        "activation_budget": { "$ref": "#/$defs/activation_budget" },
+        "install_posture": { "$ref": "#/$defs/install_posture" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_banner": { "$ref": "#/$defs/downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_catalog_only_trust": { "const": false },
+        "allows_ambient_privilege": { "const": false },
+        "allows_unbounded_activation_cost": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}

@@ -209,6 +209,7 @@ pub mod runtime;
 pub mod sdk_v1;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
+pub mod stabilize_mirror_manual_import_offline_catalog_and_publisher;
 pub mod stabilize_sdk_schemas_samples_templates_and_conformance_kits;
 pub mod supervision;
 pub mod webview_boundary;
@@ -510,6 +511,40 @@ pub use stabilize_external_host_contracts_for_language_tools_debuggers::{
     STABLE_TIERS as EXTERNAL_HOST_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as EXTERNAL_HOST_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as EXTERNAL_HOST_TRUST_TIER_CLASSES,
+};
+pub use stabilize_mirror_manual_import_offline_catalog_and_publisher::{
+    project_stable_mirror_import_truth, project_stable_mirror_import_truth_support_export,
+    DowngradedImportBanner, MirrorImportActivationBudget, MirrorImportActivationBudgetInput,
+    MirrorImportCompatibility, MirrorImportCompatibilityInput, MirrorImportContinuity,
+    MirrorImportContinuityInput, MirrorImportInstallPosture, MirrorImportInstallPostureInput,
+    MirrorImportMappingOutcome, MirrorImportMappingOutcomeInput, MirrorImportPermissionPosture,
+    MirrorImportPermissionPostureInput, MirrorImportSourceClass, MirrorImportSourceClassInput,
+    MirrorImportTruthIdentity, MirrorImportTruthIdentityInput, MirrorImportTruthQualificationClaim,
+    MirrorImportTruthQualificationClaimInput, StableMirrorImportTruthError,
+    StableMirrorImportTruthInput, StableMirrorImportTruthInspection, StableMirrorImportTruthPacket,
+    StableMirrorImportTruthProjection, StableMirrorImportTruthSupportExport,
+    StableMirrorImportTruthValidationError, ACTIVATION_BUDGET_CLASSES as MIRROR_IMPORT_ACTIVATION_BUDGET_CLASSES,
+    CLAIM_BASIS_CLASSES as MIRROR_IMPORT_CLAIM_BASIS_CLASSES,
+    COMPATIBILITY_EVIDENCE_SOURCE_CLASSES as MIRROR_IMPORT_COMPATIBILITY_EVIDENCE_SOURCE_CLASSES,
+    COMPATIBILITY_LABEL_CLASSES as MIRROR_IMPORT_COMPATIBILITY_LABEL_CLASSES,
+    CONTINUITY_EVENT_CLASSES, CONTINUITY_STATE_CLASSES,
+    DOWNGRADED_IMPORT_BANNER_RECORD_KIND, IMPORT_ROUTE_CLASSES,
+    INSTALLABLE_LIFECYCLE_STATES as MIRROR_IMPORT_INSTALLABLE_LIFECYCLE_STATES,
+    INSTALL_SCOPE_CLASSES as MIRROR_IMPORT_INSTALL_SCOPE_CLASSES,
+    LIFECYCLE_STATE_CLASSES as MIRROR_IMPORT_LIFECYCLE_STATE_CLASSES, MAPPING_OUTCOME_CLASSES,
+    MIRRORABILITY_CLASSES, MIRROR_IMPORT_ACTIVATION_BUDGET_RECORD_KIND,
+    MIRROR_IMPORT_COMPATIBILITY_RECORD_KIND, MIRROR_IMPORT_CONTINUITY_RECORD_KIND,
+    MIRROR_IMPORT_DOWNGRADE_REASONS, MIRROR_IMPORT_INSTALL_POSTURE_RECORD_KIND,
+    MIRROR_IMPORT_MAPPING_OUTCOME_RECORD_KIND, MIRROR_IMPORT_PERMISSION_POSTURE_RECORD_KIND,
+    MIRROR_IMPORT_SOURCE_CLASS_RECORD_KIND, MIRROR_IMPORT_TRUTH_IDENTITY_RECORD_KIND,
+    MIRROR_IMPORT_TRUTH_QUALIFICATION_CLAIM_RECORD_KIND, REVOCATION_POSTURE_CLASSES,
+    SOURCE_VISIBILITY_CLASSES, STABILITY_TIERS as MIRROR_IMPORT_STABILITY_TIERS,
+    STABLE_GRADE_MAPPING_OUTCOMES, STABLE_MIRROR_IMPORT_CONSUMER_SURFACES,
+    STABLE_MIRROR_IMPORT_PUBLISHED_VERSION, STABLE_MIRROR_IMPORT_TRUTH_INSPECTION_RECORD_KIND,
+    STABLE_MIRROR_IMPORT_TRUTH_PACKET_RECORD_KIND, STABLE_MIRROR_IMPORT_TRUTH_SCHEMA_REF,
+    STABLE_MIRROR_IMPORT_TRUTH_SCHEMA_VERSION, STABLE_MIRROR_IMPORT_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+    STABLE_TIERS as MIRROR_IMPORT_STABLE_TIERS, SUPPORT_CLAIM_CLASSES as MIRROR_IMPORT_SUPPORT_CLAIM_CLASSES,
+    TRANSFER_CONTINUITY_EVENTS, TRUST_TIER_CLASSES as MIRROR_IMPORT_TRUST_TIER_CLASSES,
 };
 pub use supervision::{
     evaluate_extension_host_supervision, project_extension_host_supervision_support_export,
