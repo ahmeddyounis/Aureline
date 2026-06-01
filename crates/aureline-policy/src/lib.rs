@@ -10,6 +10,7 @@
 
 pub mod authority;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
+pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod runtime_authority_issuers;
 pub mod simulation;
@@ -116,4 +117,18 @@ pub use finalize_signed_policy_bundle_offline_entitlement_and_mirror::{
     SIGNED_POLICY_BUNDLE_FINALIZE_SHARED_CONTRACT_REF,
     SIGNED_POLICY_BUNDLE_FINALIZE_SUMMARY_RECORD_KIND,
     SIGNED_POLICY_BUNDLE_FINALIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_the_secret_broker_handle_only_delegated_and::{
+    audit_finalize_secret_broker_rows, seeded_finalize_secret_broker_page,
+    validate_finalize_secret_broker_page, CredentialRotationEventClass, CredentialRotationState,
+    FinalizeSecretBrokerDefect, FinalizeSecretBrokerNarrowReasonClass, FinalizeSecretBrokerPage,
+    FinalizeSecretBrokerQualificationClass, FinalizeSecretBrokerRow, FinalizeSecretBrokerSummary,
+    FinalizeSecretBrokerSupportExport, RememberedApprovalRow, SecretBrokerFlowClass,
+    SecretBrokerHandleClass, FINALIZE_SECRET_BROKER_ARTIFACT_REF,
+    FINALIZE_SECRET_BROKER_DEFECT_RECORD_KIND, FINALIZE_SECRET_BROKER_DOC_REF,
+    FINALIZE_SECRET_BROKER_PAGE_RECORD_KIND, FINALIZE_SECRET_BROKER_REMEMBERED_APPROVAL_RECORD_KIND,
+    FINALIZE_SECRET_BROKER_ROW_RECORD_KIND, FINALIZE_SECRET_BROKER_SCHEMA_VERSION,
+    FINALIZE_SECRET_BROKER_SHARED_CONTRACT_REF, FINALIZE_SECRET_BROKER_SUMMARY_RECORD_KIND,
+    FINALIZE_SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND, SECRET_BROKER_BETA_CONTRACT_REF,
 };
