@@ -14,7 +14,12 @@
 //! claimed hosted-model paths. The evidence lane exposes one
 //! [`evidence::AiMutationEvidencePacket`] object for review-first mutation
 //! packets that preserve cited-source truth, tainted-context fences, route/spend
-//! refs, and approval lineage before apply.
+//! refs, and approval lineage before apply. The scoped-apply hardening lane
+//! exposes one [`harden_ai_scoped_apply::AiScopedApplyHardeningPacket`] object
+//! binding the preview → approval → apply → revert lifecycle, scoped-apply and
+//! multi-file patch honesty, cross-wedge command parity, route/spend authority
+//! truth, and exportable evidence/rollback lineage on claimed stable apply
+//! paths.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -41,6 +46,7 @@ pub mod context_inspector;
 pub mod evidence;
 pub mod finalize_ai_evidence_packets;
 pub mod graduation;
+pub mod harden_ai_scoped_apply;
 pub mod prompt_composer;
 pub mod registry;
 pub mod routing;
@@ -119,6 +125,19 @@ pub use graduation::{
     AiGraduationSupportClass, AiGraduationSurfaceStatus, AiGraduationSurfaceSupportSummary,
     AiGraduationViolation, AI_GRADUATION_PACKET_RECORD_KIND, AI_GRADUATION_STATE_RECORD_KIND,
     AI_GRADUATION_STATE_SCHEMA_VERSION, REQUIRED_BETA_EVIDENCE_KINDS,
+};
+pub use harden_ai_scoped_apply::{
+    current_stable_ai_scoped_apply_hardening_export, AiScopedApplyHardeningArtifactError,
+    AiScopedApplyHardeningPacket, AiScopedApplyHardeningPacketInput,
+    AiScopedApplyHardeningViolation, ApplyLifecycleBlock, ApplyLifecycleStateClass,
+    ApplyWriteScopeClass, CommandSurfaceClass, EvidenceExportBlock, PatchChangeKind, PatchFileRow,
+    PatchHonestyBlock, RouteSpendAuthorityBlock, ScopeContractBlock, SurfaceParityRow,
+    SurfaceQualificationClass, AI_SCOPED_APPLY_HARDENING_AI_DOC_REF,
+    AI_SCOPED_APPLY_HARDENING_ARTIFACT_REF, AI_SCOPED_APPLY_HARDENING_FIXTURE_DIR,
+    AI_SCOPED_APPLY_HARDENING_PARITY_CONTRACT_REF,
+    AI_SCOPED_APPLY_HARDENING_PREVIEW_APPLY_REVERT_CONTRACT_REF,
+    AI_SCOPED_APPLY_HARDENING_RECORD_KIND, AI_SCOPED_APPLY_HARDENING_SCHEMA_REF,
+    AI_SCOPED_APPLY_HARDENING_SCHEMA_VERSION, AI_SCOPED_APPLY_HARDENING_SUMMARY_REF,
 };
 pub use prompt_composer::{
     current_beta_prompt_composer_conformance_export, DraftRetentionScopeClass,

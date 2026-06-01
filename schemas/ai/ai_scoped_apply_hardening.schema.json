@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai_scoped_apply_hardening.schema.json",
+  "title": "Aureline AI scoped-apply hardening record",
+  "$comment": "Rust owner: aureline_ai::harden_ai_scoped_apply::AiScopedApplyHardeningPacket.",
+  "description": "Boundary schema for the metadata-only AI scoped-apply hardening record. The packet binds the preview -> approval -> apply -> revert lifecycle, the scoped-apply scope contract, multi-file patch honesty (per-file disclosure, approval, and scope), cross-wedge command parity (palette, menu, keybinding, CLI/headless, deep link, automation recipe, AI assistant) over one shared command/preview/approval/result/rollback model, route/spend authority truth, and exportable evidence/rollback lineage into one attributable artifact. It does not re-derive mutation, run-history, patch-review, or replay truth; it references those lineages by id. It carries refs, state tokens, coarse classes, counts, digests, and review labels only. It never carries raw patch bodies, raw diff text, raw prompt bodies, source file bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "apply_id",
+    "display_label",
+    "command_descriptor_ref",
+    "command_revision",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "approval_path_label",
+    "lifecycle",
+    "scope_contract",
+    "patch_honesty",
+    "surface_parity",
+    "route_authority",
+    "evidence_export",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_scoped_apply_hardening" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "apply_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "command_descriptor_ref": { "type": "string", "minLength": 1 },
+    "command_revision": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "approval_path_label": { "type": "string", "minLength": 1 },
+    "lifecycle": { "$ref": "#/$defs/apply_lifecycle_block" },
+    "scope_contract": { "$ref": "#/$defs/scope_contract_block" },
+    "patch_honesty": { "$ref": "#/$defs/patch_honesty_block" },
+    "surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/surface_parity_row" }
+    },
+    "route_authority": { "$ref": "#/$defs/route_spend_authority_block" },
+    "evidence_export": { "$ref": "#/$defs/evidence_export_block" },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "preview_pending_approval",
+        "approved_not_yet_applied",
+        "applied_kept",
+        "applied_then_reverted",
+        "rejected_no_apply",
+        "blocked_no_apply"
+      ],
+      "description": "Lifecycle state of a scoped-apply across preview, approval, apply, and revert."
+    },
+    "write_scope_class": {
+      "type": "string",
+      "enum": ["single_file", "multi_file_bounded", "workspace_wide", "external_effect"],
+      "description": "Coarse write-scope class the scoped-apply declared."
+    },
+    "patch_change_kind": {
+      "type": "string",
+      "enum": ["create_file", "modify_file", "delete_file", "rename_file"],
+      "description": "Per-file change kind disclosed in a multi-file patch."
+    },
+    "command_surface_class": {
+      "type": "string",
+      "enum": [
+        "palette_command",
+        "menu_item",
+        "keybinding",
+        "cli_headless",
+        "deep_link",
+        "automation_recipe",
+        "ai_assistant"
+      ],
+      "description": "Launch wedge a scoped-apply command can be invoked from."
+    },
+    "surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Stable-qualification posture of a single command surface."
+    },
+    "apply_lifecycle_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state",
+        "preview_record_ref",
+        "preview_shown",
+        "approval_required",
+        "approval_granted",
+        "checkpoint_captured_before_apply",
+        "revert_available",
+        "direct_trusted_apply_attempted"
+      ],
+      "properties": {
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state_class" },
+        "preview_record_ref": { "type": "string", "minLength": 1 },
+        "preview_shown": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "approval_record_ref": { "type": "string", "minLength": 1 },
+        "approval_granted": { "type": "boolean" },
+        "checkpoint_captured_before_apply": { "type": "boolean" },
+        "rollback_checkpoint_ref": { "type": "string", "minLength": 1 },
+        "mutation_journal_ref": { "type": "string", "minLength": 1 },
+        "apply_audit_ref": { "type": "string", "minLength": 1 },
+        "revert_available": { "type": "boolean" },
+        "revert_handle_ref": { "type": "string", "minLength": 1 },
+        "direct_trusted_apply_attempted": { "type": "boolean" }
+      },
+      "description": "Preview -> approval -> apply -> revert lifecycle. Applied states require a captured checkpoint, mutation journal, apply audit, and an available revert; rejected/blocked states must not have mutated the live tree; a direct trusted-path apply is always denied."
+    },
+    "scope_contract_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_scope_label",
+        "scope_class",
+        "requested_scope_ref",
+        "declared_path_class_count",
+        "apply_bounded_to_declared_scope"
+      ],
+      "properties": {
+        "declared_scope_label": { "type": "string", "minLength": 1 },
+        "scope_class": { "$ref": "#/$defs/write_scope_class" },
+        "requested_scope_ref": { "type": "string", "minLength": 1 },
+        "declared_path_class_count": { "type": "integer", "minimum": 0 },
+        "apply_bounded_to_declared_scope": { "type": "boolean" }
+      },
+      "description": "Scoped-apply scope contract. The produced patch must stay inside the declared scope."
+    },
+    "patch_file_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_ref",
+        "change_kind",
+        "hunk_count",
+        "within_declared_scope",
+        "disclosed_in_preview",
+        "approved_for_apply",
+        "reached_live_tree"
+      ],
+      "properties": {
+        "file_ref": { "type": "string", "minLength": 1 },
+        "change_kind": { "$ref": "#/$defs/patch_change_kind" },
+        "hunk_count": { "type": "integer", "minimum": 0 },
+        "within_declared_scope": { "type": "boolean" },
+        "disclosed_in_preview": { "type": "boolean" },
+        "approved_for_apply": { "type": "boolean" },
+        "reached_live_tree": { "type": "boolean" },
+        "rename_from_ref": { "type": "string", "minLength": 1 }
+      },
+      "description": "One disclosed file in a multi-file patch. A file that reached the live tree must have been disclosed in the preview, approved for apply, and within the declared scope. A rename carries its source ref."
+    },
+    "patch_honesty_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["patch_digest_ref", "declared_file_count", "disclosed_file_count", "files"],
+      "properties": {
+        "patch_digest_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content-addressed patch digest ref binding validation to the exact proposal."
+        },
+        "declared_file_count": { "type": "integer", "minimum": 0 },
+        "disclosed_file_count": { "type": "integer", "minimum": 0 },
+        "files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/patch_file_row" }
+        }
+      },
+      "description": "Multi-file patch honesty. The declared and disclosed file counts must match the rows so a patch can never carry a file the operator was not shown."
+    },
+    "surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "descriptor_ref",
+        "shares_command_descriptor",
+        "shares_preview_model",
+        "shares_approval_model",
+        "shares_result_model",
+        "shares_rollback_model",
+        "route_disclosed",
+        "policy_checked",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/command_surface_class" },
+        "descriptor_ref": { "type": "string", "minLength": 1 },
+        "shares_command_descriptor": { "type": "boolean" },
+        "shares_preview_model": { "type": "boolean" },
+        "shares_approval_model": { "type": "boolean" },
+        "shares_result_model": { "type": "boolean" },
+        "shares_rollback_model": { "type": "boolean" },
+        "route_disclosed": { "type": "boolean" },
+        "policy_checked": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      },
+      "description": "One cross-surface command-parity row. A surface claiming Stable must qualify for it and preserve the full shared command/preview/approval/result/rollback model; otherwise it is automatically narrowed below Stable."
+    },
+    "route_spend_authority_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_label",
+        "model_label",
+        "route_receipt_ref",
+        "spend_receipt_ref",
+        "egress_disclosed",
+        "tainted_context_present",
+        "authority_widened_without_disclosure"
+      ],
+      "properties": {
+        "provider_label": { "type": "string", "minLength": 1 },
+        "model_label": { "type": "string", "minLength": 1 },
+        "route_receipt_ref": { "type": "string", "minLength": 1 },
+        "spend_receipt_ref": { "type": "string", "minLength": 1 },
+        "egress_disclosed": { "type": "boolean" },
+        "tainted_context_present": { "type": "boolean" },
+        "tainted_context_fence_ref": { "type": "string", "minLength": 1 },
+        "authority_widened_without_disclosure": { "type": "boolean" }
+      },
+      "description": "Route, spend, and authority truth. Egress must be disclosed, tainted context must be fenced, and authority must never widen without disclosure."
+    },
+    "evidence_export_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_packet_ref",
+        "patch_review_summary_ref",
+        "rollback_handle_ref",
+        "json_export_ref",
+        "markdown_summary_ref",
+        "export_lineage_refs"
+      ],
+      "properties": {
+        "evidence_packet_ref": { "type": "string", "minLength": 1 },
+        "patch_review_summary_ref": { "type": "string", "minLength": 1 },
+        "rollback_handle_ref": { "type": "string", "minLength": 1 },
+        "json_export_ref": { "type": "string", "minLength": 1 },
+        "markdown_summary_ref": { "type": "string", "minLength": 1 },
+        "export_lineage_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Exportable evidence and rollback lineage. Binds the AI evidence packet, the multi-file patch-review summary, and the rollback handle that describes recovery without granting ambient authority."
+    }
+  }
+}
