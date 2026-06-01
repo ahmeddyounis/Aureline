@@ -38,6 +38,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-remote/0.0.0")]
 
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
+pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
 
@@ -69,6 +70,22 @@ pub use route_governance::{
     RouteObjectFinding, SourceBlock, StaleSharedLinkState, TeardownState, TlsPostureClass,
     ViewerStateClass, EXPOSURE_REVIEW_RECORD_KIND, EXPOSURE_REVIEW_SCHEMA_VERSION,
     ROUTE_OBJECT_RECORD_KIND, ROUTE_OBJECT_SCHEMA_VERSION,
+};
+
+pub use harden_the_connected_provider_registry_capability_matrix_and::{
+    audit_provider_registry_page, seeded_provider_descriptor_snapshot,
+    seeded_provider_registry_page, validate_provider_registry_page,
+    ActorIdentityClass, CallbackPathClass, DependencyClass as ProviderRegistryDependencyClass,
+    MutationPostureClass, ObjectKindClass, ObjectSupportEntry, ProviderDescriptorRecord,
+    ProviderDescriptorSnapshot, ProviderFamilyClass, ProviderRegistryDefect,
+    ProviderRegistryNarrowReasonClass, ProviderRegistryPage, ProviderRegistryQualificationClass,
+    ProviderRegistryRow, ProviderRegistrySummary, ProviderRegistrySupportExport,
+    PublishModeClass, SnapshotFreshnessClass, PROVIDER_DESCRIPTOR_RECORD_KIND,
+    PROVIDER_REGISTRY_ARTIFACT_REF, PROVIDER_REGISTRY_DEFECT_RECORD_KIND,
+    PROVIDER_REGISTRY_DOC_REF, PROVIDER_REGISTRY_PAGE_RECORD_KIND,
+    PROVIDER_REGISTRY_ROW_RECORD_KIND, PROVIDER_REGISTRY_SCHEMA_VERSION,
+    PROVIDER_REGISTRY_SHARED_CONTRACT_REF, PROVIDER_REGISTRY_SUMMARY_RECORD_KIND,
+    PROVIDER_REGISTRY_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_DESCRIPTOR_PAIRS,
 };
 
 pub use stabilize_transport_governance_and_egress_classification_across_update::{
