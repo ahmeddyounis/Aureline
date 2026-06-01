@@ -19,7 +19,14 @@
 //! binding the preview → approval → apply → revert lifecycle, scoped-apply and
 //! multi-file patch honesty, cross-wedge command parity, route/spend authority
 //! truth, and exportable evidence/rollback lineage on claimed stable apply
-//! paths.
+//! paths. The repo-instruction hardening lane exposes one
+//! [`harden_repo_ai_instructions::RepoAiInstructionHardeningPacket`] object
+//! binding repo-defined instruction precedence and trust, policy-interaction
+//! outcomes that deny repo widening while admitting repo narrowing, a
+//! provider-neutral kill switch that fails closed across every provider, model,
+//! and external-tool route, a fully reversible backout posture, cross-wedge
+//! command parity, and exportable evidence/rollback lineage on claimed stable
+//! runs.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -48,6 +55,7 @@ pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
+pub mod harden_repo_ai_instructions;
 pub mod prompt_composer;
 pub mod registry;
 pub mod routing;
@@ -152,6 +160,19 @@ pub use harden_ai_scoped_apply::{
     AI_SCOPED_APPLY_HARDENING_PREVIEW_APPLY_REVERT_CONTRACT_REF,
     AI_SCOPED_APPLY_HARDENING_RECORD_KIND, AI_SCOPED_APPLY_HARDENING_SCHEMA_REF,
     AI_SCOPED_APPLY_HARDENING_SCHEMA_VERSION, AI_SCOPED_APPLY_HARDENING_SUMMARY_REF,
+};
+pub use harden_repo_ai_instructions::{
+    current_stable_harden_repo_ai_instructions_export, BackoutCompletenessClass, BackoutPosture,
+    InstructionTrustPostureClass, KillSwitchPosture, KillSwitchScopeClass, KillSwitchStateClass,
+    PolicyInteractionOutcomeClass, PolicyInteractionRow, RepoAiInstructionHardeningArtifactError,
+    RepoAiInstructionHardeningPacket, RepoAiInstructionHardeningPacketInput,
+    RepoAiInstructionHardeningViolation, RepoInstructionEvidenceExport, RepoInstructionRow,
+    RepoInstructionSourceClass, RepoProhibitedCaseClass,
+    HARDEN_REPO_AI_INSTRUCTIONS_AI_DOC_REF, HARDEN_REPO_AI_INSTRUCTIONS_ARTIFACT_REF,
+    HARDEN_REPO_AI_INSTRUCTIONS_FIXTURE_DIR, HARDEN_REPO_AI_INSTRUCTIONS_KILL_SWITCH_CONTRACT_REF,
+    HARDEN_REPO_AI_INSTRUCTIONS_RECORD_KIND, HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_REF,
+    HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_VERSION, HARDEN_REPO_AI_INSTRUCTIONS_SUMMARY_REF,
+    HARDEN_REPO_AI_INSTRUCTIONS_TAINT_CONTRACT_REF,
 };
 pub use prompt_composer::{
     current_beta_prompt_composer_conformance_export, DraftRetentionScopeClass,
