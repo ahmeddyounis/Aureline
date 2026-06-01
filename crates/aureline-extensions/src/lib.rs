@@ -133,6 +133,17 @@
 //!   offline bundle review, and post-install diagnostics, keeps host-stable
 //!   trust / severity / permission / policy labels host-rendered, and projects a
 //!   metadata-safe [`appearance_conformance::AppearanceConformanceSupportExport`].
+//! - one [`harden_extension_manifest_permission_display_lifecycle_labels_and::StableManifestHardeningPacket`]
+//!   that hardens the extension manifest, permission display, lifecycle labels,
+//!   and compatibility-range truth for the stable line: it declares hard
+//!   dependencies and optional integrations (each with a dependency class,
+//!   resolution state, lifecycle/deprecation marker, and the permissions it
+//!   contributes), pins the compatible API and runtime ranges so a range conflict
+//!   is visible before install / upgrade / mirror promotion, and resolves the
+//!   **effective** permission set after dependency resolution so authority is
+//!   never widened implicitly. It derives the stability qualification with
+//!   automatic narrowing below Stable and projects a
+//!   [`harden_extension_manifest_permission_display_lifecycle_labels_and::StableManifestHardeningSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -152,6 +163,7 @@ pub mod compatibility_matrix;
 pub mod conformance_reports;
 pub mod fact_grid;
 pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
+pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
 pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod locale_support;
@@ -522,4 +534,39 @@ pub use stabilize_extension_runtime_v1_abi_capability_envelopes_and::{
     STABLE_TIERS as STABLE_RUNTIME_ABI_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as STABLE_RUNTIME_ABI_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as STABLE_RUNTIME_ABI_TRUST_TIER_CLASSES,
+};
+pub use harden_extension_manifest_permission_display_lifecycle_labels_and::{
+    project_stable_manifest_hardening, project_stable_manifest_hardening_support_export,
+    DowngradedManifestBanner, EffectivePermissionDiffEntry, EffectivePermissionResolution,
+    ManifestCompatibilityRange, ManifestCompatibilityRangeInput, ManifestDependencyEdge,
+    ManifestDependencyEdgeInput, ManifestHardeningIdentity, ManifestHardeningIdentityInput,
+    ManifestHardeningQualificationClaim, ManifestHardeningQualificationClaimInput,
+    ManifestLifecycleLabel, ManifestLifecycleLabelInput, ManifestPermissionEntry,
+    ManifestPermissionEntryInput, StableManifestHardeningError, StableManifestHardeningInput,
+    StableManifestHardeningInspection, StableManifestHardeningPacket,
+    StableManifestHardeningProjection, StableManifestHardeningSupportExport,
+    StableManifestHardeningValidationError,
+    CLAIM_BASIS_CLASSES as MANIFEST_HARDENING_CLAIM_BASIS_CLASSES,
+    DEPENDENCY_CLASSES as MANIFEST_HARDENING_DEPENDENCY_CLASSES,
+    DEPENDENCY_RESOLUTION_STATE_CLASSES as MANIFEST_HARDENING_DEPENDENCY_RESOLUTION_STATE_CLASSES,
+    DEPRECATION_CLASSES as MANIFEST_HARDENING_DEPRECATION_CLASSES,
+    DOWNGRADED_MANIFEST_BANNER_RECORD_KIND, EFFECTIVE_PERMISSION_RESOLUTION_RECORD_KIND,
+    INSTALLABLE_LIFECYCLE_STATES as MANIFEST_HARDENING_INSTALLABLE_LIFECYCLE_STATES,
+    LIFECYCLE_STATE_CLASSES as MANIFEST_HARDENING_LIFECYCLE_STATE_CLASSES,
+    MANIFEST_COMPATIBILITY_RANGE_RECORD_KIND, MANIFEST_DEPENDENCY_EDGE_RECORD_KIND,
+    MANIFEST_HARDENING_DOWNGRADE_REASONS, MANIFEST_HARDENING_IDENTITY_RECORD_KIND,
+    MANIFEST_HARDENING_QUALIFICATION_CLAIM_RECORD_KIND, MANIFEST_LIFECYCLE_LABEL_RECORD_KIND,
+    PERMISSION_CAPABILITY_CLASSES as MANIFEST_HARDENING_PERMISSION_CAPABILITY_CLASSES,
+    PERMISSION_SOURCE_CLASSES as MANIFEST_HARDENING_PERMISSION_SOURCE_CLASSES,
+    RANGE_RESOLUTION_CLASSES as MANIFEST_HARDENING_RANGE_RESOLUTION_CLASSES,
+    STABILITY_TIERS as MANIFEST_HARDENING_STABILITY_TIERS,
+    STABLE_MANIFEST_HARDENING_CONSUMER_SURFACES,
+    STABLE_MANIFEST_HARDENING_INSPECTION_RECORD_KIND,
+    STABLE_MANIFEST_HARDENING_PACKET_RECORD_KIND,
+    STABLE_MANIFEST_HARDENING_PUBLISHED_MANIFEST_VERSION, STABLE_MANIFEST_HARDENING_SCHEMA_REF,
+    STABLE_MANIFEST_HARDENING_SCHEMA_VERSION,
+    STABLE_MANIFEST_HARDENING_SUPPORT_EXPORT_RECORD_KIND,
+    STABLE_TIERS as MANIFEST_HARDENING_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as MANIFEST_HARDENING_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as MANIFEST_HARDENING_TRUST_TIER_CLASSES,
 };
