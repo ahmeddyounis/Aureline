@@ -19,6 +19,7 @@ pub mod ownership_audit;
 pub mod profile_cards;
 pub mod repair_verify;
 pub mod rollback;
+pub mod stabilize_portable_install_side_by_side_channels_updater;
 pub mod topology;
 
 pub use ownership_audit::{
@@ -109,4 +110,20 @@ pub use harden_installation_topology_state_root_audits_silent_deployment::{
     HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION, HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF,
     HARDEN_INSTALL_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND, audit_harden_install_topology_page,
     seeded_harden_install_topology_page, validate_harden_install_topology_page,
+};
+
+pub use stabilize_portable_install_side_by_side_channels_updater::{
+    ArtifactGraphRollbackScope, FleetRolloutInstallDiagnosticsRow, HandlerOwnershipSummary,
+    HandlerRegistrationClass, ImportReviewClass, InstallProfileStableRow,
+    PortableShellIntegrationOwnership, PortableWriteGuardClass,
+    SideBySideImportReviewRow, SideBySideIsolationVerdict, StabilizeNarrowReasonToken,
+    StabilizePortableInstallCoverage, StabilizePortableInstallDefect,
+    StabilizePortableInstallPage, StabilizePortableInstallSummary,
+    StabilizePortableInstallSupportExport, StabilizePortableInstallValidationFinding,
+    StabilizePortableInstallValidationReport, StabilizeQualificationToken,
+    STABILIZE_PORTABLE_INSTALL_PAGE_RECORD_KIND, STABILIZE_PORTABLE_INSTALL_SCHEMA_VERSION,
+    STABILIZE_PORTABLE_INSTALL_SHARED_CONTRACT_REF,
+    STABILIZE_PORTABLE_INSTALL_SUPPORT_EXPORT_RECORD_KIND,
+    audit_stabilize_portable_install_page, seeded_stabilize_portable_install_page,
+    validate_stabilize_portable_install_page,
 };
