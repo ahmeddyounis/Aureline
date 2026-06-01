@@ -1,5 +1,6 @@
 use aureline_commands::alpha::alpha_command_registry;
 use aureline_commands::finalize_command_parity::current_finalize_command_parity_export;
+use aureline_commands::harden_high_risk_command::current_high_risk_command_hardening_export;
 use aureline_commands::registry::seeded_registry;
 
 fn main() {
@@ -124,6 +125,70 @@ fn main() {
     });
     out.push_str(",\n    \"evidence_id\": ");
     push_json_string(&mut out, &parity.evidence_export.evidence_id);
+    out.push_str("\n  },\n");
+
+    // Project the hardened high-risk command lane so the headless surface — itself
+    // one of the parity surfaces — can read the same write-capable safety truth
+    // (required preview, attributable approval lineage, and issued rollback handle)
+    // that the menu, palette, keybindings, AI tool, and deep links enforce.
+    let hardening = current_high_risk_command_hardening_export()
+        .expect("checked hardened high-risk command export validates");
+    out.push_str("  \"high_risk_command_hardening\": {\n");
+    out.push_str("    \"packet_id\": ");
+    push_json_string(&mut out, &hardening.packet_id);
+    out.push_str(",\n    \"command_family_id\": ");
+    push_json_string(&mut out, &hardening.command_family_id);
+    out.push_str(",\n    \"claimed_stable\": ");
+    out.push_str(if hardening.claimed_stable {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"risk_classes\": ");
+    let risk_classes = hardening
+        .risk_classes
+        .iter()
+        .map(|class| class.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &risk_classes);
+    out.push_str(",\n    \"preview_required\": ");
+    out.push_str(if hardening.preview_contract.required {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"preview_requirements\": ");
+    let preview_requirements = hardening
+        .preview_contract
+        .requirements
+        .iter()
+        .map(|item| item.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &preview_requirements);
+    out.push_str(",\n    \"approval_required\": ");
+    out.push_str(if hardening.approval_lineage.required {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"approval_steps\": ");
+    let approval_steps = hardening
+        .approval_lineage
+        .records
+        .iter()
+        .map(|record| record.step_class.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &approval_steps);
+    out.push_str(",\n    \"rollback_posture\": ");
+    push_json_string(&mut out, hardening.rollback_handle.posture.as_str());
+    out.push_str(",\n    \"rollback_handle_issued\": ");
+    out.push_str(if hardening.rollback_handle.issued {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"evidence_id\": ");
+    push_json_string(&mut out, &hardening.evidence_export.evidence_id);
     out.push_str("\n  }\n}\n");
     print!("{out}");
 }

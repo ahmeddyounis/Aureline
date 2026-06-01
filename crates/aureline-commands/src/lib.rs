@@ -18,6 +18,7 @@ pub mod authority;
 pub mod descriptor;
 pub mod enablement;
 pub mod finalize_command_parity;
+pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod registry;
 pub mod stabilize_command_contract;
@@ -51,6 +52,18 @@ pub use finalize_command_parity::{
     FINALIZE_COMMAND_PARITY_QUERY_SESSION_CONTRACT_REF, FINALIZE_COMMAND_PARITY_RECORD_KIND,
     FINALIZE_COMMAND_PARITY_SCHEMA_REF, FINALIZE_COMMAND_PARITY_SCHEMA_VERSION,
     FINALIZE_COMMAND_PARITY_SUMMARY_REF,
+};
+pub use harden_high_risk_command::{
+    current_high_risk_command_hardening_export, ApprovalAuthorityClass, ApprovalLineageContract,
+    ApprovalLineageRecord, ApprovalStepClass, HighRiskClass, HighRiskCommandHardeningArtifactError,
+    HighRiskCommandHardeningPacket, HighRiskCommandHardeningPacketInput,
+    HighRiskCommandHardeningViolation, HighRiskPreviewContract, HighRiskSurfaceParityRow,
+    PreviewRequirementClass, RollbackHandleContract, RollbackPostureClass,
+    HARDEN_HIGH_RISK_COMMAND_ARTIFACT_REF, HARDEN_HIGH_RISK_COMMAND_DESCRIPTOR_CONTRACT_REF,
+    HARDEN_HIGH_RISK_COMMAND_DOC_REF, HARDEN_HIGH_RISK_COMMAND_FIXTURE_DIR,
+    HARDEN_HIGH_RISK_COMMAND_PARITY_CONTRACT_REF, HARDEN_HIGH_RISK_COMMAND_RECORD_KIND,
+    HARDEN_HIGH_RISK_COMMAND_SCHEMA_REF, HARDEN_HIGH_RISK_COMMAND_SCHEMA_VERSION,
+    HARDEN_HIGH_RISK_COMMAND_SUMMARY_REF,
 };
 pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
