@@ -39,6 +39,7 @@
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
+pub mod finalize_ai_evidence_packets;
 pub mod graduation;
 pub mod prompt_composer;
 pub mod registry;
@@ -94,6 +95,21 @@ pub use evidence::{
     TaintUsageConstraint, TaintedContextFence, TaintedEvidenceSourceClass, ValidationOutcomeClass,
     AI_MUTATION_EVIDENCE_PACKET_RECORD_KIND, AI_MUTATION_EVIDENCE_REVIEW_ROW_RECORD_KIND,
     AI_MUTATION_EVIDENCE_SCHEMA_VERSION, AI_MUTATION_EVIDENCE_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use finalize_ai_evidence_packets::{
+    current_stable_ai_evidence_packet_finalization_export, AbsenceRow, AbsenceStateClass,
+    AiEvidenceBranchClass, AiEvidencePacketFinalization, AiEvidencePacketFinalizationArtifactError,
+    AiEvidencePacketFinalizationInput, AiEvidencePacketFinalizationViolation, ContextInputsBlock,
+    DiffWriteScopeBlock, EvidenceBranchRow, EvidenceOriginClass, EvidencePacketClass,
+    FinalizedValidationOutcomeClass, IntentScopeBlock, OutboundRedactionPostureClass,
+    OutboundTargetClass, PacketClassRow, RecallLocalityClass, RedactionManifestRow,
+    RedactionReasonClass, ReplayLineage, ReplayPostureClass, ReproducibilityImpactClass,
+    RetainedArtifactClass, RetainedArtifactRow, RetrievalLaneClass, RetrievalProvenance,
+    RollbackExportBlock, ToolPolicyBlock, ToolPolicyDecisionRow, ValidationBlock,
+    AI_EVIDENCE_PACKET_FINALIZATION_AI_DOC_REF, AI_EVIDENCE_PACKET_FINALIZATION_ARTIFACT_REF,
+    AI_EVIDENCE_PACKET_FINALIZATION_BASE_CONTRACT_REF, AI_EVIDENCE_PACKET_FINALIZATION_FIXTURE_DIR,
+    AI_EVIDENCE_PACKET_FINALIZATION_RECORD_KIND, AI_EVIDENCE_PACKET_FINALIZATION_SCHEMA_REF,
+    AI_EVIDENCE_PACKET_FINALIZATION_SCHEMA_VERSION, AI_EVIDENCE_PACKET_FINALIZATION_SUMMARY_REF,
 };
 pub use graduation::{
     current_beta_graduation_packet_artifacts, current_beta_graduation_state,
