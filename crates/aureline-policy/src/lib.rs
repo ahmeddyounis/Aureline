@@ -1,10 +1,12 @@
-//! Policy simulation, authority-ticket, and remembered-decision contracts.
+//! Policy simulation, authority-ticket, remembered-decision, and deployment
+//! residency contracts.
 //!
 //! This crate owns the beta policy-governance object model consumed by shell,
 //! support, admin, and offline-file control paths. It does not evaluate a full
 //! policy language; it provides typed preview records, bounded exception and
 //! waiver rows, authority-ticket lineage for privileged actions,
-//! remembered-decision drift checks, and metadata-safe support exports.
+//! remembered-decision drift checks, metadata-safe support exports, and stable
+//! deployment-residency proof packets.
 
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
@@ -15,6 +17,7 @@ pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod runtime_authority_issuers;
 pub mod simulation;
+pub mod stabilize_deployment_and_residency_truth;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
 
 pub use authority::{
@@ -148,4 +151,21 @@ pub use harden_os_keychain_and_trust_store_integration_trust::{
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SCHEMA_VERSION, HARDEN_OS_KEYCHAIN_TRUST_STORE_SHARED_CONTRACT_REF,
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SUMMARY_RECORD_KIND,
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_deployment_and_residency_truth::{
+    audit_deployment_residency_stabilize_page, seeded_deployment_residency_input,
+    seeded_deployment_residency_stabilize_page, validate_deployment_residency_stabilize_page,
+    DeploymentProfileClass, DeploymentResidencyInput, DeploymentResidencyPlaneStrip,
+    DeploymentResidencyProfileRow, DeploymentResidencyStabilizeDefect,
+    DeploymentResidencyStabilizeNarrowReasonClass, DeploymentResidencyStabilizePage,
+    DeploymentResidencyStabilizeQualificationClass, DeploymentResidencyStabilizeRow,
+    DeploymentResidencyStabilizeSummary, DeploymentResidencyStabilizeSupportExport,
+    MirrorOfflineStateClass, TenantOrgScopeClass, DEPLOYMENT_RESIDENCY_STABILIZE_ARTIFACT_REF,
+    DEPLOYMENT_RESIDENCY_STABILIZE_DEFECT_RECORD_KIND, DEPLOYMENT_RESIDENCY_STABILIZE_DOC_REF,
+    DEPLOYMENT_RESIDENCY_STABILIZE_PAGE_RECORD_KIND,
+    DEPLOYMENT_RESIDENCY_STABILIZE_ROW_RECORD_KIND,
+    DEPLOYMENT_RESIDENCY_STABILIZE_SCHEMA_VERSION,
+    DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF,
+    DEPLOYMENT_RESIDENCY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
 };

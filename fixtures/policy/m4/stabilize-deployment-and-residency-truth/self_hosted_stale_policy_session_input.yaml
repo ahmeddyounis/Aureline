@@ -1,0 +1,87 @@
+__fixture__:
+  name: self_hosted_stale_policy_session_input
+  scenario: >
+    Simulates a self_hosted profile where the residual-dependency ledger is
+    incomplete: the row claims residual_deps_cover_vendor_services is false,
+    meaning the vendor-bound services (e.g. the customer IdP, optional AI
+    provider) are not surfaced in the ledger. This violates the
+    ResidualDependencyLedgerIncomplete condition. Sovereignty is still
+    evidenced so the packet is not withdrawn. Expected qualification: beta.
+    This scenario reflects a stale policy session that has not yet re-validated
+    its vendor-dependency declarations.
+
+input:
+  vocabulary_consistent_across_surfaces: true
+  profile_rows:
+    - profile_class: individual_local
+      tenant_org_scope_class: single_user_local
+      mirror_offline_state_class: not_applicable
+      residual_deps_cover_vendor_services: false
+      residual_dependency_row_count: 0
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: false
+      sovereignty_claim_evidenced: false
+
+    - profile_class: managed_cloud
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 3
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: false
+
+    - profile_class: enterprise_online
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: false
+
+    - profile_class: self_hosted
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      # Stale policy session has not re-validated vendor dependency declarations.
+      residual_deps_cover_vendor_services: false
+      residual_dependency_row_count: 0
+      mirror_artifact_row_count: 1
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: true
+
+    - profile_class: air_gapped
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: offline_air_gapped
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 2
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: true
+
+  plane_status_strips:
+    - strip_id: strip.plane.managed_cloud.baseline
+      profile_class: managed_cloud
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.enterprise_online.baseline
+      profile_class: enterprise_online
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.self_hosted.baseline
+      profile_class: self_hosted
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.air_gapped.baseline
+      profile_class: air_gapped
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+expected:
+  overall_qualification_token: beta
+  defect_count: 1
+  defect_narrow_reason_tokens:
+    - residual_dependency_ledger_incomplete

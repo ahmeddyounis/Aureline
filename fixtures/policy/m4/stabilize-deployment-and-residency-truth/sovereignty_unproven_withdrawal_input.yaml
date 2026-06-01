@@ -1,0 +1,59 @@
+__fixture__:
+  name: sovereignty_unproven_withdrawal_input
+  scenario: >
+    Hard-guardrail withdrawal case. The self_hosted profile asserts a
+    sovereignty claim (claims_sovereignty: true by profile class) but
+    sovereignty_claim_evidenced is set to false. This triggers the
+    ImpliedSovereigntyUnproven hard guardrail, which withdraws the packet
+    immediately and skips all other checks. The audit function returns a
+    single defect with narrow_reason_token "implied_sovereignty_unproven" and
+    overall qualification "withdrawn". No other conditions are evaluated for
+    the offending profile.
+
+input:
+  vocabulary_consistent_across_surfaces: true
+  profile_rows:
+    - profile_class: individual_local
+      tenant_org_scope_class: single_user_local
+      mirror_offline_state_class: not_applicable
+      residual_deps_cover_vendor_services: false
+      residual_dependency_row_count: 0
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: false
+      sovereignty_claim_evidenced: false
+
+    - profile_class: managed_cloud
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 3
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: false
+
+    - profile_class: self_hosted
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 1
+      sign_out_scope_declared: true
+      # Sovereignty is NOT evidenced — triggers ImpliedSovereigntyUnproven.
+      sovereignty_claim_evidenced: false
+
+  plane_status_strips:
+    - strip_id: strip.plane.managed_cloud.baseline
+      profile_class: managed_cloud
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.self_hosted.baseline
+      profile_class: self_hosted
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+expected:
+  overall_qualification_token: withdrawn
+  defect_count: 1
+  defect_narrow_reason_tokens:
+    - implied_sovereignty_unproven

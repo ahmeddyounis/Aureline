@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/policy/deployment-profile.schema.json",
+  "title": "Aureline deployment residency stabilize proof packet",
+  "description": "Beta-exit named contract for the deployment_residency_stabilize_page_record, the single record that About, Help, diagnostics, service-health, and support-export surfaces resolve when proving that deployment mode, residency, region, key ownership, residual vendor dependency, and local-core continuity are explicit enough that no managed or sovereign claim survives on implication alone. The record carries a page_id, page_label, generated_at, an aggregate summary, per-profile stability rows (one per claimed deployment profile), typed defects, and the embedded deployment residency input. The schema mints no new deployment_profile_class, tenant_org_scope_class, mirror_offline_state_class, qualification_class, or narrow_reason_class value; those re-export verbatim from /schemas/deployment/deployment_summary_card.schema.json and /schemas/deployment/profile_summary.schema.json. Adding a new class value is additive-minor and bumps schema_version; weakening any stability condition invariant, relaxing the plane-separation guardrail, or removing the sovereignty-evidence requirement is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "page_id",
+    "page_label",
+    "generated_at",
+    "summary",
+    "rows",
+    "defects",
+    "input"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": {
+      "type": "string",
+      "const": "policy_deployment_residency_stabilize_page_record"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "policy:deployment_residency_stabilize:v1"
+    },
+    "page_id": { "$ref": "#/$defs/opaque_id" },
+    "page_label": { "$ref": "#/$defs/reviewable_label" },
+    "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "summary": { "$ref": "#/$defs/stabilize_summary" },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stabilize_row" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stabilize_defect" }
+    },
+    "input": { "$ref": "#/$defs/deployment_residency_input" }
+  },
+  "allOf": [
+    {
+      "description": "When the summary carries zero defects, overall_qualification_token MUST be stable.",
+      "if": {
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": { "defect_count": { "const": 0 } },
+            "required": ["defect_count"]
+          }
+        },
+        "required": ["summary"]
+      },
+      "then": {
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "overall_qualification_token": { "const": "stable" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "When any row carries a withdrawn qualification_token, the overall_qualification_token MUST also be withdrawn.",
+      "if": {
+        "properties": {
+          "rows": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "qualification_token": { "const": "withdrawn" } },
+              "required": ["qualification_token"]
+            }
+          }
+        },
+        "required": ["rows"]
+      },
+      "then": {
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "overall_qualification_token": { "const": "withdrawn" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, export, and embed in support packets. Raw URLs, raw hostnames, raw tenant IDs, raw key bytes, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Closed deployment-profile vocabulary. Re-exports the same token set as deployment_profile in /schemas/deployment/deployment_summary_card.schema.json."
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"],
+      "description": "Closed qualification vocabulary. Stable means all five conditions hold. Beta means one or more non-critical conditions prevent the stable claim. Preview means a required profile row is absent. Withdrawn means an unevidenced sovereignty claim was found."
+    },
+    "narrow_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "vocabulary_inconsistent_across_surfaces",
+        "residual_dependency_ledger_incomplete",
+        "plane_separation_missing",
+        "mirror_artifact_rows_absent",
+        "sign_out_scope_undeclared",
+        "implied_sovereignty_unproven"
+      ],
+      "description": "Closed narrow-reason vocabulary. implied_sovereignty_unproven is the only hard-guardrail reason that causes withdrawal."
+    },
+    "profile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_class",
+        "tenant_org_scope_class",
+        "mirror_offline_state_class",
+        "residual_deps_cover_vendor_services",
+        "residual_dependency_row_count",
+        "mirror_artifact_row_count",
+        "sign_out_scope_declared",
+        "sovereignty_claim_evidenced"
+      ],
+      "properties": {
+        "profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "residual_deps_cover_vendor_services": { "type": "boolean" },
+        "residual_dependency_row_count": { "type": "integer", "minimum": 0 },
+        "mirror_artifact_row_count": { "type": "integer", "minimum": 0 },
+        "sign_out_scope_declared": { "type": "boolean" },
+        "sovereignty_claim_evidenced": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "individual_local profile MUST carry zero residual dependency rows.",
+          "if": {
+            "properties": { "profile_class": { "const": "individual_local" } },
+            "required": ["profile_class"]
+          },
+          "then": {
+            "properties": {
+              "residual_dependency_row_count": { "const": 0 },
+              "residual_deps_cover_vendor_services": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "Profiles claiming online_mirror_only or offline_air_gapped state MUST carry at least one mirror/offline artifact row.",
+          "if": {
+            "properties": {
+              "mirror_offline_state_class": {
+                "enum": ["online_mirror_only", "offline_air_gapped"]
+              }
+            },
+            "required": ["mirror_offline_state_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_artifact_row_count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        {
+          "description": "Profiles with customer_tenant or shared_multi_tenant scope MUST declare sign-out/deprovision scope.",
+          "if": {
+            "properties": {
+              "tenant_org_scope_class": {
+                "enum": ["customer_tenant", "shared_multi_tenant"]
+              }
+            },
+            "required": ["tenant_org_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "sign_out_scope_declared": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Profiles claiming sovereignty (self_hosted, air_gapped) MUST carry sovereignty evidence.",
+          "if": {
+            "properties": {
+              "profile_class": { "enum": ["self_hosted", "air_gapped"] }
+            },
+            "required": ["profile_class"]
+          },
+          "then": {
+            "properties": {
+              "sovereignty_claim_evidenced": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "plane_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strip_id",
+        "profile_class",
+        "control_data_plane_separated",
+        "continue_local_path_preserved"
+      ],
+      "properties": {
+        "strip_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "control_data_plane_separated": { "type": "boolean" },
+        "continue_local_path_preserved": { "type": "boolean" }
+      }
+    },
+    "deployment_residency_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vocabulary_consistent_across_surfaces",
+        "profile_rows",
+        "plane_status_strips"
+      ],
+      "properties": {
+        "vocabulary_consistent_across_surfaces": { "type": "boolean" },
+        "profile_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profile_row" }
+        },
+        "plane_status_strips": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/plane_strip" }
+        }
+      }
+    },
+    "stabilize_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "profile_token",
+        "tenant_org_scope_token",
+        "mirror_offline_state_token",
+        "residual_dependency_row_count",
+        "residual_deps_cover_vendor_services",
+        "mirror_artifact_row_count",
+        "sign_out_scope_declared",
+        "sovereignty_claim_evidenced",
+        "qualification_token",
+        "narrow_reason_token",
+        "plain_language_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "policy_deployment_residency_stabilize_row_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "policy:deployment_residency_stabilize:v1"
+        },
+        "profile_token": { "$ref": "#/$defs/deployment_profile_class" },
+        "tenant_org_scope_token": { "$ref": "#/$defs/tenant_org_scope_class" },
+        "mirror_offline_state_token": { "$ref": "#/$defs/mirror_offline_state_class" },
+        "residual_dependency_row_count": { "type": "integer", "minimum": 0 },
+        "residual_deps_cover_vendor_services": { "type": "boolean" },
+        "mirror_artifact_row_count": { "type": "integer", "minimum": 0 },
+        "sign_out_scope_declared": { "type": "boolean" },
+        "sovereignty_claim_evidenced": { "type": "boolean" },
+        "qualification_token": { "$ref": "#/$defs/qualification_class" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_class" },
+        "plain_language_summary": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stabilize_defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "policy_deployment_residency_stabilize_defect_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "policy:deployment_residency_stabilize:v1"
+        },
+        "defect_id": { "$ref": "#/$defs/opaque_id" },
+        "narrow_reason": { "$ref": "#/$defs/narrow_reason_class" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_class" },
+        "source": { "type": "string", "minLength": 1 },
+        "note": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stabilize_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "stable_row_count",
+        "beta_row_count",
+        "preview_row_count",
+        "withdrawn_row_count",
+        "defect_count",
+        "profiles_covered",
+        "plane_strip_count",
+        "plane_strips_separated_count",
+        "overall_qualification_token"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "stable_row_count": { "type": "integer", "minimum": 0 },
+        "beta_row_count": { "type": "integer", "minimum": 0 },
+        "preview_row_count": { "type": "integer", "minimum": 0 },
+        "withdrawn_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "profiles_covered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "uniqueItems": true
+        },
+        "plane_strip_count": { "type": "integer", "minimum": 0 },
+        "plane_strips_separated_count": { "type": "integer", "minimum": 0 },
+        "overall_qualification_token": { "$ref": "#/$defs/qualification_class" }
+      }
+    }
+  }
+}

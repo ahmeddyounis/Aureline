@@ -1,0 +1,86 @@
+__fixture__:
+  name: managed_cloud_relay_disconnect_input
+  scenario: >
+    Simulates a managed-cloud relay disconnect scenario. The managed_cloud
+    plane-status strip sets continue_local_path_preserved to false, as if the
+    surface is blocking local work while waiting on a relay recovery. This
+    violates the plane-separation condition: data-plane capabilities are still
+    available_local_safe but the strip omits the continue-local path. The
+    defect is PlaneSeparationMissing (beta, not withdrawn). All other
+    conditions remain clean. Expected qualification: beta.
+
+input:
+  vocabulary_consistent_across_surfaces: true
+  profile_rows:
+    - profile_class: individual_local
+      tenant_org_scope_class: single_user_local
+      mirror_offline_state_class: not_applicable
+      residual_deps_cover_vendor_services: false
+      residual_dependency_row_count: 0
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: false
+      sovereignty_claim_evidenced: false
+
+    - profile_class: managed_cloud
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 3
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: false
+
+    - profile_class: enterprise_online
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 0
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: false
+
+    - profile_class: self_hosted
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: online_live_allowed
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 1
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: true
+
+    - profile_class: air_gapped
+      tenant_org_scope_class: customer_tenant
+      mirror_offline_state_class: offline_air_gapped
+      residual_deps_cover_vendor_services: true
+      residual_dependency_row_count: 2
+      mirror_artifact_row_count: 2
+      sign_out_scope_declared: true
+      sovereignty_claim_evidenced: true
+
+  plane_status_strips:
+    - strip_id: strip.plane.managed_cloud.relay_disconnect
+      profile_class: managed_cloud
+      control_data_plane_separated: true
+      # Surface is blocking local work even though data plane is available_local_safe.
+      continue_local_path_preserved: false
+
+    - strip_id: strip.plane.enterprise_online.baseline
+      profile_class: enterprise_online
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.self_hosted.baseline
+      profile_class: self_hosted
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+    - strip_id: strip.plane.air_gapped.baseline
+      profile_class: air_gapped
+      control_data_plane_separated: true
+      continue_local_path_preserved: true
+
+expected:
+  overall_qualification_token: beta
+  defect_count: 1
+  defect_narrow_reason_tokens:
+    - plane_separation_missing
