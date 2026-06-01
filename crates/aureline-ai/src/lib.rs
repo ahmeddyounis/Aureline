@@ -45,6 +45,7 @@ pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
 pub mod finalize_ai_evidence_packets;
+pub mod finalize_tainted_context_fences;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod prompt_composer;
@@ -117,6 +118,18 @@ pub use finalize_ai_evidence_packets::{
     AI_EVIDENCE_PACKET_FINALIZATION_BASE_CONTRACT_REF, AI_EVIDENCE_PACKET_FINALIZATION_FIXTURE_DIR,
     AI_EVIDENCE_PACKET_FINALIZATION_RECORD_KIND, AI_EVIDENCE_PACKET_FINALIZATION_SCHEMA_REF,
     AI_EVIDENCE_PACKET_FINALIZATION_SCHEMA_VERSION, AI_EVIDENCE_PACKET_FINALIZATION_SUMMARY_REF,
+};
+pub use finalize_tainted_context_fences::{
+    current_stable_finalize_tainted_context_export, BoundaryEnforcementClass,
+    CommandSurfaceParityRow, ContentBoundaryClass, ContentBoundaryRow,
+    FinalizedTaintedContextArtifactError, FinalizedTaintedContextPacket,
+    FinalizedTaintedContextPacketInput, FinalizedTaintedContextViolation,
+    ImportAuthorityDowngradeClass, ImportMappingOutcomeClass, ImportedDataDowngradeRow,
+    TaintedContextEvidenceExport, TaintedFenceRow, FINALIZE_TAINTED_CONTEXT_AI_DOC_REF,
+    FINALIZE_TAINTED_CONTEXT_ARTIFACT_REF, FINALIZE_TAINTED_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    FINALIZE_TAINTED_CONTEXT_FIXTURE_DIR, FINALIZE_TAINTED_CONTEXT_RECORD_KIND,
+    FINALIZE_TAINTED_CONTEXT_SCHEMA_REF, FINALIZE_TAINTED_CONTEXT_SCHEMA_VERSION,
+    FINALIZE_TAINTED_CONTEXT_SUMMARY_REF, FINALIZE_TAINTED_CONTEXT_TAINT_CONTRACT_REF,
 };
 pub use graduation::{
     current_beta_graduation_packet_artifacts, current_beta_graduation_state,

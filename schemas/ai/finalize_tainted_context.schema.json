@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/finalize_tainted_context.schema.json",
+  "title": "Aureline finalized tainted-context record",
+  "$comment": "Rust owner: aureline_ai::finalize_tainted_context_fences::FinalizedTaintedContextPacket.",
+  "description": "Boundary schema for the metadata-only finalized tainted-context record. The packet binds the finalized tainted fences (which strip instruction and write authority from suspicious or external context), the content-boundary handling that keeps untrusted data content in a data-only lane, the imported-data downgrade rules that map a real imported artifact to one of the exact/translated/partial/shimmed/unsupported outcome labels and narrow authority when a mapping is lossy while preserving a rollback checkpoint and diagnostics, the cross-wedge command parity (palette, menu, keybinding, CLI/headless, deep link, automation recipe, AI assistant) over one shared command/preview/approval/result/rollback model, and exportable evidence/rollback lineage into one attributable artifact. It does not re-derive context-assembly, evidence, run-history, or scoped-apply truth; it references those lineages by id. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw imported bodies, raw prompt bodies, source file bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "display_label",
+    "context_snapshot_ref",
+    "evidence_packet_ref",
+    "claimed_stable",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "fence_rows",
+    "content_boundary_rows",
+    "import_downgrade_rows",
+    "surface_parity_rows",
+    "evidence_export",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "finalize_tainted_context" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "workflow_or_surface_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "context_snapshot_ref": { "type": "string", "minLength": 1 },
+    "evidence_packet_ref": { "type": "string", "minLength": 1 },
+    "claimed_stable": { "type": "boolean" },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "fence_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tainted_fence_row" }
+    },
+    "content_boundary_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/content_boundary_row" }
+    },
+    "import_downgrade_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/imported_data_downgrade_row" }
+    },
+    "surface_parity_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command_surface_parity_row" }
+    },
+    "evidence_export": { "$ref": "#/$defs/evidence_export_block" },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "input_source_class": {
+      "type": "string",
+      "enum": [
+        "repository_workspace_content",
+        "workspace_search_result",
+        "terminal_command_output",
+        "log_capture",
+        "tool_call_external_response",
+        "mcp_server_response",
+        "web_search_result",
+        "external_docs_excerpt",
+        "connected_provider_payload",
+        "extension_proposed_input",
+        "user_supplied_paste",
+        "ai_prior_turn_response",
+        "policy_quarantined_source",
+        "unknown_unclassified_source"
+      ]
+    },
+    "taint_class": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party_data",
+        "tainted_evidence",
+        "policy_quarantined",
+        "unknown_must_treat_as_tainted"
+      ]
+    },
+    "origin_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_subprocess_same_device",
+        "local_sandboxed_container_same_device",
+        "remote_vendor_managed_service",
+        "remote_self_hosted_service",
+        "enterprise_gateway_brokered_service",
+        "extension_provided_locus",
+        "unknown_locus_must_be_disclosed"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "external_source",
+        "runtime_or_tool_output",
+        "suspicious_content",
+        "imperative_text_detected",
+        "authorization_or_widening_attempt",
+        "policy_quarantined",
+        "unknown_unclassified",
+        "partial_or_stale_retrieval"
+      ]
+    },
+    "run_mode_class": {
+      "type": "string",
+      "enum": ["full_run", "explain_only", "local_only", "preview_only", "blocked"]
+    },
+    "content_boundary_class": {
+      "type": "string",
+      "enum": [
+        "trusted_instruction_surface",
+        "untrusted_data_content",
+        "quarantined_data_content",
+        "unknown_boundary_fail_closed"
+      ]
+    },
+    "boundary_enforcement_class": {
+      "type": "string",
+      "enum": [
+        "delimited_data_channel",
+        "structured_data_envelope",
+        "summary_ref_only",
+        "dropped_from_context"
+      ]
+    },
+    "import_mapping_outcome_class": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "import_authority_downgrade_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade_exact_mapping",
+        "review_before_apply",
+        "narrowed_to_preview_only",
+        "narrowed_to_local_only",
+        "blocked_unsupported"
+      ]
+    },
+    "command_surface_class": {
+      "type": "string",
+      "enum": [
+        "palette_command",
+        "menu_item",
+        "keybinding",
+        "cli_headless",
+        "deep_link",
+        "automation_recipe",
+        "ai_assistant"
+      ]
+    },
+    "surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"]
+    },
+    "tainted_fence_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fence_ref",
+        "source_ref",
+        "input_source_class",
+        "taint_class",
+        "origin_locus_class",
+        "reason_classes",
+        "fence_strategy_token",
+        "usage_constraint_tokens",
+        "strips_instruction_authority",
+        "blocks_hidden_provider_write",
+        "auditable",
+        "raw_body_forbidden",
+        "user_visible_label"
+      ],
+      "properties": {
+        "fence_ref": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "input_source_class": { "$ref": "#/$defs/input_source_class" },
+        "taint_class": { "$ref": "#/$defs/taint_class" },
+        "origin_locus_class": { "$ref": "#/$defs/origin_locus_class" },
+        "reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reason_class" }
+        },
+        "fence_strategy_token": { "type": "string" },
+        "usage_constraint_tokens": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "strips_instruction_authority": { "type": "boolean" },
+        "blocks_hidden_provider_write": { "type": "boolean" },
+        "auditable": { "type": "boolean" },
+        "raw_body_forbidden": { "type": "boolean", "const": true },
+        "user_visible_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "content_boundary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_ref",
+        "source_ref",
+        "boundary_class",
+        "enforcement_class",
+        "carries_instruction_authority",
+        "executable_authority_stripped",
+        "raw_body_forbidden",
+        "user_visible_label"
+      ],
+      "properties": {
+        "boundary_ref": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "boundary_class": { "$ref": "#/$defs/content_boundary_class" },
+        "enforcement_class": { "$ref": "#/$defs/boundary_enforcement_class" },
+        "carries_instruction_authority": { "type": "boolean" },
+        "executable_authority_stripped": { "type": "boolean" },
+        "raw_body_forbidden": { "type": "boolean", "const": true },
+        "user_visible_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "imported_data_downgrade_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_ref",
+        "artifact_kind_label",
+        "source_origin_class",
+        "mapping_outcome_class",
+        "authority_downgrade_class",
+        "effective_mode_class",
+        "generated_from_real_artifact",
+        "rollback_checkpoint_ref",
+        "user_visible_outcome_label"
+      ],
+      "properties": {
+        "import_ref": { "type": "string", "minLength": 1 },
+        "artifact_kind_label": { "type": "string", "minLength": 1 },
+        "source_origin_class": { "$ref": "#/$defs/origin_locus_class" },
+        "mapping_outcome_class": { "$ref": "#/$defs/import_mapping_outcome_class" },
+        "authority_downgrade_class": { "$ref": "#/$defs/import_authority_downgrade_class" },
+        "effective_mode_class": { "$ref": "#/$defs/run_mode_class" },
+        "generated_from_real_artifact": { "type": "boolean", "const": true },
+        "rollback_checkpoint_ref": { "type": "string", "minLength": 1 },
+        "mapping_diagnostics_ref": { "type": "string", "minLength": 1 },
+        "approval_fence_ref": { "type": "string", "minLength": 1 },
+        "user_visible_outcome_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "command_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "descriptor_ref",
+        "shares_command_descriptor",
+        "shares_preview_model",
+        "shares_approval_model",
+        "shares_result_model",
+        "shares_rollback_model",
+        "enforces_content_boundary",
+        "honors_import_downgrade",
+        "route_disclosed",
+        "policy_checked",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/command_surface_class" },
+        "descriptor_ref": { "type": "string", "minLength": 1 },
+        "shares_command_descriptor": { "type": "boolean" },
+        "shares_preview_model": { "type": "boolean" },
+        "shares_approval_model": { "type": "boolean" },
+        "shares_result_model": { "type": "boolean" },
+        "shares_rollback_model": { "type": "boolean" },
+        "enforces_content_boundary": { "type": "boolean" },
+        "honors_import_downgrade": { "type": "boolean" },
+        "route_disclosed": { "type": "boolean" },
+        "policy_checked": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    },
+    "evidence_export_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "json_export_ref",
+        "markdown_summary_ref",
+        "admin_inspector_ref",
+        "support_export_ref",
+        "rollback_lineage_refs",
+        "export_lineage_refs"
+      ],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1 },
+        "json_export_ref": { "type": "string", "minLength": 1 },
+        "markdown_summary_ref": { "type": "string", "minLength": 1 },
+        "admin_inspector_ref": { "type": "string", "minLength": 1 },
+        "support_export_ref": { "type": "string", "minLength": 1 },
+        "rollback_lineage_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "export_lineage_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
