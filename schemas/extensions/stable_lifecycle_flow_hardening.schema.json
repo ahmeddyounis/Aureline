@@ -1,0 +1,527 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/stable_lifecycle_flow_hardening.schema.json",
+  "title": "Aureline stable extension/policy-pack lifecycle-flow hardening packet",
+  "description": "Cross-tool boundary schema for the stable lifecycle-flow hardening packet emitted by crates/aureline-extensions. One packet binds a stable_lifecycle_flow_identity (subject extension/policy_pack, flow class install_review/update_review/disable/rollback/revocation, the pinned flow-contract version, the publisher trust tier, and the lifecycle state), a stable_lifecycle_flow_deterministic_resolution (a determinism class, the install scope public_registry/approved_mirror/offline_bundle, a resolution digest, and the resolved dependency tree of root/hard_dependency/optional_integration nodes), a stable_lifecycle_flow_effective_permission_inheritance (declared union transitive effective set, the optional-integration set surfaced separately, and the expansion diff against the prior installed effective set), a stable_lifecycle_flow_reconsent_requirement (raised whenever dependency resolution expands the effective permission set, not only when the top-level package manifest changes), a stable_lifecycle_flow_lock_export_plan (lockfile and install-plan refs, with team and air-gapped rollout flags), a stable_lifecycle_flow_disable_rollback_posture, a stable_lifecycle_flow_revocation_posture (state plus whether it propagated across the primary registry, approved mirrors, and offline bundles), the stable_lifecycle_flow_qualification_claim after the flow posture is applied (with automatic narrowing below Stable), a stable_lifecycle_flow_downgraded_banner, and an inspection projection. A stable effective tier may only render when the row pins the published flow-contract version, is evidence-backed, keeps its trust tier out of quarantine, carries a deterministic resolution with every hard dependency resolved, obtains re-consent on any effective-permission expansion, exposes an exportable lock/install plan, and satisfies its flow-specific posture (installable for install/update, reversible for disable/rollback, fully propagated for revocation). The Rust types in crates/aureline-extensions/src/harden_install_review_update_review_disable_rollback_and/ are the source of truth. Raw lockfile bytes, raw resolution digests, raw consent bodies, raw paths, raw tokens, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "$ref": "#/$defs/stable_lifecycle_flow_hardening_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "subject_class": {
+      "type": "string",
+      "enum": ["extension", "policy_pack"]
+    },
+    "flow_class": {
+      "type": "string",
+      "enum": ["install_review", "update_review", "disable", "rollback", "revocation"]
+    },
+    "trust_tier_class": {
+      "type": "string",
+      "enum": ["verified_publisher", "known_publisher", "community_unverified", "quarantined"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "pending_activation",
+        "active",
+        "recovered",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "install_scope_class": {
+      "type": "string",
+      "enum": ["public_registry", "approved_mirror", "offline_bundle"]
+    },
+    "resolver_determinism_class": {
+      "type": "string",
+      "enum": ["deterministic", "nondeterministic", "not_resolved"]
+    },
+    "dependency_node_kind_class": {
+      "type": "string",
+      "enum": ["root", "hard_dependency", "optional_integration"]
+    },
+    "dependency_resolution_state_class": {
+      "type": "string",
+      "enum": ["resolved", "unresolved_missing", "version_conflict", "optional_absent"]
+    },
+    "permission_expansion_class": {
+      "type": "string",
+      "enum": ["no_change", "expanded", "reduced"]
+    },
+    "reconsent_state_class": {
+      "type": "string",
+      "enum": ["not_required", "required_obtained", "required_pending", "required_missing"]
+    },
+    "lock_export_state_class": {
+      "type": "string",
+      "enum": ["exported", "exportable", "unavailable"]
+    },
+    "rollback_state_class": {
+      "type": "string",
+      "enum": ["not_applicable", "reversible_target_pinned", "reversible_no_target", "irreversible"]
+    },
+    "revocation_state_class": {
+      "type": "string",
+      "enum": ["none", "advisory", "emergency_disabled", "quarantined", "revoked"]
+    },
+    "revocation_propagation_class": {
+      "type": "string",
+      "enum": ["not_applicable", "propagated_all_sources", "partial", "not_propagated"]
+    },
+    "stability_tier": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "claim_basis_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "catalog_asserted_only"]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "stable_lifecycle_flow_claim",
+        "beta_lifecycle_flow_partial_claim",
+        "preview_lifecycle_flow_experimental_claim",
+        "withdrawn_no_lifecycle_flow_claim"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "flow_contract_version_not_published",
+        "catalog_only_trust_not_evidence_backed",
+        "trust_tier_quarantined",
+        "lifecycle_not_installable",
+        "resolver_nondeterministic",
+        "resolver_not_resolved",
+        "unresolved_hard_dependency",
+        "version_conflict_dependency",
+        "permission_expansion_without_reconsent",
+        "reconsent_pending",
+        "lock_export_unavailable",
+        "team_rollout_unsupported",
+        "air_gapped_rollout_unsupported",
+        "rollback_irreversible",
+        "rollback_target_missing",
+        "revocation_not_propagated",
+        "revocation_state_missing",
+        "attribution_incomplete"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "install_review",
+        "update_review",
+        "disable_rollback_panel",
+        "revocation_panel",
+        "extension_inspector",
+        "diagnostics",
+        "support_export",
+        "docs_help_surface",
+        "release_packet",
+        "cli_inspector",
+        "mirror_packet"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "subject_class",
+        "flow_class",
+        "source_review_ref",
+        "subject_identity",
+        "subject_version",
+        "source_package_ref",
+        "flow_contract_version",
+        "publisher_trust_tier_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_identity" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "flow_class": { "$ref": "#/$defs/flow_class" },
+        "source_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_identity": { "$ref": "#/$defs/opaque_id" },
+        "subject_version": { "$ref": "#/$defs/opaque_id" },
+        "prior_version_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "flow_contract_version": { "type": "integer", "minimum": 0 },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" }
+      }
+    },
+    "dependency_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "node_id",
+        "node_kind_class",
+        "target_ref",
+        "version_range_ref",
+        "resolution_state_class",
+        "contributed_permission_refs",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_dependency_node" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "node_id": { "$ref": "#/$defs/opaque_id" },
+        "node_kind_class": { "$ref": "#/$defs/dependency_node_kind_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "version_range_ref": { "$ref": "#/$defs/opaque_id" },
+        "resolution_state_class": { "$ref": "#/$defs/dependency_resolution_state_class" },
+        "contributed_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "deterministic_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "determinism_class",
+        "install_scope_class",
+        "resolution_digest_ref",
+        "resolver_input_ref",
+        "nodes",
+        "node_count",
+        "hard_dependency_count",
+        "optional_integration_count",
+        "unresolved_hard_dependency_count",
+        "version_conflict_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_deterministic_resolution" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "determinism_class": { "$ref": "#/$defs/resolver_determinism_class" },
+        "install_scope_class": { "$ref": "#/$defs/install_scope_class" },
+        "resolution_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "resolver_input_ref": { "$ref": "#/$defs/opaque_id" },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/dependency_node" } },
+        "node_count": { "type": "integer", "minimum": 0 },
+        "hard_dependency_count": { "type": "integer", "minimum": 0 },
+        "optional_integration_count": { "type": "integer", "minimum": 0 },
+        "unresolved_hard_dependency_count": { "type": "integer", "minimum": 0 },
+        "version_conflict_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "effective_permission_inheritance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "declared_permission_refs",
+        "transitive_permission_refs",
+        "effective_permission_refs",
+        "optional_integration_permission_refs",
+        "prior_effective_permission_refs",
+        "expanded_permission_refs",
+        "expansion_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_effective_permission_inheritance" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "declared_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "transitive_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "effective_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "optional_integration_permission_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "prior_effective_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "expanded_permission_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "expansion_class": { "$ref": "#/$defs/permission_expansion_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "reconsent_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "reconsent_state_class",
+        "triggered_by_permission_expansion",
+        "triggered_by_manifest_change",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_reconsent_requirement" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "reconsent_state_class": { "$ref": "#/$defs/reconsent_state_class" },
+        "triggered_by_permission_expansion": { "type": "boolean" },
+        "triggered_by_manifest_change": { "type": "boolean" },
+        "consent_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "lock_export_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "lock_export_state_class",
+        "lock_plan_ref",
+        "install_plan_ref",
+        "supports_team_rollout",
+        "supports_air_gapped_rollout",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_lock_export_plan" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "lock_export_state_class": { "$ref": "#/$defs/lock_export_state_class" },
+        "lock_plan_ref": { "type": "string" },
+        "install_plan_ref": { "type": "string" },
+        "supports_team_rollout": { "type": "boolean" },
+        "supports_air_gapped_rollout": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "disable_rollback_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rollback_state_class",
+        "disable_reversible",
+        "data_retained_on_disable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_disable_rollback_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "rollback_state_class": { "$ref": "#/$defs/rollback_state_class" },
+        "rollback_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "disable_reversible": { "type": "boolean" },
+        "data_retained_on_disable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "revocation_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "revocation_state_class",
+        "propagation_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_revocation_posture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "propagation_class": { "$ref": "#/$defs/revocation_propagation_class" },
+        "revocation_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_guidance_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "qualification_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "claimed_tier",
+        "effective_tier",
+        "support_claim_class",
+        "claim_basis_class",
+        "downgraded",
+        "downgrade_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_qualification_claim" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "claimed_tier": { "$ref": "#/$defs/stability_tier" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "claim_basis_class": { "$ref": "#/$defs/claim_basis_class" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "downgraded_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "must_display", "summary_label"],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_downgraded_banner" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "must_display": { "type": "boolean" },
+        "banner_reason_class": { "$ref": "#/$defs/downgrade_reason" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id_ref",
+        "subject_class",
+        "flow_class",
+        "effective_tier",
+        "stable_claim",
+        "flow_contract_version_current",
+        "trust_tier_class",
+        "lifecycle_installable",
+        "install_scope_class",
+        "determinism_class",
+        "resolution_deterministic",
+        "all_hard_dependencies_resolved",
+        "expansion_class",
+        "reconsent_satisfied",
+        "lock_export_state_class",
+        "lock_export_available",
+        "team_and_air_gapped_rollout_supported",
+        "rollback_state_class",
+        "rollback_reversible",
+        "revocation_state_class",
+        "revocation_propagation_class",
+        "revocation_fully_propagated",
+        "downgraded",
+        "downgraded_banner_required",
+        "attribution_complete",
+        "node_count",
+        "hard_dependency_count",
+        "optional_integration_count",
+        "declared_permission_count",
+        "effective_permission_count",
+        "expanded_permission_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_inspection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "flow_class": { "$ref": "#/$defs/flow_class" },
+        "effective_tier": { "$ref": "#/$defs/stability_tier" },
+        "stable_claim": { "type": "boolean" },
+        "flow_contract_version_current": { "type": "boolean" },
+        "trust_tier_class": { "$ref": "#/$defs/trust_tier_class" },
+        "lifecycle_installable": { "type": "boolean" },
+        "install_scope_class": { "$ref": "#/$defs/install_scope_class" },
+        "determinism_class": { "$ref": "#/$defs/resolver_determinism_class" },
+        "resolution_deterministic": { "type": "boolean" },
+        "all_hard_dependencies_resolved": { "type": "boolean" },
+        "expansion_class": { "$ref": "#/$defs/permission_expansion_class" },
+        "reconsent_satisfied": { "type": "boolean" },
+        "lock_export_state_class": { "$ref": "#/$defs/lock_export_state_class" },
+        "lock_export_available": { "type": "boolean" },
+        "team_and_air_gapped_rollout_supported": { "type": "boolean" },
+        "rollback_state_class": { "$ref": "#/$defs/rollback_state_class" },
+        "rollback_reversible": { "type": "boolean" },
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "revocation_propagation_class": { "$ref": "#/$defs/revocation_propagation_class" },
+        "revocation_fully_propagated": { "type": "boolean" },
+        "downgraded": { "type": "boolean" },
+        "downgraded_banner_required": { "type": "boolean" },
+        "attribution_complete": { "type": "boolean" },
+        "node_count": { "type": "integer", "minimum": 0 },
+        "hard_dependency_count": { "type": "integer", "minimum": 0 },
+        "optional_integration_count": { "type": "integer", "minimum": 0 },
+        "declared_permission_count": { "type": "integer", "minimum": 0 },
+        "effective_permission_count": { "type": "integer", "minimum": 0 },
+        "expanded_permission_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "stable_lifecycle_flow_hardening_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "identity",
+        "resolution",
+        "permissions",
+        "reconsent",
+        "lock_export",
+        "disable_rollback",
+        "revocation",
+        "claim",
+        "downgraded_banner",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "allows_ambient_permission_expansion",
+        "allows_nondeterministic_install",
+        "allows_catalog_only_trust",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "stable_lifecycle_flow_hardening_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "resolution": { "$ref": "#/$defs/deterministic_resolution" },
+        "permissions": { "$ref": "#/$defs/effective_permission_inheritance" },
+        "reconsent": { "$ref": "#/$defs/reconsent_requirement" },
+        "lock_export": { "$ref": "#/$defs/lock_export_plan" },
+        "disable_rollback": { "$ref": "#/$defs/disable_rollback_posture" },
+        "revocation": { "$ref": "#/$defs/revocation_posture" },
+        "claim": { "$ref": "#/$defs/qualification_claim" },
+        "downgraded_banner": { "$ref": "#/$defs/downgraded_banner" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allows_ambient_permission_expansion": { "const": false },
+        "allows_nondeterministic_install": { "const": false },
+        "allows_catalog_only_trust": { "const": false },
+        "inspection": { "$ref": "#/$defs/inspection" }
+      }
+    }
+  }
+}

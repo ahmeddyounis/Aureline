@@ -192,6 +192,7 @@ pub mod fact_grid;
 pub mod finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation;
 pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
+pub mod harden_install_review_update_review_disable_rollback_and;
 pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod locale_support;
@@ -672,4 +673,36 @@ pub use stabilize_sdk_schemas_samples_templates_and_conformance_kits::{
     STABLE_TIERS as SDK_AUTHOR_LANE_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as SDK_AUTHOR_LANE_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as SDK_AUTHOR_LANE_TRUST_TIER_CLASSES,
+};
+pub use harden_install_review_update_review_disable_rollback_and::{
+    project_stable_lifecycle_flow, project_stable_lifecycle_flow_support_export,
+    DependencyNode, DependencyNodeInput, DeterministicResolution, DeterministicResolutionInput,
+    DisableRollbackPosture, DisableRollbackPostureInput, DowngradedFlowBanner,
+    EffectivePermissionInheritance, EffectivePermissionInheritanceInput, LifecycleFlowIdentity,
+    LifecycleFlowIdentityInput, LifecycleFlowInspection, LifecycleFlowQualificationClaim,
+    LifecycleFlowQualificationClaimInput, LockExportPlan, LockExportPlanInput, ReConsentRequirement,
+    ReConsentRequirementInput, RevocationPosture, RevocationPostureInput, StableLifecycleFlowError,
+    StableLifecycleFlowInput, StableLifecycleFlowPacket, StableLifecycleFlowProjection,
+    StableLifecycleFlowSupportExport, StableLifecycleFlowValidationError,
+    DEPENDENCY_NODE_KIND_CLASSES, DEPENDENCY_NODE_RECORD_KIND,
+    DEPENDENCY_RESOLUTION_STATE_CLASSES as LIFECYCLE_FLOW_DEPENDENCY_RESOLUTION_STATE_CLASSES,
+    DETERMINISTIC_RESOLUTION_RECORD_KIND, DISABLE_ROLLBACK_POSTURE_RECORD_KIND,
+    DOWNGRADED_FLOW_BANNER_RECORD_KIND, EFFECTIVE_PERMISSION_INHERITANCE_RECORD_KIND,
+    FLOW_CLASSES, INSTALL_SCOPE_CLASSES, INSTALL_SHAPED_FLOWS,
+    LIFECYCLE_FLOW_DOWNGRADE_REASONS, LIFECYCLE_FLOW_IDENTITY_RECORD_KIND,
+    LIFECYCLE_FLOW_INSPECTION_RECORD_KIND, LIFECYCLE_FLOW_QUALIFICATION_CLAIM_RECORD_KIND,
+    LOCK_EXPORT_PLAN_RECORD_KIND, LOCK_EXPORT_STATE_CLASSES, PERMISSION_EXPANSION_CLASSES,
+    RECONSENT_REQUIREMENT_RECORD_KIND, RECONSENT_STATE_CLASSES, RESOLVER_DETERMINISM_CLASSES,
+    REVOCATION_POSTURE_RECORD_KIND, REVOCATION_PROPAGATION_CLASSES, REVOCATION_STATE_CLASSES,
+    ROLLBACK_STATE_CLASSES, STABLE_LIFECYCLE_FLOW_CONSUMER_SURFACES,
+    STABLE_LIFECYCLE_FLOW_PACKET_RECORD_KIND, STABLE_LIFECYCLE_FLOW_PUBLISHED_VERSION,
+    STABLE_LIFECYCLE_FLOW_SCHEMA_REF, STABLE_LIFECYCLE_FLOW_SCHEMA_VERSION,
+    STABLE_LIFECYCLE_FLOW_SUPPORT_EXPORT_RECORD_KIND, SUBJECT_CLASSES,
+    CLAIM_BASIS_CLASSES as LIFECYCLE_FLOW_CLAIM_BASIS_CLASSES,
+    INSTALLABLE_LIFECYCLE_STATES as LIFECYCLE_FLOW_INSTALLABLE_LIFECYCLE_STATES,
+    LIFECYCLE_STATE_CLASSES as LIFECYCLE_FLOW_LIFECYCLE_STATE_CLASSES,
+    STABILITY_TIERS as LIFECYCLE_FLOW_STABILITY_TIERS,
+    STABLE_TIERS as LIFECYCLE_FLOW_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as LIFECYCLE_FLOW_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as LIFECYCLE_FLOW_TRUST_TIER_CLASSES,
 };
