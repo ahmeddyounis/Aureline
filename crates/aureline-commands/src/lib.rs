@@ -19,6 +19,7 @@ pub mod descriptor;
 pub mod enablement;
 pub mod invocation;
 pub mod registry;
+pub mod stabilize_command_contract;
 
 pub use alpha::{
     alpha_command_registry, AlphaCommandClaimRecord, AlphaCommandRegistryRecord,
@@ -42,4 +43,17 @@ pub use invocation::{
 pub use registry::{
     CommandDescriptorPublicContractRecord, CommandPreviewGateMetadata, CommandRegistry,
     CommandRegistryEntryRecord, CommandRegistrySeedRecord, RegistryError,
+};
+pub use stabilize_command_contract::{
+    current_stable_command_contract_stabilization_export, CommandContractEvidenceExport,
+    CommandContractStabilizationArtifactError, CommandContractStabilizationPacket,
+    CommandContractStabilizationPacketInput, CommandContractStabilizationViolation,
+    CommandResultCodeClass, CommandSurfaceClass, DisabledReasonCaseClass, DisabledReasonCaseRow,
+    PaletteActionClass, PaletteDiagnosticsContract, ResultContractStabilization,
+    StableContractRefs, StableDescriptorFieldClass, StableDescriptorFieldRow, SurfaceParityRow,
+    SurfaceQualificationClass, STABILIZE_COMMAND_CONTRACT_ARTIFACT_REF,
+    STABILIZE_COMMAND_CONTRACT_DESCRIPTOR_CONTRACT_REF, STABILIZE_COMMAND_CONTRACT_DOC_REF,
+    STABILIZE_COMMAND_CONTRACT_FIXTURE_DIR, STABILIZE_COMMAND_CONTRACT_PARITY_CONTRACT_REF,
+    STABILIZE_COMMAND_CONTRACT_RECORD_KIND, STABILIZE_COMMAND_CONTRACT_SCHEMA_REF,
+    STABILIZE_COMMAND_CONTRACT_SCHEMA_VERSION, STABILIZE_COMMAND_CONTRACT_SUMMARY_REF,
 };
