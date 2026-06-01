@@ -189,6 +189,7 @@ pub mod collections;
 pub mod compatibility_matrix;
 pub mod conformance_reports;
 pub mod fact_grid;
+pub mod finalize_extension_bridge_and_certification_scope_and_downgrade;
 pub mod finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation;
 pub mod finalize_wasm_host_quotas_crash_loop_quarantine_and;
 pub mod harden_extension_manifest_permission_display_lifecycle_labels_and;
@@ -271,6 +272,47 @@ pub use fact_grid::{
     QuarantineRevocationState, ScriptRiskClass, ScriptRiskDisclosure,
     MARKETPLACE_FACT_GRID_RECORD_KIND, MARKETPLACE_FACT_GRID_SCHEMA_VERSION,
     MARKETPLACE_FACT_GRID_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use finalize_extension_bridge_and_certification_scope_and_downgrade::{
+    project_stable_bridge_certification_scope,
+    project_stable_bridge_certification_scope_support_export, BridgeCertificationActivationBudget,
+    BridgeCertificationActivationBudgetInput, BridgeCertificationCompatibility,
+    BridgeCertificationCompatibilityInput, BridgeCertificationDowngradedBanner,
+    BridgeCertificationIdentity, BridgeCertificationIdentityInput,
+    BridgeCertificationInstallPosture, BridgeCertificationInstallPostureInput,
+    BridgeCertificationPermissionPosture, BridgeCertificationPermissionPostureInput,
+    BridgeCertificationQualificationClaim, BridgeCertificationQualificationClaimInput,
+    BridgeCertificationScope, BridgeCertificationScopeInput, BridgeSurfaceBinding,
+    BridgeSurfaceBindingInput, StableBridgeCertificationScopeError,
+    StableBridgeCertificationScopeInput, StableBridgeCertificationScopeInspection,
+    StableBridgeCertificationScopePacket, StableBridgeCertificationScopeProjection,
+    StableBridgeCertificationScopeSupportExport, StableBridgeCertificationScopeValidationError,
+    BRIDGE_CERTIFICATION_ACTIVATION_BUDGET_RECORD_KIND, BRIDGE_CERTIFICATION_COMPATIBILITY_RECORD_KIND,
+    BRIDGE_CERTIFICATION_DOWNGRADED_BANNER_RECORD_KIND, BRIDGE_CERTIFICATION_DOWNGRADE_REASONS,
+    BRIDGE_CERTIFICATION_IDENTITY_RECORD_KIND, BRIDGE_CERTIFICATION_INSTALL_POSTURE_RECORD_KIND,
+    BRIDGE_CERTIFICATION_PERMISSION_POSTURE_RECORD_KIND,
+    BRIDGE_CERTIFICATION_QUALIFICATION_CLAIM_RECORD_KIND, BRIDGE_CERTIFICATION_SCOPE_RECORD_KIND,
+    BRIDGE_KIND_CLASSES, BRIDGE_SURFACE_BINDING_RECORD_KIND, CERTIFICATION_CATEGORY_CLASSES,
+    CERTIFICATION_EVIDENCE_SOURCE_CLASSES, CERTIFIED_SCOPE_STATUS,
+    SCOPE_STATUS_CLASSES, STABLE_BRIDGE_CERTIFICATION_CONSUMER_SURFACES,
+    STABLE_BRIDGE_CERTIFICATION_INSPECTION_RECORD_KIND,
+    STABLE_BRIDGE_CERTIFICATION_PACKET_RECORD_KIND,
+    STABLE_BRIDGE_CERTIFICATION_PUBLISHED_SCOPE_VERSION, STABLE_BRIDGE_CERTIFICATION_SCHEMA_REF,
+    STABLE_BRIDGE_CERTIFICATION_SCHEMA_VERSION,
+    STABLE_BRIDGE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND, STABLE_BRIDGE_PUBLISHED_ABI_VERSION,
+    ACTIVATION_BUDGET_CLASSES as BRIDGE_CERTIFICATION_ACTIVATION_BUDGET_CLASSES,
+    CONTROL_PLANE_BOUNDARY_CLASSES as BRIDGE_CERTIFICATION_CONTROL_PLANE_BOUNDARY_CLASSES,
+    CLAIM_BASIS_CLASSES as BRIDGE_CERTIFICATION_CLAIM_BASIS_CLASSES,
+    COMPATIBILITY_LABEL_CLASSES as BRIDGE_CERTIFICATION_COMPATIBILITY_LABEL_CLASSES,
+    INSTALL_SCOPE_CLASSES as BRIDGE_CERTIFICATION_INSTALL_SCOPE_CLASSES,
+    LIFECYCLE_STATE_CLASSES as BRIDGE_CERTIFICATION_LIFECYCLE_STATE_CLASSES,
+    MIRRORABILITY_CLASSES as BRIDGE_CERTIFICATION_MIRRORABILITY_CLASSES,
+    REVOCATION_POSTURE_CLASSES as BRIDGE_CERTIFICATION_REVOCATION_POSTURE_CLASSES,
+    RUNNABLE_LIFECYCLE_STATES as BRIDGE_CERTIFICATION_RUNNABLE_LIFECYCLE_STATES,
+    STABILITY_TIERS as BRIDGE_CERTIFICATION_STABILITY_TIERS,
+    STABLE_TIERS as BRIDGE_CERTIFICATION_STABLE_TIERS,
+    SUPPORT_CLAIM_CLASSES as BRIDGE_CERTIFICATION_SUPPORT_CLAIM_CLASSES,
+    TRUST_TIER_CLASSES as BRIDGE_CERTIFICATION_TRUST_TIER_CLASSES,
 };
 pub use finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::{
     project_stable_marketplace_catalog_truth,
