@@ -12,6 +12,7 @@ pub mod authority;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
+pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod runtime_authority_issuers;
 pub mod simulation;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
@@ -131,4 +132,20 @@ pub use finalize_the_secret_broker_handle_only_delegated_and::{
     FINALIZE_SECRET_BROKER_ROW_RECORD_KIND, FINALIZE_SECRET_BROKER_SCHEMA_VERSION,
     FINALIZE_SECRET_BROKER_SHARED_CONTRACT_REF, FINALIZE_SECRET_BROKER_SUMMARY_RECORD_KIND,
     FINALIZE_SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND, SECRET_BROKER_BETA_CONTRACT_REF,
+};
+
+pub use harden_os_keychain_and_trust_store_integration_trust::{
+    audit_harden_os_keychain_trust_store_page, seeded_harden_os_keychain_trust_store_page,
+    validate_harden_os_keychain_trust_store_page, HardenOsKeychainTrustStoreDefect,
+    HardenOsKeychainTrustStoreNarrowReasonClass, HardenOsKeychainTrustStorePage,
+    HardenOsKeychainTrustStoreQualificationClass, HardenOsKeychainTrustStoreSummary,
+    HardenOsKeychainTrustStoreSupportExport, SessionImpactClass, TrustStoreChangeAttributionClass,
+    TrustStoreChangeClass, TrustStoreChangeEvent, TrustStoreLayerClass, TrustStoreLayerHealthClass,
+    TrustStoreLayerRow, TrustStoreRepairActionClass,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_ARTIFACT_REF, HARDEN_OS_KEYCHAIN_TRUST_STORE_CHANGE_EVENT_RECORD_KIND,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_DEFECT_RECORD_KIND, HARDEN_OS_KEYCHAIN_TRUST_STORE_DOC_REF,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_PAGE_RECORD_KIND, HARDEN_OS_KEYCHAIN_TRUST_STORE_ROW_RECORD_KIND,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_SCHEMA_VERSION, HARDEN_OS_KEYCHAIN_TRUST_STORE_SHARED_CONTRACT_REF,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_SUMMARY_RECORD_KIND,
+    HARDEN_OS_KEYCHAIN_TRUST_STORE_SUPPORT_EXPORT_RECORD_KIND,
 };
