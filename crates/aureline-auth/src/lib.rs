@@ -80,7 +80,14 @@
 //!   processing location, tenant boundary, and key mode in product and
 //!   exported packets across connected, mirror-only, offline, and
 //!   enterprise-managed beta profiles while narrowing only the affected
-//!   managed action on mismatch or degraded states.
+//!   managed action on mismatch or degraded states; and
+//! - one [`finalize_no_account_local_use_proof_deprovision_preserves::DeprovisionPreservesBetaPage`]
+//!   beta proof packet that proves local editing, user-owned exports, local
+//!   history, local settings, and the account-free BYOK lane survive every
+//!   managed-exit event (sign-out, org-switch, seat loss, and deprovision)
+//!   across all four required deployment profiles, discloses org-scoped
+//!   affordance removal with explicit notice, and makes the no-account
+//!   local-use claim explicit and verifiable.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -123,6 +130,7 @@ pub mod provisioning;
 pub mod region_and_tenant;
 pub mod secret_broker;
 pub mod secrets;
+pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod stabilize_system_browser_auth_passkey_capable_step_up;
 pub mod system_browser;
 pub mod trust;
@@ -410,4 +418,19 @@ pub use stabilize_system_browser_auth_passkey_capable_step_up::{
     SYSTEM_BROWSER_AUTH_STABILIZE_SCHEMA_VERSION,
     SYSTEM_BROWSER_AUTH_STABILIZE_SHARED_CONTRACT_REF,
     SYSTEM_BROWSER_AUTH_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_no_account_local_use_proof_deprovision_preserves::{
+    audit_deprovision_preserves_rows, seeded_deprovision_preserves_beta_page,
+    validate_deprovision_preserves_beta_page, DeprovisionPreservesBetaDefect,
+    DeprovisionPreservesBetaPage, DeprovisionPreservesBetaProfileClass,
+    DeprovisionPreservesBetaSummary, DeprovisionPreservesBetaSupportExport,
+    DeprovisionPreservesRow, DeprovisionProofNarrowReasonClass,
+    DeprovisionProofQualificationClass, LocalWorkPreservationClass, LocalWorkSurvivalBlock,
+    ManagedExitEventClass, OrgAffordanceClass, OrgScopedAffordanceBlock,
+    DEPROVISION_PRESERVES_ARTIFACT_REF, DEPROVISION_PRESERVES_BETA_DEFECT_RECORD_KIND,
+    DEPROVISION_PRESERVES_BETA_PAGE_RECORD_KIND, DEPROVISION_PRESERVES_BETA_ROW_RECORD_KIND,
+    DEPROVISION_PRESERVES_BETA_SUMMARY_RECORD_KIND,
+    DEPROVISION_PRESERVES_BETA_SUPPORT_EXPORT_RECORD_KIND, DEPROVISION_PRESERVES_DOC_REF,
+    DEPROVISION_PRESERVES_SCHEMA_VERSION, DEPROVISION_PRESERVES_SHARED_CONTRACT_REF,
 };
