@@ -92,15 +92,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_runtime_abi_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -159,7 +175,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(export.blocks_activation, e.blocks_activation, "{}", fixture.case_name);
+        assert_eq!(
+            export.blocks_activation, e.blocks_activation,
+            "{}",
+            fixture.case_name
+        );
 
         // Cross-cutting invariants for every fixture.
         assert!(
@@ -181,7 +201,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         for c in &packet.contributions {
             assert!(RUNTIME_CLASSES.contains(&c.runtime_class.as_str()));
             // Attribution is preserved even when quarantined/bridged/downgraded.
-            assert!(c.is_attributed(), "fixture {} contribution attribution", fixture.case_name);
+            assert!(
+                c.is_attributed(),
+                "fixture {} contribution attribution",
+                fixture.case_name
+            );
         }
 
         // A stable effective tier must enforce the published sandbox and be
@@ -197,7 +221,10 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         // The projection and export agree with the packet.
         assert_eq!(projection.effective_tier, packet.claim.effective_tier);
         assert_eq!(export.effective_tier, packet.claim.effective_tier);
-        assert_eq!(export.runtime_class, packet.runtime_class_declaration.runtime_class);
+        assert_eq!(
+            export.runtime_class,
+            packet.runtime_class_declaration.runtime_class
+        );
     }
 }
 
@@ -221,7 +248,8 @@ fn closed_vocabularies_hold_their_anchors() {
     // Sandboxed and non-executing classes partition the runtime classes.
     for class in RUNTIME_CLASSES {
         assert!(
-            SANDBOXED_RUNTIME_CLASSES.contains(class) ^ NON_EXECUTING_RUNTIME_CLASSES.contains(class),
+            SANDBOXED_RUNTIME_CLASSES.contains(class)
+                ^ NON_EXECUTING_RUNTIME_CLASSES.contains(class),
             "{class} must be exactly one of sandboxed or non-executing"
         );
     }
@@ -257,7 +285,10 @@ fn capability_envelope_widening_is_rejected() {
         .granted_capability_refs
         .push("cap:net.connect.any".to_string());
     let result = StableRuntimeAbiPacket::from_input(input);
-    assert!(result.is_err(), "granting beyond the negotiated set must be rejected");
+    assert!(
+        result.is_err(),
+        "granting beyond the negotiated set must be rejected"
+    );
 }
 
 #[test]
@@ -335,8 +366,13 @@ fn support_export_quotes_runtime_class_and_profile() {
     let packet = StableRuntimeAbiPacket::from_input(stable_wasm_input()).expect("must build");
     let export = project_stable_runtime_abi_support_export(&packet);
     assert_eq!(export.runtime_class, "wasm_capability_sandbox");
-    assert_eq!(export.sandbox_profile_id, "sandbox_profile:wasm_component_isolated_v1");
+    assert_eq!(
+        export.sandbox_profile_id,
+        "sandbox_profile:wasm_component_isolated_v1"
+    );
     assert_eq!(export.backend_classification_class, "wasm_component_model");
     assert!(!export.blocks_activation);
-    assert!(export.export_safe_summary.contains("wasm_capability_sandbox"));
+    assert!(export
+        .export_safe_summary
+        .contains("wasm_capability_sandbox"));
 }

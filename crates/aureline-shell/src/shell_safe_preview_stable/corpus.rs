@@ -36,9 +36,9 @@ use crate::notification_attention_stable::model::{
 use super::model::{
     required_recovery_routes, CueCarrier, CueCarrierRow, PlatformConformanceRow,
     PlatformProfileClass, RepresentationChoiceRow, RepresentationCuesInput, SafePreviewA11yCues,
-    SafePreviewClaimCeiling, SafePreviewInput, SafePreviewRecord, SafePreviewSurfaceProjectionInput,
-    SafePreviewTruthSurface, SafePreviewUpstream, ShellAdjacentSurface, StricterBoundary,
-    SuspiciousFindingRow, CONTENT_SAFETY_CONTRACT_REF,
+    SafePreviewClaimCeiling, SafePreviewInput, SafePreviewRecord,
+    SafePreviewSurfaceProjectionInput, SafePreviewTruthSurface, SafePreviewUpstream,
+    ShellAdjacentSurface, StricterBoundary, SuspiciousFindingRow, CONTENT_SAFETY_CONTRACT_REF,
 };
 
 /// Snapshot timestamp pinned for every record in the corpus.
@@ -50,7 +50,8 @@ const EVIDENCE_ARTIFACT_REF: &str = "aureline://artifact/ux-m4-safe-preview";
 const EVIDENCE_FIXTURE_REF: &str = "aureline://fixture/ux-m4-safe-preview";
 const NARRATIVE_REF: &str = "aureline://doc/ux-m4-safe-preview";
 
-const TRUST_CLASS_SCHEMA_VERSION: u32 = aureline_content_safety::records::TRUST_CLASS_SCHEMA_VERSION;
+const TRUST_CLASS_SCHEMA_VERSION: u32 =
+    aureline_content_safety::records::TRUST_CLASS_SCHEMA_VERSION;
 const REPRESENTATION_POLICY_SCHEMA_VERSION: u32 =
     aureline_content_safety::transfer::TEXT_REPRESENTATION_POLICY_SCHEMA_VERSION;
 
@@ -347,7 +348,10 @@ fn surface_projections(
         .collect()
 }
 
-fn accessibility(recovery_routes: &[RecoveryRouteRecord], trust: TrustClass) -> AccessibilityDisclosure {
+fn accessibility(
+    recovery_routes: &[RecoveryRouteRecord],
+    trust: TrustClass,
+) -> AccessibilityDisclosure {
     AccessibilityDisclosure {
         focus_order_index: 0,
         tab_stop_count: recovery_routes.len() as u32 + 1,
@@ -415,7 +419,10 @@ fn build_record(cfg: ScenarioCfg) -> SafePreviewRecord {
         .collect();
 
     let stricter_boundary = if cfg.surface_class.is_trust_sensitive_action() {
-        Some(stricter_boundary(cfg.surface_class, cfg.boundary_shows_before_commit))
+        Some(stricter_boundary(
+            cfg.surface_class,
+            cfg.boundary_shows_before_commit,
+        ))
     } else {
         None
     };
@@ -425,7 +432,9 @@ fn build_record(cfg: ScenarioCfg) -> SafePreviewRecord {
         asserts_suspicious_findings_surfaced: true,
         asserts_copy_export_labeled: true,
         asserts_cues_survive_all_carriers: cfg.flatten_carrier.is_none(),
-        asserts_stricter_boundary_shown_before_commit: !cfg.surface_class.is_trust_sensitive_action()
+        asserts_stricter_boundary_shown_before_commit: !cfg
+            .surface_class
+            .is_trust_sensitive_action()
             || cfg.boundary_shows_before_commit,
         asserts_accessibility_cues_complete: true,
         asserts_platform_conformance_complete: true,
@@ -469,12 +478,18 @@ fn build_record(cfg: ScenarioCfg) -> SafePreviewRecord {
         upstream: upstream(case_refs),
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_string(),
         support_export_ref: SUPPORT_EXPORT_REF.to_string(),
-        evidence_refs: vec![EVIDENCE_FIXTURE_REF.to_string(), EVIDENCE_ARTIFACT_REF.to_string()],
+        evidence_refs: vec![
+            EVIDENCE_FIXTURE_REF.to_string(),
+            EVIDENCE_ARTIFACT_REF.to_string(),
+        ],
         narrative_refs: vec![NARRATIVE_REF.to_string()],
     };
 
     SafePreviewRecord::build(input).unwrap_or_else(|err| {
-        panic!("safe-preview scenario {} must build: {err}", cfg.scenario_id)
+        panic!(
+            "safe-preview scenario {} must build: {err}",
+            cfg.scenario_id
+        )
     })
 }
 
@@ -637,7 +652,8 @@ fn install_review_stricter_class() -> SafePreviewScenario {
             fixture_stem: "install_review_stricter_class_stable",
             posture_label: "Install review with a stricter preview class",
             title: "An install review shows the stricter preview class before commit",
-            summary: "An extension install review of a package whose name hides a zero-width space \
+            summary:
+                "An extension install review of a package whose name hides a zero-width space \
                       enforces the stricter isolated-remote preview class, shows the boundary \
                       before the user installs, and keeps the warning and representation choices.",
             surface_class: ShellAdjacentSurface::InstallReview,

@@ -557,8 +557,7 @@ impl ClientOriginRouteClassPacket {
         validate_surface_rows(self, &mut violations);
         validate_evidence_export(self, &mut violations);
         if json_contains_forbidden_material(
-            &serde_json::to_value(self)
-                .expect("client-origin route-class packet serializes"),
+            &serde_json::to_value(self).expect("client-origin route-class packet serializes"),
         ) {
             violations.push(ClientOriginRouteClassViolation::RawMaterialInExport);
         }
@@ -571,8 +570,7 @@ impl ClientOriginRouteClassPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("client-origin route-class packet serializes")
+        serde_json::to_string_pretty(self).expect("client-origin route-class packet serializes")
     }
 
     /// Deterministic Markdown summary for support, docs, or review handoff.
@@ -585,10 +583,7 @@ impl ClientOriginRouteClassPacket {
         let mut out = String::new();
         out.push_str("# Client-Origin, Target-Context, and Route-Class Stabilization\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
-        out.push_str(&format!(
-            "- Command family: `{}`\n",
-            self.command_family_id
-        ));
+        out.push_str(&format!("- Command family: `{}`\n", self.command_family_id));
         out.push_str(&format!(
             "- Evidence id: `{}`\n",
             self.evidence_export.evidence_id
@@ -812,7 +807,10 @@ fn validate_surface_rows(
             break;
         }
         // A stable, reachable surface must preserve full disclosure and policy parity.
-        if row.qualification.is_stable() && row.inspector_reachable && !row.preserves_full_disclosure() {
+        if row.qualification.is_stable()
+            && row.inspector_reachable
+            && !row.preserves_full_disclosure()
+        {
             violations.push(ClientOriginRouteClassViolation::InspectorSurfaceParityBroken);
             break;
         }

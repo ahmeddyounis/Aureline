@@ -54,7 +54,6 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-
 /// Stable record-kind tag for [`SupportExportParityTruthPacket`].
 pub const SUPPORT_EXPORT_PARITY_TRUTH_PACKET_RECORD_KIND: &str =
     "finalize_terminal_task_test_and_debug_support_export_parity_truth_stable_packet";
@@ -85,7 +84,6 @@ pub const SUPPORT_EXPORT_PARITY_TRUTH_FIXTURE_DIR: &str =
 /// Repo-relative path of the checked-in stable packet.
 pub const SUPPORT_EXPORT_PARITY_TRUTH_PACKET_ARTIFACT_REF: &str =
     "artifacts/runtime/m4/finalize_terminal_task_test_and_debug_support_export_parity_truth_packet.json";
-
 
 /// Closed support-export-parity lane vocabulary. Every required lane
 /// MUST have at least one row in any stable packet.
@@ -121,7 +119,6 @@ impl SupportExportParityLaneClass {
         }
     }
 }
-
 
 /// Closed support-export-parity row vocabulary the packet certifies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -196,7 +193,6 @@ impl SupportExportParityRowClass {
     }
 }
 
-
 /// Closed support-class vocabulary applied to a support-export-parity
 /// row. A row is never `launch_stable` while its known limit, downgrade
 /// automation, or evidence class is unbound; the validator demotes it
@@ -242,7 +238,6 @@ impl SupportClass {
     }
 }
 
-
 /// Closed support-export-parity wedge vocabulary. Every lane claiming
 /// `launch_stable` MUST publish a `wedge_admission` row for each
 /// required wedge.
@@ -285,7 +280,6 @@ impl WedgeClass {
         }
     }
 }
-
 
 /// Closed export-field vocabulary. Every lane claiming `launch_stable`
 /// MUST publish an `export_field_binding` row for each required field
@@ -331,7 +325,6 @@ impl ExportFieldClass {
     }
 }
 
-
 /// Closed diagnosis-packet-field vocabulary. Every lane claiming
 /// `launch_stable` MUST publish a `diagnosis_packet_binding` row for
 /// each required field so diagnosis packets preserve stable finding
@@ -372,7 +365,6 @@ impl DiagnosisPacketFieldClass {
     }
 }
 
-
 /// Closed repair-hook-field vocabulary. Every lane claiming
 /// `launch_stable` MUST publish a `repair_hook_binding` row for each
 /// required field so repair transactions carry visible IDs, authority,
@@ -412,7 +404,6 @@ impl RepairHookFieldClass {
         }
     }
 }
-
 
 /// Closed recovery-posture vocabulary. Every lane claiming
 /// `launch_stable` MUST publish a `recovery_posture_admission` row for
@@ -459,7 +450,6 @@ impl RecoveryPostureClass {
     }
 }
 
-
 /// Closed evidence-class vocabulary describing what backs a row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -505,7 +495,6 @@ impl EvidenceClass {
         !matches!(self, Self::EvidenceUnbound)
     }
 }
-
 
 /// Closed known-limit vocabulary attached to a support-export-parity row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -564,7 +553,6 @@ impl KnownLimitClass {
     }
 }
 
-
 /// Closed downgrade-automation vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -619,7 +607,6 @@ impl DowngradeAutomationClass {
     }
 }
 
-
 /// Closed confidence-class vocabulary for a support-export-parity row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -642,7 +629,6 @@ impl SupportExportParityConfidenceClass {
         }
     }
 }
-
 
 /// Stable promotion state derived from packet validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -667,7 +653,6 @@ impl PromotionState {
     }
 }
 
-
 /// Severity for one validation finding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -679,7 +664,6 @@ pub enum FindingSeverity {
     /// Blocker finding that prevents stable publication.
     Blocker,
 }
-
 
 /// Closed validation-finding vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -802,19 +786,27 @@ impl FindingKind {
             Self::LaunchStableWithUnboundBinding => "launch_stable_with_unbound_binding",
             Self::NarrowedRowMissingDisclosureRef => "narrowed_row_missing_disclosure_ref",
             Self::KnownLimitMissingDisclosureRef => "known_limit_missing_disclosure_ref",
-            Self::DowngradeAutomationMissingDisclosureRef => "downgrade_automation_missing_disclosure_ref",
+            Self::DowngradeAutomationMissingDisclosureRef => {
+                "downgrade_automation_missing_disclosure_ref"
+            }
             Self::MissingEvidenceRefs => "missing_evidence_refs",
             Self::WedgeNotApplicable => "wedge_not_applicable",
             Self::WedgeNotPermittedOnRowClass => "wedge_not_permitted_on_row_class",
             Self::ExportFieldNotApplicable => "export_field_not_applicable",
             Self::ExportFieldNotPermittedOnRowClass => "export_field_not_permitted_on_row_class",
             Self::DiagnosisPacketNotApplicable => "diagnosis_packet_not_applicable",
-            Self::DiagnosisPacketNotPermittedOnRowClass => "diagnosis_packet_not_permitted_on_row_class",
+            Self::DiagnosisPacketNotPermittedOnRowClass => {
+                "diagnosis_packet_not_permitted_on_row_class"
+            }
             Self::RepairHookNotApplicable => "repair_hook_not_applicable",
             Self::RepairHookNotPermittedOnRowClass => "repair_hook_not_permitted_on_row_class",
             Self::RecoveryPostureNotApplicable => "recovery_posture_not_applicable",
-            Self::RecoveryPostureNotPermittedOnRowClass => "recovery_posture_not_permitted_on_row_class",
-            Self::LineageAdmissionMissingExecutionContextId => "lineage_admission_missing_execution_context_id",
+            Self::RecoveryPostureNotPermittedOnRowClass => {
+                "recovery_posture_not_permitted_on_row_class"
+            }
+            Self::LineageAdmissionMissingExecutionContextId => {
+                "lineage_admission_missing_execution_context_id"
+            }
             Self::RawSourceMaterialPresent => "raw_source_material_present",
             Self::SecretsPresent => "secrets_present",
             Self::AmbientAuthorityPresent => "ambient_authority_present",
@@ -829,13 +821,14 @@ impl FindingKind {
             Self::RepairHookVocabularyCollapsed => "repair_hook_vocabulary_collapsed",
             Self::RecoveryPostureVocabularyCollapsed => "recovery_posture_vocabulary_collapsed",
             Self::KnownLimitVocabularyCollapsed => "known_limit_vocabulary_collapsed",
-            Self::DowngradeAutomationVocabularyCollapsed => "downgrade_automation_vocabulary_collapsed",
+            Self::DowngradeAutomationVocabularyCollapsed => {
+                "downgrade_automation_vocabulary_collapsed"
+            }
             Self::EvidenceClassVocabularyCollapsed => "evidence_class_vocabulary_collapsed",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
         }
     }
 }
-
 
 /// Consumer surface that must inherit the packet verbatim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -891,7 +884,6 @@ impl ConsumerSurface {
     }
 }
 
-
 /// One validation finding emitted by the validator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationFinding {
@@ -916,7 +908,6 @@ impl ValidationFinding {
         }
     }
 }
-
 
 /// One support-export-parity truth row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -978,7 +969,6 @@ impl SupportExportParityRow {
             && self.evidence_class.is_bound()
     }
 }
-
 
 /// Consumer projection proving a surface reads this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1045,7 +1035,6 @@ impl SupportExportParityConsumerProjection {
     }
 }
 
-
 /// Constructor input for [`SupportExportParityTruthPacket::materialize`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupportExportParityTruthPacketInput {
@@ -1068,7 +1057,6 @@ pub struct SupportExportParityTruthPacketInput {
     #[serde(default)]
     pub source_contract_refs: Vec<String>,
 }
-
 
 /// Support-export-parity truth packet certifying terminal, task, test,
 /// and debug surfaces at the M4 launch-stable grade.
@@ -1102,7 +1090,6 @@ pub struct SupportExportParityTruthPacket {
     #[serde(default)]
     pub validation_findings: Vec<ValidationFinding>,
 }
-
 
 impl SupportExportParityTruthPacket {
     /// Materializes a packet and records derived validation findings.
@@ -1213,9 +1200,7 @@ impl SupportExportParityTruthPacket {
         for row in &self.rows {
             set.insert(row.repair_hook_field_class);
         }
-        set.into_iter()
-            .map(RepairHookFieldClass::as_str)
-            .collect()
+        set.into_iter().map(RepairHookFieldClass::as_str).collect()
     }
 
     /// Returns the unique recovery-posture tokens observed across rows.
@@ -1224,9 +1209,7 @@ impl SupportExportParityTruthPacket {
         for row in &self.rows {
             set.insert(row.recovery_posture_class);
         }
-        set.into_iter()
-            .map(RecoveryPostureClass::as_str)
-            .collect()
+        set.into_iter().map(RecoveryPostureClass::as_str).collect()
     }
 
     /// Returns the unique evidence-class tokens observed across rows.
@@ -1276,7 +1259,6 @@ impl SupportExportParityTruthPacket {
         }
     }
 
-
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
@@ -1322,10 +1304,7 @@ impl SupportExportParityTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingLaneCoverage,
                     FindingSeverity::Blocker,
-                    format!(
-                        "no row covers support-export-parity lane {}",
-                        lane.as_str()
-                    ),
+                    format!("no row covers support-export-parity lane {}", lane.as_str()),
                 ));
             }
         }
@@ -1510,7 +1489,10 @@ impl SupportExportParityTruthPacket {
             }
 
             if row.row_class.requires_diagnosis_packet_field()
-                && matches!(row.diagnosis_packet_field_class, DiagnosisPacketFieldClass::NotApplicable)
+                && matches!(
+                    row.diagnosis_packet_field_class,
+                    DiagnosisPacketFieldClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::DiagnosisPacketNotApplicable,
@@ -1522,7 +1504,10 @@ impl SupportExportParityTruthPacket {
                 ));
             }
             if !row.row_class.requires_diagnosis_packet_field()
-                && !matches!(row.diagnosis_packet_field_class, DiagnosisPacketFieldClass::NotApplicable)
+                && !matches!(
+                    row.diagnosis_packet_field_class,
+                    DiagnosisPacketFieldClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::DiagnosisPacketNotPermittedOnRowClass,
@@ -1537,7 +1522,10 @@ impl SupportExportParityTruthPacket {
             }
 
             if row.row_class.requires_repair_hook_field()
-                && matches!(row.repair_hook_field_class, RepairHookFieldClass::NotApplicable)
+                && matches!(
+                    row.repair_hook_field_class,
+                    RepairHookFieldClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RepairHookNotApplicable,
@@ -1549,7 +1537,10 @@ impl SupportExportParityTruthPacket {
                 ));
             }
             if !row.row_class.requires_repair_hook_field()
-                && !matches!(row.repair_hook_field_class, RepairHookFieldClass::NotApplicable)
+                && !matches!(
+                    row.repair_hook_field_class,
+                    RepairHookFieldClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RepairHookNotPermittedOnRowClass,
@@ -1564,7 +1555,10 @@ impl SupportExportParityTruthPacket {
             }
 
             if row.row_class.requires_recovery_posture()
-                && matches!(row.recovery_posture_class, RecoveryPostureClass::NotApplicable)
+                && matches!(
+                    row.recovery_posture_class,
+                    RecoveryPostureClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RecoveryPostureNotApplicable,
@@ -1576,7 +1570,10 @@ impl SupportExportParityTruthPacket {
                 ));
             }
             if !row.row_class.requires_recovery_posture()
-                && !matches!(row.recovery_posture_class, RecoveryPostureClass::NotApplicable)
+                && !matches!(
+                    row.recovery_posture_class,
+                    RecoveryPostureClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RecoveryPostureNotPermittedOnRowClass,
@@ -1610,11 +1607,13 @@ impl SupportExportParityTruthPacket {
         }
 
         for lane in &self.covered_lanes {
-            if matches!(lane, SupportExportParityLaneClass::TerminalLane
-                | SupportExportParityLaneClass::TaskLane
-                | SupportExportParityLaneClass::TestLane
-                | SupportExportParityLaneClass::DebugLane)
-            {
+            if matches!(
+                lane,
+                SupportExportParityLaneClass::TerminalLane
+                    | SupportExportParityLaneClass::TaskLane
+                    | SupportExportParityLaneClass::TestLane
+                    | SupportExportParityLaneClass::DebugLane
+            ) {
                 for wedge in WedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
                     let present = self.rows.iter().any(|row| {
                         row.lane_class == *lane
@@ -1638,7 +1637,10 @@ impl SupportExportParityTruthPacket {
                 for field in ExportFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
                     let present = self.rows.iter().any(|row| {
                         row.lane_class == *lane
-                            && matches!(row.row_class, SupportExportParityRowClass::ExportFieldBinding)
+                            && matches!(
+                                row.row_class,
+                                SupportExportParityRowClass::ExportFieldBinding
+                            )
                             && row.export_field_class == field
                             && matches!(row.support_class, SupportClass::LaunchStable)
                     });
@@ -1658,7 +1660,10 @@ impl SupportExportParityTruthPacket {
                 for field in DiagnosisPacketFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
                     let present = self.rows.iter().any(|row| {
                         row.lane_class == *lane
-                            && matches!(row.row_class, SupportExportParityRowClass::DiagnosisPacketBinding)
+                            && matches!(
+                                row.row_class,
+                                SupportExportParityRowClass::DiagnosisPacketBinding
+                            )
                             && row.diagnosis_packet_field_class == field
                             && matches!(row.support_class, SupportClass::LaunchStable)
                     });
@@ -1678,7 +1683,10 @@ impl SupportExportParityTruthPacket {
                 for field in RepairHookFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
                     let present = self.rows.iter().any(|row| {
                         row.lane_class == *lane
-                            && matches!(row.row_class, SupportExportParityRowClass::RepairHookBinding)
+                            && matches!(
+                                row.row_class,
+                                SupportExportParityRowClass::RepairHookBinding
+                            )
                             && row.repair_hook_field_class == field
                             && matches!(row.support_class, SupportClass::LaunchStable)
                     });
@@ -1698,7 +1706,10 @@ impl SupportExportParityTruthPacket {
                 for posture in RecoveryPostureClass::REQUIRED_FOR_LAUNCH_STABLE {
                     let present = self.rows.iter().any(|row| {
                         row.lane_class == *lane
-                            && matches!(row.row_class, SupportExportParityRowClass::RecoveryPostureAdmission)
+                            && matches!(
+                                row.row_class,
+                                SupportExportParityRowClass::RecoveryPostureAdmission
+                            )
                             && row.recovery_posture_class == posture
                             && matches!(row.support_class, SupportClass::LaunchStable)
                     });
@@ -1742,10 +1753,7 @@ impl SupportExportParityTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingConsumerProjection,
                     FindingSeverity::Blocker,
-                    format!(
-                        "missing consumer projection for {}",
-                        surface.as_str()
-                    ),
+                    format!("missing consumer projection for {}", surface.as_str()),
                 ));
             }
         }
@@ -1881,7 +1889,6 @@ impl SupportExportParityTruthPacket {
     }
 }
 
-
 /// Support-export-parity truth support export wrapping the exact packet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupportExportParityTruthSupportExport {
@@ -1912,10 +1919,12 @@ impl SupportExportParityTruthSupportExport {
                 == self.support_export_parity_truth_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self.support_export_parity_truth_packet.validate().is_empty()
+            && self
+                .support_export_parity_truth_packet
+                .validate()
+                .is_empty()
     }
 }
-
 
 /// Errors emitted when reading the checked-in stable packet.
 #[derive(Debug)]
@@ -1930,7 +1939,10 @@ impl fmt::Display for SupportExportParityTruthArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => {
-                write!(f, "support-export-parity truth packet parse failed: {error}")
+                write!(
+                    f,
+                    "support-export-parity truth packet parse failed: {error}"
+                )
             }
             Self::Validation(findings) => {
                 let tokens = findings
@@ -1949,17 +1961,21 @@ impl fmt::Display for SupportExportParityTruthArtifactError {
 
 impl Error for SupportExportParityTruthArtifactError {}
 
-
 fn promotion_state_for_findings(findings: &[ValidationFinding]) -> PromotionState {
-    if findings.iter().any(|f| f.severity == FindingSeverity::Blocker) {
+    if findings
+        .iter()
+        .any(|f| f.severity == FindingSeverity::Blocker)
+    {
         PromotionState::BlocksStable
-    } else if findings.iter().any(|f| f.severity == FindingSeverity::Warning) {
+    } else if findings
+        .iter()
+        .any(|f| f.severity == FindingSeverity::Warning)
+    {
         PromotionState::NarrowedBelowStable
     } else {
         PromotionState::Stable
     }
 }
-
 
 /// Returns the checked-in stable support-export-parity truth packet.
 ///
@@ -1984,13 +2000,19 @@ pub fn current_stable_support_export_parity_truth_packet(
 
 fn _sample_input() -> SupportExportParityTruthPacketInput {
     let mut rows = Vec::new();
-    rows.extend(_lane_rows(SupportExportParityLaneClass::TerminalLane, "terminal"));
+    rows.extend(_lane_rows(
+        SupportExportParityLaneClass::TerminalLane,
+        "terminal",
+    ));
     rows.extend(_lane_rows(SupportExportParityLaneClass::TaskLane, "task"));
     rows.extend(_lane_rows(SupportExportParityLaneClass::TestLane, "test"));
     rows.extend(_lane_rows(SupportExportParityLaneClass::DebugLane, "debug"));
     SupportExportParityTruthPacketInput {
-        packet_id: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
-        workflow_or_surface_id: "workflow.runtime.finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
+        packet_id: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity"
+            .to_owned(),
+        workflow_or_surface_id:
+            "workflow.runtime.finalize_terminal_task_test_and_debug_support_export_parity"
+                .to_owned(),
         generated_at: "2026-05-27T12:00:00Z".to_owned(),
         covered_lanes: SupportExportParityLaneClass::REQUIRED.to_vec(),
         rows,
@@ -2028,7 +2050,11 @@ fn _quality_row(prefix: &str, lane: SupportExportParityLaneClass) -> SupportExpo
     }
 }
 
-fn _wedge_row(prefix: &str, lane: SupportExportParityLaneClass, wedge: WedgeClass) -> SupportExportParityRow {
+fn _wedge_row(
+    prefix: &str,
+    lane: SupportExportParityLaneClass,
+    wedge: WedgeClass,
+) -> SupportExportParityRow {
     SupportExportParityRow {
         row_id: format!("{}_{}_wedge_{}", prefix, lane.as_str(), wedge.as_str()),
         lane_class: lane,
@@ -2053,7 +2079,11 @@ fn _wedge_row(prefix: &str, lane: SupportExportParityLaneClass, wedge: WedgeClas
     }
 }
 
-fn _export_field_row(prefix: &str, lane: SupportExportParityLaneClass, field: ExportFieldClass) -> SupportExportParityRow {
+fn _export_field_row(
+    prefix: &str,
+    lane: SupportExportParityLaneClass,
+    field: ExportFieldClass,
+) -> SupportExportParityRow {
     SupportExportParityRow {
         row_id: format!("{}_{}_export_{}", prefix, lane.as_str(), field.as_str()),
         lane_class: lane,
@@ -2078,7 +2108,11 @@ fn _export_field_row(prefix: &str, lane: SupportExportParityLaneClass, field: Ex
     }
 }
 
-fn _diagnosis_row(prefix: &str, lane: SupportExportParityLaneClass, field: DiagnosisPacketFieldClass) -> SupportExportParityRow {
+fn _diagnosis_row(
+    prefix: &str,
+    lane: SupportExportParityLaneClass,
+    field: DiagnosisPacketFieldClass,
+) -> SupportExportParityRow {
     SupportExportParityRow {
         row_id: format!("{}_{}_diagnosis_{}", prefix, lane.as_str(), field.as_str()),
         lane_class: lane,
@@ -2103,7 +2137,11 @@ fn _diagnosis_row(prefix: &str, lane: SupportExportParityLaneClass, field: Diagn
     }
 }
 
-fn _repair_row(prefix: &str, lane: SupportExportParityLaneClass, field: RepairHookFieldClass) -> SupportExportParityRow {
+fn _repair_row(
+    prefix: &str,
+    lane: SupportExportParityLaneClass,
+    field: RepairHookFieldClass,
+) -> SupportExportParityRow {
     SupportExportParityRow {
         row_id: format!("{}_{}_repair_{}", prefix, lane.as_str(), field.as_str()),
         lane_class: lane,
@@ -2128,7 +2166,11 @@ fn _repair_row(prefix: &str, lane: SupportExportParityLaneClass, field: RepairHo
     }
 }
 
-fn _recovery_row(prefix: &str, lane: SupportExportParityLaneClass, posture: RecoveryPostureClass) -> SupportExportParityRow {
+fn _recovery_row(
+    prefix: &str,
+    lane: SupportExportParityLaneClass,
+    posture: RecoveryPostureClass,
+) -> SupportExportParityRow {
     SupportExportParityRow {
         row_id: format!("{}_{}_recovery_{}", prefix, lane.as_str(), posture.as_str()),
         lane_class: lane,
@@ -2182,7 +2224,8 @@ fn _projection(surface: ConsumerSurface) -> SupportExportParityConsumerProjectio
     SupportExportParityConsumerProjection {
         consumer_surface: surface,
         projection_ref: format!("proj:{}", surface.as_str()),
-        support_export_parity_truth_packet_id_ref: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
+        support_export_parity_truth_packet_id_ref:
+            "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
         rendered_at: "2026-05-27T12:00:00Z".to_owned(),
         preserves_same_packet: true,
         preserves_lane_vocabulary: true,
@@ -2202,10 +2245,7 @@ fn _projection(surface: ConsumerSurface) -> SupportExportParityConsumerProjectio
     }
 }
 
-fn _lane_rows(
-    lane: SupportExportParityLaneClass,
-    prefix: &str,
-) -> Vec<SupportExportParityRow> {
+fn _lane_rows(lane: SupportExportParityLaneClass, prefix: &str) -> Vec<SupportExportParityRow> {
     let mut rows = vec![_quality_row(prefix, lane)];
     for wedge in WedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
         rows.push(_wedge_row(prefix, lane, wedge));
@@ -2255,7 +2295,11 @@ mod tests {
         }
     }
 
-    fn wedge_row(prefix: &str, lane: SupportExportParityLaneClass, wedge: WedgeClass) -> SupportExportParityRow {
+    fn wedge_row(
+        prefix: &str,
+        lane: SupportExportParityLaneClass,
+        wedge: WedgeClass,
+    ) -> SupportExportParityRow {
         SupportExportParityRow {
             row_id: format!("{}_{}_wedge_{}", prefix, lane.as_str(), wedge.as_str()),
             lane_class: lane,
@@ -2280,7 +2324,11 @@ mod tests {
         }
     }
 
-    fn export_field_row(prefix: &str, lane: SupportExportParityLaneClass, field: ExportFieldClass) -> SupportExportParityRow {
+    fn export_field_row(
+        prefix: &str,
+        lane: SupportExportParityLaneClass,
+        field: ExportFieldClass,
+    ) -> SupportExportParityRow {
         SupportExportParityRow {
             row_id: format!("{}_{}_export_{}", prefix, lane.as_str(), field.as_str()),
             lane_class: lane,
@@ -2305,7 +2353,11 @@ mod tests {
         }
     }
 
-    fn diagnosis_row(prefix: &str, lane: SupportExportParityLaneClass, field: DiagnosisPacketFieldClass) -> SupportExportParityRow {
+    fn diagnosis_row(
+        prefix: &str,
+        lane: SupportExportParityLaneClass,
+        field: DiagnosisPacketFieldClass,
+    ) -> SupportExportParityRow {
         SupportExportParityRow {
             row_id: format!("{}_{}_diagnosis_{}", prefix, lane.as_str(), field.as_str()),
             lane_class: lane,
@@ -2330,7 +2382,11 @@ mod tests {
         }
     }
 
-    fn repair_row(prefix: &str, lane: SupportExportParityLaneClass, field: RepairHookFieldClass) -> SupportExportParityRow {
+    fn repair_row(
+        prefix: &str,
+        lane: SupportExportParityLaneClass,
+        field: RepairHookFieldClass,
+    ) -> SupportExportParityRow {
         SupportExportParityRow {
             row_id: format!("{}_{}_repair_{}", prefix, lane.as_str(), field.as_str()),
             lane_class: lane,
@@ -2355,7 +2411,11 @@ mod tests {
         }
     }
 
-    fn recovery_row(prefix: &str, lane: SupportExportParityLaneClass, posture: RecoveryPostureClass) -> SupportExportParityRow {
+    fn recovery_row(
+        prefix: &str,
+        lane: SupportExportParityLaneClass,
+        posture: RecoveryPostureClass,
+    ) -> SupportExportParityRow {
         SupportExportParityRow {
             row_id: format!("{}_{}_recovery_{}", prefix, lane.as_str(), posture.as_str()),
             lane_class: lane,
@@ -2409,7 +2469,8 @@ mod tests {
         SupportExportParityConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("proj:{}", surface.as_str()),
-            support_export_parity_truth_packet_id_ref: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
+            support_export_parity_truth_packet_id_ref:
+                "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
             rendered_at: "2026-05-27T12:00:00Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,
@@ -2433,10 +2494,7 @@ mod tests {
         SUPPORT_EXPORT_PARITY_TRUTH_DOC_REF.to_owned()
     }
 
-    fn lane_rows(
-        lane: SupportExportParityLaneClass,
-        prefix: &str,
-    ) -> Vec<SupportExportParityRow> {
+    fn lane_rows(lane: SupportExportParityLaneClass, prefix: &str) -> Vec<SupportExportParityRow> {
         let mut rows = vec![quality_row(prefix, lane)];
         for wedge in WedgeClass::REQUIRED_FOR_LAUNCH_STABLE {
             rows.push(wedge_row(prefix, lane, wedge));
@@ -2459,13 +2517,19 @@ mod tests {
 
     fn sample_input() -> SupportExportParityTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(SupportExportParityLaneClass::TerminalLane, "terminal"));
+        rows.extend(lane_rows(
+            SupportExportParityLaneClass::TerminalLane,
+            "terminal",
+        ));
         rows.extend(lane_rows(SupportExportParityLaneClass::TaskLane, "task"));
         rows.extend(lane_rows(SupportExportParityLaneClass::TestLane, "test"));
         rows.extend(lane_rows(SupportExportParityLaneClass::DebugLane, "debug"));
         SupportExportParityTruthPacketInput {
-            packet_id: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
-            workflow_or_surface_id: "workflow.runtime.finalize_terminal_task_test_and_debug_support_export_parity".to_owned(),
+            packet_id: "packet:m4:finalize_terminal_task_test_and_debug_support_export_parity"
+                .to_owned(),
+            workflow_or_surface_id:
+                "workflow.runtime.finalize_terminal_task_test_and_debug_support_export_parity"
+                    .to_owned(),
             generated_at: "2026-05-27T12:00:00Z".to_owned(),
             covered_lanes: SupportExportParityLaneClass::REQUIRED.to_vec(),
             rows,
@@ -2480,21 +2544,63 @@ mod tests {
 
     #[test]
     fn closed_tokens_are_pinned() {
-        assert_eq!(SupportExportParityLaneClass::TerminalLane.as_str(), "terminal_lane");
-        assert_eq!(SupportExportParityLaneClass::DebugLane.as_str(), "debug_lane");
-        assert_eq!(WedgeClass::SupportExportParity.as_str(), "support_export_parity");
-        assert_eq!(WedgeClass::ExecutionContextLineage.as_str(), "execution_context_lineage");
+        assert_eq!(
+            SupportExportParityLaneClass::TerminalLane.as_str(),
+            "terminal_lane"
+        );
+        assert_eq!(
+            SupportExportParityLaneClass::DebugLane.as_str(),
+            "debug_lane"
+        );
+        assert_eq!(
+            WedgeClass::SupportExportParity.as_str(),
+            "support_export_parity"
+        );
+        assert_eq!(
+            WedgeClass::ExecutionContextLineage.as_str(),
+            "execution_context_lineage"
+        );
         assert_eq!(ExportFieldClass::ExportClass.as_str(), "export_class");
-        assert_eq!(ExportFieldClass::ArtifactProvenance.as_str(), "artifact_provenance");
-        assert_eq!(DiagnosisPacketFieldClass::FindingCode.as_str(), "finding_code");
-        assert_eq!(DiagnosisPacketFieldClass::ChainOfCustody.as_str(), "chain_of_custody");
-        assert_eq!(RepairHookFieldClass::RepairTransactionId.as_str(), "repair_transaction_id");
-        assert_eq!(RepairHookFieldClass::RepairOutcome.as_str(), "repair_outcome");
-        assert_eq!(RecoveryPostureClass::RestoreNoRerun.as_str(), "restore_no_rerun");
-        assert_eq!(RecoveryPostureClass::DegradedHelper.as_str(), "degraded_helper");
-        assert_eq!(ConsumerSurface::ConformanceDashboard.as_str(), "conformance_dashboard");
-        assert_eq!(FindingKind::LaunchStableWithUnboundBinding.as_str(), "launch_stable_with_unbound_binding");
-        assert_eq!(FindingKind::LineageAdmissionMissingExecutionContextId.as_str(), "lineage_admission_missing_execution_context_id");
+        assert_eq!(
+            ExportFieldClass::ArtifactProvenance.as_str(),
+            "artifact_provenance"
+        );
+        assert_eq!(
+            DiagnosisPacketFieldClass::FindingCode.as_str(),
+            "finding_code"
+        );
+        assert_eq!(
+            DiagnosisPacketFieldClass::ChainOfCustody.as_str(),
+            "chain_of_custody"
+        );
+        assert_eq!(
+            RepairHookFieldClass::RepairTransactionId.as_str(),
+            "repair_transaction_id"
+        );
+        assert_eq!(
+            RepairHookFieldClass::RepairOutcome.as_str(),
+            "repair_outcome"
+        );
+        assert_eq!(
+            RecoveryPostureClass::RestoreNoRerun.as_str(),
+            "restore_no_rerun"
+        );
+        assert_eq!(
+            RecoveryPostureClass::DegradedHelper.as_str(),
+            "degraded_helper"
+        );
+        assert_eq!(
+            ConsumerSurface::ConformanceDashboard.as_str(),
+            "conformance_dashboard"
+        );
+        assert_eq!(
+            FindingKind::LaunchStableWithUnboundBinding.as_str(),
+            "launch_stable_with_unbound_binding"
+        );
+        assert_eq!(
+            FindingKind::LineageAdmissionMissingExecutionContextId.as_str(),
+            "lineage_admission_missing_execution_context_id"
+        );
     }
 
     #[test]
@@ -2540,8 +2646,10 @@ mod tests {
     fn missing_export_field_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, SupportExportParityRowClass::ExportFieldBinding)
-                && row.export_field_class == ExportFieldClass::RedactionState
+            !(matches!(
+                row.row_class,
+                SupportExportParityRowClass::ExportFieldBinding
+            ) && row.export_field_class == ExportFieldClass::RedactionState
                 && row.lane_class == SupportExportParityLaneClass::TaskLane)
         });
         let packet = SupportExportParityTruthPacket::materialize(input);
@@ -2556,8 +2664,10 @@ mod tests {
     fn missing_diagnosis_packet_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, SupportExportParityRowClass::DiagnosisPacketBinding)
-                && row.diagnosis_packet_field_class == DiagnosisPacketFieldClass::RedactionClass
+            !(matches!(
+                row.row_class,
+                SupportExportParityRowClass::DiagnosisPacketBinding
+            ) && row.diagnosis_packet_field_class == DiagnosisPacketFieldClass::RedactionClass
                 && row.lane_class == SupportExportParityLaneClass::TestLane)
         });
         let packet = SupportExportParityTruthPacket::materialize(input);
@@ -2572,8 +2682,10 @@ mod tests {
     fn missing_repair_hook_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, SupportExportParityRowClass::RepairHookBinding)
-                && row.repair_hook_field_class == RepairHookFieldClass::RepairHookRef
+            !(matches!(
+                row.row_class,
+                SupportExportParityRowClass::RepairHookBinding
+            ) && row.repair_hook_field_class == RepairHookFieldClass::RepairHookRef
                 && row.lane_class == SupportExportParityLaneClass::DebugLane)
         });
         let packet = SupportExportParityTruthPacket::materialize(input);
@@ -2588,8 +2700,10 @@ mod tests {
     fn missing_recovery_posture_for_launch_stable_blocks() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(row.row_class, SupportExportParityRowClass::RecoveryPostureAdmission)
-                && row.recovery_posture_class == RecoveryPostureClass::BlockedTarget
+            !(matches!(
+                row.row_class,
+                SupportExportParityRowClass::RecoveryPostureAdmission
+            ) && row.recovery_posture_class == RecoveryPostureClass::BlockedTarget
                 && row.lane_class == SupportExportParityLaneClass::TerminalLane)
         });
         let packet = SupportExportParityTruthPacket::materialize(input);

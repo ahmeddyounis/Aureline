@@ -9,16 +9,15 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_language::{
-    current_stable_launch_language_tooling_truth_packet,
-    LaunchLanguageToolingConsumerSurface, LaunchLanguageToolingDowngradeAutomationClass,
-    LaunchLanguageToolingEvidenceClass, LaunchLanguageToolingFindingKind,
-    LaunchLanguageToolingKnownLimitClass, LaunchLanguageToolingLaneClass,
-    LaunchLanguageToolingPromotionState, LaunchLanguageToolingRowClass,
-    LaunchLanguageToolingStepClass, LaunchLanguageToolingSupportClass,
-    LaunchLanguageToolingTruthPacket, LaunchLanguageToolingTruthPacketInput,
-    LAUNCH_LANGUAGE_TOOLING_TRUTH_ARTIFACT_DOC_REF, LAUNCH_LANGUAGE_TOOLING_TRUTH_DOC_REF,
-    LAUNCH_LANGUAGE_TOOLING_TRUTH_FIXTURE_DIR, LAUNCH_LANGUAGE_TOOLING_TRUTH_PACKET_ARTIFACT_REF,
-    LAUNCH_LANGUAGE_TOOLING_TRUTH_SCHEMA_REF,
+    current_stable_launch_language_tooling_truth_packet, LaunchLanguageToolingConsumerSurface,
+    LaunchLanguageToolingDowngradeAutomationClass, LaunchLanguageToolingEvidenceClass,
+    LaunchLanguageToolingFindingKind, LaunchLanguageToolingKnownLimitClass,
+    LaunchLanguageToolingLaneClass, LaunchLanguageToolingPromotionState,
+    LaunchLanguageToolingRowClass, LaunchLanguageToolingStepClass,
+    LaunchLanguageToolingSupportClass, LaunchLanguageToolingTruthPacket,
+    LaunchLanguageToolingTruthPacketInput, LAUNCH_LANGUAGE_TOOLING_TRUTH_ARTIFACT_DOC_REF,
+    LAUNCH_LANGUAGE_TOOLING_TRUTH_DOC_REF, LAUNCH_LANGUAGE_TOOLING_TRUTH_FIXTURE_DIR,
+    LAUNCH_LANGUAGE_TOOLING_TRUTH_PACKET_ARTIFACT_REF, LAUNCH_LANGUAGE_TOOLING_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -226,8 +225,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_launch_language_tooling_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_launch_language_tooling_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         LaunchLanguageToolingPromotionState::Stable
@@ -251,8 +250,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_daily_loop_for_every_launch_support_lane() {
-    let packet = current_stable_launch_language_tooling_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_launch_language_tooling_truth_packet().expect("checked-in packet validates");
     for required in LaunchLanguageToolingLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required

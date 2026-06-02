@@ -166,9 +166,7 @@ fn auth_rows_default_to_system_browser_or_disclose_exception() {
         }
         if record.stable_qualification.claim_class == StableClaimClass::Stable {
             assert!(
-                record
-                    .pillars
-                    .system_browser_default_or_explicit_exception,
+                record.pillars.system_browser_default_or_explicit_exception,
                 "{} Stable auth row not system-browser-default or disclosed exception",
                 scenario.scenario_id,
             );
@@ -344,7 +342,11 @@ fn claim_ceiling_never_overclaims() {
             assert!(pillars.typed_intent_preserved, "{}", scenario.scenario_id);
         }
         if ceiling.asserts_handler_ownership_explicit {
-            assert!(pillars.handler_ownership_explicit, "{}", scenario.scenario_id);
+            assert!(
+                pillars.handler_ownership_explicit,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_system_browser_default {
             assert!(
@@ -504,7 +506,10 @@ fn minted_refs_are_canonical_durable_objects() {
         for (label, value) in [
             ("diagnostics_export_ref", &record.diagnostics_export_ref),
             ("support_export_ref", &record.support_export_ref),
-            ("intent.canonical_target_ref", &record.intent.canonical_target_ref),
+            (
+                "intent.canonical_target_ref",
+                &record.intent.canonical_target_ref,
+            ),
             (
                 "handler_ownership.owning_channel_ref",
                 &record.handler_ownership.owning_channel_ref,

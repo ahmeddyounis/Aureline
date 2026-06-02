@@ -66,8 +66,7 @@ use crate::topology::{
 pub const HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for [`HardenInstallTopologyPage`].
-pub const HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND: &str =
-    "harden_install_topology_page_record";
+pub const HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND: &str = "harden_install_topology_page_record";
 
 /// Stable record-kind tag for [`HardenInstallTopologySupportExport`].
 pub const HARDEN_INSTALL_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -339,11 +338,8 @@ impl HardenInstallTopologyPage {
 
     /// Returns a metadata-safe support-export projection.
     pub fn support_export_projection(&self) -> HardenInstallTopologySupportExport {
-        let narrow_reasons: BTreeSet<NarrowReasonToken> = self
-            .defects
-            .iter()
-            .map(|d| d.narrow_reason_token)
-            .collect();
+        let narrow_reasons: BTreeSet<NarrowReasonToken> =
+            self.defects.iter().map(|d| d.narrow_reason_token).collect();
         let mut defect_counts: BTreeMap<String, u32> = BTreeMap::new();
         for defect in &self.defects {
             let key = format!("{:?}", defect.narrow_reason_token)
@@ -624,7 +620,9 @@ pub fn validate_harden_install_topology_page(
     for row in &page.managed_fleet_rows {
         coverage.rings_covered.insert(row.rollout_ring_class);
         coverage.binary_root_classes.insert(row.binary_root_class);
-        coverage.updater_owner_classes.insert(row.updater_owner_class);
+        coverage
+            .updater_owner_classes
+            .insert(row.updater_owner_class);
         for ev in &row.fleet_evidence {
             coverage.fleet_evidence_classes.insert(*ev);
         }
@@ -702,9 +700,7 @@ pub fn validate_harden_install_topology_page(
     }
 
     for row in &page.silent_deployment_rows {
-        coverage
-            .silent_deployment_classes
-            .insert(row.support_class);
+        coverage.silent_deployment_classes.insert(row.support_class);
 
         if row.row_id.trim().is_empty() {
             push(

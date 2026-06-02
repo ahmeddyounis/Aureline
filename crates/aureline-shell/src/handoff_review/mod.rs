@@ -65,8 +65,7 @@ pub const REPRO_PACKET_PREVIEW_SCHEMA_VERSION: u32 = 1;
 pub const HANDOFF_REVIEW_SHEET_SCHEMA_VERSION: u32 = 1;
 
 /// Frozen reference to the contract doc all three records point at.
-pub const HANDOFF_AND_REPRO_CONTRACT_DOC_REF: &str =
-    "docs/public/m3/handoff_and_repro_boundary.md";
+pub const HANDOFF_AND_REPRO_CONTRACT_DOC_REF: &str = "docs/public/m3/handoff_and_repro_boundary.md";
 
 /// Closed five-class target-visibility vocabulary stated on every pre-handoff
 /// review sheet. Distinct from the four-class About destination vocabulary
@@ -431,8 +430,10 @@ impl HandoffTargetReview {
                 data_exit: self.data_exit_boundary_class,
             });
         }
-        if !visibility_allows_network(self.visibility_class, self.network_browser_requirement_class)
-        {
+        if !visibility_allows_network(
+            self.visibility_class,
+            self.network_browser_requirement_class,
+        ) {
             return Err(HandoffReviewValidationError::VisibilityNetworkMismatch {
                 target_id: self.target_id.clone(),
                 visibility: self.visibility_class,
@@ -449,15 +450,19 @@ impl HandoffTargetReview {
         }
         for export in &self.build_context_exports {
             if export.export_block_schema_version < 1 {
-                return Err(HandoffReviewValidationError::BuildContextExportSchemaVersionInvalid {
-                    target_id: self.target_id.clone(),
-                    actual: export.export_block_schema_version,
-                });
+                return Err(
+                    HandoffReviewValidationError::BuildContextExportSchemaVersionInvalid {
+                        target_id: self.target_id.clone(),
+                        actual: export.export_block_schema_version,
+                    },
+                );
             }
             if !export.raw_screenshots_excluded || !export.raw_secrets_excluded {
-                return Err(HandoffReviewValidationError::BuildContextExportNotRedactionSafe {
-                    target_id: self.target_id.clone(),
-                });
+                return Err(
+                    HandoffReviewValidationError::BuildContextExportNotRedactionSafe {
+                        target_id: self.target_id.clone(),
+                    },
+                );
             }
             if non_empty(&export.export_block_ref).is_none()
                 || non_empty(&export.export_summary).is_none()
@@ -704,10 +709,12 @@ impl DraftContinuity {
                 });
             }
             if self.preserved_draft_text_ref.is_none() {
-                return Err(HandoffReviewValidationError::BlockedHandoffMissingDraftText {
-                    sheet_id: sheet_id.to_owned(),
-                    outcome: self.handoff_outcome_class,
-                });
+                return Err(
+                    HandoffReviewValidationError::BlockedHandoffMissingDraftText {
+                        sheet_id: sheet_id.to_owned(),
+                        outcome: self.handoff_outcome_class,
+                    },
+                );
             }
             let has_export = self
                 .available_actions
@@ -794,11 +801,13 @@ impl HandoffReviewSheet {
             .redaction_posture_class
             .allowed_for_visibility(self.target_review.visibility_class)
         {
-            return Err(HandoffReviewValidationError::RedactionPostureUnsafeForVisibility {
-                sheet_id: self.sheet_id.clone(),
-                posture: self.repro_packet_preview.redaction_posture_class,
-                visibility: self.target_review.visibility_class,
-            });
+            return Err(
+                HandoffReviewValidationError::RedactionPostureUnsafeForVisibility {
+                    sheet_id: self.sheet_id.clone(),
+                    posture: self.repro_packet_preview.redaction_posture_class,
+                    visibility: self.target_review.visibility_class,
+                },
+            );
         }
 
         // The preserved draft mirrors the chosen target class and redaction
@@ -826,9 +835,11 @@ impl HandoffReviewSheet {
             HandoffOutcomeClass::OpenedInSystemBrowser
         ) && !self.repro_packet_preview.preview_confirmed_before_share
         {
-            return Err(HandoffReviewValidationError::SharedWithoutPreviewConfirmation {
-                sheet_id: self.sheet_id.clone(),
-            });
+            return Err(
+                HandoffReviewValidationError::SharedWithoutPreviewConfirmation {
+                    sheet_id: self.sheet_id.clone(),
+                },
+            );
         }
 
         // A selected fallback must be one the target review actually offered.
@@ -869,7 +880,10 @@ impl HandoffReviewSheet {
             t.network_browser_requirement_class.as_str(),
             t.data_exit_boundary_class.as_str(),
         ));
-        out.push_str(&format!("    destination: {}\n", t.destination_identity_ref));
+        out.push_str(&format!(
+            "    destination: {}\n",
+            t.destination_identity_ref
+        ));
         for fallback in &t.safe_fallback_refs {
             out.push_str(&format!("    safe fallback: {fallback}\n"));
         }
@@ -982,10 +996,16 @@ fn visibility_allows_network(
             N::OfflineCapturePreview | N::SystemBrowserAuthenticatedPlane
         ),
         V::SecurityDisclosure => {
-            matches!(network, N::OfflineCapturePreview | N::EncryptedSecurityChannel)
+            matches!(
+                network,
+                N::OfflineCapturePreview | N::EncryptedSecurityChannel
+            )
         }
         V::ThirdPartyVendor => {
-            matches!(network, N::OfflineCapturePreview | N::VendorOrThirdPartyCall)
+            matches!(
+                network,
+                N::OfflineCapturePreview | N::VendorOrThirdPartyCall
+            )
         }
     }
 }

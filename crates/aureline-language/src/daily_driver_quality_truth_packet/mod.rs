@@ -1307,8 +1307,7 @@ impl DailyDriverQualityTruthSupportExport {
     pub fn is_export_safe(&self) -> bool {
         self.record_kind == DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND
             && self.schema_version == DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION
-            && self.daily_driver_quality_packet_id_ref
-                == self.daily_driver_quality_packet.packet_id
+            && self.daily_driver_quality_packet_id_ref == self.daily_driver_quality_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
             && self.daily_driver_quality_packet.validate().is_empty()
@@ -1376,10 +1375,7 @@ mod tests {
         DAILY_DRIVER_QUALITY_TRUTH_DOC_REF.to_owned()
     }
 
-    fn quality_row(
-        row_id: &str,
-        lane: LanguageLaneClass,
-    ) -> DailyDriverQualityRow {
+    fn quality_row(row_id: &str, lane: LanguageLaneClass) -> DailyDriverQualityRow {
         DailyDriverQualityRow {
             row_id: row_id.to_owned(),
             lane_class: lane,
@@ -1463,8 +1459,14 @@ mod tests {
 
     fn sample_input() -> DailyDriverQualityTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(LanguageLaneClass::TypescriptDailyDriverLane, "ts"));
-        rows.extend(lane_rows(LanguageLaneClass::JavascriptDailyDriverLane, "js"));
+        rows.extend(lane_rows(
+            LanguageLaneClass::TypescriptDailyDriverLane,
+            "ts",
+        ));
+        rows.extend(lane_rows(
+            LanguageLaneClass::JavascriptDailyDriverLane,
+            "js",
+        ));
         rows.extend(lane_rows(LanguageLaneClass::HtmlDailyDriverLane, "html"));
         rows.extend(lane_rows(LanguageLaneClass::CssDailyDriverLane, "css"));
         DailyDriverQualityTruthPacketInput {
@@ -1527,10 +1529,7 @@ mod tests {
         assert!(packet.validation_findings.is_empty());
         assert!(packet.is_stable());
         assert!(packet
-            .support_export(
-                "support:m4:daily_driver_quality",
-                "2026-05-26T12:00:10Z"
-            )
+            .support_export("support:m4:daily_driver_quality", "2026-05-26T12:00:10Z")
             .is_export_safe());
     }
 
@@ -1598,9 +1597,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != ConsumerSurface::ConformanceDashboard);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != ConsumerSurface::ConformanceDashboard
+        });
         let packet = DailyDriverQualityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet

@@ -107,7 +107,13 @@ const MAX_REF_CHARS: usize = 200;
 /// specific durable object. A ref pointing at one of these is rejected so the
 /// chrome cannot wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// Returns true when `reference` is a canonical durable-object ref of the form
@@ -826,7 +832,10 @@ impl core::fmt::Display for BuildError {
                 write!(f, "field `{field}` must be a non-empty reviewable sentence")
             }
             Self::NonCanonicalRef { field, value } => {
-                write!(f, "field `{field}` must be a canonical object ref, got {value:?}")
+                write!(
+                    f,
+                    "field `{field}` must be a canonical object ref, got {value:?}"
+                )
             }
             Self::MissingEarlyMilestone { milestone } => write!(
                 f,
@@ -1003,7 +1012,10 @@ impl WarmContinuityRecord {
         }
         for surface in &input.restore.no_rerun_surfaces {
             require_ref("restore.no_rerun.skeleton_ref", &surface.skeleton_ref)?;
-            require_ref("restore.no_rerun.resume_route_ref", &surface.resume_route_ref)?;
+            require_ref(
+                "restore.no_rerun.resume_route_ref",
+                &surface.resume_route_ref,
+            )?;
             if !is_reviewable_sentence(&surface.detail) {
                 return Err(BuildError::InvalidSentence {
                     field: "restore.no_rerun.detail",
@@ -1148,7 +1160,11 @@ impl WarmContinuityRecord {
     pub fn support_export_lines(&self) -> Vec<String> {
         let mut lines = vec![
             format!("warm_continuity: {}", self.record_id),
-            format!("entry_cause: {} ({})", self.entry_cause.as_str(), self.entry_cause_label),
+            format!(
+                "entry_cause: {} ({})",
+                self.entry_cause.as_str(),
+                self.entry_cause_label
+            ),
             format!("as_of: {}", self.as_of),
             format!("title: {}", self.title),
             format!("summary: {}", self.summary),
@@ -1165,7 +1181,10 @@ impl WarmContinuityRecord {
                 m.keyboard_reachable,
             ));
         }
-        lines.push(format!("restore_class: {}", self.restore.restore_class.as_str()));
+        lines.push(format!(
+            "restore_class: {}",
+            self.restore.restore_class.as_str()
+        ));
         lines.push(format!(
             "restore: exactly={} partially={} needs_review={} user_authored={}",
             self.summary_counts.restored_exactly_count,
@@ -1174,10 +1193,7 @@ impl WarmContinuityRecord {
             self.summary_counts.user_authored_item_count,
         ));
         for item in &self.restore.items {
-            let trigger = item
-                .downgrade_trigger
-                .map(|t| t.as_str())
-                .unwrap_or("none");
+            let trigger = item.downgrade_trigger.map(|t| t.as_str()).unwrap_or("none");
             lines.push(format!(
                 "  - {} [{}] provenance={} trigger={} user_authored={}",
                 item.object_ref,
@@ -1220,7 +1236,10 @@ impl WarmContinuityRecord {
                 pref.preference_ref, pref.influences_routing, pref.widens_workspace_trust,
             ));
         }
-        lines.push(format!("window_class: {}", self.responsive.window_class.as_str()));
+        lines.push(format!(
+            "window_class: {}",
+            self.responsive.window_class.as_str()
+        ));
         for s in &self.responsive.collapsed_surfaces {
             lines.push(format!(
                 "  collapsed {} -> {} reopen={} last_state={} keyboard={}",
@@ -1240,8 +1259,14 @@ impl WarmContinuityRecord {
                 cue.relocated(),
             ));
         }
-        lines.push(format!("honesty_marker_present: {}", self.honesty_marker_present));
-        lines.push(format!("diagnostics_export_ref: {}", self.diagnostics_export_ref));
+        lines.push(format!(
+            "honesty_marker_present: {}",
+            self.honesty_marker_present
+        ));
+        lines.push(format!(
+            "diagnostics_export_ref: {}",
+            self.diagnostics_export_ref
+        ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
     }

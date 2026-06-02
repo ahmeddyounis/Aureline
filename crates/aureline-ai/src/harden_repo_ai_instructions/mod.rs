@@ -942,7 +942,8 @@ fn validate_instructions(
         }
         // Only a signed designated policy file may claim widening authority.
         if row.claims_widening_authority && !row.source_class.may_claim_widening_authority() {
-            violations.push(RepoAiInstructionHardeningViolation::InstructionClaimsWideningAuthority);
+            violations
+                .push(RepoAiInstructionHardeningViolation::InstructionClaimsWideningAuthority);
             break;
         }
         // The declared precedence rank must match the closed canonical ordering.

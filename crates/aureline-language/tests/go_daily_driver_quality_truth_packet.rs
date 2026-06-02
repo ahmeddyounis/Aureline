@@ -17,11 +17,10 @@ use std::path::{Path, PathBuf};
 use aureline_language::{
     current_stable_go_daily_driver_quality_truth_packet, GoDailyDriverConfidenceClass,
     GoDailyDriverConsumerSurface, GoDailyDriverDowngradeAutomationClass,
-    GoDailyDriverEvidenceClass, GoDailyDriverKnownLimitClass,
-    GoDailyDriverLanguageLaneClass, GoDailyDriverQualityFindingKind,
-    GoDailyDriverQualityPromotionState, GoDailyDriverQualityRowClass,
-    GoDailyDriverQualityTruthPacket, GoDailyDriverQualityTruthPacketInput,
-    GoDailyDriverStepClass, GoDailyDriverSupportClass,
+    GoDailyDriverEvidenceClass, GoDailyDriverKnownLimitClass, GoDailyDriverLanguageLaneClass,
+    GoDailyDriverQualityFindingKind, GoDailyDriverQualityPromotionState,
+    GoDailyDriverQualityRowClass, GoDailyDriverQualityTruthPacket,
+    GoDailyDriverQualityTruthPacketInput, GoDailyDriverStepClass, GoDailyDriverSupportClass,
     GO_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, GO_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
     GO_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR, GO_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
     GO_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
@@ -232,8 +231,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_go_daily_driver_quality_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_go_daily_driver_quality_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         GoDailyDriverQualityPromotionState::Stable
@@ -257,8 +256,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_module_workspace_test_runner_debugger_and_symbol_refactor() {
-    let packet = current_stable_go_daily_driver_quality_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_go_daily_driver_quality_truth_packet().expect("checked-in packet validates");
     assert!(
         packet.rows.iter().any(|row| row.row_class
             == GoDailyDriverQualityRowClass::ModuleWorkspaceRow),

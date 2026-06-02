@@ -970,8 +970,7 @@ impl CAndCppDailyDriverQualityTruthPacket {
         exported_at: impl Into<String>,
     ) -> CAndCppDailyDriverQualityTruthSupportExport {
         CAndCppDailyDriverQualityTruthSupportExport {
-            record_kind: C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND
-                .to_owned(),
+            record_kind: C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
             export_id: export_id.into(),
             c_and_cpp_daily_driver_quality_packet_id_ref: self.packet_id.clone(),
@@ -1437,12 +1436,10 @@ impl Error for CAndCppDailyDriverQualityTruthArtifactError {}
 /// Returns an artifact error if the checked-in packet does not parse or validate.
 pub fn current_stable_c_and_cpp_daily_driver_quality_truth_packet(
 ) -> Result<CAndCppDailyDriverQualityTruthPacket, CAndCppDailyDriverQualityTruthArtifactError> {
-    let packet: CAndCppDailyDriverQualityTruthPacket = serde_json::from_str(include_str!(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../artifacts/language/m4/c_and_cpp_daily_driver_quality_truth_packet.json"
-        )
-    ))
+    let packet: CAndCppDailyDriverQualityTruthPacket = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/language/m4/c_and_cpp_daily_driver_quality_truth_packet.json"
+    )))
     .map_err(CAndCppDailyDriverQualityTruthArtifactError::Packet)?;
     let findings = packet.validate();
     if findings.is_empty() {

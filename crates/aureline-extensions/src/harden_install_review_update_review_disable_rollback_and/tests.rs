@@ -118,7 +118,10 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let case = &fixture.case_name;
         assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{case}");
         assert_eq!(packet.claim.effective_tier, e.effective_tier, "{case}");
-        assert_eq!(packet.claim.support_claim_class, e.support_claim_class, "{case}");
+        assert_eq!(
+            packet.claim.support_claim_class, e.support_claim_class,
+            "{case}"
+        );
         assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{case}");
         assert_eq!(packet.claim.downgraded, e.downgraded, "{case}");
 
@@ -132,32 +135,57 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             packet.downgraded_banner.must_display, e.downgraded_banner_required,
             "fixture {case} banner"
         );
-        assert_eq!(packet.attribution_complete(), e.attribution_complete, "{case}");
+        assert_eq!(
+            packet.attribution_complete(),
+            e.attribution_complete,
+            "{case}"
+        );
         assert_eq!(
             packet.inspection.flow_contract_version_current, e.flow_contract_version_current,
             "{case}"
         );
-        assert_eq!(packet.inspection.lifecycle_installable, e.lifecycle_installable, "{case}");
-        assert_eq!(packet.inspection.resolution_deterministic, e.resolution_deterministic, "{case}");
+        assert_eq!(
+            packet.inspection.lifecycle_installable, e.lifecycle_installable,
+            "{case}"
+        );
+        assert_eq!(
+            packet.inspection.resolution_deterministic, e.resolution_deterministic,
+            "{case}"
+        );
         assert_eq!(
             packet.inspection.all_hard_dependencies_resolved, e.all_hard_dependencies_resolved,
             "{case}"
         );
-        assert_eq!(packet.permissions.expansion_class, e.expansion_class, "{case}");
-        assert_eq!(packet.inspection.reconsent_satisfied, e.reconsent_satisfied, "{case}");
-        assert_eq!(packet.inspection.lock_export_available, e.lock_export_available, "{case}");
+        assert_eq!(
+            packet.permissions.expansion_class, e.expansion_class,
+            "{case}"
+        );
+        assert_eq!(
+            packet.inspection.reconsent_satisfied, e.reconsent_satisfied,
+            "{case}"
+        );
+        assert_eq!(
+            packet.inspection.lock_export_available, e.lock_export_available,
+            "{case}"
+        );
         assert_eq!(
             packet.inspection.team_and_air_gapped_rollout_supported,
             e.team_and_air_gapped_rollout_supported,
             "{case}"
         );
-        assert_eq!(packet.inspection.rollback_reversible, e.rollback_reversible, "{case}");
+        assert_eq!(
+            packet.inspection.rollback_reversible, e.rollback_reversible,
+            "{case}"
+        );
         assert_eq!(
             packet.inspection.revocation_fully_propagated, e.revocation_fully_propagated,
             "{case}"
         );
         assert_eq!(packet.inspection.node_count, e.node_count, "{case}");
-        assert_eq!(packet.inspection.hard_dependency_count, e.hard_dependency_count, "{case}");
+        assert_eq!(
+            packet.inspection.hard_dependency_count, e.hard_dependency_count,
+            "{case}"
+        );
         assert_eq!(
             packet.inspection.optional_integration_count, e.optional_integration_count,
             "{case}"
@@ -206,7 +234,8 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             .iter()
             .map(String::as_str)
             .collect();
-        let union: std::collections::BTreeSet<&str> = declared.union(&transitive).copied().collect();
+        let union: std::collections::BTreeSet<&str> =
+            declared.union(&transitive).copied().collect();
         assert_eq!(effective, union, "fixture {case} effective union");
 
         // Re-consent is required whenever the effective set expanded.
@@ -307,8 +336,10 @@ fn expansion_without_reconsent_narrows_but_still_surfaces_the_permission() {
     let mut input = stable_install_input();
     // The prior install lacked the registry network permission; the new effective
     // set adds it, but no re-consent is recorded.
-    input.permissions.prior_effective_permission_refs =
-        vec!["perm:fs.read.workspace".to_string(), "perm:ui.statusbar".to_string()];
+    input.permissions.prior_effective_permission_refs = vec![
+        "perm:fs.read.workspace".to_string(),
+        "perm:ui.statusbar".to_string(),
+    ];
     input.reconsent.reconsent_state_class = "required_missing".to_string();
     let packet = StableLifecycleFlowPacket::from_input(input).expect("must build");
     assert!(packet.permissions.expanded());
@@ -323,14 +354,19 @@ fn expansion_without_reconsent_narrows_but_still_surfaces_the_permission() {
         .permissions
         .effective_permission_refs
         .contains(&"perm:net.connect.registry".to_string()));
-    assert_eq!(packet.permissions.expanded_permission_refs, vec!["perm:net.connect.registry".to_string()]);
+    assert_eq!(
+        packet.permissions.expanded_permission_refs,
+        vec!["perm:net.connect.registry".to_string()]
+    );
 }
 
 #[test]
 fn expansion_with_pending_reconsent_narrows_to_beta() {
     let mut input = stable_install_input();
-    input.permissions.prior_effective_permission_refs =
-        vec!["perm:fs.read.workspace".to_string(), "perm:ui.statusbar".to_string()];
+    input.permissions.prior_effective_permission_refs = vec![
+        "perm:fs.read.workspace".to_string(),
+        "perm:ui.statusbar".to_string(),
+    ];
     input.reconsent.reconsent_state_class = "required_pending".to_string();
     let packet = StableLifecycleFlowPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");

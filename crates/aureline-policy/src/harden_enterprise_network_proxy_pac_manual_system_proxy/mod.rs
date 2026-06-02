@@ -137,10 +137,7 @@ impl ProxyRouteClass {
     /// True when this route requires an explicit local-only fallback declaration
     /// (enterprise-bearing routes where the fallback would otherwise be opaque).
     pub const fn requires_local_fallback_declaration(self) -> bool {
-        matches!(
-            self,
-            Self::PolicyPinned | Self::MirrorOnly | Self::Offline
-        )
+        matches!(self, Self::PolicyPinned | Self::MirrorOnly | Self::Offline)
     }
 
     /// True when this route may carry managed authority (signed policy origin).
@@ -723,8 +720,10 @@ impl HardenEnterpriseNetworkProxyPage {
     ) -> Self {
         let defects = audit_harden_rows(&rows, &network_trust_beta_page);
         let qualified_rows = qualify_rows(rows, &defects);
-        let summary =
-            HardenEnterpriseNetworkProxySummary::from_rows(&qualified_rows, &network_trust_beta_page);
+        let summary = HardenEnterpriseNetworkProxySummary::from_rows(
+            &qualified_rows,
+            &network_trust_beta_page,
+        );
         Self {
             record_kind: HARDEN_ENTERPRISE_NETWORK_PROXY_PAGE_RECORD_KIND.to_owned(),
             schema_version: HARDEN_ENTERPRISE_NETWORK_PROXY_SCHEMA_VERSION,
@@ -892,9 +891,9 @@ fn audit_harden_rows(
     // Hard guardrail: raw secret or private key material in upstream network-trust page.
     let upstream_defects =
         audit_network_trust_beta_rows(&network_trust_page.rows, &network_trust_page.support_rows);
-    let has_raw_material = upstream_defects.iter().any(|d| {
-        d.defect_kind == NetworkTrustBetaDefectKind::RawSecretOrPrivateMaterialExposed
-    });
+    let has_raw_material = upstream_defects
+        .iter()
+        .any(|d| d.defect_kind == NetworkTrustBetaDefectKind::RawSecretOrPrivateMaterialExposed);
     if has_raw_material {
         defects.push(HardenEnterpriseNetworkProxyDefect::new(
             HardenEnterpriseNetworkProxyNarrowReasonClass::RawSecretOrPrivateMaterialExposed,
@@ -976,9 +975,7 @@ fn audit_harden_rows(
         }
 
         // Policy-pinned and managed-authority routes require a managed attribution ref.
-        if row.proxy_route.may_carry_managed_authority()
-            && row.managed_attribution_ref.is_empty()
-        {
+        if row.proxy_route.may_carry_managed_authority() && row.managed_attribution_ref.is_empty() {
             defects.push(HardenEnterpriseNetworkProxyDefect::new(
                 HardenEnterpriseNetworkProxyNarrowReasonClass::ManagedAttributionMissing,
                 row.row_id.clone(),
@@ -988,8 +985,7 @@ fn audit_harden_rows(
     }
 
     // Coverage check: all six required routes must appear at least once.
-    let required_routes: BTreeSet<&str> =
-        ProxyRouteClass::ALL.iter().map(|r| r.as_str()).collect();
+    let required_routes: BTreeSet<&str> = ProxyRouteClass::ALL.iter().map(|r| r.as_str()).collect();
     let observed_routes: BTreeSet<&str> =
         rows.iter().map(|r| r.proxy_route_token.as_str()).collect();
     for missing in required_routes.difference(&observed_routes) {
@@ -1068,12 +1064,8 @@ fn qualify_rows(
 
         row.qualification_token = row_qual.as_str().to_owned();
         row.narrow_reason_token = row_reason.as_str().to_owned();
-        row.plain_language_summary = build_row_summary(
-            &row.row_id,
-            &row.proxy_route_token,
-            row_qual,
-            row_reason,
-        );
+        row.plain_language_summary =
+            build_row_summary(&row.row_id, &row.proxy_route_token, row_qual, row_reason);
     }
 
     rows
@@ -1176,7 +1168,12 @@ fn make_row(
     }
 }
 
-fn cred(kind: BootstrapCredentialKind, cred_ref: &str, source_label: &str, policy_locked: bool) -> BootstrapCredentialDeclaration {
+fn cred(
+    kind: BootstrapCredentialKind,
+    cred_ref: &str,
+    source_label: &str,
+    policy_locked: bool,
+) -> BootstrapCredentialDeclaration {
     BootstrapCredentialDeclaration {
         credential_kind: kind,
         credential_kind_token: kind.as_str().to_owned(),
@@ -1195,14 +1192,12 @@ fn row_system() -> HardenEnterpriseNetworkProxyRow {
         ProxySelectorReasonClass::OsSystemProxyActive,
         "No policy-pinned, manual, process-environment, or PAC source is present; \
          the OS system proxy setting is used.",
-        vec![
-            cred(
-                BootstrapCredentialKind::TlsSystemCa,
-                "network:trust_store:system_ca_bundle:ref",
-                "OS platform CA trust store",
-                false,
-            ),
-        ],
+        vec![cred(
+            BootstrapCredentialKind::TlsSystemCa,
+            "network:trust_store:system_ca_bundle:ref",
+            "OS platform CA trust store",
+            false,
+        )],
         TlsVerificationPostureClass::FullVerification,
         RouteClientCertPostureClass::NoneRequired,
         "not_applicable",
@@ -1344,14 +1339,12 @@ fn row_offline() -> HardenEnterpriseNetworkProxyRow {
         ProxySelectorReasonClass::OfflineProfileActive,
         "The offline or air-gapped profile is active; all external network calls \
          are suppressed. Local-core editing and local AI capabilities remain available.",
-        vec![
-            cred(
-                BootstrapCredentialKind::NoneRequired,
-                "",
-                "No network credential required; offline route uses no external endpoints",
-                false,
-            ),
-        ],
+        vec![cred(
+            BootstrapCredentialKind::NoneRequired,
+            "",
+            "No network credential required; offline route uses no external endpoints",
+            false,
+        )],
         TlsVerificationPostureClass::NotApplicable,
         RouteClientCertPostureClass::NoneRequired,
         "not_applicable",

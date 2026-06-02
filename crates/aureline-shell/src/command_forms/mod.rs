@@ -417,9 +417,7 @@ impl ValidationFindingClass {
             Self::ValueFailedLocaleTag => "value_failed_locale_tag",
             Self::ValueFailedGlobGrammar => "value_failed_glob_grammar",
             Self::ValueFailedProviderHandshake => "value_failed_provider_handshake",
-            Self::ValueFailedWorkspaceScopeResolution => {
-                "value_failed_workspace_scope_resolution"
-            }
+            Self::ValueFailedWorkspaceScopeResolution => "value_failed_workspace_scope_resolution",
             Self::ValueFailedCredentialHandleResolution => {
                 "value_failed_credential_handle_resolution"
             }
@@ -572,12 +570,17 @@ pub struct ParameterFormStateRecord {
 impl ParameterFormStateRecord {
     /// Returns the field for an argument name, if any.
     pub fn field(&self, argument_name: &str) -> Option<&FieldStateRecord> {
-        self.fields.iter().find(|f| f.argument_name == argument_name)
+        self.fields
+            .iter()
+            .find(|f| f.argument_name == argument_name)
     }
 
     /// Returns true when no blocking validation finding is present.
     pub fn is_invocable(&self) -> bool {
-        !matches!(self.validation_rollup.overall_severity, ValidationSeverity::Blocking)
+        !matches!(
+            self.validation_rollup.overall_severity,
+            ValidationSeverity::Blocking
+        )
     }
 }
 

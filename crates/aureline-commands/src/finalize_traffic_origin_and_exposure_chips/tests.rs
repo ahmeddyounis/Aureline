@@ -64,14 +64,13 @@ fn evidence_export() -> CommandContractEvidenceExport {
         evidence_id: "command-evidence:traffic-origin-exposure-chips:stable:0001".to_owned(),
         json_export_ref: FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_ARTIFACT_REF.to_owned(),
         markdown_summary_ref: FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SUMMARY_REF.to_owned(),
-        admin_inspector_ref: "admin-inspector:traffic-origin-exposure-chips:stable:0001"
-            .to_owned(),
+        admin_inspector_ref: "admin-inspector:traffic-origin-exposure-chips:stable:0001".to_owned(),
         support_export_ref: "support-export:traffic-origin-exposure-chips:stable:0001".to_owned(),
         rollback_lineage_refs: vec![
-            "rollback-checkpoint:traffic-origin-exposure-chips:0001".to_owned(),
+            "rollback-checkpoint:traffic-origin-exposure-chips:0001".to_owned()
         ],
         export_lineage_refs: vec![
-            "export-lineage:traffic-origin-exposure-chips:beta:0001".to_owned(),
+            "export-lineage:traffic-origin-exposure-chips:beta:0001".to_owned()
         ],
     }
 }
@@ -89,8 +88,7 @@ fn input() -> FinalizeTrafficOriginExposureChipsPacketInput {
     FinalizeTrafficOriginExposureChipsPacketInput {
         packet_id: PACKET_ID.to_owned(),
         command_family_id: "cmd-family:network.tunnel_open".to_owned(),
-        display_label: "Network Tunnel and Port Forward (traffic-origin exposure chips)"
-            .to_owned(),
+        display_label: "Network Tunnel and Port Forward (traffic-origin exposure chips)".to_owned(),
         claimed_stable: true,
         policy_epoch_ref: "policy-epoch:traffic-origin:0001".to_owned(),
         contract_refs: StableContractRefs::canonical(),
@@ -156,9 +154,9 @@ fn non_canonical_contract_refs_are_rejected() {
 #[test]
 fn missing_source_contracts_are_rejected() {
     let mut packet = packet();
-    packet
-        .source_contract_refs
-        .retain(|reference| reference != FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_PARITY_CONTRACT_REF);
+    packet.source_contract_refs.retain(|reference| {
+        reference != FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_PARITY_CONTRACT_REF
+    });
     assert!(packet
         .validate()
         .contains(&FinalizeTrafficOriginExposureChipsViolation::MissingSourceContracts));
@@ -242,9 +240,7 @@ fn publish_target_record_missing_approval_scope_ref_is_rejected() {
     packet.publish_target_records[0].approval_scope_ref = String::new();
     assert!(packet
         .validate()
-        .contains(
-            &FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken
-        ));
+        .contains(&FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken));
 }
 
 #[test]
@@ -253,9 +249,7 @@ fn publish_target_record_not_disclosed_in_chip_is_rejected() {
     packet.publish_target_records[0].disclosed_in_chip = false;
     assert!(packet
         .validate()
-        .contains(
-            &FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken
-        ));
+        .contains(&FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken));
 }
 
 #[test]
@@ -335,8 +329,7 @@ fn missing_evidence_id_is_rejected() {
 #[test]
 fn raw_material_is_rejected() {
     let mut packet = packet();
-    packet.tunnel_records[0].tunnel_ref =
-        "reachable via ssh-tunnel://internal.host/dev".to_owned();
+    packet.tunnel_records[0].tunnel_ref = "reachable via ssh-tunnel://internal.host/dev".to_owned();
     assert!(packet
         .validate()
         .contains(&FinalizeTrafficOriginExposureChipsViolation::RawMaterialInExport));
@@ -365,9 +358,7 @@ fn checked_artifact_validates() {
 fn emit_artifact() {
     let packet = packet();
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-    let dir = format!(
-        "{root}/artifacts/commands/m4/finalize_traffic_origin_and_exposure_chips"
-    );
+    let dir = format!("{root}/artifacts/commands/m4/finalize_traffic_origin_and_exposure_chips");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         format!("{dir}/support_export.json"),
@@ -379,14 +370,11 @@ fn emit_artifact() {
         packet.render_markdown_summary(),
     )
     .unwrap();
-    let fixture_dir = format!(
-        "{root}/fixtures/commands/m4/finalize_traffic_origin_and_exposure_chips"
-    );
+    let fixture_dir =
+        format!("{root}/fixtures/commands/m4/finalize_traffic_origin_and_exposure_chips");
     std::fs::create_dir_all(&fixture_dir).unwrap();
     std::fs::write(
-        format!(
-            "{fixture_dir}/finalize_traffic_origin_and_exposure_chips_packet.json"
-        ),
+        format!("{fixture_dir}/finalize_traffic_origin_and_exposure_chips_packet.json"),
         format!("{}\n", packet.export_safe_json()),
     )
     .unwrap();

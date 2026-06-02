@@ -73,8 +73,7 @@ pub const OPERATOR_PLAYBOOK_RECORD_KIND: &str = "operator_playbook_record";
 pub const OPERATOR_PLAYBOOK_STEP_RECORD_KIND: &str = "operator_playbook_step_record";
 
 /// Stable record-kind tag for [`GitReviewSupportExportPacket`].
-pub const GIT_REVIEW_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
-    "git_review_support_export_packet";
+pub const GIT_REVIEW_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str = "git_review_support_export_packet";
 
 /// Stable record-kind tag for [`GitReviewTimelineInspectionRecord`].
 pub const GIT_REVIEW_TIMELINE_INSPECTION_RECORD_KIND: &str =
@@ -122,17 +121,11 @@ pub const TIMELINE_EVENT_KINDS: &[&str] = &[
 ];
 
 /// Closed set of freshness classes for timeline events.
-pub const TIMELINE_FRESHNESS_CLASSES: &[&str] =
-    &["current", "stale", "superseded", "unverified"];
+pub const TIMELINE_FRESHNESS_CLASSES: &[&str] = &["current", "stale", "superseded", "unverified"];
 
 /// Closed set of operator playbook states.
-pub const OPERATOR_PLAYBOOK_STATES: &[&str] = &[
-    "draft",
-    "ready",
-    "in_progress",
-    "completed",
-    "blocked",
-];
+pub const OPERATOR_PLAYBOOK_STATES: &[&str] =
+    &["draft", "ready", "in_progress", "completed", "blocked"];
 
 /// Closed set of operator playbook step command classes.
 pub const PLAYBOOK_STEP_COMMAND_CLASSES: &[&str] = &[
@@ -633,7 +626,10 @@ impl GitReviewSupportExportTimelinePacket {
         ensure_nonempty(&self.packet_id, "packet_id")?;
         ensure_nonempty(&self.generated_at, "generated_at")?;
 
-        validate_truth_record(&self.timeline_truth, &self.review_workspace.review_workspace_id)?;
+        validate_truth_record(
+            &self.timeline_truth,
+            &self.review_workspace.review_workspace_id,
+        )?;
         for event in &self.timeline_events {
             validate_event_record(event, &self.timeline_truth.timeline_id)?;
         }
@@ -747,7 +743,8 @@ impl GitReviewSupportExportTimelinePacket {
                     )));
                 }
             }
-            if step.authority_class == "hosted_provider_mutation" && !step.discloses_hosted_authority
+            if step.authority_class == "hosted_provider_mutation"
+                && !step.discloses_hosted_authority
             {
                 return Err(git_review_timeline_validation_error(format!(
                     "playbook step {} claims hosted authority but does not disclose it",
@@ -978,7 +975,10 @@ fn timeline_truth_record(
     }
     for step in &input.playbook_steps {
         if step.would_broaden_authority {
-            push_unique(&mut invalidation_reasons, "playbook_step_authority_exceeded");
+            push_unique(
+                &mut invalidation_reasons,
+                "playbook_step_authority_exceeded",
+            );
         }
     }
     if input.chronology_state == "chronology_gap_detected" {
@@ -1009,7 +1009,10 @@ fn timeline_truth_record(
         record_kind: GIT_REVIEW_TIMELINE_TRUTH_RECORD_KIND.to_string(),
         schema_version: GIT_REVIEW_TIMELINE_SCHEMA_VERSION,
         timeline_id: input.timeline_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         chronology_state: input.chronology_state.clone(),
         invalidation_reasons,
         actionable: blocked_reasons.is_empty(),
@@ -1116,7 +1119,10 @@ fn support_export_packet(
         schema_version: GIT_REVIEW_TIMELINE_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         timeline_id_ref: truth.timeline_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         timeline_event_id_refs: events.iter().map(|e| e.event_id.clone()).collect(),
@@ -1184,9 +1190,9 @@ fn inspection_record(
             .iter()
             .all(|s| s.reversible || s.checkpoint_required),
         all_mutating_steps_previewable: mutating_steps.iter().all(|s| s.preview_supported),
-        all_hosted_steps_disclosed: steps
-            .iter()
-            .all(|s| s.authority_class != "hosted_provider_mutation" || s.discloses_hosted_authority),
+        all_hosted_steps_disclosed: steps.iter().all(|s| {
+            s.authority_class != "hosted_provider_mutation" || s.discloses_hosted_authority
+        }),
         no_authority_broadening: !steps.iter().any(|s| s.would_broaden_authority),
         actionable: truth.actionable,
         invalidated: !truth.invalidation_reasons.is_empty(),
@@ -1212,7 +1218,11 @@ fn validate_input(
     ensure_nonempty(&input.packet_id, "packet_id")?;
     ensure_nonempty(&input.generated_at, "generated_at")?;
     ensure_nonempty(&input.chronology_state, "chronology_state")?;
-    ensure_token(CHRONOLOGY_STATES, &input.chronology_state, "chronology_state")?;
+    ensure_token(
+        CHRONOLOGY_STATES,
+        &input.chronology_state,
+        "chronology_state",
+    )?;
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     for reason in &input.invalidation_reasons {
@@ -1245,7 +1255,11 @@ fn validate_input(
                 event.sequence_index
             )));
         }
-        ensure_token(TIMELINE_EVENT_KINDS, &event.event_kind, "timeline_event.event_kind")?;
+        ensure_token(
+            TIMELINE_EVENT_KINDS,
+            &event.event_kind,
+            "timeline_event.event_kind",
+        )?;
         ensure_token(
             TIMELINE_EVENT_SOURCE_CLASSES,
             &event.event_source_class,
@@ -1354,7 +1368,11 @@ fn validate_truth_record(
         workspace_id,
         "timeline truth review_workspace_id_ref",
     )?;
-    ensure_token(CHRONOLOGY_STATES, &record.chronology_state, "timeline truth chronology_state")?;
+    ensure_token(
+        CHRONOLOGY_STATES,
+        &record.chronology_state,
+        "timeline truth chronology_state",
+    )?;
     for reason in &record.invalidation_reasons {
         ensure_token(
             GIT_REVIEW_TIMELINE_INVALIDATION_REASONS,
@@ -1369,8 +1387,16 @@ fn validate_event_record(
     record: &TimelineEventRecord,
     timeline_id: &str,
 ) -> Result<(), GitReviewTimelineValidationError> {
-    ensure_eq(record.record_kind.as_str(), TIMELINE_EVENT_RECORD_KIND, "event record_kind")?;
-    ensure_eq(record.timeline_id_ref.as_str(), timeline_id, "event timeline_id_ref")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        TIMELINE_EVENT_RECORD_KIND,
+        "event record_kind",
+    )?;
+    ensure_eq(
+        record.timeline_id_ref.as_str(),
+        timeline_id,
+        "event timeline_id_ref",
+    )?;
     ensure_token(TIMELINE_EVENT_KINDS, &record.event_kind, "event event_kind")?;
     ensure_token(
         TIMELINE_EVENT_SOURCE_CLASSES,
@@ -1382,7 +1408,11 @@ fn validate_event_record(
         &record.clock_source_class,
         "event clock_source_class",
     )?;
-    ensure_token(TIMELINE_FRESHNESS_CLASSES, &record.freshness_class, "event freshness_class")?;
+    ensure_token(
+        TIMELINE_FRESHNESS_CLASSES,
+        &record.freshness_class,
+        "event freshness_class",
+    )?;
     Ok(())
 }
 
@@ -1390,9 +1420,21 @@ fn validate_playbook_record(
     record: &OperatorPlaybookRecord,
     timeline_id: &str,
 ) -> Result<(), GitReviewTimelineValidationError> {
-    ensure_eq(record.record_kind.as_str(), OPERATOR_PLAYBOOK_RECORD_KIND, "playbook record_kind")?;
-    ensure_eq(record.timeline_id_ref.as_str(), timeline_id, "playbook timeline_id_ref")?;
-    ensure_token(OPERATOR_PLAYBOOK_STATES, &record.playbook_state, "playbook playbook_state")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        OPERATOR_PLAYBOOK_RECORD_KIND,
+        "playbook record_kind",
+    )?;
+    ensure_eq(
+        record.timeline_id_ref.as_str(),
+        timeline_id,
+        "playbook timeline_id_ref",
+    )?;
+    ensure_token(
+        OPERATOR_PLAYBOOK_STATES,
+        &record.playbook_state,
+        "playbook playbook_state",
+    )?;
     Ok(())
 }
 
@@ -1405,7 +1447,11 @@ fn validate_step_record(
         OPERATOR_PLAYBOOK_STEP_RECORD_KIND,
         "playbook step record_kind",
     )?;
-    ensure_eq(record.timeline_id_ref.as_str(), timeline_id, "playbook step timeline_id_ref")?;
+    ensure_eq(
+        record.timeline_id_ref.as_str(),
+        timeline_id,
+        "playbook step timeline_id_ref",
+    )?;
     ensure_token(
         PLAYBOOK_STEP_COMMAND_CLASSES,
         &record.command_class,

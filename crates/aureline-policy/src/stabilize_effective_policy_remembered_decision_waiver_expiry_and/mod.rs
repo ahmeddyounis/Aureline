@@ -176,9 +176,7 @@ impl EffectivePolicyStabilizeNarrowReasonClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::NotNarrowed => "not_narrowed",
-            Self::PolicySimulationBetaPageHasDefects => {
-                "policy_simulation_beta_page_has_defects"
-            }
+            Self::PolicySimulationBetaPageHasDefects => "policy_simulation_beta_page_has_defects",
             Self::RequiredChangeClassMissing => "required_change_class_missing",
             Self::ExceptionPreviewLinksMissing => "exception_preview_links_missing",
             Self::ExceptionMissingBoundedExpiry => "exception_missing_bounded_expiry",
@@ -264,7 +262,10 @@ pub struct EffectivePolicyStabilizeSummary {
 }
 
 impl EffectivePolicyStabilizeSummary {
-    fn from_rows(rows: &[EffectivePolicyStabilizeRow], beta_page: &PolicySimulationBetaPage) -> Self {
+    fn from_rows(
+        rows: &[EffectivePolicyStabilizeRow],
+        beta_page: &PolicySimulationBetaPage,
+    ) -> Self {
         let mut stable = 0usize;
         let mut beta = 0usize;
         let mut preview = 0usize;
@@ -468,7 +469,10 @@ impl EffectivePolicyStabilizePage {
 
     /// True when action-time policy snapshots preserve historical truth.
     pub fn action_time_policy_truth_is_preserved(&self) -> bool {
-        !self.simulation_beta_page.action_time_policy_states.is_empty()
+        !self
+            .simulation_beta_page
+            .action_time_policy_states
+            .is_empty()
             && self
                 .simulation_beta_page
                 .action_time_policy_states
@@ -694,7 +698,9 @@ fn derive_stabilize_rows(
     beta_page: &PolicySimulationBetaPage,
     page_defects: &[EffectivePolicyStabilizeDefect],
 ) -> Vec<EffectivePolicyStabilizeRow> {
-    let has_withdrawal = page_defects.iter().any(|d| d.narrow_reason.is_withdrawal_reason());
+    let has_withdrawal = page_defects
+        .iter()
+        .any(|d| d.narrow_reason.is_withdrawal_reason());
     let has_preview = page_defects.iter().any(|d| {
         d.narrow_reason == EffectivePolicyStabilizeNarrowReasonClass::RequiredChangeClassMissing
     });

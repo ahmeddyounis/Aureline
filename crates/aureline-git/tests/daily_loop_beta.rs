@@ -7,8 +7,8 @@ use std::process::Command;
 use serde::Deserialize;
 
 use aureline_git::{
-    DailyLoopOperationKind, DailyLoopRequest, DailyLoopService, DailyLoopSnapshotState,
-    DailyLoopPreviewState,
+    DailyLoopOperationKind, DailyLoopPreviewState, DailyLoopRequest, DailyLoopService,
+    DailyLoopSnapshotState,
 };
 
 #[derive(Debug, Deserialize)]
@@ -135,7 +135,8 @@ fn run_fixture(path: &Path) {
                 fixture.case_name
             );
         }
-        if preview.state == DailyLoopPreviewState::Ready && fixture.expected.outcome_state.is_some() {
+        if preview.state == DailyLoopPreviewState::Ready && fixture.expected.outcome_state.is_some()
+        {
             let result = service.apply(&preview, "fixture:actor");
             if let Some(expected_outcome) = &fixture.expected.outcome_state {
                 assert_eq!(
@@ -224,7 +225,8 @@ fn parse_operation(op: &str) -> DailyLoopOperationKind {
 #[test]
 fn status_attached_dirty() {
     let dir = build_case_root("attached_dirty");
-    let request = DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Status, vec![]);
+    let request =
+        DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Status, vec![]);
     let service = DailyLoopService::default();
     let snapshot = service.snapshot(&request);
     assert_eq!(snapshot.state, DailyLoopSnapshotState::Current);
@@ -234,7 +236,8 @@ fn status_attached_dirty() {
 #[test]
 fn status_not_a_repository() {
     let dir = build_case_root("not_a_repository");
-    let request = DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Status, vec![]);
+    let request =
+        DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Status, vec![]);
     let service = DailyLoopService::default();
     let snapshot = service.snapshot(&request);
     assert_eq!(snapshot.state, DailyLoopSnapshotState::NotRepository);
@@ -243,7 +246,8 @@ fn status_not_a_repository() {
 #[test]
 fn stash_list_with_stash() {
     let dir = build_case_root("with_stash");
-    let request = DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::StashCapture, vec![]);
+    let request =
+        DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::StashCapture, vec![]);
     let service = DailyLoopService::default();
     let snapshot = service.snapshot(&request);
     assert_eq!(snapshot.state, DailyLoopSnapshotState::Current);
@@ -258,7 +262,8 @@ fn stash_list_with_stash() {
 #[test]
 fn history_with_commits() {
     let dir = build_case_root("with_history");
-    let request = DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::History, vec![]);
+    let request =
+        DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::History, vec![]);
     let service = DailyLoopService::default();
     let snapshot = service.snapshot(&request);
     assert_eq!(snapshot.state, DailyLoopSnapshotState::Current);
@@ -268,7 +273,8 @@ fn history_with_commits() {
 #[test]
 fn commit_preview_blocked_no_message() {
     let dir = build_case_root("attached_dirty");
-    let request = DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Commit, vec![]);
+    let request =
+        DailyLoopRequest::for_worktree(dir.path(), DailyLoopOperationKind::Commit, vec![]);
     let service = DailyLoopService::default();
     let preview = service.preview(&request);
     assert_eq!(preview.state, DailyLoopPreviewState::Blocked);

@@ -8,9 +8,10 @@
 //! reopen target, durable truth, and privacy-safe companion handoff.
 
 use aureline_shell::attention_router::{
-    seeded_attention_routing_corpus, validate_attention_routing_corpus, AttentionRouteSupportExport,
-    AttentionRoutingCase, AttentionRoutingCorpus, ChannelResolutionClass, CompanionHandoffClass,
-    ATTENTION_ROUTER_BETA_SCHEMA_VERSION, ATTENTION_ROUTER_BETA_SHARED_CONTRACT_REF,
+    seeded_attention_routing_corpus, validate_attention_routing_corpus,
+    AttentionRouteSupportExport, AttentionRoutingCase, AttentionRoutingCorpus,
+    ChannelResolutionClass, CompanionHandoffClass, ATTENTION_ROUTER_BETA_SCHEMA_VERSION,
+    ATTENTION_ROUTER_BETA_SHARED_CONTRACT_REF,
 };
 use aureline_shell::notifications::actions::NotificationLifecycleActionKind;
 use aureline_shell::notifications::envelope::FanoutSurfaceClass;
@@ -77,7 +78,8 @@ fn every_outcome_keeps_one_reopen_target_and_durable_truth() {
         // points at the same reopen target ref the outcome carries.
         for route in &outcome.resolved_surface_routes {
             assert_eq!(
-                route.reopen_target_ref, outcome.reopen_target.reopen_target_ref,
+                route.reopen_target_ref,
+                outcome.reopen_target.reopen_target_ref,
                 "{}: surface {} diverged",
                 case.case_id,
                 route.fanout_surface_class.as_str()
@@ -173,16 +175,21 @@ fn support_export_is_privacy_safe_and_row_aligned() {
 fn companion_handoff_stays_summary_first_with_forbidden_shortcuts() {
     let corpus: AttentionRoutingCorpus = load("corpus.json");
     // At least one delivered companion fanout and one policy-blocked fanout.
-    assert!(corpus.summary.companion_handoff_classes_covered.contains(
-        &CompanionHandoffClass::SummaryFanoutDelivered
-    ));
+    assert!(corpus
+        .summary
+        .companion_handoff_classes_covered
+        .contains(&CompanionHandoffClass::SummaryFanoutDelivered));
     assert!(corpus
         .summary
         .companion_handoff_classes_covered
         .contains(&CompanionHandoffClass::SummaryFanoutPolicyBlocked));
     for case in &corpus.cases {
         let handoff = &case.outcome.companion_handoff;
-        assert!(handoff.summary_only, "{}: handoff not summary-only", case.case_id);
+        assert!(
+            handoff.summary_only,
+            "{}: handoff not summary-only",
+            case.case_id
+        );
         assert!(
             handoff.reopen_into_durable_object_required,
             "{}: handoff does not require durable reopen",

@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use aureline_framework::{
-    CertaintyLabelClass, ConventionCertaintyClass, ConventionDiagnosticClass, FrameworkObjectCertainty,
-    FrameworkObjectKind, FrameworkSupportStrip, GeneratorKindClass, HealthClass, PackSourceClass,
-    RollbackClass, SupportClass, FRAMEWORK_OBJECT_CERTAINTY_RECORD_KIND,
-    FRAMEWORK_SUPPORT_STRIP_RECORD_KIND,
+    CertaintyLabelClass, ConventionCertaintyClass, ConventionDiagnosticClass,
+    FrameworkObjectCertainty, FrameworkObjectKind, FrameworkSupportStrip, GeneratorKindClass,
+    HealthClass, PackSourceClass, RollbackClass, SupportClass,
+    FRAMEWORK_OBJECT_CERTAINTY_RECORD_KIND, FRAMEWORK_SUPPORT_STRIP_RECORD_KIND,
 };
 use serde::Deserialize;
 
@@ -100,8 +100,7 @@ fn read_fixture(path: &Path) -> String {
 fn status_strip_and_convention_truth_fixtures_validate_and_match_manifest() {
     let manifest_path = fixture_root().join("manifest.yaml");
     let manifest_payload = read_fixture(&manifest_path);
-    let manifest: Manifest =
-        serde_yaml::from_str(&manifest_payload).expect("manifest must parse");
+    let manifest: Manifest = serde_yaml::from_str(&manifest_payload).expect("manifest must parse");
 
     assert_eq!(manifest.schema_version, 1);
     assert!(!manifest.case_refs.is_empty());
@@ -193,13 +192,15 @@ fn status_strip_and_convention_truth_fixtures_validate_and_match_manifest() {
             );
 
             assert_eq!(
-                case.record.framework_object_kind,
-                case.fixture_meta.expected.framework_object_kind,
+                case.record.framework_object_kind, case.fixture_meta.expected.framework_object_kind,
                 "{scope}: framework object kind"
             );
 
             if let Some(expected) = case.fixture_meta.expected.support_class {
-                assert_eq!(case.record.support_class, expected, "{scope}: support class");
+                assert_eq!(
+                    case.record.support_class, expected,
+                    "{scope}: support class"
+                );
             }
             if let Some(expected) = case.fixture_meta.expected.certainty_label_class {
                 assert_eq!(

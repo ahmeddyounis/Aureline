@@ -97,15 +97,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_manifest_hardening_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -129,7 +145,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.ranges_satisfied, e.ranges_satisfied, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.ranges_satisfied, e.ranges_satisfied,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.inspection.lifecycle_installable, e.lifecycle_installable,
             "{}",
@@ -176,7 +196,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(export.blocks_install, e.blocks_install, "{}", fixture.case_name);
+        assert_eq!(
+            export.blocks_install, e.blocks_install,
+            "{}",
+            fixture.case_name
+        );
 
         // Cross-cutting invariants for every fixture.
         assert!(
@@ -211,8 +235,13 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             .iter()
             .map(String::as_str)
             .collect();
-        let union: std::collections::BTreeSet<&str> = declared.union(&transitive).copied().collect();
-        assert_eq!(effective, union, "fixture {} effective union", fixture.case_name);
+        let union: std::collections::BTreeSet<&str> =
+            declared.union(&transitive).copied().collect();
+        assert_eq!(
+            effective, union,
+            "fixture {} effective union",
+            fixture.case_name
+        );
         assert_eq!(
             packet.effective_permissions.diff_entries.len(),
             packet.effective_permissions.effective_permission_refs.len(),

@@ -19,11 +19,10 @@ use std::path::{Path, PathBuf};
 use aureline_language::{
     current_stable_rust_daily_driver_quality_truth_packet, RustDailyDriverConfidenceClass,
     RustDailyDriverConsumerSurface, RustDailyDriverDowngradeAutomationClass,
-    RustDailyDriverEvidenceClass, RustDailyDriverKnownLimitClass,
-    RustDailyDriverLanguageLaneClass, RustDailyDriverQualityFindingKind,
-    RustDailyDriverQualityPromotionState, RustDailyDriverQualityRowClass,
-    RustDailyDriverQualityTruthPacket, RustDailyDriverQualityTruthPacketInput,
-    RustDailyDriverStepClass, RustDailyDriverSupportClass,
+    RustDailyDriverEvidenceClass, RustDailyDriverKnownLimitClass, RustDailyDriverLanguageLaneClass,
+    RustDailyDriverQualityFindingKind, RustDailyDriverQualityPromotionState,
+    RustDailyDriverQualityRowClass, RustDailyDriverQualityTruthPacket,
+    RustDailyDriverQualityTruthPacketInput, RustDailyDriverStepClass, RustDailyDriverSupportClass,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, RUST_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
@@ -264,8 +263,10 @@ fn checked_in_artifact_covers_cargo_workspace_lint_format_test_runner_debugger_a
     let packet = current_stable_rust_daily_driver_quality_truth_packet()
         .expect("checked-in packet validates");
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == RustDailyDriverQualityRowClass::CargoWorkspaceRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class == RustDailyDriverQualityRowClass::CargoWorkspaceRow),
         "stable packet must include a cargo_workspace_row certifying the Cargo workspaces contract"
     );
     assert!(

@@ -111,7 +111,13 @@ const MAX_REF_CHARS: usize = 200;
 /// specific durable object. A ref pointing at one is rejected so chrome cannot
 /// wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// The lifecycle verbs every claimed-stable durable attention row must keep
@@ -953,7 +959,9 @@ pub enum BuildError {
     /// prove.
     OverclaimsExactTargetReopen,
     /// A required lifecycle verb was missing.
-    MissingLifecycleVerb { verb: NotificationLifecycleActionKind },
+    MissingLifecycleVerb {
+        verb: NotificationLifecycleActionKind,
+    },
     /// The required lifecycle verbs were not distinguishable.
     LifecycleVerbsNotDistinct,
     /// The badge count would outpace the durable job model.
@@ -1145,7 +1153,10 @@ impl AttentionLockRecord {
             &input.routing.canonical_event_id,
         )?;
         require_present_ref("reopen.reopen_target_ref", &input.reopen.reopen_target_ref)?;
-        require_present_ref("upstream.corpus_packet_ref", &input.upstream.corpus_packet_ref)?;
+        require_present_ref(
+            "upstream.corpus_packet_ref",
+            &input.upstream.corpus_packet_ref,
+        )?;
         require_present_ref("upstream.case_id_ref", &input.upstream.case_id_ref)?;
 
         // --- conformance: an unshippable route outcome can never be Stable ----
@@ -1567,7 +1578,10 @@ impl AttentionLockRecord {
             "availability: without_account={} without_managed_services={}",
             self.available_without_account, self.available_without_managed_services
         ));
-        lines.push(format!("honesty_marker_present: {}", self.honesty_marker_present));
+        lines.push(format!(
+            "honesty_marker_present: {}",
+            self.honesty_marker_present
+        ));
         lines.push(format!(
             "upstream: packet={} case={} route_outcome={} envelope={}",
             self.upstream.corpus_packet_ref,
@@ -1575,7 +1589,10 @@ impl AttentionLockRecord {
             self.upstream.route_outcome_id_ref,
             self.upstream.envelope_id_ref
         ));
-        lines.push(format!("diagnostics_export_ref: {}", self.diagnostics_export_ref));
+        lines.push(format!(
+            "diagnostics_export_ref: {}",
+            self.diagnostics_export_ref
+        ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
     }

@@ -7,7 +7,12 @@ fn page() -> DeprovisionPreservesBetaPage {
 #[test]
 fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
     let page = page();
-    assert_eq!(page.defects.len(), 0, "expected zero defects; got: {:?}", page.defects);
+    assert_eq!(
+        page.defects.len(),
+        0,
+        "expected zero defects; got: {:?}",
+        page.defects
+    );
     assert!(validate_deprovision_preserves_beta_page(&page).is_ok());
     assert!(page.qualifies_stable());
     assert!(page.no_withdrawn_rows());
@@ -120,8 +125,9 @@ fn injected_silently_purged_local_editing_withdraws_row() {
         .iter_mut()
         .find(|r| r.exit_event_token == ManagedExitEventClass::Deprovision.as_str())
         .unwrap();
-    row.local_work_survival.local_editing_token =
-        LocalWorkPreservationClass::SilentlyPurged.as_str().to_owned();
+    row.local_work_survival.local_editing_token = LocalWorkPreservationClass::SilentlyPurged
+        .as_str()
+        .to_owned();
 
     let dirty_page = DeprovisionPreservesBetaPage::new(
         "auth:deprovision_preserves:test",
@@ -148,8 +154,9 @@ fn injected_blocking_managed_exit_withdraws_row() {
         .iter_mut()
         .find(|r| r.exit_event_token == ManagedExitEventClass::SignOut.as_str())
         .unwrap();
-    row.local_work_survival.local_editing_token =
-        LocalWorkPreservationClass::PreservedReadOnly.as_str().to_owned();
+    row.local_work_survival.local_editing_token = LocalWorkPreservationClass::PreservedReadOnly
+        .as_str()
+        .to_owned();
 
     let dirty_page = DeprovisionPreservesBetaPage::new(
         "auth:deprovision_preserves:test",
@@ -212,8 +219,7 @@ fn withdrawal_reason_sentinel_check() {
     assert!(DeprovisionProofNarrowReasonClass::LocalWorkSilentlyPurged.is_withdrawal_reason());
     assert!(DeprovisionProofNarrowReasonClass::ManagedExitBlocksLocalCore.is_withdrawal_reason());
     assert!(
-        !DeprovisionProofNarrowReasonClass::ExportPathUnavailableBeforeClose
-            .is_withdrawal_reason()
+        !DeprovisionProofNarrowReasonClass::ExportPathUnavailableBeforeClose.is_withdrawal_reason()
     );
     assert!(!DeprovisionProofNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
 }
@@ -243,8 +249,6 @@ fn managed_exit_event_requires_proof_check() {
     assert!(ManagedExitEventClass::OrgSwitch.requires_local_work_preservation_proof());
     assert!(ManagedExitEventClass::SeatLoss.requires_local_work_preservation_proof());
     assert!(ManagedExitEventClass::Deprovision.requires_local_work_preservation_proof());
-    assert!(
-        !ManagedExitEventClass::AccountFreeLocalNoManagedExit
-            .requires_local_work_preservation_proof()
-    );
+    assert!(!ManagedExitEventClass::AccountFreeLocalNoManagedExit
+        .requires_local_work_preservation_proof());
 }

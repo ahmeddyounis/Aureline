@@ -105,8 +105,8 @@ fn load_fixture(name: &str) -> OrchestrationFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -126,12 +126,7 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &OrchestrationFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn packet_for_fixture(fixture: &OrchestrationFixture) -> ChangeObjectOrchestrationPacket {
@@ -143,14 +138,20 @@ fn packet_for_fixture(fixture: &OrchestrationFixture) -> ChangeObjectOrchestrati
     .unwrap_or_else(|err| panic!("{} must project: {err}", fixture.case_name))
 }
 
-fn assert_expected(
-    packet: &ChangeObjectOrchestrationPacket,
-    expected: &ExpectedOrchestration,
-) {
-    assert_eq!(packet.inspection.preview_approved, expected.preview_approved);
+fn assert_expected(packet: &ChangeObjectOrchestrationPacket, expected: &ExpectedOrchestration) {
+    assert_eq!(
+        packet.inspection.preview_approved,
+        expected.preview_approved
+    );
     assert_eq!(packet.inspection.preview_pending, expected.preview_pending);
-    assert_eq!(packet.inspection.preview_rejected, expected.preview_rejected);
-    assert_eq!(packet.inspection.checkpoint_ready, expected.checkpoint_ready);
+    assert_eq!(
+        packet.inspection.preview_rejected,
+        expected.preview_rejected
+    );
+    assert_eq!(
+        packet.inspection.checkpoint_ready,
+        expected.checkpoint_ready
+    );
     assert_eq!(packet.inspection.executing, expected.executing);
     assert_eq!(packet.inspection.completed, expected.completed);
     assert_eq!(packet.inspection.failed, expected.failed);
@@ -207,7 +208,10 @@ fn orchestration_fixtures_project_and_round_trip() {
             std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
         let fixture: OrchestrationFixture =
             serde_json::from_str(&text).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
-        assert_eq!(fixture.record_kind, "review_change_object_orchestration_case");
+        assert_eq!(
+            fixture.record_kind,
+            "review_change_object_orchestration_case"
+        );
         assert_eq!(fixture.schema_version, 1);
 
         let packet = packet_for_fixture(&fixture);
@@ -224,7 +228,10 @@ fn orchestration_fixtures_project_and_round_trip() {
         assert_eq!(projection.packet_id, packet.packet_id);
         assert_eq!(projection.operation_kind, fixture.expected.operation_kind);
         assert_eq!(projection.flow_state, fixture.expected.flow_state);
-        assert_eq!(projection.checkpoint_state, fixture.expected.checkpoint_state);
+        assert_eq!(
+            projection.checkpoint_state,
+            fixture.expected.checkpoint_state
+        );
         assert_eq!(projection.command_count, fixture.expected.command_count);
         assert!(projection
             .consumer_surfaces
@@ -241,7 +248,10 @@ fn parent_repo_worktree_switch_has_no_boundaries() {
     assert!(!packet.inspection.nested_repo_boundary_present);
     assert!(!packet.inspection.shallow_boundary_present);
     assert!(!packet.inspection.pointer_backed_assets_present);
-    assert_eq!(packet.orchestration.repo_root_ref, "repo.root.fixture.parent");
+    assert_eq!(
+        packet.orchestration.repo_root_ref,
+        "repo.root.fixture.parent"
+    );
 }
 
 #[test]

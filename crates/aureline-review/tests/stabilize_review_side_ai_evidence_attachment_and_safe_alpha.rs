@@ -100,8 +100,8 @@ fn load_fixture(name: &str) -> EvidenceFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -121,32 +121,22 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &EvidenceFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn evidence_packet_for(fixture: &EvidenceFixture) -> AiReviewEvidencePacket {
     let workspace_packet = workspace_packet_for(fixture);
-    AiReviewEvidencePacket::from_workspace_packet(
-        fixture.evidence_input.clone(),
-        &workspace_packet,
-    )
-    .unwrap_or_else(|err| panic!("{} must project: {err}", fixture.case_name))
+    AiReviewEvidencePacket::from_workspace_packet(fixture.evidence_input.clone(), &workspace_packet)
+        .unwrap_or_else(|err| panic!("{} must project: {err}", fixture.case_name))
 }
 
 fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence, case_name: &str) {
     assert_eq!(
-        packet.inspection.evidence_state_attached_current,
-        expected.evidence_state_attached_current,
+        packet.inspection.evidence_state_attached_current, expected.evidence_state_attached_current,
         "{case_name}: evidence_state_attached_current"
     );
     assert_eq!(
-        packet.inspection.evidence_state_attached_stale,
-        expected.evidence_state_attached_stale,
+        packet.inspection.evidence_state_attached_stale, expected.evidence_state_attached_stale,
         "{case_name}: evidence_state_attached_stale"
     );
     assert_eq!(
@@ -160,18 +150,15 @@ fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence,
         "{case_name}: evidence_state_pending_verification"
     );
     assert_eq!(
-        packet.inspection.ai_model_source_present,
-        expected.ai_model_source_present,
+        packet.inspection.ai_model_source_present, expected.ai_model_source_present,
         "{case_name}: ai_model_source_present"
     );
     assert_eq!(
-        packet.inspection.human_curated_source_present,
-        expected.human_curated_source_present,
+        packet.inspection.human_curated_source_present, expected.human_curated_source_present,
         "{case_name}: human_curated_source_present"
     );
     assert_eq!(
-        packet.inspection.suggestion_preview_ready,
-        expected.suggestion_preview_ready,
+        packet.inspection.suggestion_preview_ready, expected.suggestion_preview_ready,
         "{case_name}: suggestion_preview_ready"
     );
     assert_eq!(
@@ -180,8 +167,7 @@ fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence,
         "{case_name}: suggestion_applied_with_checkpoint"
     );
     assert_eq!(
-        packet.inspection.suggestion_reverted,
-        expected.suggestion_reverted,
+        packet.inspection.suggestion_reverted, expected.suggestion_reverted,
         "{case_name}: suggestion_reverted"
     );
     assert_eq!(
@@ -200,13 +186,11 @@ fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence,
         "{case_name}: suggestion_would_broaden_authority"
     );
     assert_eq!(
-        packet.inspection.all_applied_have_checkpoints,
-        expected.all_applied_have_checkpoints,
+        packet.inspection.all_applied_have_checkpoints, expected.all_applied_have_checkpoints,
         "{case_name}: all_applied_have_checkpoints"
     );
     assert_eq!(
-        packet.inspection.all_checkpoints_recoverable,
-        expected.all_checkpoints_recoverable,
+        packet.inspection.all_checkpoints_recoverable, expected.all_checkpoints_recoverable,
         "{case_name}: all_checkpoints_recoverable"
     );
     assert_eq!(
@@ -218,18 +202,15 @@ fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence,
         "{case_name}: invalidated"
     );
     assert_eq!(
-        packet.inspection.evidence_attachment_count,
-        expected.evidence_attachment_count,
+        packet.inspection.evidence_attachment_count, expected.evidence_attachment_count,
         "{case_name}: evidence_attachment_count"
     );
     assert_eq!(
-        packet.inspection.suggestion_apply_count,
-        expected.suggestion_apply_count,
+        packet.inspection.suggestion_apply_count, expected.suggestion_apply_count,
         "{case_name}: suggestion_apply_count"
     );
     assert_eq!(
-        packet.inspection.checkpoint_count,
-        expected.checkpoint_count,
+        packet.inspection.checkpoint_count, expected.checkpoint_count,
         "{case_name}: checkpoint_count"
     );
     assert_eq!(
@@ -241,8 +222,7 @@ fn assert_expected(packet: &AiReviewEvidencePacket, expected: &ExpectedEvidence,
         "{case_name}: preview_capable"
     );
     assert_eq!(
-        packet.inspection.support_export_reopenable,
-        expected.support_export_reopenable,
+        packet.inspection.support_export_reopenable, expected.support_export_reopenable,
         "{case_name}: support_export_reopenable"
     );
 }
@@ -264,16 +244,8 @@ fn evidence_fixtures_project_and_round_trip() {
         packet
             .validate()
             .unwrap_or_else(|err| panic!("{} must validate: {err}", fixture.case_name));
-        assert!(
-            packet.raw_escape_hatches_absent(),
-            "{}",
-            fixture.case_name
-        );
-        assert!(
-            packet.evidence_sources_disclosed(),
-            "{}",
-            fixture.case_name
-        );
+        assert!(packet.raw_escape_hatches_absent(), "{}", fixture.case_name);
+        assert!(packet.evidence_sources_disclosed(), "{}", fixture.case_name);
 
         assert_expected(&packet, &fixture.expected, &fixture.case_name);
 
@@ -354,6 +326,9 @@ fn projection_from_json_payload() {
 
     let projection = project_ai_review_evidence_packet(&json).expect("projection must succeed");
     assert_eq!(projection.evidence_id, packet.evidence.evidence_id);
-    assert_eq!(projection.review_workspace_id, packet.review_workspace.review_workspace_id);
+    assert_eq!(
+        projection.review_workspace_id,
+        packet.review_workspace.review_workspace_id
+    );
     assert_eq!(projection.evidence_state, packet.evidence.evidence_state);
 }

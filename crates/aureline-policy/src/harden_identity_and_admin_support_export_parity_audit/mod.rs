@@ -60,12 +60,10 @@ pub const HARDEN_IDENTITY_ADMIN_SHARED_CONTRACT_REF: &str =
     "policy:harden_identity_admin_support_export_parity:v1";
 
 /// Record-kind tag for [`HardenIdentityAdminPage`] payloads.
-pub const HARDEN_IDENTITY_ADMIN_PAGE_RECORD_KIND: &str =
-    "policy_harden_identity_admin_page_record";
+pub const HARDEN_IDENTITY_ADMIN_PAGE_RECORD_KIND: &str = "policy_harden_identity_admin_page_record";
 
 /// Record-kind tag for [`IdentityAdminRow`] payloads.
-pub const HARDEN_IDENTITY_ADMIN_ROW_RECORD_KIND: &str =
-    "policy_harden_identity_admin_row_record";
+pub const HARDEN_IDENTITY_ADMIN_ROW_RECORD_KIND: &str = "policy_harden_identity_admin_row_record";
 
 /// Record-kind tag for [`HardenIdentityAdminDefect`] payloads.
 pub const HARDEN_IDENTITY_ADMIN_DEFECT_RECORD_KIND: &str =
@@ -142,9 +140,7 @@ impl IdentityAdminRowClass {
     pub const fn requires_provisioning_class(self) -> bool {
         matches!(
             self,
-            Self::DirectoryProviderCard
-                | Self::UserSeatLifecycle
-                | Self::ProvisioningFailureLog
+            Self::DirectoryProviderCard | Self::UserSeatLifecycle | Self::ProvisioningFailureLog
         )
     }
 
@@ -177,7 +173,10 @@ impl IdentityAdminRowClass {
 
     /// True when this row class may carry a provisioning failure kind.
     pub const fn may_carry_failure_kind(self) -> bool {
-        matches!(self, Self::ProvisioningFailureLog | Self::PolicyTargetDryRun)
+        matches!(
+            self,
+            Self::ProvisioningFailureLog | Self::PolicyTargetDryRun
+        )
     }
 }
 
@@ -755,9 +754,7 @@ impl HardenIdentityAdminPage {
 
     /// True when all rows carry explicit sync freshness tokens.
     pub fn all_rows_have_sync_freshness(&self) -> bool {
-        self.rows
-            .iter()
-            .all(|r| !r.sync_freshness_token.is_empty())
+        self.rows.iter().all(|r| !r.sync_freshness_token.is_empty())
     }
 
     /// True when all rows carry explicit local vs tenant scope.
@@ -891,9 +888,7 @@ fn audit_identity_admin_rows(rows: &[IdentityAdminRow]) -> Vec<HardenIdentityAdm
 
     for row in rows {
         // Rows requiring a provisioning class must carry one.
-        if row.row_class.requires_provisioning_class()
-            && row.provisioning_class_token.is_empty()
-        {
+        if row.row_class.requires_provisioning_class() && row.provisioning_class_token.is_empty() {
             defects.push(HardenIdentityAdminDefect::new(
                 HardenIdentityAdminNarrowReasonClass::MissingProvisioningClass,
                 row.row_id.clone(),
@@ -979,8 +974,10 @@ fn audit_identity_admin_rows(rows: &[IdentityAdminRow]) -> Vec<HardenIdentityAdm
     }
 
     // Coverage check: all five required row classes must appear at least once.
-    let required_classes: BTreeSet<&str> =
-        IdentityAdminRowClass::ALL.iter().map(|r| r.as_str()).collect();
+    let required_classes: BTreeSet<&str> = IdentityAdminRowClass::ALL
+        .iter()
+        .map(|r| r.as_str())
+        .collect();
     let observed_classes: BTreeSet<&str> =
         rows.iter().map(|r| r.row_class_token.as_str()).collect();
     for missing in required_classes.difference(&observed_classes) {
@@ -1003,18 +1000,16 @@ fn qualify_rows(
     let has_withdrawal = page_defects
         .iter()
         .any(|d| d.narrow_reason.is_withdrawal_reason());
-    let has_preview = page_defects.iter().any(|d| {
-        d.narrow_reason == HardenIdentityAdminNarrowReasonClass::MissingRowClassCoverage
-    });
+    let has_preview = page_defects
+        .iter()
+        .any(|d| d.narrow_reason == HardenIdentityAdminNarrowReasonClass::MissingRowClassCoverage);
 
     let (overall_qual, overall_reason) = if has_withdrawal {
         let r = page_defects
             .iter()
             .find(|d| d.narrow_reason.is_withdrawal_reason())
             .map(|d| d.narrow_reason)
-            .unwrap_or(
-                HardenIdentityAdminNarrowReasonClass::RawSecretOrPrivateMaterialExposed,
-            );
+            .unwrap_or(HardenIdentityAdminNarrowReasonClass::RawSecretOrPrivateMaterialExposed);
         (HardenIdentityAdminQualificationClass::Withdrawn, r)
     } else if has_preview {
         (
@@ -1057,12 +1052,8 @@ fn qualify_rows(
 
         row.qualification_token = row_qual.as_str().to_owned();
         row.narrow_reason_token = row_reason.as_str().to_owned();
-        row.plain_language_summary = build_row_summary(
-            &row.row_id,
-            &row.row_class_token,
-            row_qual,
-            row_reason,
-        );
+        row.plain_language_summary =
+            build_row_summary(&row.row_id, &row.row_class_token, row_qual, row_reason);
     }
 
     rows
@@ -1123,7 +1114,9 @@ fn make_row(
     failure_kind: Option<ProvisioningFailureKind>,
     local_core_continuity_explicit: bool,
 ) -> IdentityAdminRow {
-    let failure_kind_token = failure_kind.map(|k| k.as_str().to_owned()).unwrap_or_default();
+    let failure_kind_token = failure_kind
+        .map(|k| k.as_str().to_owned())
+        .unwrap_or_default();
     IdentityAdminRow {
         record_kind: HARDEN_IDENTITY_ADMIN_ROW_RECORD_KIND.to_owned(),
         schema_version: HARDEN_IDENTITY_ADMIN_SCHEMA_VERSION,
@@ -1145,8 +1138,12 @@ fn make_row(
         local_core_continuity_explicit,
         raw_secret_or_private_material_excluded: true,
         // Filled in by qualify_rows.
-        qualification_token: HardenIdentityAdminQualificationClass::Stable.as_str().to_owned(),
-        narrow_reason_token: HardenIdentityAdminNarrowReasonClass::NotNarrowed.as_str().to_owned(),
+        qualification_token: HardenIdentityAdminQualificationClass::Stable
+            .as_str()
+            .to_owned(),
+        narrow_reason_token: HardenIdentityAdminNarrowReasonClass::NotNarrowed
+            .as_str()
+            .to_owned(),
         plain_language_summary: String::new(),
     }
 }

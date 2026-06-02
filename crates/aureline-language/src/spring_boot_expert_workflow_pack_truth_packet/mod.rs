@@ -428,9 +428,7 @@ impl DowngradeAutomationClass {
             Self::AutoNarrowOnMissingArchetype => "auto_narrow_on_missing_archetype",
             Self::AutoNarrowOnFailedMigration => "auto_narrow_on_failed_migration",
             Self::AutoNarrowOnFrameworkGap => "auto_narrow_on_framework_gap",
-            Self::AutoNarrowOnUnprovenTargetDiscovery => {
-                "auto_narrow_on_unproven_target_discovery"
-            }
+            Self::AutoNarrowOnUnprovenTargetDiscovery => "auto_narrow_on_unproven_target_discovery",
             Self::AutoNarrowOnUnprovenConfigPropertyAwareness => {
                 "auto_narrow_on_unproven_config_property_awareness"
             }
@@ -1431,10 +1429,9 @@ impl Error for SpringBootExpertWorkflowPackTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_spring_boot_expert_workflow_pack_truth_packet() -> Result<
-    SpringBootExpertWorkflowPackTruthPacket,
-    SpringBootExpertWorkflowPackTruthArtifactError,
-> {
+pub fn current_stable_spring_boot_expert_workflow_pack_truth_packet(
+) -> Result<SpringBootExpertWorkflowPackTruthPacket, SpringBootExpertWorkflowPackTruthArtifactError>
+{
     let packet: SpringBootExpertWorkflowPackTruthPacket =
         serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1482,11 +1479,7 @@ mod tests {
         }
     }
 
-    fn loop_row(
-        row_id: &str,
-        pack: WorkflowPackClass,
-        step: WorkflowLoopClass,
-    ) -> WorkflowPackRow {
+    fn loop_row(row_id: &str, pack: WorkflowPackClass, step: WorkflowLoopClass) -> WorkflowPackRow {
         WorkflowPackRow {
             row_id: row_id.to_owned(),
             pack_class: pack,

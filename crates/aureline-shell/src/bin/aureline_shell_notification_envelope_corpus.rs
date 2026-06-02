@@ -59,7 +59,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             render_notification_route_outcome_export_report_markdown(&packet)
         ),
         Some("conformance-md") => {
-            print!("{}", render_notification_route_conformance_markdown(&packet))
+            print!(
+                "{}",
+                render_notification_route_conformance_markdown(&packet)
+            )
         }
         Some("validate") => match validate_notification_envelope_corpus_packet_summary(&packet) {
             Ok(summary) => println!("{summary}"),

@@ -265,11 +265,8 @@ impl BatchReviewSheetRecord {
         let batch_review_id = batch_review_id.into();
         let action_id = action_id.into();
         let review_required = consequence_class.requires_review_sheet();
-        let ambiguity_findings = ambiguity_findings(
-            select_all_escalation_class,
-            &summary,
-            consequence_class,
-        );
+        let ambiguity_findings =
+            ambiguity_findings(select_all_escalation_class, &summary, consequence_class);
         let continue_enabled = ambiguity_findings.is_empty();
         Self {
             record_kind: BATCH_REVIEW_SHEET_RECORD_KIND.to_string(),
@@ -303,8 +300,7 @@ fn ambiguity_findings(
     if select_all_escalation_class == SelectAllEscalationClass::AllMatchingRefused {
         findings.push(BatchScopeAmbiguityFinding {
             finding_kind: "select_all_escalation_refused".to_string(),
-            summary:
-                "matching scope is unknown; refuse to escalate select-all".to_string(),
+            summary: "matching scope is unknown; refuse to escalate select-all".to_string(),
         });
     }
     if consequence_class.requires_review_sheet() && summary.included_count == 0 {

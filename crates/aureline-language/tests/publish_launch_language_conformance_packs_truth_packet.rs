@@ -9,8 +9,8 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_language::{
-    current_stable_publish_launch_language_conformance_packs_truth_packet,
-    ConformancePackRowClass, DowngradeRuleClass, LaunchLanguageLaneClass,
+    current_stable_publish_launch_language_conformance_packs_truth_packet, ConformancePackRowClass,
+    DowngradeRuleClass, LaunchLanguageLaneClass,
     PublishLaunchLanguageConformancePacksConsumerSurface,
     PublishLaunchLanguageConformancePacksDailyLoopStepClass,
     PublishLaunchLanguageConformancePacksFindingKind,
@@ -277,7 +277,8 @@ fn checked_in_artifact_covers_full_daily_loop_per_launch_stable_lane() {
         let lane_claims_stable = packet.rows.iter().any(|row| {
             row.lane_class == required
                 && row.row_class == ConformancePackRowClass::ConformancePackQuality
-                && row.support_class == PublishLaunchLanguageConformancePacksSupportClass::LaunchStable
+                && row.support_class
+                    == PublishLaunchLanguageConformancePacksSupportClass::LaunchStable
         });
         if !lane_claims_stable {
             continue;
@@ -294,8 +295,7 @@ fn checked_in_artifact_covers_full_daily_loop_per_launch_stable_lane() {
         }
         assert!(
             packet.rows.iter().any(|row| row.lane_class == required
-                && row.row_class
-                    == ConformancePackRowClass::SupportClassEvidenceAdmission
+                && row.row_class == ConformancePackRowClass::SupportClassEvidenceAdmission
                 && row.support_class_evidence_class.is_bound()
                 && !matches!(
                     row.support_class_evidence_class,

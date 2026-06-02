@@ -83,8 +83,8 @@ fn resolution_for(
 #[test]
 fn foreground_focus_drops_redundant_os_notification_but_keeps_in_app() {
     let mut router = AttentionRouter::new();
-    let context = ChannelContext::foreground_focused()
-        .with_companion(CompanionAvailability::PairedAvailable);
+    let context =
+        ChannelContext::foreground_focused().with_companion(CompanionAvailability::PairedAvailable);
     let outcome = router.route(&base_envelope(), &context).unwrap();
 
     assert_eq!(
@@ -169,7 +169,10 @@ fn quiet_hours_holds_attention_but_delivers_durable_truth() {
         .iter()
         .find(|r| r.fanout_surface_class == FanoutSurfaceClass::DurableJobRow)
         .unwrap();
-    assert_eq!(durable.resolved_receipt_state, FanoutReceiptState::Delivered);
+    assert_eq!(
+        durable.resolved_receipt_state,
+        FanoutReceiptState::Delivered
+    );
 
     for surface in [
         FanoutSurfaceClass::Toast,

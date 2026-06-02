@@ -94,7 +94,13 @@ pub const CANONICAL_OBJECT_SCHEME: &str = "aureline://";
 /// specific durable object. A ref pointing at one of these is rejected so the
 /// chrome cannot wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// Returns true when `reference` is a canonical durable-object ref of the form
@@ -1527,7 +1533,10 @@ impl ContinuityNoticeView {
     ///
     /// `as_of` is the chrome's "now", used to derive the refresh-age bucket and
     /// therefore the no-silent-current downgrade.
-    pub fn build(input: ContinuityNoticeInput, as_of: impl Into<String>) -> Result<Self, ViewBuildError> {
+    pub fn build(
+        input: ContinuityNoticeInput,
+        as_of: impl Into<String>,
+    ) -> Result<Self, ViewBuildError> {
         let as_of = as_of.into();
         if input.view_id.trim().is_empty() {
             return Err(ViewBuildError::EmptyViewId);
@@ -1641,7 +1650,10 @@ impl ContinuityNoticeView {
             check_sentence(&w.note, "blocked-write note")?;
             let intent_preserved = w.continuity_posture.is_preserved();
             if w.continuity_posture.requires_queue_ref()
-                && w.queue_or_intent_ref.as_deref().map(is_canonical_object_ref) != Some(true)
+                && w.queue_or_intent_ref
+                    .as_deref()
+                    .map(is_canonical_object_ref)
+                    != Some(true)
             {
                 return Err(ViewBuildError::PreservedWriteMissingQueueRef(
                     w.action_class.as_str().to_owned(),
@@ -1649,9 +1661,13 @@ impl ContinuityNoticeView {
             }
             match w.continuity_posture {
                 WriteContinuityPostureClass::QueuedPublishLater => queued_publish_later_count += 1,
-                WriteContinuityPostureClass::LocalDraftPreserved => local_draft_preserved_count += 1,
+                WriteContinuityPostureClass::LocalDraftPreserved => {
+                    local_draft_preserved_count += 1
+                }
                 WriteContinuityPostureClass::BlockedNoSafeRetry => blocked_no_safe_retry_count += 1,
-                WriteContinuityPostureClass::RequiresManualRerun => requires_manual_rerun_count += 1,
+                WriteContinuityPostureClass::RequiresManualRerun => {
+                    requires_manual_rerun_count += 1
+                }
                 _ => {}
             }
             blocked_writes.push(BlockedWriteRow {
@@ -1703,7 +1719,9 @@ impl ContinuityNoticeView {
                 .iter()
                 .map(|s| s.trim().to_owned())
                 .collect(),
-            continue_local_guidance_required: input.local_continuity.continue_local_guidance_required,
+            continue_local_guidance_required: input
+                .local_continuity
+                .continue_local_guidance_required,
             continuity_summary: input.local_continuity.continuity_summary.trim().to_owned(),
         };
 
@@ -2237,7 +2255,10 @@ mod tests {
         );
         assert!(view.freshness_downgraded);
         assert!(view.honesty_marker_present);
-        assert_eq!(view.downgrade_reasons, vec![DowngradeReasonClass::RefreshExpired]);
+        assert_eq!(
+            view.downgrade_reasons,
+            vec![DowngradeReasonClass::RefreshExpired]
+        );
         assert!(view.display_copy.stale_label.is_some());
     }
 
@@ -2296,7 +2317,10 @@ mod tests {
             summary: "Tenant boundary changed.".to_owned(),
         };
         let err = ContinuityNoticeView::build(input, "2026-05-20T12:00").unwrap_err();
-        assert!(matches!(err, ViewBuildError::ChangedAxisMissingCurrentRef(_)));
+        assert!(matches!(
+            err,
+            ViewBuildError::ChangedAxisMissingCurrentRef(_)
+        ));
     }
 
     #[test]
@@ -2304,7 +2328,10 @@ mod tests {
         let mut input = base_input();
         input.blocked_writes[0].queue_or_intent_ref = None;
         let err = ContinuityNoticeView::build(input, "2026-05-20T12:00").unwrap_err();
-        assert!(matches!(err, ViewBuildError::PreservedWriteMissingQueueRef(_)));
+        assert!(matches!(
+            err,
+            ViewBuildError::PreservedWriteMissingQueueRef(_)
+        ));
     }
 
     #[test]

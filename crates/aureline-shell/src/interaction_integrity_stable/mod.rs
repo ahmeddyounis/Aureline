@@ -64,11 +64,11 @@ pub use corpus::{interaction_parity_corpus, InteractionParityScenario, CORPUS_AS
 pub use model::{
     required_recovery_routes, AsyncUpdateClass, AsyncUpdateRow, BuildError, CoordinationStateKind,
     CoordinationStateModel, DisappearanceResolution, FocusReturnRow, FocusReturnTrigger,
-    InteractionA11yCues, InteractionClaimCeiling, InteractionNarrowingReason, InteractionParityInput,
-    InteractionParityRecord, InteractionPillars, InteractionQualification, InteractionRecoveryAction,
-    InteractionSurfaceClass, InteractionSurfaceProjection, InteractionSurfaceProjectionInput,
-    InteractionTruthSurface, InteractionUpstream, KeyboardModelClass, KeyboardModelRow,
-    PlatformConformanceRow, PlatformProfileClass, INTERACTION_PARITY_NOTICE,
-    INTERACTION_PARITY_RECORD_KIND, INTERACTION_PARITY_SCHEMA_VERSION,
+    InteractionA11yCues, InteractionClaimCeiling, InteractionNarrowingReason,
+    InteractionParityInput, InteractionParityRecord, InteractionPillars, InteractionQualification,
+    InteractionRecoveryAction, InteractionSurfaceClass, InteractionSurfaceProjection,
+    InteractionSurfaceProjectionInput, InteractionTruthSurface, InteractionUpstream,
+    KeyboardModelClass, KeyboardModelRow, PlatformConformanceRow, PlatformProfileClass,
+    INTERACTION_PARITY_NOTICE, INTERACTION_PARITY_RECORD_KIND, INTERACTION_PARITY_SCHEMA_VERSION,
     INTERACTION_PARITY_SHARED_CONTRACT_REF,
 };

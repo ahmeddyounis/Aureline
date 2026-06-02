@@ -11,8 +11,8 @@ use aureline_workspace::{
     default_trust_gating_inspection_hooks, project_trust_gating_lineage_with_hooks,
     GateDecisionClass, OverrideRouteClass, SilentExecutionPosture, TrustGatingInputs,
     TrustGatingLineageRecord, TrustInspectionHook, TrustInspectionHookClass,
-    TrustSupportExportInputs, TrustSupportExportPosture, TrustSurfaceKind,
-    TrustSurfaceObservation, WorkspaceTrustPosture,
+    TrustSupportExportInputs, TrustSupportExportPosture, TrustSurfaceKind, TrustSurfaceObservation,
+    WorkspaceTrustPosture,
 };
 use serde::Serialize;
 

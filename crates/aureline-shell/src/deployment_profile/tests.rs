@@ -89,7 +89,10 @@ fn baseline_artifact_row(
             None
         },
         digest_state_class: digest,
-        digest_ref: if matches!(digest, DigestStateClass::DigestVerified | DigestStateClass::DigestPending) {
+        digest_ref: if matches!(
+            digest,
+            DigestStateClass::DigestVerified | DigestStateClass::DigestPending
+        ) {
             Some(format!("sha256:{}:0011223344", artifact.as_str()))
         } else {
             None
@@ -107,7 +110,10 @@ fn baseline_artifact_row(
         },
         offline_cache_posture_class: cache,
         mirror_source_class: source,
-        verify_action: verify_action(&format!("{summary_id}.{}", artifact.as_str()), verify_revalidation),
+        verify_action: verify_action(
+            &format!("{summary_id}.{}", artifact.as_str()),
+            verify_revalidation,
+        ),
         open_manifest_action: verify_action(
             &format!("manifest.{summary_id}.{}", artifact.as_str()),
             "snapshot_open_read_only",
@@ -123,7 +129,10 @@ fn baseline_artifact_row(
 fn individual_local_baseline_passes_audit_and_keeps_local_safe_action() {
     let page = individual_local_baseline_page(EMITTED_AT);
     let defects = page.audit();
-    assert!(defects.is_empty(), "baseline page emitted defects: {defects:?}");
+    assert!(
+        defects.is_empty(),
+        "baseline page emitted defects: {defects:?}"
+    );
     assert_eq!(
         page.plane_status_strip.safest_next_action.action_class,
         SafestNextActionClass::ContinueLocal,
@@ -213,8 +222,9 @@ fn managed_cloud_page_requires_guardrails_and_vendor_dependencies() {
             worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
             summary_label: "Local-core capabilities available.".to_owned(),
             impaired_capability_classes: Vec::new(),
-            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline()
-                .to_vec(),
+            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline(
+            )
+            .to_vec(),
         },
         safest_next_action: SafestNextAction::continue_local(format!(
             "action.strip.{strip_id}.continue_local"
@@ -255,14 +265,20 @@ fn managed_cloud_page_requires_guardrails_and_vendor_dependencies() {
         residual,
         Vec::new(),
     );
-    assert!(defects.is_empty(), "managed_cloud baseline defects: {defects:?}");
+    assert!(
+        defects.is_empty(),
+        "managed_cloud baseline defects: {defects:?}"
+    );
     assert_eq!(page.summary.residual_dependency_required_count, 2);
 
     // Drop a guardrail and confirm the page is held honest.
     let mut narrowed = page.clone();
-    narrowed.profile_summary.prohibited_implied_claim_classes.retain(|c| {
-        *c != ProhibitedImpliedClaimClass::ImpliedManagedIndependenceWhenLocalDependent
-    });
+    narrowed
+        .profile_summary
+        .prohibited_implied_claim_classes
+        .retain(|c| {
+            *c != ProhibitedImpliedClaimClass::ImpliedManagedIndependenceWhenLocalDependent
+        });
     let narrowed_defects = narrowed.audit();
     assert!(
         narrowed_defects
@@ -282,9 +298,10 @@ fn self_hosted_cannot_silently_carry_vendor_managed_keys() {
     page.profile_summary.key_mode_class = KeyModeClass::VendorManaged;
     page.profile_summary.retention_class = RetentionClass::CustomerRetentionWindow;
     let defects = page.audit();
-    assert!(defects
-        .iter()
-        .any(|d| matches!(d, DeploymentProfileDefect::SelfHostedClaimedVendorManagedKeys)));
+    assert!(defects.iter().any(|d| matches!(
+        d,
+        DeploymentProfileDefect::SelfHostedClaimedVendorManagedKeys
+    )));
 }
 
 #[test]
@@ -361,8 +378,9 @@ fn air_gapped_must_declare_offline_state_and_artifact_row_and_no_companion() {
             worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
             summary_label: "Local-core capabilities available on offline bundle.".to_owned(),
             impaired_capability_classes: Vec::new(),
-            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline()
-                .to_vec(),
+            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline(
+            )
+            .to_vec(),
         },
         safest_next_action: SafestNextAction::continue_local(format!(
             "action.strip.{strip_id}.continue_local"
@@ -387,7 +405,10 @@ fn air_gapped_must_declare_offline_state_and_artifact_row_and_no_companion() {
         Vec::new(),
         vec![row],
     );
-    assert!(defects.is_empty(), "air_gapped baseline defects: {defects:?}");
+    assert!(
+        defects.is_empty(),
+        "air_gapped baseline defects: {defects:?}"
+    );
 
     // Force a companion surface and confirm rejection.
     let mut narrowed = page.clone();
@@ -396,13 +417,15 @@ fn air_gapped_must_declare_offline_state_and_artifact_row_and_no_companion() {
         .consumer_surfaces
         .push(ConsumerSurfaceClass::CompanionSurface);
     let narrowed_defects = narrowed.audit();
-    assert!(narrowed_defects
-        .iter()
-        .any(|d| matches!(d, DeploymentProfileDefect::AirGappedRoutedThroughCompanionSurface)));
+    assert!(narrowed_defects.iter().any(|d| matches!(
+        d,
+        DeploymentProfileDefect::AirGappedRoutedThroughCompanionSurface
+    )));
 
     // Drop the offline_air_gapped state and confirm rejection.
     let mut narrowed = page.clone();
-    narrowed.profile_summary.mirror_offline_state_class = MirrorOfflineStateClass::OnlineLiveAllowed;
+    narrowed.profile_summary.mirror_offline_state_class =
+        MirrorOfflineStateClass::OnlineLiveAllowed;
     let narrowed_defects = narrowed.audit();
     assert!(narrowed_defects.iter().any(|d| matches!(
         d,
@@ -419,9 +442,10 @@ fn mirror_only_must_emit_artifact_rows_and_offline_parity_guardrail() {
         d,
         DeploymentProfileDefect::MirrorOrAirGappedMissingArtifactRow { .. }
     )));
-    assert!(defects
-        .iter()
-        .any(|d| matches!(d, DeploymentProfileDefect::MirrorOnlyMissingOfflineParityGuardrail)));
+    assert!(defects.iter().any(|d| matches!(
+        d,
+        DeploymentProfileDefect::MirrorOnlyMissingOfflineParityGuardrail
+    )));
 }
 
 #[test]
@@ -489,10 +513,12 @@ fn relay_outage_keeps_local_safe_next_action() {
         },
         data_plane_summary: DataPlaneSummary {
             worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
-            summary_label: "Local-core capabilities remain available; remote attach blocked.".to_owned(),
+            summary_label: "Local-core capabilities remain available; remote attach blocked."
+                .to_owned(),
             impaired_capability_classes: Vec::new(),
-            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline()
-                .to_vec(),
+            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline(
+            )
+            .to_vec(),
         },
         safest_next_action: SafestNextAction {
             action_id: format!("action.strip.{strip_id}.continue_local"),
@@ -509,7 +535,9 @@ fn relay_outage_keeps_local_safe_next_action() {
         alternate_actions: vec![SafestNextAction {
             action_id: format!("action.strip.{strip_id}.reconnect_managed_session"),
             action_class: SafestNextActionClass::ReconnectManagedSession,
-            label: SafestNextActionClass::ReconnectManagedSession.label().to_owned(),
+            label: SafestNextActionClass::ReconnectManagedSession
+                .label()
+                .to_owned(),
             scope_class: "scope_local_with_managed_recovery".to_owned(),
             authority_class: "user_managed_authority".to_owned(),
             consent_class: "explicit_consent_required_managed_recovery".to_owned(),
@@ -637,8 +665,9 @@ fn digest_mismatch_must_block_verify_until_fresh() {
             worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
             summary_label: "Local-core capabilities available.".to_owned(),
             impaired_capability_classes: Vec::new(),
-            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline()
-                .to_vec(),
+            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline(
+            )
+            .to_vec(),
         },
         safest_next_action: SafestNextAction::continue_local(format!(
             "action.strip.{strip_id}.continue_local"
@@ -727,7 +756,10 @@ fn record_kind_tags_round_trip_through_serde() {
     let json = serde_json::to_string(&page).expect("serialize");
     let parsed: DeploymentProfilePage = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(parsed.record_kind, DEPLOYMENT_PROFILE_PAGE_RECORD_KIND);
-    assert_eq!(parsed.profile_summary.record_kind, PROFILE_SUMMARY_RECORD_KIND);
+    assert_eq!(
+        parsed.profile_summary.record_kind,
+        PROFILE_SUMMARY_RECORD_KIND
+    );
     assert_eq!(
         parsed.plane_status_strip.record_kind,
         PLANE_STATUS_STRIP_RECORD_KIND,

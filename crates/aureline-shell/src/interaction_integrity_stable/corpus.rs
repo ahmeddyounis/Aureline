@@ -136,7 +136,9 @@ fn coordination_from_objects(
     let focus = objects.iter().find(|row| row.focused);
     let active = objects.iter().find(|row| row.active).or(focus);
     let selected: Vec<String> = if knobs.inspector_selection {
-        focus.map(|row| vec![row.object_id_ref.clone()]).unwrap_or_default()
+        focus
+            .map(|row| vec![row.object_id_ref.clone()])
+            .unwrap_or_default()
     } else {
         objects
             .iter()
@@ -277,19 +279,50 @@ fn focus_return_rows(surface_id_ref: &str, origin: &str, knobs: DrillKnobs) -> V
     let sibling = format!("{surface_id_ref}#sibling");
     let mut rows = Vec::new();
     let triggers = [
-        (FocusReturnTrigger::DialogConfirmCancel, "Returned to the invoking row after the dialog closed."),
-        (FocusReturnTrigger::SheetDismiss, "Returned to the invoking row after the sheet was dismissed."),
-        (FocusReturnTrigger::PaletteDismiss, "Returned to the invoking row after the palette closed."),
-        (FocusReturnTrigger::PopoverDismiss, "Returned to the invoking control after the popover closed."),
-        (FocusReturnTrigger::InlineRenameCommitCancel, "Returned to the renamed row after commit or cancel."),
-        (FocusReturnTrigger::InspectorDismiss, "Returned to the inspected row after the inspector closed."),
-        (FocusReturnTrigger::PaneClose, "Returned to the nearest pane after the pane closed."),
-        (FocusReturnTrigger::SplitReflow, "Kept focus on the same object after the split reflowed."),
-        (FocusReturnTrigger::ExtensionViewRemoval, "Returned to the parent group after the extension view was removed."),
-        (FocusReturnTrigger::MissingDependencyPlaceholderReplacement, "Returned to the placeholder card's row after replacement."),
+        (
+            FocusReturnTrigger::DialogConfirmCancel,
+            "Returned to the invoking row after the dialog closed.",
+        ),
+        (
+            FocusReturnTrigger::SheetDismiss,
+            "Returned to the invoking row after the sheet was dismissed.",
+        ),
+        (
+            FocusReturnTrigger::PaletteDismiss,
+            "Returned to the invoking row after the palette closed.",
+        ),
+        (
+            FocusReturnTrigger::PopoverDismiss,
+            "Returned to the invoking control after the popover closed.",
+        ),
+        (
+            FocusReturnTrigger::InlineRenameCommitCancel,
+            "Returned to the renamed row after commit or cancel.",
+        ),
+        (
+            FocusReturnTrigger::InspectorDismiss,
+            "Returned to the inspected row after the inspector closed.",
+        ),
+        (
+            FocusReturnTrigger::PaneClose,
+            "Returned to the nearest pane after the pane closed.",
+        ),
+        (
+            FocusReturnTrigger::SplitReflow,
+            "Kept focus on the same object after the split reflowed.",
+        ),
+        (
+            FocusReturnTrigger::ExtensionViewRemoval,
+            "Returned to the parent group after the extension view was removed.",
+        ),
+        (
+            FocusReturnTrigger::MissingDependencyPlaceholderReplacement,
+            "Returned to the placeholder card's row after replacement.",
+        ),
     ];
     for (idx, (trigger, announcement)) in triggers.iter().enumerate() {
-        let to_body = knobs.focus_return_to_body && *trigger == FocusReturnTrigger::DialogConfirmCancel;
+        let to_body =
+            knobs.focus_return_to_body && *trigger == FocusReturnTrigger::DialogConfirmCancel;
         rows.push(FocusReturnRow {
             trigger: *trigger,
             rule_id: format!("focus_return:{}:{}", trigger.as_str(), idx),
@@ -495,7 +528,10 @@ fn build_scenario(
         },
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_string(),
         support_export_ref: SUPPORT_EXPORT_REF.to_string(),
-        evidence_refs: vec![EVIDENCE_ARTIFACT_REF.to_string(), EVIDENCE_FIXTURE_REF.to_string()],
+        evidence_refs: vec![
+            EVIDENCE_ARTIFACT_REF.to_string(),
+            EVIDENCE_FIXTURE_REF.to_string(),
+        ],
         narrative_refs: vec![NARRATIVE_REF.to_string()],
     };
 

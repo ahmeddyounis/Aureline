@@ -139,7 +139,8 @@ pub const MARKETPLACE_CATALOG_TRUTH_QUALIFICATION_CLAIM_RECORD_KIND: &str =
     "stable_marketplace_catalog_truth_qualification_claim";
 
 /// Record-kind tag for [`DowngradedCatalogBanner`].
-pub const DOWNGRADED_CATALOG_BANNER_RECORD_KIND: &str = "stable_marketplace_catalog_downgraded_banner";
+pub const DOWNGRADED_CATALOG_BANNER_RECORD_KIND: &str =
+    "stable_marketplace_catalog_downgraded_banner";
 
 /// Record-kind tag for [`StableMarketplaceCatalogTruthInspection`].
 pub const STABLE_MARKETPLACE_CATALOG_TRUTH_INSPECTION_RECORD_KIND: &str =
@@ -205,8 +206,11 @@ pub const HOST_BOUNDARY_CLASSES: &[&str] = &[
 
 /// Host boundaries that require an explicit hosted-surface / browser-handoff
 /// disclosure before a stable claim can hold.
-pub const SURFACE_DISCLOSURE_BOUNDARIES: &[&str] =
-    &["host_rendered_surface", "hosted_remote_surface", "browser_handoff"];
+pub const SURFACE_DISCLOSURE_BOUNDARIES: &[&str] = &[
+    "host_rendered_surface",
+    "hosted_remote_surface",
+    "browser_handoff",
+];
 
 /// Closed discoverability ranking-state vocabulary, kept separate from provenance
 /// and support-class truth.
@@ -219,8 +223,11 @@ pub const RANKING_STATE_CLASSES: &[&str] = &[
 ];
 
 /// Ranking states that penalize prominence without quarantining the row.
-pub const PENALIZED_RANKING_STATES: &[&str] =
-    &["penalized_staleness", "penalized_performance", "penalized_trust"];
+pub const PENALIZED_RANKING_STATES: &[&str] = &[
+    "penalized_staleness",
+    "penalized_performance",
+    "penalized_trust",
+];
 
 /// Closed compatibility-scorecard subject vocabulary.
 pub const SCORECARD_SUBJECT_CLASSES: &[&str] = &[
@@ -767,8 +774,13 @@ impl MarketplaceCompatibilityScorecard {
     /// Returns true when the scorecard reports a parity-limited or downgraded posture
     /// short of unsupported.
     pub fn parity_limited(&self) -> bool {
-        matches!(self.parity_band_class.as_str(), "partial_parity" | "limited_parity")
-            || matches!(self.downgrade_state_class.as_str(), "narrowed" | "downgraded")
+        matches!(
+            self.parity_band_class.as_str(),
+            "partial_parity" | "limited_parity"
+        ) || matches!(
+            self.downgrade_state_class.as_str(),
+            "narrowed" | "downgraded"
+        )
     }
 }
 
@@ -1183,7 +1195,9 @@ impl StableMarketplaceCatalogTruthPacket {
         validate_surface_boundary(&self.surface_boundary)?;
         validate_discoverability(&self.discoverability)?;
         if self.scorecards.is_empty() {
-            return Err(err("packet must carry at least one compatibility scorecard"));
+            return Err(err(
+                "packet must carry at least one compatibility scorecard",
+            ));
         }
         let mut scorecard_ids = BTreeSet::new();
         for scorecard in &self.scorecards {
@@ -1273,7 +1287,9 @@ impl StableMarketplaceCatalogTruthPacket {
                 ));
             }
             if !self.identity.lifecycle_installable() {
-                return Err(err("stable effective tier must stay on an installable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on an installable lifecycle",
+                ));
             }
             if self.provenance.under_review() {
                 return Err(err(
@@ -1286,7 +1302,9 @@ impl StableMarketplaceCatalogTruthPacket {
                 ));
             }
             if !self.surface_boundary.runtime_class_verified {
-                return Err(err("stable effective tier must carry a verified runtime class"));
+                return Err(err(
+                    "stable effective tier must carry a verified runtime class",
+                ));
             }
             if !self.surface_boundary.surface_disclosure_ok() {
                 return Err(err(
@@ -1380,8 +1398,11 @@ impl StableMarketplaceCatalogTruthPacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> =
-            derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1720,10 +1741,8 @@ fn summarize_compatibility(
 
     let has_scorecard = !scorecards.is_empty();
     let no_inherited_parity = inherited_count == 0;
-    let all_scorecards_supportable = has_scorecard
-        && unsupported_count == 0
-        && not_evaluated_count == 0
-        && stale_count == 0;
+    let all_scorecards_supportable =
+        has_scorecard && unsupported_count == 0 && not_evaluated_count == 0 && stale_count == 0;
 
     MarketplaceCompatibilitySummary {
         record_kind: MARKETPLACE_COMPATIBILITY_SUMMARY_RECORD_KIND.to_string(),
@@ -1888,12 +1907,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1920,9 +1947,9 @@ fn attribution_is_complete(
         && !identity.row_identity_ref.trim().is_empty()
         && !identity.source_package_ref.trim().is_empty()
         && !provenance.status_source_ref.trim().is_empty()
-        && scorecards.iter().all(|s| {
-            !s.scorecard_id.trim().is_empty() && !s.scorecard_ref.trim().is_empty()
-        })
+        && scorecards
+            .iter()
+            .all(|s| !s.scorecard_id.trim().is_empty() && !s.scorecard_ref.trim().is_empty())
 }
 
 /// Returns true when the catalog posture requires a pre-trust warning banner.
@@ -1988,7 +2015,9 @@ fn banner_reason_for(posture: &CatalogPosture<'_>) -> Option<String> {
 // Record constructors
 // ---------------------------------------------------------------------------
 
-fn identity_record(input: &MarketplaceCatalogTruthIdentityInput) -> MarketplaceCatalogTruthIdentity {
+fn identity_record(
+    input: &MarketplaceCatalogTruthIdentityInput,
+) -> MarketplaceCatalogTruthIdentity {
     MarketplaceCatalogTruthIdentity {
         record_kind: MARKETPLACE_CATALOG_TRUTH_IDENTITY_RECORD_KIND.to_string(),
         schema_version: STABLE_MARKETPLACE_CATALOG_TRUTH_SCHEMA_VERSION,
@@ -2211,7 +2240,10 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     let id = &input.identity;
-    ensure_nonempty(&id.catalog_descriptor_ref, "identity.catalog_descriptor_ref")?;
+    ensure_nonempty(
+        &id.catalog_descriptor_ref,
+        "identity.catalog_descriptor_ref",
+    )?;
     if !id.catalog_descriptor_ref.starts_with("catalog_descriptor:") {
         return Err(err(
             "identity.catalog_descriptor_ref must start with 'catalog_descriptor:'",
@@ -2234,11 +2266,19 @@ fn validate_input(
     )?;
 
     let prov = &input.provenance;
-    ensure_token(PROVENANCE_CLASSES, &prov.provenance_class, "provenance.provenance_class")?;
+    ensure_token(
+        PROVENANCE_CLASSES,
+        &prov.provenance_class,
+        "provenance.provenance_class",
+    )?;
     ensure_nonempty(&prov.status_source_ref, "provenance.status_source_ref")?;
 
     let surface = &input.surface_boundary;
-    ensure_token(RUNTIME_CLASSES, &surface.runtime_class, "surface_boundary.runtime_class")?;
+    ensure_token(
+        RUNTIME_CLASSES,
+        &surface.runtime_class,
+        "surface_boundary.runtime_class",
+    )?;
     ensure_token(
         HOST_BOUNDARY_CLASSES,
         &surface.host_boundary_class,
@@ -2251,7 +2291,10 @@ fn validate_input(
         &disc.ranking_state_class,
         "discoverability.ranking_state_class",
     )?;
-    ensure_nonempty(&disc.ranking_rationale_ref, "discoverability.ranking_rationale_ref")?;
+    ensure_nonempty(
+        &disc.ranking_rationale_ref,
+        "discoverability.ranking_rationale_ref",
+    )?;
 
     if input.scorecards.is_empty() {
         return Err(err("input must carry at least one compatibility scorecard"));
@@ -2262,8 +2305,16 @@ fn validate_input(
         if !scorecard_ids.insert(&s.scorecard_id) {
             return Err(err(format!("duplicate scorecard_id: {}", s.scorecard_id)));
         }
-        ensure_token(SCORECARD_SUBJECT_CLASSES, &s.subject_class, "scorecard.subject_class")?;
-        ensure_token(PARITY_BAND_CLASSES, &s.parity_band_class, "scorecard.parity_band_class")?;
+        ensure_token(
+            SCORECARD_SUBJECT_CLASSES,
+            &s.subject_class,
+            "scorecard.subject_class",
+        )?;
+        ensure_token(
+            PARITY_BAND_CLASSES,
+            &s.parity_band_class,
+            "scorecard.parity_band_class",
+        )?;
         ensure_token(
             FRESHNESS_WINDOW_CLASSES,
             &s.freshness_window_class,
@@ -2283,9 +2334,19 @@ fn validate_input(
     }
 
     let act = &input.activation_budget;
-    ensure_token(ACTIVATION_BUDGET_CLASSES, &act.budget_class, "activation_budget.budget_class")?;
-    ensure_nonempty(&act.measured_cost_ref, "activation_budget.measured_cost_ref")?;
-    ensure_nonempty(&act.budget_ceiling_ref, "activation_budget.budget_ceiling_ref")?;
+    ensure_token(
+        ACTIVATION_BUDGET_CLASSES,
+        &act.budget_class,
+        "activation_budget.budget_class",
+    )?;
+    ensure_nonempty(
+        &act.measured_cost_ref,
+        "activation_budget.measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &act.budget_ceiling_ref,
+        "activation_budget.budget_ceiling_ref",
+    )?;
 
     let support = &input.support_class;
     ensure_token(
@@ -2324,10 +2385,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_MARKETPLACE_CATALOG_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_MARKETPLACE_CATALOG_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2375,7 +2444,10 @@ fn validate_provenance(
         &provenance.provenance_class,
         "provenance provenance_class",
     )?;
-    ensure_nonempty(&provenance.status_source_ref, "provenance status_source_ref")?;
+    ensure_nonempty(
+        &provenance.status_source_ref,
+        "provenance status_source_ref",
+    )?;
     Ok(())
 }
 
@@ -2387,7 +2459,11 @@ fn validate_surface_boundary(
         MARKETPLACE_CATALOG_SURFACE_BOUNDARY_RECORD_KIND,
         "surface_boundary record_kind",
     )?;
-    ensure_token(RUNTIME_CLASSES, &surface.runtime_class, "surface_boundary runtime_class")?;
+    ensure_token(
+        RUNTIME_CLASSES,
+        &surface.runtime_class,
+        "surface_boundary runtime_class",
+    )?;
     ensure_token(
         HOST_BOUNDARY_CLASSES,
         &surface.host_boundary_class,
@@ -2426,8 +2502,16 @@ fn validate_scorecard(
         "scorecard schema_version",
     )?;
     ensure_nonempty(&scorecard.scorecard_id, "scorecard scorecard_id")?;
-    ensure_token(SCORECARD_SUBJECT_CLASSES, &scorecard.subject_class, "scorecard subject_class")?;
-    ensure_token(PARITY_BAND_CLASSES, &scorecard.parity_band_class, "scorecard parity_band_class")?;
+    ensure_token(
+        SCORECARD_SUBJECT_CLASSES,
+        &scorecard.subject_class,
+        "scorecard subject_class",
+    )?;
+    ensure_token(
+        PARITY_BAND_CLASSES,
+        &scorecard.parity_band_class,
+        "scorecard parity_band_class",
+    )?;
     ensure_token(
         FRESHNESS_WINDOW_CLASSES,
         &scorecard.freshness_window_class,
@@ -2456,7 +2540,11 @@ fn validate_compatibility_summary(
         "compatibility_summary record_kind",
     )?;
     for subject in &summary.present_subjects {
-        ensure_token(SCORECARD_SUBJECT_CLASSES, subject, "compatibility_summary.present_subjects")?;
+        ensure_token(
+            SCORECARD_SUBJECT_CLASSES,
+            subject,
+            "compatibility_summary.present_subjects",
+        )?;
     }
     Ok(())
 }
@@ -2474,8 +2562,14 @@ fn validate_activation_budget(
         &activation.budget_class,
         "activation_budget budget_class",
     )?;
-    ensure_nonempty(&activation.measured_cost_ref, "activation_budget measured_cost_ref")?;
-    ensure_nonempty(&activation.budget_ceiling_ref, "activation_budget budget_ceiling_ref")?;
+    ensure_nonempty(
+        &activation.measured_cost_ref,
+        "activation_budget measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &activation.budget_ceiling_ref,
+        "activation_budget budget_ceiling_ref",
+    )?;
     Ok(())
 }
 
@@ -2539,15 +2633,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
     ensure_token(
         SUPPORT_CLAIM_CLASSES,
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(MARKETPLACE_CATALOG_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            MARKETPLACE_CATALOG_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2561,12 +2667,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(MARKETPLACE_CATALOG_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            MARKETPLACE_CATALOG_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2606,7 +2718,9 @@ fn validate_inspection(
         return Err(err("inspection inherited_scorecard_count is inconsistent"));
     }
     if inspection.unsupported_scorecard_count != packet.compatibility_summary.unsupported_count {
-        return Err(err("inspection unsupported_scorecard_count is inconsistent"));
+        return Err(err(
+            "inspection unsupported_scorecard_count is inconsistent",
+        ));
     }
     if inspection.views_aligned != packet.view_alignment.all_views_aligned() {
         return Err(err("inspection views_aligned is inconsistent"));
@@ -2633,7 +2747,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2644,7 +2760,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableMarketplaceCatalogTruthValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2665,7 +2783,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableMarketplaceCatalogTruthValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

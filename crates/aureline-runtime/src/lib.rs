@@ -46,6 +46,7 @@ pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
 pub mod harden_build_target_discovery_adapter_confidence_labels_and;
 pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
+pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
@@ -83,27 +84,7 @@ pub mod testing_triage;
 pub mod tests;
 pub mod topology_inspector;
 pub mod trace_replay_alpha;
-pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 
-pub use harden_the_stable_profiler_and_tracing_hooks_needed::{
-    current_stable_profiler_truth_packet, ConfidenceClass as ProfilerConfidenceClass,
-    ConsumerProjectionSurface as ProfilerConsumerProjectionSurface,
-    DowngradeAutomationClass as ProfilerDowngradeAutomationClass,
-    EvidenceClass as ProfilerEvidenceClass, FindingKind as ProfilerFindingKind,
-    FindingSeverity as ProfilerFindingSeverity, KnownLimitClass as ProfilerKnownLimitClass,
-    ProfilerConsumerProjection, ProfilerLaneClass, ProfilerRow, ProfilerRowClass,
-    ProfilerSurfaceClass, ProfilerTruthArtifactError, ProfilerTruthPacket,
-    ProfilerTruthPacketInput, ProfilerTruthSupportExport, PromotionState as ProfilerPromotionState,
-    SupportClass as ProfilerSupportClass, ValidationFinding as ProfilerValidationFinding,
-    WedgeClass as ProfilerWedgeClass, CaptureStateClass as ProfilerCaptureStateClass,
-    OriginClass as ProfilerOriginClass, BuildModeClass as ProfilerBuildModeClass,
-    RunClassClass as ProfilerRunClassClass, ConfounderClass as ProfilerConfounderClass,
-    ReplayStateClass as ProfilerReplayStateClass,
-    PROFILER_TRUTH_ARTIFACT_DOC_REF, PROFILER_TRUTH_DOC_REF, PROFILER_TRUTH_FIXTURE_DIR,
-    PROFILER_TRUTH_PACKET_ARTIFACT_REF, PROFILER_TRUTH_PACKET_RECORD_KIND,
-    PROFILER_TRUTH_SCHEMA_REF, PROFILER_TRUTH_SCHEMA_VERSION,
-    PROFILER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
-};
 pub use build_intelligence::{
     AdapterHealthReason, AdapterHealthState, AdapterHealthStrip, AdapterIdentity,
     ArtifactSourceClass, BuildIntelligenceAction, BuildIntelligenceActionClass,
@@ -368,6 +349,24 @@ pub use harden_environment_capsule_resolution::{
     CAPSULE_RESOLUTION_TRUTH_SCHEMA_REF, CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION,
     CAPSULE_RESOLUTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use harden_the_stable_profiler_and_tracing_hooks_needed::{
+    current_stable_profiler_truth_packet, BuildModeClass as ProfilerBuildModeClass,
+    CaptureStateClass as ProfilerCaptureStateClass, ConfidenceClass as ProfilerConfidenceClass,
+    ConfounderClass as ProfilerConfounderClass,
+    ConsumerProjectionSurface as ProfilerConsumerProjectionSurface,
+    DowngradeAutomationClass as ProfilerDowngradeAutomationClass,
+    EvidenceClass as ProfilerEvidenceClass, FindingKind as ProfilerFindingKind,
+    FindingSeverity as ProfilerFindingSeverity, KnownLimitClass as ProfilerKnownLimitClass,
+    OriginClass as ProfilerOriginClass, ProfilerConsumerProjection, ProfilerLaneClass, ProfilerRow,
+    ProfilerRowClass, ProfilerSurfaceClass, ProfilerTruthArtifactError, ProfilerTruthPacket,
+    ProfilerTruthPacketInput, ProfilerTruthSupportExport, PromotionState as ProfilerPromotionState,
+    ReplayStateClass as ProfilerReplayStateClass, RunClassClass as ProfilerRunClassClass,
+    SupportClass as ProfilerSupportClass, ValidationFinding as ProfilerValidationFinding,
+    WedgeClass as ProfilerWedgeClass, PROFILER_TRUTH_ARTIFACT_DOC_REF, PROFILER_TRUTH_DOC_REF,
+    PROFILER_TRUTH_FIXTURE_DIR, PROFILER_TRUTH_PACKET_ARTIFACT_REF,
+    PROFILER_TRUTH_PACKET_RECORD_KIND, PROFILER_TRUTH_SCHEMA_REF, PROFILER_TRUTH_SCHEMA_VERSION,
+    PROFILER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use host_boundary::{
     evaluate_host_boundary_reapproval, ActionExposureClass, ActionOriginClass, ActionRouteClass,
     ActionTargetClass, AdapterConfidenceClass, AdapterConfidencePlaceholder, AdapterKind,
@@ -468,29 +467,27 @@ pub use provenance::{
     EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
 };
 pub use publish_execution_plane_certification_packets_for_local_remote::{
-    current_stable_execution_plane_truth_packet, ConfidenceClass as ExecutionPlaneConfidenceClass,
+    current_stable_execution_plane_truth_packet,
+    ArtifactProvenanceStateClass as ExecutionPlaneArtifactProvenanceStateClass,
+    ConfidenceClass as ExecutionPlaneConfidenceClass,
     ConsumerSurface as ExecutionPlaneConsumerSurface,
     DegradedHelperStateClass as ExecutionPlaneDegradedHelperStateClass,
     DowngradeAutomationClass as ExecutionPlaneDowngradeAutomationClass,
-    EvidenceClass as ExecutionPlaneEvidenceClass,
-    ExecutionPlaneCertificationRow, ExecutionPlaneConsumerProjection,
-    ExecutionPlaneLaneClass, ExecutionPlaneRowClass,
+    EvidenceClass as ExecutionPlaneEvidenceClass, ExecutionPlaneCertificationRow,
+    ExecutionPlaneConsumerProjection, ExecutionPlaneLaneClass, ExecutionPlaneRowClass,
     ExecutionPlaneTruthArtifactError, ExecutionPlaneTruthPacket, ExecutionPlaneTruthPacketInput,
-    ExecutionPlaneTruthSupportExport,
-    FindingKind as ExecutionPlaneFindingKind,
+    ExecutionPlaneTruthSupportExport, FindingKind as ExecutionPlaneFindingKind,
     FindingSeverity as ExecutionPlaneFindingSeverity,
     KnownLimitClass as ExecutionPlaneKnownLimitClass,
     PromotionState as ExecutionPlanePromotionState,
     ReconnectStateClass as ExecutionPlaneReconnectStateClass,
-    RouteStateClass as ExecutionPlaneRouteStateClass,
-    SupportClass as ExecutionPlaneSupportClass,
+    RouteStateClass as ExecutionPlaneRouteStateClass, SupportClass as ExecutionPlaneSupportClass,
     SurfaceBindingClass as ExecutionPlaneSurfaceBindingClass,
-    ValidationFinding as ExecutionPlaneValidationFinding,
-    ArtifactProvenanceStateClass as ExecutionPlaneArtifactProvenanceStateClass,
-    EXECUTION_PLANE_TRUTH_ARTIFACT_DOC_REF, EXECUTION_PLANE_TRUTH_DOC_REF,
-    EXECUTION_PLANE_TRUTH_FIXTURE_DIR, EXECUTION_PLANE_TRUTH_PACKET_ARTIFACT_REF,
-    EXECUTION_PLANE_TRUTH_PACKET_RECORD_KIND, EXECUTION_PLANE_TRUTH_SCHEMA_REF,
-    EXECUTION_PLANE_TRUTH_SCHEMA_VERSION, EXECUTION_PLANE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+    ValidationFinding as ExecutionPlaneValidationFinding, EXECUTION_PLANE_TRUTH_ARTIFACT_DOC_REF,
+    EXECUTION_PLANE_TRUTH_DOC_REF, EXECUTION_PLANE_TRUTH_FIXTURE_DIR,
+    EXECUTION_PLANE_TRUTH_PACKET_ARTIFACT_REF, EXECUTION_PLANE_TRUTH_PACKET_RECORD_KIND,
+    EXECUTION_PLANE_TRUTH_SCHEMA_REF, EXECUTION_PLANE_TRUTH_SCHEMA_VERSION,
+    EXECUTION_PLANE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use quality::{
     BaselineCompatibilityStateClass, BaselineRecord, BaselineRecordRequest,

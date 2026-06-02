@@ -51,12 +51,11 @@
 
 use std::collections::BTreeSet;
 
+use aureline_ui::density::DensityClass;
 use aureline_ui::themes::{
-    AccentSourceClass, AccessibilityPostureClass, AppearanceAxis, ContrastMode,
-    FollowSystemPosture,
+    AccentSourceClass, AccessibilityPostureClass, AppearanceAxis, ContrastMode, FollowSystemPosture,
 };
 use aureline_ui::tokens::ThemeClass;
-use aureline_ui::density::DensityClass;
 use serde::{Deserialize, Serialize};
 
 pub use aureline_design_system::LaunchSurfaceClass;
@@ -1215,9 +1214,7 @@ impl DesignTokenRuntimeCertification {
         let mut seen_cues: BTreeSet<ProtectedCueClass> = BTreeSet::new();
         for row in &input.protected_cues {
             if !seen_cues.insert(row.cue_class) {
-                return Err(BuildError::DuplicateProtectedCue {
-                    cue: row.cue_class,
-                });
+                return Err(BuildError::DuplicateProtectedCue { cue: row.cue_class });
             }
         }
         for required in ProtectedCueClass::REQUIRED {

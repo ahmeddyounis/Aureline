@@ -54,16 +54,13 @@ mod tests;
 pub const OPEN_VS_PAID_BOUNDARY_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every record in this module.
-pub const OPEN_VS_PAID_BOUNDARY_SHARED_CONTRACT_REF: &str =
-    "policy:open_vs_paid_boundary:v1";
+pub const OPEN_VS_PAID_BOUNDARY_SHARED_CONTRACT_REF: &str = "policy:open_vs_paid_boundary:v1";
 
 /// Record-kind tag for [`OpenVsPaidBoundaryPage`] payloads.
-pub const OPEN_VS_PAID_BOUNDARY_PAGE_RECORD_KIND: &str =
-    "policy_open_vs_paid_boundary_page_record";
+pub const OPEN_VS_PAID_BOUNDARY_PAGE_RECORD_KIND: &str = "policy_open_vs_paid_boundary_page_record";
 
 /// Record-kind tag for [`OpenVsPaidBoundaryRow`] payloads.
-pub const OPEN_VS_PAID_BOUNDARY_ROW_RECORD_KIND: &str =
-    "policy_open_vs_paid_boundary_row_record";
+pub const OPEN_VS_PAID_BOUNDARY_ROW_RECORD_KIND: &str = "policy_open_vs_paid_boundary_row_record";
 
 /// Record-kind tag for [`OpenVsPaidBoundaryDefect`] payloads.
 pub const OPEN_VS_PAID_BOUNDARY_DEFECT_RECORD_KIND: &str =
@@ -74,12 +71,10 @@ pub const OPEN_VS_PAID_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND: &str =
     "policy_open_vs_paid_boundary_support_export_record";
 
 /// Record-kind tag for [`UsageExportPacket`] payloads.
-pub const USAGE_EXPORT_PACKET_RECORD_KIND: &str =
-    "policy_usage_export_packet_record";
+pub const USAGE_EXPORT_PACKET_RECORD_KIND: &str = "policy_usage_export_packet_record";
 
 /// Record-kind tag for [`OffboardingPacket`] payloads.
-pub const OFFBOARDING_PACKET_RECORD_KIND: &str =
-    "policy_offboarding_packet_record";
+pub const OFFBOARDING_PACKET_RECORD_KIND: &str = "policy_offboarding_packet_record";
 
 /// Repo-relative path of the stable doc for this lane.
 pub const OPEN_VS_PAID_BOUNDARY_DOC_REF: &str =
@@ -842,8 +837,9 @@ impl OpenVsPaidBoundaryPage {
     /// offboarding disclosure.
     pub fn offboarding_disclosed_for_managed(&self) -> bool {
         self.rows.iter().all(|row| {
-            !CapabilityBoundaryClass::requires_offboarding_disclosure_by_token(&row.boundary_class_token)
-                || row.offboarding_disclosed
+            !CapabilityBoundaryClass::requires_offboarding_disclosure_by_token(
+                &row.boundary_class_token,
+            ) || row.offboarding_disclosed
         })
     }
 
@@ -851,8 +847,9 @@ impl OpenVsPaidBoundaryPage {
     /// usage-export disclosure.
     pub fn usage_export_disclosed_for_managed(&self) -> bool {
         self.rows.iter().all(|row| {
-            !CapabilityBoundaryClass::requires_offboarding_disclosure_by_token(&row.boundary_class_token)
-                || row.usage_export_disclosed
+            !CapabilityBoundaryClass::requires_offboarding_disclosure_by_token(
+                &row.boundary_class_token,
+            ) || row.usage_export_disclosed
         })
     }
 
@@ -865,10 +862,7 @@ impl OpenVsPaidBoundaryPage {
 // Helper for string-based boundary-class checks on rows.
 impl CapabilityBoundaryClass {
     fn requires_offboarding_disclosure_by_token(token: &str) -> bool {
-        matches!(
-            token,
-            "managed_hosted" | "enterprise_governed"
-        )
+        matches!(token, "managed_hosted" | "enterprise_governed")
     }
 }
 
@@ -965,9 +959,7 @@ fn audit_open_vs_paid_boundary_input(
 
     // Hard guardrail: local-core capability requiring managed prerequisite.
     for row in &input.capability_rows {
-        if row.capability_family.is_local_core()
-            && !row.boundary_class.is_local_safe()
-        {
+        if row.capability_family.is_local_core() && !row.boundary_class.is_local_safe() {
             defects.push(OpenVsPaidBoundaryDefect::new(
                 OpenVsPaidBoundaryNarrowReasonClass::LocalCoreRequiresManagedPrerequisite,
                 row.capability_family.as_str(),
@@ -1112,8 +1104,7 @@ fn derive_boundary_rows(
     };
 
     // Build per-family defect index.
-    let mut family_defect: BTreeMap<String, OpenVsPaidBoundaryNarrowReasonClass> =
-        BTreeMap::new();
+    let mut family_defect: BTreeMap<String, OpenVsPaidBoundaryNarrowReasonClass> = BTreeMap::new();
     for defect in page_defects {
         let entry = family_defect
             .entry(defect.source.clone())
@@ -1171,10 +1162,7 @@ fn derive_boundary_rows(
             // Build optional packets for managed rows.
             let usage_export_packet = if row.boundary_class.requires_offboarding_disclosure() {
                 Some(UsageExportPacket::new(
-                    format!(
-                        "policy:usage_export:{}:default",
-                        family_str
-                    ),
+                    format!("policy:usage_export:{}:default", family_str),
                     row.capability_family,
                     UsageExportAvailabilityClass::Full,
                     false,
@@ -1193,10 +1181,7 @@ fn derive_boundary_rows(
 
             let offboarding_packet = if row.boundary_class.requires_offboarding_disclosure() {
                 Some(OffboardingPacket::new(
-                    format!(
-                        "policy:offboarding:{}:default",
-                        family_str
-                    ),
+                    format!("policy:offboarding:{}:default", family_str),
                     row.capability_family,
                     OffboardingOutcomeClass::LocalOnly,
                     OffboardingOutcomeClass::PolicyRetained,

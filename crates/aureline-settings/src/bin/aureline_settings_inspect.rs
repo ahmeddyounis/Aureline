@@ -169,10 +169,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("repair-support-export") => {
             let plans = vec![
-                with_decision(
-                    build_reset_value_plan(&resolver, &context)?,
-                    "accepted",
-                ),
+                with_decision(build_reset_value_plan(&resolver, &context)?, "accepted"),
                 with_decision(
                     build_reset_section_plan(&resolver, &context, true)?,
                     "accepted",
@@ -496,9 +493,7 @@ fn build_reset_value_plan(
         migration_step: None,
         actor_class: WriteActorClass::UserCommand,
         reason_class: WriteReasonClass::UserEdit,
-        reason_note: Some(
-            "Reset workspace tab size back to the user-default value.".to_owned(),
-        ),
+        reason_note: Some("Reset workspace tab size back to the user-default value.".to_owned()),
         selected_setting_ids: vec!["editor.tab_size".to_owned()],
         proposed_values: vec![("editor.tab_size".to_owned(), SettingValue::Integer(4))],
         checkpoint_ref: None,
@@ -527,8 +522,7 @@ fn build_reset_section_plan(
         actor_class: WriteActorClass::UserCommand,
         reason_class: WriteReasonClass::UserEdit,
         reason_note: Some(
-            "Reset every editor.* setting at user_global back to inherited sources."
-                .to_owned(),
+            "Reset every editor.* setting at user_global back to inherited sources.".to_owned(),
         ),
         selected_setting_ids: vec![
             "editor.tab_size".to_owned(),
@@ -642,7 +636,8 @@ fn build_revert_migration_step_plan(
         actor_class: WriteActorClass::WorkspaceMigration,
         reason_class: WriteReasonClass::Automation,
         reason_note: Some(
-            "Revert the editor.tab_size migration step using the checkpoint captured before apply.".to_owned(),
+            "Revert the editor.tab_size migration step using the checkpoint captured before apply."
+                .to_owned(),
         ),
         selected_setting_ids: vec!["editor.tab_size".to_owned()],
         proposed_values: vec![("editor.tab_size".to_owned(), SettingValue::Integer(4))],

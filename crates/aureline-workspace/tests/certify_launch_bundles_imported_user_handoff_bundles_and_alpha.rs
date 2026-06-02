@@ -49,9 +49,8 @@ struct ExpectedCertification {
 }
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join(
-        "../../fixtures/review/m4/certify-launch-bundles-imported-user-handoff-bundles-and",
-    )
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/review/m4/certify-launch-bundles-imported-user-handoff-bundles-and")
 }
 
 fn load_fixture_paths() -> Vec<PathBuf> {
@@ -74,7 +73,10 @@ fn load_fixture(path: &Path) -> CertificationFixture {
 #[test]
 fn every_fixture_builds_validates_and_matches_expectations() {
     let paths = load_fixture_paths();
-    assert!(!paths.is_empty(), "certification fixtures dir must not be empty");
+    assert!(
+        !paths.is_empty(),
+        "certification fixtures dir must not be empty"
+    );
 
     for path in &paths {
         let fixture = load_fixture(path);

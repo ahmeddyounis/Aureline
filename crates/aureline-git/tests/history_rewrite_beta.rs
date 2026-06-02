@@ -44,11 +44,7 @@ fn every_fixture_projects() {
         let payload = fs::read_to_string(&path)
             .unwrap_or_else(|err| panic!("read fixture {}: {err}", path.display()));
         let projection = project_history_rewrite_record(&payload).unwrap_or_else(|err| {
-            panic!(
-                "fixture {} must project: {}",
-                path.display(),
-                err.message()
-            )
+            panic!("fixture {} must project: {}", path.display(), err.message())
         });
         assert!(
             HISTORY_REWRITE_OPERATION_KINDS
@@ -90,8 +86,7 @@ fn every_fixture_projects() {
 fn destructive_gate_is_consistent_with_lifecycle() {
     for path in collect_corpus() {
         let payload = fs::read_to_string(&path).expect("read fixture");
-        let record: HistoryRewriteRecord =
-            serde_json::from_str(&payload).expect("parse fixture");
+        let record: HistoryRewriteRecord = serde_json::from_str(&payload).expect("parse fixture");
         record.validate().expect("validate fixture");
         let projection = record.project();
         match (record.record_id(), projection.record_kind.as_str()) {
@@ -150,9 +145,7 @@ fn destructive_gate_is_consistent_with_lifecycle() {
                 }
                 if matches!(
                     projection.lifecycle_state.as_str(),
-                    "blocked_protected_branch"
-                        | "blocked_policy"
-                        | "blocked_collaboration"
+                    "blocked_protected_branch" | "blocked_policy" | "blocked_collaboration"
                 ) {
                     assert!(
                         !projection.next_safe_path_classes.is_empty(),
@@ -188,7 +181,9 @@ fn next_safe_paths_are_quoted_to_audit_lane() {
     let payload = fs::read_to_string(&path).expect("read protected-branch fixture");
     let record: HistoryRewriteRecord =
         serde_json::from_str(&payload).expect("parse protected-branch fixture");
-    record.validate().expect("validate protected-branch fixture");
+    record
+        .validate()
+        .expect("validate protected-branch fixture");
     let projection = record.project();
     assert!(projection
         .next_safe_path_classes

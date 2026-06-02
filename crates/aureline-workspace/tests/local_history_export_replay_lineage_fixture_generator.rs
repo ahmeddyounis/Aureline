@@ -11,11 +11,11 @@ use std::path::{Path, PathBuf};
 use aureline_workspace::{
     default_local_history_export_replay_inspection_hooks,
     project_local_history_export_replay_lineage_with_hooks, BodyAvailabilityClass,
-    CompareToDiskState, EncodingFidelityClass, ExportPacketKind,
-    LocalHistoryExportReplayInputs, LocalHistoryExportReplayInspectionHook,
-    LocalHistoryExportReplayInspectionHookClass, LocalHistoryExportReplayLineageRecord,
-    LocalHistoryExportReplaySupportExportInputs, LocalHistoryExportReplaySupportExportPosture,
-    PacketObservation, ReplayPathKind, ReplayPathObservation, ReplayRerunPosture,
+    CompareToDiskState, EncodingFidelityClass, ExportPacketKind, LocalHistoryExportReplayInputs,
+    LocalHistoryExportReplayInspectionHook, LocalHistoryExportReplayInspectionHookClass,
+    LocalHistoryExportReplayLineageRecord, LocalHistoryExportReplaySupportExportInputs,
+    LocalHistoryExportReplaySupportExportPosture, PacketObservation, ReplayPathKind,
+    ReplayPathObservation, ReplayRerunPosture,
 };
 use serde::Serialize;
 
@@ -400,8 +400,7 @@ fn generate_fixtures() {
     for hook in &mut narrowed_hooks {
         if hook.hook_class == LocalHistoryExportReplayInspectionHookClass::CompareBeforeReplay {
             hook.available = false;
-            hook.disclosure =
-                "Compare-before-replay unavailable on this posture.".to_owned();
+            hook.disclosure = "Compare-before-replay unavailable on this posture.".to_owned();
         }
     }
     write_fixture(

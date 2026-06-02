@@ -26,11 +26,11 @@
 //! - A changed / unknown boundary axis carries a canonical current ref and stays
 //!   visible; the display-copy "no lie" invariants all stay false.
 
+use aureline_shell::continuity_notices::continuity_notice_corpus;
 use aureline_shell::continuity_notices::model::{
     is_canonical_object_ref, BoundaryAxisStateClass, ContinuityNoticeView, EffectiveFreshnessClass,
     WriteContinuityPostureClass,
 };
-use aureline_shell::continuity_notices::continuity_notice_corpus;
 
 const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -166,10 +166,12 @@ fn queued_work_is_preserved_and_separated_from_hosted_mutations() {
                     scenario.scenario_id,
                     w.action_class.as_str(),
                 );
-                let queue_ref = w
-                    .queue_or_intent_ref
-                    .as_deref()
-                    .unwrap_or_else(|| panic!("{}: preserved write needs a queue ref", scenario.scenario_id));
+                let queue_ref = w.queue_or_intent_ref.as_deref().unwrap_or_else(|| {
+                    panic!(
+                        "{}: preserved write needs a queue ref",
+                        scenario.scenario_id
+                    )
+                });
                 assert!(
                     is_canonical_object_ref(queue_ref),
                     "{}: queue ref {queue_ref:?} is not canonical",
@@ -249,20 +251,36 @@ fn refs_and_no_lie_invariants_hold() {
             scenario.scenario_id,
         );
         let dc = &view.display_copy;
-        assert!(!dc.all_work_broken_implied, "{}: all_work_broken_implied", scenario.scenario_id);
+        assert!(
+            !dc.all_work_broken_implied,
+            "{}: all_work_broken_implied",
+            scenario.scenario_id
+        );
         assert!(
             !dc.incident_language_for_planned_used,
             "{}: incident_language_for_planned_used",
             scenario.scenario_id,
         );
-        assert!(!dc.generic_degraded_banner_used, "{}: generic_degraded_banner_used", scenario.scenario_id);
+        assert!(
+            !dc.generic_degraded_banner_used,
+            "{}: generic_degraded_banner_used",
+            scenario.scenario_id
+        );
         assert!(
             !dc.queued_and_succeeded_collapsed,
             "{}: queued_and_succeeded_collapsed",
             scenario.scenario_id,
         );
-        assert!(!dc.stale_presented_as_current, "{}: stale_presented_as_current", scenario.scenario_id);
-        assert!(!dc.boundary_change_hidden, "{}: boundary_change_hidden", scenario.scenario_id);
+        assert!(
+            !dc.stale_presented_as_current,
+            "{}: stale_presented_as_current",
+            scenario.scenario_id
+        );
+        assert!(
+            !dc.boundary_change_hidden,
+            "{}: boundary_change_hidden",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -288,7 +306,10 @@ fn corpus_covers_every_category_and_freshness_and_posture() {
         }
     }
     for expected in ["maintenance", "drain", "failover", "tenant_migration"] {
-        assert!(categories.contains(expected), "category {expected} not exercised");
+        assert!(
+            categories.contains(expected),
+            "category {expected} not exercised"
+        );
     }
     for expected in [
         "current",
@@ -297,7 +318,10 @@ fn corpus_covers_every_category_and_freshness_and_posture() {
         "completed_historical",
         "imported_historical",
     ] {
-        assert!(effective.contains(expected), "effective freshness {expected} not exercised");
+        assert!(
+            effective.contains(expected),
+            "effective freshness {expected} not exercised"
+        );
     }
     for expected in [
         WriteContinuityPostureClass::QueuedPublishLater.as_str(),
@@ -309,7 +333,10 @@ fn corpus_covers_every_category_and_freshness_and_posture() {
         WriteContinuityPostureClass::BlockedNoSafeRetry.as_str(),
         WriteContinuityPostureClass::RequiresManualRerun.as_str(),
     ] {
-        assert!(postures.contains(expected), "write posture {expected} not exercised");
+        assert!(
+            postures.contains(expected),
+            "write posture {expected} not exercised"
+        );
     }
     for expected in [
         "refresh_expired",
@@ -317,10 +344,21 @@ fn corpus_covers_every_category_and_freshness_and_posture() {
         "window_completed",
         "imported_offline",
     ] {
-        assert!(downgrades.contains(expected), "downgrade reason {expected} not exercised");
+        assert!(
+            downgrades.contains(expected),
+            "downgrade reason {expected} not exercised"
+        );
     }
-    for expected in ["unchanged", "changed", "unknown_recheck_required", "not_applicable"] {
-        assert!(axis_states.contains(expected), "boundary axis state {expected} not exercised");
+    for expected in [
+        "unchanged",
+        "changed",
+        "unknown_recheck_required",
+        "not_applicable",
+    ] {
+        assert!(
+            axis_states.contains(expected),
+            "boundary axis state {expected} not exercised"
+        );
     }
 }
 

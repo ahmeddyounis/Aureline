@@ -17,8 +17,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_review::{
     project_diff_first_rewrite_flow_packet, DiffFirstRewriteFlowPacket, DiffOpenTarget,
-    DiffViewSurfacePacket, RewriteFlowInput, ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket,
-    ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket,
+    DiffViewSurfacePacket, ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket,
+    ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket, RewriteFlowInput,
 };
 use serde::Deserialize;
 
@@ -101,8 +101,8 @@ fn load_fixture(name: &str) -> RewriteFlowFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -122,12 +122,7 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &RewriteFlowFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn packet_for_fixture(fixture: &RewriteFlowFixture) -> DiffFirstRewriteFlowPacket {
@@ -143,7 +138,10 @@ fn assert_expected(packet: &DiffFirstRewriteFlowPacket, expected: &ExpectedRewri
     assert_eq!(packet.inspection.diff_approved, expected.diff_approved);
     assert_eq!(packet.inspection.diff_pending, expected.diff_pending);
     assert_eq!(packet.inspection.diff_rejected, expected.diff_rejected);
-    assert_eq!(packet.inspection.checkpoint_ready, expected.checkpoint_ready);
+    assert_eq!(
+        packet.inspection.checkpoint_ready,
+        expected.checkpoint_ready
+    );
     assert_eq!(packet.inspection.executing, expected.executing);
     assert_eq!(packet.inspection.paused_conflict, expected.paused_conflict);
     assert_eq!(packet.inspection.completed, expected.completed);
@@ -152,7 +150,10 @@ fn assert_expected(packet: &DiffFirstRewriteFlowPacket, expected: &ExpectedRewri
         packet.inspection.protected_branch_blocked,
         expected.protected_branch_blocked
     );
-    assert_eq!(packet.inspection.policy_blocks_apply, expected.policy_blocks_apply);
+    assert_eq!(
+        packet.inspection.policy_blocks_apply,
+        expected.policy_blocks_apply
+    );
     assert_eq!(
         packet.inspection.approval_invalidated,
         expected.approval_invalidated
@@ -216,8 +217,14 @@ fn rewrite_flow_fixtures_project_and_round_trip() {
         assert_eq!(projection.packet_id, packet.packet_id);
         assert_eq!(projection.operation_kind, fixture.expected.operation_kind);
         assert_eq!(projection.flow_state, fixture.expected.flow_state);
-        assert_eq!(projection.diff_review_state, fixture.expected.diff_review_state);
-        assert_eq!(projection.checkpoint_state, fixture.expected.checkpoint_state);
+        assert_eq!(
+            projection.diff_review_state,
+            fixture.expected.diff_review_state
+        );
+        assert_eq!(
+            projection.checkpoint_state,
+            fixture.expected.checkpoint_state
+        );
         assert_eq!(projection.command_count, fixture.expected.command_count);
         assert!(projection
             .consumer_surfaces
@@ -245,7 +252,10 @@ fn protected_branch_blocked_makes_flow_not_actionable() {
     let packet = packet_for_fixture(&fixture);
     assert!(packet.inspection.protected_branch_blocked);
     assert!(!packet.inspection.actionable);
-    assert!(packet.rewrite_flow.blocked_reasons.contains(&"protected_branch_blocked".to_string()));
+    assert!(packet
+        .rewrite_flow
+        .blocked_reasons
+        .contains(&"protected_branch_blocked".to_string()));
 }
 
 #[test]
@@ -280,13 +290,20 @@ fn interactive_rebase_has_sequence_edit_proposal() {
         .expect("interactive rebase must have sequence_edit_proposal");
     assert_eq!(proposal.remaining_step_count, 2);
     assert_eq!(proposal.ordered_operations.len(), 4);
-    let ordinals: Vec<u32> = proposal.ordered_operations.iter().map(|op| op.ordinal).collect();
+    let ordinals: Vec<u32> = proposal
+        .ordered_operations
+        .iter()
+        .map(|op| op.ordinal)
+        .collect();
     let mut sorted = ordinals.clone();
     sorted.sort();
     assert_eq!(ordinals, sorted, "ordinals must be sorted");
     assert_eq!(
         ordinals.len(),
-        ordinals.iter().collect::<std::collections::BTreeSet<_>>().len(),
+        ordinals
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
         "ordinals must be unique"
     );
 }
@@ -358,5 +375,8 @@ fn diff_rejected_blocks_apply() {
         .expect("rejected diff should still project");
     assert!(packet.inspection.diff_rejected);
     assert!(!packet.inspection.actionable);
-    assert!(packet.rewrite_flow.blocked_reasons.contains(&"diff_not_approved".to_string()));
+    assert!(packet
+        .rewrite_flow
+        .blocked_reasons
+        .contains(&"diff_not_approved".to_string()));
 }

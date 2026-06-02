@@ -27,8 +27,7 @@ pub const LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND: &str =
     "locale_overlay_surface_projection_record";
 
 /// Stable record kind for [`LocaleOverlaySupportExport`].
-pub const LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND: &str =
-    "locale_overlay_support_export_record";
+pub const LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND: &str = "locale_overlay_support_export_record";
 
 /// Stable id for the seeded translated-pack overlay contract.
 pub const TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID: &str =
@@ -522,7 +521,10 @@ impl LocaleOverlayContract {
                     .surface_refs
                     .iter()
                     .map(|surface_ref| LocaleOverlaySurfaceRow {
-                        row_id: format!("locale-overlay-surface-row:{surface_ref}:{}", overlay.overlay_id),
+                        row_id: format!(
+                            "locale-overlay-surface-row:{surface_ref}:{}",
+                            overlay.overlay_id
+                        ),
                         surface_ref: surface_ref.clone(),
                         overlay_id: overlay.overlay_id.clone(),
                         pack_id: overlay.pack_id.clone(),
@@ -539,7 +541,10 @@ impl LocaleOverlayContract {
                         badge_class: overlay.badge_class,
                         badge_label: overlay.badge_label().to_owned(),
                         source_language_action_id: overlay.source_language_action.action_id.clone(),
-                        source_language_action_label: overlay.source_language_action.action_label.clone(),
+                        source_language_action_label: overlay
+                            .source_language_action
+                            .action_label
+                            .clone(),
                         citation_anchor_refs: overlay.citation_anchor_refs.clone(),
                         command_id_refs: overlay.command_id_refs.clone(),
                         keyboard_path_refs: overlay.keyboard_path_refs.clone(),
@@ -608,10 +613,7 @@ impl LocaleOverlayContract {
             source_contract_id: self.contract_id.clone(),
             contract_version_ref: self.contract_version_ref.clone(),
             rows,
-            omitted_material_classes: self
-                .support_export_policy
-                .omitted_material_classes
-                .clone(),
+            omitted_material_classes: self.support_export_policy.omitted_material_classes.clone(),
             raw_translated_bodies_exported: false,
         }
     }
@@ -1320,13 +1322,21 @@ fn overlay(seed: LocaleOverlaySeed) -> LocaleOverlayRecord {
             .into_iter()
             .map(str::to_owned)
             .collect(),
-        command_id_refs: seed.command_id_refs.into_iter().map(str::to_owned).collect(),
+        command_id_refs: seed
+            .command_id_refs
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
         keyboard_path_refs: seed
             .keyboard_path_refs
             .into_iter()
             .map(str::to_owned)
             .collect(),
-        scope_label_refs: seed.scope_label_refs.into_iter().map(str::to_owned).collect(),
+        scope_label_refs: seed
+            .scope_label_refs
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
         source_language_action: LocaleOverlaySourceLanguageAction {
             action_id: format!("action:{}:open-source-language", seed.overlay_id),
             action_label: OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL.to_owned(),

@@ -295,7 +295,11 @@ fn open_action(action_id: &str, label: &str, command_id: &str, target: &str) -> 
     }
 }
 
-fn quiet_state(modes: Vec<QuietHoursMode>, reasons: Vec<SuppressionReason>, suppressed: bool) -> SuppressionState {
+fn quiet_state(
+    modes: Vec<QuietHoursMode>,
+    reasons: Vec<SuppressionReason>,
+    suppressed: bool,
+) -> SuppressionState {
     SuppressionState {
         active_modes_at_mint: if modes.is_empty() {
             vec![QuietHoursMode::ModeNone]
@@ -763,14 +767,19 @@ fn seed_cases() -> Vec<SeedCase> {
 
 /// Validate the corpus invariants. Returns the list of violations; an empty
 /// list means the corpus conforms.
-pub fn validate_attention_routing_corpus(corpus: &AttentionRoutingCorpus) -> Result<(), Vec<String>> {
+pub fn validate_attention_routing_corpus(
+    corpus: &AttentionRoutingCorpus,
+) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     if corpus.record_kind != ATTENTION_ROUTING_CORPUS_RECORD_KIND {
         errors.push(format!("corpus record_kind is {}", corpus.record_kind));
     }
     if corpus.schema_version != ATTENTION_ROUTER_BETA_SCHEMA_VERSION {
-        errors.push(format!("corpus schema_version is {}", corpus.schema_version));
+        errors.push(format!(
+            "corpus schema_version is {}",
+            corpus.schema_version
+        ));
     }
     if corpus.shared_contract_ref != ATTENTION_ROUTER_BETA_SHARED_CONTRACT_REF {
         errors.push(format!(
@@ -809,7 +818,11 @@ pub fn validate_attention_routing_corpus(corpus: &AttentionRoutingCorpus) -> Res
         ChannelResolutionClass::SuppressedByPolicy,
         ChannelResolutionClass::DedupedRepeat,
     ] {
-        if !corpus.summary.resolution_classes_covered.contains(&required) {
+        if !corpus
+            .summary
+            .resolution_classes_covered
+            .contains(&required)
+        {
             errors.push(format!(
                 "corpus does not cover resolution class {}",
                 required.as_str()
@@ -829,7 +842,10 @@ fn validate_case(case: &AttentionRoutingCase, errors: &mut Vec<String>) {
     let where_ = &case.case_id;
 
     if case.record_kind != ATTENTION_ROUTING_CASE_RECORD_KIND {
-        errors.push(format!("{where_}: case record_kind is {}", case.record_kind));
+        errors.push(format!(
+            "{where_}: case record_kind is {}",
+            case.record_kind
+        ));
     }
     if outcome.record_kind != NOTIFICATION_ROUTE_OUTCOME_RECORD_KIND {
         errors.push(format!(

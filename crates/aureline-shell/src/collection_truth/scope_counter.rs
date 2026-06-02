@@ -10,8 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::{CollectionTruthSurfaceFamily, COLLECTION_TRUTH_BETA_SCHEMA_VERSION};
 
 /// Stable record kind tag for [`CollectionScopeCounterRecord`].
-pub const COLLECTION_SCOPE_COUNTER_RECORD_KIND: &str =
-    "shell_collection_scope_counter_beta_record";
+pub const COLLECTION_SCOPE_COUNTER_RECORD_KIND: &str = "shell_collection_scope_counter_beta_record";
 
 /// Frozen counter class for one counter row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

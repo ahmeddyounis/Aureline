@@ -28,8 +28,7 @@ const CAPTURE_JSON: &str = include_str!(concat!(
 ));
 
 fn rehearsal() -> GoNoGoRehearsal {
-    current_go_no_go_rehearsal()
-        .expect("checked-in go/no-go rehearsal parses into the model")
+    current_go_no_go_rehearsal().expect("checked-in go/no-go rehearsal parses into the model")
 }
 
 fn repo_root() -> PathBuf {

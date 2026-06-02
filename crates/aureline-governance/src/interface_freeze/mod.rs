@@ -344,7 +344,8 @@ impl InterfaceFreezeRegister {
                 actual: self.record_kind.clone(),
             });
         }
-        if self.governed_schema_registry_ref != crate::schema_registry::GOVERNED_SCHEMA_REGISTRY_PATH
+        if self.governed_schema_registry_ref
+            != crate::schema_registry::GOVERNED_SCHEMA_REGISTRY_PATH
         {
             violations.push(InterfaceFreezeViolation::ClosedVocabularyMismatch {
                 field: "governed_schema_registry_ref",
@@ -416,11 +417,13 @@ impl InterfaceFreezeRegister {
                 && row.has_changed()
                 && !row.change_is_authorized()
             {
-                violations.push(InterfaceFreezeViolation::HardFreezeChangedWithoutException {
-                    schema_id: row.schema_id.clone(),
-                    frozen_at_version: row.frozen_at_version,
-                    current_version: row.current_version,
-                });
+                violations.push(
+                    InterfaceFreezeViolation::HardFreezeChangedWithoutException {
+                        schema_id: row.schema_id.clone(),
+                        frozen_at_version: row.frozen_at_version,
+                        current_version: row.current_version,
+                    },
+                );
             }
         }
 
@@ -709,7 +712,11 @@ mod tests {
                 .row(&governed.schema_id)
                 .unwrap_or_else(|| panic!("no freeze row for {}", governed.schema_id));
             assert_eq!(row.version_source, VersionSource::GovernedSchemaRegistry);
-            assert!(FreezeState::ALL.contains(&row.freeze_state), "{}", row.schema_id);
+            assert!(
+                FreezeState::ALL.contains(&row.freeze_state),
+                "{}",
+                row.schema_id
+            );
         }
     }
 

@@ -74,28 +74,22 @@ mod tests;
 pub const PROVIDER_REGISTRY_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every record in this module.
-pub const PROVIDER_REGISTRY_SHARED_CONTRACT_REF: &str =
-    "remote:provider_registry_harden:v1";
+pub const PROVIDER_REGISTRY_SHARED_CONTRACT_REF: &str = "remote:provider_registry_harden:v1";
 
 /// Record-kind tag for [`ProviderRegistryPage`] payloads.
-pub const PROVIDER_REGISTRY_PAGE_RECORD_KIND: &str =
-    "remote_provider_registry_page_record";
+pub const PROVIDER_REGISTRY_PAGE_RECORD_KIND: &str = "remote_provider_registry_page_record";
 
 /// Record-kind tag for [`ProviderDescriptorRecord`] payloads.
-pub const PROVIDER_DESCRIPTOR_RECORD_KIND: &str =
-    "remote_provider_descriptor_record";
+pub const PROVIDER_DESCRIPTOR_RECORD_KIND: &str = "remote_provider_descriptor_record";
 
 /// Record-kind tag for [`ProviderRegistryRow`] payloads.
-pub const PROVIDER_REGISTRY_ROW_RECORD_KIND: &str =
-    "remote_provider_registry_row_record";
+pub const PROVIDER_REGISTRY_ROW_RECORD_KIND: &str = "remote_provider_registry_row_record";
 
 /// Record-kind tag for [`ProviderRegistryDefect`] payloads.
-pub const PROVIDER_REGISTRY_DEFECT_RECORD_KIND: &str =
-    "remote_provider_registry_defect_record";
+pub const PROVIDER_REGISTRY_DEFECT_RECORD_KIND: &str = "remote_provider_registry_defect_record";
 
 /// Record-kind tag for [`ProviderRegistrySummary`] payloads.
-pub const PROVIDER_REGISTRY_SUMMARY_RECORD_KIND: &str =
-    "remote_provider_registry_summary_record";
+pub const PROVIDER_REGISTRY_SUMMARY_RECORD_KIND: &str = "remote_provider_registry_summary_record";
 
 /// Record-kind tag for [`ProviderRegistrySupportExport`] payloads.
 pub const PROVIDER_REGISTRY_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -113,15 +107,42 @@ pub const PROVIDER_REGISTRY_ARTIFACT_REF: &str =
 ///
 /// Three families × three actor identity classes = nine required rows.
 pub const REQUIRED_DESCRIPTOR_PAIRS: [(ProviderFamilyClass, ActorIdentityClass); 9] = [
-    (ProviderFamilyClass::CodeHost, ActorIdentityClass::HumanAccount),
-    (ProviderFamilyClass::CodeHost, ActorIdentityClass::InstallationGrant),
-    (ProviderFamilyClass::CodeHost, ActorIdentityClass::DelegatedCredential),
-    (ProviderFamilyClass::IssueTracker, ActorIdentityClass::HumanAccount),
-    (ProviderFamilyClass::IssueTracker, ActorIdentityClass::InstallationGrant),
-    (ProviderFamilyClass::IssueTracker, ActorIdentityClass::DelegatedCredential),
-    (ProviderFamilyClass::CiChecks, ActorIdentityClass::HumanAccount),
-    (ProviderFamilyClass::CiChecks, ActorIdentityClass::InstallationGrant),
-    (ProviderFamilyClass::CiChecks, ActorIdentityClass::DelegatedCredential),
+    (
+        ProviderFamilyClass::CodeHost,
+        ActorIdentityClass::HumanAccount,
+    ),
+    (
+        ProviderFamilyClass::CodeHost,
+        ActorIdentityClass::InstallationGrant,
+    ),
+    (
+        ProviderFamilyClass::CodeHost,
+        ActorIdentityClass::DelegatedCredential,
+    ),
+    (
+        ProviderFamilyClass::IssueTracker,
+        ActorIdentityClass::HumanAccount,
+    ),
+    (
+        ProviderFamilyClass::IssueTracker,
+        ActorIdentityClass::InstallationGrant,
+    ),
+    (
+        ProviderFamilyClass::IssueTracker,
+        ActorIdentityClass::DelegatedCredential,
+    ),
+    (
+        ProviderFamilyClass::CiChecks,
+        ActorIdentityClass::HumanAccount,
+    ),
+    (
+        ProviderFamilyClass::CiChecks,
+        ActorIdentityClass::InstallationGrant,
+    ),
+    (
+        ProviderFamilyClass::CiChecks,
+        ActorIdentityClass::DelegatedCredential,
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -823,10 +844,17 @@ impl ProviderRegistrySummary {
         let pairs_covered: Vec<(String, String)> = snapshot
             .records
             .iter()
-            .map(|r| (r.provider_family_token.clone(), r.actor_identity_token.clone()))
+            .map(|r| {
+                (
+                    r.provider_family_token.clone(),
+                    r.actor_identity_token.clone(),
+                )
+            })
             .collect();
-        let local_core_continuity_declared_count =
-            rows.iter().filter(|r| r.local_core_continuity_declared).count();
+        let local_core_continuity_declared_count = rows
+            .iter()
+            .filter(|r| r.local_core_continuity_declared)
+            .count();
         let object_support_declared_count =
             rows.iter().filter(|r| r.object_support_declared).count();
         Self {
@@ -1066,9 +1094,7 @@ impl ProviderRegistrySupportExport {
 // ---------------------------------------------------------------------------
 
 /// Re-run the registry audit over the snapshot embedded in a page.
-pub fn audit_provider_registry_page(
-    page: &ProviderRegistryPage,
-) -> Vec<ProviderRegistryDefect> {
+pub fn audit_provider_registry_page(page: &ProviderRegistryPage) -> Vec<ProviderRegistryDefect> {
     audit_snapshot(&page.descriptor_snapshot)
 }
 
@@ -1214,8 +1240,7 @@ fn derive_registry_rows(
                 "{}:{}",
                 record.provider_family_token, record.actor_identity_token
             );
-            let row_narrow =
-                find_row_narrow_reason(&source, page_defects, overall_narrow_reason);
+            let row_narrow = find_row_narrow_reason(&source, page_defects, overall_narrow_reason);
             let row_qual = if row_narrow.is_withdrawal_reason() {
                 ProviderRegistryQualificationClass::Withdrawn
             } else if row_narrow.is_preview_reason() {
@@ -1382,15 +1407,13 @@ pub fn seeded_provider_descriptor_snapshot() -> ProviderDescriptorSnapshot {
                 "host:code-host:saas:v1",
                 Some("scope:org:default"),
                 CallbackPathClass::PublicSaas,
-                vec![
-                    ObjectSupportEntry::new(
-                        ObjectKindClass::PullRequest,
-                        MutationPostureClass::InspectOnly,
-                        vec![PublishModeClass::InspectOnly],
-                        false,
-                        false,
-                    ),
-                ],
+                vec![ObjectSupportEntry::new(
+                    ObjectKindClass::PullRequest,
+                    MutationPostureClass::InspectOnly,
+                    vec![PublishModeClass::InspectOnly],
+                    false,
+                    false,
+                )],
                 SnapshotFreshnessClass::Fresh,
                 Some("epoch:code-host:delegated:2026-06-01"),
                 None::<String>,
@@ -1486,7 +1509,10 @@ pub fn seeded_provider_descriptor_snapshot() -> ProviderDescriptorSnapshot {
                     ObjectSupportEntry::new(
                         ObjectKindClass::CheckRun,
                         MutationPostureClass::MutateAllowed,
-                        vec![PublishModeClass::OpenInProvider, PublishModeClass::InspectOnly],
+                        vec![
+                            PublishModeClass::OpenInProvider,
+                            PublishModeClass::InspectOnly,
+                        ],
                         true,
                         false,
                     ),
@@ -1519,7 +1545,10 @@ pub fn seeded_provider_descriptor_snapshot() -> ProviderDescriptorSnapshot {
                     ObjectSupportEntry::new(
                         ObjectKindClass::CheckRun,
                         MutationPostureClass::MutateAllowed,
-                        vec![PublishModeClass::PublishNow, PublishModeClass::PublishLaterQueue],
+                        vec![
+                            PublishModeClass::PublishNow,
+                            PublishModeClass::PublishLaterQueue,
+                        ],
                         false,
                         true,
                     ),

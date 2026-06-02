@@ -137,7 +137,10 @@ fn load_case(name: &str) -> Case {
         case.record_kind, "ai_workset_scope_beta_case",
         "unexpected record_kind in {name}"
     );
-    assert_eq!(case.schema_version, 1, "unexpected schema_version in {name}");
+    assert_eq!(
+        case.schema_version, 1,
+        "unexpected schema_version in {name}"
+    );
     case
 }
 
@@ -185,30 +188,28 @@ fn group_from_token(token: &str) -> ContextGroupClass {
 /// omission reason), out-of-scope rows are blocked + outside-current-scope +
 /// scope_excluded, and policy-limited rows are blocked + policy.
 fn build_context_item(raw: &CaseContextItem) -> ComposerContextItem {
-    let (state_class, locality_class, omission_reason_class, trust_class) = match raw
-        .membership
-        .as_str()
-    {
-        "in_scope" => (
-            ContextItemStateClass::Included,
-            ContextLocalityClass::LocalWorkspace,
-            None,
-            ContextTrustClass::TrustedFirstParty,
-        ),
-        "out_of_scope" => (
-            ContextItemStateClass::Blocked,
-            ContextLocalityClass::OutsideCurrentScope,
-            Some(ContextOmissionReasonClass::ScopeExcluded),
-            ContextTrustClass::TrustedFirstParty,
-        ),
-        "policy_limited" => (
-            ContextItemStateClass::Blocked,
-            ContextLocalityClass::OutsideCurrentScope,
-            Some(ContextOmissionReasonClass::Policy),
-            ContextTrustClass::PolicyQuarantined,
-        ),
-        other => panic!("unknown membership token {other}"),
-    };
+    let (state_class, locality_class, omission_reason_class, trust_class) =
+        match raw.membership.as_str() {
+            "in_scope" => (
+                ContextItemStateClass::Included,
+                ContextLocalityClass::LocalWorkspace,
+                None,
+                ContextTrustClass::TrustedFirstParty,
+            ),
+            "out_of_scope" => (
+                ContextItemStateClass::Blocked,
+                ContextLocalityClass::OutsideCurrentScope,
+                Some(ContextOmissionReasonClass::ScopeExcluded),
+                ContextTrustClass::TrustedFirstParty,
+            ),
+            "policy_limited" => (
+                ContextItemStateClass::Blocked,
+                ContextLocalityClass::OutsideCurrentScope,
+                Some(ContextOmissionReasonClass::Policy),
+                ContextTrustClass::PolicyQuarantined,
+            ),
+            other => panic!("unknown membership token {other}"),
+        };
     ComposerContextItem {
         context_item_id: raw.context_item_id.clone(),
         group_class: group_from_token(&raw.group),
@@ -499,8 +500,7 @@ fn every_case_keeps_in_scope_context_and_labels_out_of_scope_and_policy_limited(
             spend_violations
         );
         assert_eq!(
-            spend.assembly_id_ref,
-            handoff.composer_context_snapshot_ref,
+            spend.assembly_id_ref, handoff.composer_context_snapshot_ref,
             "spend receipt must cite the scope-bound context assembly in {}",
             case.case_id
         );
@@ -586,8 +586,11 @@ fn ai_scope_classes_reuse_the_workspace_scope_vocabulary() {
 
     // Every graph token is either mapped to a workspace class or declared
     // AI-only — nothing is left unaccounted-for.
-    let mut accounted: BTreeSet<String> =
-        manifest.scope_class_vocabulary_map.keys().cloned().collect();
+    let mut accounted: BTreeSet<String> = manifest
+        .scope_class_vocabulary_map
+        .keys()
+        .cloned()
+        .collect();
     for token in &manifest.ai_only_scope_classes {
         assert!(
             !manifest.scope_class_vocabulary_map.contains_key(token),

@@ -34,10 +34,10 @@ fn every_profile_preserves_required_evidence_classes() {
                 profile.id(),
                 required.as_str(),
             );
-            let included = profile
-                .evidence_class_rules
-                .iter()
-                .any(|row| row.evidence_class == required.as_evidence_class() && row.inclusion_class.is_included());
+            let included = profile.evidence_class_rules.iter().any(|row| {
+                row.evidence_class == required.as_evidence_class()
+                    && row.inclusion_class.is_included()
+            });
             assert!(
                 included,
                 "profile {} declares required class {} but no rule includes it",
@@ -52,7 +52,11 @@ fn every_profile_preserves_required_evidence_classes() {
 fn raw_dumps_and_code_adjacent_payloads_never_embed_by_default() {
     let profiles = load_profile_corpus().expect("profiles load");
     for profile in &profiles {
-        assert!(!profile.raw_dumps_attached, "{} attaches raw dumps", profile.id());
+        assert!(
+            !profile.raw_dumps_attached,
+            "{} attaches raw dumps",
+            profile.id()
+        );
         assert!(
             !profile.raw_transcripts_attached,
             "{} attaches raw transcripts",
@@ -67,7 +71,10 @@ fn raw_dumps_and_code_adjacent_payloads_never_embed_by_default() {
         for row in &profile.evidence_class_rules {
             if row.evidence_class.is_always_prohibited() {
                 assert_eq!(row.inclusion_class, EvidenceInclusionClass::ExcludedAlways);
-                assert_eq!(row.broaden_review_class, BroadenEvidenceReviewClass::Prohibited);
+                assert_eq!(
+                    row.broaden_review_class,
+                    BroadenEvidenceReviewClass::Prohibited
+                );
             }
         }
     }
@@ -85,7 +92,10 @@ fn code_adjacent_widening_requires_explicit_broaden_review() {
         .iter()
         .find(|row| row.evidence_class == EvidenceClass::MutationJournalExcerpt)
         .expect("widened profile has a mutation_journal_excerpt rule");
-    assert_eq!(widened_row.inclusion_class, EvidenceInclusionClass::EmbeddedByReference);
+    assert_eq!(
+        widened_row.inclusion_class,
+        EvidenceInclusionClass::EmbeddedByReference
+    );
     assert!(widened.broaden_evidence_review_ref.is_some());
 }
 
@@ -93,13 +103,17 @@ fn code_adjacent_widening_requires_explicit_broaden_review() {
 fn local_only_path_remains_equal_with_upload_paths() {
     let profiles = load_profile_corpus().expect("profiles load");
     assert!(
-        profiles.iter().any(|profile| profile.destination_posture.selected_destination_class
-            == DestinationClass::LocalOnlyReview),
+        profiles.iter().any(
+            |profile| profile.destination_posture.selected_destination_class
+                == DestinationClass::LocalOnlyReview
+        ),
         "at least one profile selects local-only review",
     );
     assert!(
-        profiles.iter().any(|profile| profile.destination_posture.selected_destination_class
-            == DestinationClass::VendorCaseHandoff),
+        profiles.iter().any(
+            |profile| profile.destination_posture.selected_destination_class
+                == DestinationClass::VendorCaseHandoff
+        ),
         "at least one profile selects vendor handoff",
     );
     for profile in &profiles {
@@ -116,7 +130,10 @@ fn crash_manifest_and_symbolication_refs_carry_by_id() {
         .find(|profile| !profile.crash_linkage.crash_manifest_refs.is_empty())
         .expect("at least one profile carries a crash manifest by reference");
     assert!(!crash_linked.crash_linkage.raw_dump_attached);
-    assert!(!crash_linked.crash_linkage.symbolication_report_refs.is_empty());
+    assert!(!crash_linked
+        .crash_linkage
+        .symbolication_report_refs
+        .is_empty());
     for manifest_ref in &crash_linked.crash_linkage.crash_manifest_refs {
         assert!(
             !manifest_ref.contains('\n'),
@@ -133,7 +150,9 @@ fn reopen_manifests_round_trip_and_match_profile_ids() {
     for manifest in &manifests {
         manifest.validate().expect("manifest is reopen-truth safe");
         assert!(
-            profiles.iter().any(|profile| profile.id() == manifest.profile_ref),
+            profiles
+                .iter()
+                .any(|profile| profile.id() == manifest.profile_ref),
             "reopen manifest {} references unknown profile {}",
             manifest.id(),
             manifest.profile_ref,
@@ -168,7 +187,10 @@ fn local_only_manifest_never_records_export_timestamp() {
         .iter()
         .find(|manifest| manifest.is_local_only())
         .expect("at least one local-only manifest");
-    assert_eq!(local_only.destination_class, DestinationClass::LocalOnlyReview);
+    assert_eq!(
+        local_only.destination_class,
+        DestinationClass::LocalOnlyReview
+    );
     assert!(local_only.exported_at_or_null.is_none());
     assert!(local_only.local_only);
 
@@ -195,7 +217,9 @@ fn escalation_packet_review_quotes_build_identity_and_refs() {
     }
     let extension_review = reviews
         .iter()
-        .find(|review| review.scenario_family_class == ScenarioFamilyClass::ExtensionOrHostRegression)
+        .find(|review| {
+            review.scenario_family_class == ScenarioFamilyClass::ExtensionOrHostRegression
+        })
         .expect("extension-regression review present");
     assert!(!extension_review.crash_manifest_refs.is_empty());
     assert!(!extension_review.symbolication_report_refs.is_empty());
@@ -212,7 +236,10 @@ fn profile_refuses_when_local_only_path_is_hidden() {
     let err = profile
         .validate()
         .expect_err("profile must refuse when local-only path is no longer equal-prominent");
-    assert!(matches!(err, SupportExportRedactionError::LocalOnlyPathHidden));
+    assert!(matches!(
+        err,
+        SupportExportRedactionError::LocalOnlyPathHidden
+    ));
 }
 
 #[test]
@@ -257,16 +284,17 @@ fn reopen_manifest_refuses_local_only_with_export_timestamp() {
     let err = manifest
         .validate()
         .expect_err("reopen manifest must refuse a local-only export with a timestamp");
-    assert!(matches!(err, SupportExportRedactionError::LocalOnlyManifestExported));
+    assert!(matches!(
+        err,
+        SupportExportRedactionError::LocalOnlyManifestExported
+    ));
 }
 
 #[test]
 fn reopen_manifest_refuses_code_adjacent_without_review() {
     let manifests = load_reopen_corpus().expect("manifests load");
-    let mut manifest: SupportExportReopenManifest = manifests
-        .into_iter()
-        .next()
-        .expect("at least one manifest");
+    let mut manifest: SupportExportReopenManifest =
+        manifests.into_iter().next().expect("at least one manifest");
     manifest
         .included_evidence_classes
         .push(EvidenceClass::CodeSnippetAttachment);

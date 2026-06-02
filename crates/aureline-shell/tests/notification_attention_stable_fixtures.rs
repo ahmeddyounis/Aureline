@@ -374,8 +374,7 @@ fn recovery_routes_are_complete_and_keyboard_reachable() {
             assert!(
                 route.keyboard_reachable,
                 "{} recovery route {} not keyboard reachable",
-                scenario.scenario_id,
-                route.action_id,
+                scenario.scenario_id, route.action_id,
             );
         }
     }
@@ -521,7 +520,10 @@ fn minted_refs_are_canonical_durable_objects() {
     for scenario in attention_lock_corpus() {
         let record = load_record(&scenario.fixture_filename);
         for (label, value) in [
-            ("durable_job.durable_object_ref", &record.durable_job.durable_object_ref),
+            (
+                "durable_job.durable_object_ref",
+                &record.durable_job.durable_object_ref,
+            ),
             ("diagnostics_export_ref", &record.diagnostics_export_ref),
             ("support_export_ref", &record.support_export_ref),
         ] {

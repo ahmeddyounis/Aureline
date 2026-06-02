@@ -152,7 +152,10 @@ fn clean_inputs_project_stable_record() {
     assert!(record.trigger_disclosure.all_rungs_have_trigger_disclosure);
     assert!(record.no_rerun_honesty.all_privileged_rungs_safe);
     assert!(record.no_rerun_honesty.all_explicit_rungs_have_metadata);
-    assert_eq!(record.user_state_preservation.user_state_lossy_rung_count, 2);
+    assert_eq!(
+        record.user_state_preservation.user_state_lossy_rung_count,
+        2
+    );
     assert!(
         record
             .user_state_preservation
@@ -165,7 +168,10 @@ fn clean_inputs_project_stable_record() {
             .all_checkpointed_rungs_have_checkpoint_id
     );
     assert_eq!(record.inspection_hooks.len(), 6);
-    assert!(record.producer_attribution.integrity_hash.starts_with("rll:"));
+    assert!(record
+        .producer_attribution
+        .integrity_hash
+        .starts_with("rll:"));
 }
 
 #[test]
@@ -319,8 +325,11 @@ fn missing_inspection_hook_narrows_record() {
         }
     }
 
-    let record =
-        project_recovery_ladder_lineage_with_hooks("posture.no_export_before_repair", &inputs, hooks);
+    let record = project_recovery_ladder_lineage_with_hooks(
+        "posture.no_export_before_repair",
+        &inputs,
+        hooks,
+    );
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification

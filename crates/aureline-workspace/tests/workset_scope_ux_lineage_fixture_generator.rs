@@ -25,7 +25,9 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn safe_support() -> WorksetScopeUxSupportExportInputs {
-    WorksetScopeUxSupportExportInputs::metadata_safe_baseline(SupportExportPosture::MetadataSafeExport)
+    WorksetScopeUxSupportExportInputs::metadata_safe_baseline(
+        SupportExportPosture::MetadataSafeExport,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -128,7 +130,10 @@ fn baseline_scopes(captured_at: &str) -> Vec<ScopeObservation> {
             "wks.named_workset.hot_path",
             "Hot Path",
             ScopeKind::SelectedWorkset,
-            vec!["fs-r-service-api".to_owned(), "fs-r-service-core".to_owned()],
+            vec![
+                "fs-r-service-api".to_owned(),
+                "fs-r-service-core".to_owned(),
+            ],
             vec!["vendor_directories".to_owned()],
             None,
             None,
@@ -148,7 +153,10 @@ fn baseline_scopes(captured_at: &str) -> Vec<ScopeObservation> {
             "Service API Slice",
             ScopeKind::SparseSlice,
             vec!["fs-r-service-api".to_owned()],
-            vec!["test_only_fixtures".to_owned(), "vendor_directories".to_owned()],
+            vec![
+                "test_only_fixtures".to_owned(),
+                "vendor_directories".to_owned(),
+            ],
             None,
             None,
             false,
@@ -166,7 +174,10 @@ fn baseline_scopes(captured_at: &str) -> Vec<ScopeObservation> {
             "wks.policy_limited.sandbox",
             "Sandbox Policy-Limited View",
             ScopeKind::PolicyLimitedView,
-            vec!["fs-r-service-api".to_owned(), "fs-r-service-core".to_owned()],
+            vec![
+                "fs-r-service-api".to_owned(),
+                "fs-r-service-core".to_owned(),
+            ],
             vec!["sensitive_modules".to_owned()],
             Some("policy.sandbox.trust_overlay".to_owned()),
             Some(WorksetScopeUxNarrowingCause::TrustPolicy),
@@ -351,11 +362,8 @@ fn write_fixture(
     inputs: WorksetScopeUxInputs,
     inspection_hooks: Vec<WorksetScopeUxInspectionHook>,
 ) {
-    let record = project_workset_scope_ux_lineage_with_hooks(
-        posture_id,
-        &inputs,
-        inspection_hooks.clone(),
-    );
+    let record =
+        project_workset_scope_ux_lineage_with_hooks(posture_id, &inputs, inspection_hooks.clone());
     let envelope = FixtureEnvelope {
         posture_id,
         inputs: &inputs,

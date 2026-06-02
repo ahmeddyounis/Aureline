@@ -69,9 +69,7 @@ fn applied_local_entry() -> AiRunHistoryEntry {
             replay_packet_ref: "replay-packet:applied:local:0001".to_owned(),
             mutation_journal_ref: "mutation-journal:applied:local:0001".to_owned(),
             rollback_checkpoint_ref: "rollback-checkpoint:applied:local:0001".to_owned(),
-            produced_artifact_refs: vec![
-                "artifact:patch:applied:local:0001".to_owned(),
-            ],
+            produced_artifact_refs: vec!["artifact:patch:applied:local:0001".to_owned()],
             diff_artifact_refs: vec!["diff:applied:local:0001".to_owned()],
             validation_summary_refs: vec!["validation-summary:applied:local:0001".to_owned()],
             validation_outcome_class: AiRunValidationOutcomeClass::ValidationPassed,
@@ -87,23 +85,21 @@ fn applied_local_entry() -> AiRunHistoryEntry {
         evidence_completeness_class: EvidenceCompletenessClass::ReconstructibleFull,
         evidence_incompleteness_reason_class: None,
         evidence_incompleteness_note: None,
-        tool_call_lineage_refs: vec![
-            "tool-call:native-fs-snapshot:0001".to_owned(),
-        ],
+        tool_call_lineage_refs: vec!["tool-call:native-fs-snapshot:0001".to_owned()],
         rerun_review_refs: vec!["rerun-review:applied:local:0001".to_owned()],
         actions: AiRunHistoryActions {
             open_details_action_ref: "action:run-history:open-details:applied:local:0001"
                 .to_owned(),
-            open_evidence_packet_action_ref:
-                "action:run-history:open-evidence:applied:local:0001".to_owned(),
+            open_evidence_packet_action_ref: "action:run-history:open-evidence:applied:local:0001"
+                .to_owned(),
             open_thread_action_ref: "action:run-history:open-thread:applied:local:0001".to_owned(),
             open_replay_action_ref: "action:run-history:open-replay:applied:local:0001".to_owned(),
             open_support_export_action_ref:
                 "action:run-history:open-support-export:applied:local:0001".to_owned(),
-            open_rerun_review_action_ref:
-                "action:run-history:open-rerun-review:applied:local:0001".to_owned(),
-            open_as_recipe_action_ref:
-                "action:run-history:open-as-recipe:applied:local:0001".to_owned(),
+            open_rerun_review_action_ref: "action:run-history:open-rerun-review:applied:local:0001"
+                .to_owned(),
+            open_as_recipe_action_ref: "action:run-history:open-as-recipe:applied:local:0001"
+                .to_owned(),
             share_action_ref: "action:run-history:share:applied:local:0001".to_owned(),
             export_action_ref: "action:run-history:export:applied:local:0001".to_owned(),
         },
@@ -195,16 +191,16 @@ fn denied_remote_entry() -> AiRunHistoryEntry {
         actions: AiRunHistoryActions {
             open_details_action_ref: "action:run-history:open-details:denied:remote:0001"
                 .to_owned(),
-            open_evidence_packet_action_ref:
-                "action:run-history:open-evidence:denied:remote:0001".to_owned(),
+            open_evidence_packet_action_ref: "action:run-history:open-evidence:denied:remote:0001"
+                .to_owned(),
             open_thread_action_ref: "action:run-history:open-thread:denied:remote:0001".to_owned(),
             open_replay_action_ref: "action:run-history:open-replay:denied:remote:0001".to_owned(),
             open_support_export_action_ref:
                 "action:run-history:open-support-export:denied:remote:0001".to_owned(),
-            open_rerun_review_action_ref:
-                "action:run-history:open-rerun-review:denied:remote:0001".to_owned(),
-            open_as_recipe_action_ref:
-                "action:run-history:open-as-recipe:denied:remote:0001".to_owned(),
+            open_rerun_review_action_ref: "action:run-history:open-rerun-review:denied:remote:0001"
+                .to_owned(),
+            open_as_recipe_action_ref: "action:run-history:open-as-recipe:denied:remote:0001"
+                .to_owned(),
             share_action_ref: String::new(),
             export_action_ref: "action:run-history:export:denied:remote:0001".to_owned(),
         },
@@ -230,8 +226,8 @@ fn revoked_branch_agent_entry() -> AiRunHistoryEntry {
         execution_boundary_class: AiRunExecutionBoundaryClass::RemoteVendorManagedService,
         boundary_label: "Remote vendor managed service boundary".to_owned(),
         outcome_class: AiRunOutcomeClass::SucceededWithBranchAgentDispatch,
-        outcome_summary_label:
-            "Branch agent dispatched the refactor; later replay is degraded.".to_owned(),
+        outcome_summary_label: "Branch agent dispatched the refactor; later replay is degraded."
+            .to_owned(),
         cost_band_class: AiRunCostBandClass::SmallCost,
         quota_band_class: AiRunQuotaBandClass::QuotaPressured,
         approval_timeline: vec![
@@ -278,13 +274,9 @@ fn revoked_branch_agent_entry() -> AiRunHistoryEntry {
             replay_packet_ref: "replay-packet:revoked:branch-agent:0001".to_owned(),
             mutation_journal_ref: "mutation-journal:revoked:branch-agent:0001".to_owned(),
             rollback_checkpoint_ref: "rollback-checkpoint:revoked:branch-agent:0001".to_owned(),
-            produced_artifact_refs: vec![
-                "artifact:patch:revoked:branch-agent:0001".to_owned(),
-            ],
+            produced_artifact_refs: vec!["artifact:patch:revoked:branch-agent:0001".to_owned()],
             diff_artifact_refs: vec!["diff:revoked:branch-agent:0001".to_owned()],
-            validation_summary_refs: vec![
-                "validation-summary:revoked:branch-agent:0001".to_owned(),
-            ],
+            validation_summary_refs: vec!["validation-summary:revoked:branch-agent:0001".to_owned()],
             validation_outcome_class: AiRunValidationOutcomeClass::ValidationPartialUnreproducible,
             running_build_identity_ref: "running-build-identity:0001".to_owned(),
         },
@@ -306,14 +298,14 @@ fn revoked_branch_agent_entry() -> AiRunHistoryEntry {
         tool_call_lineage_refs: vec![],
         rerun_review_refs: vec!["rerun-review:revoked:branch-agent:0001".to_owned()],
         actions: AiRunHistoryActions {
-            open_details_action_ref:
-                "action:run-history:open-details:revoked:branch-agent:0001".to_owned(),
+            open_details_action_ref: "action:run-history:open-details:revoked:branch-agent:0001"
+                .to_owned(),
             open_evidence_packet_action_ref:
                 "action:run-history:open-evidence:revoked:branch-agent:0001".to_owned(),
-            open_thread_action_ref:
-                "action:run-history:open-thread:revoked:branch-agent:0001".to_owned(),
-            open_replay_action_ref:
-                "action:run-history:open-replay:revoked:branch-agent:0001".to_owned(),
+            open_thread_action_ref: "action:run-history:open-thread:revoked:branch-agent:0001"
+                .to_owned(),
+            open_replay_action_ref: "action:run-history:open-replay:revoked:branch-agent:0001"
+                .to_owned(),
             open_support_export_action_ref:
                 "action:run-history:open-support-export:revoked:branch-agent:0001".to_owned(),
             open_rerun_review_action_ref:
@@ -321,8 +313,7 @@ fn revoked_branch_agent_entry() -> AiRunHistoryEntry {
             open_as_recipe_action_ref:
                 "action:run-history:open-as-recipe:revoked:branch-agent:0001".to_owned(),
             share_action_ref: String::new(),
-            export_action_ref:
-                "action:run-history:export:revoked:branch-agent:0001".to_owned(),
+            export_action_ref: "action:run-history:export:revoked:branch-agent:0001".to_owned(),
         },
         policy_context: policy_context(),
         redaction_class: AiRunHistoryRedactionClass::MetadataSafeDefault,
@@ -378,10 +369,8 @@ fn admit_rerun_review() -> AiRerunReview {
             RerunDriftRow {
                 axis_class: RerunDriftAxisClass::ToolAvailability,
                 drift_class: RerunDriftClass::NoDrift,
-                original_identity_ref:
-                    "tool-gateway-descriptor:native-fs-snapshot:0001".to_owned(),
-                current_identity_ref:
-                    "tool-gateway-descriptor:native-fs-snapshot:0001".to_owned(),
+                original_identity_ref: "tool-gateway-descriptor:native-fs-snapshot:0001".to_owned(),
+                current_identity_ref: "tool-gateway-descriptor:native-fs-snapshot:0001".to_owned(),
                 original_label: "Native fs snapshot tool admitted.".to_owned(),
                 current_label: "Native fs snapshot tool admitted.".to_owned(),
                 summary_label: "Tool availability unchanged.".to_owned(),
@@ -391,12 +380,12 @@ fn admit_rerun_review() -> AiRerunReview {
             resolution_class: RerunApprovalResolutionClass::AllRequiredFreshlyResolved,
             required_approval_refs: vec!["approval-ticket:applied:local:0001".to_owned()],
             freshly_resolved_approval_refs: vec![
-                "approval-ticket:applied:local:0001:rerun".to_owned(),
+                "approval-ticket:applied:local:0001:rerun".to_owned()
             ],
             missing_approval_refs: Vec::new(),
             expired_approval_refs: Vec::new(),
-            summary_label:
-                "Approval freshly re-resolved against the current policy epoch.".to_owned(),
+            summary_label: "Approval freshly re-resolved against the current policy epoch."
+                .to_owned(),
         },
         action_offers: vec![
             RerunActionOffer::Rerun,

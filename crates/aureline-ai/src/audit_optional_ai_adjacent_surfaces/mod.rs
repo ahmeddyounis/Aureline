@@ -635,9 +635,7 @@ impl OptionalAiAdjacentSurfaceAuditPacket {
                 .iter()
                 .any(|r| r.surface_family == required)
             {
-                violations.push(AuditViolation::MissingRequiredFamily {
-                    family: required,
-                });
+                violations.push(AuditViolation::MissingRequiredFamily { family: required });
             }
         }
 
@@ -669,40 +667,34 @@ impl OptionalAiAdjacentSurfaceAuditPacket {
 
             // Family-specific requirement checks.
             match row.surface_family {
-                OptionalAiSurfaceFamily::Notebook => {
-                    match &row.notebook_requirements {
-                        None => violations.push(AuditViolation::NotebookRequirementsMissing {
+                OptionalAiSurfaceFamily::Notebook => match &row.notebook_requirements {
+                    None => violations.push(AuditViolation::NotebookRequirementsMissing {
+                        surface_label: row.surface_label.clone(),
+                    }),
+                    Some(req) if !req.all_satisfied() => {
+                        violations.push(AuditViolation::NotebookRequirementsUnsatisfied {
                             surface_label: row.surface_label.clone(),
-                        }),
-                        Some(req) if !req.all_satisfied() => {
-                            violations.push(AuditViolation::NotebookRequirementsUnsatisfied {
-                                surface_label: row.surface_label.clone(),
-                            });
-                        }
-                        _ => {}
+                        });
                     }
-                }
-                OptionalAiSurfaceFamily::Voice => {
-                    match &row.voice_requirements {
-                        None => violations.push(AuditViolation::VoiceRequirementsMissing {
+                    _ => {}
+                },
+                OptionalAiSurfaceFamily::Voice => match &row.voice_requirements {
+                    None => violations.push(AuditViolation::VoiceRequirementsMissing {
+                        surface_label: row.surface_label.clone(),
+                    }),
+                    Some(req) if !req.all_satisfied() => {
+                        violations.push(AuditViolation::VoiceRequirementsUnsatisfied {
                             surface_label: row.surface_label.clone(),
-                        }),
-                        Some(req) if !req.all_satisfied() => {
-                            violations.push(AuditViolation::VoiceRequirementsUnsatisfied {
-                                surface_label: row.surface_label.clone(),
-                            });
-                        }
-                        _ => {}
+                        });
                     }
-                }
+                    _ => {}
+                },
                 OptionalAiSurfaceFamily::BrowserCompanion => {
                     match &row.browser_companion_requirements {
                         None => {
-                            violations.push(
-                                AuditViolation::BrowserCompanionRequirementsMissing {
-                                    surface_label: row.surface_label.clone(),
-                                },
-                            );
+                            violations.push(AuditViolation::BrowserCompanionRequirementsMissing {
+                                surface_label: row.surface_label.clone(),
+                            });
                         }
                         Some(req) if !req.all_satisfied() => {
                             violations.push(
@@ -717,11 +709,9 @@ impl OptionalAiAdjacentSurfaceAuditPacket {
                 OptionalAiSurfaceFamily::PreviewDesigner => {
                     match &row.preview_designer_requirements {
                         None => {
-                            violations.push(
-                                AuditViolation::PreviewDesignerRequirementsMissing {
-                                    surface_label: row.surface_label.clone(),
-                                },
-                            );
+                            violations.push(AuditViolation::PreviewDesignerRequirementsMissing {
+                                surface_label: row.surface_label.clone(),
+                            });
                         }
                         Some(req) if !req.all_satisfied() => {
                             violations.push(
@@ -753,9 +743,13 @@ impl OptionalAiAdjacentSurfaceAuditPacket {
         }
 
         // Downgrade state must propagate to at least one consumer.
-        let any_propagation = self.downgrade_automation.downgrade_propagates_to_product_copy
+        let any_propagation = self
+            .downgrade_automation
+            .downgrade_propagates_to_product_copy
             || self.downgrade_automation.downgrade_propagates_to_docs_help
-            || self.downgrade_automation.downgrade_propagates_to_release_packets
+            || self
+                .downgrade_automation
+                .downgrade_propagates_to_release_packets
             || self
                 .downgrade_automation
                 .downgrade_propagates_to_compat_reports;
@@ -780,10 +774,7 @@ impl OptionalAiAdjacentSurfaceAuditPacket {
                 consumer_label: "help_about".to_owned(),
             });
         }
-        if !self
-            .propagation_state
-            .docs_consume_family_specific_state
-        {
+        if !self.propagation_state.docs_consume_family_specific_state {
             violations.push(AuditViolation::ConsumerNotConsumingFamilySpecificState {
                 consumer_label: "docs".to_owned(),
             });

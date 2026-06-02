@@ -138,8 +138,7 @@ fn seeded_page_enterprise_rows_have_tenant_region_and_policy_source() {
 fn seeded_page_local_core_preserved_count_equals_five() {
     let page = seeded_backup_restore_failover_page();
     assert_eq!(
-        page.summary.local_core_preserved_row_count,
-        5,
+        page.summary.local_core_preserved_row_count, 5,
         "all 5 rows must carry a preserved local-core continuity posture"
     );
 }
@@ -167,8 +166,7 @@ fn local_core_blocked_by_failover_triggers_withdrawal() {
     );
     assert!(
         page.defects.iter().any(|d| {
-            d.narrow_reason
-                == BackupRestoreFailoverNarrowReasonClass::LocalCoreBlockedByFailover
+            d.narrow_reason == BackupRestoreFailoverNarrowReasonClass::LocalCoreBlockedByFailover
         }),
         "defects must include local_core_blocked_by_failover"
     );

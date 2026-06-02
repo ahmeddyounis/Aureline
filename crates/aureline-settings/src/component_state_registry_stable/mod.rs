@@ -65,9 +65,7 @@
 pub mod corpus;
 pub mod model;
 
-pub use corpus::{
-    component_state_registry_corpus, ComponentStateRegistryScenario, CORPUS_AS_OF,
-};
+pub use corpus::{component_state_registry_corpus, ComponentStateRegistryScenario, CORPUS_AS_OF};
 pub use model::{
     is_canonical_object_ref, required_recovery_routes, AccessibilityDisclosure, BuildError,
     CanonicalStateClass, CertificationClaimCeiling, CertificationInput,

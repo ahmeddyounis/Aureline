@@ -8,13 +8,13 @@
 
 use aureline_shell::collection_truth::CollectionTruthSurfaceFamily;
 use aureline_shell::collection_truth_corpus::{
-    render_collection_truth_corpus_drills_markdown,
-    render_collection_truth_corpus_report_markdown, seeded_collection_truth_corpus_packet,
-    validate_collection_truth_corpus_packet, CollectionTruthAccessibilityDrill,
-    CollectionTruthAccessibilityDrillClass, CollectionTruthCorpusCase,
-    CollectionTruthCorpusPacket, CollectionTruthEdgeCaseClass, CollectionTruthMatrix,
-    CollectionTruthSupportExport, SavedViewMigrationCase, SavedViewMigrationCaseClass,
-    COLLECTION_TRUTH_CORPUS_SCHEMA_VERSION, COLLECTION_TRUTH_CORPUS_SHARED_CONTRACT_REF,
+    render_collection_truth_corpus_drills_markdown, render_collection_truth_corpus_report_markdown,
+    seeded_collection_truth_corpus_packet, validate_collection_truth_corpus_packet,
+    CollectionTruthAccessibilityDrill, CollectionTruthAccessibilityDrillClass,
+    CollectionTruthCorpusCase, CollectionTruthCorpusPacket, CollectionTruthEdgeCaseClass,
+    CollectionTruthMatrix, CollectionTruthSupportExport, SavedViewMigrationCase,
+    SavedViewMigrationCaseClass, COLLECTION_TRUTH_CORPUS_SCHEMA_VERSION,
+    COLLECTION_TRUTH_CORPUS_SHARED_CONTRACT_REF,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -22,8 +22,7 @@ const FIXTURE_DIR: &str = concat!(
     "/../../fixtures/ux/m3/collection_truth_corpus"
 );
 
-const ARTIFACT_DIR: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../artifacts/qe/m3");
+const ARTIFACT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../artifacts/qe/m3");
 
 const DOCS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/qe/m3");
 
@@ -45,9 +44,11 @@ fn fixture_packet_matches_seeded_builder() {
         on_disk.shared_contract_ref,
         COLLECTION_TRUTH_CORPUS_SHARED_CONTRACT_REF
     );
-    assert_eq!(on_disk.schema_version, COLLECTION_TRUTH_CORPUS_SCHEMA_VERSION);
-    validate_collection_truth_corpus_packet(&on_disk)
-        .expect("fixture corpus packet must validate");
+    assert_eq!(
+        on_disk.schema_version,
+        COLLECTION_TRUTH_CORPUS_SCHEMA_VERSION
+    );
+    validate_collection_truth_corpus_packet(&on_disk).expect("fixture corpus packet must validate");
 }
 
 #[test]

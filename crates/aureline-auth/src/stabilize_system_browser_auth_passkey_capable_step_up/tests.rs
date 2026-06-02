@@ -32,9 +32,7 @@ fn seeded_page_passes_all_four_stability_conditions() {
 fn seeded_page_embeds_clean_return_paths_beta_page() {
     let page = page();
     assert_eq!(page.return_paths_beta_page.defects.len(), 0);
-    assert!(
-        validate_system_browser_return_paths_beta_page(&page.return_paths_beta_page).is_ok()
-    );
+    assert!(validate_system_browser_return_paths_beta_page(&page.return_paths_beta_page).is_ok());
 }
 
 #[test]
@@ -107,14 +105,14 @@ fn injected_authority_widening_in_return_paths_page_withdraws_row() {
         crate::system_browser::beta::AuthorityScopeClass::TenantAdminScope
             .as_str()
             .to_owned();
-    let support_rows: Vec<SystemBrowserReturnPathBetaSupportRow> =
-        rp_page.rows.iter().map(SystemBrowserReturnPathBetaSupportRow::from_row).collect();
+    let support_rows: Vec<SystemBrowserReturnPathBetaSupportRow> = rp_page
+        .rows
+        .iter()
+        .map(SystemBrowserReturnPathBetaSupportRow::from_row)
+        .collect();
     let defects = audit_rows(&rp_page.rows, &support_rows);
     // Rebuild the page with injected defects to simulate a dirty page.
-    let dirty_rp_page = SystemBrowserReturnPathsBetaPage {
-        defects,
-        ..rp_page
-    };
+    let dirty_rp_page = SystemBrowserReturnPathsBetaPage { defects, ..rp_page };
     let passkey_page = seeded_passkey_step_up_beta_page();
     let page = SystemBrowserAuthStabilizePage::new(
         "auth:system_browser_auth_stabilize:test",
@@ -152,13 +150,13 @@ fn injected_identity_widening_in_passkey_page_withdraws_row() {
         PasskeyTargetActionPreservationClass::TargetActionWidened
             .as_str()
             .to_owned();
-    let support_rows: Vec<PasskeyStepUpBetaSupportRow> =
-        pk_page.rows.iter().map(PasskeyStepUpBetaSupportRow::from_row).collect();
+    let support_rows: Vec<PasskeyStepUpBetaSupportRow> = pk_page
+        .rows
+        .iter()
+        .map(PasskeyStepUpBetaSupportRow::from_row)
+        .collect();
     let defects = audit_passkey_step_up_beta_rows(&pk_page.rows, &support_rows);
-    let dirty_pk_page = PasskeyStepUpBetaPage {
-        defects,
-        ..pk_page
-    };
+    let dirty_pk_page = PasskeyStepUpBetaPage { defects, ..pk_page };
     let rp_page = seeded_system_browser_return_paths_beta_page();
     let page = SystemBrowserAuthStabilizePage::new(
         "auth:system_browser_auth_stabilize:test",
@@ -179,9 +177,18 @@ fn injected_identity_widening_in_passkey_page_withdraws_row() {
 
 #[test]
 fn narrow_reason_withdrawal_sentinel_check() {
-    assert!(SystemBrowserAuthStabilizeNarrowReasonClass::AuthorityWideningOnReturn.is_withdrawal_reason());
-    assert!(SystemBrowserAuthStabilizeNarrowReasonClass::IdentityWideningOnReturn.is_withdrawal_reason());
-    assert!(!SystemBrowserAuthStabilizeNarrowReasonClass::ReturnPathsBetaPageHasDefects.is_withdrawal_reason());
+    assert!(
+        SystemBrowserAuthStabilizeNarrowReasonClass::AuthorityWideningOnReturn
+            .is_withdrawal_reason()
+    );
+    assert!(
+        SystemBrowserAuthStabilizeNarrowReasonClass::IdentityWideningOnReturn
+            .is_withdrawal_reason()
+    );
+    assert!(
+        !SystemBrowserAuthStabilizeNarrowReasonClass::ReturnPathsBetaPageHasDefects
+            .is_withdrawal_reason()
+    );
     assert!(!SystemBrowserAuthStabilizeNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
 }
 

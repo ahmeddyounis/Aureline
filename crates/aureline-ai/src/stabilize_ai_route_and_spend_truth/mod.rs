@@ -41,8 +41,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::registry::{RegistryAuthModeClass, RegistryTransportClass};
 use crate::routing::{
-    CostEnvelopeClass, ExecutionLocusClass, LatencyEnvelopeClass, QuotaFamilyClass, QuotaScopeClass,
-    QuotaStateClass, RegionPostureClass, RetentionStanceClass, RouteChangeCauseClass,
+    CostEnvelopeClass, ExecutionLocusClass, LatencyEnvelopeClass, QuotaFamilyClass,
+    QuotaScopeClass, QuotaStateClass, RegionPostureClass, RetentionStanceClass,
+    RouteChangeCauseClass,
 };
 
 /// Stable record-kind tag carried by [`AiRouteSpendTruthPacket`].
@@ -751,7 +752,10 @@ impl AiRouteSpendTruthPacket {
         out.push_str("# AI Route and Spend Truth\n\n");
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Action id: `{}`\n", self.action_id));
-        out.push_str(&format!("- Evidence id: `{}`\n", self.evidence_export.evidence_id));
+        out.push_str(&format!(
+            "- Evidence id: `{}`\n",
+            self.evidence_export.evidence_id
+        ));
         out.push_str(&format!(
             "- Flow: `{}` (material: {})\n",
             self.action_flow_class.as_str(),
@@ -810,7 +814,10 @@ impl fmt::Display for AiRouteSpendTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "ai route/spend truth export parse failed: {error}")
+                write!(
+                    formatter,
+                    "ai route/spend truth export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1076,13 +1083,13 @@ fn validate_quota_summary(
     match owning {
         None => violations.push(AiRouteSpendTruthViolation::QuotaSummaryInconsistent),
         Some(row) => {
-            let blocked_outcome = matches!(packet.receipt.outcome, RunOutcomeClass::BlockedBeforeDispatch);
+            let blocked_outcome = matches!(
+                packet.receipt.outcome,
+                RunOutcomeClass::BlockedBeforeDispatch
+            );
             // A row that blocked the owning action must line up with a blocked
             // outcome or a disclosed downgrade away from the exhausted route.
-            if row.blocked_this_action
-                && !blocked_outcome
-                && !packet.downgrade.downgraded
-            {
+            if row.blocked_this_action && !blocked_outcome && !packet.downgrade.downgraded {
                 violations.push(AiRouteSpendTruthViolation::QuotaSummaryInconsistent);
             }
         }
@@ -1119,9 +1126,7 @@ fn validate_downgrade(
         }
         // A downgraded run must reflect the downgrade in its receipt outcome and
         // its current route must match what actually ran.
-        if !packet.receipt.outcome.is_downgrade_outcome()
-            && packet.receipt.outcome.dispatched()
-        {
+        if !packet.receipt.outcome.is_downgrade_outcome() && packet.receipt.outcome.dispatched() {
             violations.push(AiRouteSpendTruthViolation::DowngradeRoutesNotPreserved);
         }
         if downgrade.current_route_class != packet.receipt.actual_route_class

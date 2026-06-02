@@ -75,7 +75,8 @@ pub const RUNTIME_EFFICIENCY_RECORD_KIND: &str = "runtime_efficiency_adaptation_
 pub const RUNTIME_EFFICIENCY_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every surface that ingests this record.
-pub const RUNTIME_EFFICIENCY_SHARED_CONTRACT_REF: &str = "shell:runtime_efficiency_adaptation_stable:v1";
+pub const RUNTIME_EFFICIENCY_SHARED_CONTRACT_REF: &str =
+    "shell:runtime_efficiency_adaptation_stable:v1";
 
 /// Reviewer-facing notice rendered on every efficiency surface.
 pub const RUNTIME_EFFICIENCY_NOTICE: &str =
@@ -448,7 +449,10 @@ pub fn required_recovery_routes(resumable: bool, overridable: bool) -> Vec<Recov
     }
     actions.push(EfficiencyRecoveryAction::OpenDiagnostics);
     actions.push(EfficiencyRecoveryAction::ExportEfficiencySupport);
-    actions.into_iter().map(EfficiencyRecoveryAction::route).collect()
+    actions
+        .into_iter()
+        .map(EfficiencyRecoveryAction::route)
+        .collect()
 }
 
 /// Closed reason a posture is narrowed below Stable. Required whenever the claim
@@ -954,9 +958,14 @@ pub enum BuildError {
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidSentence { field } => write!(f, "field {field} is not a reviewable sentence"),
+            Self::InvalidSentence { field } => {
+                write!(f, "field {field} is not a reviewable sentence")
+            }
             Self::NonCanonicalRef { field, value } => {
-                write!(f, "field {field} value {value:?} is not a canonical object ref")
+                write!(
+                    f,
+                    "field {field} value {value:?} is not a canonical object ref"
+                )
             }
             Self::MissingUpstreamRef { field } => write!(f, "missing upstream ref for {field}"),
             Self::MissingProtectedPath { path } => {
@@ -968,13 +977,21 @@ impl std::fmt::Display for BuildError {
             Self::PlatformProofMissing { profile } => {
                 write!(f, "per-OS profile {} lacks current proof", profile.as_str())
             }
-            Self::OverclaimsEfficiencyState => write!(f, "claims efficiency state not materialized"),
+            Self::OverclaimsEfficiencyState => {
+                write!(f, "claims efficiency state not materialized")
+            }
             Self::OverclaimsBackgroundShed => write!(f, "claims background shed not proven"),
-            Self::OverclaimsForegroundLatency => write!(f, "claims foreground latency band not held"),
-            Self::OverclaimsHiddenPaneQuiescence => write!(f, "claims hidden-pane quiescence not held"),
+            Self::OverclaimsForegroundLatency => {
+                write!(f, "claims foreground latency band not held")
+            }
+            Self::OverclaimsHiddenPaneQuiescence => {
+                write!(f, "claims hidden-pane quiescence not held")
+            }
             Self::OverclaimsGovernorReason => write!(f, "claims governor reason not surfaced"),
             Self::OverclaimsDurableState => write!(f, "claims durable state not preserved"),
-            Self::OverclaimsPlatformConformance => write!(f, "claims per-OS conformance not complete"),
+            Self::OverclaimsPlatformConformance => {
+                write!(f, "claims per-OS conformance not complete")
+            }
             Self::MissingRecoveryRoute { action } => {
                 write!(f, "missing recovery route {}", action.as_str())
             }
@@ -1110,7 +1127,9 @@ impl RuntimeEfficiencyRecord {
         {
             return Err(BuildError::OverclaimsEfficiencyState);
         }
-        if input.claim_ceiling.asserts_background_shed_before_foreground
+        if input
+            .claim_ceiling
+            .asserts_background_shed_before_foreground
             && !background_shed_before_foreground
         {
             return Err(BuildError::OverclaimsBackgroundShed);
@@ -1498,10 +1517,7 @@ impl RuntimeEfficiencyRecord {
     }
 }
 
-fn surface_summary_line(
-    surface: EfficiencyTruthSurface,
-    input: &RuntimeEfficiencyInput,
-) -> String {
+fn surface_summary_line(surface: EfficiencyTruthSurface, input: &RuntimeEfficiencyInput) -> String {
     let prefix = match surface {
         EfficiencyTruthSurface::ShellStatusStrip => "Status strip",
         EfficiencyTruthSurface::DiagnosticsReview => "Diagnostics review",
@@ -1509,7 +1525,11 @@ fn surface_summary_line(
         EfficiencyTruthSurface::HelpAbout => "Help/About",
         EfficiencyTruthSurface::SupportExport => "Support export",
     };
-    let shed = input.shed_work.iter().filter(|row| row.changes_behavior).count();
+    let shed = input
+        .shed_work
+        .iter()
+        .filter(|row| row.changes_behavior)
+        .count();
     format!(
         "{prefix}: {} under {} — {} background lane(s) shed, foreground protected, {}.",
         input.efficiency_state.as_str(),

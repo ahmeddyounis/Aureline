@@ -7,7 +7,12 @@ fn page() -> TransportGovernancePage {
 #[test]
 fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
     let page = page();
-    assert_eq!(page.defects.len(), 0, "seeded page must be clean: {:?}", page.defects);
+    assert_eq!(
+        page.defects.len(),
+        0,
+        "seeded page must be clean: {:?}",
+        page.defects
+    );
     assert!(validate_transport_governance_page(&page).is_ok());
     assert!(page.qualifies_stable());
     assert!(page.no_withdrawn_rows());
@@ -20,7 +25,10 @@ fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
 #[test]
 fn seeded_page_passes_all_seven_stability_conditions() {
     let page = page();
-    assert!(page.covers_all_required_lanes(), "all seven lanes must be covered");
+    assert!(
+        page.covers_all_required_lanes(),
+        "all seven lanes must be covered"
+    );
     assert!(
         page.all_lanes_declare_local_core_continuity(),
         "all lanes must declare local-core continuity"
@@ -134,8 +142,7 @@ fn seeded_page_network_rows_have_policy_epoch_present() {
             assert!(
                 row.policy_epoch_present,
                 "row '{}' must have policy_epoch_present for {} dependency",
-                row.lane_token,
-                row.dependency_class_token
+                row.lane_token, row.dependency_class_token
             );
         }
     }
@@ -255,21 +262,13 @@ fn qualification_class_checks() {
 
 #[test]
 fn narrow_reason_sentinel_checks() {
-    assert!(
-        TransportGovernanceNarrowReasonClass::RawPrivateMaterialExposed.is_withdrawal_reason()
-    );
-    assert!(
-        !TransportGovernanceNarrowReasonClass::RequiredLaneMissing.is_withdrawal_reason()
-    );
-    assert!(
-        TransportGovernanceNarrowReasonClass::RequiredLaneMissing.is_preview_reason()
-    );
+    assert!(TransportGovernanceNarrowReasonClass::RawPrivateMaterialExposed.is_withdrawal_reason());
+    assert!(!TransportGovernanceNarrowReasonClass::RequiredLaneMissing.is_withdrawal_reason());
+    assert!(TransportGovernanceNarrowReasonClass::RequiredLaneMissing.is_preview_reason());
     assert!(
         !TransportGovernanceNarrowReasonClass::LocalCoreContinuityUndeclared.is_preview_reason()
     );
-    assert!(
-        !TransportGovernanceNarrowReasonClass::NotNarrowed.is_withdrawal_reason()
-    );
+    assert!(!TransportGovernanceNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
 }
 
 #[test]

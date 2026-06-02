@@ -1167,7 +1167,10 @@ impl std::fmt::Display for BuildError {
                 write!(f, "field {field} is not a reviewable sentence")
             }
             Self::NonCanonicalRef { field, value } => {
-                write!(f, "field {field} value {value:?} is not a canonical object ref")
+                write!(
+                    f,
+                    "field {field} value {value:?} is not a canonical object ref"
+                )
             }
             Self::MissingUpstreamRef { field } => write!(f, "missing upstream ref for {field}"),
             Self::MissingAsyncUpdateClass { class } => {
@@ -1288,8 +1291,11 @@ impl InteractionParityRecord {
         )?;
 
         // --- coverage: required async-update classes -------------------------
-        let present_async: BTreeSet<AsyncUpdateClass> =
-            input.async_updates.iter().map(|row| row.update_class).collect();
+        let present_async: BTreeSet<AsyncUpdateClass> = input
+            .async_updates
+            .iter()
+            .map(|row| row.update_class)
+            .collect();
         for required in AsyncUpdateClass::REQUIRED {
             if !present_async.contains(&required) {
                 return Err(BuildError::MissingAsyncUpdateClass { class: required });
@@ -1324,21 +1330,24 @@ impl InteractionParityRecord {
 
         // --- derive the pillars from the evidence ----------------------------
         let coordination_states_distinct = input.coordination.holds();
-        let identity_survives_async_updates =
-            input.async_updates.iter().all(AsyncUpdateRow::preserves_identity)
-                && input.coordination.identity_by_stable_id_not_index;
+        let identity_survives_async_updates = input
+            .async_updates
+            .iter()
+            .all(AsyncUpdateRow::preserves_identity)
+            && input.coordination.identity_by_stable_id_not_index;
         let focus_return_complete = input.focus_returns.iter().all(FocusReturnRow::holds)
             && FocusReturnTrigger::REQUIRED
                 .iter()
                 .all(|t| present_triggers.contains(t));
         let keyboard_model_complete = input.keyboard_model.holds();
-        let async_never_steals_focus =
-            input.async_updates.iter().all(AsyncUpdateRow::never_steals_focus);
+        let async_never_steals_focus = input
+            .async_updates
+            .iter()
+            .all(AsyncUpdateRow::never_steals_focus);
         let accessibility_cues_complete = input.a11y_cues.holds();
 
         // --- claim ceiling: never claim what the product cannot prove --------
-        if input.claim_ceiling.asserts_coordination_states_distinct
-            && !coordination_states_distinct
+        if input.claim_ceiling.asserts_coordination_states_distinct && !coordination_states_distinct
         {
             return Err(BuildError::OverclaimsCoordinationStates);
         }

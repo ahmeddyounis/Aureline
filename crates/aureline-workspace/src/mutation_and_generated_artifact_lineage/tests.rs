@@ -210,8 +210,7 @@ fn baseline_inputs() -> MutationAndGeneratedArtifactInputs {
 #[test]
 fn clean_inputs_project_stable_record() {
     let inputs = baseline_inputs();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.clean", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.clean", &inputs);
 
     assert!(
         record.is_stable_qualified(),
@@ -241,25 +240,37 @@ fn clean_inputs_project_stable_record() {
             .len(),
         5
     );
-    assert!(record
-        .canonical_lineage_truth
-        .all_artifacts_have_canonical_source_ref);
-    assert!(record
-        .canonical_lineage_truth
-        .all_artifacts_have_generator_identity);
-    assert!(record
-        .canonical_lineage_truth
-        .all_artifacts_have_output_digest);
-    assert!(record
-        .labeling_surface_coverage
-        .all_artifacts_labeled_on_required_surfaces);
+    assert!(
+        record
+            .canonical_lineage_truth
+            .all_artifacts_have_canonical_source_ref
+    );
+    assert!(
+        record
+            .canonical_lineage_truth
+            .all_artifacts_have_generator_identity
+    );
+    assert!(
+        record
+            .canonical_lineage_truth
+            .all_artifacts_have_output_digest
+    );
+    assert!(
+        record
+            .labeling_surface_coverage
+            .all_artifacts_labeled_on_required_surfaces
+    );
     assert!(record.mutation_no_rerun_honesty.all_privileged_paths_safe);
-    assert!(record
-        .mutation_no_rerun_honesty
-        .all_explicit_paths_have_metadata);
-    assert!(record
-        .edit_posture_honesty
-        .all_round_trip_safe_claims_supported);
+    assert!(
+        record
+            .mutation_no_rerun_honesty
+            .all_explicit_paths_have_metadata
+    );
+    assert!(
+        record
+            .edit_posture_honesty
+            .all_round_trip_safe_claims_supported
+    );
     assert_eq!(record.inspection_hooks.len(), 7);
     assert!(record
         .producer_attribution
@@ -315,8 +326,7 @@ fn missing_canonical_source_ref_narrows_record() {
 fn missing_generator_identity_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.generated_artifacts[1].generator_identity = "".to_owned();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.no_generator", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.no_generator", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -356,10 +366,8 @@ fn round_trip_safe_on_non_round_trip_class_narrows_record() {
     let mut inputs = baseline_inputs();
     // BuildOutput does not support round-trip-safe editing.
     inputs.generated_artifacts[0].default_edit_posture = DefaultEditPostureClass::RoundTripSafe;
-    let record = project_mutation_and_generated_artifact_lineage(
-        "posture.round_trip_misclaim",
-        &inputs,
-    );
+    let record =
+        project_mutation_and_generated_artifact_lineage("posture.round_trip_misclaim", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -475,8 +483,7 @@ fn support_export_dropping_field_narrows_record() {
 fn support_export_raising_raw_secrets_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.mutation_paths[0].support_export.raw_secrets_excluded = false;
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.raw_secrets", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.raw_secrets", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -488,8 +495,7 @@ fn support_export_raising_raw_secrets_narrows_record() {
 fn empty_workspace_ref_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.workspace_ref = "".to_owned();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.no_workspace", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.no_workspace", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -502,8 +508,7 @@ fn empty_corpus_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.mutation_paths.clear();
     inputs.generated_artifacts.clear();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.empty_corpus", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.empty_corpus", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -515,12 +520,12 @@ fn empty_corpus_narrows_record() {
 fn producer_attribution_incomplete_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.producer_ref = "".to_owned();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.no_producer", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.no_producer", &inputs);
     assert!(!record.is_stable_qualified());
-    assert!(record.stable_qualification.narrow_reasons.contains(
-        &MutationAndGeneratedArtifactLineageNarrowReason::ProducerAttributionIncomplete
-    ));
+    assert!(record
+        .stable_qualification
+        .narrow_reasons
+        .contains(&MutationAndGeneratedArtifactLineageNarrowReason::ProducerAttributionIncomplete));
 }
 
 #[test]
@@ -549,8 +554,7 @@ fn diverged_artifact_with_disclosures_qualifies_stable() {
 #[test]
 fn lines_projection_renders_required_sections() {
     let inputs = baseline_inputs();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.lines", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.lines", &inputs);
     let lines = mutation_and_generated_artifact_lineage_lines(&record);
 
     assert!(lines
@@ -568,7 +572,9 @@ fn lines_projection_renders_required_sections() {
         .iter()
         .any(|line| line.contains("Canonical-lineage truth")));
     assert!(lines.iter().any(|line| line.contains("Drift truth")));
-    assert!(lines.iter().any(|line| line.contains("Edit-posture honesty")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("Edit-posture honesty")));
     assert!(lines
         .iter()
         .any(|line| line.contains("Labeling-surface coverage")));
@@ -584,8 +590,7 @@ fn lines_projection_renders_required_sections() {
 #[test]
 fn record_round_trips_through_json() {
     let inputs = baseline_inputs();
-    let record =
-        project_mutation_and_generated_artifact_lineage("posture.round_trip", &inputs);
+    let record = project_mutation_and_generated_artifact_lineage("posture.round_trip", &inputs);
     let serialized = serde_json::to_string(&record).expect("record must serialize");
     let parsed: MutationAndGeneratedArtifactLineageRecord =
         serde_json::from_str(&serialized).expect("record must deserialize");

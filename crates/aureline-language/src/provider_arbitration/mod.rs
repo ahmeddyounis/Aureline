@@ -399,7 +399,9 @@ pub fn current_provider_arbitration_proof_fixture_refs() -> impl Iterator<Item =
 }
 
 /// Closed scenario vocabulary for the downgraded semantic-claims matrix.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ProofScenarioClass {
     /// Every admissible provider agreed on the answer.
@@ -423,7 +425,9 @@ pub enum ProofScenarioClass {
 }
 
 /// Closed claim-status vocabulary for the downgraded semantic-claims matrix.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ClaimStatusClass {
     /// Exact, complete, live lane that may stay marketed as a full claim.
@@ -497,8 +501,9 @@ pub fn classify_proof_scenario(entry: &ProviderArbitrationCorpusEntry) -> ProofS
         .provider_health_states
         .iter()
         .any(|row| row.health_state == ArbitrationHealthState::CrashLoopQuarantined);
-    let is_user_preference =
-        decision.arbitration_decision_id.contains("preference_preserves");
+    let is_user_preference = decision
+        .arbitration_decision_id
+        .contains("preference_preserves");
 
     if any_crash_loop {
         return ProofScenarioClass::ProviderCrashLoop;
@@ -533,7 +538,8 @@ pub fn classify_proof_scenario(entry: &ProviderArbitrationCorpusEntry) -> ProofS
     {
         return ProofScenarioClass::StaleCacheReuse;
     }
-    if decision.negotiated_completeness_class == ArbitrationCompletenessClass::PartialForClaimedScope
+    if decision.negotiated_completeness_class
+        == ArbitrationCompletenessClass::PartialForClaimedScope
     {
         return ProofScenarioClass::PartialScope;
     }

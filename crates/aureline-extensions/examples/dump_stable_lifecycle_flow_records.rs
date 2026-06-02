@@ -12,7 +12,8 @@
 //! ```
 
 use aureline_extensions::{
-    project_stable_lifecycle_flow_support_export, StableLifecycleFlowInput, StableLifecycleFlowPacket,
+    project_stable_lifecycle_flow_support_export, StableLifecycleFlowInput,
+    StableLifecycleFlowPacket,
 };
 use serde::Deserialize;
 

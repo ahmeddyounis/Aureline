@@ -82,10 +82,11 @@ fn main() {
         consumer_surfaces: envelope.consumer_surfaces,
     };
 
-    let projection = project_migration_wizard_import_fidelity_packet(&input).unwrap_or_else(|err| {
-        eprintln!("failed to project fidelity packet: {err}");
-        std::process::exit(2);
-    });
+    let projection =
+        project_migration_wizard_import_fidelity_packet(&input).unwrap_or_else(|err| {
+            eprintln!("failed to project fidelity packet: {err}");
+            std::process::exit(2);
+        });
 
     println!(
         "{}",

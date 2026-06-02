@@ -449,10 +449,8 @@ pub enum ArtifactProvenanceStateClass {
 impl ArtifactProvenanceStateClass {
     /// Every certified artifact-provenance state in declaration order. A
     /// `launch_stable` lane MUST cover every state.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] = [
-        Self::ProvenanceTracked,
-        Self::ProvenanceMissing,
-    ];
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] =
+        [Self::ProvenanceTracked, Self::ProvenanceMissing];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -843,7 +841,9 @@ impl FindingKind {
             Self::DegradedHelperStateNotPermittedOnRowClass => {
                 "degraded_helper_state_not_permitted_on_row_class"
             }
-            Self::ArtifactProvenanceStateNotApplicable => "artifact_provenance_state_not_applicable",
+            Self::ArtifactProvenanceStateNotApplicable => {
+                "artifact_provenance_state_not_applicable"
+            }
             Self::ArtifactProvenanceStateNotPermittedOnRowClass => {
                 "artifact_provenance_state_not_permitted_on_row_class"
             }
@@ -1193,7 +1193,9 @@ impl ExecutionPlaneTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter().map(ExecutionPlaneLaneClass::as_str).collect()
+        set.into_iter()
+            .map(ExecutionPlaneLaneClass::as_str)
+            .collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1202,7 +1204,9 @@ impl ExecutionPlaneTruthPacket {
         for row in &self.rows {
             set.insert(row.row_class);
         }
-        set.into_iter().map(ExecutionPlaneRowClass::as_str).collect()
+        set.into_iter()
+            .map(ExecutionPlaneRowClass::as_str)
+            .collect()
     }
 
     /// Returns the unique support-class tokens observed across rows.
@@ -1247,7 +1251,9 @@ impl ExecutionPlaneTruthPacket {
         for row in &self.rows {
             set.insert(row.degraded_helper_state_class);
         }
-        set.into_iter().map(DegradedHelperStateClass::as_str).collect()
+        set.into_iter()
+            .map(DegradedHelperStateClass::as_str)
+            .collect()
     }
 
     /// Returns the unique artifact-provenance-state tokens observed across rows.
@@ -1256,7 +1262,9 @@ impl ExecutionPlaneTruthPacket {
         for row in &self.rows {
             set.insert(row.artifact_provenance_state_class);
         }
-        set.into_iter().map(ArtifactProvenanceStateClass::as_str).collect()
+        set.into_iter()
+            .map(ArtifactProvenanceStateClass::as_str)
+            .collect()
     }
 
     /// Returns the unique evidence-class tokens observed across rows.
@@ -1283,7 +1291,9 @@ impl ExecutionPlaneTruthPacket {
         for row in &self.rows {
             set.insert(row.downgrade_automation_class);
         }
-        set.into_iter().map(DowngradeAutomationClass::as_str).collect()
+        set.into_iter()
+            .map(DowngradeAutomationClass::as_str)
+            .collect()
     }
 
     /// Builds a support export wrapping the exact packet shown to product surfaces.
@@ -1307,18 +1317,14 @@ impl ExecutionPlaneTruthPacket {
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != EXECUTION_PLANE_TRUTH_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != EXECUTION_PLANE_TRUTH_PACKET_RECORD_KIND {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongRecordKind,
                 FindingSeverity::Blocker,
                 "execution-plane packet has the wrong record kind",
             ));
         }
-        if include_record_fields
-            && self.schema_version != EXECUTION_PLANE_TRUTH_SCHEMA_VERSION
-        {
+        if include_record_fields && self.schema_version != EXECUTION_PLANE_TRUTH_SCHEMA_VERSION {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongSchemaVersion,
                 FindingSeverity::Blocker,
@@ -1540,7 +1546,10 @@ impl ExecutionPlaneTruthPacket {
             }
 
             if row.row_class.requires_reconnect_state()
-                && matches!(row.reconnect_state_class, ReconnectStateClass::NotApplicable)
+                && matches!(
+                    row.reconnect_state_class,
+                    ReconnectStateClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ReconnectStateNotApplicable,
@@ -1552,7 +1561,10 @@ impl ExecutionPlaneTruthPacket {
                 ));
             }
             if !row.row_class.requires_reconnect_state()
-                && !matches!(row.reconnect_state_class, ReconnectStateClass::NotApplicable)
+                && !matches!(
+                    row.reconnect_state_class,
+                    ReconnectStateClass::NotApplicable
+                )
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ReconnectStateNotPermittedOnRowClass,
@@ -1781,7 +1793,10 @@ impl ExecutionPlaneTruthPacket {
             for state in DegradedHelperStateClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(row.row_class, ExecutionPlaneRowClass::DegradedHelperAdmission)
+                        && matches!(
+                            row.row_class,
+                            ExecutionPlaneRowClass::DegradedHelperAdmission
+                        )
                         && row.degraded_helper_state_class == state
                 });
                 if !covered {
@@ -2056,10 +2071,9 @@ pub enum ExecutionPlaneTruthArtifactError {
 impl fmt::Display for ExecutionPlaneTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "execution-plane packet parse failed: {error}"
-            ),
+            Self::Packet(error) => {
+                write!(formatter, "execution-plane packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -2082,10 +2096,8 @@ impl Error for ExecutionPlaneTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_execution_plane_truth_packet() -> Result<
-    ExecutionPlaneTruthPacket,
-    ExecutionPlaneTruthArtifactError,
-> {
+pub fn current_stable_execution_plane_truth_packet(
+) -> Result<ExecutionPlaneTruthPacket, ExecutionPlaneTruthArtifactError> {
     let packet: ExecutionPlaneTruthPacket =
         serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -2429,7 +2441,10 @@ mod tests {
     fn sample_input() -> ExecutionPlaneTruthPacketInput {
         let mut rows = Vec::new();
         rows.extend(lane_rows(ExecutionPlaneLaneClass::LocalLane, "local"));
-        rows.extend(lane_rows(ExecutionPlaneLaneClass::RemoteHelperLane, "remote"));
+        rows.extend(lane_rows(
+            ExecutionPlaneLaneClass::RemoteHelperLane,
+            "remote",
+        ));
         rows.extend(lane_rows(
             ExecutionPlaneLaneClass::EnterpriseNetworkLane,
             "enterprise",
@@ -2465,28 +2480,19 @@ mod tests {
             ExecutionPlaneRowClass::ExecutionPlaneCertificationQuality.as_str(),
             "execution_plane_certification_quality"
         );
-        assert_eq!(
-            SupportClass::LaunchStable.as_str(),
-            "launch_stable"
-        );
+        assert_eq!(SupportClass::LaunchStable.as_str(), "launch_stable");
         assert_eq!(
             SupportClass::LaunchStableBelow.as_str(),
             "launch_stable_below"
         );
-        assert_eq!(
-            SupportClass::SupportUnbound.as_str(),
-            "support_unbound"
-        );
+        assert_eq!(SupportClass::SupportUnbound.as_str(), "support_unbound");
         assert_eq!(SurfaceBindingClass::Terminal.as_str(), "terminal");
         assert_eq!(
             SurfaceBindingClass::ConformanceDashboard.as_str(),
             "conformance_dashboard"
         );
         assert_eq!(RouteStateClass::LocalRoute.as_str(), "local_route");
-        assert_eq!(
-            RouteStateClass::BlockedTarget.as_str(),
-            "blocked_target"
-        );
+        assert_eq!(RouteStateClass::BlockedTarget.as_str(), "blocked_target");
         assert_eq!(
             ReconnectStateClass::ReconnectRequired.as_str(),
             "reconnect_required"
@@ -2499,14 +2505,8 @@ mod tests {
             ArtifactProvenanceStateClass::ProvenanceTracked.as_str(),
             "provenance_tracked"
         );
-        assert_eq!(
-            EvidenceClass::EvidenceUnbound.as_str(),
-            "evidence_unbound"
-        );
-        assert_eq!(
-            KnownLimitClass::LimitUnbound.as_str(),
-            "limit_unbound"
-        );
+        assert_eq!(EvidenceClass::EvidenceUnbound.as_str(), "evidence_unbound");
+        assert_eq!(KnownLimitClass::LimitUnbound.as_str(), "limit_unbound");
         assert_eq!(
             DowngradeAutomationClass::AutomationUnbound.as_str(),
             "automation_unbound"

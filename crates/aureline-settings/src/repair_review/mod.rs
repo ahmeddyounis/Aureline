@@ -635,12 +635,14 @@ pub fn build_repair_plan(
         ),
     };
 
-    if would_broaden && !blocked.iter().any(|reason| {
-        matches!(
-            reason,
-            RepairBlockedWriteReason::ScopeBroadeningRefused { .. }
-        )
-    }) {
+    if would_broaden
+        && !blocked.iter().any(|reason| {
+            matches!(
+                reason,
+                RepairBlockedWriteReason::ScopeBroadeningRefused { .. }
+            )
+        })
+    {
         blocked.push(RepairBlockedWriteReason::ScopeBroadeningRefused {
             proposed_scope: request.target_scope.as_str().to_owned(),
             selected_scope: request.target_scope.as_str().to_owned(),
@@ -767,10 +769,7 @@ pub fn project_support_export(
     export_id: impl Into<String>,
     plans: Vec<SettingsRepairPlan>,
 ) -> SettingsRepairSupportExport {
-    let denied_plan_count = plans
-        .iter()
-        .filter(|plan| plan.verdict == "denied")
-        .count();
+    let denied_plan_count = plans.iter().filter(|plan| plan.verdict == "denied").count();
     let accepted_plan_count = plans
         .iter()
         .filter(|plan| plan.user_decision == "accepted")
@@ -972,7 +971,8 @@ fn hidden_reset_summary(
         return "Refused: plan would have widened scope and touched adjacent rows.".to_owned();
     }
     if would_broaden {
-        return "Refused: plan would have written to a broader scope than the user selected.".to_owned();
+        return "Refused: plan would have written to a broader scope than the user selected."
+            .to_owned();
     }
     if would_touch_adjacent {
         return "Refused: plan would have touched settings outside the user selection.".to_owned();
@@ -1204,10 +1204,10 @@ mod tests {
             .locked_classes
             .iter()
             .any(|class| class == "policy_owned_class"));
-        assert!(plan.blocked_write_reasons.iter().any(|reason| matches!(
-            reason,
-            RepairBlockedWriteReason::PolicyOwnedClass { .. }
-        )));
+        assert!(plan
+            .blocked_write_reasons
+            .iter()
+            .any(|reason| matches!(reason, RepairBlockedWriteReason::PolicyOwnedClass { .. })));
         assert_eq!(plan.verdict, "denied");
     }
 
@@ -1243,10 +1243,10 @@ mod tests {
 
         assert!(plan.checkpoint_required);
         assert_eq!(plan.verdict, "awaiting_checkpoint");
-        assert!(plan.blocked_write_reasons.iter().any(|reason| matches!(
-            reason,
-            RepairBlockedWriteReason::CheckpointMissing { .. }
-        )));
+        assert!(plan
+            .blocked_write_reasons
+            .iter()
+            .any(|reason| matches!(reason, RepairBlockedWriteReason::CheckpointMissing { .. })));
 
         let request_with_checkpoint = SettingsRepairPlanRequest {
             plan_id: "plan:reset-editor-section-002".to_owned(),

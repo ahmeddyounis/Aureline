@@ -57,7 +57,9 @@ fn seeded_page_covers_required_rejection_reasons_and_decision_classes() {
         IssuerBoundaryDecisionClass::Refused,
     ] {
         assert!(
-            page.summary.decisions_by_class.contains_key(decision_class.as_str()),
+            page.summary
+                .decisions_by_class
+                .contains_key(decision_class.as_str()),
             "decision class {} missing",
             decision_class.as_str()
         );
@@ -82,8 +84,7 @@ fn lineage_packet_redacts_raw_credentials_and_distinguishes_provider_versus_loca
     });
     assert!(has_provider_admit, "expected provider granted row");
     let has_remembered_narrowed = packet.lineage_rows.iter().any(|row| {
-        row.decision_class_token
-            == IssuerBoundaryDecisionClass::RememberedDecisionNarrowed.as_str()
+        row.decision_class_token == IssuerBoundaryDecisionClass::RememberedDecisionNarrowed.as_str()
     });
     assert!(has_remembered_narrowed, "expected remembered narrowed row");
 }
@@ -134,13 +135,12 @@ fn validator_flags_lineage_drift_when_decision_widens_remembered_rule() {
     let decision = page
         .decisions
         .iter_mut()
-        .find(|decision| {
-            decision.request_id == "request:recipe:broaden-remembered:0005"
-        })
+        .find(|decision| decision.request_id == "request:recipe:broaden-remembered:0005")
         .expect("recipe broaden decision");
     decision.decision_class = IssuerBoundaryDecisionClass::RememberedDecisionNarrowed;
-    decision.decision_class_token =
-        IssuerBoundaryDecisionClass::RememberedDecisionNarrowed.as_str().to_owned();
+    decision.decision_class_token = IssuerBoundaryDecisionClass::RememberedDecisionNarrowed
+        .as_str()
+        .to_owned();
     decision.rejection_reasons.clear();
     decision.rejection_reason_tokens.clear();
     decision.renewed_from_rule_id = Some("remembered-rule:local-format:0001".to_owned());
@@ -195,14 +195,16 @@ fn load_lineage_row(dir: &Path, file_name: &str) -> RuntimeAuthorityLineageRow {
 fn fixture_page_matches_seeded_projection() {
     let fixture = load_page(&issuer_fixture_dir(), "page.json");
     let live = seeded_runtime_authority_issuer_page();
-    assert_eq!(fixture, live, "checked-in page.json must match the in-crate seed");
+    assert_eq!(
+        fixture, live,
+        "checked-in page.json must match the in-crate seed"
+    );
 }
 
 #[test]
 fn fixture_page_validates_with_zero_defects() {
     let page = load_page(&issuer_fixture_dir(), "page.json");
-    validate_runtime_authority_issuer_page(&page)
-        .expect("fixture page must validate");
+    validate_runtime_authority_issuer_page(&page).expect("fixture page must validate");
     assert!(page.defects.is_empty(), "defects: {:?}", page.defects);
 }
 
@@ -245,7 +247,10 @@ fn fixture_lineage_packet_matches_projection() {
 fn fixture_lineage_packet_is_mirrored_under_privileged_action_lineage() {
     let primary = load_lineage_packet(&issuer_fixture_dir(), "lineage_packet.json");
     let mirror = load_lineage_packet(&lineage_fixture_dir(), "lineage_packet.json");
-    assert_eq!(primary, mirror, "lineage packet mirrors must stay bit-for-bit identical");
+    assert_eq!(
+        primary, mirror,
+        "lineage packet mirrors must stay bit-for-bit identical"
+    );
 }
 
 #[test]
@@ -298,7 +303,10 @@ fn per_row_lineage_fixtures_match_packet_rows() {
         let expected = rows
             .get(decision_id)
             .unwrap_or_else(|| panic!("packet must contain {decision_id}"));
-        assert_eq!(&row, *expected, "per-row fixture {file_name} drifted from packet");
+        assert_eq!(
+            &row, *expected,
+            "per-row fixture {file_name} drifted from packet"
+        );
     }
 }
 
@@ -381,8 +389,11 @@ fn drill_fixtures_surface_expected_defect_kinds() {
             );
         }
         // The checked-in defects array must equal the validator recompute.
-        let checked_in: std::collections::BTreeSet<RuntimeAuthorityIssuerDefectKind> =
-            page.defects.iter().map(|defect| defect.defect_kind).collect();
+        let checked_in: std::collections::BTreeSet<RuntimeAuthorityIssuerDefectKind> = page
+            .defects
+            .iter()
+            .map(|defect| defect.defect_kind)
+            .collect();
         assert_eq!(
             checked_in, observed,
             "drill {file_name}: checked-in defects must match the validator recompute"

@@ -102,7 +102,13 @@ const MAX_REF_CHARS: usize = 200;
 /// specific durable object. A ref pointing at one is rejected so chrome cannot
 /// wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// Returns true when `reference` is a canonical durable-object ref of the form
@@ -582,7 +588,9 @@ pub enum BuildError {
     /// The two surface projections disagreed on identity or recovery behavior.
     SurfaceParityBroken,
     /// The switcher dropped a cancel / reopen-previous return path.
-    SwitcherMissingReturnPath { action: WorkspaceSwitchRecoveryAction },
+    SwitcherMissingReturnPath {
+        action: WorkspaceSwitchRecoveryAction,
+    },
     /// A required entry-route surface was missing.
     RouteSurfaceMissing { surface: EntryRouteSurface },
     /// An entry route was not keyboard reachable.
@@ -664,11 +672,9 @@ impl core::fmt::Display for BuildError {
                 "switcher must preserve return path `{}`",
                 action.as_str()
             ),
-            Self::RouteSurfaceMissing { surface } => write!(
-                f,
-                "entry route surface `{}` is missing",
-                surface.as_str()
-            ),
+            Self::RouteSurfaceMissing { surface } => {
+                write!(f, "entry route surface `{}` is missing", surface.as_str())
+            }
             Self::RouteNotKeyboardReachable { surface } => write!(
                 f,
                 "entry route surface `{}` must be keyboard reachable",
@@ -702,7 +708,10 @@ impl core::fmt::Display for BuildError {
                 write!(f, "row narration must disclose the target kind")
             }
             Self::HiddenWithoutAccount => {
-                write!(f, "a recent-work row must stay available without an account")
+                write!(
+                    f,
+                    "a recent-work row must stay available without an account"
+                )
             }
             Self::HiddenWithoutManagedServices => write!(
                 f,
@@ -1051,7 +1060,10 @@ impl EntryTargetDisclosureRecord {
             "honesty_marker_present: {}",
             self.honesty_marker_present
         ));
-        lines.push(format!("diagnostics_export_ref: {}", self.diagnostics_export_ref));
+        lines.push(format!(
+            "diagnostics_export_ref: {}",
+            self.diagnostics_export_ref
+        ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
     }
@@ -1172,7 +1184,9 @@ mod tests {
                 workspace_switcher_row_id: "workspace-switcher:recent:test".to_string(),
                 switcher_entry_classes: vec!["local".to_string(), "pinned".to_string()],
                 switch_failure_actions: vec![
-                    WorkspaceSwitchRecoveryAction::CancelSwitch.as_str().to_string(),
+                    WorkspaceSwitchRecoveryAction::CancelSwitch
+                        .as_str()
+                        .to_string(),
                     WorkspaceSwitchRecoveryAction::ReopenPreviousWorkspace
                         .as_str()
                         .to_string(),
@@ -1183,8 +1197,7 @@ mod tests {
             routes: routes_all_surfaces(),
             accessibility: accessibility(
                 &routes,
-                "Folder, Aureline docs — ready — recovery: Open, Open in new window."
-                    .to_string(),
+                "Folder, Aureline docs — ready — recovery: Open, Open in new window.".to_string(),
             ),
             available_without_account: true,
             available_without_managed_services: true,
@@ -1285,7 +1298,9 @@ mod tests {
     #[test]
     fn rejects_route_surface_gap() {
         let mut input = honest_input();
-        input.routes.retain(|route| route.surface != EntryRouteSurface::CommandPalette);
+        input
+            .routes
+            .retain(|route| route.surface != EntryRouteSurface::CommandPalette);
         let err = EntryTargetDisclosureRecord::build(input).expect_err("must reject");
         assert_eq!(
             err,

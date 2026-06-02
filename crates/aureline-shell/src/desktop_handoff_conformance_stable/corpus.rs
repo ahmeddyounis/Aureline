@@ -218,7 +218,10 @@ fn entry_routes(posture_id: &str) -> Vec<EntryRouteRecord> {
         .into_iter()
         .map(|surface| EntryRouteRecord {
             surface,
-            route_ref: format!("aureline://handoff-review/{posture_id}#{}", surface.as_str()),
+            route_ref: format!(
+                "aureline://handoff-review/{posture_id}#{}",
+                surface.as_str()
+            ),
             keyboard_reachable: true,
             activates_same_item: true,
         })
@@ -389,7 +392,9 @@ fn finish(
 // Stable scenarios
 // ---------------------------------------------------------------------------
 
-fn file_association_stable(packet: &NativeDesktopContractPacket) -> DesktopHandoffConformanceScenario {
+fn file_association_stable(
+    packet: &NativeDesktopContractPacket,
+) -> DesktopHandoffConformanceScenario {
     let event = event(packet, "file_association");
     let posture_id = "file_association_stable";
     let routes = required_recovery_routes(false, false, false);
@@ -623,7 +628,11 @@ fn reveal_in_shell_read_only_stable(
                   literal target is preserved and no mutating work replays."
             .to_string(),
         entry_path: EntryPathClass::RevealInSystemShell,
-        intent: intent_from_event(event, posture_id, TargetAvailabilityClass::AvailableReadOnly),
+        intent: intent_from_event(
+            event,
+            posture_id,
+            TargetAvailabilityClass::AvailableReadOnly,
+        ),
         handler_ownership: ownership(ChannelClass::Stable, &event.handler_ownership_token),
         auth_default: auth_not_applicable(),
         trust_review: trust_enforced(event, "read_only_scope", "read_only_scope"),
@@ -663,10 +672,11 @@ fn recent_item_reopen_stable(
         posture_id: posture_id.to_string(),
         posture_label: "Recent item reopen, exact object".to_string(),
         title: "Recent-item activation reopens the exact object in the owning install".to_string(),
-        summary: "A dock/taskbar recent-item activation reopened the exact prior object rather than \
+        summary:
+            "A dock/taskbar recent-item activation reopened the exact prior object rather than \
                   a generic shell, the recent-item registration is owned by the explicit channel, \
                   and the OS surface cannot execute directly or replay mutating work."
-            .to_string(),
+                .to_string(),
         entry_path: EntryPathClass::RecentItemReopen,
         intent: intent_from_event(event, posture_id, TargetAvailabilityClass::ExactAvailable),
         handler_ownership: ownership(ChannelClass::Stable, &event.handler_ownership_token),
@@ -708,10 +718,11 @@ fn jump_list_action_stable(
         posture_id: posture_id.to_string(),
         posture_label: "Jump-list action, exact target".to_string(),
         title: "Jump-list action reopens the bound workspace, not a generic shell".to_string(),
-        summary: "A dock/taskbar jump-list action reopened the exact bound workspace; the action is \
+        summary:
+            "A dock/taskbar jump-list action reopened the exact bound workspace; the action is \
                   owned by the explicit channel, summary-only, and forbidden from executing \
                   mutating work directly from the OS surface."
-            .to_string(),
+                .to_string(),
         entry_path: EntryPathClass::JumpListAction,
         intent: intent_from_event(event, posture_id, TargetAvailabilityClass::ExactAvailable),
         handler_ownership: ownership(ChannelClass::Stable, &event.handler_ownership_token),
@@ -747,8 +758,7 @@ fn native_save_boundary_stable(
     let event = event(packet, "reveal_in_system_shell");
     let posture_id = "native_save_boundary_stable";
     let routes = required_recovery_routes(false, false, false);
-    let mut intent =
-        intent_from_event(event, posture_id, TargetAvailabilityClass::ExactAvailable);
+    let mut intent = intent_from_event(event, posture_id, TargetAvailabilityClass::ExactAvailable);
     intent.source_surface_token = "native_save_dialog".to_string();
     intent.requested_action_class_token = "save_to_target".to_string();
     intent.resulting_mode_token = "native_save".to_string();
@@ -779,10 +789,11 @@ fn native_save_boundary_stable(
         posture_label: "Native save, canonical path and overwrite posture".to_string(),
         title: "Native save surfaces canonical path, overwrite posture, and remote boundary"
             .to_string(),
-        summary: "A native save dialog wrote to a remote profile share: the canonical target path, \
+        summary:
+            "A native save dialog wrote to a remote profile share: the canonical target path, \
                   the overwrite-with-review posture, and the profile/remote boundary note were all \
                   surfaced before the write rather than feeling like disconnected shell glue."
-            .to_string(),
+                .to_string(),
         entry_path: EntryPathClass::NativeOpenSave,
         intent,
         handler_ownership: ownership(ChannelClass::Stable, &event.handler_ownership_token),
@@ -1100,7 +1111,8 @@ fn help_about_preview_surface(
         as_of: CORPUS_AS_OF.to_string(),
         posture_id: posture_id.to_string(),
         posture_label: "Exact handoff, Help/About surface in preview".to_string(),
-        title: "Exact file-association handoff narrowed by a preview Help/About surface".to_string(),
+        title: "Exact file-association handoff narrowed by a preview Help/About surface"
+            .to_string(),
         summary: "The file-association handoff itself is exact and proves every pillar, but the \
                   Help/About binding surface is still in preview, so the posture narrows below \
                   Stable by its lowest binding surface marker rather than inheriting an adjacent \
@@ -1294,7 +1306,10 @@ mod tests {
 
     #[test]
     fn removable_and_network_recovery_render_placeholders() {
-        for scenario_id in ["removable_volume_recovery_stable", "network_share_recovery_stable"] {
+        for scenario_id in [
+            "removable_volume_recovery_stable",
+            "network_share_recovery_stable",
+        ] {
             let scenario = desktop_handoff_conformance_corpus()
                 .into_iter()
                 .find(|s| s.scenario_id == scenario_id)

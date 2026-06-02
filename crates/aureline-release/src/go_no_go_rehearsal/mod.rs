@@ -1040,9 +1040,11 @@ impl GoNoGoRehearsal {
         if row.unverified_checkpoint_count() > 0
             && !row.has_active_reason(RehearsalGapReason::RollbackCheckpointUnverified)
         {
-            violations.push(GoNoGoRehearsalViolation::UnverifiedCheckpointWithoutReason {
-                entry_id: row.entry_id.clone(),
-            });
+            violations.push(
+                GoNoGoRehearsalViolation::UnverifiedCheckpointWithoutReason {
+                    entry_id: row.entry_id.clone(),
+                },
+            );
         }
     }
 

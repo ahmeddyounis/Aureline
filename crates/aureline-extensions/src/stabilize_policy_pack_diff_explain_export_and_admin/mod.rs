@@ -205,8 +205,13 @@ pub const ACTIVATION_COST_CLASSES: &[&str] =
     &["negligible", "light", "moderate", "heavy", "unbounded"];
 
 /// Closed compatibility-label vocabulary.
-pub const COMPATIBILITY_LABEL_CLASSES: &[&str] =
-    &["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"];
+pub const COMPATIBILITY_LABEL_CLASSES: &[&str] = &[
+    "full_parity",
+    "high_parity",
+    "partial_parity",
+    "limited_parity",
+    "unsupported",
+];
 
 /// Closed install-scope vocabulary.
 pub const INSTALL_SCOPE_CLASSES: &[&str] = &["user", "workspace", "machine", "portable"];
@@ -756,7 +761,10 @@ impl PolicyGovernanceCompatibility {
     /// Returns true when compatibility reports a parity-limited posture short of
     /// unsupported.
     pub fn parity_limited(&self) -> bool {
-        matches!(self.compatibility_label_class.as_str(), "partial_parity" | "limited_parity")
+        matches!(
+            self.compatibility_label_class.as_str(),
+            "partial_parity" | "limited_parity"
+        )
     }
 }
 
@@ -791,7 +799,10 @@ impl PolicyGovernanceInstallPosture {
 
     /// Returns true when the row stays mirrorable.
     pub fn mirrorable(&self) -> bool {
-        matches!(self.mirrorability_class.as_str(), "mirrorable" | "mirror_pinned")
+        matches!(
+            self.mirrorability_class.as_str(),
+            "mirrorable" | "mirror_pinned"
+        )
     }
 
     /// Returns true when the activation cost is unbounded.
@@ -1103,13 +1114,19 @@ impl StablePolicyPackGovernancePacket {
                 ));
             }
             if self.identity.publisher_trust_tier_class == "quarantined" {
-                return Err(err("stable effective tier must not carry a quarantined trust tier"));
+                return Err(err(
+                    "stable effective tier must not carry a quarantined trust tier",
+                ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if !self.diff.complete() {
-                return Err(err("stable effective tier must carry a complete policy-pack diff"));
+                return Err(err(
+                    "stable effective tier must carry a complete policy-pack diff",
+                ));
             }
             if self.diff.unacknowledged_breaking() {
                 return Err(err(
@@ -1117,7 +1134,9 @@ impl StablePolicyPackGovernancePacket {
                 ));
             }
             if !self.explain.decision_explained {
-                return Err(err("stable effective tier must explain its governance decision"));
+                return Err(err(
+                    "stable effective tier must explain its governance decision",
+                ));
             }
             if !self.export.mechanically_sourced() {
                 return Err(err(
@@ -1125,7 +1144,9 @@ impl StablePolicyPackGovernancePacket {
                 ));
             }
             if self.export.contains_private() {
-                return Err(err("stable effective tier must not export raw private data"));
+                return Err(err(
+                    "stable effective tier must not export raw private data",
+                ));
             }
             if self.export.scope_limited() {
                 return Err(err(
@@ -1139,7 +1160,9 @@ impl StablePolicyPackGovernancePacket {
                 return Err(err("stable effective tier must not widen permissions"));
             }
             if self.install_posture.activation_cost_unbounded() {
-                return Err(err("stable effective tier must not carry an unbounded activation cost"));
+                return Err(err(
+                    "stable effective tier must not carry an unbounded activation cost",
+                ));
             }
             if self.compatibility.unsupported()
                 || self.compatibility.parity_limited()
@@ -1153,7 +1176,9 @@ impl StablePolicyPackGovernancePacket {
                 return Err(err("stable effective tier must disclose its install scope"));
             }
             if !self.install_posture.revocation_clean() {
-                return Err(err("stable effective tier must keep a clean revocation posture"));
+                return Err(err(
+                    "stable effective tier must keep a clean revocation posture",
+                ));
             }
             if !self.install_posture.mirrorable() {
                 return Err(err("stable effective tier must stay mirrorable"));
@@ -1162,7 +1187,9 @@ impl StablePolicyPackGovernancePacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1189,20 +1216,29 @@ impl StablePolicyPackGovernancePacket {
             install_posture: &self.install_posture,
             attribution_complete: self.attribution_complete(),
         };
-        let derived =
-            derive_effective_tier(&self.claim.claimed_tier, &self.claim.claim_basis_class, &posture);
+        let derived = derive_effective_tier(
+            &self.claim.claimed_tier,
+            &self.claim.claim_basis_class,
+            &posture,
+        );
         if derived.effective_tier != self.claim.effective_tier {
-            return Err(err("stored effective tier does not match the posture-derived tier"));
+            return Err(err(
+                "stored effective tier does not match the posture-derived tier",
+            ));
         }
         if derived.downgraded != self.claim.downgraded {
-            return Err(err("stored downgrade flag does not match the posture-derived verdict"));
+            return Err(err(
+                "stored downgrade flag does not match the posture-derived verdict",
+            ));
         }
         let mut stored = self.claim.downgrade_reasons.clone();
         stored.sort();
         let mut expected = derived.downgrade_reasons.clone();
         expected.sort();
         if stored != expected {
-            return Err(err("stored downgrade reasons do not match the posture-derived reasons"));
+            return Err(err(
+                "stored downgrade reasons do not match the posture-derived reasons",
+            ));
         }
 
         // Banner truth.
@@ -1456,7 +1492,10 @@ pub fn project_stable_policy_pack_governance_support_export(
     StablePolicyPackGovernanceSupportExport {
         record_kind: STABLE_POLICY_PACK_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_POLICY_PACK_GOVERNANCE_SCHEMA_VERSION,
-        export_id: format!("stable_policy_pack_governance_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_policy_pack_governance_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         row_identity_ref: packet.identity.row_identity_ref.clone(),
         governance_profile_ref: packet.identity.governance_profile_ref.clone(),
@@ -1719,12 +1758,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -2029,9 +2076,14 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     let id = &input.identity;
-    ensure_nonempty(&id.governance_profile_ref, "identity.governance_profile_ref")?;
+    ensure_nonempty(
+        &id.governance_profile_ref,
+        "identity.governance_profile_ref",
+    )?;
     if !id.governance_profile_ref.starts_with("governance_profile:") {
-        return Err(err("identity.governance_profile_ref must start with 'governance_profile:'"));
+        return Err(err(
+            "identity.governance_profile_ref must start with 'governance_profile:'",
+        ));
     }
     ensure_nonempty(&id.row_identity_ref, "identity.row_identity_ref")?;
     ensure_nonempty(&id.extension_identity, "identity.extension_identity")?;
@@ -2040,39 +2092,91 @@ fn validate_input(
     ensure_nonempty(&id.policy_pack_id, "identity.policy_pack_id")?;
     ensure_nonempty(&id.admin_namespace, "identity.admin_namespace")?;
     ensure_nonempty(&id.publisher_namespace, "identity.publisher_namespace")?;
-    ensure_nonempty(&id.governance_evidence_ref, "identity.governance_evidence_ref")?;
+    ensure_nonempty(
+        &id.governance_evidence_ref,
+        "identity.governance_evidence_ref",
+    )?;
     ensure_token(
         TRUST_TIER_CLASSES,
         &id.publisher_trust_tier_class,
         "identity.publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &id.lifecycle_state_class, "identity.lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &id.lifecycle_state_class,
+        "identity.lifecycle_state_class",
+    )?;
 
     let d = &input.diff;
-    ensure_token(DIFF_COMPLETENESS_CLASSES, &d.diff_completeness_class, "diff.diff_completeness_class")?;
+    ensure_token(
+        DIFF_COMPLETENESS_CLASSES,
+        &d.diff_completeness_class,
+        "diff.diff_completeness_class",
+    )?;
     ensure_nonempty(&d.diff_ref, "diff.diff_ref")?;
 
     let ex = &input.explain;
-    ensure_token(DECISION_CLASSES, &ex.decision_class, "explain.decision_class")?;
-    ensure_token(DECISION_REASON_CLASSES, &ex.reason_class, "explain.reason_class")?;
+    ensure_token(
+        DECISION_CLASSES,
+        &ex.decision_class,
+        "explain.decision_class",
+    )?;
+    ensure_token(
+        DECISION_REASON_CLASSES,
+        &ex.reason_class,
+        "explain.reason_class",
+    )?;
     ensure_nonempty(&ex.governing_rule_ref, "explain.governing_rule_ref")?;
     ensure_nonempty(&ex.explanation_ref, "explain.explanation_ref")?;
 
     let exp = &input.export;
-    ensure_token(EXPORT_SCOPE_CLASSES, &exp.export_scope_class, "export.export_scope_class")?;
-    ensure_token(EXPORT_SOURCE_CLASSES, &exp.export_source_class, "export.export_source_class")?;
-    ensure_token(EXPORT_REDACTION_CLASSES, &exp.export_redaction_class, "export.export_redaction_class")?;
+    ensure_token(
+        EXPORT_SCOPE_CLASSES,
+        &exp.export_scope_class,
+        "export.export_scope_class",
+    )?;
+    ensure_token(
+        EXPORT_SOURCE_CLASSES,
+        &exp.export_source_class,
+        "export.export_source_class",
+    )?;
+    ensure_token(
+        EXPORT_REDACTION_CLASSES,
+        &exp.export_redaction_class,
+        "export.export_redaction_class",
+    )?;
     ensure_nonempty(&exp.export_ref, "export.export_ref")?;
 
     let lane = &input.enterprise_lane;
-    ensure_token(ENTERPRISE_LANE_CLASSES, &lane.enterprise_lane_class, "enterprise_lane.enterprise_lane_class")?;
-    ensure_token(LANE_CLAIM_BASIS_CLASSES, &lane.lane_claim_basis_class, "enterprise_lane.lane_claim_basis_class")?;
-    ensure_token(TENANCY_SCOPE_CLASSES, &lane.tenancy_scope_class, "enterprise_lane.tenancy_scope_class")?;
-    ensure_nonempty(&lane.lane_attestation_ref, "enterprise_lane.lane_attestation_ref")?;
+    ensure_token(
+        ENTERPRISE_LANE_CLASSES,
+        &lane.enterprise_lane_class,
+        "enterprise_lane.enterprise_lane_class",
+    )?;
+    ensure_token(
+        LANE_CLAIM_BASIS_CLASSES,
+        &lane.lane_claim_basis_class,
+        "enterprise_lane.lane_claim_basis_class",
+    )?;
+    ensure_token(
+        TENANCY_SCOPE_CLASSES,
+        &lane.tenancy_scope_class,
+        "enterprise_lane.tenancy_scope_class",
+    )?;
+    ensure_nonempty(
+        &lane.lane_attestation_ref,
+        "enterprise_lane.lane_attestation_ref",
+    )?;
 
     let perm = &input.permission_posture;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture.declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture.effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture.declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture.effective_permission_ref",
+    )?;
     ensure_nonempty(&perm.policy_cap_ref, "permission_posture.policy_cap_ref")?;
 
     let compat = &input.compatibility;
@@ -2084,21 +2188,41 @@ fn validate_input(
     ensure_nonempty(&compat.scorecard_ref, "compatibility.scorecard_ref")?;
 
     let inst = &input.install_posture;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture.install_scope_class")?;
-    ensure_token(ACTIVATION_COST_CLASSES, &inst.activation_cost_class, "install_posture.activation_cost_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture.install_scope_class",
+    )?;
+    ensure_token(
+        ACTIVATION_COST_CLASSES,
+        &inst.activation_cost_class,
+        "install_posture.activation_cost_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture.revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture.mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture.mirrorability_class",
+    )?;
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_POLICY_PACK_GOVERNANCE_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_POLICY_PACK_GOVERNANCE_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2110,7 +2234,11 @@ fn validate_input(
 fn validate_identity(
     identity: &PolicyGovernanceIdentity,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(identity.record_kind.as_str(), POLICY_GOVERNANCE_IDENTITY_RECORD_KIND, "identity record_kind")?;
+    ensure_eq(
+        identity.record_kind.as_str(),
+        POLICY_GOVERNANCE_IDENTITY_RECORD_KIND,
+        "identity record_kind",
+    )?;
     ensure_eq_u32(
         identity.schema_version,
         STABLE_POLICY_PACK_GOVERNANCE_SCHEMA_VERSION,
@@ -2121,13 +2249,25 @@ fn validate_identity(
         &identity.publisher_trust_tier_class,
         "identity publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &identity.lifecycle_state_class, "identity lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &identity.lifecycle_state_class,
+        "identity lifecycle_state_class",
+    )?;
     Ok(())
 }
 
 fn validate_diff(d: &PolicyPackDiff) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(d.record_kind.as_str(), POLICY_PACK_DIFF_RECORD_KIND, "diff record_kind")?;
-    ensure_token(DIFF_COMPLETENESS_CLASSES, &d.diff_completeness_class, "diff diff_completeness_class")?;
+    ensure_eq(
+        d.record_kind.as_str(),
+        POLICY_PACK_DIFF_RECORD_KIND,
+        "diff record_kind",
+    )?;
+    ensure_token(
+        DIFF_COMPLETENESS_CLASSES,
+        &d.diff_completeness_class,
+        "diff diff_completeness_class",
+    )?;
     ensure_nonempty(&d.diff_ref, "diff diff_ref")?;
     Ok(())
 }
@@ -2135,9 +2275,21 @@ fn validate_diff(d: &PolicyPackDiff) -> Result<(), StablePolicyPackGovernanceVal
 fn validate_explain(
     ex: &PolicyDecisionExplain,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(ex.record_kind.as_str(), POLICY_DECISION_EXPLAIN_RECORD_KIND, "explain record_kind")?;
-    ensure_token(DECISION_CLASSES, &ex.decision_class, "explain decision_class")?;
-    ensure_token(DECISION_REASON_CLASSES, &ex.reason_class, "explain reason_class")?;
+    ensure_eq(
+        ex.record_kind.as_str(),
+        POLICY_DECISION_EXPLAIN_RECORD_KIND,
+        "explain record_kind",
+    )?;
+    ensure_token(
+        DECISION_CLASSES,
+        &ex.decision_class,
+        "explain decision_class",
+    )?;
+    ensure_token(
+        DECISION_REASON_CLASSES,
+        &ex.reason_class,
+        "explain reason_class",
+    )?;
     ensure_nonempty(&ex.governing_rule_ref, "explain governing_rule_ref")?;
     ensure_nonempty(&ex.explanation_ref, "explain explanation_ref")?;
     Ok(())
@@ -2146,10 +2298,26 @@ fn validate_explain(
 fn validate_export(
     exp: &AdminGovernanceExport,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(exp.record_kind.as_str(), ADMIN_GOVERNANCE_EXPORT_RECORD_KIND, "export record_kind")?;
-    ensure_token(EXPORT_SCOPE_CLASSES, &exp.export_scope_class, "export export_scope_class")?;
-    ensure_token(EXPORT_SOURCE_CLASSES, &exp.export_source_class, "export export_source_class")?;
-    ensure_token(EXPORT_REDACTION_CLASSES, &exp.export_redaction_class, "export export_redaction_class")?;
+    ensure_eq(
+        exp.record_kind.as_str(),
+        ADMIN_GOVERNANCE_EXPORT_RECORD_KIND,
+        "export record_kind",
+    )?;
+    ensure_token(
+        EXPORT_SCOPE_CLASSES,
+        &exp.export_scope_class,
+        "export export_scope_class",
+    )?;
+    ensure_token(
+        EXPORT_SOURCE_CLASSES,
+        &exp.export_source_class,
+        "export export_source_class",
+    )?;
+    ensure_token(
+        EXPORT_REDACTION_CLASSES,
+        &exp.export_redaction_class,
+        "export export_redaction_class",
+    )?;
     ensure_nonempty(&exp.export_ref, "export export_ref")?;
     Ok(())
 }
@@ -2157,11 +2325,30 @@ fn validate_export(
 fn validate_enterprise_lane(
     lane: &EnterpriseLaneBinding,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(lane.record_kind.as_str(), ENTERPRISE_LANE_BINDING_RECORD_KIND, "enterprise_lane record_kind")?;
-    ensure_token(ENTERPRISE_LANE_CLASSES, &lane.enterprise_lane_class, "enterprise_lane enterprise_lane_class")?;
-    ensure_token(LANE_CLAIM_BASIS_CLASSES, &lane.lane_claim_basis_class, "enterprise_lane lane_claim_basis_class")?;
-    ensure_token(TENANCY_SCOPE_CLASSES, &lane.tenancy_scope_class, "enterprise_lane tenancy_scope_class")?;
-    ensure_nonempty(&lane.lane_attestation_ref, "enterprise_lane lane_attestation_ref")?;
+    ensure_eq(
+        lane.record_kind.as_str(),
+        ENTERPRISE_LANE_BINDING_RECORD_KIND,
+        "enterprise_lane record_kind",
+    )?;
+    ensure_token(
+        ENTERPRISE_LANE_CLASSES,
+        &lane.enterprise_lane_class,
+        "enterprise_lane enterprise_lane_class",
+    )?;
+    ensure_token(
+        LANE_CLAIM_BASIS_CLASSES,
+        &lane.lane_claim_basis_class,
+        "enterprise_lane lane_claim_basis_class",
+    )?;
+    ensure_token(
+        TENANCY_SCOPE_CLASSES,
+        &lane.tenancy_scope_class,
+        "enterprise_lane tenancy_scope_class",
+    )?;
+    ensure_nonempty(
+        &lane.lane_attestation_ref,
+        "enterprise_lane lane_attestation_ref",
+    )?;
     Ok(())
 }
 
@@ -2173,8 +2360,14 @@ fn validate_permission_posture(
         POLICY_GOVERNANCE_PERMISSION_POSTURE_RECORD_KIND,
         "permission_posture record_kind",
     )?;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture effective_permission_ref",
+    )?;
     ensure_nonempty(&perm.policy_cap_ref, "permission_posture policy_cap_ref")?;
     Ok(())
 }
@@ -2204,14 +2397,26 @@ fn validate_install_posture(
         POLICY_GOVERNANCE_INSTALL_POSTURE_RECORD_KIND,
         "install_posture record_kind",
     )?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture install_scope_class")?;
-    ensure_token(ACTIVATION_COST_CLASSES, &inst.activation_cost_class, "install_posture activation_cost_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture install_scope_class",
+    )?;
+    ensure_token(
+        ACTIVATION_COST_CLASSES,
+        &inst.activation_cost_class,
+        "install_posture activation_cost_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture mirrorability_class",
+    )?;
     Ok(())
 }
 
@@ -2224,11 +2429,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(POLICY_PACK_GOVERNANCE_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            POLICY_PACK_GOVERNANCE_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2236,23 +2457,37 @@ fn validate_claim(
 fn validate_banner(
     banner: &PolicyGovernanceDowngradedBanner,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
-    ensure_eq(banner.record_kind.as_str(), POLICY_GOVERNANCE_DOWNGRADED_BANNER_RECORD_KIND, "banner record_kind")?;
+    ensure_eq(
+        banner.record_kind.as_str(),
+        POLICY_GOVERNANCE_DOWNGRADED_BANNER_RECORD_KIND,
+        "banner record_kind",
+    )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(POLICY_PACK_GOVERNANCE_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            POLICY_PACK_GOVERNANCE_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
 
 /// Cross-checks the diff counts against the diff completeness and base / target
 /// versions so a diff record cannot be internally inconsistent.
-fn validate_diff_counts(d: &PolicyPackDiff) -> Result<(), StablePolicyPackGovernanceValidationError> {
+fn validate_diff_counts(
+    d: &PolicyPackDiff,
+) -> Result<(), StablePolicyPackGovernanceValidationError> {
     if d.target_pack_version < d.base_pack_version {
-        return Err(err("diff target_pack_version must not precede base_pack_version"));
+        return Err(err(
+            "diff target_pack_version must not precede base_pack_version",
+        ));
     }
     if d.breaking_change && d.rules_removed == 0 && d.rules_modified == 0 {
         return Err(err(
@@ -2288,7 +2523,11 @@ fn validate_inspection(
         STABLE_POLICY_PACK_GOVERNANCE_INSPECTION_RECORD_KIND,
         "inspection record_kind",
     )?;
-    ensure_eq(inspection.packet_id_ref.as_str(), packet.packet_id.as_str(), "inspection packet_id_ref")?;
+    ensure_eq(
+        inspection.packet_id_ref.as_str(),
+        packet.packet_id.as_str(),
+        "inspection packet_id_ref",
+    )?;
     ensure_eq(
         inspection.effective_tier.as_str(),
         packet.claim.effective_tier.as_str(),
@@ -2307,7 +2546,9 @@ fn validate_inspection(
         return Err(err("inspection diff_complete is inconsistent"));
     }
     if inspection.export_mechanically_sourced != packet.export.mechanically_sourced() {
-        return Err(err("inspection export_mechanically_sourced is inconsistent"));
+        return Err(err(
+            "inspection export_mechanically_sourced is inconsistent",
+        ));
     }
     if inspection.enterprise_lane_attested != packet.enterprise_lane.attested() {
         return Err(err("inspection enterprise_lane_attested is inconsistent"));
@@ -2337,7 +2578,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2348,7 +2591,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2369,7 +2614,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StablePolicyPackGovernanceValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

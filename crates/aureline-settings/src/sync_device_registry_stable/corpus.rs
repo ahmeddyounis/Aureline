@@ -643,9 +643,8 @@ fn snapshots(spec: &ScenarioSpec) -> Vec<SnapshotRow> {
         // Adversarial: the managed snapshot leaks a dirty-buffer journal.
         managed_included.push(StateClass::DirtyBufferJournals);
         managed_excluded.retain(|class| *class != StateClass::DirtyBufferJournals);
-        managed_waiver = Some(
-            "aureline://waiver/sync-managed-snapshot-dirty-buffer-leak".to_owned(),
-        );
+        managed_waiver =
+            Some("aureline://waiver/sync-managed-snapshot-dirty-buffer-leak".to_owned());
     }
 
     vec![
@@ -765,8 +764,8 @@ fn surface_parity(spec: &ScenarioSpec) -> Vec<SurfaceParityRow> {
     SurfaceClass::REQUIRED
         .into_iter()
         .map(|surface| {
-            let preview = spec.device_registry_preview
-                && surface == SurfaceClass::AdminDeviceRegistry;
+            let preview =
+                spec.device_registry_preview && surface == SurfaceClass::AdminDeviceRegistry;
             SurfaceParityRow {
                 surface_class: surface,
                 consumes_shared_record: true,
@@ -804,12 +803,8 @@ fn profile_roaming(spec: &ScenarioSpec) -> ProfileRoamingSummary {
             .to_owned()
     };
     ProfileRoamingSummary {
-        latest_successful_sync_ref: Some(
-            "aureline://snapshot/managed-sync-snapshot".to_owned(),
-        ),
-        extension_inventory_ref: Some(
-            "aureline://inventory/extensions-reference-only".to_owned(),
-        ),
+        latest_successful_sync_ref: Some("aureline://snapshot/managed-sync-snapshot".to_owned()),
+        extension_inventory_ref: Some("aureline://inventory/extensions-reference-only".to_owned()),
         remaining_retention_days: Some(if spec.managed_sync_available { 90 } else { 45 }),
         managed_sync_available: spec.managed_sync_available,
         local_launch_edit_authority_retained: true,

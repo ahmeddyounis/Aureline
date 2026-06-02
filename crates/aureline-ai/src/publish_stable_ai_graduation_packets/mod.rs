@@ -14,10 +14,10 @@
 use std::collections::BTreeMap;
 
 pub use crate::graduation::{
-    AiGraduationConsumerSurfaceClass, AiGraduationGateState, AiGraduationPacket,
-    AiGraduationState, AiGraduationSupportClass, AiGraduationViolation,
-    AI_GRADUATION_PACKET_RECORD_KIND, AI_GRADUATION_STATE_RECORD_KIND,
-    AI_GRADUATION_STATE_SCHEMA_VERSION, REQUIRED_BETA_EVIDENCE_KINDS,
+    AiGraduationConsumerSurfaceClass, AiGraduationGateState, AiGraduationPacket, AiGraduationState,
+    AiGraduationSupportClass, AiGraduationViolation, AI_GRADUATION_PACKET_RECORD_KIND,
+    AI_GRADUATION_STATE_RECORD_KIND, AI_GRADUATION_STATE_SCHEMA_VERSION,
+    REQUIRED_BETA_EVIDENCE_KINDS,
 };
 
 /// Registry state identifier for the stable release.
@@ -45,8 +45,7 @@ pub const STABLE_SUPPORT_EXPORT_ARTIFACT: &str =
     "artifacts/ai/m4/publish_stable_ai_graduation_packets/support_export.json";
 
 /// Path to the stable docs projection (relative to repo root).
-pub const STABLE_DOCS_PROJECTION: &str =
-    "docs/ai/m4/publish_stable_ai_graduation_packets.md";
+pub const STABLE_DOCS_PROJECTION: &str = "docs/ai/m4/publish_stable_ai_graduation_packets.md";
 
 /// Path to the stable registry fixture (relative to repo root).
 pub const STABLE_FIXTURE_REGISTRY: &str =

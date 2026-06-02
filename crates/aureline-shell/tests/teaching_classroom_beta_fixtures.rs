@@ -10,10 +10,10 @@
 
 use aureline_shell::teaching_session::{
     seeded_teaching_classroom_corpus, validate_teaching_classroom_corpus, ClientClass,
-    DemonstrationKind, DocsPackState, ReplayPolicy, RetentionClass, SegmentKind, SessionKind,
-    TeachingClassroomCorpus, TeachingClassroomSessionCase, TeachingClassroomSupportExport,
-    TeachingRestoreOutcome, TeachingRole, RestoreTrigger, TEACHING_SESSION_BETA_SCHEMA_VERSION,
-    TEACHING_SESSION_BETA_SHARED_CONTRACT_REF,
+    DemonstrationKind, DocsPackState, ReplayPolicy, RestoreTrigger, RetentionClass, SegmentKind,
+    SessionKind, TeachingClassroomCorpus, TeachingClassroomSessionCase,
+    TeachingClassroomSupportExport, TeachingRestoreOutcome, TeachingRole,
+    TEACHING_SESSION_BETA_SCHEMA_VERSION, TEACHING_SESSION_BETA_SHARED_CONTRACT_REF,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -108,7 +108,8 @@ fn demonstrations_are_non_mutating_by_default_and_mutations_reuse_the_command_pa
                     assert!(
                         action.is_properly_fenced(),
                         "{}: mutation {} is not properly fenced",
-                        case.case_id, action.action_id
+                        case.case_id,
+                        action.action_id
                     );
                     assert!(action.command_id.is_some());
                     assert!(action.preview_sheet_ref.is_some());
@@ -130,7 +131,11 @@ fn degraded_docs_pack_states_stay_visible_and_disclosed() {
     let mut saw_offline = false;
     let mut saw_not_installed = false;
     for case in &corpus.sessions {
-        assert!(case.session.docs_pack_states_disclosed(), "{}", case.case_id);
+        assert!(
+            case.session.docs_pack_states_disclosed(),
+            "{}",
+            case.case_id
+        );
         for seg in &case.session.segments {
             match seg.docs_pack_state {
                 DocsPackState::Installed => {
@@ -204,7 +209,11 @@ fn roles_stay_separate_from_terminal_debug_control_and_drive_is_moderator_only()
                         case.case_id, a.affordance_id
                     );
                 }
-                assert!(a.actionable, "{}: {} is broken", case.case_id, a.affordance_id);
+                assert!(
+                    a.actionable,
+                    "{}: {} is broken",
+                    case.case_id, a.affordance_id
+                );
                 assert!(!a.is_terminal_or_debug_control);
             }
         }
@@ -233,14 +242,18 @@ fn constrained_clients_join_safe_without_broken_or_misleading_controls() {
                 assert!(
                     !view.exposes_drive_control && !view.exposes_mutation_affordance,
                     "{}: constrained client {} sees a heavy control",
-                    case.case_id, view.participant_id
+                    case.case_id,
+                    view.participant_id
                 );
                 assert!(view.constrained_client_join_safe, "{}", view.participant_id);
             }
         }
     }
     assert!(saw_limited, "corpus must include a limited client");
-    assert!(saw_low_bandwidth, "corpus must include a low-bandwidth client");
+    assert!(
+        saw_low_bandwidth,
+        "corpus must include a low-bandwidth client"
+    );
 }
 
 #[test]
@@ -259,7 +272,11 @@ fn corpus_covers_every_role_state_pack_and_restore_trigger() {
             role.as_str()
         );
     }
-    for class in [ClientClass::Full, ClientClass::Limited, ClientClass::LowBandwidth] {
+    for class in [
+        ClientClass::Full,
+        ClientClass::Limited,
+        ClientClass::LowBandwidth,
+    ] {
         assert!(
             corpus.summary.client_classes_covered.contains(&class),
             "missing client class {}",
@@ -376,7 +393,11 @@ fn restore_outcomes_return_the_prior_environment_for_every_trigger() {
             session.restore_checkpoint.accessibility_posture_ref
         );
     }
-    assert_eq!(triggers.len(), 3, "restore outcomes must cover all three triggers");
+    assert_eq!(
+        triggers.len(),
+        3,
+        "restore outcomes must cover all three triggers"
+    );
 }
 
 #[test]

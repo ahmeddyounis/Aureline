@@ -194,8 +194,8 @@ fn destination_visibility_drift_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_outcome() {
-    let packet = current_stable_deep_link_navigation_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_deep_link_navigation_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         DeepLinkNavigationTruthPromotionState::Stable

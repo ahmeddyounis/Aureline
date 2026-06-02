@@ -210,8 +210,11 @@ impl TeachingClassroomSupportExport {
                     .iter()
                     .filter(|p| p.client_class.is_constrained())
                     .count() as u32;
-                let external_guest_count =
-                    s.participants.iter().filter(|p| p.is_external_guest).count() as u32;
+                let external_guest_count = s
+                    .participants
+                    .iter()
+                    .filter(|p| p.is_external_guest)
+                    .count() as u32;
 
                 TeachingClassroomSupportExportRow {
                     record_kind: TEACHING_CLASSROOM_SUPPORT_EXPORT_ROW_RECORD_KIND.to_owned(),
@@ -243,7 +246,8 @@ impl TeachingClassroomSupportExport {
                     establishes_private_data_ownership: s.establishes_private_data_ownership,
                     creates_hidden_progress_model: s.creates_hidden_progress_model,
                     creates_cohort_or_grading_flow: s.creates_cohort_or_grading_flow,
-                    demonstrations_non_mutating_by_default: s.demonstrations_non_mutating_by_default,
+                    demonstrations_non_mutating_by_default: s
+                        .demonstrations_non_mutating_by_default,
                     preserves_source_citations: s.preserves_source_citations,
                     reuses_learning_mode_objects_only: s.reuses_learning_mode_objects_only,
                     restore_on_exit_guaranteed: s.restore_on_exit_guaranteed,
@@ -299,7 +303,10 @@ fn segment(
     demonstrated_action: Option<DemonstratedAction>,
 ) -> TeachingSegment {
     let disclosure = if docs_pack_state.requires_disclosure() {
-        Some(format!("disclosure:docs-pack:{id}:{}", docs_pack_state.as_str()))
+        Some(format!(
+            "disclosure:docs-pack:{id}:{}",
+            docs_pack_state.as_str()
+        ))
     } else {
         None
     };
@@ -792,7 +799,10 @@ pub fn validate_teaching_classroom_corpus(
         errors.push(format!("corpus record_kind is {}", corpus.record_kind));
     }
     if corpus.schema_version != TEACHING_SESSION_BETA_SCHEMA_VERSION {
-        errors.push(format!("corpus schema_version is {}", corpus.schema_version));
+        errors.push(format!(
+            "corpus schema_version is {}",
+            corpus.schema_version
+        ));
     }
     if corpus.shared_contract_ref != TEACHING_SESSION_BETA_SHARED_CONTRACT_REF {
         errors.push(format!(
@@ -851,7 +861,11 @@ pub fn validate_teaching_classroom_corpus(
             errors.push(format!("corpus does not cover role {}", role.as_str()));
         }
     }
-    for class in [ClientClass::Full, ClientClass::Limited, ClientClass::LowBandwidth] {
+    for class in [
+        ClientClass::Full,
+        ClientClass::Limited,
+        ClientClass::LowBandwidth,
+    ] {
         if !corpus.summary.client_classes_covered.contains(&class) {
             errors.push(format!(
                 "corpus does not cover client class {}",
@@ -880,7 +894,10 @@ pub fn validate_teaching_classroom_corpus(
         SegmentKind::SpeakerNote,
     ] {
         if !corpus.summary.segment_kinds_covered.contains(&kind) {
-            errors.push(format!("corpus does not cover segment kind {}", kind.as_str()));
+            errors.push(format!(
+                "corpus does not cover segment kind {}",
+                kind.as_str()
+            ));
         }
     }
     for kind in [
@@ -922,7 +939,10 @@ pub fn validate_teaching_classroom_corpus(
     }
     for kind in [SessionKind::Teaching, SessionKind::Classroom] {
         if !corpus.summary.session_kinds_covered.contains(&kind) {
-            errors.push(format!("corpus does not cover session kind {}", kind.as_str()));
+            errors.push(format!(
+                "corpus does not cover session kind {}",
+                kind.as_str()
+            ));
         }
     }
     for trigger in [
@@ -950,10 +970,16 @@ fn validate_case(case: &TeachingClassroomSessionCase, errors: &mut Vec<String>) 
     let s = &case.session;
 
     if case.record_kind != TEACHING_CLASSROOM_SESSION_CASE_RECORD_KIND {
-        errors.push(format!("{where_}: case record_kind is {}", case.record_kind));
+        errors.push(format!(
+            "{where_}: case record_kind is {}",
+            case.record_kind
+        ));
     }
     if s.record_kind != TEACHING_SESSION_RECORD_KIND {
-        errors.push(format!("{where_}: session record_kind is {}", s.record_kind));
+        errors.push(format!(
+            "{where_}: session record_kind is {}",
+            s.record_kind
+        ));
     }
     if s.segments.is_empty() {
         errors.push(format!("{where_}: session has no segments"));
@@ -967,7 +993,9 @@ fn validate_case(case: &TeachingClassroomSessionCase, errors: &mut Vec<String>) 
         errors.push(format!("{where_}: session grants terminal/debug control"));
     }
     if s.grants_broader_authority_than_workspace {
-        errors.push(format!("{where_}: session widens authority beyond the workspace"));
+        errors.push(format!(
+            "{where_}: session widens authority beyond the workspace"
+        ));
     }
     if s.establishes_private_data_ownership {
         errors.push(format!("{where_}: session claims private data ownership"));
@@ -981,19 +1009,29 @@ fn validate_case(case: &TeachingClassroomSessionCase, errors: &mut Vec<String>) 
 
     // Citations, resumability, disclosure, and fencing.
     if !s.segments_cite_learning_mode() {
-        errors.push(format!("{where_}: a segment does not cite a learning-mode object"));
+        errors.push(format!(
+            "{where_}: a segment does not cite a learning-mode object"
+        ));
     }
     if !s.segments_are_resumable() {
-        errors.push(format!("{where_}: a segment is not resumable across restart/reconnect"));
+        errors.push(format!(
+            "{where_}: a segment is not resumable across restart/reconnect"
+        ));
     }
     if !s.docs_pack_states_disclosed() {
-        errors.push(format!("{where_}: a degraded docs-pack state is missing its disclosure"));
+        errors.push(format!(
+            "{where_}: a degraded docs-pack state is missing its disclosure"
+        ));
     }
     if !s.demonstrations_are_fenced() {
-        errors.push(format!("{where_}: a mutating demonstration is not properly fenced"));
+        errors.push(format!(
+            "{where_}: a mutating demonstration is not properly fenced"
+        ));
     }
     if !s.opt_in_markers_consistent() {
-        errors.push(format!("{where_}: replay/retention opt-in markers are inconsistent"));
+        errors.push(format!(
+            "{where_}: replay/retention opt-in markers are inconsistent"
+        ));
     }
 
     for seg in &s.segments {
@@ -1028,7 +1066,8 @@ fn validate_case(case: &TeachingClassroomSessionCase, errors: &mut Vec<String>) 
                     action.action_id
                 ));
             }
-            if !action.mutates_workspace && action.kind == DemonstrationKind::MutationThroughFences {
+            if !action.mutates_workspace && action.kind == DemonstrationKind::MutationThroughFences
+            {
                 errors.push(format!(
                     "{where_}: demonstration {} claims fences but does not mutate",
                     action.action_id
@@ -1040,22 +1079,34 @@ fn validate_case(case: &TeachingClassroomSessionCase, errors: &mut Vec<String>) 
     // The affordance projection must be the role-aware, keyboard-complete proof.
     let aff = &case.affordances;
     if aff.session_id != s.session_id {
-        errors.push(format!("{where_}: affordance projection session id diverges"));
+        errors.push(format!(
+            "{where_}: affordance projection session id diverges"
+        ));
     }
     if !aff.keyboard_complete {
-        errors.push(format!("{where_}: affordance projection is not keyboard-complete"));
+        errors.push(format!(
+            "{where_}: affordance projection is not keyboard-complete"
+        ));
     }
     if aff.pointer_only {
-        errors.push(format!("{where_}: affordance projection declares a pointer-only control"));
+        errors.push(format!(
+            "{where_}: affordance projection declares a pointer-only control"
+        ));
     }
     if !aff.screen_reader_reachable {
-        errors.push(format!("{where_}: affordance projection is not screen-reader reachable"));
+        errors.push(format!(
+            "{where_}: affordance projection is not screen-reader reachable"
+        ));
     }
     if aff.exposes_terminal_or_debug_control {
-        errors.push(format!("{where_}: affordance projection exposes a terminal/debug control"));
+        errors.push(format!(
+            "{where_}: affordance projection exposes a terminal/debug control"
+        ));
     }
     if aff.exposes_misleading_control {
-        errors.push(format!("{where_}: affordance projection exposes a misleading control"));
+        errors.push(format!(
+            "{where_}: affordance projection exposes a misleading control"
+        ));
     }
     if !aff.all_constrained_clients_join_safe {
         errors.push(format!("{where_}: a constrained client is not join-safe"));

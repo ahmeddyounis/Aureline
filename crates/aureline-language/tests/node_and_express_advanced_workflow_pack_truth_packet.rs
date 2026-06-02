@@ -16,13 +16,10 @@ use aureline_language::{
     NodeAndExpressAdvancedWorkflowLoopClass, NodeAndExpressAdvancedWorkflowPackClass,
     NodeAndExpressAdvancedWorkflowPackConsumerSurface,
     NodeAndExpressAdvancedWorkflowPackDowngradeAutomationClass,
-    NodeAndExpressAdvancedWorkflowPackEvidenceClass,
-    NodeAndExpressAdvancedWorkflowPackFindingKind,
+    NodeAndExpressAdvancedWorkflowPackEvidenceClass, NodeAndExpressAdvancedWorkflowPackFindingKind,
     NodeAndExpressAdvancedWorkflowPackKnownLimitClass,
-    NodeAndExpressAdvancedWorkflowPackPromotionState,
-    NodeAndExpressAdvancedWorkflowPackRowClass,
-    NodeAndExpressAdvancedWorkflowPackSupportClass,
-    NodeAndExpressAdvancedWorkflowPackTruthPacket,
+    NodeAndExpressAdvancedWorkflowPackPromotionState, NodeAndExpressAdvancedWorkflowPackRowClass,
+    NodeAndExpressAdvancedWorkflowPackSupportClass, NodeAndExpressAdvancedWorkflowPackTruthPacket,
     NodeAndExpressAdvancedWorkflowPackTruthPacketInput,
     NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
     NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF,
@@ -109,8 +106,7 @@ fn assert_fixture_matches(file_name: &str) {
     );
 
     let expect = &fixture.expect;
-    let packet =
-        NodeAndExpressAdvancedWorkflowPackTruthPacket::materialize(fixture.input.clone());
+    let packet = NodeAndExpressAdvancedWorkflowPackTruthPacket::materialize(fixture.input.clone());
     assert_eq!(
         packet.promotion_state.as_str(),
         expect.promotion_state,
@@ -303,7 +299,10 @@ fn closed_node_and_express_advanced_workflow_pack_tokens_are_pinned() {
         NodeAndExpressAdvancedWorkflowPackSupportClass::SupportUnbound.as_str(),
         "support_unbound"
     );
-    assert_eq!(NodeAndExpressAdvancedWorkflowLoopClass::Review.as_str(), "review");
+    assert_eq!(
+        NodeAndExpressAdvancedWorkflowLoopClass::Review.as_str(),
+        "review"
+    );
     assert_eq!(
         NodeAndExpressAdvancedWorkflowPackEvidenceClass::ServerProjectModelEvidence.as_str(),
         "server_project_model_evidence"

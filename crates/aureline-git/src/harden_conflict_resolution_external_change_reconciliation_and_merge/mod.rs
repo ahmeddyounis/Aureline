@@ -74,7 +74,8 @@ pub const STABLE_CONFLICT_SESSION_LIFECYCLE_STATES: &[&str] = &[
 ];
 
 /// Closed set of conflict resolution modes.
-pub const CONFLICT_RESOLUTION_MODES: &[&str] = &["structured", "raw", "structured_downgraded_to_raw"];
+pub const CONFLICT_RESOLUTION_MODES: &[&str] =
+    &["structured", "raw", "structured_downgraded_to_raw"];
 
 /// Closed set of provenance source classes.
 pub const CONFLICT_PROVENANCE_SOURCE_CLASSES: &[&str] = &[
@@ -529,7 +530,10 @@ impl StableConflictSessionRecord {
 
     /// Returns true when an honest downgrade from structured to raw is recorded.
     pub fn downgraded_honestly(&self) -> bool {
-        matches!(self.resolution_mode, ConflictResolutionMode::StructuredDowngradedToRaw)
+        matches!(
+            self.resolution_mode,
+            ConflictResolutionMode::StructuredDowngradedToRaw
+        )
     }
 
     /// Returns true when the session has a recovery checkpoint.
@@ -663,9 +667,11 @@ impl std::error::Error for StableConflictSessionError {}
 pub fn project_stable_conflict_session(
     payload: &str,
 ) -> Result<StableConflictSessionProjection, StableConflictSessionError> {
-    let record: StableConflictSessionRecord =
-        serde_json::from_str(payload).map_err(|err| StableConflictSessionError::Json(err.to_string()))?;
-    record.validate().map_err(StableConflictSessionError::Validation)?;
+    let record: StableConflictSessionRecord = serde_json::from_str(payload)
+        .map_err(|err| StableConflictSessionError::Json(err.to_string()))?;
+    record
+        .validate()
+        .map_err(StableConflictSessionError::Validation)?;
     Ok(record.project())
 }
 
@@ -674,9 +680,11 @@ pub fn project_stable_conflict_session(
 pub fn parse_stable_conflict_session_record(
     payload: &str,
 ) -> Result<StableConflictSessionRecord, StableConflictSessionError> {
-    let record: StableConflictSessionRecord =
-        serde_json::from_str(payload).map_err(|err| StableConflictSessionError::Json(err.to_string()))?;
-    record.validate().map_err(StableConflictSessionError::Validation)?;
+    let record: StableConflictSessionRecord = serde_json::from_str(payload)
+        .map_err(|err| StableConflictSessionError::Json(err.to_string()))?;
+    record
+        .validate()
+        .map_err(StableConflictSessionError::Validation)?;
     Ok(record)
 }
 
@@ -787,7 +795,9 @@ fn command_is_actionable(command_class: &str, session: &StableConflictSessionRec
             session.unresolved_count == 0
                 && matches!(
                     session.lifecycle_state.as_str(),
-                    "active_awaiting_resolution" | "paused_awaiting_user_input" | "downgraded_structured_to_raw"
+                    "active_awaiting_resolution"
+                        | "paused_awaiting_user_input"
+                        | "downgraded_structured_to_raw"
                 )
         }
         "downgrade_to_raw" => {
@@ -931,7 +941,8 @@ fn validate_stable_conflict_session(
     }
 
     // Continuing after resolution requires a recovery checkpoint or honest restart lineage.
-    if record.lifecycle_state == "continuing_after_resolution" && !record.has_recovery_checkpoint() {
+    if record.lifecycle_state == "continuing_after_resolution" && !record.has_recovery_checkpoint()
+    {
         return Err(StableConflictValidationError::new(
             "continuing_after_resolution requires a recovery checkpoint",
         ));
@@ -967,9 +978,7 @@ fn validate_provenance(
     Ok(())
 }
 
-fn validate_consumer_surfaces(
-    surfaces: &[String],
-) -> Result<(), StableConflictValidationError> {
+fn validate_consumer_surfaces(surfaces: &[String]) -> Result<(), StableConflictValidationError> {
     if surfaces.is_empty() {
         return Err(StableConflictValidationError::new(
             "consumer_surfaces must not be empty",
@@ -986,7 +995,11 @@ fn validate_consumer_surfaces(
         ));
     }
     for surface in surfaces {
-        require_one_of("consumer_surfaces[]", STABLE_CONFLICT_CONSUMER_SURFACES, surface)?;
+        require_one_of(
+            "consumer_surfaces[]",
+            STABLE_CONFLICT_CONSUMER_SURFACES,
+            surface,
+        )?;
     }
     Ok(())
 }
@@ -1035,7 +1048,9 @@ fn parse_resolution_mode(
     }
 }
 
-fn project_stable_conflict_session_record(record: &StableConflictSessionRecord) -> StableConflictSessionProjection {
+fn project_stable_conflict_session_record(
+    record: &StableConflictSessionRecord,
+) -> StableConflictSessionProjection {
     StableConflictSessionProjection {
         record_id: record.session_id.clone(),
         record_kind: record.record_kind.clone(),
@@ -1058,10 +1073,17 @@ fn project_stable_conflict_session_record(record: &StableConflictSessionRecord) 
         downgraded: record.downgraded_honestly(),
         checkpoint_captured: record.has_recovery_checkpoint(),
         restartable: record.survives_restart(),
-        actionable: record.consumer_surfaces.iter().any(|s| s == "desktop_conflict_resolver"),
+        actionable: record
+            .consumer_surfaces
+            .iter()
+            .any(|s| s == "desktop_conflict_resolver"),
         provenance_preserved: record.preserves_provenance(),
         consumer_surfaces: record.consumer_surfaces.clone(),
-        audit_event_ids: record.audit_events.iter().map(|e| e.event_id.clone()).collect(),
+        audit_event_ids: record
+            .audit_events
+            .iter()
+            .map(|e| e.event_id.clone())
+            .collect(),
         raw_path_export_allowed: record.support_export.raw_path_export_allowed,
         raw_branch_name_export_allowed: record.support_export.raw_branch_name_export_allowed,
         raw_patch_body_export_allowed: record.support_export.raw_patch_body_export_allowed,
@@ -1103,10 +1125,7 @@ fn require_non_empty_list(
     Ok(())
 }
 
-fn require_unique(
-    field: &str,
-    values: &[String],
-) -> Result<(), StableConflictValidationError> {
+fn require_unique(field: &str, values: &[String]) -> Result<(), StableConflictValidationError> {
     let mut seen = BTreeSet::new();
     for value in values {
         if !seen.insert(value.clone()) {

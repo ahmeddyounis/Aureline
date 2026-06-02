@@ -12,13 +12,13 @@
 
 use std::path::{Path, PathBuf};
 
-use aureline_release::stable_claim_manifest::FreshnessSloState;
-use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::maintenance_control_packet::{
     current_maintenance_control_packet, ControlState, LaneKind, MaintenanceControlPacket,
     MaintenanceControlPacketViolation, MAINTENANCE_CONTROL_PACKET_RECORD_KIND,
     MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
 };
+use aureline_release::stable_claim_manifest::FreshnessSloState;
+use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 
 const CAPTURE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -185,10 +185,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     packet.publication.blocking_lane_ids = packet.computed_blocking_lane_ids();
 
     assert!(
-        packet
-            .validate()
-            .iter()
-            .any(|v| matches!(v, MaintenanceControlPacketViolation::ControlledLabelNotNarrowed { .. })),
+        packet.validate().iter().any(|v| matches!(
+            v,
+            MaintenanceControlPacketViolation::ControlledLabelNotNarrowed { .. }
+        )),
         "a lane that is not governed must narrow below the cutline"
     );
 }
@@ -205,10 +205,10 @@ fn governed_row_on_a_breached_packet_fails() {
     packet.summary = packet.computed_summary();
 
     assert!(
-        packet
-            .validate()
-            .iter()
-            .any(|v| matches!(v, MaintenanceControlPacketViolation::HeldOnStalePacket { .. })),
+        packet.validate().iter().any(|v| matches!(
+            v,
+            MaintenanceControlPacketViolation::HeldOnStalePacket { .. }
+        )),
         "a governed row may not ride a packet outside its freshness SLO"
     );
 }

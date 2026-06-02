@@ -70,12 +70,10 @@ pub const TRANSPORT_GOVERNANCE_SHARED_CONTRACT_REF: &str =
     "remote:transport_governance_stabilize:v1";
 
 /// Record-kind tag for [`TransportGovernancePage`] payloads.
-pub const TRANSPORT_GOVERNANCE_PAGE_RECORD_KIND: &str =
-    "remote_transport_governance_page_record";
+pub const TRANSPORT_GOVERNANCE_PAGE_RECORD_KIND: &str = "remote_transport_governance_page_record";
 
 /// Record-kind tag for [`TransportGovernanceRow`] payloads.
-pub const TRANSPORT_GOVERNANCE_ROW_RECORD_KIND: &str =
-    "remote_transport_governance_row_record";
+pub const TRANSPORT_GOVERNANCE_ROW_RECORD_KIND: &str = "remote_transport_governance_row_record";
 
 /// Record-kind tag for [`TransportGovernanceDefect`] payloads.
 pub const TRANSPORT_GOVERNANCE_DEFECT_RECORD_KIND: &str =
@@ -792,8 +790,7 @@ impl TransportGovernanceSummary {
             .iter()
             .filter(|r| r.local_core_continuity_declared)
             .count();
-        let policy_epoch_present_count =
-            rows.iter().filter(|r| r.policy_epoch_present).count();
+        let policy_epoch_present_count = rows.iter().filter(|r| r.policy_epoch_present).count();
         Self {
             row_count: rows.len(),
             stable_row_count: stable,
@@ -1164,8 +1161,7 @@ fn audit_snapshot(snapshot: &TransportPolicySnapshot) -> Vec<TransportGovernance
         }
 
         // Control-plane and data-plane status must both be non-empty.
-        if record.control_plane_status_token.is_empty()
-            || record.data_plane_status_token.is_empty()
+        if record.control_plane_status_token.is_empty() || record.data_plane_status_token.is_empty()
         {
             defects.push(TransportGovernanceDefect::new(
                 TransportGovernanceNarrowReasonClass::ControlDataPlaneDistinctionMissing,
@@ -1255,10 +1251,7 @@ fn find_lane_narrow_reason(
     overall_narrow_reason: TransportGovernanceNarrowReasonClass,
 ) -> TransportGovernanceNarrowReasonClass {
     // If there's a lane-specific defect, use its narrow reason.
-    if let Some(defect) = page_defects
-        .iter()
-        .find(|d| d.source == record.lane_token)
-    {
+    if let Some(defect) = page_defects.iter().find(|d| d.source == record.lane_token) {
         return defect.narrow_reason;
     }
     // Otherwise inherit the page-level narrow reason.

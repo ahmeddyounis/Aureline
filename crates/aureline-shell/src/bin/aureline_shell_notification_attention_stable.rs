@@ -36,9 +36,7 @@
 
 use std::path::PathBuf;
 
-use aureline_shell::notification_attention_stable::{
-    attention_lock_corpus, AttentionLockScenario,
-};
+use aureline_shell::notification_attention_stable::{attention_lock_corpus, AttentionLockScenario};
 
 fn main() {
     if let Err(err) = run() {

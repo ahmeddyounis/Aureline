@@ -93,7 +93,8 @@ pub const STABLE_LIFECYCLE_FLOW_PACKET_RECORD_KIND: &str = "stable_lifecycle_flo
 pub const LIFECYCLE_FLOW_IDENTITY_RECORD_KIND: &str = "stable_lifecycle_flow_identity";
 
 /// Record-kind tag for [`DeterministicResolution`].
-pub const DETERMINISTIC_RESOLUTION_RECORD_KIND: &str = "stable_lifecycle_flow_deterministic_resolution";
+pub const DETERMINISTIC_RESOLUTION_RECORD_KIND: &str =
+    "stable_lifecycle_flow_deterministic_resolution";
 
 /// Record-kind tag for [`DependencyNode`].
 pub const DEPENDENCY_NODE_RECORD_KIND: &str = "stable_lifecycle_flow_dependency_node";
@@ -109,7 +110,8 @@ pub const RECONSENT_REQUIREMENT_RECORD_KIND: &str = "stable_lifecycle_flow_recon
 pub const LOCK_EXPORT_PLAN_RECORD_KIND: &str = "stable_lifecycle_flow_lock_export_plan";
 
 /// Record-kind tag for [`DisableRollbackPosture`].
-pub const DISABLE_ROLLBACK_POSTURE_RECORD_KIND: &str = "stable_lifecycle_flow_disable_rollback_posture";
+pub const DISABLE_ROLLBACK_POSTURE_RECORD_KIND: &str =
+    "stable_lifecycle_flow_disable_rollback_posture";
 
 /// Record-kind tag for [`RevocationPosture`].
 pub const REVOCATION_POSTURE_RECORD_KIND: &str = "stable_lifecycle_flow_revocation_posture";
@@ -182,15 +184,23 @@ pub const DEPENDENCY_NODE_KIND_CLASSES: &[&str] =
     &["root", "hard_dependency", "optional_integration"];
 
 /// Closed dependency-resolution-state vocabulary.
-pub const DEPENDENCY_RESOLUTION_STATE_CLASSES: &[&str] =
-    &["resolved", "unresolved_missing", "version_conflict", "optional_absent"];
+pub const DEPENDENCY_RESOLUTION_STATE_CLASSES: &[&str] = &[
+    "resolved",
+    "unresolved_missing",
+    "version_conflict",
+    "optional_absent",
+];
 
 /// Closed effective-permission-expansion vocabulary, derived from the prior-vs-effective diff.
 pub const PERMISSION_EXPANSION_CLASSES: &[&str] = &["no_change", "expanded", "reduced"];
 
 /// Closed re-consent-state vocabulary.
-pub const RECONSENT_STATE_CLASSES: &[&str] =
-    &["not_required", "required_obtained", "required_pending", "required_missing"];
+pub const RECONSENT_STATE_CLASSES: &[&str] = &[
+    "not_required",
+    "required_obtained",
+    "required_pending",
+    "required_missing",
+];
 
 /// Closed lock/export-state vocabulary.
 pub const LOCK_EXPORT_STATE_CLASSES: &[&str] = &["exported", "exportable", "unavailable"];
@@ -731,7 +741,10 @@ pub struct LockExportPlan {
 impl LockExportPlan {
     /// Returns true when an exportable lock/install plan is available.
     pub fn available(&self) -> bool {
-        matches!(self.lock_export_state_class.as_str(), "exported" | "exportable")
+        matches!(
+            self.lock_export_state_class.as_str(),
+            "exported" | "exportable"
+        )
     }
 }
 
@@ -775,7 +788,10 @@ impl DisableRollbackPosture {
     /// Returns true when a reversible rollback carries a pinned target.
     pub fn target_pinned(&self) -> bool {
         self.rollback_state_class == "reversible_target_pinned"
-            && self.rollback_target_ref.as_ref().is_some_and(|r| !r.trim().is_empty())
+            && self
+                .rollback_target_ref
+                .as_ref()
+                .is_some_and(|r| !r.trim().is_empty())
     }
 }
 
@@ -1233,7 +1249,9 @@ impl StableLifecycleFlowPacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1280,8 +1298,11 @@ impl StableLifecycleFlowPacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> =
-            derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1470,8 +1491,8 @@ pub fn project_stable_lifecycle_flow_support_export(
     packet: &StableLifecycleFlowPacket,
 ) -> StableLifecycleFlowSupportExport {
     let blocks = packet.claim.effective_tier == "withdrawn";
-    let team_and_air_gapped = packet.lock_export.supports_team_rollout
-        && packet.lock_export.supports_air_gapped_rollout;
+    let team_and_air_gapped =
+        packet.lock_export.supports_team_rollout && packet.lock_export.supports_air_gapped_rollout;
     let export_safe_summary = format!(
         "{} Subject={} flow={} trust={} lifecycle={}. Scope={} resolver={} (hard_resolved={}). Permissions effective={} expansion={} expanded={}. Re-consent={} (satisfied={}). Lock/export={} team_air_gapped={}. Rollback={}. Revocation={} propagation={}. Tier claimed={} effective={} (downgraded={}). Banner required={}.",
         packet.claim.summary_label,
@@ -1688,14 +1709,26 @@ fn counts_of(resolution: &DeterministicResolution) -> ResolutionCounts {
 fn derive_resolution_counts(resolution: &DeterministicResolution) -> ResolutionCounts {
     ResolutionCounts {
         node_count: resolution.nodes.len(),
-        hard_dependency_count: resolution.nodes.iter().filter(|n| n.is_hard_dependency()).count(),
+        hard_dependency_count: resolution
+            .nodes
+            .iter()
+            .filter(|n| n.is_hard_dependency())
+            .count(),
         optional_integration_count: resolution
             .nodes
             .iter()
             .filter(|n| n.is_optional_integration())
             .count(),
-        unresolved_hard_dependency_count: resolution.nodes.iter().filter(|n| n.unresolved_hard()).count(),
-        version_conflict_count: resolution.nodes.iter().filter(|n| n.version_conflict_hard()).count(),
+        unresolved_hard_dependency_count: resolution
+            .nodes
+            .iter()
+            .filter(|n| n.unresolved_hard())
+            .count(),
+        version_conflict_count: resolution
+            .nodes
+            .iter()
+            .filter(|n| n.version_conflict_hard())
+            .count(),
     }
 }
 
@@ -1853,12 +1886,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1904,7 +1945,8 @@ fn flow_requires_warning(posture: &FlowPosture<'_>) -> bool {
         || !posture.lock_export.available()
         || ((flow == "disable" || flow == "rollback") && posture.disable_rollback.irreversible())
         || (flow == "revocation"
-            && (!posture.revocation.revocation_in_force() || !posture.revocation.fully_propagated()))
+            && (!posture.revocation.revocation_in_force()
+                || !posture.revocation.fully_propagated()))
 }
 
 /// Picks the most-severe banner reason for a flow that requires a warning.
@@ -2007,7 +2049,9 @@ fn resolution_record(input: &DeterministicResolutionInput) -> DeterministicResol
     resolution
 }
 
-fn permissions_record(input: &EffectivePermissionInheritanceInput) -> EffectivePermissionInheritance {
+fn permissions_record(
+    input: &EffectivePermissionInheritanceInput,
+) -> EffectivePermissionInheritance {
     let derived = derive_permissions(
         &input.declared_permission_refs,
         &input.transitive_permission_refs,
@@ -2207,8 +2251,15 @@ fn validate_input(
         &res.determinism_class,
         "resolution.determinism_class",
     )?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &res.install_scope_class, "resolution.install_scope_class")?;
-    ensure_nonempty(&res.resolution_digest_ref, "resolution.resolution_digest_ref")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &res.install_scope_class,
+        "resolution.install_scope_class",
+    )?;
+    ensure_nonempty(
+        &res.resolution_digest_ref,
+        "resolution.resolution_digest_ref",
+    )?;
     ensure_nonempty(&res.resolver_input_ref, "resolution.resolver_input_ref")?;
     let mut node_ids = BTreeSet::new();
     for n in &res.nodes {
@@ -2216,7 +2267,11 @@ fn validate_input(
         if !node_ids.insert(&n.node_id) {
             return Err(err(format!("duplicate node_id: {}", n.node_id)));
         }
-        ensure_token(DEPENDENCY_NODE_KIND_CLASSES, &n.node_kind_class, "node.node_kind_class")?;
+        ensure_token(
+            DEPENDENCY_NODE_KIND_CLASSES,
+            &n.node_kind_class,
+            "node.node_kind_class",
+        )?;
         ensure_nonempty(&n.target_ref, "node.target_ref")?;
         ensure_token(
             DEPENDENCY_RESOLUTION_STATE_CLASSES,
@@ -2232,7 +2287,11 @@ fn validate_input(
         "reconsent.reconsent_state_class",
     )?;
     if rc.reconsent_state_class == "required_obtained"
-        && rc.consent_record_ref.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true)
+        && rc
+            .consent_record_ref
+            .as_ref()
+            .map(|r| r.trim().is_empty())
+            .unwrap_or(true)
     {
         return Err(err("an obtained re-consent must bind a consent_record_ref"));
     }
@@ -2243,7 +2302,10 @@ fn validate_input(
         &lx.lock_export_state_class,
         "lock_export.lock_export_state_class",
     )?;
-    if matches!(lx.lock_export_state_class.as_str(), "exported" | "exportable") {
+    if matches!(
+        lx.lock_export_state_class.as_str(),
+        "exported" | "exportable"
+    ) {
         ensure_nonempty(&lx.lock_plan_ref, "lock_export.lock_plan_ref")?;
         ensure_nonempty(&lx.install_plan_ref, "lock_export.install_plan_ref")?;
     }
@@ -2255,7 +2317,11 @@ fn validate_input(
         "disable_rollback.rollback_state_class",
     )?;
     if dr.rollback_state_class == "reversible_target_pinned"
-        && dr.rollback_target_ref.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true)
+        && dr
+            .rollback_target_ref
+            .as_ref()
+            .map(|r| r.trim().is_empty())
+            .unwrap_or(true)
     {
         return Err(err(
             "a target-pinned rollback must bind a rollback_target_ref",
@@ -2276,10 +2342,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_LIFECYCLE_FLOW_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_LIFECYCLE_FLOW_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2301,7 +2375,11 @@ fn validate_identity(
         STABLE_LIFECYCLE_FLOW_SCHEMA_VERSION,
         "identity schema_version",
     )?;
-    ensure_token(SUBJECT_CLASSES, &identity.subject_class, "identity subject_class")?;
+    ensure_token(
+        SUBJECT_CLASSES,
+        &identity.subject_class,
+        "identity subject_class",
+    )?;
     ensure_token(FLOW_CLASSES, &identity.flow_class, "identity flow_class")?;
     ensure_token(
         TRUST_TIER_CLASSES,
@@ -2334,16 +2412,30 @@ fn validate_resolution(
         &resolution.install_scope_class,
         "resolution install_scope_class",
     )?;
-    ensure_nonempty(&resolution.resolution_digest_ref, "resolution resolution_digest_ref")?;
-    ensure_nonempty(&resolution.resolver_input_ref, "resolution resolver_input_ref")?;
+    ensure_nonempty(
+        &resolution.resolution_digest_ref,
+        "resolution resolution_digest_ref",
+    )?;
+    ensure_nonempty(
+        &resolution.resolver_input_ref,
+        "resolution resolver_input_ref",
+    )?;
     let mut node_ids = BTreeSet::new();
     for node in &resolution.nodes {
-        ensure_eq(node.record_kind.as_str(), DEPENDENCY_NODE_RECORD_KIND, "node record_kind")?;
+        ensure_eq(
+            node.record_kind.as_str(),
+            DEPENDENCY_NODE_RECORD_KIND,
+            "node record_kind",
+        )?;
         ensure_nonempty(&node.node_id, "node node_id")?;
         if !node_ids.insert(node.node_id.as_str()) {
             return Err(err(format!("duplicate node_id: {}", node.node_id)));
         }
-        ensure_token(DEPENDENCY_NODE_KIND_CLASSES, &node.node_kind_class, "node node_kind_class")?;
+        ensure_token(
+            DEPENDENCY_NODE_KIND_CLASSES,
+            &node.node_kind_class,
+            "node node_kind_class",
+        )?;
         ensure_token(
             DEPENDENCY_RESOLUTION_STATE_CLASSES,
             &node.resolution_state_class,
@@ -2447,11 +2539,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(LIFECYCLE_FLOW_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            LIFECYCLE_FLOW_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2465,12 +2573,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(LIFECYCLE_FLOW_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            LIFECYCLE_FLOW_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2533,7 +2647,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2544,7 +2660,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableLifecycleFlowValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2562,7 +2680,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableLifecycleFlowValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

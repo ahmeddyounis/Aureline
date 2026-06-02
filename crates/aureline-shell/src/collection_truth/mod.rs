@@ -39,8 +39,8 @@ use serde::{Deserialize, Serialize};
 
 pub use batch_review::{
     BatchActionConsequenceClass, BatchReviewBlockedReason, BatchReviewBlockedReasonClass,
-    BatchReviewSheetRecord, BatchReviewSummary, BatchScopeAmbiguityFinding,
-    RecoveryGuidanceClass, SelectAllEscalationClass, BATCH_REVIEW_SHEET_RECORD_KIND,
+    BatchReviewSheetRecord, BatchReviewSummary, BatchScopeAmbiguityFinding, RecoveryGuidanceClass,
+    SelectAllEscalationClass, BATCH_REVIEW_SHEET_RECORD_KIND,
 };
 pub use filter_bar::{
     CountSummaryClass, FilterBarChipRecord, FilterBarStateRecord, NarrowingSourceClass,
@@ -52,8 +52,8 @@ pub use saved_view::{
     SAVED_COLLECTION_VIEW_RECORD_KIND,
 };
 pub use scope_counter::{
-    CollectionScopeCounterRecord, CollectionScopeCounterRow, ScopeCounterClass,
-    ScopeCounterStatus, COLLECTION_SCOPE_COUNTER_RECORD_KIND,
+    CollectionScopeCounterRecord, CollectionScopeCounterRow, ScopeCounterClass, ScopeCounterStatus,
+    COLLECTION_SCOPE_COUNTER_RECORD_KIND,
 };
 
 /// Schema version exported by every collection-truth beta record.
@@ -203,7 +203,9 @@ pub enum CollectionTruthValidationError {
     /// Packet metadata is wrong.
     PacketMetadataWrong { reason: String },
     /// Required surface family is missing from the packet.
-    SurfaceFamilyMissing { missing: CollectionTruthSurfaceFamily },
+    SurfaceFamilyMissing {
+        missing: CollectionTruthSurfaceFamily,
+    },
     /// One case failed an invariant check.
     CaseInvariantFailed { case_id: String, reason: String },
 }
@@ -336,9 +338,7 @@ fn validate_case(case: &CollectionTruthCase, errors: &mut Vec<CollectionTruthVal
         }
     }
     // Batch review sheet must not allow ambiguous scope.
-    if !case.batch_review.ambiguity_findings.is_empty()
-        && case.batch_review.continue_enabled
-    {
+    if !case.batch_review.ambiguity_findings.is_empty() && case.batch_review.continue_enabled {
         errors.push(CollectionTruthValidationError::CaseInvariantFailed {
             case_id: case.case_id.clone(),
             reason: "ambiguous batch scope cannot enable continue".to_string(),
@@ -917,12 +917,10 @@ mod tests {
     #[test]
     fn seeded_packet_exercises_provider_limited_counts() {
         let packet = seeded_collection_truth_beta_packet();
-        assert!(
-            packet
-                .summary
-                .counter_classes_present
-                .contains(&ScopeCounterClass::ProviderOwned)
-        );
+        assert!(packet
+            .summary
+            .counter_classes_present
+            .contains(&ScopeCounterClass::ProviderOwned));
     }
 
     #[test]

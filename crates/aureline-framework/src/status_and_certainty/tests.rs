@@ -41,12 +41,9 @@ fn healthy_pack_strip() -> FrameworkSupportStrip {
             FrameworkSupportActionClass::OpenPackDocs,
             FrameworkSupportActionClass::OpenPackStatus,
         ],
-        framework_certainty_row_record_ref: Some(
-            "framework.row.route.proven.0001".to_owned(),
-        ),
+        framework_certainty_row_record_ref: Some("framework.row.route.proven.0001".to_owned()),
         source_sync_chip_record_ref: Some("framework.chip.in_sync.0001".to_owned()),
-        summary: "Next.js App Router framework pack v3.4 is healthy on workspace HEAD."
-            .to_owned(),
+        summary: "Next.js App Router framework pack v3.4 is healthy on workspace HEAD.".to_owned(),
         notes: None,
     }
 }
@@ -55,7 +52,10 @@ fn healthy_pack_strip() -> FrameworkSupportStrip {
 fn healthy_pack_strip_validates_clean() {
     let strip = healthy_pack_strip();
     let findings = strip.validate();
-    assert!(findings.is_empty(), "expected clean strip, got {findings:?}");
+    assert!(
+        findings.is_empty(),
+        "expected clean strip, got {findings:?}"
+    );
 }
 
 #[test]
@@ -75,8 +75,7 @@ fn healthy_pack_strip_rejects_stale_freshness() {
 fn heuristic_strip_rejects_pack_update_action() {
     let mut strip = healthy_pack_strip();
     strip.support_class = SupportClass::HeuristicConventionMode;
-    strip.pack_or_bridge_source_block.pack_source_class =
-        PackSourceClass::HeuristicConventionOnly;
+    strip.pack_or_bridge_source_block.pack_source_class = PackSourceClass::HeuristicConventionOnly;
     strip.pack_or_bridge_source_block.pack_ref = None;
     strip.pack_or_bridge_source_block.pack_version_label = None;
     strip.compatibility_block.version_compatibility_class =
@@ -91,8 +90,7 @@ fn heuristic_strip_rejects_pack_update_action() {
     assert!(
         findings
             .iter()
-            .any(|finding| finding.check_id
-                == "framework_support_strip.pack_update_without_pack"),
+            .any(|finding| finding.check_id == "framework_support_strip.pack_update_without_pack"),
         "expected pack_update_without_pack finding, got {findings:?}"
     );
 }
@@ -144,8 +142,7 @@ fn exact_route_row() -> FrameworkObjectCertainty {
                     anchor_label: "app/dashboard/page.tsx".to_owned(),
                 },
                 EvidenceAnchor {
-                    evidence_anchor_kind_class:
-                        EvidenceAnchorKindClass::PackProvingArtifactAnchor,
+                    evidence_anchor_kind_class: EvidenceAnchorKindClass::PackProvingArtifactAnchor,
                     anchor_ref: "framework.proving_artifact.next_app_router.routes_manifest"
                         .to_owned(),
                     anchor_label: "App Router routes manifest".to_owned(),
@@ -160,9 +157,7 @@ fn exact_route_row() -> FrameworkObjectCertainty {
             RowActionClass::OpenPackDocs,
         ],
         support_strip_ref: Some("framework.strip.next_app_router.healthy".to_owned()),
-        framework_certainty_row_record_ref: Some(
-            "framework.row.route.proven.0001".to_owned(),
-        ),
+        framework_certainty_row_record_ref: Some("framework.row.route.proven.0001".to_owned()),
         source_sync_chip_record_ref: Some("framework.chip.in_sync.0001".to_owned()),
         summary: "/dashboard resolves exactly to app/dashboard/page.tsx under Next.js App Router."
             .to_owned(),
@@ -174,15 +169,17 @@ fn exact_route_row() -> FrameworkObjectCertainty {
 fn exact_route_row_validates_clean() {
     let record = exact_route_row();
     let findings = record.validate();
-    assert!(findings.is_empty(), "expected clean record, got {findings:?}");
+    assert!(
+        findings.is_empty(),
+        "expected clean record, got {findings:?}"
+    );
 }
 
 #[test]
 fn exact_label_rejects_heuristic_support_class() {
     let mut record = exact_route_row();
     record.support_class = SupportClass::HeuristicConventionMode;
-    record.pack_or_bridge_source_block.pack_source_class =
-        PackSourceClass::HeuristicConventionOnly;
+    record.pack_or_bridge_source_block.pack_source_class = PackSourceClass::HeuristicConventionOnly;
     record.pack_or_bridge_source_block.pack_ref = None;
     record.pack_or_bridge_source_block.pack_version_label = None;
     let findings = record.validate();
@@ -197,8 +194,7 @@ fn exact_label_rejects_heuristic_support_class() {
 fn heuristic_row_requires_visible_note() {
     let mut record = exact_route_row();
     record.support_class = SupportClass::HeuristicConventionMode;
-    record.pack_or_bridge_source_block.pack_source_class =
-        PackSourceClass::HeuristicConventionOnly;
+    record.pack_or_bridge_source_block.pack_source_class = PackSourceClass::HeuristicConventionOnly;
     record.pack_or_bridge_source_block.pack_ref = None;
     record.pack_or_bridge_source_block.pack_version_label = None;
     record.certainty_label_class = CertaintyLabelClass::HeuristicSuspicion;
@@ -224,8 +220,7 @@ fn user_authored_route_requires_source_round_trip() {
     let mut record = exact_route_row();
     record.certainty_label_class = CertaintyLabelClass::DerivedByConvention;
     record.support_class = SupportClass::HeuristicConventionMode;
-    record.pack_or_bridge_source_block.pack_source_class =
-        PackSourceClass::HeuristicConventionOnly;
+    record.pack_or_bridge_source_block.pack_source_class = PackSourceClass::HeuristicConventionOnly;
     record.pack_or_bridge_source_block.pack_ref = None;
     record.pack_or_bridge_source_block.pack_version_label = None;
     if let Some(row) = record.framework_object_row_block.as_mut() {
@@ -239,8 +234,10 @@ fn user_authored_route_requires_source_round_trip() {
     }
     let findings = record.validate();
     assert!(
-        findings.iter().any(|finding| finding.check_id
-            == "framework_object_certainty.source_round_trip_required"),
+        findings
+            .iter()
+            .any(|finding| finding.check_id
+                == "framework_object_certainty.source_round_trip_required"),
         "expected source_round_trip_required finding, got {findings:?}"
     );
 }
@@ -270,8 +267,7 @@ fn diagnostic_with_generator_action() -> FrameworkObjectCertainty {
             affected_object_label: "/settings".to_owned(),
             evidence_anchors: vec![EvidenceAnchor {
                 evidence_anchor_kind_class: EvidenceAnchorKindClass::PackProvingArtifactAnchor,
-                anchor_ref: "framework.proving_artifact.next_app_router.routes_manifest"
-                    .to_owned(),
+                anchor_ref: "framework.proving_artifact.next_app_router.routes_manifest".to_owned(),
                 anchor_label: "Routes manifest reports no handler for /settings".to_owned(),
             }],
             fix_actions: vec![ConventionFixActionClass::OpenGeneratorPreview],
@@ -362,7 +358,10 @@ fn safe_pack_scaffold_preview() -> FrameworkObjectCertainty {
 fn safe_pack_scaffold_preview_validates_clean() {
     let record = safe_pack_scaffold_preview();
     let findings = record.validate();
-    assert!(findings.is_empty(), "expected clean preview, got {findings:?}");
+    assert!(
+        findings.is_empty(),
+        "expected clean preview, got {findings:?}"
+    );
 }
 
 #[test]

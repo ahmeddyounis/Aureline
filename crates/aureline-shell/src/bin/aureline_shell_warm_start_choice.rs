@@ -40,10 +40,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("page") | None => print_json(&page)?,
         Some("cards") => print_json(&page.cards)?,
         Some("card") => {
-            let card_id = args
-                .get(1)
-                .ok_or("usage: card <card_id>")?
-                .as_str();
+            let card_id = args.get(1).ok_or("usage: card <card_id>")?.as_str();
             let card = page
                 .cards
                 .iter()

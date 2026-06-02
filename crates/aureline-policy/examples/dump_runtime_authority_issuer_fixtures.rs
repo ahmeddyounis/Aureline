@@ -107,15 +107,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let decision = page
                 .decisions
                 .iter_mut()
-                .find(|decision| {
-                    decision.request_id == "request:recipe:broaden-remembered:0005"
-                })
+                .find(|decision| decision.request_id == "request:recipe:broaden-remembered:0005")
                 .expect("recipe broaden decision");
             decision.decision_class = IssuerBoundaryDecisionClass::RememberedDecisionNarrowed;
-            decision.decision_class_token =
-                IssuerBoundaryDecisionClass::RememberedDecisionNarrowed
-                    .as_str()
-                    .to_owned();
+            decision.decision_class_token = IssuerBoundaryDecisionClass::RememberedDecisionNarrowed
+                .as_str()
+                .to_owned();
             decision.rejection_reasons.clear();
             decision.rejection_reason_tokens.clear();
             decision.renewed_from_rule_id = Some("remembered-rule:local-format:0001".to_owned());
@@ -139,7 +136,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut page = page;
             page.remembered_rules[0].ticket_class = AuthorityTicketClass::CredentialProjection;
             page.remembered_rules[0].ticket_class_token =
-                AuthorityTicketClass::CredentialProjection.as_str().to_owned();
+                AuthorityTicketClass::CredentialProjection
+                    .as_str()
+                    .to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-shell-root-authority-overreach") => {

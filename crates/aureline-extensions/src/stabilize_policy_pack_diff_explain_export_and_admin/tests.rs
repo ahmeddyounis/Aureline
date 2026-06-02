@@ -92,11 +92,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_policy_pack_governance_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.support_claim_class, e.support_claim_class, "{}", fixture.case_name);
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.support_claim_class, e.support_claim_class,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -273,7 +293,10 @@ fn missing_diff_narrows_to_preview() {
     input.diff.rules_modified = 0;
     let packet = StablePolicyPackGovernancePacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "preview");
-    assert!(packet.claim.downgrade_reasons.contains(&"diff_missing".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"diff_missing".to_string()));
 }
 
 #[test]
@@ -282,7 +305,10 @@ fn partial_diff_narrows_to_beta() {
     input.diff.diff_completeness_class = "partial".to_string();
     let packet = StablePolicyPackGovernancePacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"diff_partial".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"diff_partial".to_string()));
 }
 
 #[test]
@@ -478,7 +504,10 @@ fn not_mirrorable_narrows_to_beta() {
     input.install_posture.mirrorability_class = "not_mirrorable".to_string();
     let packet = StablePolicyPackGovernancePacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"not_mirrorable".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"not_mirrorable".to_string()));
 }
 
 #[test]
@@ -514,7 +543,10 @@ fn breaking_change_without_removed_or_modified_is_rejected() {
     input.diff.rules_removed = 0;
     input.diff.rules_modified = 0;
     let result = StablePolicyPackGovernancePacket::from_input(input);
-    assert!(result.is_err(), "a breaking change must remove or modify a rule");
+    assert!(
+        result.is_err(),
+        "a breaking change must remove or modify a rule"
+    );
 }
 
 #[test]
@@ -527,7 +559,10 @@ fn complete_diff_across_versions_must_report_a_change() {
     input.diff.rules_removed = 0;
     input.diff.rules_modified = 0;
     let result = StablePolicyPackGovernancePacket::from_input(input);
-    assert!(result.is_err(), "a complete diff across versions must report a change");
+    assert!(
+        result.is_err(),
+        "a complete diff across versions must report a change"
+    );
 }
 
 #[test]

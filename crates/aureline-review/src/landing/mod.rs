@@ -37,8 +37,7 @@ pub const LANDING_COMMAND_RECORD_KIND: &str = "review_landing_command_record";
 pub const LANDING_INSPECTION_RECORD_KIND: &str = "review_landing_inspection_record";
 
 /// Stable record-kind tag for [`LandingSupportExportPacket`].
-pub const LANDING_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
-    "review_landing_support_export_packet";
+pub const LANDING_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str = "review_landing_support_export_packet";
 
 /// Schema version for the landing-candidate packet.
 pub const LANDING_CANDIDATE_SCHEMA_VERSION: u32 = 1;
@@ -66,8 +65,7 @@ pub const LANDING_MERGEABLE_STATES: &[&str] = &[
 ];
 
 /// Closed set of inspectable queue-eligibility states.
-pub const LANDING_ELIGIBILITY_STATES: &[&str] =
-    &["queue_eligible", "queue_not_eligible"];
+pub const LANDING_ELIGIBILITY_STATES: &[&str] = &["queue_eligible", "queue_not_eligible"];
 
 /// Closed set of merge-queue lifecycle states observed by the review surface.
 pub const MERGE_QUEUE_STATES: &[&str] = &[
@@ -637,8 +635,7 @@ impl LandingCandidatePacket {
                 &self.review_workspace.review_workspace_id,
             )?;
         } else if self.landing_candidate.eligibility_state == "queue_eligible"
-            && self.landing_candidate.landing_authority_class
-                != "aureline_local_estimate_only"
+            && self.landing_candidate.landing_authority_class != "aureline_local_estimate_only"
         {
             // Provider- or repo-authoritative candidates that claim eligibility
             // must surface a queue entry. Local estimates may omit the entry.
@@ -647,10 +644,7 @@ impl LandingCandidatePacket {
             ));
         }
         for command in &self.commands {
-            validate_command_record(
-                command,
-                &self.landing_candidate.landing_candidate_id,
-            )?;
+            validate_command_record(command, &self.landing_candidate.landing_candidate_id)?;
         }
         validate_support_export(
             &self.support_export,
@@ -675,7 +669,10 @@ impl LandingCandidatePacket {
             )
             && contains_token(LANDING_APPROVAL_STATES, &candidate.approval_state)
             && contains_token(LANDING_POLICY_BLOCK_STATES, &candidate.policy_block_state)
-            && contains_token(LANDING_AUTHORITY_CLASSES, &candidate.landing_authority_class)
+            && contains_token(
+                LANDING_AUTHORITY_CLASSES,
+                &candidate.landing_authority_class,
+            )
     }
 
     /// Returns true when landing is only possible from this reviewed candidate.
@@ -861,7 +858,10 @@ fn landing_candidate_record(
         record_kind: LANDING_CANDIDATE_RECORD_KIND.to_string(),
         schema_version: LANDING_CANDIDATE_SCHEMA_VERSION,
         landing_candidate_id: input.landing_candidate_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         target_branch_ref: input.target_branch_ref.clone(),
         base_revision_ref: input.base_revision_ref.clone(),
         head_revision_ref: input.head_revision_ref.clone(),
@@ -903,7 +903,10 @@ fn merge_queue_entry_record(
         schema_version: LANDING_CANDIDATE_SCHEMA_VERSION,
         merge_queue_entry_id: input.merge_queue_entry_id.clone(),
         landing_candidate_id_ref: candidate.landing_candidate_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         queue_authority_class: input.queue_authority_class.clone(),
         queue_state: input.queue_state.clone(),
         queue_position: input.queue_position,
@@ -951,15 +954,17 @@ fn landing_support_export_packet(
         schema_version: LANDING_CANDIDATE_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         landing_candidate_id_ref: candidate.landing_candidate_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands
             .iter()
             .map(|command| command.command_id.clone())
             .collect(),
-        merge_queue_entry_ref: merge_queue_entry
-            .map(|entry| entry.merge_queue_entry_id.clone()),
+        merge_queue_entry_ref: merge_queue_entry.map(|entry| entry.merge_queue_entry_id.clone()),
         consumer_surfaces: input.consumer_surfaces.clone(),
         source_schema_refs: vec![
             "schemas/review/landing_candidate.schema.json".to_string(),
@@ -1002,13 +1007,11 @@ fn landing_inspection_record(
         merge_queue_entry.map(|entry| entry.queue_state.as_str()),
         Some("queued")
     );
-    let stale_base_blocks_landing =
-        candidate.stale_base_state == "base_stale_blocks_landing";
+    let stale_base_blocks_landing = candidate.stale_base_state == "base_stale_blocks_landing";
     let checks_stale_blocks_landing =
         candidate.checks_freshness_state == "checks_stale_blocks_landing";
     let policy_blocks_landing = candidate.policy_block_state == "policy_blocked";
-    let approval_invalidated =
-        candidate.approval_state == "approval_invalidated_by_changes";
+    let approval_invalidated = candidate.approval_state == "approval_invalidated_by_changes";
     let provider_authoritative =
         candidate.landing_authority_class == "provider_authoritative_queue_state";
     let queue_state_is_local_estimate_only = merge_queue_entry
@@ -1033,8 +1036,7 @@ fn landing_inspection_record(
         provider_authoritative,
         queue_state_is_local_estimate_only,
         candidate_invalidated,
-        landing_requires_explicit_candidate: candidate
-            .landing_requires_explicit_candidate,
+        landing_requires_explicit_candidate: candidate.landing_requires_explicit_candidate,
         command_count: commands.len(),
         required_check_count: candidate.required_check_ids.len(),
         preview_capable,
@@ -1319,9 +1321,7 @@ fn validate_queue_entry_record(
             "merge_queue_entry.local_estimate_only must match the queue_authority_class",
         ));
     }
-    if entry.authoritative_position
-        && (local_estimate_only || entry.queue_position.is_none())
-    {
+    if entry.authoritative_position && (local_estimate_only || entry.queue_position.is_none()) {
         return Err(landing_validation_error(
             "merge_queue_entry.authoritative_position must reflect provider or policy authority with a position",
         ));
@@ -1350,8 +1350,7 @@ fn validate_command_input(
             "command.provider_publish_posture",
         )?;
     }
-    if command.command_class == "publish_to_provider"
-        && command.provider_publish_posture.is_none()
+    if command.command_class == "publish_to_provider" && command.provider_publish_posture.is_none()
     {
         return Err(landing_validation_error(
             "publish_to_provider commands must declare a provider_publish_posture",
@@ -1551,8 +1550,8 @@ fn validate_support_export(
             "support_export.eligibility_snapshot.queue_state must mirror the queue entry state",
         ));
     }
-    let snapshot_queue_authority = merge_queue_entry
-        .map(|entry| entry.queue_authority_class.clone());
+    let snapshot_queue_authority =
+        merge_queue_entry.map(|entry| entry.queue_authority_class.clone());
     if export.eligibility_snapshot.queue_authority_class != snapshot_queue_authority {
         return Err(landing_validation_error(
             "support_export.eligibility_snapshot.queue_authority_class must mirror the queue entry",
@@ -1694,10 +1693,7 @@ fn contains_token(tokens: &[&str], value: &str) -> bool {
     tokens.iter().any(|token| token == &value)
 }
 
-fn ensure_nonempty(
-    value: &str,
-    field: &str,
-) -> Result<(), LandingCandidateValidationError> {
+fn ensure_nonempty(value: &str, field: &str) -> Result<(), LandingCandidateValidationError> {
     if value.trim().is_empty() {
         Err(landing_validation_error(format!(
             "{field} must not be empty"
@@ -1707,11 +1703,7 @@ fn ensure_nonempty(
     }
 }
 
-fn ensure_eq<T>(
-    actual: T,
-    expected: T,
-    field: &str,
-) -> Result<(), LandingCandidateValidationError>
+fn ensure_eq<T>(actual: T, expected: T, field: &str) -> Result<(), LandingCandidateValidationError>
 where
     T: PartialEq + fmt::Display,
 {
@@ -1724,9 +1716,7 @@ where
     }
 }
 
-fn landing_validation_error(
-    message: impl Into<String>,
-) -> LandingCandidateValidationError {
+fn landing_validation_error(message: impl Into<String>) -> LandingCandidateValidationError {
     LandingCandidateValidationError {
         message: message.into(),
     }
@@ -1735,15 +1725,14 @@ fn landing_validation_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diff::{
+        DiffFileInput, DiffHunkInput, DiffLineInput, DiffLineKind, DiffOpenTarget, DiffViewMode,
+        DiffViewSurfacePacket,
+    };
     use crate::workspace::{
-        ReviewWorkspaceBetaInput, ReviewWorkspaceCheckFreshnessInput,
+        ReviewWorkItemLinkInput, ReviewWorkspaceBetaInput, ReviewWorkspaceCheckFreshnessInput,
         ReviewWorkspaceDurableCommentAnchorInput, ReviewWorkspaceSeedInput,
         ReviewWorkspaceSeedPacket, ReviewWorkspaceSupportExportInput,
-        ReviewWorkItemLinkInput,
-    };
-    use crate::diff::{
-        DiffFileInput, DiffHunkInput, DiffLineInput, DiffLineKind, DiffOpenTarget,
-        DiffViewMode, DiffViewSurfacePacket,
     };
     use std::path::PathBuf;
 
@@ -1810,12 +1799,11 @@ mod tests {
             work_item_links: vec![ReviewWorkItemLinkInput {
                 work_item_detail_record_id_ref: "work_item.detail.unit".to_string(),
                 target_object_identity_ref: "provider.object.issue.unit".to_string(),
-                work_item_authority_class: "linked_review_only_no_provider_overlay"
+                work_item_authority_class: "linked_review_only_no_provider_overlay".to_string(),
+                write_authority_class: "write_admissible_local_draft_only_no_provider_path"
                     .to_string(),
-                write_authority_class:
-                    "write_admissible_local_draft_only_no_provider_path".to_string(),
-                issue_to_branch_link_class:
-                    "linked_local_branch_or_worktree_no_provider_overlay".to_string(),
+                issue_to_branch_link_class: "linked_local_branch_or_worktree_no_provider_overlay"
+                    .to_string(),
                 actor_ref: "actor.local.dev".to_string(),
                 command_id_ref: "cmd:review.workspace.link_work_item".to_string(),
                 linked_at: "2026-05-19T00:00:00Z".to_string(),
@@ -1832,15 +1820,13 @@ mod tests {
             comment_anchors: vec![ReviewWorkspaceDurableCommentAnchorInput {
                 source_anchor_id_ref: anchor_id,
                 comment_thread_id: "review.thread.unit.landing".to_string(),
-                comment_payload_label_opaque_ref:
-                    "label.review.comment.unit.landing".to_string(),
+                comment_payload_label_opaque_ref: "label.review.comment.unit.landing".to_string(),
                 posted_actor_ref: "actor.local.dev".to_string(),
                 posted_at: "2026-05-19T00:00:00Z".to_string(),
                 anchor_drift_state: "anchor_bound_exact".to_string(),
                 anchor_drift_required_user_action:
                     "no_user_action_required_anchor_bound_or_remapped".to_string(),
-                local_vs_provider_freshness_class:
-                    "local_only_no_provider_overlay".to_string(),
+                local_vs_provider_freshness_class: "local_only_no_provider_overlay".to_string(),
                 remap_chain_target_id_refs: Vec::new(),
                 archived_at: None,
                 summary_label: "Comment bound to landing-unit demo".to_string(),
@@ -1860,8 +1846,7 @@ mod tests {
             }],
             browser_handoff: None,
             support_export: ReviewWorkspaceSupportExportInput {
-                support_export_id: "support.export.review_workspace.unit.landing"
-                    .to_string(),
+                support_export_id: "support.export.review_workspace.unit.landing".to_string(),
                 reopen_context_ref: "review.reopen_context.unit.landing".to_string(),
                 reopen_command_id_ref: "cmd:review.workspace.reopen".to_string(),
                 consumer_surfaces: vec![
@@ -1930,9 +1915,7 @@ mod tests {
                     target_object_kind: "review_landing_candidate".to_string(),
                     preview_supported: true,
                     emits_audit_event: true,
-                    provider_publish_posture: Some(
-                        "publish_minted_not_launched".to_string(),
-                    ),
+                    provider_publish_posture: Some("publish_minted_not_launched".to_string()),
                     blocked_reasons: Vec::new(),
                     summary_label: "Publish landing intent to provider".to_string(),
                 },
@@ -1957,11 +1940,9 @@ mod tests {
     #[test]
     fn mergeable_candidate_is_queue_eligible_and_queued() {
         let workspace_packet = build_workspace_packet();
-        let packet = LandingCandidatePacket::from_workspace_packet(
-            base_landing_input(),
-            &workspace_packet,
-        )
-        .expect("packet projects");
+        let packet =
+            LandingCandidatePacket::from_workspace_packet(base_landing_input(), &workspace_packet)
+                .expect("packet projects");
 
         assert_eq!(packet.landing_candidate.mergeable_state, "mergeable");
         assert_eq!(packet.landing_candidate.eligibility_state, "queue_eligible");
@@ -2090,14 +2071,11 @@ mod tests {
     #[test]
     fn projection_round_trips_through_json() {
         let workspace_packet = build_workspace_packet();
-        let packet = LandingCandidatePacket::from_workspace_packet(
-            base_landing_input(),
-            &workspace_packet,
-        )
-        .expect("packet projects");
+        let packet =
+            LandingCandidatePacket::from_workspace_packet(base_landing_input(), &workspace_packet)
+                .expect("packet projects");
         let payload = serde_json::to_string_pretty(&packet).expect("serialize");
-        let projection =
-            project_landing_candidate_packet(&payload).expect("payload re-projects");
+        let projection = project_landing_candidate_packet(&payload).expect("payload re-projects");
         assert_eq!(projection.packet_id, packet.packet_id);
         assert_eq!(projection.queue_state, "queued");
         assert!(projection.landing_requires_explicit_candidate);

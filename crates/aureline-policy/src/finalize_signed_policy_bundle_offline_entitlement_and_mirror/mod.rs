@@ -713,8 +713,10 @@ impl FinalizeSignedPolicyBundlePage {
     ) -> Self {
         let defects = audit_finalize_rows(&rows, &offline_entitlement_verifier_page);
         let qualified_rows = qualify_rows(rows, &defects);
-        let summary =
-            FinalizeSignedPolicyBundleSummary::from_rows(&qualified_rows, &offline_entitlement_verifier_page);
+        let summary = FinalizeSignedPolicyBundleSummary::from_rows(
+            &qualified_rows,
+            &offline_entitlement_verifier_page,
+        );
         Self {
             record_kind: SIGNED_POLICY_BUNDLE_FINALIZE_PAGE_RECORD_KIND.to_owned(),
             schema_version: SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION,
@@ -754,7 +756,9 @@ impl FinalizeSignedPolicyBundlePage {
 
     /// True when all rows carry fully inspectable epoch states.
     pub fn all_epoch_states_inspectable(&self) -> bool {
-        self.rows.iter().all(|r| r.epoch_state.is_fully_inspectable())
+        self.rows
+            .iter()
+            .all(|r| r.epoch_state.is_fully_inspectable())
     }
 
     /// True when all simulation packets have at least one affected surface.
@@ -893,9 +897,9 @@ fn audit_finalize_rows(
 
     // Hard guardrail: raw private material exposed in upstream verifier page.
     let upstream_defects = audit_offline_entitlement_verifier_beta_rows(&verifier_page.rows);
-    let has_raw_material = upstream_defects
-        .iter()
-        .any(|d| d.defect_kind == OfflineEntitlementVerifierBetaDefectKind::RawPrivateMaterialExposed);
+    let has_raw_material = upstream_defects.iter().any(|d| {
+        d.defect_kind == OfflineEntitlementVerifierBetaDefectKind::RawPrivateMaterialExposed
+    });
     if has_raw_material {
         defects.push(FinalizeSignedPolicyBundleDefect::new(
             FinalizeSignedPolicyBundleNarrowReasonClass::RawPrivateMaterialExposed,
@@ -984,15 +988,19 @@ fn audit_finalize_rows(
     }
 
     // Coverage check: all required import flows must appear at least once.
-    let required_flows: BTreeSet<&str> =
-        BundleImportFlowClass::ALL.iter().map(|f| f.as_str()).collect();
+    let required_flows: BTreeSet<&str> = BundleImportFlowClass::ALL
+        .iter()
+        .map(|f| f.as_str())
+        .collect();
     let observed_flows: BTreeSet<&str> =
         rows.iter().map(|r| r.import_flow_token.as_str()).collect();
     for missing in required_flows.difference(&observed_flows) {
         defects.push(FinalizeSignedPolicyBundleDefect::new(
             FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap,
             "page",
-            format!("missing rows for required import flow '{missing}'; packet is narrowed to preview"),
+            format!(
+                "missing rows for required import flow '{missing}'; packet is narrowed to preview"
+            ),
         ));
     }
 
@@ -1064,7 +1072,13 @@ fn qualify_rows(
 
         row.qualification_token = row_qual.as_str().to_owned();
         row.narrow_reason_token = row_reason.as_str().to_owned();
-        row.plain_language_summary = build_row_summary(&row.row_id, &row.import_flow_token, &row.bundle_kind_token, row_qual, row_reason);
+        row.plain_language_summary = build_row_summary(
+            &row.row_id,
+            &row.import_flow_token,
+            &row.bundle_kind_token,
+            row_qual,
+            row_reason,
+        );
     }
 
     rows
@@ -1184,10 +1198,7 @@ fn make_row(
                 .collect(),
             previous_values_summary: BTreeMap::new(),
             simulated_values_summary: BTreeMap::new(),
-            affected_surfaces: affected_surfaces
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
+            affected_surfaces: affected_surfaces.iter().map(|s| (*s).to_owned()).collect(),
             degraded_mode_consequences: degraded_mode_consequences
                 .iter()
                 .map(|s| (*s).to_owned())
@@ -1349,7 +1360,11 @@ fn row_manual_import_policy() -> FinalizeSignedPolicyBundleRow {
         vec![],
         "sim-packet:manual-import:policy:2026.05.0002",
         vec!["policy_inspect_panel"],
-        vec!["policy_inspect_panel", "admin_trust_center", "import_review_panel"],
+        vec![
+            "policy_inspect_panel",
+            "admin_trust_center",
+            "import_review_panel",
+        ],
         vec![],
         vec![],
         "",
@@ -1475,9 +1490,7 @@ fn row_offline_grace_policy() -> FinalizeSignedPolicyBundleRow {
             "Managed policy features remain at last-known-good revision; \
              no new policy narrowing rules apply during the grace window.",
         ],
-        vec![
-            "Bundle is within offline grace window; renewal required before 2026-07-01.",
-        ],
+        vec!["Bundle is within offline grace window; renewal required before 2026-07-01."],
         "",
         "in_grace_until_2026_07_01",
         false,

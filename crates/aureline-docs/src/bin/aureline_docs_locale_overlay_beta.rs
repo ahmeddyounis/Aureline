@@ -28,7 +28,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
         Some("manifest") | None => print_json(&seeded_translated_pack_locale_overlay_contract())?,
-        Some("surfaces") => print_json(&seeded_translated_pack_locale_overlay_surface_projection())?,
+        Some("surfaces") => {
+            print_json(&seeded_translated_pack_locale_overlay_surface_projection())?
+        }
         Some("support-export") => {
             print_json(&seeded_translated_pack_locale_overlay_support_export())?
         }
@@ -36,7 +38,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(()) => println!("ok"),
             Err(findings) => {
                 for finding in findings {
-                    eprintln!("{} {}: {}", finding.row_ref, finding.check_id, finding.message);
+                    eprintln!(
+                        "{} {}: {}",
+                        finding.row_ref, finding.check_id, finding.message
+                    );
                 }
                 std::process::exit(3);
             }

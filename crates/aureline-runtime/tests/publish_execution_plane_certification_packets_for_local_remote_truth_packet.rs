@@ -11,17 +11,15 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
-    current_stable_execution_plane_truth_packet, ExecutionPlaneConsumerSurface,
-    ExecutionPlaneDegradedHelperStateClass, ExecutionPlaneDowngradeAutomationClass,
-    ExecutionPlaneEvidenceClass, ExecutionPlaneLaneClass, ExecutionPlaneRowClass,
-    ExecutionPlaneTruthPacket, ExecutionPlaneTruthPacketInput,
-    ExecutionPlaneFindingKind, ExecutionPlaneKnownLimitClass,
-    ExecutionPlanePromotionState, ExecutionPlaneReconnectStateClass,
-    ExecutionPlaneRouteStateClass, ExecutionPlaneSupportClass, ExecutionPlaneSurfaceBindingClass,
-    ExecutionPlaneArtifactProvenanceStateClass,
-    EXECUTION_PLANE_TRUTH_ARTIFACT_DOC_REF, EXECUTION_PLANE_TRUTH_DOC_REF,
-    EXECUTION_PLANE_TRUTH_FIXTURE_DIR, EXECUTION_PLANE_TRUTH_PACKET_ARTIFACT_REF,
-    EXECUTION_PLANE_TRUTH_SCHEMA_REF,
+    current_stable_execution_plane_truth_packet, ExecutionPlaneArtifactProvenanceStateClass,
+    ExecutionPlaneConsumerSurface, ExecutionPlaneDegradedHelperStateClass,
+    ExecutionPlaneDowngradeAutomationClass, ExecutionPlaneEvidenceClass, ExecutionPlaneFindingKind,
+    ExecutionPlaneKnownLimitClass, ExecutionPlaneLaneClass, ExecutionPlanePromotionState,
+    ExecutionPlaneReconnectStateClass, ExecutionPlaneRouteStateClass, ExecutionPlaneRowClass,
+    ExecutionPlaneSupportClass, ExecutionPlaneSurfaceBindingClass, ExecutionPlaneTruthPacket,
+    ExecutionPlaneTruthPacketInput, EXECUTION_PLANE_TRUTH_ARTIFACT_DOC_REF,
+    EXECUTION_PLANE_TRUTH_DOC_REF, EXECUTION_PLANE_TRUTH_FIXTURE_DIR,
+    EXECUTION_PLANE_TRUTH_PACKET_ARTIFACT_REF, EXECUTION_PLANE_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -244,7 +242,9 @@ fn missing_reconnect_admission_for_launch_stable_blocks_stable() {
 
 #[test]
 fn missing_degraded_helper_admission_for_launch_stable_blocks_stable() {
-    assert_fixture_matches("missing_degraded_helper_admission_for_launch_stable_blocks_stable.json");
+    assert_fixture_matches(
+        "missing_degraded_helper_admission_for_launch_stable_blocks_stable.json",
+    );
 }
 
 #[test]
@@ -276,7 +276,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_execution_plane_truth_packet().expect("checked-in packet validates");
+    let packet =
+        current_stable_execution_plane_truth_packet().expect("checked-in packet validates");
     assert_eq!(packet.promotion_state, ExecutionPlanePromotionState::Stable);
     assert!(packet.validate().is_empty());
     for required in ExecutionPlaneLaneClass::REQUIRED {
@@ -297,7 +298,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_required_admissions_and_bindings_per_launch_stable_lane() {
-    let packet = current_stable_execution_plane_truth_packet().expect("checked-in packet validates");
+    let packet =
+        current_stable_execution_plane_truth_packet().expect("checked-in packet validates");
     for required in ExecutionPlaneLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required

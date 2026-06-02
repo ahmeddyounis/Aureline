@@ -960,8 +960,7 @@ impl AiEvidencePacketFinalization {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("ai evidence packet finalization serializes")
+        serde_json::to_string_pretty(self).expect("ai evidence packet finalization serializes")
     }
 
     /// Deterministic Markdown summary for support, docs, or review handoff.
@@ -989,13 +988,20 @@ impl AiEvidencePacketFinalization {
         out.push_str(&format!(
             "- Retrieval recall: {} (locality `{}`, {} lanes)\n",
             self.context_inputs.retrieval_provenance.recall_used,
-            self.context_inputs.retrieval_provenance.locality_class.as_str(),
-            self.context_inputs.retrieval_provenance.participating_lanes.len()
+            self.context_inputs
+                .retrieval_provenance
+                .locality_class
+                .as_str(),
+            self.context_inputs
+                .retrieval_provenance
+                .participating_lanes
+                .len()
         ));
         out.push_str(&format!(
             "- Replay posture: `{}` (fresh approval for new tools: {})\n",
             self.replay_lineage.replay_posture.as_str(),
-            self.replay_lineage.requires_fresh_approval_for_new_tool_calls
+            self.replay_lineage
+                .requires_fresh_approval_for_new_tool_calls
         ));
         out.push_str(&format!(
             "- Validation outcome: `{}`\n",
@@ -1022,7 +1028,10 @@ impl fmt::Display for AiEvidencePacketFinalizationArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "ai evidence packet finalization export parse failed: {error}")
+                write!(
+                    formatter,
+                    "ai evidence packet finalization export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -1234,8 +1243,7 @@ fn validate_retrieval_provenance(
         if provenance.locality_class != RecallLocalityClass::NoRecallUsed
             || !provenance.participating_lanes.is_empty()
         {
-            violations
-                .push(AiEvidencePacketFinalizationViolation::RetrievalProvenanceIncomplete);
+            violations.push(AiEvidencePacketFinalizationViolation::RetrievalProvenanceIncomplete);
         }
         return;
     }
@@ -1334,8 +1342,8 @@ fn validate_retained_inventory(
     violations: &mut Vec<AiEvidencePacketFinalizationViolation>,
 ) {
     for row in &packet.retained_artifact_inventory {
-        let mut broken = row.inventory_ref.trim().is_empty()
-            || row.disclosure_label.trim().is_empty();
+        let mut broken =
+            row.inventory_ref.trim().is_empty() || row.disclosure_label.trim().is_empty();
         // A conversation thread or prompt/result cache must not be disclosed as
         // surviving thread deletion.
         if row.artifact_class.cleared_with_thread() && row.retained_after_thread_deletion {
@@ -1403,8 +1411,7 @@ fn validate_replay_lineage(
         match lineage.cites_original_packet_ref.as_deref() {
             Some(original) if !original.trim().is_empty() => {
                 if original == packet.packet_id || original == packet.evidence_id {
-                    violations
-                        .push(AiEvidencePacketFinalizationViolation::ReplayOverwritesHistory);
+                    violations.push(AiEvidencePacketFinalizationViolation::ReplayOverwritesHistory);
                 }
             }
             _ => {

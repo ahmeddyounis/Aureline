@@ -116,7 +116,9 @@ fn public_issue_positive_shares_after_preview() {
 #[test]
 fn security_disclosure_positive_stays_private() {
     let sheet = load_sheet("positive/security_disclosure_private_channel.json");
-    sheet.validate().expect("security disclosure positive validates");
+    sheet
+        .validate()
+        .expect("security disclosure positive validates");
     assert_eq!(
         sheet.target_review.visibility_class,
         TargetVisibilityClass::SecurityDisclosure
@@ -138,7 +140,10 @@ fn offline_positive_preserves_draft_and_offers_export_and_save() {
     let d = &sheet.draft_continuity;
     assert!(d.handoff_outcome_class.is_blocked());
     assert!(d.intent_preserved, "blocked handoff must preserve intent");
-    assert!(!d.silent_loss, "blocked handoff must not silently lose work");
+    assert!(
+        !d.silent_loss,
+        "blocked handoff must not silently lose work"
+    );
     assert!(
         d.preserved_draft_text_ref.is_some(),
         "blocked handoff must preserve the draft text"

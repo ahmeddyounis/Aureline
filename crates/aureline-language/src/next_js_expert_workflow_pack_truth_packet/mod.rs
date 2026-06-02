@@ -1322,7 +1322,10 @@ impl NextJsExpertWorkflowPackTruthSupportExport {
                 == self.next_js_expert_workflow_pack_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self.next_js_expert_workflow_pack_packet.validate().is_empty()
+            && self
+                .next_js_expert_workflow_pack_packet
+                .validate()
+                .is_empty()
     }
 }
 
@@ -1412,11 +1415,7 @@ mod tests {
         }
     }
 
-    fn loop_row(
-        row_id: &str,
-        pack: WorkflowPackClass,
-        step: WorkflowLoopClass,
-    ) -> WorkflowPackRow {
+    fn loop_row(row_id: &str, pack: WorkflowPackClass, step: WorkflowLoopClass) -> WorkflowPackRow {
         WorkflowPackRow {
             row_id: row_id.to_owned(),
             pack_class: pack,
@@ -1443,8 +1442,8 @@ mod tests {
         NextJsExpertWorkflowPackConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            next_js_expert_workflow_pack_packet_id_ref:
-                "packet:m4:next_js_expert_workflow_pack".to_owned(),
+            next_js_expert_workflow_pack_packet_id_ref: "packet:m4:next_js_expert_workflow_pack"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_pack_vocabulary: true,
@@ -1473,7 +1472,10 @@ mod tests {
     }
 
     fn sample_input() -> NextJsExpertWorkflowPackTruthPacketInput {
-        let rows = pack_rows(WorkflowPackClass::NextJsExpertWorkflowPack, "next_js_expert");
+        let rows = pack_rows(
+            WorkflowPackClass::NextJsExpertWorkflowPack,
+            "next_js_expert",
+        );
         NextJsExpertWorkflowPackTruthPacketInput {
             packet_id: "packet:m4:next_js_expert_workflow_pack".to_owned(),
             workflow_or_surface_id: "workflow.language.next_js_expert_workflow_pack".to_owned(),

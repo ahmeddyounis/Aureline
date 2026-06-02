@@ -504,11 +504,8 @@ impl StabilizePortableInstallPage {
 
     /// Returns a metadata-safe support-export projection.
     pub fn support_export_projection(&self) -> StabilizePortableInstallSupportExport {
-        let narrow_reasons: BTreeSet<StabilizeNarrowReasonToken> = self
-            .defects
-            .iter()
-            .map(|d| d.narrow_reason_token)
-            .collect();
+        let narrow_reasons: BTreeSet<StabilizeNarrowReasonToken> =
+            self.defects.iter().map(|d| d.narrow_reason_token).collect();
         let mut defect_counts: BTreeMap<String, u32> = BTreeMap::new();
         for defect in &self.defects {
             let key = format!("{:?}", defect.narrow_reason_token)
@@ -766,9 +763,9 @@ pub fn validate_stabilize_portable_install_page(
     let mut coverage = StabilizePortableInstallCoverage::default();
 
     let push = |findings: &mut Vec<StabilizePortableInstallValidationFinding>,
-                    check_id: &str,
-                    message: String,
-                    ref_id: String| {
+                check_id: &str,
+                message: String,
+                ref_id: String| {
         findings.push(StabilizePortableInstallValidationFinding {
             check_id: check_id.to_string(),
             message,
@@ -812,7 +809,9 @@ pub fn validate_stabilize_portable_install_page(
     for row in &page.install_profile_rows {
         coverage.install_modes.insert(row.install_mode_class);
         coverage.channels.insert(row.channel_class);
-        coverage.updater_owner_classes.insert(row.updater_owner_class);
+        coverage
+            .updater_owner_classes
+            .insert(row.updater_owner_class);
         coverage.binary_root_classes.insert(row.binary_root_class);
         coverage.rollback_scope_classes.insert(row.rollback_scope);
         coverage
@@ -948,8 +947,10 @@ pub fn seeded_stabilize_portable_install_page() -> StabilizePortableInstallPage 
         binary_root_ref: "binary_root:windows:user:stable".into(),
         updater_owner_class: UpdaterOwnerClass::User,
         handler_ownership: HandlerOwnershipSummary {
-            file_association_class: HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
-            protocol_handler_class: HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
+            file_association_class:
+                HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
+            protocol_handler_class:
+                HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
             owning_channel_class: Some(ChannelClass::Stable),
             last_writer_wins_blocked: true,
             collision_disclosure: "User selects default handler; last-writer-wins registration \
@@ -999,8 +1000,10 @@ pub fn seeded_stabilize_portable_install_page() -> StabilizePortableInstallPage 
         binary_root_ref: "binary_root:windows:user:preview".into(),
         updater_owner_class: UpdaterOwnerClass::User,
         handler_ownership: HandlerOwnershipSummary {
-            file_association_class: HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
-            protocol_handler_class: HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
+            file_association_class:
+                HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
+            protocol_handler_class:
+                HandlerRegistrationClass::UserOrAdminSelectableNeverLastWriterWins,
             owning_channel_class: None,
             last_writer_wins_blocked: true,
             collision_disclosure: "Preview uses a channel-suffixed scheme; user selects \
@@ -1226,11 +1229,7 @@ pub fn seeded_stabilize_portable_install_page() -> StabilizePortableInstallPage 
         ),
         checkpoint_created_before_apply: true,
         skip_preserves_source: true,
-        comparison_scope_domains: vec![
-            "profile".into(),
-            "settings".into(),
-            "keybindings".into(),
-        ],
+        comparison_scope_domains: vec!["profile".into(), "settings".into(), "keybindings".into()],
         collision_disclosures: vec![
             "Portable colocated root and installed per-user root are kept separate until \
                 user explicitly applies the import."

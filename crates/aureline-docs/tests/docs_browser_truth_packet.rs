@@ -160,8 +160,7 @@ fn checked_in_artifact_packet_validates_and_covers_required_surfaces() {
         );
     }
 
-    let source_class_tokens: BTreeSet<&str> =
-        packet.source_class_tokens().into_iter().collect();
+    let source_class_tokens: BTreeSet<&str> = packet.source_class_tokens().into_iter().collect();
     for required in DocsBrowserSourceClass::REQUIRED {
         assert!(
             source_class_tokens.contains(required.as_str()),
@@ -178,9 +177,8 @@ fn artifact_file_matches_seeded_packet() {
         .unwrap_or_else(|err| panic!("artifact {path:?} must read: {err}"));
     let from_file: DocsBrowserTruthPacket = serde_json::from_str(&body)
         .unwrap_or_else(|err| panic!("artifact {path:?} must parse: {err}"));
-    let from_seed = DocsBrowserTruthPacket::materialize(
-        seeded_stable_docs_browser_truth_packet_input(),
-    );
+    let from_seed =
+        DocsBrowserTruthPacket::materialize(seeded_stable_docs_browser_truth_packet_input());
     assert_eq!(
         from_file, from_seed,
         "checked-in docs-browser truth packet drifted from the in-code seed; \
@@ -190,10 +188,7 @@ fn artifact_file_matches_seeded_packet() {
 
 #[test]
 fn closed_docs_browser_tokens_are_pinned() {
-    assert_eq!(
-        DocsBrowserSourceClass::ProjectDocs.as_str(),
-        "project_docs"
-    );
+    assert_eq!(DocsBrowserSourceClass::ProjectDocs.as_str(), "project_docs");
     assert_eq!(
         DocsBrowserSourceClass::LiveExternalDocs.as_str(),
         "live_external_docs"

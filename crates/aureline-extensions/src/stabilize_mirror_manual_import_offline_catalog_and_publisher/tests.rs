@@ -97,15 +97,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_mirror_import_truth_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -154,7 +170,10 @@ fn every_fixture_builds_validates_and_matches_expectations() {
 
         // A revoked or rehomed row stays explainable offline: a last-known-good ref is
         // always carried into the support/mirror export.
-        assert_eq!(export.last_known_good_ref, packet.source_class.last_known_good_ref);
+        assert_eq!(
+            export.last_known_good_ref,
+            packet.source_class.last_known_good_ref
+        );
         assert_eq!(
             export.last_known_good_pinned,
             packet.source_class.last_known_good_pinned
@@ -183,8 +202,14 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         // The projection and export agree with the packet.
         assert_eq!(projection.effective_tier, packet.claim.effective_tier);
         assert_eq!(export.effective_tier, packet.claim.effective_tier);
-        assert_eq!(export.import_route_class, packet.source_class.import_route_class);
-        assert_eq!(export.continuity_state_class, packet.continuity.continuity_state_class);
+        assert_eq!(
+            export.import_route_class,
+            packet.source_class.import_route_class
+        );
+        assert_eq!(
+            export.continuity_state_class,
+            packet.continuity.continuity_state_class
+        );
     }
 }
 
@@ -550,7 +575,10 @@ fn support_export_preserves_offline_and_continuity_truth() {
     let packet = StableMirrorImportTruthPacket::from_input(stable_input()).expect("must build");
     let export = project_stable_mirror_import_truth_support_export(&packet);
     assert!(!export.blocks_stable_import_truth);
-    assert_eq!(export.import_route_class, packet.source_class.import_route_class);
+    assert_eq!(
+        export.import_route_class,
+        packet.source_class.import_route_class
+    );
     assert!(export.offline_explainable);
     assert!(export.last_known_good_pinned);
     assert!(export.audit_lineage_preserved);

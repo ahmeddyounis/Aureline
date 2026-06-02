@@ -141,9 +141,7 @@ pub fn migration_flow_disclosure_corpus() -> Vec<MigrationFlowDisclosureScenario
 }
 
 /// Maps the wizard's detected source family to its incumbent ecosystem.
-fn wizard_ecosystem(
-    classification: CompetitorConfigClassification,
-) -> Option<IncumbentEcosystem> {
+fn wizard_ecosystem(classification: CompetitorConfigClassification) -> Option<IncumbentEcosystem> {
     match classification {
         CompetitorConfigClassification::VSCodeWorkspaceRoot => {
             Some(IncumbentEcosystem::VsCodeCodeOss)
@@ -311,7 +309,11 @@ fn build_record(
         corpus_section_ref: section.source_ecosystem_row_ref.clone(),
     };
 
-    let qualifier = if live { "qualifies Stable" } else { "narrowed below Stable" };
+    let qualifier = if live {
+        "qualifies Stable"
+    } else {
+        "narrowed below Stable"
+    };
     let title = format!("{ecosystem_label} import: diff, rollback, and unsupported-gap taxonomy");
     let summary_sentence = format!(
         "{ecosystem_label} imported-user flow: {} classified rows shown as a before/after diff \
@@ -370,9 +372,10 @@ fn build_gaps(section: &EcosystemScoreboardSection) -> Vec<UnsupportedGapDisclos
 }
 
 fn gap_from_row(row: &IncumbentFlowRow) -> UnsupportedGapDisclosure {
-    let gap_summary = row.caveat.clone().unwrap_or_else(|| {
-        format!("{} requires manual review.", row.flow_label)
-    });
+    let gap_summary = row
+        .caveat
+        .clone()
+        .unwrap_or_else(|| format!("{} requires manual review.", row.flow_label));
     UnsupportedGapDisclosure {
         gap_id: format!("migration-flow-gap:{}", row.flow_id),
         domain: row.domain,
@@ -386,7 +389,10 @@ fn gap_from_row(row: &IncumbentFlowRow) -> UnsupportedGapDisclosure {
     }
 }
 
-fn first_checkpoint_ref(section: &EcosystemScoreboardSection, scoreboard: &MigrationScoreboard) -> String {
+fn first_checkpoint_ref(
+    section: &EcosystemScoreboardSection,
+    scoreboard: &MigrationScoreboard,
+) -> String {
     section
         .rows
         .first()
@@ -438,7 +444,10 @@ mod tests {
             .find(|s| s.expected_ecosystem == IncumbentEcosystem::VsCodeCodeOss)
             .expect("VS Code flow present");
         let record = vs_code.record();
-        assert_eq!(record.stable_qualification.claim_class, StableClaimClass::Stable);
+        assert_eq!(
+            record.stable_qualification.claim_class,
+            StableClaimClass::Stable
+        );
         assert!(record.stable_qualification.qualifies_stable);
         assert!(record.stable_qualification.narrowing_reasons.is_empty());
         assert!(record.rollback.is_live_for_flow());
@@ -456,7 +465,10 @@ mod tests {
                     scenario.scenario_id
                 );
                 assert!(
-                    !record.stable_qualification.claim_class.at_or_above_cutline(),
+                    !record
+                        .stable_qualification
+                        .claim_class
+                        .at_or_above_cutline(),
                     "{} narrowed claim sits above the cutline",
                     scenario.scenario_id
                 );

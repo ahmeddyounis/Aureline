@@ -79,13 +79,22 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             .unwrap_or_else(|e| panic!("fixture {name} must validate: {e}"));
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{name} claimed_tier");
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{name} effective_tier");
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{name} claimed_tier"
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{name} effective_tier"
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{name} support_claim_class"
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{name} stable_claim");
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{name} stable_claim"
+        );
         assert_eq!(packet.claim.downgraded, e.downgraded, "{name} downgraded");
         assert_eq!(
             packet.claim.downgrade_reasons, e.downgrade_reasons,
@@ -112,7 +121,10 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             packet.inspection.all_quotas_enforced_as_published, e.all_quotas_enforced_as_published,
             "{name} all_quotas_enforced_as_published"
         );
-        assert_eq!(packet.inspection.quota_axis_count, e.quota_axis_count, "{name} quota_axis_count");
+        assert_eq!(
+            packet.inspection.quota_axis_count, e.quota_axis_count,
+            "{name} quota_axis_count"
+        );
         assert_eq!(
             packet.inspection.breached_quota_axis_count, e.breached_quota_axis_count,
             "{name} breached_quota_axis_count"
@@ -148,7 +160,10 @@ fn stable_claim_passes_through_unchanged() {
     assert_eq!(packet.claim.effective_tier, "stable");
     assert!(!packet.claim.downgraded);
     assert!(packet.claim.downgrade_reasons.is_empty());
-    assert_eq!(packet.quarantine_posture.quarantine_state_class, "none_nominal");
+    assert_eq!(
+        packet.quarantine_posture.quarantine_state_class,
+        "none_nominal"
+    );
     assert!(!packet.downgraded_host_banner.must_display);
     assert!(packet.no_catalog_only_stable_claim());
 }
@@ -162,7 +177,10 @@ fn unbounded_quota_withdraws_and_raises_banner() {
         .claim
         .downgrade_reasons
         .contains(&"quota_unbounded_refused".to_string()));
-    assert_eq!(packet.quarantine_posture.quarantine_state_class, "quarantined");
+    assert_eq!(
+        packet.quarantine_posture.quarantine_state_class,
+        "quarantined"
+    );
     assert!(packet.quarantine_posture.blocks_activation);
     assert!(packet.downgraded_host_banner.must_display);
     assert_eq!(
@@ -192,10 +210,14 @@ fn unbounded_restart_posture_is_withdrawn() {
         "restart_budget_unbounded_refused".to_string();
     // An unbounded restart posture is withdrawn → quarantined, so the producer
     // must supply a consistent, visible quarantine posture.
-    fixture.packet_input.quarantine_posture.visibility_surface_class =
-        "install_review_and_inspector".to_string();
-    fixture.packet_input.quarantine_posture.recovery_precondition_class =
-        "admin_cleared_quarantine".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .visibility_surface_class = "install_review_and_inspector".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .recovery_precondition_class = "admin_cleared_quarantine".to_string();
     fixture.packet_input.quarantine_posture.trigger_rule_ref =
         Some("quarantine_rule:restart_posture_unbounded".to_string());
     let packet = StableWasmHostGovernancePacket::from_input(fixture.packet_input).unwrap();
@@ -227,7 +249,10 @@ fn soft_breach_and_fail_closed_narrow_to_beta() {
     let fixture = load("quota_soft_breach_and_fail_closed_narrows_to_beta");
     let packet = StableWasmHostGovernancePacket::from_input(fixture.packet_input).unwrap();
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert_eq!(packet.quarantine_posture.quarantine_state_class, "throttled");
+    assert_eq!(
+        packet.quarantine_posture.quarantine_state_class,
+        "throttled"
+    );
     assert!(!packet.quarantine_posture.blocks_activation);
     assert!(packet.downgraded_host_banner.must_display);
 }
@@ -263,10 +288,14 @@ fn honest_beta_claim_passes_through() {
 fn quarantined_trust_tier_narrows_and_raises_banner() {
     let mut fixture = load("wasm_capability_sandbox_stable_current");
     fixture.packet_input.identity.publisher_trust_tier_class = "quarantined".to_string();
-    fixture.packet_input.quarantine_posture.visibility_surface_class =
-        "install_review_and_inspector".to_string();
-    fixture.packet_input.quarantine_posture.recovery_precondition_class =
-        "admin_cleared_quarantine".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .visibility_surface_class = "install_review_and_inspector".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .recovery_precondition_class = "admin_cleared_quarantine".to_string();
     fixture.packet_input.quarantine_posture.trigger_rule_ref =
         Some("quarantine_rule:trust_quarantine".to_string());
     let packet = StableWasmHostGovernancePacket::from_input(fixture.packet_input).unwrap();
@@ -282,10 +311,14 @@ fn quarantined_trust_tier_narrows_and_raises_banner() {
 fn governance_version_mismatch_narrows_below_stable() {
     let mut fixture = load("wasm_capability_sandbox_stable_current");
     fixture.packet_input.identity.governance_contract_version = 99;
-    fixture.packet_input.quarantine_posture.visibility_surface_class =
-        "install_review_and_inspector".to_string();
-    fixture.packet_input.quarantine_posture.recovery_precondition_class =
-        "next_session_cold_start".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .visibility_surface_class = "install_review_and_inspector".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .recovery_precondition_class = "next_session_cold_start".to_string();
     fixture.packet_input.quarantine_posture.trigger_rule_ref =
         Some("quarantine_rule:governance_version".to_string());
     let packet = StableWasmHostGovernancePacket::from_input(fixture.packet_input).unwrap();
@@ -320,8 +353,10 @@ fn crash_loop_thresholds_must_be_ordered() {
 #[test]
 fn nominal_posture_must_not_be_visible_as_non_nominal_row() {
     let mut fixture = load("wasm_capability_sandbox_stable_current");
-    fixture.packet_input.quarantine_posture.visibility_surface_class =
-        "install_review_and_inspector".to_string();
+    fixture
+        .packet_input
+        .quarantine_posture
+        .visibility_surface_class = "install_review_and_inspector".to_string();
     // Still a stable claim, so the derived posture is none_nominal, but the input
     // visibility is non-nominal — rejected at validation.
     let err = StableWasmHostGovernancePacket::from_input(fixture.packet_input).unwrap_err();
@@ -355,7 +390,9 @@ fn support_export_quotes_governance_truth() {
     assert_eq!(export.effective_tier, "withdrawn");
     assert!(export.blocks_activation);
     assert_eq!(export.crash_loop_state_class, "quarantine_tripped");
-    assert!(export.export_safe_summary.contains("Crash loop=quarantine_tripped"));
+    assert!(export
+        .export_safe_summary
+        .contains("Crash loop=quarantine_tripped"));
     assert!(export.export_safe_summary.contains("Runtime class="));
     assert!(export.trigger_rule_ref.is_some());
 }
@@ -366,7 +403,10 @@ fn every_downgrade_reason_is_in_a_tier_bucket() {
         let in_bucket = WITHDRAWN_CLASS_REASONS.contains(reason)
             || PREVIEW_CLASS_REASONS.contains(reason)
             || BETA_CLASS_REASONS.contains(reason);
-        assert!(in_bucket, "reason {reason} must belong to exactly one tier bucket");
+        assert!(
+            in_bucket,
+            "reason {reason} must belong to exactly one tier bucket"
+        );
     }
 }
 

@@ -95,7 +95,8 @@ pub const PERFORMANCE_BUDGET_IDENTITY_RECORD_KIND: &str = "stable_performance_bu
 pub const PERFORMANCE_MEASUREMENT_RECORD_KIND: &str = "stable_performance_measurement";
 
 /// Record-kind tag for [`PerformanceBudgetEnforcement`].
-pub const PERFORMANCE_BUDGET_ENFORCEMENT_RECORD_KIND: &str = "stable_performance_budget_enforcement";
+pub const PERFORMANCE_BUDGET_ENFORCEMENT_RECORD_KIND: &str =
+    "stable_performance_budget_enforcement";
 
 /// Record-kind tag for [`PerformanceBudgetWaiver`].
 pub const PERFORMANCE_BUDGET_WAIVER_RECORD_KIND: &str = "stable_performance_budget_waiver";
@@ -104,7 +105,8 @@ pub const PERFORMANCE_BUDGET_WAIVER_RECORD_KIND: &str = "stable_performance_budg
 pub const PERFORMANCE_COST_EXPLANATION_RECORD_KIND: &str = "stable_performance_cost_explanation";
 
 /// Record-kind tag for [`PerformancePermissionPosture`].
-pub const PERFORMANCE_PERMISSION_POSTURE_RECORD_KIND: &str = "stable_performance_permission_posture";
+pub const PERFORMANCE_PERMISSION_POSTURE_RECORD_KIND: &str =
+    "stable_performance_permission_posture";
 
 /// Record-kind tag for [`PerformanceCompatibility`].
 pub const PERFORMANCE_COMPATIBILITY_RECORD_KIND: &str = "stable_performance_compatibility";
@@ -194,8 +196,13 @@ pub const WAIVER_AUTHORITY_CLASSES: &[&str] = &["publisher", "admin", "release_e
 pub const COST_CLASSES: &[&str] = &["negligible", "light", "moderate", "heavy", "unbounded"];
 
 /// Closed compatibility-label vocabulary.
-pub const COMPATIBILITY_LABEL_CLASSES: &[&str] =
-    &["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"];
+pub const COMPATIBILITY_LABEL_CLASSES: &[&str] = &[
+    "full_parity",
+    "high_parity",
+    "partial_parity",
+    "limited_parity",
+    "unsupported",
+];
 
 /// Closed install-scope vocabulary.
 pub const INSTALL_SCOPE_CLASSES: &[&str] = &["user", "workspace", "machine", "portable"];
@@ -579,7 +586,10 @@ impl PerformanceMeasurement {
 
     /// Returns true when the measurement is expired or was never taken.
     pub fn expired_or_missing(&self) -> bool {
-        matches!(self.measurement_freshness_class.as_str(), "expired" | "not_measured")
+        matches!(
+            self.measurement_freshness_class.as_str(),
+            "expired" | "not_measured"
+        )
     }
 }
 
@@ -629,7 +639,10 @@ impl PerformanceBudgetEnforcement {
 
     /// Returns true when the published threshold was intentionally tightened / narrowed.
     pub fn threshold_tightened_or_narrowed(&self) -> bool {
-        matches!(self.threshold_adjustment_class.as_str(), "tightened" | "narrowed")
+        matches!(
+            self.threshold_adjustment_class.as_str(),
+            "tightened" | "narrowed"
+        )
     }
 }
 
@@ -734,7 +747,10 @@ impl PerformanceCompatibility {
     /// Returns true when compatibility reports a parity-limited posture short of
     /// unsupported.
     pub fn parity_limited(&self) -> bool {
-        matches!(self.compatibility_label_class.as_str(), "partial_parity" | "limited_parity")
+        matches!(
+            self.compatibility_label_class.as_str(),
+            "partial_parity" | "limited_parity"
+        )
     }
 }
 
@@ -767,7 +783,10 @@ impl PerformanceInstallPosture {
 
     /// Returns true when the row stays mirrorable.
     pub fn mirrorable(&self) -> bool {
-        matches!(self.mirrorability_class.as_str(), "mirrorable" | "mirror_pinned")
+        matches!(
+            self.mirrorability_class.as_str(),
+            "mirrorable" | "mirror_pinned"
+        )
     }
 }
 
@@ -952,12 +971,8 @@ impl StablePerformanceBudgetPacket {
         let permission_posture = permission_posture_record(&input.permission_posture);
         let compatibility = compatibility_record(&input.compatibility);
         let install_posture = install_posture_record(&input.install_posture);
-        let attribution_complete = attribution_is_complete(
-            &identity,
-            &measurement,
-            &enforcement,
-            &compatibility,
-        );
+        let attribution_complete =
+            attribution_is_complete(&identity, &measurement, &enforcement, &compatibility);
 
         let posture = BudgetPosture {
             identity: &identity,
@@ -1033,7 +1048,11 @@ impl StablePerformanceBudgetPacket {
         validate_budget_numbers(&self.measurement, &self.enforcement)?;
 
         for surface in &self.consumer_surfaces {
-            ensure_token(STABLE_PERFORMANCE_BUDGET_CONSUMER_SURFACES, surface, "consumer_surface")?;
+            ensure_token(
+                STABLE_PERFORMANCE_BUDGET_CONSUMER_SURFACES,
+                surface,
+                "consumer_surface",
+            )?;
         }
         if self.consumer_surfaces.is_empty() {
             return Err(err("packet must bind at least one consumer surface"));
@@ -1070,10 +1089,14 @@ impl StablePerformanceBudgetPacket {
                 ));
             }
             if self.identity.publisher_trust_tier_class == "quarantined" {
-                return Err(err("stable effective tier must not carry a quarantined trust tier"));
+                return Err(err(
+                    "stable effective tier must not carry a quarantined trust tier",
+                ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if !self.enforcement.within_budget() {
                 return Err(err(
@@ -1081,7 +1104,9 @@ impl StablePerformanceBudgetPacket {
                 ));
             }
             if !self.enforcement.enforced() {
-                return Err(err("stable effective tier must keep its budget actually enforced"));
+                return Err(err(
+                    "stable effective tier must keep its budget actually enforced",
+                ));
             }
             if self.enforcement.threshold_relaxed() && !self.waiver.active() {
                 return Err(err(
@@ -1093,20 +1118,33 @@ impl StablePerformanceBudgetPacket {
                     "stable effective tier must record a waiver hook for a tightened or narrowed threshold",
                 ));
             }
-            if matches!(self.waiver.waiver_state_class.as_str(), "expired" | "revoked") {
-                return Err(err("stable effective tier must not carry an expired or revoked waiver"));
+            if matches!(
+                self.waiver.waiver_state_class.as_str(),
+                "expired" | "revoked"
+            ) {
+                return Err(err(
+                    "stable effective tier must not carry an expired or revoked waiver",
+                ));
             }
             if !self.measurement.fresh() {
-                return Err(err("stable effective tier must keep a fresh benchmark measurement"));
+                return Err(err(
+                    "stable effective tier must keep a fresh benchmark measurement",
+                ));
             }
             if !self.measurement.trace_attested {
-                return Err(err("stable effective tier must keep an attested benchmark trace"));
+                return Err(err(
+                    "stable effective tier must keep an attested benchmark trace",
+                ));
             }
             if self.cost_explanation.unbounded() {
-                return Err(err("stable effective tier must not present an unbounded cost"));
+                return Err(err(
+                    "stable effective tier must not present an unbounded cost",
+                ));
             }
             if !self.cost_explanation.cost_explained {
-                return Err(err("stable effective tier must explain its cost to the user"));
+                return Err(err(
+                    "stable effective tier must explain its cost to the user",
+                ));
             }
             if self.permission_posture.widened {
                 return Err(err("stable effective tier must not widen permissions"));
@@ -1123,7 +1161,9 @@ impl StablePerformanceBudgetPacket {
                 return Err(err("stable effective tier must disclose its install scope"));
             }
             if !self.install_posture.revocation_clean() {
-                return Err(err("stable effective tier must keep a clean revocation posture"));
+                return Err(err(
+                    "stable effective tier must keep a clean revocation posture",
+                ));
             }
             if !self.install_posture.mirrorable() {
                 return Err(err("stable effective tier must stay mirrorable"));
@@ -1132,7 +1172,9 @@ impl StablePerformanceBudgetPacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1159,20 +1201,29 @@ impl StablePerformanceBudgetPacket {
             install_posture: &self.install_posture,
             attribution_complete: self.attribution_complete(),
         };
-        let derived =
-            derive_effective_tier(&self.claim.claimed_tier, &self.claim.claim_basis_class, &posture);
+        let derived = derive_effective_tier(
+            &self.claim.claimed_tier,
+            &self.claim.claim_basis_class,
+            &posture,
+        );
         if derived.effective_tier != self.claim.effective_tier {
-            return Err(err("stored effective tier does not match the posture-derived tier"));
+            return Err(err(
+                "stored effective tier does not match the posture-derived tier",
+            ));
         }
         if derived.downgraded != self.claim.downgraded {
-            return Err(err("stored downgrade flag does not match the posture-derived verdict"));
+            return Err(err(
+                "stored downgrade flag does not match the posture-derived verdict",
+            ));
         }
         let mut stored = self.claim.downgrade_reasons.clone();
         stored.sort();
         let mut expected = derived.downgrade_reasons.clone();
         expected.sort();
         if stored != expected {
-            return Err(err("stored downgrade reasons do not match the posture-derived reasons"));
+            return Err(err(
+                "stored downgrade reasons do not match the posture-derived reasons",
+            ));
         }
 
         // Banner truth.
@@ -1409,7 +1460,10 @@ pub fn project_stable_performance_budget_support_export(
     StablePerformanceBudgetSupportExport {
         record_kind: STABLE_PERFORMANCE_BUDGET_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_PERFORMANCE_BUDGET_SCHEMA_VERSION,
-        export_id: format!("stable_performance_budget_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_performance_budget_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         row_identity_ref: packet.identity.row_identity_ref.clone(),
         performance_profile_ref: packet.identity.performance_profile_ref.clone(),
@@ -1675,12 +1729,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1977,25 +2039,44 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     let id = &input.identity;
-    ensure_nonempty(&id.performance_profile_ref, "identity.performance_profile_ref")?;
-    if !id.performance_profile_ref.starts_with("performance_profile:") {
-        return Err(err("identity.performance_profile_ref must start with 'performance_profile:'"));
+    ensure_nonempty(
+        &id.performance_profile_ref,
+        "identity.performance_profile_ref",
+    )?;
+    if !id
+        .performance_profile_ref
+        .starts_with("performance_profile:")
+    {
+        return Err(err(
+            "identity.performance_profile_ref must start with 'performance_profile:'",
+        ));
     }
     ensure_nonempty(&id.row_identity_ref, "identity.row_identity_ref")?;
     ensure_nonempty(&id.extension_identity, "identity.extension_identity")?;
     ensure_nonempty(&id.extension_version, "identity.extension_version")?;
     ensure_nonempty(&id.package_id, "identity.package_id")?;
     ensure_nonempty(&id.publisher_namespace, "identity.publisher_namespace")?;
-    ensure_nonempty(&id.benchmark_evidence_ref, "identity.benchmark_evidence_ref")?;
+    ensure_nonempty(
+        &id.benchmark_evidence_ref,
+        "identity.benchmark_evidence_ref",
+    )?;
     ensure_token(
         TRUST_TIER_CLASSES,
         &id.publisher_trust_tier_class,
         "identity.publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &id.lifecycle_state_class, "identity.lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &id.lifecycle_state_class,
+        "identity.lifecycle_state_class",
+    )?;
 
     let m = &input.measurement;
-    ensure_token(BUDGET_AXIS_CLASSES, &m.budget_axis_class, "measurement.budget_axis_class")?;
+    ensure_token(
+        BUDGET_AXIS_CLASSES,
+        &m.budget_axis_class,
+        "measurement.budget_axis_class",
+    )?;
     ensure_token(
         MEASUREMENT_FRESHNESS_CLASSES,
         &m.measurement_freshness_class,
@@ -2005,7 +2086,11 @@ fn validate_input(
     ensure_nonempty(&m.benchmark_trace_ref, "measurement.benchmark_trace_ref")?;
 
     let e = &input.enforcement;
-    ensure_token(BUDGET_STATUS_CLASSES, &e.budget_status_class, "enforcement.budget_status_class")?;
+    ensure_token(
+        BUDGET_STATUS_CLASSES,
+        &e.budget_status_class,
+        "enforcement.budget_status_class",
+    )?;
     ensure_token(
         ENFORCEMENT_MODE_CLASSES,
         &e.enforcement_mode_class,
@@ -2019,19 +2104,29 @@ fn validate_input(
     ensure_nonempty(&e.budget_profile_ref, "enforcement.budget_profile_ref")?;
 
     let w = &input.waiver;
-    ensure_token(WAIVER_STATE_CLASSES, &w.waiver_state_class, "waiver.waiver_state_class")?;
+    ensure_token(
+        WAIVER_STATE_CLASSES,
+        &w.waiver_state_class,
+        "waiver.waiver_state_class",
+    )?;
     if w.waiver_state_class == "none" {
         if w.waiver_authority_class.is_some() {
-            return Err(err("waiver.waiver_authority_class must be unset when waiver_state is none"));
+            return Err(err(
+                "waiver.waiver_authority_class must be unset when waiver_state is none",
+            ));
         }
     } else {
         ensure_nonempty(&w.waiver_ref, "waiver.waiver_ref")?;
         match &w.waiver_authority_class {
-            Some(authority) => {
-                ensure_token(WAIVER_AUTHORITY_CLASSES, authority, "waiver.waiver_authority_class")?
-            }
+            Some(authority) => ensure_token(
+                WAIVER_AUTHORITY_CLASSES,
+                authority,
+                "waiver.waiver_authority_class",
+            )?,
             None => {
-                return Err(err("waiver.waiver_authority_class must be set when a waiver exists"))
+                return Err(err(
+                    "waiver.waiver_authority_class must be set when a waiver exists",
+                ))
             }
         }
     }
@@ -2046,8 +2141,14 @@ fn validate_input(
     ensure_nonempty(&c.explanation_ref, "cost_explanation.explanation_ref")?;
 
     let perm = &input.permission_posture;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture.declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture.effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture.declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture.effective_permission_ref",
+    )?;
 
     let compat = &input.compatibility;
     ensure_token(
@@ -2058,20 +2159,36 @@ fn validate_input(
     ensure_nonempty(&compat.scorecard_ref, "compatibility.scorecard_ref")?;
 
     let inst = &input.install_posture;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture.install_scope_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture.install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture.revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture.mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture.mirrorability_class",
+    )?;
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_PERFORMANCE_BUDGET_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_PERFORMANCE_BUDGET_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2083,7 +2200,11 @@ fn validate_input(
 fn validate_identity(
     identity: &PerformanceBudgetIdentity,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(identity.record_kind.as_str(), PERFORMANCE_BUDGET_IDENTITY_RECORD_KIND, "identity record_kind")?;
+    ensure_eq(
+        identity.record_kind.as_str(),
+        PERFORMANCE_BUDGET_IDENTITY_RECORD_KIND,
+        "identity record_kind",
+    )?;
     ensure_eq_u32(
         identity.schema_version,
         STABLE_PERFORMANCE_BUDGET_SCHEMA_VERSION,
@@ -2094,15 +2215,27 @@ fn validate_identity(
         &identity.publisher_trust_tier_class,
         "identity publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &identity.lifecycle_state_class, "identity lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &identity.lifecycle_state_class,
+        "identity lifecycle_state_class",
+    )?;
     Ok(())
 }
 
 fn validate_measurement(
     m: &PerformanceMeasurement,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(m.record_kind.as_str(), PERFORMANCE_MEASUREMENT_RECORD_KIND, "measurement record_kind")?;
-    ensure_token(BUDGET_AXIS_CLASSES, &m.budget_axis_class, "measurement budget_axis_class")?;
+    ensure_eq(
+        m.record_kind.as_str(),
+        PERFORMANCE_MEASUREMENT_RECORD_KIND,
+        "measurement record_kind",
+    )?;
+    ensure_token(
+        BUDGET_AXIS_CLASSES,
+        &m.budget_axis_class,
+        "measurement budget_axis_class",
+    )?;
     ensure_token(
         MEASUREMENT_FRESHNESS_CLASSES,
         &m.measurement_freshness_class,
@@ -2116,9 +2249,21 @@ fn validate_measurement(
 fn validate_enforcement(
     e: &PerformanceBudgetEnforcement,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(e.record_kind.as_str(), PERFORMANCE_BUDGET_ENFORCEMENT_RECORD_KIND, "enforcement record_kind")?;
-    ensure_token(BUDGET_STATUS_CLASSES, &e.budget_status_class, "enforcement budget_status_class")?;
-    ensure_token(ENFORCEMENT_MODE_CLASSES, &e.enforcement_mode_class, "enforcement enforcement_mode_class")?;
+    ensure_eq(
+        e.record_kind.as_str(),
+        PERFORMANCE_BUDGET_ENFORCEMENT_RECORD_KIND,
+        "enforcement record_kind",
+    )?;
+    ensure_token(
+        BUDGET_STATUS_CLASSES,
+        &e.budget_status_class,
+        "enforcement budget_status_class",
+    )?;
+    ensure_token(
+        ENFORCEMENT_MODE_CLASSES,
+        &e.enforcement_mode_class,
+        "enforcement enforcement_mode_class",
+    )?;
     ensure_token(
         THRESHOLD_ADJUSTMENT_CLASSES,
         &e.threshold_adjustment_class,
@@ -2131,18 +2276,30 @@ fn validate_enforcement(
 fn validate_waiver(
     w: &PerformanceBudgetWaiver,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(w.record_kind.as_str(), PERFORMANCE_BUDGET_WAIVER_RECORD_KIND, "waiver record_kind")?;
-    ensure_token(WAIVER_STATE_CLASSES, &w.waiver_state_class, "waiver waiver_state_class")?;
+    ensure_eq(
+        w.record_kind.as_str(),
+        PERFORMANCE_BUDGET_WAIVER_RECORD_KIND,
+        "waiver record_kind",
+    )?;
+    ensure_token(
+        WAIVER_STATE_CLASSES,
+        &w.waiver_state_class,
+        "waiver waiver_state_class",
+    )?;
     if w.waiver_state_class == "none" {
         if w.waiver_authority_class.is_some() {
-            return Err(err("waiver authority must be unset when waiver_state is none"));
+            return Err(err(
+                "waiver authority must be unset when waiver_state is none",
+            ));
         }
     } else {
         ensure_nonempty(&w.waiver_ref, "waiver waiver_ref")?;
         match &w.waiver_authority_class {
-            Some(authority) => {
-                ensure_token(WAIVER_AUTHORITY_CLASSES, authority, "waiver waiver_authority_class")?
-            }
+            Some(authority) => ensure_token(
+                WAIVER_AUTHORITY_CLASSES,
+                authority,
+                "waiver waiver_authority_class",
+            )?,
             None => return Err(err("waiver authority must be set when a waiver exists")),
         }
     }
@@ -2152,7 +2309,11 @@ fn validate_waiver(
 fn validate_cost_explanation(
     c: &PerformanceCostExplanation,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(c.record_kind.as_str(), PERFORMANCE_COST_EXPLANATION_RECORD_KIND, "cost_explanation record_kind")?;
+    ensure_eq(
+        c.record_kind.as_str(),
+        PERFORMANCE_COST_EXPLANATION_RECORD_KIND,
+        "cost_explanation record_kind",
+    )?;
     ensure_token(COST_CLASSES, &c.cost_class, "cost_explanation cost_class")?;
     ensure_token(
         BUDGET_AXIS_CLASSES,
@@ -2166,16 +2327,30 @@ fn validate_cost_explanation(
 fn validate_permission_posture(
     perm: &PerformancePermissionPosture,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(perm.record_kind.as_str(), PERFORMANCE_PERMISSION_POSTURE_RECORD_KIND, "permission_posture record_kind")?;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture effective_permission_ref")?;
+    ensure_eq(
+        perm.record_kind.as_str(),
+        PERFORMANCE_PERMISSION_POSTURE_RECORD_KIND,
+        "permission_posture record_kind",
+    )?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture effective_permission_ref",
+    )?;
     Ok(())
 }
 
 fn validate_compatibility(
     compat: &PerformanceCompatibility,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(compat.record_kind.as_str(), PERFORMANCE_COMPATIBILITY_RECORD_KIND, "compatibility record_kind")?;
+    ensure_eq(
+        compat.record_kind.as_str(),
+        PERFORMANCE_COMPATIBILITY_RECORD_KIND,
+        "compatibility record_kind",
+    )?;
     ensure_token(
         COMPATIBILITY_LABEL_CLASSES,
         &compat.compatibility_label_class,
@@ -2188,27 +2363,59 @@ fn validate_compatibility(
 fn validate_install_posture(
     inst: &PerformanceInstallPosture,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(inst.record_kind.as_str(), PERFORMANCE_INSTALL_POSTURE_RECORD_KIND, "install_posture record_kind")?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture install_scope_class")?;
+    ensure_eq(
+        inst.record_kind.as_str(),
+        PERFORMANCE_INSTALL_POSTURE_RECORD_KIND,
+        "install_posture record_kind",
+    )?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture mirrorability_class",
+    )?;
     Ok(())
 }
 
 fn validate_claim(
     claim: &PerformanceQualificationClaim,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(claim.record_kind.as_str(), PERFORMANCE_QUALIFICATION_CLAIM_RECORD_KIND, "claim record_kind")?;
+    ensure_eq(
+        claim.record_kind.as_str(),
+        PERFORMANCE_QUALIFICATION_CLAIM_RECORD_KIND,
+        "claim record_kind",
+    )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(PERFORMANCE_BUDGET_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            PERFORMANCE_BUDGET_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2216,14 +2423,24 @@ fn validate_claim(
 fn validate_banner(
     banner: &PerformanceDowngradedBanner,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
-    ensure_eq(banner.record_kind.as_str(), PERFORMANCE_DOWNGRADED_BANNER_RECORD_KIND, "banner record_kind")?;
+    ensure_eq(
+        banner.record_kind.as_str(),
+        PERFORMANCE_DOWNGRADED_BANNER_RECORD_KIND,
+        "banner record_kind",
+    )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(PERFORMANCE_BUDGET_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            PERFORMANCE_BUDGET_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2241,12 +2458,16 @@ fn validate_budget_numbers(
         && e.published_p95_budget > 0
         && e.published_p50_budget > e.published_p95_budget
     {
-        return Err(err("published_p50_budget must not exceed published_p95_budget"));
+        return Err(err(
+            "published_p50_budget must not exceed published_p95_budget",
+        ));
     }
     match e.budget_status_class.as_str() {
         "within_budget" => {
             if e.published_p50_budget == 0 || e.published_p95_budget == 0 {
-                return Err(err("within_budget status must publish nonzero p50/p95 budget ceilings"));
+                return Err(err(
+                    "within_budget status must publish nonzero p50/p95 budget ceilings",
+                ));
             }
             if m.measured_p50 > e.published_p50_budget || m.measured_p95 > e.published_p95_budget {
                 return Err(err(
@@ -2256,9 +2477,12 @@ fn validate_budget_numbers(
         }
         "over_budget" => {
             if e.published_p50_budget == 0 || e.published_p95_budget == 0 {
-                return Err(err("over_budget status must publish nonzero p50/p95 budget ceilings"));
+                return Err(err(
+                    "over_budget status must publish nonzero p50/p95 budget ceilings",
+                ));
             }
-            if m.measured_p50 <= e.published_p50_budget && m.measured_p95 <= e.published_p95_budget {
+            if m.measured_p50 <= e.published_p50_budget && m.measured_p95 <= e.published_p95_budget
+            {
                 return Err(err(
                     "over_budget status requires measured p50 or p95 to exceed the published budget",
                 ));
@@ -2278,7 +2502,11 @@ fn validate_inspection(
         STABLE_PERFORMANCE_BUDGET_INSPECTION_RECORD_KIND,
         "inspection record_kind",
     )?;
-    ensure_eq(inspection.packet_id_ref.as_str(), packet.packet_id.as_str(), "inspection packet_id_ref")?;
+    ensure_eq(
+        inspection.packet_id_ref.as_str(),
+        packet.packet_id.as_str(),
+        "inspection packet_id_ref",
+    )?;
     ensure_eq(
         inspection.effective_tier.as_str(),
         packet.claim.effective_tier.as_str(),
@@ -2315,12 +2543,18 @@ fn err(message: impl Into<String>) -> StablePerformanceBudgetValidationError {
     }
 }
 
-fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), StablePerformanceBudgetValidationError>
+fn ensure_eq<T>(
+    left: T,
+    right: T,
+    field: &str,
+) -> Result<(), StablePerformanceBudgetValidationError>
 where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2331,7 +2565,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2349,7 +2585,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StablePerformanceBudgetValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

@@ -139,8 +139,12 @@ pub const INSTALLABLE_LIFECYCLE_STATES: &[&str] =
 pub const DEPENDENCY_CLASSES: &[&str] = &["hard_dependency", "optional_integration"];
 
 /// Closed dependency-resolution-state vocabulary.
-pub const DEPENDENCY_RESOLUTION_STATE_CLASSES: &[&str] =
-    &["resolved", "unresolved_missing", "version_conflict", "optional_absent"];
+pub const DEPENDENCY_RESOLUTION_STATE_CLASSES: &[&str] = &[
+    "resolved",
+    "unresolved_missing",
+    "version_conflict",
+    "optional_absent",
+];
 
 /// Closed deprecation-marker vocabulary carried on every dependency and on the
 /// manifest's own lifecycle label.
@@ -148,8 +152,12 @@ pub const DEPRECATION_CLASSES: &[&str] = &["active", "deprecated", "removal_sche
 
 /// Closed range-resolution vocabulary shared by the API range and runtime range.
 /// `satisfied` is the only state a stable claim may keep.
-pub const RANGE_RESOLUTION_CLASSES: &[&str] =
-    &["satisfied", "below_minimum", "above_maximum", "range_conflict"];
+pub const RANGE_RESOLUTION_CLASSES: &[&str] = &[
+    "satisfied",
+    "below_minimum",
+    "above_maximum",
+    "range_conflict",
+];
 
 /// Closed capability-class vocabulary every permission entry carries so the
 /// machine-readable permission implication is named, not free text.
@@ -504,8 +512,7 @@ impl ManifestDependencyEdge {
 
     /// Returns true when a hard dependency is unresolved.
     pub fn hard_unresolved(&self) -> bool {
-        self.is_hard()
-            && matches!(self.resolution_state_class.as_str(), "unresolved_missing")
+        self.is_hard() && matches!(self.resolution_state_class.as_str(), "unresolved_missing")
     }
 
     /// Returns true when a hard dependency contributes permissions without
@@ -747,11 +754,15 @@ impl StableManifestHardeningPacket {
 
         let identity = identity_record(&input.identity);
         let compatibility_range = range_record(&input.compatibility_range);
-        let declared_permissions: Vec<ManifestPermissionEntry> =
-            input.declared_permissions.iter().map(permission_record).collect();
+        let declared_permissions: Vec<ManifestPermissionEntry> = input
+            .declared_permissions
+            .iter()
+            .map(permission_record)
+            .collect();
         let dependencies: Vec<ManifestDependencyEdge> =
             input.dependencies.iter().map(dependency_record).collect();
-        let effective_permissions = resolve_effective_permissions(&declared_permissions, &dependencies);
+        let effective_permissions =
+            resolve_effective_permissions(&declared_permissions, &dependencies);
         let lifecycle_label = lifecycle_label_record(&input.lifecycle_label);
         let claim = claim_record(
             &input.claim,
@@ -761,8 +772,12 @@ impl StableManifestHardeningPacket {
             &effective_permissions,
             attribution_is_complete(&identity, &dependencies),
         );
-        let downgraded_manifest_banner =
-            banner_record(&identity, &compatibility_range, &dependencies, &effective_permissions);
+        let downgraded_manifest_banner = banner_record(
+            &identity,
+            &compatibility_range,
+            &dependencies,
+            &effective_permissions,
+        );
         let inspection = inspection_record(
             &input.packet_id,
             &identity,
@@ -895,7 +910,9 @@ impl StableManifestHardeningPacket {
                 ));
             }
             if !self.identity.lifecycle_installable() {
-                return Err(err("stable effective tier must stay on an installable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on an installable lifecycle",
+                ));
             }
             if !self.compatibility_range.ranges_satisfied() {
                 return Err(err(
@@ -907,7 +924,10 @@ impl StableManifestHardeningPacket {
                     "stable effective tier must not carry an unresolved hard dependency",
                 ));
             }
-            if self.dependencies.iter().any(|d| d.is_hard() && d.resolution_state_class == "version_conflict")
+            if self
+                .dependencies
+                .iter()
+                .any(|d| d.is_hard() && d.resolution_state_class == "version_conflict")
             {
                 return Err(err(
                     "stable effective tier must not carry a hard-dependency version conflict",
@@ -923,7 +943,9 @@ impl StableManifestHardeningPacket {
                 .iter()
                 .any(|d| matches!(d.deprecation_class.as_str(), "removed"))
             {
-                return Err(err("stable effective tier must not depend on a removed dependency"));
+                return Err(err(
+                    "stable effective tier must not depend on a removed dependency",
+                ));
             }
             if !self.attribution_complete() {
                 return Err(err("stable effective tier must be fully attributed"));
@@ -973,8 +995,11 @@ impl StableManifestHardeningPacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> =
-            derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1170,7 +1195,10 @@ pub fn project_stable_manifest_hardening_support_export(
     StableManifestHardeningSupportExport {
         record_kind: STABLE_MANIFEST_HARDENING_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_MANIFEST_HARDENING_SCHEMA_VERSION,
-        export_id: format!("stable_manifest_hardening_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_manifest_hardening_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         extension_identity_ref: packet.identity.extension_identity_ref.clone(),
         extension_version: packet.identity.extension_version.clone(),
@@ -1178,7 +1206,10 @@ pub fn project_stable_manifest_hardening_support_export(
         trust_tier_class: packet.identity.publisher_trust_tier_class.clone(),
         lifecycle_state_class: packet.identity.lifecycle_state_class.clone(),
         deprecation_class: packet.lifecycle_label.deprecation_class.clone(),
-        api_range_resolution_class: packet.compatibility_range.api_range_resolution_class.clone(),
+        api_range_resolution_class: packet
+            .compatibility_range
+            .api_range_resolution_class
+            .clone(),
         runtime_range_resolution_class: packet
             .compatibility_range
             .runtime_range_resolution_class
@@ -1329,8 +1360,7 @@ fn resolve_effective_permissions(
         }
     }
 
-    let effective_refs: BTreeSet<String> =
-        declared_refs.union(&transitive_refs).cloned().collect();
+    let effective_refs: BTreeSet<String> = declared_refs.union(&transitive_refs).cloned().collect();
 
     let mut diff_entries: Vec<EffectivePermissionDiffEntry> = Vec::new();
     for permission_ref in &effective_refs {
@@ -1445,10 +1475,16 @@ fn derive_effective_tier(
     {
         reasons.push("dependency_version_conflict".to_string());
     }
-    if dependencies.iter().any(|d| d.deprecation_class == "removed") {
+    if dependencies
+        .iter()
+        .any(|d| d.deprecation_class == "removed")
+    {
         reasons.push("dependency_removed".to_string());
     }
-    if dependencies.iter().any(|d| d.deprecation_class == "deprecated") {
+    if dependencies
+        .iter()
+        .any(|d| d.deprecation_class == "deprecated")
+    {
         reasons.push("dependency_deprecated".to_string());
     }
     if dependencies
@@ -1487,12 +1523,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1538,9 +1582,12 @@ fn manifest_requires_warning(
             "below_minimum" | "range_conflict"
         )
         || dependencies.iter().any(|d| d.hard_unresolved())
-        || dependencies
-            .iter()
-            .any(|d| matches!(d.deprecation_class.as_str(), "removed" | "removal_scheduled"))
+        || dependencies.iter().any(|d| {
+            matches!(
+                d.deprecation_class.as_str(),
+                "removed" | "removal_scheduled"
+            )
+        })
         || effective.implicit_widening_present
 }
 
@@ -1557,7 +1604,10 @@ fn banner_reason_for(
     if dependencies.iter().any(|d| d.hard_unresolved()) {
         return Some("unresolved_hard_dependency".to_string());
     }
-    if dependencies.iter().any(|d| d.deprecation_class == "removed") {
+    if dependencies
+        .iter()
+        .any(|d| d.deprecation_class == "removed")
+    {
         return Some("dependency_removed".to_string());
     }
     if range.runtime_range_resolution_class == "range_conflict"
@@ -1703,7 +1753,8 @@ fn banner_record(
             banner_reason_class.clone().unwrap_or_default()
         )
     } else {
-        "Manifest hardened: ranges satisfied, dependencies resolved, no implicit widening.".to_string()
+        "Manifest hardened: ranges satisfied, dependencies resolved, no implicit widening."
+            .to_string()
     };
     DowngradedManifestBanner {
         record_kind: DOWNGRADED_MANIFEST_BANNER_RECORD_KIND.to_string(),
@@ -1733,7 +1784,12 @@ fn inspection_record(
         dependencies.iter().filter(|d| d.hard_unresolved()).count();
     let deprecated_dependency_count = dependencies
         .iter()
-        .filter(|d| matches!(d.deprecation_class.as_str(), "deprecated" | "removal_scheduled" | "removed"))
+        .filter(|d| {
+            matches!(
+                d.deprecation_class.as_str(),
+                "deprecated" | "removal_scheduled" | "removed"
+            )
+        })
         .count();
 
     StableManifestHardeningInspection {
@@ -1783,7 +1839,10 @@ fn validate_input(
             "identity.manifest_baseline_ref must start with 'manifest_baseline:'",
         ));
     }
-    ensure_nonempty(&id.extension_identity_ref, "identity.extension_identity_ref")?;
+    ensure_nonempty(
+        &id.extension_identity_ref,
+        "identity.extension_identity_ref",
+    )?;
     ensure_nonempty(&id.extension_version, "identity.extension_version")?;
     ensure_nonempty(&id.source_package_ref, "identity.source_package_ref")?;
     ensure_token(
@@ -1798,8 +1857,14 @@ fn validate_input(
     )?;
 
     let r = &input.compatibility_range;
-    ensure_nonempty(&r.declared_api_min_ref, "compatibility_range.declared_api_min_ref")?;
-    ensure_nonempty(&r.declared_api_max_ref, "compatibility_range.declared_api_max_ref")?;
+    ensure_nonempty(
+        &r.declared_api_min_ref,
+        "compatibility_range.declared_api_min_ref",
+    )?;
+    ensure_nonempty(
+        &r.declared_api_max_ref,
+        "compatibility_range.declared_api_max_ref",
+    )?;
     ensure_nonempty(
         &r.declared_runtime_min_ref,
         "compatibility_range.declared_runtime_min_ref",
@@ -1818,7 +1883,10 @@ fn validate_input(
         &r.runtime_range_resolution_class,
         "compatibility_range.runtime_range_resolution_class",
     )?;
-    ensure_nonempty(&r.resolved_against_api_ref, "compatibility_range.resolved_against_api_ref")?;
+    ensure_nonempty(
+        &r.resolved_against_api_ref,
+        "compatibility_range.resolved_against_api_ref",
+    )?;
     ensure_nonempty(
         &r.resolved_against_runtime_ref,
         "compatibility_range.resolved_against_runtime_ref",
@@ -1846,9 +1914,16 @@ fn validate_input(
         if !dependency_ids.insert(&d.dependency_id) {
             return Err(err(format!("duplicate dependency_id: {}", d.dependency_id)));
         }
-        ensure_token(DEPENDENCY_CLASSES, &d.dependency_class, "dependency.dependency_class")?;
+        ensure_token(
+            DEPENDENCY_CLASSES,
+            &d.dependency_class,
+            "dependency.dependency_class",
+        )?;
         ensure_nonempty(&d.target_extension_ref, "dependency.target_extension_ref")?;
-        ensure_nonempty(&d.target_version_range_ref, "dependency.target_version_range_ref")?;
+        ensure_nonempty(
+            &d.target_version_range_ref,
+            "dependency.target_version_range_ref",
+        )?;
         ensure_token(
             DEPENDENCY_RESOLUTION_STATE_CLASSES,
             &d.resolution_state_class,
@@ -1859,10 +1934,15 @@ fn validate_input(
             &d.lifecycle_state_class,
             "dependency.lifecycle_state_class",
         )?;
-        ensure_token(DEPRECATION_CLASSES, &d.deprecation_class, "dependency.deprecation_class")?;
+        ensure_token(
+            DEPRECATION_CLASSES,
+            &d.deprecation_class,
+            "dependency.deprecation_class",
+        )?;
         // A hard dependency may never carry the optional-only resolution state,
         // and an optional integration may never be a missing hard requirement.
-        if d.dependency_class == "hard_dependency" && d.resolution_state_class == "optional_absent" {
+        if d.dependency_class == "hard_dependency" && d.resolution_state_class == "optional_absent"
+        {
             return Err(err(
                 "a hard_dependency must not use the optional_absent resolution state",
             ));
@@ -1876,7 +1956,10 @@ fn validate_input(
         }
         let mut contributed_refs = BTreeSet::new();
         for p in &d.contributed_permissions {
-            ensure_nonempty(&p.permission_ref, "dependency.contributed_permission.permission_ref")?;
+            ensure_nonempty(
+                &p.permission_ref,
+                "dependency.contributed_permission.permission_ref",
+            )?;
             if !contributed_refs.insert(&p.permission_ref) {
                 return Err(err(format!(
                     "duplicate contributed permission_ref on {}: {}",
@@ -1897,7 +1980,11 @@ fn validate_input(
         &lc.lifecycle_state_class,
         "lifecycle_label.lifecycle_state_class",
     )?;
-    ensure_token(DEPRECATION_CLASSES, &lc.deprecation_class, "lifecycle_label.deprecation_class")?;
+    ensure_token(
+        DEPRECATION_CLASSES,
+        &lc.deprecation_class,
+        "lifecycle_label.deprecation_class",
+    )?;
     // The lifecycle label must agree with the identity lifecycle state.
     if lc.lifecycle_state_class != id.lifecycle_state_class {
         return Err(err(
@@ -1907,10 +1994,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_MANIFEST_HARDENING_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_MANIFEST_HARDENING_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -1987,7 +2082,11 @@ fn validate_dependency(
         MANIFEST_DEPENDENCY_EDGE_RECORD_KIND,
         "dependency record_kind",
     )?;
-    ensure_token(DEPENDENCY_CLASSES, &dep.dependency_class, "dependency dependency_class")?;
+    ensure_token(
+        DEPENDENCY_CLASSES,
+        &dep.dependency_class,
+        "dependency dependency_class",
+    )?;
     ensure_token(
         DEPENDENCY_RESOLUTION_STATE_CLASSES,
         &dep.resolution_state_class,
@@ -1998,7 +2097,11 @@ fn validate_dependency(
         &dep.lifecycle_state_class,
         "dependency lifecycle_state_class",
     )?;
-    ensure_token(DEPRECATION_CLASSES, &dep.deprecation_class, "dependency deprecation_class")?;
+    ensure_token(
+        DEPRECATION_CLASSES,
+        &dep.deprecation_class,
+        "dependency deprecation_class",
+    )?;
     ensure_nonempty(&dep.dependency_id, "dependency dependency_id")?;
     ensure_nonempty(&dep.target_extension_ref, "dependency target_extension_ref")?;
     for p in &dep.contributed_permissions {
@@ -2016,10 +2119,21 @@ fn validate_effective_permissions(
         "effective_permissions record_kind",
     )?;
     // Effective must equal declared ∪ transitive.
-    let declared: BTreeSet<&str> = res.declared_permission_refs.iter().map(String::as_str).collect();
-    let transitive: BTreeSet<&str> =
-        res.transitive_permission_refs.iter().map(String::as_str).collect();
-    let effective: BTreeSet<&str> = res.effective_permission_refs.iter().map(String::as_str).collect();
+    let declared: BTreeSet<&str> = res
+        .declared_permission_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let transitive: BTreeSet<&str> = res
+        .transitive_permission_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let effective: BTreeSet<&str> = res
+        .effective_permission_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
     let union: BTreeSet<&str> = declared.union(&transitive).copied().collect();
     if effective != union {
         return Err(err(
@@ -2027,7 +2141,10 @@ fn validate_effective_permissions(
         ));
     }
     for d in &res.diff_entries {
-        ensure_nonempty(&d.permission_ref, "effective_permission diff.permission_ref")?;
+        ensure_nonempty(
+            &d.permission_ref,
+            "effective_permission diff.permission_ref",
+        )?;
         ensure_token(
             PERMISSION_CAPABILITY_CLASSES,
             &d.capability_class,
@@ -2077,15 +2194,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
     ensure_token(
         SUPPORT_CLAIM_CLASSES,
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(MANIFEST_HARDENING_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            MANIFEST_HARDENING_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2099,12 +2228,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(MANIFEST_HARDENING_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            MANIFEST_HARDENING_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2131,9 +2266,12 @@ fn validate_inspection(
     if inspection.downgraded != packet.claim.downgraded {
         return Err(err("inspection downgraded is inconsistent"));
     }
-    if inspection.downgraded_manifest_banner_required != packet.downgraded_manifest_banner.must_display
+    if inspection.downgraded_manifest_banner_required
+        != packet.downgraded_manifest_banner.must_display
     {
-        return Err(err("inspection downgraded_manifest_banner_required is inconsistent"));
+        return Err(err(
+            "inspection downgraded_manifest_banner_required is inconsistent",
+        ));
     }
     if inspection.attribution_complete != packet.attribution_complete() {
         return Err(err("inspection attribution_complete is inconsistent"));
@@ -2141,9 +2279,12 @@ fn validate_inspection(
     if inspection.implicit_authority_widening_present
         != packet.effective_permissions.implicit_widening_present
     {
-        return Err(err("inspection implicit_authority_widening_present is inconsistent"));
+        return Err(err(
+            "inspection implicit_authority_widening_present is inconsistent",
+        ));
     }
-    if inspection.effective_permission_count != packet.effective_permissions.effective_permission_refs.len()
+    if inspection.effective_permission_count
+        != packet.effective_permissions.effective_permission_refs.len()
     {
         return Err(err("inspection effective_permission_count is inconsistent"));
     }
@@ -2163,12 +2304,18 @@ fn err(message: impl Into<String>) -> StableManifestHardeningValidationError {
     }
 }
 
-fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), StableManifestHardeningValidationError>
+fn ensure_eq<T>(
+    left: T,
+    right: T,
+    field: &str,
+) -> Result<(), StableManifestHardeningValidationError>
 where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2179,7 +2326,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableManifestHardeningValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2197,7 +2346,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableManifestHardeningValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

@@ -11,12 +11,12 @@
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-no-affected-surfaces-beta
 //! ```
 
+use aureline_auth::offline_entitlements::seeded_offline_entitlement_verifier_beta_page;
 use aureline_policy::{
     seeded_finalize_signed_policy_bundle_page, BundleImportFlowClass, BundleKindClass,
     FinalizeSignedPolicyBundlePage, FinalizeSignedPolicyBundleRow,
     FinalizeSignedPolicyBundleSupportExport,
 };
-use aureline_auth::offline_entitlements::seeded_offline_entitlement_verifier_beta_page;
 
 fn main() {
     if let Err(err) = run() {
@@ -46,11 +46,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             // the staleness_disguised_as_auth_failure withdrawal guardrail.
             let verifier_page = seeded_offline_entitlement_verifier_beta_page();
             let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows;
-            if let Some(row) = rows
-                .iter_mut()
-                .find(|r| r.import_flow == BundleImportFlowClass::OfflineGrace
-                    && r.bundle_kind == BundleKindClass::PolicyBundle)
-            {
+            if let Some(row) = rows.iter_mut().find(|r| {
+                r.import_flow == BundleImportFlowClass::OfflineGrace
+                    && r.bundle_kind == BundleKindClass::PolicyBundle
+            }) {
                 row.grace_state.staleness_label.clear();
             }
             let drill = FinalizeSignedPolicyBundlePage::new(

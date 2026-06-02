@@ -1026,11 +1026,7 @@ impl ReviewStabilizationPacket {
         for command in &self.commands {
             validate_command_record(command, &self.stabilization.stabilization_id)?;
         }
-        validate_support_export(
-            &self.support_export,
-            &self.stabilization,
-            &self.commands,
-        )?;
+        validate_support_export(&self.support_export, &self.stabilization, &self.commands)?;
         validate_inspection(&self.inspection, self)?;
         Ok(())
     }
@@ -1038,19 +1034,19 @@ impl ReviewStabilizationPacket {
     /// Returns true when stabilization-truth axes are surfaced as separable
     /// inspectable truths.
     pub fn truths_are_separable(&self) -> bool {
-        contains_token(STABILIZATION_STATES, &self.stabilization.stabilization_state)
-            && contains_token(
-                STALE_BASE_LABEL_CLASSES,
-                &self.stale_base_label.stale_base_label_class,
-            )
-            && contains_token(
-                MERGEABILITY_TRUTH_CLASSES,
-                &self.mergeability_truth.mergeability_truth_class,
-            )
-            && self
-                .ownership_signals
-                .iter()
-                .all(|s| contains_token(OWNERSHIP_SIGNAL_CLASSES, &s.ownership_signal_class))
+        contains_token(
+            STABILIZATION_STATES,
+            &self.stabilization.stabilization_state,
+        ) && contains_token(
+            STALE_BASE_LABEL_CLASSES,
+            &self.stale_base_label.stale_base_label_class,
+        ) && contains_token(
+            MERGEABILITY_TRUTH_CLASSES,
+            &self.mergeability_truth.mergeability_truth_class,
+        ) && self
+            .ownership_signals
+            .iter()
+            .all(|s| contains_token(OWNERSHIP_SIGNAL_CLASSES, &s.ownership_signal_class))
     }
 
     /// Returns true when no raw escape hatch crosses the support boundary.
@@ -1063,8 +1059,7 @@ impl ReviewStabilizationPacket {
     /// and base/head identity.
     pub fn anchors_bound_exact(&self) -> bool {
         self.anchor_stabilities.iter().all(|a| {
-            a.anchor_stability_class == "anchor_bound_exact"
-                && a.provider_excluded_from_anchor_hash
+            a.anchor_stability_class == "anchor_bound_exact" && a.provider_excluded_from_anchor_hash
         })
     }
 
@@ -1234,8 +1229,14 @@ fn stabilization_record(
         record_kind: REVIEW_STABILIZATION_RECORD_KIND.to_string(),
         schema_version: REVIEW_STABILIZATION_SCHEMA_VERSION,
         stabilization_id: input.stabilization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
-        landing_candidate_id_ref: landing_packet.landing_candidate.landing_candidate_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
+        landing_candidate_id_ref: landing_packet
+            .landing_candidate
+            .landing_candidate_id
+            .clone(),
         stabilization_state: input.stabilization_state.clone(),
         review_pack_digest_ref: input.review_pack_digest_ref.clone(),
         base_revision_ref: input.base_revision_ref.clone(),
@@ -1422,8 +1423,14 @@ fn stabilization_support_export_packet(
         schema_version: REVIEW_STABILIZATION_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         stabilization_id_ref: stabilization.stabilization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
-        landing_candidate_id_ref: landing_packet.landing_candidate.landing_candidate_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
+        landing_candidate_id_ref: landing_packet
+            .landing_candidate
+            .landing_candidate_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
@@ -1457,8 +1464,7 @@ fn stabilization_inspection_record(
     let stabilized_current = stabilization.stabilization_state == "stabilized_current";
     let stabilized_stale_pack = stabilization.stabilization_state == "stabilized_stale_pack";
     let stabilized_partial_scope = stabilization.stabilization_state == "stabilized_partial_scope";
-    let stabilized_slice_omitted =
-        stabilization.stabilization_state == "stabilized_slice_omitted";
+    let stabilized_slice_omitted = stabilization.stabilization_state == "stabilized_slice_omitted";
     let stabilized_diverged_requires_review =
         stabilization.stabilization_state == "stabilized_diverged_requires_review";
     let all_anchors_bound_exact = anchor_stabilities
@@ -1469,13 +1475,14 @@ fn stabilization_inspection_record(
         .any(|a| a.anchor_stability_class == "anchor_drifted_requires_review");
     let stale_base_blocks_landing = stale_base_label.blocks_landing;
     let approval_invalidated = approval_invalidation.is_some();
-    let mergeability_blocking = mergeability_truth.mergeability_truth_class == "not_mergeable_blocking";
+    let mergeability_blocking =
+        mergeability_truth.mergeability_truth_class == "not_mergeable_blocking";
     let mergeability_provider_authoritative = mergeability_truth.provider_authoritative;
     let enforceable_ownership_present = ownership_signals.iter().any(|s| s.enforceable);
     let advisory_ownership_present = ownership_signals.iter().any(|s| s.advisory);
-    let ownership_conflict_present = ownership_signals.iter().any(|s| {
-        s.ownership_signal_class == "advisory_and_enforceable_conflict"
-    });
+    let ownership_conflict_present = ownership_signals
+        .iter()
+        .any(|s| s.ownership_signal_class == "advisory_and_enforceable_conflict");
     let bundle_export_present = bundle_export.is_some();
     let bundle_import_present = bundle_import.is_some();
     let offline_handoff_present = offline_handoff.is_some();
@@ -1636,7 +1643,11 @@ fn validate_input(
         ensure_token(BUNDLE_IMPORT_STATES, &import.import_state, "import_state")?;
     }
     if let Some(handoff) = &input.offline_handoff {
-        ensure_token(OFFLINE_HANDOFF_STATES, &handoff.handoff_state, "handoff_state")?;
+        ensure_token(
+            OFFLINE_HANDOFF_STATES,
+            &handoff.handoff_state,
+            "handoff_state",
+        )?;
     }
 
     for command in &input.commands {
@@ -1845,7 +1856,11 @@ fn validate_offline_handoff_record(
         stabilization_id,
         "offline_handoff stabilization_id_ref",
     )?;
-    ensure_token(OFFLINE_HANDOFF_STATES, &record.handoff_state, "handoff_state")?;
+    ensure_token(
+        OFFLINE_HANDOFF_STATES,
+        &record.handoff_state,
+        "handoff_state",
+    )?;
     Ok(())
 }
 
@@ -2023,17 +2038,15 @@ fn derive_blocked_reasons(
 // Validation utilities
 // ---------------------------------------------------------------------------
 
-fn stabilization_validation_error(message: impl Into<String>) -> ReviewStabilizationValidationError {
+fn stabilization_validation_error(
+    message: impl Into<String>,
+) -> ReviewStabilizationValidationError {
     ReviewStabilizationValidationError {
         message: message.into(),
     }
 }
 
-fn ensure_eq<T>(
-    left: T,
-    right: T,
-    field: &str,
-) -> Result<(), ReviewStabilizationValidationError>
+fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), ReviewStabilizationValidationError>
 where
     T: PartialEq + fmt::Display,
 {
@@ -2045,10 +2058,7 @@ where
     Ok(())
 }
 
-fn ensure_nonempty(
-    value: &str,
-    field: &str,
-) -> Result<(), ReviewStabilizationValidationError> {
+fn ensure_nonempty(value: &str, field: &str) -> Result<(), ReviewStabilizationValidationError> {
     if value.trim().is_empty() {
         return Err(stabilization_validation_error(format!(
             "{field} must not be empty"

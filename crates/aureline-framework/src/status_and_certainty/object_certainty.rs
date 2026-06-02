@@ -4,8 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Finding, SurfaceClass};
 use super::support_strip::{PackOrBridgeSourceBlock, PackSourceClass, SupportClass};
+use super::{Finding, SurfaceClass};
 
 /// Stable record-kind tag for serialized [`FrameworkObjectCertainty`]
 /// payloads.
@@ -651,7 +651,9 @@ impl FrameworkObjectCertainty {
                     "framework_object_row requires at least one evidence anchor",
                 ));
             }
-            if self.certainty_label_class.requires_partial_or_derived_note()
+            if self
+                .certainty_label_class
+                .requires_partial_or_derived_note()
                 && row.partial_or_derived_note.is_none()
             {
                 findings.push(Finding::new(
@@ -689,8 +691,7 @@ impl FrameworkObjectCertainty {
                     "every convention diagnostic must offer at least one fix action",
                 ));
             }
-            if diag.convention_certainty_class
-                == ConventionCertaintyClass::CertaintyProvenViolation
+            if diag.convention_certainty_class == ConventionCertaintyClass::CertaintyProvenViolation
                 && !matches!(
                     diag.convention_diagnostic_class,
                     ConventionDiagnosticClass::HardContractViolation

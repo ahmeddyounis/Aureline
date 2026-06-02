@@ -348,8 +348,7 @@ fn ready_license_entitlement() -> ServiceHealthProbeReading {
         local_continuity: LocalContinuityClass::LocalSafe,
         affected_workflows: vec![],
         last_checked: Some("2026-05-19T12:26".to_owned()),
-        state_explanation: "License broker is current; local entitlements are honoured."
-            .to_owned(),
+        state_explanation: "License broker is current; local entitlements are honoured.".to_owned(),
         diagnostics_action: "shell.command:diagnostics.license".to_owned(),
         detail_tokens: vec!["broker_class:local_broker".to_owned()],
     }
@@ -395,8 +394,7 @@ fn ready_telemetry() -> ServiceHealthProbeReading {
         local_continuity: LocalContinuityClass::LocalSafe,
         affected_workflows: vec![],
         last_checked: Some("2026-05-19T12:26".to_owned()),
-        state_explanation: "Telemetry upload is current and crash capture is flushing."
-            .to_owned(),
+        state_explanation: "Telemetry upload is current and crash capture is flushing.".to_owned(),
         diagnostics_action: "shell.command:diagnostics.telemetry".to_owned(),
         detail_tokens: vec!["policy_class:workspace_policy".to_owned()],
     }

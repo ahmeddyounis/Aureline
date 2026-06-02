@@ -94,15 +94,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_bridge_certification_scope_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -174,8 +190,14 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         // The projection and export agree with the packet.
         assert_eq!(projection.effective_tier, packet.claim.effective_tier);
         assert_eq!(export.effective_tier, packet.claim.effective_tier);
-        assert_eq!(export.category_class, packet.certification_scope.category_class);
-        assert_eq!(export.scope_status_class, packet.certification_scope.scope_status_class);
+        assert_eq!(
+            export.category_class,
+            packet.certification_scope.category_class
+        );
+        assert_eq!(
+            export.scope_status_class,
+            packet.certification_scope.scope_status_class
+        );
     }
 }
 
@@ -385,8 +407,9 @@ fn failed_conformance_narrows_to_preview() {
 #[test]
 fn inherited_certification_evidence_narrows_to_preview() {
     let mut input = stable_input();
-    input.certification_scope.certification_evidence_source_class =
-        "inherited_from_adjacent".to_string();
+    input
+        .certification_scope
+        .certification_evidence_source_class = "inherited_from_adjacent".to_string();
     let packet = StableBridgeCertificationScopePacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "preview");
     assert!(packet

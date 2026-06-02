@@ -25,9 +25,7 @@ use super::{project_marker_for_host_surface, ArtifactDependencyMarker, HostSurfa
 /// artifact path the marker is required to survive intact.
 ///
 /// Adding a lane is an additive change; repurposing one is breaking.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TransportLane {
     /// In-product import (compare/apply review sheet, settings import,
@@ -549,12 +547,12 @@ mod tests {
         marker.behavior_on_missing.fallback_path.clear();
         let defects = assert_marker_survives_all_lanes(&marker)
             .expect_err("empty copy must be flagged on every lane");
-        assert!(defects
-            .iter()
-            .any(|d| matches!(d, LaneReplayDefect::MissingCopy { field, .. } if field == "summary")));
-        assert!(defects
-            .iter()
-            .any(|d| matches!(d, LaneReplayDefect::MissingCopy { field, .. } if field == "fallback_path")));
+        assert!(defects.iter().any(
+            |d| matches!(d, LaneReplayDefect::MissingCopy { field, .. } if field == "summary")
+        ));
+        assert!(defects.iter().any(
+            |d| matches!(d, LaneReplayDefect::MissingCopy { field, .. } if field == "fallback_path")
+        ));
     }
 
     #[test]

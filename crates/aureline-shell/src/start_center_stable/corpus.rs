@@ -518,7 +518,10 @@ mod tests {
             TargetKind::DevcontainerWorkspace,
             TargetKind::ManagedCloudWorkspace,
         ] {
-            assert!(kinds.contains(&required), "missing target kind {required:?}");
+            assert!(
+                kinds.contains(&required),
+                "missing target kind {required:?}"
+            );
         }
 
         let classes: Vec<TargetClass> = corpus.iter().map(|s| s.expected_target_class).collect();
@@ -552,7 +555,10 @@ mod tests {
             let record = scenario.record();
             assert!(record.surfaces.parity_holds, "{}", scenario.scenario_id);
             assert_eq!(record.routes.len(), EntryRouteSurface::REQUIRED.len());
-            assert_eq!(record.accessibility.layout_modes.len(), LayoutMode::REQUIRED.len());
+            assert_eq!(
+                record.accessibility.layout_modes.len(),
+                LayoutMode::REQUIRED.len()
+            );
             assert!(record.available_without_account);
             assert!(record.available_without_managed_services);
             assert!(!record.discards_stale_entry_on_failure);

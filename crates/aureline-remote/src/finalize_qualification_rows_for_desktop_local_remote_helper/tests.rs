@@ -305,12 +305,22 @@ fn seeded_page_accessibility_rows_all_use_local_only_dependency() {
 #[test]
 fn narrow_reason_tokens_are_stable_and_non_empty() {
     assert!(!NarrowReasonClass::NotNarrowed.as_str().is_empty());
-    assert!(!NarrowReasonClass::RawPrivateMaterialExposed.as_str().is_empty());
+    assert!(!NarrowReasonClass::RawPrivateMaterialExposed
+        .as_str()
+        .is_empty());
     assert!(!NarrowReasonClass::RequiredRowMissing.as_str().is_empty());
-    assert!(!NarrowReasonClass::LocalCoreContinuityUndeclared.as_str().is_empty());
-    assert!(!NarrowReasonClass::DependencyClassUndeclared.as_str().is_empty());
-    assert!(!NarrowReasonClass::NoAccountCompatibilityUndeclared.as_str().is_empty());
-    assert!(!NarrowReasonClass::FailureDowngradeUndeclared.as_str().is_empty());
+    assert!(!NarrowReasonClass::LocalCoreContinuityUndeclared
+        .as_str()
+        .is_empty());
+    assert!(!NarrowReasonClass::DependencyClassUndeclared
+        .as_str()
+        .is_empty());
+    assert!(!NarrowReasonClass::NoAccountCompatibilityUndeclared
+        .as_str()
+        .is_empty());
+    assert!(!NarrowReasonClass::FailureDowngradeUndeclared
+        .as_str()
+        .is_empty());
 }
 
 #[test]

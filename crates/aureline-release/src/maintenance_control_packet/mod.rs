@@ -585,7 +585,10 @@ impl MaintenanceControlPacket {
 
     /// Returns the rows governing a label at or above the cutline.
     pub fn rows_governed_stable(&self) -> Vec<&MaintenanceRow> {
-        self.rows.iter().filter(|row| row.governs_stable()).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.governs_stable())
+            .collect()
     }
 
     /// Returns the rows narrowed below the cutline.
@@ -598,7 +601,10 @@ impl MaintenanceControlPacket {
 
     /// Returns the release-blocking rows.
     pub fn release_blocking_rows(&self) -> Vec<&MaintenanceRow> {
-        self.rows.iter().filter(|row| row.release_blocking).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.release_blocking)
+            .collect()
     }
 
     /// Returns the rows for one lane kind.

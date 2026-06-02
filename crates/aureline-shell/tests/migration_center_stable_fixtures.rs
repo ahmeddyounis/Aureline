@@ -92,7 +92,8 @@ fn pinned_rollups_match_each_scenario() {
             scenario.scenario_id
         );
         assert_eq!(
-            record.rollback.is_live_for_flow(), scenario.expected_rollback_live,
+            record.rollback.is_live_for_flow(),
+            scenario.expected_rollback_live,
             "{} rollback_live",
             scenario.scenario_id
         );
@@ -218,8 +219,7 @@ fn unsupported_gaps_are_visible_before_apply() {
             assert!(
                 gap.visible_before_apply,
                 "{} gap {} hidden before apply",
-                scenario.scenario_id,
-                gap.gap_id,
+                scenario.scenario_id, gap.gap_id,
             );
         }
         // Gap counts match the taxonomy counts.
@@ -235,8 +235,16 @@ fn unsupported_gaps_are_visible_before_apply() {
             .iter()
             .filter(|g| g.classification.as_str() == "shimmed")
             .count() as u32;
-        assert_eq!(gap_unsupported, record.taxonomy.unsupported, "{} unsupported gap count", scenario.scenario_id);
-        assert_eq!(gap_shimmed, record.taxonomy.shimmed, "{} shimmed gap count", scenario.scenario_id);
+        assert_eq!(
+            gap_unsupported, record.taxonomy.unsupported,
+            "{} unsupported gap count",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            gap_shimmed, record.taxonomy.shimmed,
+            "{} shimmed gap count",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -262,8 +270,7 @@ fn recovery_routes_are_complete_and_keyboard_reachable() {
             assert!(
                 route.keyboard_reachable,
                 "{} recovery route {} not keyboard reachable",
-                scenario.scenario_id,
-                route.action_id,
+                scenario.scenario_id, route.action_id,
             );
         }
     }
@@ -445,7 +452,11 @@ fn top_level_refs_are_canonical_durable_objects() {
             );
         }
         if let Some(undo) = &record.rollback.undo_action_ref {
-            assert!(is_canonical_object_ref(undo), "{} undo ref", scenario.scenario_id);
+            assert!(
+                is_canonical_object_ref(undo),
+                "{} undo ref",
+                scenario.scenario_id
+            );
         }
         if let Some(compare) = &record.rollback.compare_action_ref {
             assert!(

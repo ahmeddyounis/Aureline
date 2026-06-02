@@ -728,8 +728,7 @@ impl PromptComposerStabilizationPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("prompt composer stabilization packet serializes")
+        serde_json::to_string_pretty(self).expect("prompt composer stabilization packet serializes")
     }
 
     /// Deterministic Markdown summary for support, docs, or review handoff.
@@ -751,8 +750,14 @@ impl PromptComposerStabilizationPacket {
         out.push_str(&format!(
             "- Retention: `{}` (remember -> `{}` / `{}`)\n",
             self.thread_header.retention_mode_class.as_str(),
-            self.thread_header.remember_preview.retention_locus_class.as_str(),
-            self.thread_header.remember_preview.reuse_audience_class.as_str()
+            self.thread_header
+                .remember_preview
+                .retention_locus_class
+                .as_str(),
+            self.thread_header
+                .remember_preview
+                .reuse_audience_class
+                .as_str()
         ));
         out.push_str(&format!(
             "- Attachments / pinned / omitted-review: {} / {} / {}\n",
@@ -787,7 +792,10 @@ impl fmt::Display for PromptComposerStabilizationArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SupportExport(error) => {
-                write!(formatter, "prompt composer stabilization export parse failed: {error}")
+                write!(
+                    formatter,
+                    "prompt composer stabilization export parse failed: {error}"
+                )
             }
             Self::Validation(violations) => {
                 let tokens = violations
@@ -941,8 +949,10 @@ fn validate_thread_header(
         ThreadRetentionModeClass::LocalOnly => {
             preview.retention_locus_class == RetentionLocusClass::LocalDevice
         }
-        _ => header.retention_mode_class.shares_beyond_device()
-            && preview.reuse_audience_class != ReuseAudienceClass::Nobody,
+        _ => {
+            header.retention_mode_class.shares_beyond_device()
+                && preview.reuse_audience_class != ReuseAudienceClass::Nobody
+        }
     };
     if !summary_describes_retention
         || preview.preview_action_ref.trim().is_empty()

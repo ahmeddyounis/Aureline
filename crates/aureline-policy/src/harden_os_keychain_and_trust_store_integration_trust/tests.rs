@@ -137,8 +137,7 @@ fn seeded_page_local_continuity_layers_carry_declaration() {
             assert!(
                 row.local_continuity_explicit,
                 "row '{}' (layer: {}) requires local_continuity_explicit: true",
-                row.row_id,
-                row.layer_token
+                row.row_id, row.layer_token
             );
         }
     }
@@ -165,14 +164,12 @@ fn drill_raw_trust_material_withdraws_packet() {
         seeded_harden_os_keychain_trust_store_page().change_events,
     );
     assert_eq!(
-        page.summary.overall_qualification_token,
-        "withdrawn",
+        page.summary.overall_qualification_token, "withdrawn",
         "packet must be withdrawn when a row exposes raw trust material"
     );
     assert!(
-        page.defects
-            .iter()
-            .any(|d| d.narrow_reason == HardenOsKeychainTrustStoreNarrowReasonClass::RawTrustMaterialExposed),
+        page.defects.iter().any(|d| d.narrow_reason
+            == HardenOsKeychainTrustStoreNarrowReasonClass::RawTrustMaterialExposed),
         "audit must emit RawTrustMaterialExposed defect"
     );
 }
@@ -182,7 +179,10 @@ fn drill_missing_layer_narrows_to_preview() {
     let rows: Vec<TrustStoreLayerRow> = seeded_harden_os_keychain_trust_store_page()
         .rows
         .into_iter()
-        .filter(|r| r.layer == TrustStoreLayerClass::OsRoots || r.layer == TrustStoreLayerClass::CustomCaBundle)
+        .filter(|r| {
+            r.layer == TrustStoreLayerClass::OsRoots
+                || r.layer == TrustStoreLayerClass::CustomCaBundle
+        })
         .collect();
     let page = HardenOsKeychainTrustStorePage::new(
         "policy:harden-os-keychain-trust-store:drill:missing-layer",
@@ -192,14 +192,12 @@ fn drill_missing_layer_narrows_to_preview() {
         vec![],
     );
     assert_eq!(
-        page.summary.overall_qualification_token,
-        "preview",
+        page.summary.overall_qualification_token, "preview",
         "packet must be narrowed to preview when a required layer is missing"
     );
     assert!(
-        page.defects
-            .iter()
-            .any(|d| d.narrow_reason == HardenOsKeychainTrustStoreNarrowReasonClass::MissingLayerCoverage),
+        page.defects.iter().any(|d| d.narrow_reason
+            == HardenOsKeychainTrustStoreNarrowReasonClass::MissingLayerCoverage),
         "audit must emit MissingLayerCoverage defect"
     );
 }
@@ -210,9 +208,13 @@ fn drill_missing_repair_action_on_blocking_event_narrows_to_beta() {
     // Force a blocking session impact with NoneRequired repair action.
     if let Some(event) = events.first_mut() {
         event.session_impact = SessionImpactClass::RouteBlockedLocalContinuity;
-        event.session_impact_token = SessionImpactClass::RouteBlockedLocalContinuity.as_str().to_owned();
+        event.session_impact_token = SessionImpactClass::RouteBlockedLocalContinuity
+            .as_str()
+            .to_owned();
         event.repair_action = TrustStoreRepairActionClass::NoneRequired;
-        event.repair_action_token = TrustStoreRepairActionClass::NoneRequired.as_str().to_owned();
+        event.repair_action_token = TrustStoreRepairActionClass::NoneRequired
+            .as_str()
+            .to_owned();
         event.affected_route_refs = vec!["tls_enterprise".to_owned()];
     }
     let page = HardenOsKeychainTrustStorePage::new(
@@ -223,14 +225,12 @@ fn drill_missing_repair_action_on_blocking_event_narrows_to_beta() {
         events,
     );
     assert_eq!(
-        page.summary.overall_qualification_token,
-        "beta",
+        page.summary.overall_qualification_token, "beta",
         "packet must be narrowed to beta when a blocking event lacks a repair action"
     );
     assert!(
-        page.defects
-            .iter()
-            .any(|d| d.narrow_reason == HardenOsKeychainTrustStoreNarrowReasonClass::ChangeEventMissingRepairAction),
+        page.defects.iter().any(|d| d.narrow_reason
+            == HardenOsKeychainTrustStoreNarrowReasonClass::ChangeEventMissingRepairAction),
         "audit must emit ChangeEventMissingRepairAction defect"
     );
 }
@@ -253,14 +253,12 @@ fn drill_missing_local_continuity_narrows_to_beta() {
         seeded_harden_os_keychain_trust_store_page().change_events,
     );
     assert_eq!(
-        page.summary.overall_qualification_token,
-        "beta",
+        page.summary.overall_qualification_token, "beta",
         "packet must be narrowed to beta when a required local-continuity declaration is absent"
     );
     assert!(
-        page.defects
-            .iter()
-            .any(|d| d.narrow_reason == HardenOsKeychainTrustStoreNarrowReasonClass::LocalContinuityNotExplicit),
+        page.defects.iter().any(|d| d.narrow_reason
+            == HardenOsKeychainTrustStoreNarrowReasonClass::LocalContinuityNotExplicit),
         "audit must emit LocalContinuityNotExplicit defect"
     );
 }

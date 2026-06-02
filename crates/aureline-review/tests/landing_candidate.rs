@@ -81,8 +81,8 @@ fn load_fixture(name: &str) -> LandingCandidateFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -102,21 +102,13 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &LandingCandidateFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn packet_for_fixture(fixture: &LandingCandidateFixture) -> LandingCandidatePacket {
     let workspace_packet = workspace_packet_for(fixture);
-    LandingCandidatePacket::from_workspace_packet(
-        fixture.landing_input.clone(),
-        &workspace_packet,
-    )
-    .unwrap_or_else(|err| panic!("{} must project: {err}", fixture.case_name))
+    LandingCandidatePacket::from_workspace_packet(fixture.landing_input.clone(), &workspace_packet)
+        .unwrap_or_else(|err| panic!("{} must project: {err}", fixture.case_name))
 }
 
 fn assert_expected(packet: &LandingCandidatePacket, expected: &ExpectedLandingCandidate) {
@@ -225,9 +217,7 @@ fn ambient_branch_state_cannot_land_without_candidate() {
     let fixture = load_fixture("provider_authoritative_mergeable_queued.json");
     let packet = packet_for_fixture(&fixture);
     assert!(packet.landing_requires_explicit_candidate());
-    assert!(packet
-        .landing_candidate
-        .landing_requires_explicit_candidate);
+    assert!(packet.landing_candidate.landing_requires_explicit_candidate);
 }
 
 #[test]
@@ -235,7 +225,10 @@ fn support_export_eligibility_snapshot_mirrors_candidate() {
     let fixture = load_fixture("policy_blocked_with_invalidated_approval.json");
     let packet = packet_for_fixture(&fixture);
     let snapshot = &packet.support_export.eligibility_snapshot;
-    assert_eq!(snapshot.mergeable_state, packet.landing_candidate.mergeable_state);
+    assert_eq!(
+        snapshot.mergeable_state,
+        packet.landing_candidate.mergeable_state
+    );
     assert_eq!(
         snapshot.eligibility_state,
         packet.landing_candidate.eligibility_state
@@ -248,12 +241,13 @@ fn support_export_eligibility_snapshot_mirrors_candidate() {
         snapshot.policy_block_state,
         packet.landing_candidate.policy_block_state
     );
-    assert!(snapshot.invalidation_reasons.contains(&"approval_invalidated".to_string()));
-    assert!(snapshot.invalidation_reasons.contains(&"policy_blocked".to_string()));
-    assert_eq!(
-        snapshot.queue_state,
-        "dequeued_by_provider".to_string()
-    );
+    assert!(snapshot
+        .invalidation_reasons
+        .contains(&"approval_invalidated".to_string()));
+    assert!(snapshot
+        .invalidation_reasons
+        .contains(&"policy_blocked".to_string()));
+    assert_eq!(snapshot.queue_state, "dequeued_by_provider".to_string());
     assert_eq!(
         snapshot.queue_authority_class.as_deref(),
         Some("repo_policy_managed_queue_state")

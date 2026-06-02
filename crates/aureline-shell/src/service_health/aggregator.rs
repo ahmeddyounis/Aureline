@@ -1081,10 +1081,7 @@ mod tests {
             .expect("build");
         assert_eq!(agg.summary.total_card_count, 2);
         assert_eq!(agg.summary.ready_card_count, 2);
-        assert_eq!(
-            agg.overall_contract_state,
-            ServiceContractStateClass::Ready
-        );
+        assert_eq!(agg.overall_contract_state, ServiceContractStateClass::Ready);
         assert_eq!(
             agg.overall_local_continuity,
             LocalContinuityClass::LocalSafe
@@ -1162,12 +1159,8 @@ mod tests {
     fn ready_card_with_affected_workflows_is_rejected() {
         let mut reading = ready_reading("card:language", ServiceFamilyClass::LanguageServices);
         reading.affected_workflows = vec![AffectedWorkflowClass::Search];
-        let err = ServiceHealthAggregator::build(
-            "agg:test:bad",
-            "2026-05-19T12:01",
-            vec![reading],
-        )
-        .unwrap_err();
+        let err = ServiceHealthAggregator::build("agg:test:bad", "2026-05-19T12:01", vec![reading])
+            .unwrap_err();
         assert!(matches!(
             err,
             AggregatorBuildError::ReadyCardCarriesAffectedWorkflows(_)
@@ -1192,18 +1185,18 @@ mod tests {
         assert_eq!(agg.cards[0].last_checked_age, LastCheckedAgeClass::Fresh);
 
         card.last_checked = Some("2026-05-19T11:30".to_owned());
-        let agg = ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()])
-            .unwrap();
+        let agg =
+            ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()]).unwrap();
         assert_eq!(agg.cards[0].last_checked_age, LastCheckedAgeClass::Recent);
 
         card.last_checked = Some("2026-05-19T03:00".to_owned());
-        let agg = ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()])
-            .unwrap();
+        let agg =
+            ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()]).unwrap();
         assert_eq!(agg.cards[0].last_checked_age, LastCheckedAgeClass::Stale);
 
         card.last_checked = Some("2026-05-15T12:00".to_owned());
-        let agg = ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()])
-            .unwrap();
+        let agg =
+            ServiceHealthAggregator::build("agg", "2026-05-19T12:00", vec![card.clone()]).unwrap();
         assert_eq!(
             agg.cards[0].last_checked_age,
             LastCheckedAgeClass::VeryStale
@@ -1229,12 +1222,9 @@ mod tests {
             "AI provider returned the wrong schema; treat results as unavailable.".into();
         unavailable.affected_workflows = vec![AffectedWorkflowClass::AiCompletion];
 
-        let agg = ServiceHealthAggregator::build(
-            "agg",
-            "2026-05-19T12:01",
-            vec![ready, unavailable],
-        )
-        .unwrap();
+        let agg =
+            ServiceHealthAggregator::build("agg", "2026-05-19T12:01", vec![ready, unavailable])
+                .unwrap();
         assert_eq!(agg.cards[0].card_id, "card:b");
         assert_eq!(
             agg.cards[0].contract_state,

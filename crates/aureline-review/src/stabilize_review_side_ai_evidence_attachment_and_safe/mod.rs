@@ -64,8 +64,7 @@ pub const SUGGESTION_APPLY_CHECKPOINT_RECORD_KIND: &str = "suggestion_apply_chec
 pub const AI_EVIDENCE_COMMAND_RECORD_KIND: &str = "ai_evidence_command_record";
 
 /// Stable record-kind tag for [`AiEvidenceSupportExportPacket`].
-pub const AI_EVIDENCE_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
-    "ai_evidence_support_export_packet";
+pub const AI_EVIDENCE_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str = "ai_evidence_support_export_packet";
 
 /// Stable record-kind tag for [`AiEvidenceInspectionRecord`].
 pub const AI_EVIDENCE_INSPECTION_RECORD_KIND: &str = "ai_evidence_inspection_record";
@@ -601,8 +600,12 @@ impl AiReviewEvidencePacket {
             .iter()
             .map(|c| command_record(c, &evidence))
             .collect::<Vec<_>>();
-        let support_export =
-            support_export_packet(&input.support_export, &evidence, workspace_packet, &commands);
+        let support_export = support_export_packet(
+            &input.support_export,
+            &evidence,
+            workspace_packet,
+            &commands,
+        );
         let inspection = inspection_record(
             &evidence,
             &evidence_attachments,
@@ -708,7 +711,9 @@ impl AiReviewEvidencePacket {
 
         // Checkpoint coherence: applied suggestions must have checkpoints
         for suggestion in &self.suggestion_applies {
-            if suggestion.apply_state == "applied_with_checkpoint" && suggestion.checkpoint_ref.is_none() {
+            if suggestion.apply_state == "applied_with_checkpoint"
+                && suggestion.checkpoint_ref.is_none()
+            {
                 return Err(ai_evidence_validation_error(format!(
                     "suggestion_apply {} is applied but has no checkpoint_ref",
                     suggestion.suggestion_apply_id
@@ -734,7 +739,10 @@ impl AiReviewEvidencePacket {
 
     /// Returns true when no suggestion would broaden authority.
     pub fn no_authority_broadening(&self) -> bool {
-        !self.suggestion_applies.iter().any(|s| s.would_broaden_authority)
+        !self
+            .suggestion_applies
+            .iter()
+            .any(|s| s.would_broaden_authority)
     }
 
     /// Returns true when every applied suggestion has a checkpoint.
@@ -866,9 +874,13 @@ impl From<AiReviewEvidencePacket> for AiReviewEvidenceProjection {
             evidence_state: packet.evidence.evidence_state,
             actionable: packet.evidence.actionable,
             suggestion_preview_ready: packet.inspection.suggestion_preview_ready,
-            suggestion_applied_with_checkpoint: packet.inspection.suggestion_applied_with_checkpoint,
+            suggestion_applied_with_checkpoint: packet
+                .inspection
+                .suggestion_applied_with_checkpoint,
             suggestion_blocked_pending_review: packet.inspection.suggestion_blocked_pending_review,
-            suggestion_would_broaden_authority: packet.inspection.suggestion_would_broaden_authority,
+            suggestion_would_broaden_authority: packet
+                .inspection
+                .suggestion_would_broaden_authority,
             all_applied_have_checkpoints: packet.inspection.all_applied_have_checkpoints,
             evidence_attachment_count: packet.evidence_attachments.len(),
             suggestion_apply_count: packet.suggestion_applies.len(),
@@ -955,7 +967,10 @@ fn evidence_record(
         record_kind: AI_REVIEW_EVIDENCE_RECORD_KIND.to_string(),
         schema_version: AI_REVIEW_EVIDENCE_SCHEMA_VERSION,
         evidence_id: input.evidence_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         evidence_state: input.evidence_state.clone(),
         invalidation_reasons,
         blocked_reasons,
@@ -1059,7 +1074,10 @@ fn support_export_packet(
         schema_version: AI_REVIEW_EVIDENCE_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         evidence_id_ref: evidence.evidence_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
@@ -1147,7 +1165,11 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     for reason in &input.invalidation_reasons {
-        ensure_token(AI_EVIDENCE_INVALIDATION_REASONS, reason, "invalidation_reason")?;
+        ensure_token(
+            AI_EVIDENCE_INVALIDATION_REASONS,
+            reason,
+            "invalidation_reason",
+        )?;
     }
 
     if input.evidence_attachments.is_empty() {
@@ -1158,7 +1180,10 @@ fn validate_input(
 
     let mut attachment_ids = std::collections::BTreeSet::new();
     for attachment in &input.evidence_attachments {
-        ensure_nonempty(&attachment.attachment_id, "evidence_attachment.attachment_id")?;
+        ensure_nonempty(
+            &attachment.attachment_id,
+            "evidence_attachment.attachment_id",
+        )?;
         if !attachment_ids.insert(&attachment.attachment_id) {
             return Err(ai_evidence_validation_error(format!(
                 "duplicate attachment_id: {}",
@@ -1174,7 +1199,10 @@ fn validate_input(
 
     let mut suggestion_ids = std::collections::BTreeSet::new();
     for suggestion in &input.suggestion_applies {
-        ensure_nonempty(&suggestion.suggestion_apply_id, "suggestion_apply.suggestion_apply_id")?;
+        ensure_nonempty(
+            &suggestion.suggestion_apply_id,
+            "suggestion_apply.suggestion_apply_id",
+        )?;
         if !suggestion_ids.insert(&suggestion.suggestion_apply_id) {
             return Err(ai_evidence_validation_error(format!(
                 "duplicate suggestion_apply_id: {}",
@@ -1225,14 +1253,24 @@ fn validate_input(
         )?;
     }
 
-    ensure_nonempty(&input.support_export.support_export_id, "support_export.support_export_id")?;
-    ensure_nonempty(&input.support_export.reopen_context_ref, "support_export.reopen_context_ref")?;
+    ensure_nonempty(
+        &input.support_export.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &input.support_export.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
     ensure_nonempty(
         &input.support_export.reopen_command_id_ref,
         "support_export.reopen_command_id_ref",
     )?;
     for surface in &input.support_export.consumer_surfaces {
-        ensure_token(AI_EVIDENCE_CONSUMER_SURFACES, surface, "support_export.consumer_surfaces")?;
+        ensure_token(
+            AI_EVIDENCE_CONSUMER_SURFACES,
+            surface,
+            "support_export.consumer_surfaces",
+        )?;
     }
 
     // Workspace packet must have a valid workspace id
@@ -1248,16 +1286,32 @@ fn validate_evidence_record(
     record: &AiReviewEvidenceRecord,
     workspace_id: &str,
 ) -> Result<(), AiReviewEvidenceValidationError> {
-    ensure_eq(record.record_kind.as_str(), AI_REVIEW_EVIDENCE_RECORD_KIND, "evidence record_kind")?;
-    ensure_eq_u32(record.schema_version, AI_REVIEW_EVIDENCE_SCHEMA_VERSION, "evidence schema_version")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        AI_REVIEW_EVIDENCE_RECORD_KIND,
+        "evidence record_kind",
+    )?;
+    ensure_eq_u32(
+        record.schema_version,
+        AI_REVIEW_EVIDENCE_SCHEMA_VERSION,
+        "evidence schema_version",
+    )?;
     ensure_eq(
         record.review_workspace_id_ref.as_str(),
         workspace_id,
         "evidence review_workspace_id_ref",
     )?;
-    ensure_token(AI_EVIDENCE_STATES, &record.evidence_state, "evidence evidence_state")?;
+    ensure_token(
+        AI_EVIDENCE_STATES,
+        &record.evidence_state,
+        "evidence evidence_state",
+    )?;
     for reason in &record.invalidation_reasons {
-        ensure_token(AI_EVIDENCE_INVALIDATION_REASONS, reason, "evidence invalidation_reason")?;
+        ensure_token(
+            AI_EVIDENCE_INVALIDATION_REASONS,
+            reason,
+            "evidence invalidation_reason",
+        )?;
     }
     Ok(())
 }
@@ -1325,7 +1379,11 @@ fn validate_checkpoint_record(
         evidence_id,
         "checkpoint evidence_id_ref",
     )?;
-    ensure_token(CHECKPOINT_STATES, &record.checkpoint_state, "checkpoint checkpoint_state")?;
+    ensure_token(
+        CHECKPOINT_STATES,
+        &record.checkpoint_state,
+        "checkpoint checkpoint_state",
+    )?;
     Ok(())
 }
 
@@ -1429,7 +1487,10 @@ fn validate_inspection(
         ));
     }
     if inspection.suggestion_would_broaden_authority
-        != packet.suggestion_applies.iter().any(|s| s.would_broaden_authority)
+        != packet
+            .suggestion_applies
+            .iter()
+            .any(|s| s.would_broaden_authority)
     {
         return Err(ai_evidence_validation_error(
             "inspection suggestion_would_broaden_authority must match suggestion_applies",
@@ -1442,19 +1503,13 @@ fn validate_inspection(
 // Validation utilities
 // ---------------------------------------------------------------------------
 
-fn ai_evidence_validation_error(
-    message: impl Into<String>,
-) -> AiReviewEvidenceValidationError {
+fn ai_evidence_validation_error(message: impl Into<String>) -> AiReviewEvidenceValidationError {
     AiReviewEvidenceValidationError {
         message: message.into(),
     }
 }
 
-fn ensure_eq<T>(
-    left: T,
-    right: T,
-    field: &str,
-) -> Result<(), AiReviewEvidenceValidationError>
+fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), AiReviewEvidenceValidationError>
 where
     T: PartialEq + fmt::Display,
 {
@@ -1479,10 +1534,7 @@ fn ensure_eq_u32(
     Ok(())
 }
 
-fn ensure_nonempty(
-    value: &str,
-    field: &str,
-) -> Result<(), AiReviewEvidenceValidationError> {
+fn ensure_nonempty(value: &str, field: &str) -> Result<(), AiReviewEvidenceValidationError> {
     if value.trim().is_empty() {
         return Err(ai_evidence_validation_error(format!(
             "{field} must not be empty"
@@ -1570,7 +1622,8 @@ mod tests {
             generated_at: "2026-05-27T10:00:00Z".to_string(),
             review_workspace: crate::workspace::ReviewWorkspaceRecord {
                 record_kind: crate::workspace::REVIEW_WORKSPACE_RECORD_KIND.to_string(),
-                review_workspace_schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+                review_workspace_schema_version:
+                    crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id: "ws1".to_string(),
                 review_workspace_source_class: "local_git".to_string(),
                 provider_authority_class: "local_only".to_string(),
@@ -1606,7 +1659,8 @@ mod tests {
             check_freshness: vec![],
             browser_handoff: None,
             inspection: crate::workspace::ReviewWorkspaceBetaInspectionRecord {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id_ref: "ws1".to_string(),
                 durable_comment_anchor_count: 0,
@@ -1623,7 +1677,8 @@ mod tests {
                 summary_label: "Inspection".to_string(),
             },
             support_export: crate::workspace::ReviewWorkspaceSupportExportPacket {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 support_export_id: "wse1".to_string(),
                 review_workspace_id_ref: "ws1".to_string(),
@@ -1710,7 +1765,8 @@ mod tests {
             generated_at: "2026-05-27T10:00:00Z".to_string(),
             review_workspace: crate::workspace::ReviewWorkspaceRecord {
                 record_kind: crate::workspace::REVIEW_WORKSPACE_RECORD_KIND.to_string(),
-                review_workspace_schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+                review_workspace_schema_version:
+                    crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id: "ws1".to_string(),
                 review_workspace_source_class: "local_git".to_string(),
                 provider_authority_class: "local_only".to_string(),
@@ -1746,7 +1802,8 @@ mod tests {
             check_freshness: vec![],
             browser_handoff: None,
             inspection: crate::workspace::ReviewWorkspaceBetaInspectionRecord {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id_ref: "ws1".to_string(),
                 durable_comment_anchor_count: 0,
@@ -1763,7 +1820,8 @@ mod tests {
                 summary_label: "Inspection".to_string(),
             },
             support_export: crate::workspace::ReviewWorkspaceSupportExportPacket {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 support_export_id: "wse1".to_string(),
                 review_workspace_id_ref: "ws1".to_string(),

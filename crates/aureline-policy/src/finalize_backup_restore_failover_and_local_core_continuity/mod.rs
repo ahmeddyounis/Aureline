@@ -649,7 +649,11 @@ impl BackupRestoreFailoverSummary {
             {
                 restore_tested += 1;
             }
-            if !row.failover_continuity.failover_behavior.is_withdrawal_trigger() {
+            if !row
+                .failover_continuity
+                .failover_behavior
+                .is_withdrawal_trigger()
+            {
                 failover_non_blocking += 1;
             }
         }
@@ -819,9 +823,11 @@ impl BackupRestoreFailoverPage {
 
     /// True when no row declares a blocking failover behavior.
     pub fn no_row_blocks_local_core_by_failover(&self) -> bool {
-        self.rows
-            .iter()
-            .all(|r| !r.failover_continuity.failover_behavior.is_withdrawal_trigger())
+        self.rows.iter().all(|r| {
+            !r.failover_continuity
+                .failover_behavior
+                .is_withdrawal_trigger()
+        })
     }
 }
 
@@ -929,8 +935,14 @@ fn audit_backup_restore_failover_rows(
 
     for row in rows {
         // Hard guardrail: failover blocks local-core work.
-        if row.failover_continuity.failover_behavior.is_withdrawal_trigger()
-            || row.failover_continuity.local_core_posture.is_withdrawal_trigger()
+        if row
+            .failover_continuity
+            .failover_behavior
+            .is_withdrawal_trigger()
+            || row
+                .failover_continuity
+                .local_core_posture
+                .is_withdrawal_trigger()
         {
             defects.push(BackupRestoreFailoverDefect::new(
                 BackupRestoreFailoverNarrowReasonClass::LocalCoreBlockedByFailover,
@@ -1050,9 +1062,9 @@ fn qualify_rows(
     let has_withdrawal = page_defects
         .iter()
         .any(|d| d.narrow_reason.is_withdrawal_reason());
-    let has_preview = page_defects.iter().any(|d| {
-        d.narrow_reason == BackupRestoreFailoverNarrowReasonClass::ProfileCoverageGap
-    });
+    let has_preview = page_defects
+        .iter()
+        .any(|d| d.narrow_reason == BackupRestoreFailoverNarrowReasonClass::ProfileCoverageGap);
 
     let (overall_qual, overall_reason) = if has_withdrawal {
         let r = page_defects
@@ -1263,13 +1275,7 @@ fn row_individual_local() -> BackupRestoreFailoverRow {
          strategy.",
         FailoverBehaviorClass::NotApplicable,
         LocalCoreContinuityPostureClass::Preserved,
-        vec![
-            "file editing",
-            "save",
-            "search",
-            "git",
-            "language features",
-        ],
+        vec!["file editing", "save", "search", "git", "language features"],
         vec![],
         "",
         "",
@@ -1294,9 +1300,7 @@ fn row_self_hosted() -> BackupRestoreFailoverRow {
             "admin configuration",
             "audit logs",
         ],
-        vec![
-            "local workspace files (user-managed, outside enterprise data scope)",
-        ],
+        vec!["local workspace files (user-managed, outside enterprise data scope)"],
         RestoreTestPostureClass::TestedAndCurrent,
         "2026-04-15T09:00:00Z",
         "2026-07-15T09:00:00Z",
@@ -1306,13 +1310,7 @@ fn row_self_hosted() -> BackupRestoreFailoverRow {
          logs from rolling-30d backup to a clean self-hosted instance.",
         FailoverBehaviorClass::DegradedManagedOnly,
         LocalCoreContinuityPostureClass::Preserved,
-        vec![
-            "file editing",
-            "save",
-            "search",
-            "git",
-            "language features",
-        ],
+        vec!["file editing", "save", "search", "git", "language features"],
         vec![
             "managed policy enforcement (last-known-good rules apply)",
             "entitlement refresh (cached seat state applies)",
@@ -1344,9 +1342,7 @@ fn row_enterprise_online() -> BackupRestoreFailoverRow {
             "relay state",
             "audit logs",
         ],
-        vec![
-            "local workspace files (user-managed, outside enterprise data scope)",
-        ],
+        vec!["local workspace files (user-managed, outside enterprise data scope)"],
         RestoreTestPostureClass::TestedAndCurrent,
         "2026-04-20T10:00:00Z",
         "2026-07-20T10:00:00Z",
@@ -1356,13 +1352,7 @@ fn row_enterprise_online() -> BackupRestoreFailoverRow {
          state, and audit logs from point-in-time-7d backup.",
         FailoverBehaviorClass::DegradedManagedOnly,
         LocalCoreContinuityPostureClass::Preserved,
-        vec![
-            "file editing",
-            "save",
-            "search",
-            "git",
-            "language features",
-        ],
+        vec!["file editing", "save", "search", "git", "language features"],
         vec![
             "managed AI features (suspended during outage)",
             "policy enforcement (last-known-good rules apply)",
@@ -1394,9 +1384,7 @@ fn row_air_gapped() -> BackupRestoreFailoverRow {
             "mirror artefact index",
             "audit logs",
         ],
-        vec![
-            "live origin content (unavailable by design in air-gapped deployments)",
-        ],
+        vec!["live origin content (unavailable by design in air-gapped deployments)"],
         RestoreTestPostureClass::TestedAndCurrent,
         "2026-03-10T08:00:00Z",
         "2026-09-10T08:00:00Z",
@@ -1415,9 +1403,7 @@ fn row_air_gapped() -> BackupRestoreFailoverRow {
             "language features",
             "local mirror content",
         ],
-        vec![
-            "live origin policy refresh (not applicable in air-gapped mode)",
-        ],
+        vec!["live origin policy refresh (not applicable in air-gapped mode)"],
         "managed-dep:air-gapped-mirror-sync",
         "Air-gapped mirror sync is paused. All local editing and mirror-served capabilities \
          remain fully operational. Live origin connectivity is unavailable by design.",
@@ -1443,9 +1429,7 @@ fn row_managed_cloud() -> BackupRestoreFailoverRow {
             "audit logs",
             "managed workspace state",
         ],
-        vec![
-            "local workspace files (user-managed, outside enterprise data scope)",
-        ],
+        vec!["local workspace files (user-managed, outside enterprise data scope)"],
         RestoreTestPostureClass::TestedAndCurrent,
         "2026-05-01T11:00:00Z",
         "2026-08-01T11:00:00Z",
@@ -1455,13 +1439,7 @@ fn row_managed_cloud() -> BackupRestoreFailoverRow {
          logs, and managed workspace state from point-in-time-7d backup.",
         FailoverBehaviorClass::DegradedManagedOnly,
         LocalCoreContinuityPostureClass::Preserved,
-        vec![
-            "file editing",
-            "save",
-            "search",
-            "git",
-            "language features",
-        ],
+        vec!["file editing", "save", "search", "git", "language features"],
         vec![
             "managed AI features (suspended during outage)",
             "cloud workspace sync (suspended during outage)",

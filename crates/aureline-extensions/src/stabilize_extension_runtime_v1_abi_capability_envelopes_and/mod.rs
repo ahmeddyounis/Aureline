@@ -103,8 +103,7 @@ pub const DOWNGRADED_HOST_BANNER_RECORD_KIND: &str = "stable_downgraded_host_ban
 pub const STABLE_RUNTIME_ABI_INSPECTION_RECORD_KIND: &str = "stable_runtime_abi_inspection";
 
 /// Record-kind tag for [`StableRuntimeAbiSupportExport`].
-pub const STABLE_RUNTIME_ABI_SUPPORT_EXPORT_RECORD_KIND: &str =
-    "stable_runtime_abi_support_export";
+pub const STABLE_RUNTIME_ABI_SUPPORT_EXPORT_RECORD_KIND: &str = "stable_runtime_abi_support_export";
 
 /// Published, controlled runtime-class vocabulary exposed anywhere a contributed
 /// command, panel, provider, or background lane runs, fails, or downgrades.
@@ -553,8 +552,13 @@ pub struct CapabilityEnvelope {
 impl CapabilityEnvelope {
     /// Returns true when granted ⊆ negotiated ⊆ declared.
     pub fn is_well_formed(&self) -> bool {
-        is_subset(&self.negotiated_capability_refs, &self.declared_capability_refs)
-            && is_subset(&self.granted_capability_refs, &self.negotiated_capability_refs)
+        is_subset(
+            &self.negotiated_capability_refs,
+            &self.declared_capability_refs,
+        ) && is_subset(
+            &self.granted_capability_refs,
+            &self.negotiated_capability_refs,
+        )
     }
 
     /// Returns true when capabilities were dropped without recording reasons.
@@ -802,8 +806,11 @@ impl StableRuntimeAbiPacket {
         let capability_envelope = envelope_record(&input.capability_envelope);
         let host_isolation = host_isolation_record(&input.host_isolation);
         let activation_budget = activation_budget_record(&input.activation_budget);
-        let contributions: Vec<ActiveContributionInspectorEntry> =
-            input.contributions.iter().map(contribution_record).collect();
+        let contributions: Vec<ActiveContributionInspectorEntry> = input
+            .contributions
+            .iter()
+            .map(contribution_record)
+            .collect();
         let claim = claim_record(
             &input.claim,
             &identity,
@@ -937,7 +944,9 @@ impl StableRuntimeAbiPacket {
                 ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if self
                 .contributions
@@ -1013,8 +1022,11 @@ impl StableRuntimeAbiPacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> =
-            derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1023,7 +1035,8 @@ impl StableRuntimeAbiPacket {
 
         // Banner truth: a banner must be raised exactly when the posture is
         // downgraded, and never silently suppressed.
-        let banner_required = host_is_downgraded(&self.sandbox_profile, &self.identity, &self.contributions);
+        let banner_required =
+            host_is_downgraded(&self.sandbox_profile, &self.identity, &self.contributions);
         if self.downgraded_host_banner.must_display != banner_required {
             return Err(err(
                 "downgraded-host banner must_display does not match the host posture",
@@ -1209,7 +1222,10 @@ pub fn project_stable_runtime_abi_support_export(
         extension_version: packet.identity.extension_version.clone(),
         source_package_ref: packet.identity.source_package_ref.clone(),
         runtime_class: packet.runtime_class_declaration.runtime_class.clone(),
-        execution_locus_class: packet.runtime_class_declaration.execution_locus_class.clone(),
+        execution_locus_class: packet
+            .runtime_class_declaration
+            .execution_locus_class
+            .clone(),
         backend_classification_class: packet.sandbox_profile.backend_classification_class.clone(),
         sandbox_profile_id: packet.sandbox_profile.sandbox_profile_id.clone(),
         sandbox_enforcement_state_class: packet.sandbox_profile.enforcement_state_class.clone(),
@@ -1391,12 +1407,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1686,7 +1710,10 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
             "identity.runtime_contract_ref must start with 'runtime_v1_beta:'",
         ));
     }
-    ensure_nonempty(&id.extension_identity_ref, "identity.extension_identity_ref")?;
+    ensure_nonempty(
+        &id.extension_identity_ref,
+        "identity.extension_identity_ref",
+    )?;
     ensure_nonempty(&id.extension_version, "identity.extension_version")?;
     ensure_nonempty(&id.source_package_ref, "identity.source_package_ref")?;
     ensure_token(
@@ -1726,7 +1753,10 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
         &sb.enforcement_state_class,
         "sandbox_profile.enforcement_state_class",
     )?;
-    ensure_nonempty(&sb.platform_backend_label, "sandbox_profile.platform_backend_label")?;
+    ensure_nonempty(
+        &sb.platform_backend_label,
+        "sandbox_profile.platform_backend_label",
+    )?;
     if !backend_supports_runtime_class(&sb.backend_classification_class, &rc.runtime_class) {
         return Err(err(format!(
             "backend_classification_class {} is not reserved for runtime_class {}",
@@ -1758,12 +1788,18 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
     }
 
     let env = &input.capability_envelope;
-    if !is_subset(&env.negotiated_capability_refs, &env.declared_capability_refs) {
+    if !is_subset(
+        &env.negotiated_capability_refs,
+        &env.declared_capability_refs,
+    ) {
         return Err(err(
             "negotiated_capability_refs must be a subset of declared_capability_refs",
         ));
     }
-    if !is_subset(&env.granted_capability_refs, &env.negotiated_capability_refs) {
+    if !is_subset(
+        &env.granted_capability_refs,
+        &env.negotiated_capability_refs,
+    ) {
         return Err(err(
             "granted_capability_refs must be a subset of negotiated_capability_refs",
         ));
@@ -1782,7 +1818,11 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
     )?;
 
     let ab = &input.activation_budget;
-    ensure_token(ACTIVATION_BUDGET_CLASSES, &ab.budget_class, "activation_budget.budget_class")?;
+    ensure_token(
+        ACTIVATION_BUDGET_CLASSES,
+        &ab.budget_class,
+        "activation_budget.budget_class",
+    )?;
     ensure_nonempty(&ab.declared_cost_ref, "activation_budget.declared_cost_ref")?;
     ensure_nonempty(&ab.observed_cost_ref, "activation_budget.observed_cost_ref")?;
 
@@ -1801,14 +1841,25 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
             "contribution.contribution_kind_class",
         )?;
         ensure_nonempty(&c.source_package_ref, "contribution.source_package_ref")?;
-        ensure_token(RUNTIME_CLASSES, &c.runtime_class, "contribution.runtime_class")?;
+        ensure_token(
+            RUNTIME_CLASSES,
+            &c.runtime_class,
+            "contribution.runtime_class",
+        )?;
         ensure_token(
             EXECUTION_LOCUS_CLASSES,
             &c.execution_locus_class,
             "contribution.execution_locus_class",
         )?;
-        ensure_token(TRUST_TIER_CLASSES, &c.trust_tier_class, "contribution.trust_tier_class")?;
-        ensure_nonempty(&c.last_known_good_host_ref, "contribution.last_known_good_host_ref")?;
+        ensure_token(
+            TRUST_TIER_CLASSES,
+            &c.trust_tier_class,
+            "contribution.trust_tier_class",
+        )?;
+        ensure_nonempty(
+            &c.last_known_good_host_ref,
+            "contribution.last_known_good_host_ref",
+        )?;
         ensure_token(
             CONTRIBUTION_HOST_STATE_CLASSES,
             &c.host_state_class,
@@ -1818,10 +1869,18 @@ fn validate_input(input: &StableRuntimeAbiInput) -> Result<(), StableRuntimeAbiV
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_RUNTIME_ABI_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_RUNTIME_ABI_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -1869,7 +1928,9 @@ fn validate_runtime_class(
         "execution_locus_class",
     )?;
     if !runtime_class_supports_locus(&rc.runtime_class, &rc.execution_locus_class) {
-        return Err(err("execution_locus_class is not reserved for runtime_class"));
+        return Err(err(
+            "execution_locus_class is not reserved for runtime_class",
+        ));
     }
     Ok(())
 }
@@ -1894,7 +1955,9 @@ fn validate_sandbox(
         "sandbox enforcement_state_class",
     )?;
     if !backend_supports_runtime_class(&sb.backend_classification_class, &rc.runtime_class) {
-        return Err(err("backend_classification_class is not reserved for runtime_class"));
+        return Err(err(
+            "backend_classification_class is not reserved for runtime_class",
+        ));
     }
     if rc.is_sandboxed() && sb.widens_to_ambient_full_user {
         return Err(err(
@@ -1973,13 +2036,21 @@ fn validate_contribution(
         &c.contribution_kind_class,
         "contribution contribution_kind_class",
     )?;
-    ensure_token(RUNTIME_CLASSES, &c.runtime_class, "contribution runtime_class")?;
+    ensure_token(
+        RUNTIME_CLASSES,
+        &c.runtime_class,
+        "contribution runtime_class",
+    )?;
     ensure_token(
         EXECUTION_LOCUS_CLASSES,
         &c.execution_locus_class,
         "contribution execution_locus_class",
     )?;
-    ensure_token(TRUST_TIER_CLASSES, &c.trust_tier_class, "contribution trust_tier_class")?;
+    ensure_token(
+        TRUST_TIER_CLASSES,
+        &c.trust_tier_class,
+        "contribution trust_tier_class",
+    )?;
     ensure_token(
         CONTRIBUTION_HOST_STATE_CLASSES,
         &c.host_state_class,
@@ -1994,22 +2065,36 @@ fn validate_contribution(
     Ok(())
 }
 
-fn validate_claim(claim: &RuntimeAbiQualificationClaim) -> Result<(), StableRuntimeAbiValidationError> {
+fn validate_claim(
+    claim: &RuntimeAbiQualificationClaim,
+) -> Result<(), StableRuntimeAbiValidationError> {
     ensure_eq(
         claim.record_kind.as_str(),
         RUNTIME_ABI_QUALIFICATION_CLAIM_RECORD_KIND,
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
     ensure_token(
         SUPPORT_CLAIM_CLASSES,
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(RUNTIME_ABI_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            RUNTIME_ABI_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2021,12 +2106,18 @@ fn validate_banner(banner: &DowngradedHostBanner) -> Result<(), StableRuntimeAbi
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(RUNTIME_ABI_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            RUNTIME_ABI_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2051,23 +2142,31 @@ fn validate_inspection(
         "inspection effective_tier",
     )?;
     if inspection.active_contribution_count != packet.contributions.len() {
-        return Err(err("inspection active_contribution_count must match contributions"));
+        return Err(err(
+            "inspection active_contribution_count must match contributions",
+        ));
     }
     if inspection.downgraded != packet.claim.downgraded {
         return Err(err("inspection downgraded is inconsistent"));
     }
     if inspection.downgraded_host_banner_required != packet.downgraded_host_banner.must_display {
-        return Err(err("inspection downgraded_host_banner_required is inconsistent"));
+        return Err(err(
+            "inspection downgraded_host_banner_required is inconsistent",
+        ));
     }
     if inspection.attribution_complete != packet.attribution_complete() {
         return Err(err("inspection attribution_complete is inconsistent"));
     }
     if inspection.widens_to_ambient_full_user != packet.sandbox_profile.widens_to_ambient_full_user
     {
-        return Err(err("inspection widens_to_ambient_full_user is inconsistent"));
+        return Err(err(
+            "inspection widens_to_ambient_full_user is inconsistent",
+        ));
     }
     if inspection.capability_envelope_well_formed != packet.capability_envelope.is_well_formed() {
-        return Err(err("inspection capability_envelope_well_formed is inconsistent"));
+        return Err(err(
+            "inspection capability_envelope_well_formed is inconsistent",
+        ));
     }
     Ok(())
 }
@@ -2080,7 +2179,10 @@ fn runtime_class_supports_locus(runtime_class: &str, locus: &str) -> bool {
     matches!(
         (runtime_class, locus),
         ("passive_package", "passive_no_execution")
-            | ("declarative_host_rendered_view", "host_rendered_no_extension_code")
+            | (
+                "declarative_host_rendered_view",
+                "host_rendered_no_extension_code"
+            )
             | (
                 "wasm_capability_sandbox",
                 "editor_in_process_isolated" | "dedicated_subprocess"
@@ -2127,14 +2229,22 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
 
-fn ensure_eq_u32(left: u32, right: u32, field: &str) -> Result<(), StableRuntimeAbiValidationError> {
+fn ensure_eq_u32(
+    left: u32,
+    right: u32,
+    field: &str,
+) -> Result<(), StableRuntimeAbiValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2152,7 +2262,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableRuntimeAbiValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

@@ -102,11 +102,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut events = page.change_events;
             if let Some(event) = events.first_mut() {
                 event.session_impact = SessionImpactClass::RouteBlockedLocalContinuity;
-                event.session_impact_token =
-                    SessionImpactClass::RouteBlockedLocalContinuity.as_str().to_owned();
+                event.session_impact_token = SessionImpactClass::RouteBlockedLocalContinuity
+                    .as_str()
+                    .to_owned();
                 event.repair_action = TrustStoreRepairActionClass::NoneRequired;
-                event.repair_action_token =
-                    TrustStoreRepairActionClass::NoneRequired.as_str().to_owned();
+                event.repair_action_token = TrustStoreRepairActionClass::NoneRequired
+                    .as_str()
+                    .to_owned();
                 event.affected_route_refs = vec!["tls_enterprise".to_owned()];
             }
             let drill = HardenOsKeychainTrustStorePage::new(

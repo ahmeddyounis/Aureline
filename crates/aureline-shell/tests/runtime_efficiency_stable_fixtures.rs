@@ -112,7 +112,9 @@ fn matrix_materializes_every_efficiency_state() {
     let corpus = runtime_efficiency_corpus();
     for required in ALL_EFFICIENCY_STATES {
         assert!(
-            corpus.iter().any(|scenario| scenario.expected_state == required),
+            corpus
+                .iter()
+                .any(|scenario| scenario.expected_state == required),
             "matrix must materialize efficiency state {}",
             required.as_str(),
         );
@@ -149,7 +151,10 @@ fn protected_paths_complete_and_within_band_on_stable() {
         let record = load_record(&scenario.fixture_filename);
         for required in ProtectedForegroundPath::REQUIRED {
             assert!(
-                record.protected_paths.iter().any(|row| row.path == required),
+                record
+                    .protected_paths
+                    .iter()
+                    .any(|row| row.path == required),
                 "{} missing protected path {}",
                 scenario.scenario_id,
                 required.as_str(),
@@ -224,8 +229,7 @@ fn governor_reason_surfaced_for_pressure_postures() {
         );
         if record.governor.reason.requires_surfacing() {
             assert!(
-                record.governor.surfaced_in_status_strip
-                    && record.governor.surfaced_in_diagnostics,
+                record.governor.surfaced_in_status_strip && record.governor.surfaced_in_diagnostics,
                 "{} pressured posture does not surface the governor reason",
                 scenario.scenario_id,
             );
@@ -378,13 +382,25 @@ fn claim_ceiling_never_overclaims() {
         let ceiling = record.claim_ceiling;
         let pillars = record.pillars;
         if ceiling.asserts_efficiency_state_materialized {
-            assert!(pillars.efficiency_state_materialized, "{}", scenario.scenario_id);
+            assert!(
+                pillars.efficiency_state_materialized,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_background_shed_before_foreground {
-            assert!(pillars.background_shed_before_foreground, "{}", scenario.scenario_id);
+            assert!(
+                pillars.background_shed_before_foreground,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_foreground_within_latency_bands {
-            assert!(pillars.foreground_within_latency_bands, "{}", scenario.scenario_id);
+            assert!(
+                pillars.foreground_within_latency_bands,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_hidden_panes_quiescent {
             assert!(pillars.hidden_panes_quiescent, "{}", scenario.scenario_id);
@@ -396,7 +412,11 @@ fn claim_ceiling_never_overclaims() {
             assert!(pillars.durable_state_preserved, "{}", scenario.scenario_id);
         }
         if ceiling.asserts_platform_conformance_complete {
-            assert!(pillars.platform_conformance_complete, "{}", scenario.scenario_id);
+            assert!(
+                pillars.platform_conformance_complete,
+                "{}",
+                scenario.scenario_id
+            );
         }
     }
 }
@@ -519,7 +539,10 @@ fn suspend_resume_continuity_admits_no_silent_rerun() {
         .suspend_resume
         .as_ref()
         .expect("recovery posture must carry suspend-resume continuity");
-    assert!(continuity.local_work_continues, "local work must continue across resume");
+    assert!(
+        continuity.local_work_continues,
+        "local work must continue across resume"
+    );
     assert!(
         continuity.privileged_or_mutating_work_paused,
         "privileged work must pause at the boundary",
@@ -565,7 +588,11 @@ fn minted_refs_are_canonical_durable_objects() {
                 scenario.scenario_id,
             );
         }
-        for value in record.evidence_refs.iter().chain(record.narrative_refs.iter()) {
+        for value in record
+            .evidence_refs
+            .iter()
+            .chain(record.narrative_refs.iter())
+        {
             assert!(
                 is_canonical_object_ref(value),
                 "{} ref {value:?} not canonical",

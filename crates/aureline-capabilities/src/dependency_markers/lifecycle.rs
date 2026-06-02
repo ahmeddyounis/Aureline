@@ -11,9 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// Closed lifecycle-state vocabulary persisted in capability records
 /// and artifact dependency markers.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CapabilityLifecycleState {
     /// Opt-in exploratory surface.
@@ -64,7 +62,10 @@ mod tests {
             (CapabilityLifecycleState::Stable, "stable"),
             (CapabilityLifecycleState::LtsFacing, "lts_facing"),
             (CapabilityLifecycleState::Deprecated, "deprecated"),
-            (CapabilityLifecycleState::DisabledByPolicy, "disabled_by_policy"),
+            (
+                CapabilityLifecycleState::DisabledByPolicy,
+                "disabled_by_policy",
+            ),
             (CapabilityLifecycleState::Retired, "retired"),
         ] {
             assert_eq!(state.as_str(), token);

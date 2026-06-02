@@ -13,8 +13,8 @@
 //! ```
 
 use aureline_policy::{
-    seeded_harden_identity_admin_page, HardenIdentityAdminPage, IdentityAdminRow,
-    HardenIdentityAdminSupportExport, IdentityAdminRowClass,
+    seeded_harden_identity_admin_page, HardenIdentityAdminPage, HardenIdentityAdminSupportExport,
+    IdentityAdminRow, IdentityAdminRowClass,
 };
 
 fn main() {
@@ -72,9 +72,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("drill-empty-provisioning-class-beta") => {
             let mut rows: Vec<IdentityAdminRow> = page.rows;
-            if let Some(row) = rows.iter_mut().find(|r| {
-                r.row_class == IdentityAdminRowClass::DirectoryProviderCard
-            }) {
+            if let Some(row) = rows
+                .iter_mut()
+                .find(|r| r.row_class == IdentityAdminRowClass::DirectoryProviderCard)
+            {
                 row.provisioning_class_token.clear();
             }
             let drill = HardenIdentityAdminPage::new(
@@ -87,9 +88,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("drill-generic-failure-kind-beta") => {
             let mut rows: Vec<IdentityAdminRow> = page.rows;
-            if let Some(row) = rows.iter_mut().find(|r| {
-                r.row_class == IdentityAdminRowClass::ProvisioningFailureLog
-            }) {
+            if let Some(row) = rows
+                .iter_mut()
+                .find(|r| r.row_class == IdentityAdminRowClass::ProvisioningFailureLog)
+            {
                 row.failure_kind_token = "generic_error".to_owned();
                 row.failure_kind = None;
             }

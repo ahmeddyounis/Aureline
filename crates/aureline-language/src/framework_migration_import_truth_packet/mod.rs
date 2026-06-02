@@ -1287,10 +1287,7 @@ impl FrameworkMigrationImportTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDowngradeAutomation,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound downgrade-automation class",
-                    row.row_id
-                ),
+                format!("row {} has no bound downgrade-automation class", row.row_id),
             ));
         }
         if !row.evidence_class.is_bound() {
@@ -1311,10 +1308,7 @@ impl FrameworkMigrationImportTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingRollbackCheckpointClass,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound rollback-checkpoint class",
-                    row.row_id
-                ),
+                format!("row {} has no bound rollback-checkpoint class", row.row_id),
             ));
         }
         if !row.diagnostic_preservation_class.is_bound() {
@@ -1386,7 +1380,8 @@ impl FrameworkMigrationImportTruthPacket {
             ));
         }
 
-        let is_outcome_label = matches!(row.row_class, FrameworkMigrationRowClass::OutcomeLabelTruth);
+        let is_outcome_label =
+            matches!(row.row_class, FrameworkMigrationRowClass::OutcomeLabelTruth);
         let is_rollback = matches!(
             row.row_class,
             FrameworkMigrationRowClass::RollbackCheckpointAdmission
@@ -1446,8 +1441,7 @@ impl FrameworkMigrationImportTruthPacket {
         if !is_rollback
             && !matches!(
                 row.rollback_checkpoint_class,
-                RollbackCheckpointClass::NotApplicable
-                    | RollbackCheckpointClass::CheckpointUnbound
+                RollbackCheckpointClass::NotApplicable | RollbackCheckpointClass::CheckpointUnbound
             )
         {
             findings.push(ValidationFinding::new(
@@ -1967,8 +1961,8 @@ mod tests {
         FrameworkMigrationImportConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            framework_migration_import_packet_id_ref:
-                "packet:m4:framework_migration_import".to_owned(),
+            framework_migration_import_packet_id_ref: "packet:m4:framework_migration_import"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,

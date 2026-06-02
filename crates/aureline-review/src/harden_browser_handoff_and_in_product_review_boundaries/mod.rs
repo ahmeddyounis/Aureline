@@ -49,8 +49,7 @@ use crate::workspace::ReviewWorkspaceBetaPacket;
 pub const REVIEW_BOUNDARY_HARDENING_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for [`ReviewBoundaryHardeningPacket`].
-pub const REVIEW_BOUNDARY_HARDENING_PACKET_RECORD_KIND: &str =
-    "review_boundary_hardening_packet";
+pub const REVIEW_BOUNDARY_HARDENING_PACKET_RECORD_KIND: &str = "review_boundary_hardening_packet";
 
 /// Stable record-kind tag for [`ReviewBoundaryHardeningRecord`].
 pub const REVIEW_BOUNDARY_HARDENING_RECORD_KIND: &str = "review_boundary_hardening_record";
@@ -59,8 +58,7 @@ pub const REVIEW_BOUNDARY_HARDENING_RECORD_KIND: &str = "review_boundary_hardeni
 pub const BROWSER_HANDOFF_BOUNDARY_RECORD_KIND: &str = "review_browser_handoff_boundary_record";
 
 /// Stable record-kind tag for [`InProductReviewBoundaryRecord`].
-pub const IN_PRODUCT_REVIEW_BOUNDARY_RECORD_KIND: &str =
-    "review_in_product_review_boundary_record";
+pub const IN_PRODUCT_REVIEW_BOUNDARY_RECORD_KIND: &str = "review_in_product_review_boundary_record";
 
 /// Stable record-kind tag for [`ProviderSourceIdentityRecord`].
 pub const PROVIDER_SOURCE_IDENTITY_RECORD_KIND: &str = "review_provider_source_identity_record";
@@ -73,12 +71,10 @@ pub const BOUNDARY_FRESHNESS_OBSERVATION_RECORD_KIND: &str =
     "review_boundary_freshness_observation_record";
 
 /// Stable record-kind tag for [`BoundaryOwnershipSignalRecord`].
-pub const BOUNDARY_OWNERSHIP_SIGNAL_RECORD_KIND: &str =
-    "review_boundary_ownership_signal_record";
+pub const BOUNDARY_OWNERSHIP_SIGNAL_RECORD_KIND: &str = "review_boundary_ownership_signal_record";
 
 /// Stable record-kind tag for [`BoundaryHardeningCommandRecord`].
-pub const BOUNDARY_HARDENING_COMMAND_RECORD_KIND: &str =
-    "review_boundary_hardening_command_record";
+pub const BOUNDARY_HARDENING_COMMAND_RECORD_KIND: &str = "review_boundary_hardening_command_record";
 
 /// Stable record-kind tag for [`BoundaryHardeningSupportExportPacket`].
 pub const BOUNDARY_HARDENING_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
@@ -360,7 +356,6 @@ pub struct BoundaryHardeningSupportExportInput {
     /// Reviewable summary safe for support/export surfaces.
     pub summary_label: String,
 }
-
 
 // ---------------------------------------------------------------------------
 // Record types
@@ -718,11 +713,8 @@ impl ReviewBoundaryHardeningPacket {
     ) -> Result<Self, ReviewBoundaryHardeningValidationError> {
         validate_input(&input, workspace_packet, stabilization_packet)?;
 
-        let boundary_hardening = boundary_hardening_record(
-            &input,
-            workspace_packet,
-            stabilization_packet,
-        );
+        let boundary_hardening =
+            boundary_hardening_record(&input, workspace_packet, stabilization_packet);
         let browser_handoff_boundary =
             browser_handoff_boundary_record(&input.browser_handoff_boundary, &boundary_hardening);
         let in_product_boundary =
@@ -819,7 +811,10 @@ impl ReviewBoundaryHardeningPacket {
             &self.provider_source_identity,
             &self.boundary_hardening.boundary_hardening_id,
         )?;
-        validate_return_path_record(&self.return_path, &self.boundary_hardening.boundary_hardening_id)?;
+        validate_return_path_record(
+            &self.return_path,
+            &self.boundary_hardening.boundary_hardening_id,
+        )?;
         validate_boundary_freshness_observation_record(
             &self.boundary_freshness,
             &self.boundary_hardening.boundary_hardening_id,
@@ -854,16 +849,15 @@ impl ReviewBoundaryHardeningPacket {
         ) && contains_token(
             BOUNDARY_AUTHORITY_CLASSES,
             &self.in_product_boundary.boundary_authority_class,
-        ) && contains_token(
-            RETURN_PATH_CLASSES,
-            &self.return_path.return_path_class,
-        ) && contains_token(
-            BOUNDARY_FRESHNESS_CLASSES,
-            &self.boundary_freshness.boundary_freshness_class,
-        ) && self
-            .boundary_ownership_signals
-            .iter()
-            .all(|s| contains_token(BOUNDARY_OWNERSHIP_CLASSES, &s.boundary_ownership_class))
+        ) && contains_token(RETURN_PATH_CLASSES, &self.return_path.return_path_class)
+            && contains_token(
+                BOUNDARY_FRESHNESS_CLASSES,
+                &self.boundary_freshness.boundary_freshness_class,
+            )
+            && self
+                .boundary_ownership_signals
+                .iter()
+                .all(|s| contains_token(BOUNDARY_OWNERSHIP_CLASSES, &s.boundary_ownership_class))
     }
 
     /// Returns true when no raw escape hatch crosses the support boundary.
@@ -881,8 +875,16 @@ impl ReviewBoundaryHardeningPacket {
 
     /// Returns true when provider identity is fully disclosed at the boundary.
     pub fn provider_identity_disclosed(&self) -> bool {
-        !self.provider_source_identity.provider_class.trim().is_empty()
-            && !self.provider_source_identity.provider_object_identity_ref.trim().is_empty()
+        !self
+            .provider_source_identity
+            .provider_class
+            .trim()
+            .is_empty()
+            && !self
+                .provider_source_identity
+                .provider_object_identity_ref
+                .trim()
+                .is_empty()
             && !self.provider_source_identity.actor_ref.trim().is_empty()
     }
 
@@ -961,7 +963,9 @@ impl From<ReviewBoundaryHardeningPacket> for ReviewBoundaryHardeningProjection {
             local_provider_agree: packet.inspection.local_provider_agree,
             hidden_authority_detected: packet.inspection.hidden_authority_detected,
             return_path_present_and_valid: packet.inspection.return_path_present_and_valid,
-            boundary_freshness_blocks_mutation: packet.inspection.boundary_freshness_blocks_mutation,
+            boundary_freshness_blocks_mutation: packet
+                .inspection
+                .boundary_freshness_blocks_mutation,
             ownership_conflict_at_boundary: packet.inspection.ownership_conflict_at_boundary,
             invalidation_reasons: packet.boundary_hardening.invalidation_reasons.clone(),
             blocked_reasons: packet.boundary_hardening.blocked_reasons.clone(),
@@ -986,7 +990,10 @@ impl fmt::Display for ReviewBoundaryHardeningError {
         match self {
             Self::Parse(err) => write!(formatter, "review boundary hardening parse error: {err}"),
             Self::Validation(err) => {
-                write!(formatter, "review boundary hardening validation error: {err}")
+                write!(
+                    formatter,
+                    "review boundary hardening validation error: {err}"
+                )
             }
         }
     }
@@ -1059,7 +1066,10 @@ fn boundary_hardening_record(
         record_kind: REVIEW_BOUNDARY_HARDENING_RECORD_KIND.to_string(),
         schema_version: REVIEW_BOUNDARY_HARDENING_SCHEMA_VERSION,
         boundary_hardening_id: input.boundary_hardening_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         stabilization_id_ref: stabilization_packet.stabilization.stabilization_id.clone(),
         boundary_hardening_state: input.boundary_hardening_state.clone(),
         invalidation_reasons,
@@ -1206,7 +1216,10 @@ fn boundary_hardening_support_export_packet(
         schema_version: REVIEW_BOUNDARY_HARDENING_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         boundary_hardening_id_ref: boundary_hardening.boundary_hardening_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         stabilization_id_ref: stabilization_packet.stabilization.stabilization_id.clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
@@ -1237,8 +1250,8 @@ fn boundary_hardening_inspection_record(
     support_export: &BoundaryHardeningSupportExportPacket,
 ) -> BoundaryHardeningInspectionRecord {
     let boundary_hardened = boundary_hardening.boundary_hardening_state == "boundary_hardened";
-    let boundary_degraded_provider_overlay_stale = boundary_hardening.boundary_hardening_state
-        == "boundary_degraded_provider_overlay_stale";
+    let boundary_degraded_provider_overlay_stale =
+        boundary_hardening.boundary_hardening_state == "boundary_degraded_provider_overlay_stale";
     let boundary_degraded_missing_return_path =
         boundary_hardening.boundary_hardening_state == "boundary_degraded_missing_return_path";
     let boundary_degraded_hidden_authority =
@@ -1263,15 +1276,16 @@ fn boundary_hardening_inspection_record(
         || boundary_freshness.boundary_freshness_class == "boundary_stale_within_grace";
     let boundary_freshness_blocks_mutation =
         boundary_freshness.boundary_freshness_class == "boundary_stale_blocks_mutation";
-    let enforceable_ownership_at_boundary = boundary_ownership_signals.iter().any(|s| s.enforceable);
+    let enforceable_ownership_at_boundary =
+        boundary_ownership_signals.iter().any(|s| s.enforceable);
     let advisory_ownership_at_boundary = boundary_ownership_signals.iter().any(|s| s.advisory);
-    let ownership_conflict_at_boundary =
-        boundary_ownership_signals.iter().any(|s| s.boundary_ownership_class == "ownership_conflict_at_boundary");
+    let ownership_conflict_at_boundary = boundary_ownership_signals
+        .iter()
+        .any(|s| s.boundary_ownership_class == "ownership_conflict_at_boundary");
     let actionable = boundary_hardening.actionable;
     let invalidated = !boundary_hardening.invalidation_reasons.is_empty();
     let preview_capable = commands.iter().any(|c| c.preview_supported);
-    let support_export_reopenable =
-        support_export_can_reopen(support_export, commands);
+    let support_export_reopenable = support_export_can_reopen(support_export, commands);
 
     BoundaryHardeningInspectionRecord {
         record_kind: BOUNDARY_HARDENING_INSPECTION_RECORD_KIND.to_string(),
@@ -1406,9 +1420,7 @@ fn validate_input(
         ));
     }
 
-    if input.return_path.expired
-        && input.return_path.return_path_class != "return_path_expired"
-    {
+    if input.return_path.expired && input.return_path.return_path_class != "return_path_expired" {
         return Err(boundary_hardening_validation_error(
             "expired return path must use return_path_expired class",
         ));
@@ -1537,7 +1549,10 @@ fn validate_provider_source_identity_record(
         "provider_source_identity boundary_hardening_id_ref",
     )?;
     ensure_nonempty(&record.provider_class, "provider_class")?;
-    ensure_nonempty(&record.provider_object_identity_ref, "provider_object_identity_ref")?;
+    ensure_nonempty(
+        &record.provider_object_identity_ref,
+        "provider_object_identity_ref",
+    )?;
     ensure_nonempty(&record.actor_ref, "actor_ref")?;
     Ok(())
 }
@@ -1702,7 +1717,8 @@ fn validate_inspection(
             "inspection boundary_ownership_signal_count must match boundary_ownership_signals length",
         ));
     }
-    if inspection.hidden_authority_detected != packet.in_product_boundary.hidden_authority_detected {
+    if inspection.hidden_authority_detected != packet.in_product_boundary.hidden_authority_detected
+    {
         return Err(boundary_hardening_validation_error(
             "inspection hidden_authority_detected must match in_product_boundary.hidden_authority_detected",
         ));
@@ -1741,7 +1757,10 @@ fn derive_invalidation_reasons(
     {
         reasons.push("missing_return_path".to_string());
     }
-    if boundary_ownership_signals.iter().any(|s| s.boundary_ownership_class == "ownership_conflict_at_boundary") {
+    if boundary_ownership_signals
+        .iter()
+        .any(|s| s.boundary_ownership_class == "ownership_conflict_at_boundary")
+    {
         reasons.push("ownership_ambiguous".to_string());
     }
     reasons
@@ -1820,10 +1839,7 @@ where
     Ok(())
 }
 
-fn ensure_nonempty(
-    value: &str,
-    field: &str,
-) -> Result<(), ReviewBoundaryHardeningValidationError> {
+fn ensure_nonempty(value: &str, field: &str) -> Result<(), ReviewBoundaryHardeningValidationError> {
     if value.trim().is_empty() {
         return Err(boundary_hardening_validation_error(format!(
             "{field} must not be empty"

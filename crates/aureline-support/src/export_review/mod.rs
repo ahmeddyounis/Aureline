@@ -344,10 +344,7 @@ impl EvidenceInclusionClass {
     /// True when the export-side projection includes this class either as
     /// metadata or by reference.
     pub const fn is_included(self) -> bool {
-        matches!(
-            self,
-            Self::EmbeddedMetadataOnly | Self::EmbeddedByReference
-        )
+        matches!(self, Self::EmbeddedMetadataOnly | Self::EmbeddedByReference)
     }
 }
 
@@ -550,13 +547,10 @@ impl SupportExportRedactionProfile {
     pub fn preserves_default_required_classes(&self) -> bool {
         REQUIRED_EVIDENCE_CLASSES.iter().all(|required| {
             self.default_required_evidence_classes.contains(required)
-                && self
-                    .evidence_class_rules
-                    .iter()
-                    .any(|row| {
-                        row.evidence_class == required.as_evidence_class()
-                            && row.inclusion_class.is_included()
-                    })
+                && self.evidence_class_rules.iter().any(|row| {
+                    row.evidence_class == required.as_evidence_class()
+                        && row.inclusion_class.is_included()
+                })
         })
     }
 
@@ -597,7 +591,12 @@ impl SupportExportRedactionProfile {
                 self.record_kind.clone(),
             ));
         }
-        if self.build_identity.exact_build_identity_ref.trim().is_empty() {
+        if self
+            .build_identity
+            .exact_build_identity_ref
+            .trim()
+            .is_empty()
+        {
             return Err(SupportExportRedactionError::MissingExactBuildIdentity);
         }
         if self.raw_dumps_attached {
@@ -644,9 +643,11 @@ impl SupportExportRedactionProfile {
                 && row.inclusion_class.is_included()
                 && self.broaden_evidence_review_ref.is_none()
             {
-                return Err(SupportExportRedactionError::CodeAdjacentWidenedWithoutReview(
-                    row.evidence_class,
-                ));
+                return Err(
+                    SupportExportRedactionError::CodeAdjacentWidenedWithoutReview(
+                        row.evidence_class,
+                    ),
+                );
             }
             if row.carries_raw_body_by_default
                 && matches!(
@@ -665,9 +666,9 @@ impl SupportExportRedactionProfile {
                 row.evidence_class == evidence_class && row.inclusion_class.is_included()
             });
             if !included {
-                return Err(SupportExportRedactionError::RequiredEvidenceClassNotIncluded(
-                    *required,
-                ));
+                return Err(
+                    SupportExportRedactionError::RequiredEvidenceClassNotIncluded(*required),
+                );
             }
         }
         Ok(())
@@ -720,9 +721,10 @@ impl SupportExportReopenManifest {
     /// True when the manifest preserves every default-required evidence
     /// class on the `included` side.
     pub fn preserves_default_required_classes(&self) -> bool {
-        REQUIRED_EVIDENCE_CLASSES
-            .iter()
-            .all(|required| self.included_evidence_classes.contains(&required.as_evidence_class()))
+        REQUIRED_EVIDENCE_CLASSES.iter().all(|required| {
+            self.included_evidence_classes
+                .contains(&required.as_evidence_class())
+        })
     }
 
     /// Validate the manifest against the reopen-truth posture. The
@@ -745,7 +747,12 @@ impl SupportExportReopenManifest {
         if self.profile_ref.trim().is_empty() {
             return Err(SupportExportRedactionError::ReopenMissingProfileRef);
         }
-        if self.build_identity.exact_build_identity_ref.trim().is_empty() {
+        if self
+            .build_identity
+            .exact_build_identity_ref
+            .trim()
+            .is_empty()
+        {
             return Err(SupportExportRedactionError::MissingExactBuildIdentity);
         }
         for class in &self.included_evidence_classes {
@@ -755,9 +762,7 @@ impl SupportExportReopenManifest {
                 ));
             }
             if class.is_code_adjacent() && self.broaden_evidence_review_ref.is_none() {
-                return Err(SupportExportRedactionError::CodeAdjacentWidenedWithoutReview(
-                    *class,
-                ));
+                return Err(SupportExportRedactionError::CodeAdjacentWidenedWithoutReview(*class));
             }
         }
         if !self.preserves_default_required_classes() {
@@ -766,9 +771,9 @@ impl SupportExportReopenManifest {
                     .included_evidence_classes
                     .contains(&required.as_evidence_class())
                 {
-                    return Err(SupportExportRedactionError::RequiredEvidenceClassNotIncluded(
-                        *required,
-                    ));
+                    return Err(
+                        SupportExportRedactionError::RequiredEvidenceClassNotIncluded(*required),
+                    );
                 }
             }
         }
@@ -875,7 +880,10 @@ pub enum SupportExportRedactionError {
     /// class is code-adjacent or high-risk.
     RawBodyOnHighRiskClass(EvidenceClass),
     /// Could not parse YAML/JSON fixture content.
-    InvalidFixture { fixture: &'static str, message: String },
+    InvalidFixture {
+        fixture: &'static str,
+        message: String,
+    },
     /// Reopen manifest is missing its profile ref.
     ReopenMissingProfileRef,
     /// Reopen manifest claims `local_only_review` destination but also
@@ -965,10 +973,12 @@ pub fn load_profile_corpus(
 ) -> Result<Vec<SupportExportRedactionProfile>, SupportExportRedactionError> {
     let mut profiles = Vec::with_capacity(PROFILE_FIXTURES.len());
     for (path, contents) in PROFILE_FIXTURES {
-        let profile: SupportExportRedactionProfile = serde_yaml::from_str(contents)
-            .map_err(|err| SupportExportRedactionError::InvalidFixture {
-                fixture: path,
-                message: err.to_string(),
+        let profile: SupportExportRedactionProfile =
+            serde_yaml::from_str(contents).map_err(|err| {
+                SupportExportRedactionError::InvalidFixture {
+                    fixture: path,
+                    message: err.to_string(),
+                }
             })?;
         profile.validate()?;
         profiles.push(profile);
@@ -982,14 +992,16 @@ pub fn load_profile_corpus(
 ///
 /// Returns [`SupportExportRedactionError`] when any fixture fails to
 /// parse or fails the reopen-truth posture check.
-pub fn load_reopen_corpus(
-) -> Result<Vec<SupportExportReopenManifest>, SupportExportRedactionError> {
+pub fn load_reopen_corpus() -> Result<Vec<SupportExportReopenManifest>, SupportExportRedactionError>
+{
     let mut manifests = Vec::with_capacity(REOPEN_FIXTURES.len());
     for (path, contents) in REOPEN_FIXTURES {
-        let manifest: SupportExportReopenManifest = serde_yaml::from_str(contents)
-            .map_err(|err| SupportExportRedactionError::InvalidFixture {
-                fixture: path,
-                message: err.to_string(),
+        let manifest: SupportExportReopenManifest =
+            serde_yaml::from_str(contents).map_err(|err| {
+                SupportExportRedactionError::InvalidFixture {
+                    fixture: path,
+                    message: err.to_string(),
+                }
             })?;
         manifest.validate()?;
         manifests.push(manifest);
@@ -1032,7 +1044,9 @@ mod tests {
         let profiles = load_profile_corpus().expect("profiles load");
         let manifests = load_reopen_corpus().expect("manifests load");
         for manifest in &manifests {
-            assert!(profiles.iter().any(|profile| profile.id() == manifest.profile_ref));
+            assert!(profiles
+                .iter()
+                .any(|profile| profile.id() == manifest.profile_ref));
             assert!(manifest.preserves_default_required_classes());
         }
     }

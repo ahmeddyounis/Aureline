@@ -407,7 +407,8 @@ fn missing_source_contract_is_rejected() {
 #[test]
 fn raw_material_is_rejected() {
     let mut packet = packet();
-    packet.preview_contract.apply_guard_ref = "reachable via https://provider.example/v1".to_owned();
+    packet.preview_contract.apply_guard_ref =
+        "reachable via https://provider.example/v1".to_owned();
     assert!(packet
         .validate()
         .contains(&HighRiskCommandHardeningViolation::RawMaterialInExport));

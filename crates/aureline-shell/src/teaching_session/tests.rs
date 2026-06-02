@@ -23,7 +23,11 @@ fn checkpoint() -> RestoreCheckpoint {
     }
 }
 
-fn tour_segment(id: &str, state: DocsPackState, action: Option<DemonstratedAction>) -> TeachingSegment {
+fn tour_segment(
+    id: &str,
+    state: DocsPackState,
+    action: Option<DemonstratedAction>,
+) -> TeachingSegment {
     TeachingSegment {
         segment_id: id.into(),
         ordinal: 1,
@@ -91,7 +95,11 @@ fn teaching_roles_never_grant_terminal_debug_or_broader_authority() {
         TeachingRole::Approver,
         TeachingRole::Scribe,
     ] {
-        assert!(!role.grants_terminal_or_debug_control(), "{}", role.as_str());
+        assert!(
+            !role.grants_terminal_or_debug_control(),
+            "{}",
+            role.as_str()
+        );
         assert!(!role.implies_broader_authority(), "{}", role.as_str());
     }
     // Only the moderator drives.
@@ -174,7 +182,11 @@ fn opt_in_markers_track_replay_and_retention_scope() {
         RetentionClass::SharedWorkspaceRetained,
         checkpoint(),
     )
-    .segment(tour_segment("segment:shared:1", DocsPackState::Installed, None))
+    .segment(tour_segment(
+        "segment:shared:1",
+        DocsPackState::Installed,
+        None,
+    ))
     .build();
     assert!(shared.replay_archive_opt_in_explicit);
     assert!(shared.shared_retention_opt_in_explicit);
@@ -225,7 +237,11 @@ fn observers_and_scribes_get_no_drive_or_mutation_affordance() {
 
     let aff = project_affordances(&session);
     for view in &aff.participant_views {
-        assert!(!view.exposes_terminal_or_debug_control, "{}", view.participant_id);
+        assert!(
+            !view.exposes_terminal_or_debug_control,
+            "{}",
+            view.participant_id
+        );
         match view.role {
             TeachingRole::Moderator => {
                 assert!(view.exposes_drive_control);
@@ -316,7 +332,9 @@ fn mutation_affordance_reuses_ordinary_command_path() {
     assert!(aff
         .all_affordances()
         .all(|a| a.routes_through_ordinary_command_path));
-    assert!(aff.all_affordances().all(|a| !a.is_terminal_or_debug_control));
+    assert!(aff
+        .all_affordances()
+        .all(|a| !a.is_terminal_or_debug_control));
 }
 
 #[test]
@@ -330,8 +348,14 @@ fn restore_returns_prior_environment_for_every_trigger() {
         let outcome = restore_from_checkpoint(&s, trigger);
         assert!(outcome.matches_checkpoint);
         assert!(!outcome.left_in_improvised_shell);
-        assert_eq!(outcome.restored_layout_ref, s.restore_checkpoint.prior_layout_ref);
-        assert_eq!(outcome.restored_focus_ref, s.restore_checkpoint.prior_focus_ref);
+        assert_eq!(
+            outcome.restored_layout_ref,
+            s.restore_checkpoint.prior_layout_ref
+        );
+        assert_eq!(
+            outcome.restored_focus_ref,
+            s.restore_checkpoint.prior_focus_ref
+        );
         assert_eq!(
             outcome.restored_panel_visibility_ref,
             s.restore_checkpoint.prior_panel_visibility_ref

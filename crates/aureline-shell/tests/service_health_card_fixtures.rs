@@ -35,10 +35,7 @@ fn service_health_aggregator_seeded_fixture_matches_code() {
 #[test]
 fn all_ready_fixture_does_not_light_honesty_marker() {
     let agg: ServiceHealthAggregator = load("all_ready_aggregator.json");
-    assert_eq!(
-        agg.overall_contract_state,
-        ServiceContractStateClass::Ready
-    );
+    assert_eq!(agg.overall_contract_state, ServiceContractStateClass::Ready);
     assert_eq!(
         agg.overall_local_continuity,
         LocalContinuityClass::LocalSafe

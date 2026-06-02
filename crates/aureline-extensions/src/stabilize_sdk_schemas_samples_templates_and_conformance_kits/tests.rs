@@ -94,15 +94,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_sdk_author_lane_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -131,14 +147,22 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.lane_conformant, e.lane_conformant, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.lane_conformant, e.lane_conformant,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.inspection.ambient_template_privilege_present,
             e.ambient_template_privilege_present,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.artifact_count, e.artifact_count, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.artifact_count, e.artifact_count,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.inspection.conformant_artifact_count, e.conformant_artifact_count,
             "{}",
@@ -154,7 +178,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(export.blocks_authoring, e.blocks_authoring, "{}", fixture.case_name);
+        assert_eq!(
+            export.blocks_authoring, e.blocks_authoring,
+            "{}",
+            fixture.case_name
+        );
 
         // Cross-cutting invariants for every fixture.
         assert!(
@@ -339,7 +367,9 @@ fn nonconformant_artifact_withdraws_and_excludes_stable() {
 fn missing_required_kind_withdraws_the_lane() {
     let mut input = stable_input();
     // Drop the conformance kit so a required kind is missing.
-    input.artifacts.retain(|a| a.artifact_kind_class != "conformance_kit");
+    input
+        .artifacts
+        .retain(|a| a.artifact_kind_class != "conformance_kit");
     let packet = StableSdkAuthorLanePacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "withdrawn");
     assert!(packet

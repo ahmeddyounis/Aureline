@@ -86,10 +86,16 @@ fn current_field_readiness_scorecards_cover_every_required_beta_lane() {
 fn every_lane_row_carries_metadata_safe_baseline_and_release_gate_contribution() {
     let bundle = current_field_readiness_scorecards().expect("scorecards project");
 
-    assert!(bundle
-        .diagnosis_latency_scorecard
-        .raw_private_material_excluded);
-    assert!(bundle.diagnosis_latency_scorecard.ambient_authority_excluded);
+    assert!(
+        bundle
+            .diagnosis_latency_scorecard
+            .raw_private_material_excluded
+    );
+    assert!(
+        bundle
+            .diagnosis_latency_scorecard
+            .ambient_authority_excluded
+    );
 
     for row in &bundle.diagnosis_latency_scorecard.lane_rows {
         assert_eq!(row.record_kind, M3_DIAGNOSIS_LATENCY_LANE_ROW_RECORD_KIND);
@@ -194,7 +200,10 @@ fn projection_downgrades_when_alpha_scorecard_is_missing() {
             row.time_to_first_actionable_finding.state,
             LatencyMeasurementState::StaleDowngraded
         );
-        assert!(row.stale_data_triggers.iter().any(|t| t == expected_trigger));
+        assert!(row
+            .stale_data_triggers
+            .iter()
+            .any(|t| t == expected_trigger));
     }
     assert!(!bundle.is_release_consumable());
 }

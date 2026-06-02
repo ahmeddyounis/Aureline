@@ -590,7 +590,10 @@ pub struct CrashLoopGovernance {
 impl CrashLoopGovernance {
     /// Returns true when the crash-loop window has tripped a disable.
     pub fn disable_tripped(&self) -> bool {
-        matches!(self.state_class.as_str(), "disable_tripped" | "quarantine_tripped")
+        matches!(
+            self.state_class.as_str(),
+            "disable_tripped" | "quarantine_tripped"
+        )
     }
 
     /// Returns true when the crash-loop window has tripped a quarantine.
@@ -863,11 +866,15 @@ impl StableWasmHostGovernancePacket {
 
         let identity = identity_record(&input.identity);
         let runtime_class_declaration = runtime_class_record(&input.runtime_class_declaration);
-        let quota_axes: Vec<HostQuotaAxis> = input.quota_axes.iter().map(quota_axis_record).collect();
+        let quota_axes: Vec<HostQuotaAxis> =
+            input.quota_axes.iter().map(quota_axis_record).collect();
         let crash_loop = crash_loop_record(&input.crash_loop);
         let restart_budget = restart_budget_record(&input.restart_budget);
-        let contributions: Vec<GovernedContributionEntry> =
-            input.contributions.iter().map(contribution_record).collect();
+        let contributions: Vec<GovernedContributionEntry> = input
+            .contributions
+            .iter()
+            .map(contribution_record)
+            .collect();
 
         let attribution_complete = !identity.source_package_ref.trim().is_empty()
             && contributions.iter().all(|c| c.is_attributed());
@@ -1055,7 +1062,9 @@ impl StableWasmHostGovernancePacket {
                 ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if self.contributions.iter().any(|c| !c.is_nominal()) {
                 return Err(err(
@@ -1117,7 +1126,11 @@ impl StableWasmHostGovernancePacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> = derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1339,7 +1352,10 @@ pub fn project_stable_wasm_host_governance_support_export(
     StableWasmHostGovernanceSupportExport {
         record_kind: STABLE_WASM_HOST_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_WASM_HOST_GOVERNANCE_SCHEMA_VERSION,
-        export_id: format!("stable_wasm_host_governance_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_wasm_host_governance_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         extension_identity_ref: packet.identity.extension_identity_ref.clone(),
         extension_version: packet.identity.extension_version.clone(),
@@ -1352,7 +1368,10 @@ pub fn project_stable_wasm_host_governance_support_export(
         downgraded: packet.claim.downgraded,
         downgrade_reasons: packet.claim.downgrade_reasons.clone(),
         quarantine_state_class: packet.quarantine_posture.quarantine_state_class.clone(),
-        recovery_precondition_class: packet.quarantine_posture.recovery_precondition_class.clone(),
+        recovery_precondition_class: packet
+            .quarantine_posture
+            .recovery_precondition_class
+            .clone(),
         trigger_rule_ref: packet.quarantine_posture.trigger_rule_ref.clone(),
         downgraded_host_banner_required: packet.downgraded_host_banner.must_display,
         blocks_activation: packet.quarantine_posture.blocks_activation,
@@ -1489,7 +1508,10 @@ fn derive_downgrade_reasons(
     }
     if crash_loop.quarantine_tripped() {
         reasons.push("crash_loop_quarantine_active".to_string());
-    } else if matches!(crash_loop.state_class.as_str(), "window_open" | "disable_tripped") {
+    } else if matches!(
+        crash_loop.state_class.as_str(),
+        "window_open" | "disable_tripped"
+    ) {
         reasons.push("crash_loop_window_breached".to_string());
     }
     if restart_budget.posture_unbounded() {
@@ -1547,12 +1569,20 @@ fn derive_effective_tier(claimed_tier: &str, reasons: &[String]) -> DerivedTier 
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1571,11 +1601,20 @@ fn support_claim_for(tier: &str) -> String {
 
 /// Derives the quarantine state from the collected narrowing reasons.
 fn derive_quarantine_state(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "quarantined"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "disabled_until_next_session"
-    } else if reasons.iter().any(|r| BETA_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| BETA_CLASS_REASONS.contains(&r.as_str()))
+    {
         "throttled"
     } else {
         "none_nominal"
@@ -1594,7 +1633,14 @@ fn host_is_downgraded(
     restart_budget: &RestartBudgetGovernance,
     contributions: &[GovernedContributionEntry],
 ) -> bool {
-    banner_reason_for(identity, quota_axes, crash_loop, restart_budget, contributions).is_some()
+    banner_reason_for(
+        identity,
+        quota_axes,
+        crash_loop,
+        restart_budget,
+        contributions,
+    )
+    .is_some()
 }
 
 /// Picks the most-severe banner reason for a downgraded host posture.
@@ -1620,7 +1666,10 @@ fn banner_reason_for(
     if quota_axes.iter().any(|a| a.pressure_class == "hard_breach") {
         return Some("quota_axis_hard_breached".to_string());
     }
-    if matches!(crash_loop.state_class.as_str(), "window_open" | "disable_tripped") {
+    if matches!(
+        crash_loop.state_class.as_str(),
+        "window_open" | "disable_tripped"
+    ) {
         return Some("crash_loop_window_breached".to_string());
     }
     if restart_budget.exhausted() {
@@ -1767,10 +1816,21 @@ fn banner_record(
     restart_budget: &RestartBudgetGovernance,
     contributions: &[GovernedContributionEntry],
 ) -> GovernanceDowngradedHostBanner {
-    let must_display =
-        host_is_downgraded(identity, quota_axes, crash_loop, restart_budget, contributions);
+    let must_display = host_is_downgraded(
+        identity,
+        quota_axes,
+        crash_loop,
+        restart_budget,
+        contributions,
+    );
     let banner_reason_class = if must_display {
-        banner_reason_for(identity, quota_axes, crash_loop, restart_budget, contributions)
+        banner_reason_for(
+            identity,
+            quota_axes,
+            crash_loop,
+            restart_budget,
+            contributions,
+        )
     } else {
         None
     };
@@ -1876,7 +1936,10 @@ fn validate_input(
             "identity.runtime_contract_ref must start with 'runtime_v1_beta:'",
         ));
     }
-    ensure_nonempty(&id.extension_identity_ref, "identity.extension_identity_ref")?;
+    ensure_nonempty(
+        &id.extension_identity_ref,
+        "identity.extension_identity_ref",
+    )?;
     ensure_nonempty(&id.extension_version, "identity.extension_version")?;
     ensure_nonempty(&id.source_package_ref, "identity.source_package_ref")?;
     ensure_token(
@@ -1909,7 +1972,11 @@ fn validate_input(
     }
     let mut axis_classes = BTreeSet::new();
     for axis in &input.quota_axes {
-        ensure_token(QUOTA_AXIS_CLASSES, &axis.axis_class, "quota_axis.axis_class")?;
+        ensure_token(
+            QUOTA_AXIS_CLASSES,
+            &axis.axis_class,
+            "quota_axis.axis_class",
+        )?;
         if !axis_classes.insert(&axis.axis_class) {
             return Err(err(format!("duplicate quota axis: {}", axis.axis_class)));
         }
@@ -1920,12 +1987,20 @@ fn validate_input(
             &axis.enforcement_state_class,
             "quota_axis.enforcement_state_class",
         )?;
-        ensure_token(QUOTA_PRESSURE_CLASSES, &axis.pressure_class, "quota_axis.pressure_class")?;
+        ensure_token(
+            QUOTA_PRESSURE_CLASSES,
+            &axis.pressure_class,
+            "quota_axis.pressure_class",
+        )?;
     }
 
     let cl = &input.crash_loop;
     ensure_nonempty(&cl.window_ref, "crash_loop.window_ref")?;
-    ensure_token(CRASH_LOOP_STATE_CLASSES, &cl.state_class, "crash_loop.state_class")?;
+    ensure_token(
+        CRASH_LOOP_STATE_CLASSES,
+        &cl.state_class,
+        "crash_loop.state_class",
+    )?;
     if cl.disable_threshold == 0 || cl.quarantine_threshold == 0 {
         return Err(err("crash-loop thresholds must be at least 1"));
     }
@@ -1935,11 +2010,16 @@ fn validate_input(
         ));
     }
     crash_loop_state_consistent(cl)?;
-    if matches!(cl.state_class.as_str(), "disable_tripped" | "quarantine_tripped") {
+    if matches!(
+        cl.state_class.as_str(),
+        "disable_tripped" | "quarantine_tripped"
+    ) {
         match cl.trigger_rule_ref.as_deref() {
             Some(t) if t.starts_with("quarantine_rule:") => {}
             Some(_) => {
-                return Err(err("crash_loop.trigger_rule_ref must start with 'quarantine_rule:'"))
+                return Err(err(
+                    "crash_loop.trigger_rule_ref must start with 'quarantine_rule:'",
+                ))
             }
             None => {
                 return Err(err(
@@ -1979,7 +2059,10 @@ fn validate_input(
     for c in &input.contributions {
         ensure_nonempty(&c.contribution_id, "contribution.contribution_id")?;
         if !contribution_ids.insert(&c.contribution_id) {
-            return Err(err(format!("duplicate contribution_id: {}", c.contribution_id)));
+            return Err(err(format!(
+                "duplicate contribution_id: {}",
+                c.contribution_id
+            )));
         }
         ensure_token(
             CONTRIBUTION_KIND_CLASSES,
@@ -1987,14 +2070,25 @@ fn validate_input(
             "contribution.contribution_kind_class",
         )?;
         ensure_nonempty(&c.source_package_ref, "contribution.source_package_ref")?;
-        ensure_token(RUNTIME_CLASSES, &c.runtime_class, "contribution.runtime_class")?;
+        ensure_token(
+            RUNTIME_CLASSES,
+            &c.runtime_class,
+            "contribution.runtime_class",
+        )?;
         ensure_token(
             EXECUTION_LOCUS_CLASSES,
             &c.execution_locus_class,
             "contribution.execution_locus_class",
         )?;
-        ensure_token(TRUST_TIER_CLASSES, &c.trust_tier_class, "contribution.trust_tier_class")?;
-        ensure_nonempty(&c.last_known_good_host_ref, "contribution.last_known_good_host_ref")?;
+        ensure_token(
+            TRUST_TIER_CLASSES,
+            &c.trust_tier_class,
+            "contribution.trust_tier_class",
+        )?;
+        ensure_nonempty(
+            &c.last_known_good_host_ref,
+            "contribution.last_known_good_host_ref",
+        )?;
         ensure_token(
             CONTRIBUTION_HOST_STATE_CLASSES,
             &c.host_state_class,
@@ -2004,10 +2098,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_WASM_HOST_GOVERNANCE_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_WASM_HOST_GOVERNANCE_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2057,7 +2159,9 @@ fn validate_runtime_class(
         "execution_locus_class",
     )?;
     if !runtime_class_supports_locus(&rc.runtime_class, &rc.execution_locus_class) {
-        return Err(err("execution_locus_class is not reserved for runtime_class"));
+        return Err(err(
+            "execution_locus_class is not reserved for runtime_class",
+        ));
     }
     Ok(())
 }
@@ -2075,7 +2179,11 @@ fn validate_quota_axes(
             HOST_QUOTA_AXIS_RECORD_KIND,
             "quota_axis record_kind",
         )?;
-        ensure_token(QUOTA_AXIS_CLASSES, &axis.axis_class, "quota_axis axis_class")?;
+        ensure_token(
+            QUOTA_AXIS_CLASSES,
+            &axis.axis_class,
+            "quota_axis axis_class",
+        )?;
         if !axis_classes.insert(axis.axis_class.as_str()) {
             return Err(err(format!("duplicate quota axis: {}", axis.axis_class)));
         }
@@ -2084,7 +2192,11 @@ fn validate_quota_axes(
             &axis.enforcement_state_class,
             "quota_axis enforcement_state_class",
         )?;
-        ensure_token(QUOTA_PRESSURE_CLASSES, &axis.pressure_class, "quota_axis pressure_class")?;
+        ensure_token(
+            QUOTA_PRESSURE_CLASSES,
+            &axis.pressure_class,
+            "quota_axis pressure_class",
+        )?;
     }
     Ok(())
 }
@@ -2097,7 +2209,11 @@ fn validate_crash_loop(
         CRASH_LOOP_GOVERNANCE_RECORD_KIND,
         "crash_loop record_kind",
     )?;
-    ensure_token(CRASH_LOOP_STATE_CLASSES, &cl.state_class, "crash_loop state_class")?;
+    ensure_token(
+        CRASH_LOOP_STATE_CLASSES,
+        &cl.state_class,
+        "crash_loop state_class",
+    )?;
     if cl.disable_threshold == 0 || cl.quarantine_threshold == 0 {
         return Err(err("crash-loop thresholds must be at least 1"));
     }
@@ -2279,13 +2395,21 @@ fn validate_contribution(
         &c.contribution_kind_class,
         "contribution contribution_kind_class",
     )?;
-    ensure_token(RUNTIME_CLASSES, &c.runtime_class, "contribution runtime_class")?;
+    ensure_token(
+        RUNTIME_CLASSES,
+        &c.runtime_class,
+        "contribution runtime_class",
+    )?;
     ensure_token(
         EXECUTION_LOCUS_CLASSES,
         &c.execution_locus_class,
         "contribution execution_locus_class",
     )?;
-    ensure_token(TRUST_TIER_CLASSES, &c.trust_tier_class, "contribution trust_tier_class")?;
+    ensure_token(
+        TRUST_TIER_CLASSES,
+        &c.trust_tier_class,
+        "contribution trust_tier_class",
+    )?;
     ensure_token(
         CONTRIBUTION_HOST_STATE_CLASSES,
         &c.host_state_class,
@@ -2309,15 +2433,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
     ensure_token(
         SUPPORT_CLAIM_CLASSES,
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(GOVERNANCE_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            GOVERNANCE_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2331,12 +2467,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(GOVERNANCE_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            GOVERNANCE_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2361,7 +2503,9 @@ fn validate_inspection(
         "inspection effective_tier",
     )?;
     if inspection.active_contribution_count != packet.contributions.len() {
-        return Err(err("inspection active_contribution_count must match contributions"));
+        return Err(err(
+            "inspection active_contribution_count must match contributions",
+        ));
     }
     if inspection.quota_axis_count != packet.quota_axes.len() {
         return Err(err("inspection quota_axis_count must match quota_axes"));
@@ -2370,7 +2514,9 @@ fn validate_inspection(
         return Err(err("inspection downgraded is inconsistent"));
     }
     if inspection.downgraded_host_banner_required != packet.downgraded_host_banner.must_display {
-        return Err(err("inspection downgraded_host_banner_required is inconsistent"));
+        return Err(err(
+            "inspection downgraded_host_banner_required is inconsistent",
+        ));
     }
     if inspection.blocks_activation != packet.quarantine_posture.blocks_activation {
         return Err(err("inspection blocks_activation is inconsistent"));
@@ -2395,7 +2541,10 @@ fn runtime_class_supports_locus(runtime_class: &str, locus: &str) -> bool {
     matches!(
         (runtime_class, locus),
         ("passive_package", "passive_no_execution")
-            | ("declarative_host_rendered_view", "host_rendered_no_extension_code")
+            | (
+                "declarative_host_rendered_view",
+                "host_rendered_no_extension_code"
+            )
             | (
                 "wasm_capability_sandbox",
                 "editor_in_process_isolated" | "dedicated_subprocess"
@@ -2416,12 +2565,18 @@ fn err(message: impl Into<String>) -> StableWasmHostGovernanceValidationError {
     }
 }
 
-fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), StableWasmHostGovernanceValidationError>
+fn ensure_eq<T>(
+    left: T,
+    right: T,
+    field: &str,
+) -> Result<(), StableWasmHostGovernanceValidationError>
 where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2432,12 +2587,17 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableWasmHostGovernanceValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
 
-fn ensure_nonempty(value: &str, field: &str) -> Result<(), StableWasmHostGovernanceValidationError> {
+fn ensure_nonempty(
+    value: &str,
+    field: &str,
+) -> Result<(), StableWasmHostGovernanceValidationError> {
     if value.trim().is_empty() {
         return Err(err(format!("{field} must not be empty")));
     }
@@ -2450,7 +2610,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableWasmHostGovernanceValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

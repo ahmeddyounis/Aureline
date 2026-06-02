@@ -82,7 +82,9 @@ fn vs_code_all_exact_fixture_validates() {
     assert!(!inspection.shimmed_encountered);
     assert_eq!(inspection.artifact_record_count, 6);
 
-    assert!(packet.consumer_surfaces.contains(&"support_export".to_string()));
+    assert!(packet
+        .consumer_surfaces
+        .contains(&"support_export".to_string()));
     assert!(packet.consumer_surfaces.contains(&"audit_lane".to_string()));
 }
 
@@ -125,7 +127,10 @@ fn jetbrains_partial_with_diagnostics_fixture_validates() {
         .find(|d| d.diagnostic_id == "diag-jb-snippet-001")
         .expect("diag-jb-snippet-001 must exist");
     assert_eq!(diagnostic.outcome_label, ImportOutcomeLabel::Unsupported);
-    assert_eq!(diagnostic.reason_class.as_deref(), Some("no_semantic_equivalent"));
+    assert_eq!(
+        diagnostic.reason_class.as_deref(),
+        Some("no_semantic_equivalent")
+    );
     assert_eq!(
         diagnostic.suggested_action.as_deref(),
         Some("use_native_alternative")

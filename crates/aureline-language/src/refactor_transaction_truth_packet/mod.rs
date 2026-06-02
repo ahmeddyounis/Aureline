@@ -218,12 +218,8 @@ pub enum TransactionPhaseClass {
 
 impl TransactionPhaseClass {
     /// Every required transaction phase, in declaration order.
-    pub const REQUIRED_FOR_LAUNCH: [Self; 4] = [
-        Self::Preview,
-        Self::Validate,
-        Self::Apply,
-        Self::Rollback,
-    ];
+    pub const REQUIRED_FOR_LAUNCH: [Self; 4] =
+        [Self::Preview, Self::Validate, Self::Apply, Self::Rollback];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -353,9 +349,7 @@ impl RollbackPathClass {
             Self::CompensatingRevertViaWorkspaceDiff => "compensating_revert_via_workspace_diff",
             Self::GroupedMutationJournalRevert => "grouped_mutation_journal_revert",
             Self::RegenerateFirstThenReplay => "regenerate_first_then_replay",
-            Self::ManualReviewRequiredNoAutomaticPath => {
-                "manual_review_required_no_automatic_path"
-            }
+            Self::ManualReviewRequiredNoAutomaticPath => "manual_review_required_no_automatic_path",
             Self::NoSafeRollbackAvailable => "no_safe_rollback_available",
             Self::NotApplicable => "not_applicable",
             Self::RollbackUnbound => "rollback_unbound",
@@ -772,9 +766,7 @@ impl FindingKind {
             Self::PreviewCompletenessVocabularyCollapsed => {
                 "preview_completeness_vocabulary_collapsed"
             }
-            Self::ValidationOutcomeVocabularyCollapsed => {
-                "validation_outcome_vocabulary_collapsed"
-            }
+            Self::ValidationOutcomeVocabularyCollapsed => "validation_outcome_vocabulary_collapsed",
             Self::RollbackPathVocabularyCollapsed => "rollback_path_vocabulary_collapsed",
             Self::LaunchLanguageVocabularyCollapsed => "launch_language_vocabulary_collapsed",
             Self::KnownLimitVocabularyCollapsed => "known_limit_vocabulary_collapsed",
@@ -1092,7 +1084,9 @@ impl RefactorTransactionTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter().map(RefactorClassLaneClass::as_str).collect()
+        set.into_iter()
+            .map(RefactorClassLaneClass::as_str)
+            .collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1141,7 +1135,9 @@ impl RefactorTransactionTruthPacket {
         for row in &self.rows {
             set.insert(row.validation_outcome_class);
         }
-        set.into_iter().map(ValidationOutcomeClass::as_str).collect()
+        set.into_iter()
+            .map(ValidationOutcomeClass::as_str)
+            .collect()
     }
 
     /// Returns the unique rollback-path tokens observed across rows.
@@ -1221,8 +1217,7 @@ impl RefactorTransactionTruthPacket {
                 "refactor-transaction packet has the wrong record kind",
             ));
         }
-        if include_record_fields
-            && self.schema_version != REFACTOR_TRANSACTION_TRUTH_SCHEMA_VERSION
+        if include_record_fields && self.schema_version != REFACTOR_TRANSACTION_TRUTH_SCHEMA_VERSION
         {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongSchemaVersion,
@@ -1359,10 +1354,7 @@ impl RefactorTransactionTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDowngradeAutomation,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound downgrade-automation class",
-                    row.row_id
-                ),
+                format!("row {} has no bound downgrade-automation class", row.row_id),
             ));
         }
         if !row.evidence_class.is_bound() {
@@ -1376,20 +1368,14 @@ impl RefactorTransactionTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingPreviewCompletenessClass,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound preview-completeness class",
-                    row.row_id
-                ),
+                format!("row {} has no bound preview-completeness class", row.row_id),
             ));
         }
         if !row.validation_outcome_class.is_bound() {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingValidationOutcomeClass,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound validation-outcome class",
-                    row.row_id
-                ),
+                format!("row {} has no bound validation-outcome class", row.row_id),
             ));
         }
         if !row.rollback_path_class.is_bound() {
@@ -1579,8 +1565,7 @@ impl RefactorTransactionTruthPacket {
             ));
         }
 
-        if is_rollback_drill
-            && matches!(row.rollback_path_class, RollbackPathClass::NotApplicable)
+        if is_rollback_drill && matches!(row.rollback_path_class, RollbackPathClass::NotApplicable)
         {
             findings.push(ValidationFinding::new(
                 FindingKind::RollbackPathNotApplicable,
@@ -1610,7 +1595,10 @@ impl RefactorTransactionTruthPacket {
         }
 
         if is_launch_language
-            && matches!(row.launch_language_class, LaunchLanguageClass::NotApplicable)
+            && matches!(
+                row.launch_language_class,
+                LaunchLanguageClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::LaunchLanguageNotApplicable,
@@ -1622,7 +1610,10 @@ impl RefactorTransactionTruthPacket {
             ));
         }
         if !is_launch_language
-            && !matches!(row.launch_language_class, LaunchLanguageClass::NotApplicable)
+            && !matches!(
+                row.launch_language_class,
+                LaunchLanguageClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::LaunchLanguageNotPermittedOnRowClass,
@@ -2123,13 +2114,20 @@ mod tests {
         rows.push(preview_row(lane, prefix));
         rows.push(validation_row(lane, prefix));
         rows.push(rollback_row(lane, prefix));
-        rows.push(launch_language_row(lane, prefix, LaunchLanguageClass::Python));
+        rows.push(launch_language_row(
+            lane,
+            prefix,
+            LaunchLanguageClass::Python,
+        ));
         rows
     }
 
     fn sample_input() -> RefactorTransactionTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(RefactorClassLaneClass::RenameSymbolLane, "rename"));
+        rows.extend(lane_rows(
+            RefactorClassLaneClass::RenameSymbolLane,
+            "rename",
+        ));
         rows.extend(lane_rows(
             RefactorClassLaneClass::ExtractFunctionLane,
             "extract",
@@ -2237,10 +2235,7 @@ mod tests {
         assert!(packet.validation_findings.is_empty());
         assert!(packet.is_stable());
         assert!(packet
-            .support_export(
-                "support:m4:refactor_transaction",
-                "2026-05-26T12:00:10Z"
-            )
+            .support_export("support:m4:refactor_transaction", "2026-05-26T12:00:10Z")
             .is_export_safe());
     }
 

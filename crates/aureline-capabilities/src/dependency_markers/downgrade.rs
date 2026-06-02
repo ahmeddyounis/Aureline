@@ -28,15 +28,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    ArtifactDependencyMarker, CapabilityLifecycleState, EffectOnImport, SupportPromise,
-};
+use super::{ArtifactDependencyMarker, CapabilityLifecycleState, EffectOnImport, SupportPromise};
 
 /// Closed downgrade-scenario vocabulary. Each variant is one
 /// observed move from producer state to target state.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DowngradeScenario {
     /// Source observed the capability as Stable; target sees it as
@@ -232,13 +228,12 @@ fn derive_effective_outcome(
             // Target reduces support guarantees; surfaces narrow down
             // to best-effort. Weaker promises stay weak so we never
             // silently upgrade NoSupport into BestEffort.
-            let effective_support = if support_rank(recorded_support)
-                > support_rank(SupportPromise::BestEffort)
-            {
-                SupportPromise::BestEffort
-            } else {
-                recorded_support
-            };
+            let effective_support =
+                if support_rank(recorded_support) > support_rank(SupportPromise::BestEffort) {
+                    SupportPromise::BestEffort
+                } else {
+                    recorded_support
+                };
             (
                 if matches!(recorded_effect, EffectOnImport::BlockApplyPreserveData) {
                     EffectOnImport::BlockApplyPreserveData
@@ -255,17 +250,13 @@ fn derive_effective_outcome(
             // strong as the producer's record. Effect carries through
             // but surfaces still disclose because the lifecycle delta
             // is real.
-            let promoted = if support_rank(recorded_support) < support_rank(SupportPromise::StandardSupport) {
-                SupportPromise::StandardSupport
-            } else {
-                recorded_support
-            };
-            (
-                recorded_effect,
-                promoted,
-                false,
-                marker.kill_switch_active,
-            )
+            let promoted =
+                if support_rank(recorded_support) < support_rank(SupportPromise::StandardSupport) {
+                    SupportPromise::StandardSupport
+                } else {
+                    recorded_support
+                };
+            (recorded_effect, promoted, false, marker.kill_switch_active)
         }
         DowngradeScenario::HostChange => {
             // Host is outside the marker's admitted scope. We always
@@ -304,13 +295,12 @@ fn derive_effective_outcome(
             // Offline-cache-only: behavior holds for later until the
             // upstream lane recovers; user-authored data is preserved.
             // Support narrows to (at most) best-effort.
-            let effective_support = if support_rank(recorded_support)
-                > support_rank(SupportPromise::BestEffort)
-            {
-                SupportPromise::BestEffort
-            } else {
-                recorded_support
-            };
+            let effective_support =
+                if support_rank(recorded_support) > support_rank(SupportPromise::BestEffort) {
+                    SupportPromise::BestEffort
+                } else {
+                    recorded_support
+                };
             (
                 EffectOnImport::HoldForLaterPreserveData,
                 effective_support,
@@ -427,7 +417,10 @@ pub enum DowngradeReviewDefect {
 impl std::fmt::Display for DowngradeReviewDefect {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SilentApply { marker_id, scenario } => write!(
+            Self::SilentApply {
+                marker_id,
+                scenario,
+            } => write!(
                 f,
                 "marker {marker_id:?} applied without disclosure on scenario {}",
                 scenario.as_str()
@@ -440,7 +433,10 @@ impl std::fmt::Display for DowngradeReviewDefect {
                 "marker {marker_id:?} omitted portability_consequence on scenario {}",
                 scenario.as_str()
             ),
-            Self::MissingSafeFallback { marker_id, scenario } => write!(
+            Self::MissingSafeFallback {
+                marker_id,
+                scenario,
+            } => write!(
                 f,
                 "marker {marker_id:?} omitted safe_fallback on scenario {}",
                 scenario.as_str()
@@ -453,7 +449,10 @@ impl std::fmt::Display for DowngradeReviewDefect {
                 "marker {marker_id:?} narrowed support silently on scenario {}",
                 scenario.as_str()
             ),
-            Self::UserDataDropped { marker_id, scenario } => write!(
+            Self::UserDataDropped {
+                marker_id,
+                scenario,
+            } => write!(
                 f,
                 "marker {marker_id:?} dropped user-authored data on scenario {}",
                 scenario.as_str()
@@ -666,8 +665,8 @@ mod tests {
     #[test]
     fn every_scenario_holds_apply_until_disclosed() {
         let marker = sample_marker_for(0, ArtifactClass::SettingsExport);
-        let sheets = assert_downgrade_review_sheets(&marker)
-            .expect("review sheets must be well-formed");
+        let sheets =
+            assert_downgrade_review_sheets(&marker).expect("review sheets must be well-formed");
         assert_eq!(sheets.len(), DowngradeScenario::all().len());
         for sheet in &sheets {
             assert!(sheet.apply_held_until_disclosed);
@@ -681,9 +680,11 @@ mod tests {
     fn policy_disabled_blocks_apply_and_narrows_support() {
         let marker = sample_marker_for(2, ArtifactClass::WorkflowBundle);
         let target_state = scenario_target_state(&marker, DowngradeScenario::PolicyDisabled);
-        let sheet =
-            evaluate_downgrade(&marker, DowngradeScenario::PolicyDisabled, &target_state);
-        assert_eq!(sheet.effective_effect_on_import, "block_apply_preserve_data");
+        let sheet = evaluate_downgrade(&marker, DowngradeScenario::PolicyDisabled, &target_state);
+        assert_eq!(
+            sheet.effective_effect_on_import,
+            "block_apply_preserve_data"
+        );
         assert_eq!(sheet.effective_support_promise, "no_support");
         assert!(sheet.support_claim_narrowed);
         assert!(sheet.kill_switch_active);
@@ -699,7 +700,10 @@ mod tests {
             sheet.effective_effect_on_import,
             "render_tombstone_preserve_data"
         );
-        assert_eq!(sheet.dependency_class, DependencyClass::HostSpecific.as_str());
+        assert_eq!(
+            sheet.dependency_class,
+            DependencyClass::HostSpecific.as_str()
+        );
     }
 
     #[test]

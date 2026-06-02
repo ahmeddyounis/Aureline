@@ -13,11 +13,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_workspace::{
-    project_state_root_certification_lineage_with_hooks,
-    state_root_certification_lineage_lines, StateRootCertificationInputs,
-    StateRootCertificationLineageRecord, StateRootInspectionHook,
-    STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND,
-    STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF,
+    project_state_root_certification_lineage_with_hooks, state_root_certification_lineage_lines,
+    StateRootCertificationInputs, StateRootCertificationLineageRecord, StateRootInspectionHook,
+    STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND, STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -66,10 +64,9 @@ fn projection_replays_each_fixture_exactly() {
             "projection drifted from checked-in record for fixture {name}"
         );
 
-        let roundtrip: StateRootCertificationLineageRecord = serde_json::from_str(
-            &serde_json::to_string(&projected).expect("record serializes"),
-        )
-        .expect("record round-trips");
+        let roundtrip: StateRootCertificationLineageRecord =
+            serde_json::from_str(&serde_json::to_string(&projected).expect("record serializes"))
+                .expect("record round-trips");
         assert_eq!(roundtrip, projected, "record must round-trip for {name}");
     }
 }
@@ -82,8 +79,14 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             record.is_support_export_safe(),
             "fixture {name} must be support-export safe"
         );
-        assert_eq!(record.record_kind, STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND);
-        assert_eq!(record.schema_ref, STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF);
+        assert_eq!(
+            record.record_kind,
+            STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND
+        );
+        assert_eq!(
+            record.schema_ref,
+            STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF
+        );
         assert!(
             record.raw_payload_excluded,
             "fixture {name} excludes raw payload"
@@ -216,12 +219,17 @@ fn corpus_proves_dirty_with_disclosure_stays_stable() {
                 .resource_audit_rows
                 .iter()
                 .any(|row| {
-                    matches!(row.audit_finding, AuditFindingClass::AuditDirtyWithDisclosure)
-                        && row
-                            .audit_disclosure_ref
-                            .as_ref()
-                            .is_some_and(|value| !value.is_empty())
-                        && matches!(row.redaction_class, AuditRedactionClass::RedactedWithDisclosure)
+                    matches!(
+                        row.audit_finding,
+                        AuditFindingClass::AuditDirtyWithDisclosure
+                    ) && row
+                        .audit_disclosure_ref
+                        .as_ref()
+                        .is_some_and(|value| !value.is_empty())
+                        && matches!(
+                            row.redaction_class,
+                            AuditRedactionClass::RedactedWithDisclosure
+                        )
                         && row
                             .redaction_disclosure_ref
                             .as_ref()

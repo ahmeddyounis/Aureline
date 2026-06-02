@@ -26,9 +26,8 @@ use std::io::{self, Read};
 use aureline_workspace::{
     default_mutation_and_generated_artifact_inspection_hooks,
     mutation_and_generated_artifact_lineage_lines,
-    project_mutation_and_generated_artifact_lineage_with_hooks,
-    MutationAndGeneratedArtifactInputs, MutationAndGeneratedArtifactInspectionHook,
-    MutationAndGeneratedArtifactLineageRecord,
+    project_mutation_and_generated_artifact_lineage_with_hooks, MutationAndGeneratedArtifactInputs,
+    MutationAndGeneratedArtifactInspectionHook, MutationAndGeneratedArtifactLineageRecord,
 };
 use serde::Deserialize;
 

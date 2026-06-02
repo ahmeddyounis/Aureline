@@ -169,6 +169,7 @@ pub mod field_readiness;
 pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;
+pub mod harden_the_safe_mode_runtime_profile_retained_capabilities;
 pub mod incident_workspace;
 pub mod incident_workspace_beta;
 pub mod local_history_timeline;

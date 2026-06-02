@@ -17,17 +17,15 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_language::{
-    current_stable_django_advanced_workflow_pack_truth_packet,
-    DjangoAdvancedWorkflowLoopClass, DjangoAdvancedWorkflowPackClass,
-    DjangoAdvancedWorkflowPackConsumerSurface,
-    DjangoAdvancedWorkflowPackDowngradeAutomationClass,
-    DjangoAdvancedWorkflowPackEvidenceClass, DjangoAdvancedWorkflowPackFindingKind,
-    DjangoAdvancedWorkflowPackKnownLimitClass, DjangoAdvancedWorkflowPackPromotionState,
-    DjangoAdvancedWorkflowPackRowClass, DjangoAdvancedWorkflowPackSupportClass,
-    DjangoAdvancedWorkflowPackTruthPacket, DjangoAdvancedWorkflowPackTruthPacketInput,
+    current_stable_django_advanced_workflow_pack_truth_packet, DjangoAdvancedWorkflowLoopClass,
+    DjangoAdvancedWorkflowPackClass, DjangoAdvancedWorkflowPackConsumerSurface,
+    DjangoAdvancedWorkflowPackDowngradeAutomationClass, DjangoAdvancedWorkflowPackEvidenceClass,
+    DjangoAdvancedWorkflowPackFindingKind, DjangoAdvancedWorkflowPackKnownLimitClass,
+    DjangoAdvancedWorkflowPackPromotionState, DjangoAdvancedWorkflowPackRowClass,
+    DjangoAdvancedWorkflowPackSupportClass, DjangoAdvancedWorkflowPackTruthPacket,
+    DjangoAdvancedWorkflowPackTruthPacketInput,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
-    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF,
-    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF, DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
 };
@@ -270,8 +268,10 @@ fn checked_in_artifact_covers_migration_project_model_manage_py_and_template_awa
         "stable packet must include a framework_migration_row binding the Django 4.2 LTS → Django 5 migration"
     );
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == DjangoAdvancedWorkflowPackRowClass::ProjectModelRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class == DjangoAdvancedWorkflowPackRowClass::ProjectModelRow),
         "stable packet must include a project_model_row"
     );
     assert!(
@@ -280,8 +280,10 @@ fn checked_in_artifact_covers_migration_project_model_manage_py_and_template_awa
         "stable packet must include a manage_py_target_parity_row"
     );
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == DjangoAdvancedWorkflowPackRowClass::TemplateAwarenessRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class == DjangoAdvancedWorkflowPackRowClass::TemplateAwarenessRow),
         "stable packet must include a template_awareness_row"
     );
 }

@@ -18,8 +18,8 @@ use aureline_language::{
     FrameworkMigrationImportTruthPacketInput, FrameworkMigrationKnownLimitClass,
     FrameworkMigrationLaunchBundleClass, FrameworkMigrationOutcomeLabelClass,
     FrameworkMigrationRollbackCheckpointClass, FrameworkMigrationRowClass, MigrationLaneClass,
-    FRAMEWORK_MIGRATION_IMPORT_TRUTH_ARTIFACT_DOC_REF,
-    FRAMEWORK_MIGRATION_IMPORT_TRUTH_DOC_REF, FRAMEWORK_MIGRATION_IMPORT_TRUTH_FIXTURE_DIR,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_ARTIFACT_DOC_REF, FRAMEWORK_MIGRATION_IMPORT_TRUTH_DOC_REF,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_FIXTURE_DIR,
     FRAMEWORK_MIGRATION_IMPORT_TRUTH_PACKET_ARTIFACT_REF,
     FRAMEWORK_MIGRATION_IMPORT_TRUTH_SCHEMA_REF,
 };
@@ -237,9 +237,7 @@ fn narrowed_row_missing_disclosure_ref_blocks_stable() {
 
 #[test]
 fn projection_collapses_outcome_label_vocabulary_blocks_stable() {
-    assert_fixture_matches(
-        "projection_collapses_outcome_label_vocabulary_blocks_stable.json",
-    );
+    assert_fixture_matches("projection_collapses_outcome_label_vocabulary_blocks_stable.json");
 }
 
 #[test]
@@ -314,8 +312,7 @@ fn checked_in_artifact_covers_required_rollback_and_diagnostic_states() {
         for checkpoint in FrameworkMigrationRollbackCheckpointClass::REQUIRED_FOR_LAUNCH {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class
-                        == FrameworkMigrationRowClass::RollbackCheckpointAdmission
+                    && row.row_class == FrameworkMigrationRowClass::RollbackCheckpointAdmission
                     && row.rollback_checkpoint_class == checkpoint),
                 "stable packet must cover the {} rollback checkpoint on the {} lane",
                 checkpoint.as_str(),

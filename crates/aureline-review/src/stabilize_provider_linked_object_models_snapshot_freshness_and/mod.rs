@@ -63,8 +63,7 @@ pub const PROVIDER_LINKED_REVIEW_STABILIZATION_RECORD_KIND: &str =
     "provider_linked_review_stabilization_record";
 
 /// Stable record-kind tag for [`ProviderLinkedObjectRowRecord`].
-pub const PROVIDER_LINKED_OBJECT_ROW_RECORD_KIND: &str =
-    "provider_linked_object_row_record";
+pub const PROVIDER_LINKED_OBJECT_ROW_RECORD_KIND: &str = "provider_linked_object_row_record";
 
 /// Stable record-kind tag for [`ActorTargetIdentityRecord`].
 pub const ACTOR_TARGET_IDENTITY_RECORD_KIND: &str = "actor_target_identity_record";
@@ -86,12 +85,8 @@ pub const PROVIDER_LINKED_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
 pub const PROVIDER_LINKED_INSPECTION_RECORD_KIND: &str = "provider_linked_inspection_record";
 
 /// Closed set of explicit mutation mode classes.
-pub const MUTATION_MODE_CLASSES: &[&str] = &[
-    "draft_only",
-    "publish_later",
-    "publish_now",
-    "handoff_only",
-];
+pub const MUTATION_MODE_CLASSES: &[&str] =
+    &["draft_only", "publish_later", "publish_now", "handoff_only"];
 
 /// Closed set of freshness degradation classes.
 pub const FRESHNESS_DEGRADATION_CLASSES: &[&str] = &[
@@ -104,11 +99,8 @@ pub const FRESHNESS_DEGRADATION_CLASSES: &[&str] = &[
 ];
 
 /// Closed set of replay safety classes.
-pub const REPLAY_SAFETY_CLASSES: &[&str] = &[
-    "idempotent",
-    "retry_safe",
-    "destructive_requires_review",
-];
+pub const REPLAY_SAFETY_CLASSES: &[&str] =
+    &["idempotent", "retry_safe", "destructive_requires_review"];
 
 /// Closed set of provider-linked review states.
 pub const PROVIDER_LINKED_REVIEW_STATES: &[&str] = &[
@@ -774,20 +766,25 @@ impl ProviderLinkedReviewStabilizationPacket {
         for command in &self.commands {
             validate_command_record(command, &self.stabilization.stabilization_id)?;
         }
-        validate_support_export(
-            &self.support_export,
-            &self.stabilization,
-            &self.commands,
-        )?;
+        validate_support_export(&self.support_export, &self.stabilization, &self.commands)?;
         validate_inspection(&self.inspection, self)?;
 
         // Cross-record invariants
-        let _object_row_ids: BTreeSet<&str> =
-            self.object_rows.iter().map(|r| r.object_row_id.as_str()).collect();
-        let intent_ids: BTreeSet<&str> =
-            self.deferred_intents.iter().map(|i| i.intent_id.as_str()).collect();
-        let snapshot_ids: BTreeSet<&str> =
-            self.freshness_snapshots.iter().map(|s| s.snapshot_id.as_str()).collect();
+        let _object_row_ids: BTreeSet<&str> = self
+            .object_rows
+            .iter()
+            .map(|r| r.object_row_id.as_str())
+            .collect();
+        let intent_ids: BTreeSet<&str> = self
+            .deferred_intents
+            .iter()
+            .map(|i| i.intent_id.as_str())
+            .collect();
+        let snapshot_ids: BTreeSet<&str> = self
+            .freshness_snapshots
+            .iter()
+            .map(|s| s.snapshot_id.as_str())
+            .collect();
 
         for row in &self.object_rows {
             if let Some(ref intent_ref) = row.deferred_intent_ref {
@@ -830,7 +827,11 @@ impl ProviderLinkedReviewStabilizationPacket {
                 .map(|i| i.dependency_order_index)
                 .collect();
             indexes.sort_unstable();
-            if !indexes.iter().enumerate().all(|(expected, actual)| expected == *actual) {
+            if !indexes
+                .iter()
+                .enumerate()
+                .all(|(expected, actual)| expected == *actual)
+            {
                 return Err(provider_linked_validation_error(
                     "deferred_intent dependency_order_index values must be zero-based and contiguous".to_string(),
                 ));
@@ -976,11 +977,19 @@ fn validate_input(
     ensure_nonempty(&input.packet_id, "packet_id")?;
     ensure_nonempty(&input.generated_at, "generated_at")?;
     ensure_nonempty(&input.review_state, "review_state")?;
-    ensure_token(PROVIDER_LINKED_REVIEW_STATES, &input.review_state, "review_state")?;
+    ensure_token(
+        PROVIDER_LINKED_REVIEW_STATES,
+        &input.review_state,
+        "review_state",
+    )?;
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     for reason in &input.invalidation_reasons {
-        ensure_token(PROVIDER_LINKED_INVALIDATION_REASONS, reason, "invalidation_reason")?;
+        ensure_token(
+            PROVIDER_LINKED_INVALIDATION_REASONS,
+            reason,
+            "invalidation_reason",
+        )?;
     }
 
     if input.object_rows.is_empty() {
@@ -998,9 +1007,19 @@ fn validate_input(
                 row.object_row_id
             )));
         }
-        ensure_nonempty(&row.provider_object_row_ref, "object_row.provider_object_row_ref")?;
-        ensure_token(MUTATION_MODE_CLASSES, &row.mutation_mode_class, "mutation_mode_class")?;
-        ensure_nonempty(&row.mode_disclosure_label, "object_row.mode_disclosure_label")?;
+        ensure_nonempty(
+            &row.provider_object_row_ref,
+            "object_row.provider_object_row_ref",
+        )?;
+        ensure_token(
+            MUTATION_MODE_CLASSES,
+            &row.mutation_mode_class,
+            "mutation_mode_class",
+        )?;
+        ensure_nonempty(
+            &row.mode_disclosure_label,
+            "object_row.mode_disclosure_label",
+        )?;
         ensure_nonempty(&row.auth_source_ref, "object_row.auth_source_ref")?;
         ensure_nonempty(&row.target_identity_ref, "object_row.target_identity_ref")?;
         ensure_nonempty(&row.actor_identity_ref, "object_row.actor_identity_ref")?;
@@ -1021,11 +1040,26 @@ fn validate_input(
                 identity.identity_binding_id
             )));
         }
-        ensure_nonempty(&identity.actor_identity_ref, "actor_target_identity.actor_identity_ref")?;
-        ensure_nonempty(&identity.target_identity_ref, "actor_target_identity.target_identity_ref")?;
-        ensure_nonempty(&identity.auth_source_ref, "actor_target_identity.auth_source_ref")?;
-        ensure_nonempty(&identity.scope_epoch_ref, "actor_target_identity.scope_epoch_ref")?;
-        ensure_nonempty(&identity.summary_label, "actor_target_identity.summary_label")?;
+        ensure_nonempty(
+            &identity.actor_identity_ref,
+            "actor_target_identity.actor_identity_ref",
+        )?;
+        ensure_nonempty(
+            &identity.target_identity_ref,
+            "actor_target_identity.target_identity_ref",
+        )?;
+        ensure_nonempty(
+            &identity.auth_source_ref,
+            "actor_target_identity.auth_source_ref",
+        )?;
+        ensure_nonempty(
+            &identity.scope_epoch_ref,
+            "actor_target_identity.scope_epoch_ref",
+        )?;
+        ensure_nonempty(
+            &identity.summary_label,
+            "actor_target_identity.summary_label",
+        )?;
     }
 
     let mut intent_ids = BTreeSet::new();
@@ -1044,11 +1078,20 @@ fn validate_input(
             &intent.mutation_mode_class,
             "deferred_intent.mutation_mode_class",
         )?;
-        ensure_nonempty(&intent.target_identity_ref, "deferred_intent.target_identity_ref")?;
-        ensure_nonempty(&intent.actor_identity_ref, "deferred_intent.actor_identity_ref")?;
+        ensure_nonempty(
+            &intent.target_identity_ref,
+            "deferred_intent.target_identity_ref",
+        )?;
+        ensure_nonempty(
+            &intent.actor_identity_ref,
+            "deferred_intent.actor_identity_ref",
+        )?;
         ensure_nonempty(&intent.queued_at, "deferred_intent.queued_at")?;
         ensure_nonempty(&intent.expires_at, "deferred_intent.expires_at")?;
-        ensure_nonempty(&intent.replay_ledger_ref, "deferred_intent.replay_ledger_ref")?;
+        ensure_nonempty(
+            &intent.replay_ledger_ref,
+            "deferred_intent.replay_ledger_ref",
+        )?;
         ensure_nonempty(&intent.summary_label, "deferred_intent.summary_label")?;
     }
 
@@ -1061,13 +1104,19 @@ fn validate_input(
                 snapshot.snapshot_id
             )));
         }
-        ensure_nonempty(&snapshot.freshness_class, "freshness_snapshot.freshness_class")?;
+        ensure_nonempty(
+            &snapshot.freshness_class,
+            "freshness_snapshot.freshness_class",
+        )?;
         ensure_token(
             FRESHNESS_DEGRADATION_CLASSES,
             &snapshot.freshness_degradation_class,
             "freshness_snapshot.freshness_degradation_class",
         )?;
-        ensure_nonempty(&snapshot.provider_source_class, "freshness_snapshot.provider_source_class")?;
+        ensure_nonempty(
+            &snapshot.provider_source_class,
+            "freshness_snapshot.provider_source_class",
+        )?;
         ensure_nonempty(&snapshot.observed_at, "freshness_snapshot.observed_at")?;
         ensure_nonempty(&snapshot.summary_label, "freshness_snapshot.summary_label")?;
     }
@@ -1091,19 +1140,38 @@ fn validate_input(
         ensure_nonempty(&command.summary_label, "command.summary_label")?;
     }
 
-    ensure_nonempty(&input.support_export.support_export_id, "support_export.support_export_id")?;
-    ensure_nonempty(&input.support_export.reopen_context_ref, "support_export.reopen_context_ref")?;
+    ensure_nonempty(
+        &input.support_export.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &input.support_export.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
     ensure_nonempty(
         &input.support_export.reopen_command_id_ref,
         "support_export.reopen_command_id_ref",
     )?;
     for surface in &input.support_export.consumer_surfaces {
-        ensure_token(PROVIDER_LINKED_CONSUMER_SURFACES, surface, "support_export.consumer_surface")?;
+        ensure_token(
+            PROVIDER_LINKED_CONSUMER_SURFACES,
+            surface,
+            "support_export.consumer_surface",
+        )?;
     }
-    ensure_nonempty(&input.support_export.redaction_class, "support_export.redaction_class")?;
-    ensure_nonempty(&input.support_export.summary_label, "support_export.summary_label")?;
+    ensure_nonempty(
+        &input.support_export.redaction_class,
+        "support_export.redaction_class",
+    )?;
+    ensure_nonempty(
+        &input.support_export.summary_label,
+        "support_export.summary_label",
+    )?;
 
-    ensure_nonempty(&workspace_packet.review_workspace.review_workspace_id, "review_workspace_id")?;
+    ensure_nonempty(
+        &workspace_packet.review_workspace.review_workspace_id,
+        "review_workspace_id",
+    )?;
 
     Ok(())
 }
@@ -1116,7 +1184,10 @@ fn stabilization_record(
         record_kind: PROVIDER_LINKED_REVIEW_STABILIZATION_RECORD_KIND.to_string(),
         schema_version: PROVIDER_LINKED_REVIEW_STABILIZATION_SCHEMA_VERSION,
         stabilization_id: input.stabilization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         review_state: input.review_state.clone(),
         invalidation_reasons: input.invalidation_reasons.clone(),
         blocked_reasons: input
@@ -1250,7 +1321,10 @@ fn support_export_packet(
         schema_version: PROVIDER_LINKED_REVIEW_STABILIZATION_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         stabilization_id_ref: stabilization.stabilization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
@@ -1286,15 +1360,25 @@ fn inspection_record(
         review_state_blocked_drift: stabilization.review_state == "blocked_drift",
         review_state_blocked_auth: stabilization.review_state == "blocked_auth",
         review_state_blocked_scope: stabilization.review_state == "blocked_scope",
-        publish_now_present: object_rows.iter().any(|r| r.mutation_mode_class == "publish_now"),
-        publish_later_present: object_rows.iter().any(|r| r.mutation_mode_class == "publish_later"),
-        handoff_only_present: object_rows.iter().any(|r| r.mutation_mode_class == "handoff_only"),
-        draft_only_present: object_rows.iter().any(|r| r.mutation_mode_class == "draft_only"),
+        publish_now_present: object_rows
+            .iter()
+            .any(|r| r.mutation_mode_class == "publish_now"),
+        publish_later_present: object_rows
+            .iter()
+            .any(|r| r.mutation_mode_class == "publish_later"),
+        handoff_only_present: object_rows
+            .iter()
+            .any(|r| r.mutation_mode_class == "handoff_only"),
+        draft_only_present: object_rows
+            .iter()
+            .any(|r| r.mutation_mode_class == "draft_only"),
         reconnect_review_required: deferred_intents.iter().any(|i| i.reconnect_review_required),
         freshness_degraded: freshness_snapshots
             .iter()
             .any(|s| s.freshness_degradation_class != "none"),
-        all_auth_sources_disclosed: object_rows.iter().all(|r| !r.auth_source_ref.trim().is_empty()),
+        all_auth_sources_disclosed: object_rows
+            .iter()
+            .all(|r| !r.auth_source_ref.trim().is_empty()),
         all_target_identities_disclosed: object_rows
             .iter()
             .all(|r| !r.target_identity_ref.trim().is_empty()),
@@ -1336,7 +1420,11 @@ fn validate_stabilization_record(
             record.review_workspace_id_ref
         )));
     }
-    ensure_token(PROVIDER_LINKED_REVIEW_STATES, &record.review_state, "stabilization.review_state")?;
+    ensure_token(
+        PROVIDER_LINKED_REVIEW_STATES,
+        &record.review_state,
+        "stabilization.review_state",
+    )?;
     ensure_nonempty(&record.generated_at, "stabilization.generated_at")?;
     ensure_nonempty(&record.summary_label, "stabilization.summary_label")?;
     Ok(())
@@ -1363,11 +1451,24 @@ fn validate_object_row_record(
         )));
     }
     ensure_nonempty(&record.object_row_id, "object_row.object_row_id")?;
-    ensure_nonempty(&record.provider_object_row_ref, "object_row.provider_object_row_ref")?;
-    ensure_token(MUTATION_MODE_CLASSES, &record.mutation_mode_class, "object_row.mutation_mode_class")?;
-    ensure_nonempty(&record.mode_disclosure_label, "object_row.mode_disclosure_label")?;
+    ensure_nonempty(
+        &record.provider_object_row_ref,
+        "object_row.provider_object_row_ref",
+    )?;
+    ensure_token(
+        MUTATION_MODE_CLASSES,
+        &record.mutation_mode_class,
+        "object_row.mutation_mode_class",
+    )?;
+    ensure_nonempty(
+        &record.mode_disclosure_label,
+        "object_row.mode_disclosure_label",
+    )?;
     ensure_nonempty(&record.auth_source_ref, "object_row.auth_source_ref")?;
-    ensure_nonempty(&record.target_identity_ref, "object_row.target_identity_ref")?;
+    ensure_nonempty(
+        &record.target_identity_ref,
+        "object_row.target_identity_ref",
+    )?;
     ensure_nonempty(&record.actor_identity_ref, "object_row.actor_identity_ref")?;
     ensure_token(
         FRESHNESS_DEGRADATION_CLASSES,
@@ -1397,11 +1498,26 @@ fn validate_actor_target_identity_record(
             "actor_target_identity.stabilization_id_ref mismatch"
         )));
     }
-    ensure_nonempty(&record.identity_binding_id, "actor_target_identity.identity_binding_id")?;
-    ensure_nonempty(&record.actor_identity_ref, "actor_target_identity.actor_identity_ref")?;
-    ensure_nonempty(&record.target_identity_ref, "actor_target_identity.target_identity_ref")?;
-    ensure_nonempty(&record.auth_source_ref, "actor_target_identity.auth_source_ref")?;
-    ensure_nonempty(&record.scope_epoch_ref, "actor_target_identity.scope_epoch_ref")?;
+    ensure_nonempty(
+        &record.identity_binding_id,
+        "actor_target_identity.identity_binding_id",
+    )?;
+    ensure_nonempty(
+        &record.actor_identity_ref,
+        "actor_target_identity.actor_identity_ref",
+    )?;
+    ensure_nonempty(
+        &record.target_identity_ref,
+        "actor_target_identity.target_identity_ref",
+    )?;
+    ensure_nonempty(
+        &record.auth_source_ref,
+        "actor_target_identity.auth_source_ref",
+    )?;
+    ensure_nonempty(
+        &record.scope_epoch_ref,
+        "actor_target_identity.scope_epoch_ref",
+    )?;
     ensure_nonempty(&record.summary_label, "actor_target_identity.summary_label")?;
     Ok(())
 }
@@ -1433,11 +1549,20 @@ fn validate_deferred_intent_record(
         &record.mutation_mode_class,
         "deferred_intent.mutation_mode_class",
     )?;
-    ensure_nonempty(&record.target_identity_ref, "deferred_intent.target_identity_ref")?;
-    ensure_nonempty(&record.actor_identity_ref, "deferred_intent.actor_identity_ref")?;
+    ensure_nonempty(
+        &record.target_identity_ref,
+        "deferred_intent.target_identity_ref",
+    )?;
+    ensure_nonempty(
+        &record.actor_identity_ref,
+        "deferred_intent.actor_identity_ref",
+    )?;
     ensure_nonempty(&record.queued_at, "deferred_intent.queued_at")?;
     ensure_nonempty(&record.expires_at, "deferred_intent.expires_at")?;
-    ensure_nonempty(&record.replay_ledger_ref, "deferred_intent.replay_ledger_ref")?;
+    ensure_nonempty(
+        &record.replay_ledger_ref,
+        "deferred_intent.replay_ledger_ref",
+    )?;
     ensure_nonempty(&record.summary_label, "deferred_intent.summary_label")?;
     Ok(())
 }
@@ -1462,18 +1587,25 @@ fn validate_freshness_snapshot_record(
         )));
     }
     ensure_nonempty(&record.snapshot_id, "freshness_snapshot.snapshot_id")?;
-    ensure_nonempty(&record.freshness_class, "freshness_snapshot.freshness_class")?;
+    ensure_nonempty(
+        &record.freshness_class,
+        "freshness_snapshot.freshness_class",
+    )?;
     ensure_token(
         FRESHNESS_DEGRADATION_CLASSES,
         &record.freshness_degradation_class,
         "freshness_snapshot.freshness_degradation_class",
     )?;
-    ensure_nonempty(&record.provider_source_class, "freshness_snapshot.provider_source_class")?;
+    ensure_nonempty(
+        &record.provider_source_class,
+        "freshness_snapshot.provider_source_class",
+    )?;
     ensure_nonempty(&record.observed_at, "freshness_snapshot.observed_at")?;
     ensure_nonempty(&record.summary_label, "freshness_snapshot.summary_label")?;
     if record.inspect_only_cached && record.live_provider_backed {
         return Err(provider_linked_validation_error(
-            "freshness_snapshot cannot be both inspect_only_cached and live_provider_backed".to_string(),
+            "freshness_snapshot cannot be both inspect_only_cached and live_provider_backed"
+                .to_string(),
         ));
     }
     Ok(())
@@ -1530,9 +1662,18 @@ fn validate_support_export(
             "support_export.stabilization_id_ref mismatch"
         )));
     }
-    ensure_nonempty(&packet.support_export_id, "support_export.support_export_id")?;
-    ensure_nonempty(&packet.reopen_context_ref, "support_export.reopen_context_ref")?;
-    ensure_nonempty(&packet.reopen_command_id_ref, "support_export.reopen_command_id_ref")?;
+    ensure_nonempty(
+        &packet.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &packet.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
+    ensure_nonempty(
+        &packet.reopen_command_id_ref,
+        "support_export.reopen_command_id_ref",
+    )?;
     if packet.command_id_refs.len() != commands.len() {
         return Err(provider_linked_validation_error(format!(
             "support_export.command_id_refs length ({}) must match commands length ({})",
@@ -1541,7 +1682,11 @@ fn validate_support_export(
         )));
     }
     for surface in &packet.consumer_surfaces {
-        ensure_token(PROVIDER_LINKED_CONSUMER_SURFACES, surface, "support_export.consumer_surface")?;
+        ensure_token(
+            PROVIDER_LINKED_CONSUMER_SURFACES,
+            surface,
+            "support_export.consumer_surface",
+        )?;
     }
     ensure_nonempty(&packet.redaction_class, "support_export.redaction_class")?;
     ensure_nonempty(&packet.summary_label, "support_export.summary_label")?;
@@ -1695,7 +1840,8 @@ mod tests {
             generated_at: "2026-05-27T08:00:00Z".to_string(),
             review_workspace: crate::workspace::ReviewWorkspaceRecord {
                 record_kind: crate::workspace::REVIEW_WORKSPACE_RECORD_KIND.to_string(),
-                review_workspace_schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+                review_workspace_schema_version:
+                    crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id: "workspace.test".to_string(),
                 review_workspace_source_class: "local_git".to_string(),
                 provider_authority_class: "provider_authoritative".to_string(),
@@ -1726,7 +1872,8 @@ mod tests {
             durable_comment_anchors: vec![],
             browser_handoff: None,
             inspection: crate::workspace::ReviewWorkspaceBetaInspectionRecord {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 review_workspace_id_ref: "workspace.test".to_string(),
                 durable_comment_anchor_count: 0,
@@ -1743,7 +1890,8 @@ mod tests {
                 summary_label: "Test workspace".to_string(),
             },
             support_export: crate::workspace::ReviewWorkspaceSupportExportPacket {
-                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND.to_string(),
+                record_kind: crate::workspace::REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND
+                    .to_string(),
                 schema_version: crate::workspace::REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
                 support_export_id: "support.export.test".to_string(),
                 review_workspace_id_ref: "workspace.test".to_string(),
@@ -1775,7 +1923,8 @@ mod tests {
                     object_row_id: "row.pr.4012".to_string(),
                     provider_object_row_ref: "provider.row.pr.4012".to_string(),
                     mutation_mode_class: "publish_now".to_string(),
-                    mode_disclosure_label: "This action will mutate the provider immediately.".to_string(),
+                    mode_disclosure_label: "This action will mutate the provider immediately."
+                        .to_string(),
                     auth_source_ref: "auth.provider.code_host".to_string(),
                     target_identity_ref: "target.pr.4012".to_string(),
                     actor_identity_ref: "actor.user.alice".to_string(),
@@ -1805,7 +1954,8 @@ mod tests {
                     object_row_id: "row.pr.4013".to_string(),
                     provider_object_row_ref: "provider.row.pr.4013".to_string(),
                     mutation_mode_class: "handoff_only".to_string(),
-                    mode_disclosure_label: "This action opens a browser handoff packet.".to_string(),
+                    mode_disclosure_label: "This action opens a browser handoff packet."
+                        .to_string(),
                     auth_source_ref: "auth.provider.code_host".to_string(),
                     target_identity_ref: "target.pr.4013".to_string(),
                     actor_identity_ref: "actor.user.alice".to_string(),
@@ -1972,7 +2122,11 @@ mod tests {
         let input = baseline_input();
         let packet =
             ProviderLinkedReviewStabilizationPacket::from_workspace_packet(input, &workspace);
-        assert!(packet.is_ok(), "baseline must construct: {:?}", packet.err());
+        assert!(
+            packet.is_ok(),
+            "baseline must construct: {:?}",
+            packet.err()
+        );
         let packet = packet.unwrap();
         assert!(packet.validate().is_ok());
         assert!(packet.raw_escape_hatches_absent());
@@ -2003,14 +2157,19 @@ mod tests {
     fn draft_only_allows_missing_identity() {
         let workspace = workspace_packet();
         let mut input = baseline_input();
-        input.object_rows.retain(|r| r.mutation_mode_class == "draft_only");
+        input
+            .object_rows
+            .retain(|r| r.mutation_mode_class == "draft_only");
         input.actor_target_identities.clear();
         input.deferred_intents.clear();
         input.freshness_snapshots.clear();
         input.commands.clear();
         let packet =
             ProviderLinkedReviewStabilizationPacket::from_workspace_packet(input, &workspace);
-        assert!(packet.is_ok(), "draft-only rows should not require actor_target_identities");
+        assert!(
+            packet.is_ok(),
+            "draft-only rows should not require actor_target_identities"
+        );
     }
 
     #[test]

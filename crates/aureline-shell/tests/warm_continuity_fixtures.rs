@@ -67,7 +67,11 @@ fn every_scenario_fixture_matches_in_code_projection() {
 fn pinned_rollups_match_each_scenario() {
     for scenario in warm_continuity_corpus() {
         let record = load_record(scenario.fixture_filename);
-        assert_eq!(record.entry_cause, scenario.expected_entry_cause, "{} entry_cause", scenario.scenario_id);
+        assert_eq!(
+            record.entry_cause, scenario.expected_entry_cause,
+            "{} entry_cause",
+            scenario.scenario_id
+        );
         assert_eq!(
             record.restore.restore_class, scenario.expected_restore_class,
             "{} restore_class",
@@ -118,7 +122,11 @@ fn useful_chrome_is_reached_before_deep_discovery() {
                 .iter()
                 .find(|m| m.milestone == *required)
                 .unwrap_or_else(|| {
-                    panic!("{}: missing early milestone {}", scenario.scenario_id, required.as_str())
+                    panic!(
+                        "{}: missing early milestone {}",
+                        scenario.scenario_id,
+                        required.as_str()
+                    )
                 });
             assert!(
                 row.reached_before_deep_discovery,
@@ -172,12 +180,32 @@ fn restore_provenance_is_honest() {
                 }
             }
         }
-        assert_eq!(exactly, record.summary_counts.restored_exactly_count, "{} exactly", scenario.scenario_id);
-        assert_eq!(partially, record.summary_counts.restored_partially_count, "{} partially", scenario.scenario_id);
-        assert_eq!(needs_review, record.summary_counts.needs_review_count, "{} needs_review", scenario.scenario_id);
+        assert_eq!(
+            exactly, record.summary_counts.restored_exactly_count,
+            "{} exactly",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            partially, record.summary_counts.restored_partially_count,
+            "{} partially",
+            scenario.scenario_id
+        );
+        assert_eq!(
+            needs_review, record.summary_counts.needs_review_count,
+            "{} needs_review",
+            scenario.scenario_id
+        );
         // The live runtime is never implied to have resumed.
-        assert!(!record.display_copy.full_resumption_implied, "{}", scenario.scenario_id);
-        assert!(!record.display_copy.side_effect_rerun_implied, "{}", scenario.scenario_id);
+        assert!(
+            !record.display_copy.full_resumption_implied,
+            "{}",
+            scenario.scenario_id
+        );
+        assert!(
+            !record.display_copy.side_effect_rerun_implied,
+            "{}",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -216,8 +244,16 @@ fn first_useful_work_routing_is_bounded_and_reachable() {
     for scenario in warm_continuity_corpus() {
         let record = load_record(scenario.fixture_filename);
         let landing = &record.landing;
-        assert!(landing.keyboard_reachable, "{}: landing not keyboard reachable", scenario.scenario_id);
-        assert!(!landing.destructive, "{}: landing is destructive", scenario.scenario_id);
+        assert!(
+            landing.keyboard_reachable,
+            "{}: landing not keyboard reachable",
+            scenario.scenario_id
+        );
+        assert!(
+            !landing.destructive,
+            "{}: landing is destructive",
+            scenario.scenario_id
+        );
         assert!(
             landing.candidate_routes.contains(&landing.selected_route),
             "{}: selected route is not an inspectable candidate",
@@ -230,16 +266,32 @@ fn first_useful_work_routing_is_bounded_and_reachable() {
             landing.target_ref,
         );
         if let Some(pref) = &landing.remembered_preference {
-            assert!(!pref.widens_workspace_trust, "{}: pref widened trust", scenario.scenario_id);
-            assert!(!pref.installs_packages, "{}: pref installed packages", scenario.scenario_id);
-            assert!(!pref.applies_workflow_bundle, "{}: pref applied a bundle", scenario.scenario_id);
+            assert!(
+                !pref.widens_workspace_trust,
+                "{}: pref widened trust",
+                scenario.scenario_id
+            );
+            assert!(
+                !pref.installs_packages,
+                "{}: pref installed packages",
+                scenario.scenario_id
+            );
+            assert!(
+                !pref.applies_workflow_bundle,
+                "{}: pref applied a bundle",
+                scenario.scenario_id
+            );
             assert!(
                 !pref.suppresses_required_checkpoint,
                 "{}: pref suppressed a checkpoint",
                 scenario.scenario_id,
             );
         }
-        assert!(!record.display_copy.remembered_preference_widened_trust, "{}", scenario.scenario_id);
+        assert!(
+            !record.display_copy.remembered_preference_widened_trust,
+            "{}",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -259,7 +311,11 @@ fn first_useful_work_is_inspectable_in_support_export() {
             scenario.scenario_id,
         );
         // Export is redaction-safe: no raw scheme leakage beyond canonical refs.
-        assert!(!lines.contains("http://") && !lines.contains("https://"), "{}", scenario.scenario_id);
+        assert!(
+            !lines.contains("http://") && !lines.contains("https://"),
+            "{}",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -277,7 +333,11 @@ fn zone_owned_truth_stays_in_its_zone() {
                 cue.rendered_zone.as_str(),
             );
         }
-        assert!(!record.display_copy.zone_cue_relocated, "{}", scenario.scenario_id);
+        assert!(
+            !record.display_copy.zone_cue_relocated,
+            "{}",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -286,8 +346,16 @@ fn collapsed_surfaces_stay_reachable() {
     for scenario in warm_continuity_corpus() {
         let record = load_record(scenario.fixture_filename);
         for surface in &record.responsive.collapsed_surfaces {
-            assert!(surface.keyboard_reachable, "{}: collapsed surface unreachable", scenario.scenario_id);
-            assert!(surface.approved_to_move, "{}: collapsed surface moved without approval", scenario.scenario_id);
+            assert!(
+                surface.keyboard_reachable,
+                "{}: collapsed surface unreachable",
+                scenario.scenario_id
+            );
+            assert!(
+                surface.approved_to_move,
+                "{}: collapsed surface moved without approval",
+                scenario.scenario_id
+            );
             assert!(
                 is_canonical_object_ref(&surface.reopen_route_ref),
                 "{}: reopen route {:?} not canonical",
@@ -307,7 +375,11 @@ fn collapsed_surfaces_stay_reachable() {
             "{}: collapsed surface count drift",
             scenario.scenario_id,
         );
-        assert!(!record.display_copy.collapsed_surface_unreachable, "{}", scenario.scenario_id);
+        assert!(
+            !record.display_copy.collapsed_surface_unreachable,
+            "{}",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -350,7 +422,10 @@ fn corpus_covers_required_regression_cases_and_vocabularies() {
         EntryCauseClass::ExpiredRemoteSession.as_str(),
         EntryCauseClass::RevokedAuthorization.as_str(),
     ] {
-        assert!(causes.contains(expected), "entry cause {expected} not exercised");
+        assert!(
+            causes.contains(expected),
+            "entry cause {expected} not exercised"
+        );
     }
     for expected in [
         RestoreClassToken::ExactRestore.as_str(),
@@ -359,14 +434,20 @@ fn corpus_covers_required_regression_cases_and_vocabularies() {
         RestoreClassToken::RecoveredDrafts.as_str(),
         RestoreClassToken::EvidenceOnly.as_str(),
     ] {
-        assert!(restore_classes.contains(expected), "restore class {expected} not exercised");
+        assert!(
+            restore_classes.contains(expected),
+            "restore class {expected} not exercised"
+        );
     }
     for expected in [
         WindowClassToken::CompactDesktop.as_str(),
         WindowClassToken::StandardDesktop.as_str(),
         WindowClassToken::ExpandedDesktop.as_str(),
     ] {
-        assert!(window_classes.contains(expected), "window class {expected} not exercised");
+        assert!(
+            window_classes.contains(expected),
+            "window class {expected} not exercised"
+        );
     }
     for expected in [
         LandingRouteClass::PriorActiveEditor.as_str(),
@@ -375,7 +456,10 @@ fn corpus_covers_required_regression_cases_and_vocabularies() {
         LandingRouteClass::ReviewPacket.as_str(),
         LandingRouteClass::PostEntryHandoffCard.as_str(),
     ] {
-        assert!(routes.contains(expected), "landing route {expected} not exercised");
+        assert!(
+            routes.contains(expected),
+            "landing route {expected} not exercised"
+        );
     }
     for expected in [
         SideEffectfulSurfaceClass::Terminal.as_str(),
@@ -386,14 +470,20 @@ fn corpus_covers_required_regression_cases_and_vocabularies() {
         SideEffectfulSurfaceClass::CollaborationControl.as_str(),
         SideEffectfulSurfaceClass::RemoteAction.as_str(),
     ] {
-        assert!(surfaces.contains(expected), "side-effectful surface {expected} not exercised");
+        assert!(
+            surfaces.contains(expected),
+            "side-effectful surface {expected} not exercised"
+        );
     }
     for expected in [
         CollapseTargetClass::Sheet.as_str(),
         CollapseTargetClass::Overlay.as_str(),
         CollapseTargetClass::Overflow.as_str(),
     ] {
-        assert!(collapse_targets.contains(expected), "collapse target {expected} not exercised");
+        assert!(
+            collapse_targets.contains(expected),
+            "collapse target {expected} not exercised"
+        );
     }
     for expected in [
         ZoneOwnedCueClass::Breadcrumb.as_str(),
@@ -402,14 +492,20 @@ fn corpus_covers_required_regression_cases_and_vocabularies() {
         ZoneOwnedCueClass::WorkspaceIdentity.as_str(),
         ZoneOwnedCueClass::StatusSummary.as_str(),
     ] {
-        assert!(cues.contains(expected), "zone-owned cue {expected} not exercised");
+        assert!(
+            cues.contains(expected),
+            "zone-owned cue {expected} not exercised"
+        );
     }
     for expected in [
         RestoreProvenanceClass::RestoredExactly.as_str(),
         RestoreProvenanceClass::RestoredPartially.as_str(),
         RestoreProvenanceClass::NeedsReview.as_str(),
     ] {
-        assert!(provenance.contains(expected), "provenance class {expected} not exercised");
+        assert!(
+            provenance.contains(expected),
+            "provenance class {expected} not exercised"
+        );
     }
     // ShellZoneToken is referenced by collapsed-surface source zones; ensure the
     // re-projected zone vocabulary stays wired.

@@ -1106,7 +1106,10 @@ pub enum BuildError {
     /// A snapshot row was non-conforming without a bounded waiver.
     SnapshotNarrowedWithoutWaiver { class: SnapshotClass },
     /// A required forbidden state class was missing from the secret boundary.
-    SecretBoundaryClassMissing { class: StateClass, lane: &'static str },
+    SecretBoundaryClassMissing {
+        class: StateClass,
+        lane: &'static str,
+    },
     /// A required surface-parity row was missing.
     SurfaceRowMissing { surface: SurfaceClass },
     /// A surface-parity row was duplicated.
@@ -1360,7 +1363,10 @@ impl SyncDeviceRegistryCertification {
             "upstream.resolver_state_ref",
             &input.upstream.resolver_state_ref,
         )?;
-        require_present_ref("upstream.sync_contract_ref", &input.upstream.sync_contract_ref)?;
+        require_present_ref(
+            "upstream.sync_contract_ref",
+            &input.upstream.sync_contract_ref,
+        )?;
 
         // --- device participation --------------------------------------------
         if input.device_participation.is_empty() {
@@ -1391,10 +1397,9 @@ impl SyncDeviceRegistryCertification {
             row.selected_scope_set.sort();
             row.selected_scope_set.dedup();
             let identity_present = !row.device_id.trim().is_empty();
-            let state_disclosed = matches!(
-                row.participation_state,
-                DeviceParticipationState::Active
-            ) || row.revocation_reason.is_some();
+            let state_disclosed =
+                matches!(row.participation_state, DeviceParticipationState::Active)
+                    || row.revocation_reason.is_some();
             row.conforms = identity_present
                 && state_disclosed
                 && row.local_authoritative_fallback
@@ -1415,7 +1420,10 @@ impl SyncDeviceRegistryCertification {
         }
         let mut conflict_review: Vec<ConflictReviewRow> = input.conflict_review.clone();
         for row in &conflict_review {
-            require_canonical_ref("conflict_review.diagnostics_entry_ref", &row.diagnostics_entry_ref)?;
+            require_canonical_ref(
+                "conflict_review.diagnostics_entry_ref",
+                &row.diagnostics_entry_ref,
+            )?;
             if let Some(preview) = &row.change_preview_ref {
                 require_canonical_ref("conflict_review.change_preview_ref", preview)?;
             }
@@ -1434,10 +1442,10 @@ impl SyncDeviceRegistryCertification {
         let mut outcome_set: BTreeSet<ConflictOutcomeClass> = BTreeSet::new();
         for row in &mut conflict_review {
             outcome_set.insert(row.outcome_class);
-            row.merge_rule_satisfied =
-                row.merge_class == row.setting_category.required_merge_class()
-                    || (row.outcome_class == ConflictOutcomeClass::StaleRemote
-                        && row.merge_class == MergeClass::LocalPrecedence);
+            row.merge_rule_satisfied = row.merge_class
+                == row.setting_category.required_merge_class()
+                || (row.outcome_class == ConflictOutcomeClass::StaleRemote
+                    && row.merge_class == MergeClass::LocalPrecedence);
             row.protected_before_overwrite = !row.overwrites_local
                 || (row.change_preview_ref.is_some() && row.rollback_checkpoint_ref.is_some());
             row.conforms = row.merge_rule_satisfied
@@ -1454,10 +1462,9 @@ impl SyncDeviceRegistryCertification {
         let conflict_review_field_aware = ConflictOutcomeClass::REQUIRED_COVERAGE
             .iter()
             .all(|required| outcome_set.contains(required));
-        let local_fallback_proven = conflict_review
-            .iter()
-            .all(|row| row.protected_before_overwrite && (row.overwrites_local || row.local_authoritative))
-            && conflict_review.iter().all(|row| !row.widens_authority);
+        let local_fallback_proven = conflict_review.iter().all(|row| {
+            row.protected_before_overwrite && (row.overwrites_local || row.local_authoritative)
+        }) && conflict_review.iter().all(|row| !row.widens_authority);
         let merge_rules_enforced = conflict_review.iter().all(|row| row.merge_rule_satisfied);
 
         // --- snapshots -------------------------------------------------------
@@ -1531,7 +1538,9 @@ impl SyncDeviceRegistryCertification {
                 }
             }
         }
-        let snapshots_hold_boundary = snapshots.iter().all(|row| !row.carries_forbidden_state_class);
+        let snapshots_hold_boundary = snapshots
+            .iter()
+            .all(|row| !row.carries_forbidden_state_class);
         let secret_boundary_held =
             snapshots_hold_boundary && secret_boundary.iter().all(|row| row.conforms);
 
@@ -1580,7 +1589,10 @@ impl SyncDeviceRegistryCertification {
         let profile_roaming_truth = profile_roaming.local_launch_edit_authority_retained
             && profile_roaming.temporary_profiles_excluded
             && !profile_roaming.summary.trim().is_empty()
-            && !profile_roaming.originating_profile_revision.trim().is_empty();
+            && !profile_roaming
+                .originating_profile_revision
+                .trim()
+                .is_empty();
         profile_roaming.conforms = profile_roaming_truth;
 
         // --- derive pillars --------------------------------------------------

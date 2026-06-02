@@ -105,7 +105,9 @@ fn record_identity_and_contract_are_stable() {
         );
         assert!(is_canonical_object_ref(&record.diagnostics_export_ref));
         assert!(is_canonical_object_ref(&record.support_export_ref));
-        assert!(is_canonical_object_ref(&record.appearance_session.value_ref));
+        assert!(is_canonical_object_ref(
+            &record.appearance_session.value_ref
+        ));
     }
 }
 
@@ -147,7 +149,8 @@ fn captures_attribute_to_one_appearance_session() {
         let value_ref = &record.appearance_session.value_ref;
         for row in &record.mode_rows {
             assert_eq!(
-                &row.appearance_session_value_ref, value_ref,
+                &row.appearance_session_value_ref,
+                value_ref,
                 "{} mode {} capture must cite the one appearance-session value",
                 scenario.scenario_id,
                 row.mode_class.as_str()
@@ -163,8 +166,11 @@ fn captures_attribute_to_one_appearance_session() {
 fn protected_cues_never_rely_on_hue_alone() {
     for scenario in design_token_runtime_corpus() {
         let record = load_record(&scenario.fixture_filename);
-        let present: BTreeSet<ProtectedCueClass> =
-            record.protected_cues.iter().map(|row| row.cue_class).collect();
+        let present: BTreeSet<ProtectedCueClass> = record
+            .protected_cues
+            .iter()
+            .map(|row| row.cue_class)
+            .collect();
         for required in ProtectedCueClass::REQUIRED {
             assert!(
                 present.contains(&required),
@@ -296,7 +302,11 @@ fn record_is_reachable_keyboard_first_across_layouts() {
                 .iter()
                 .find(|mode| mode.mode == required)
                 .unwrap_or_else(|| {
-                    panic!("{} missing layout mode {}", scenario.scenario_id, required.as_str())
+                    panic!(
+                        "{} missing layout mode {}",
+                        scenario.scenario_id,
+                        required.as_str()
+                    )
                 });
             assert!(
                 disclosure.row_narration_available && disclosure.recovery_affordances_reachable

@@ -763,10 +763,7 @@ impl std::fmt::Display for InteractionTransferValidationError {
             Self::ClipboardPayloadInvalid {
                 payload_class_id,
                 reason,
-            } => write!(
-                f,
-                "clipboard payload {payload_class_id} invalid: {reason}"
-            ),
+            } => write!(f, "clipboard payload {payload_class_id} invalid: {reason}"),
             Self::DropIntentInvalid { intent_id, reason } => {
                 write!(f, "drop intent {intent_id} invalid: {reason}")
             }
@@ -868,35 +865,44 @@ fn validate_clipboard_payloads(
             || row.schema_version != INTERACTION_TRANSFER_BETA_SCHEMA_VERSION
             || row.shared_contract_ref != INTERACTION_TRANSFER_SHARED_CONTRACT_REF
         {
-            errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                payload_class_id: row.payload_class_id.clone(),
-                reason: "record metadata mismatch".to_owned(),
-            });
+            errors.push(
+                InteractionTransferValidationError::ClipboardPayloadInvalid {
+                    payload_class_id: row.payload_class_id.clone(),
+                    reason: "record metadata mismatch".to_owned(),
+                },
+            );
         }
         if row.default_representation_class != PayloadRepresentationClass::PlainText {
-            errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                payload_class_id: row.payload_class_id.clone(),
-                reason: "default copy must be plain text".to_owned(),
-            });
+            errors.push(
+                InteractionTransferValidationError::ClipboardPayloadInvalid {
+                    payload_class_id: row.payload_class_id.clone(),
+                    reason: "default copy must be plain text".to_owned(),
+                },
+            );
         }
         if row.surface_class_token != row.surface_class.as_str()
             || row.default_representation_class_token != row.default_representation_class.as_str()
             || row.clipboard_route_token != row.clipboard_route.as_str()
             || row.sensitive_posture_token != row.sensitive_posture.as_str()
         {
-            errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                payload_class_id: row.payload_class_id.clone(),
-                reason: "stable tokens do not match enum variants".to_owned(),
-            });
+            errors.push(
+                InteractionTransferValidationError::ClipboardPayloadInvalid {
+                    payload_class_id: row.payload_class_id.clone(),
+                    reason: "stable tokens do not match enum variants".to_owned(),
+                },
+            );
         }
         match row.sensitive_posture {
             SensitiveCopyPosture::NotSensitive => {
                 if !row.sensitive_value_class_tokens.is_empty() {
-                    errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                        payload_class_id: row.payload_class_id.clone(),
-                        reason: "non-sensitive payload must not declare sensitive value classes"
-                            .to_owned(),
-                    });
+                    errors.push(
+                        InteractionTransferValidationError::ClipboardPayloadInvalid {
+                            payload_class_id: row.payload_class_id.clone(),
+                            reason:
+                                "non-sensitive payload must not declare sensitive value classes"
+                                    .to_owned(),
+                        },
+                    );
                 }
             }
             SensitiveCopyPosture::LabelFirstPreview => {
@@ -905,41 +911,49 @@ fn validate_clipboard_payloads(
                     || !row.clipboard_write_deferred_until_review
                     || row.sensitive_preview_action_id.is_none()
                 {
-                    errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                        payload_class_id: row.payload_class_id.clone(),
-                        reason: "label-first preview posture is incomplete".to_owned(),
-                    });
+                    errors.push(
+                        InteractionTransferValidationError::ClipboardPayloadInvalid {
+                            payload_class_id: row.payload_class_id.clone(),
+                            reason: "label-first preview posture is incomplete".to_owned(),
+                        },
+                    );
                 }
             }
             SensitiveCopyPosture::WriteBlocked => {
                 if row.sensitive_value_class_tokens.is_empty()
                     || row.clipboard_write_deferred_until_review
                 {
-                    errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                        payload_class_id: row.payload_class_id.clone(),
-                        reason: "write-blocked posture must declare sensitive value classes \
+                    errors.push(
+                        InteractionTransferValidationError::ClipboardPayloadInvalid {
+                            payload_class_id: row.payload_class_id.clone(),
+                            reason: "write-blocked posture must declare sensitive value classes \
                                  and must not defer to a label-first review"
-                            .to_owned(),
-                    });
+                                .to_owned(),
+                        },
+                    );
                 }
             }
         }
         if !row.paste_targets_neutral {
-            errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                payload_class_id: row.payload_class_id.clone(),
-                reason: "default copy must paste safely into terminals, reviews, issue \
+            errors.push(
+                InteractionTransferValidationError::ClipboardPayloadInvalid {
+                    payload_class_id: row.payload_class_id.clone(),
+                    reason: "default copy must paste safely into terminals, reviews, issue \
                          trackers, and support flows"
-                    .to_owned(),
-            });
+                        .to_owned(),
+                },
+            );
         }
         if matches!(row.clipboard_route, ClipboardRoutePosture::RemoteBridge)
             && !row.route_disclosure_material
         {
-            errors.push(InteractionTransferValidationError::ClipboardPayloadInvalid {
-                payload_class_id: row.payload_class_id.clone(),
-                reason: "remote clipboard bridge must declare route disclosure as material"
-                    .to_owned(),
-            });
+            errors.push(
+                InteractionTransferValidationError::ClipboardPayloadInvalid {
+                    payload_class_id: row.payload_class_id.clone(),
+                    reason: "remote clipboard bridge must declare route disclosure as material"
+                        .to_owned(),
+                },
+            );
         }
         default_surfaces.insert(row.surface_class);
     }
@@ -1078,11 +1092,9 @@ fn validate_undo_groups(
             UndoGroupScope::NoUndoAvailable => {
                 no_undo_declared = true;
                 match (row.no_undo_posture, row.no_undo_posture_token.as_deref()) {
-                    (
-                        Some(posture),
-                        Some(token),
-                    ) if token == posture.as_str() && !matches!(posture, NoUndoPosture::Refused) => {
-                    }
+                    (Some(posture), Some(token))
+                        if token == posture.as_str()
+                            && !matches!(posture, NoUndoPosture::Refused) => {}
                     (Some(NoUndoPosture::Refused), Some(token))
                         if token == NoUndoPosture::Refused.as_str() => {}
                     _ => {
@@ -1316,12 +1328,7 @@ fn validate_support_export(
             .iter()
             .map(|row| row.payload_class_id.clone()),
     );
-    let expected_drops = sorted_unique(
-        packet
-            .drop_intents
-            .iter()
-            .map(|row| row.intent_id.clone()),
-    );
+    let expected_drops = sorted_unique(packet.drop_intents.iter().map(|row| row.intent_id.clone()));
     let expected_undo = sorted_unique(
         packet
             .undo_groups
@@ -1379,9 +1386,7 @@ fn validate_summary(
     }
 }
 
-fn compute_summary(
-    packet: &InteractionTransferBetaPacket,
-) -> InteractionTransferCoverageSummary {
+fn compute_summary(packet: &InteractionTransferBetaPacket) -> InteractionTransferCoverageSummary {
     let surfaces_present: Vec<InteractionSurfaceClass> = packet
         .clipboard_payload_classes
         .iter()
@@ -1390,13 +1395,10 @@ fn compute_summary(
         .into_iter()
         .collect();
     let every_surface_default_plain_text = required_surfaces().iter().all(|surface| {
-        packet
-            .clipboard_payload_classes
-            .iter()
-            .any(|row| {
-                row.surface_class == *surface
-                    && row.default_representation_class == PayloadRepresentationClass::PlainText
-            })
+        packet.clipboard_payload_classes.iter().any(|row| {
+            row.surface_class == *surface
+                && row.default_representation_class == PayloadRepresentationClass::PlainText
+        })
     });
     let drop_verbs: BTreeSet<DropVerb> = packet
         .drop_intents
@@ -1411,23 +1413,22 @@ fn compute_summary(
         .undo_groups
         .iter()
         .any(|row| row.multi_file_or_multi_step && row.single_reviewable_undo_entry);
-    let no_undo_preview_or_checkpoint_covered =
-        packet.undo_groups.iter().any(|row| {
-            matches!(row.group_scope, UndoGroupScope::NoUndoAvailable)
-                && matches!(
-                    row.no_undo_posture,
-                    Some(NoUndoPosture::PreviewBeforeCommit)
-                        | Some(NoUndoPosture::CheckpointBeforeCommit)
-                )
-        });
+    let no_undo_preview_or_checkpoint_covered = packet.undo_groups.iter().any(|row| {
+        matches!(row.group_scope, UndoGroupScope::NoUndoAvailable)
+            && matches!(
+                row.no_undo_posture,
+                Some(NoUndoPosture::PreviewBeforeCommit)
+                    | Some(NoUndoPosture::CheckpointBeforeCommit)
+            )
+    });
     let back_forward_directions: BTreeSet<BackForwardDirection> = packet
         .back_forward_entries
         .iter()
         .map(|row| row.direction)
         .collect();
-    let back_forward_both_directions_covered =
-        back_forward_directions.contains(&BackForwardDirection::Back)
-            && back_forward_directions.contains(&BackForwardDirection::Forward);
+    let back_forward_both_directions_covered = back_forward_directions
+        .contains(&BackForwardDirection::Back)
+        && back_forward_directions.contains(&BackForwardDirection::Forward);
     let sources: BTreeSet<ReopenSourceClass> = packet
         .reopen_history_entries
         .iter()

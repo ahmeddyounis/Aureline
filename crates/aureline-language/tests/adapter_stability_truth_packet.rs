@@ -13,10 +13,9 @@ use aureline_language::{
     current_stable_adapter_stability_truth_packet, AdapterLaneClass,
     AdapterStabilityCapabilityClass, AdapterStabilityConsumerSurface,
     AdapterStabilityDegradedProviderClass, AdapterStabilityDowngradeAutomationClass,
-    AdapterStabilityEvidenceClass, AdapterStabilityFindingKind,
-    AdapterStabilityKnownLimitClass, AdapterStabilityLaunchWedgeClass,
-    AdapterStabilityOutcomeClass, AdapterStabilityPromotionState, AdapterStabilityRowClass,
-    AdapterStabilitySupportClass, AdapterStabilityTruthPacket,
+    AdapterStabilityEvidenceClass, AdapterStabilityFindingKind, AdapterStabilityKnownLimitClass,
+    AdapterStabilityLaunchWedgeClass, AdapterStabilityOutcomeClass, AdapterStabilityPromotionState,
+    AdapterStabilityRowClass, AdapterStabilitySupportClass, AdapterStabilityTruthPacket,
     AdapterStabilityTruthPacketInput, ADAPTER_STABILITY_TRUTH_ARTIFACT_DOC_REF,
     ADAPTER_STABILITY_TRUTH_DOC_REF, ADAPTER_STABILITY_TRUTH_FIXTURE_DIR,
     ADAPTER_STABILITY_TRUTH_PACKET_ARTIFACT_REF, ADAPTER_STABILITY_TRUTH_SCHEMA_REF,
@@ -240,9 +239,7 @@ fn narrowed_row_missing_disclosure_ref_blocks_stable() {
 
 #[test]
 fn projection_collapses_degraded_provider_vocabulary_blocks_stable() {
-    assert_fixture_matches(
-        "projection_collapses_degraded_provider_vocabulary_blocks_stable.json",
-    );
+    assert_fixture_matches("projection_collapses_degraded_provider_vocabulary_blocks_stable.json");
 }
 
 #[test]

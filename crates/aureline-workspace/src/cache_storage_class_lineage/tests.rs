@@ -47,7 +47,10 @@ fn baseline_inputs() -> CacheStorageClassInputs {
                 UserStateClass::NoUserState,
                 EvictionPolicyClass::RestartDrop,
                 ClaimedDurabilityTier::StableEphemeralCache,
-                vec![CleanupSurfaceKind::CommandPalette, CleanupSurfaceKind::HelpAbout],
+                vec![
+                    CleanupSurfaceKind::CommandPalette,
+                    CleanupSurfaceKind::HelpAbout,
+                ],
                 true,
                 false,
                 false,
@@ -176,7 +179,10 @@ fn clean_inputs_project_stable_record() {
             .all_user_state_rows_have_safe_posture
     );
     assert_eq!(record.inspection_hooks.len(), 6);
-    assert!(record.producer_attribution.integrity_hash.starts_with("csl:"));
+    assert!(record
+        .producer_attribution
+        .integrity_hash
+        .starts_with("csl:"));
 }
 
 #[test]

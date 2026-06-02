@@ -220,7 +220,10 @@ impl NoRerunPosture {
     /// True when the posture lets the rung touch privileged or
     /// mutating surfaces (only `explicit_user_action_required` does).
     pub const fn safe_for_privileged_rung(self) -> bool {
-        matches!(self, Self::ExplicitUserActionRequired | Self::TerminalNoFurtherRun)
+        matches!(
+            self,
+            Self::ExplicitUserActionRequired | Self::TerminalNoFurtherRun
+        )
     }
 }
 

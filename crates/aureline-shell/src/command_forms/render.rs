@@ -63,7 +63,13 @@ fn render_bundle(bundle: &CommandFormBundle, out: &mut String) {
     out.push_str(bundle.form_state.policy_context.trust_state.as_str());
     out.push_str("`\n");
     out.push_str("- Overall validation severity: `");
-    out.push_str(bundle.form_state.validation_rollup.overall_severity.as_str());
+    out.push_str(
+        bundle
+            .form_state
+            .validation_rollup
+            .overall_severity
+            .as_str(),
+    );
     out.push_str("`\n\n");
 
     out.push_str("| Field | Kind | Required | State | Source layer | Visibility | Redaction | Restart/reload |\n");

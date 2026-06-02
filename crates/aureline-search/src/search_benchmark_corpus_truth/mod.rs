@@ -918,10 +918,7 @@ impl SearchBenchmarkCorpusTruthPacket {
                 findings.push(CorpusValidationFinding::new(
                     CorpusFindingKind::ImportedCorpusWithoutProvenance,
                     CorpusFindingSeverity::Blocker,
-                    format!(
-                        "imported corpus {} has no provenance ref",
-                        corpus.corpus_id
-                    ),
+                    format!("imported corpus {} has no provenance ref", corpus.corpus_id),
                 ));
             }
         }
@@ -1014,7 +1011,13 @@ impl SearchBenchmarkCorpusTruthPacket {
                     ));
                 }
                 if matches!(corpus.retention_policy, RetentionPolicyClass::LocalOnly)
-                    && !matches!(row.query_pack_class, QueryPackClass::GoldenQueryPack | QueryPackClass::RegressionQueryPack | QueryPackClass::EdgeCaseQueryPack | QueryPackClass::ImportedCorpusPack)
+                    && !matches!(
+                        row.query_pack_class,
+                        QueryPackClass::GoldenQueryPack
+                            | QueryPackClass::RegressionQueryPack
+                            | QueryPackClass::EdgeCaseQueryPack
+                            | QueryPackClass::ImportedCorpusPack
+                    )
                 {
                     // exhaustive across the closed vocabulary; this branch protects future additions.
                     findings.push(CorpusValidationFinding::new(
@@ -1114,10 +1117,7 @@ impl SearchBenchmarkCorpusTruthPacket {
                             "row {} metric {} relies on waiver {}",
                             row.row_id,
                             metric.metric_class.as_str(),
-                            metric
-                                .waiver_ref
-                                .as_deref()
-                                .unwrap_or("<missing>")
+                            metric.waiver_ref.as_deref().unwrap_or("<missing>")
                         ),
                     ));
                 }
@@ -1220,9 +1220,7 @@ impl SearchBenchmarkCorpusTruthPacket {
     }
 }
 
-fn promotion_state_for_findings(
-    findings: &[CorpusValidationFinding],
-) -> CorpusPromotionState {
+fn promotion_state_for_findings(findings: &[CorpusValidationFinding]) -> CorpusPromotionState {
     if findings
         .iter()
         .any(|finding| finding.severity == CorpusFindingSeverity::Blocker)
@@ -1320,7 +1318,9 @@ pub fn current_stable_search_benchmark_corpus_truth_packet(
     if findings.is_empty() {
         Ok(packet)
     } else {
-        Err(SearchBenchmarkCorpusTruthArtifactError::Validation(findings))
+        Err(SearchBenchmarkCorpusTruthArtifactError::Validation(
+            findings,
+        ))
     }
 }
 
@@ -1412,10 +1412,16 @@ mod tests {
             BenchmarkCorpusClass::HybridRetrievalCorpus.as_str(),
             "hybrid_retrieval_corpus"
         );
-        assert_eq!(QueryPackClass::ImportedCorpusPack.as_str(), "imported_corpus_pack");
+        assert_eq!(
+            QueryPackClass::ImportedCorpusPack.as_str(),
+            "imported_corpus_pack"
+        );
         assert_eq!(RankingMetricClass::NdcgAt10.as_str(), "ndcg_at_10");
         assert_eq!(RetentionPolicyClass::TenantOnly.as_str(), "tenant_only");
-        assert_eq!(ProvenanceClass::ImportedExternal.as_str(), "imported_external");
+        assert_eq!(
+            ProvenanceClass::ImportedExternal.as_str(),
+            "imported_external"
+        );
         assert_eq!(
             EvaluationDowngradeState::RegressionDetected.as_str(),
             "regression_detected"
@@ -1459,7 +1465,10 @@ mod tests {
         input.rows[0].metrics[0].waiver_ref =
             Some("artifacts/release/m4/waivers/rust_workspace_file_lookup.json".to_owned());
         let packet = SearchBenchmarkCorpusTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, CorpusPromotionState::NarrowedBelowStable);
+        assert_eq!(
+            packet.promotion_state,
+            CorpusPromotionState::NarrowedBelowStable
+        );
     }
 
     #[test]
@@ -1489,9 +1498,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != CorpusConsumerSurface::BenchmarkLab);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != CorpusConsumerSurface::BenchmarkLab
+        });
         let packet = SearchBenchmarkCorpusTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, CorpusPromotionState::BlocksStable);
         assert!(packet

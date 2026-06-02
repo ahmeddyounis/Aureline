@@ -77,11 +77,8 @@ fn main() {
         .inspection_hooks
         .unwrap_or_else(default_workset_scope_ux_inspection_hooks);
 
-    let record: WorksetScopeUxLineageRecord = project_workset_scope_ux_lineage_with_hooks(
-        envelope.posture_id,
-        &envelope.inputs,
-        hooks,
-    );
+    let record: WorksetScopeUxLineageRecord =
+        project_workset_scope_ux_lineage_with_hooks(envelope.posture_id, &envelope.inputs, hooks);
 
     if want_lines {
         for line in workset_scope_ux_lineage_lines(&record) {

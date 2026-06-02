@@ -275,9 +275,10 @@ fn warm_relaunch_exact() -> WarmContinuityScenario {
         as_of: CORPUS_AS_OF.to_owned(),
         entry_cause: EntryCauseClass::WarmRelaunch,
         title: "Warm relaunch restored your last session exactly.".to_owned(),
-        summary: "Useful chrome painted first; layout and editors restored exactly; routed to your \
+        summary:
+            "Useful chrome painted first; layout and editors restored exactly; routed to your \
                   prior active editor."
-            .to_owned(),
+                .to_owned(),
         startup: standard_startup(),
         restore: RestoreProvenanceInput {
             restore_class: RestoreClassToken::ExactRestore,
@@ -334,13 +335,23 @@ fn warm_relaunch_exact() -> WarmContinuityScenario {
                 LandingRouteClass::ChangedFilesView,
                 LandingRouteClass::Readme,
             ],
-            Some(bounded_pref("aureline://preference/first_useful_prior_editor")),
+            Some(bounded_pref(
+                "aureline://preference/first_useful_prior_editor",
+            )),
             "Routed to the prior active editor per your remembered preference.",
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::Breadcrumb, ShellZoneToken::TitleContextBar, false),
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, false),
+                cue(
+                    ZoneOwnedCueClass::Breadcrumb,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
                 cue(
                     ZoneOwnedCueClass::ExecutionTargetCue,
                     ShellZoneToken::StatusBar,
@@ -362,7 +373,8 @@ fn warm_relaunch_exact() -> WarmContinuityScenario {
     WarmContinuityScenario {
         scenario_id: "warm_relaunch_exact",
         scenario_label: "Warm relaunch, exact restore",
-        narrative: "A clean warm relaunch paints useful chrome first and restores the last session \
+        narrative:
+            "A clean warm relaunch paints useful chrome first and restores the last session \
                     exactly, routing to the prior active editor.",
         fixture_filename: "warm_relaunch_exact.json",
         expected_entry_cause: EntryCauseClass::WarmRelaunch,
@@ -472,8 +484,16 @@ fn crash_recovery_drafts() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, false),
-                cue(ZoneOwnedCueClass::StatusSummary, ShellZoneToken::StatusBar, true),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
+                cue(
+                    ZoneOwnedCueClass::StatusSummary,
+                    ShellZoneToken::StatusBar,
+                    true,
+                ),
             ],
         },
         responsive: ResponsiveFallbackInput {
@@ -575,7 +595,11 @@ fn sleep_resume() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::WorkspaceIdentity, ShellZoneToken::TitleContextBar, false),
+                cue(
+                    ZoneOwnedCueClass::WorkspaceIdentity,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
                 cue(
                     ZoneOwnedCueClass::ExecutionTargetCue,
                     ShellZoneToken::StatusBar,
@@ -673,8 +697,16 @@ fn display_topology_change() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::Breadcrumb, ShellZoneToken::TitleContextBar, false),
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, false),
+                cue(
+                    ZoneOwnedCueClass::Breadcrumb,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
                 cue(
                     ZoneOwnedCueClass::ExecutionTargetCue,
                     ShellZoneToken::StatusBar,
@@ -780,8 +812,16 @@ fn missing_extension() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, false),
-                cue(ZoneOwnedCueClass::StatusSummary, ShellZoneToken::StatusBar, true),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
+                cue(
+                    ZoneOwnedCueClass::StatusSummary,
+                    ShellZoneToken::StatusBar,
+                    true,
+                ),
             ],
         },
         responsive: ResponsiveFallbackInput {
@@ -819,9 +859,10 @@ fn expired_remote_session() -> WarmContinuityScenario {
         as_of: CORPUS_AS_OF.to_owned(),
         entry_cause: EntryCauseClass::ExpiredRemoteSession,
         title: "Remote session expired; review what to resume.".to_owned(),
-        summary: "The remote workspace session expired, so live state is evidence-only; remote and \
+        summary:
+            "The remote workspace session expired, so live state is evidence-only; remote and \
                   collaboration actions need a fresh handshake before resuming."
-            .to_owned(),
+                .to_owned(),
         startup: standard_startup(),
         restore: RestoreProvenanceInput {
             restore_class: RestoreClassToken::EvidenceOnly,
@@ -875,7 +916,11 @@ fn expired_remote_session() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, true),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    true,
+                ),
                 cue(
                     ZoneOwnedCueClass::ExecutionTargetCue,
                     ShellZoneToken::StatusBar,
@@ -897,7 +942,8 @@ fn expired_remote_session() -> WarmContinuityScenario {
     WarmContinuityScenario {
         scenario_id: "expired_remote_session",
         scenario_label: "Expired remote session",
-        narrative: "An expired remote session yields evidence-only live state and gates remote and \
+        narrative:
+            "An expired remote session yields evidence-only live state and gates remote and \
                     collaboration resumes behind a fresh handshake and a review packet.",
         fixture_filename: "expired_remote_session.json",
         expected_entry_cause: EntryCauseClass::ExpiredRemoteSession,
@@ -972,8 +1018,16 @@ fn revoked_authorization() -> WarmContinuityScenario {
         ),
         zone_identity: ZoneIdentityInput {
             cues: vec![
-                cue(ZoneOwnedCueClass::Breadcrumb, ShellZoneToken::TitleContextBar, false),
-                cue(ZoneOwnedCueClass::TrustBadge, ShellZoneToken::TitleContextBar, true),
+                cue(
+                    ZoneOwnedCueClass::Breadcrumb,
+                    ShellZoneToken::TitleContextBar,
+                    false,
+                ),
+                cue(
+                    ZoneOwnedCueClass::TrustBadge,
+                    ShellZoneToken::TitleContextBar,
+                    true,
+                ),
             ],
         },
         responsive: ResponsiveFallbackInput {

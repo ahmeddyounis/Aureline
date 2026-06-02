@@ -51,12 +51,10 @@ pub const ARTIFACT_IMPORT_HARDENING_PACKET_RECORD_KIND: &str =
     "review_artifact_import_hardening_packet";
 
 /// Stable record-kind tag for [`ArtifactImportHardeningRecord`].
-pub const ARTIFACT_IMPORT_HARDENING_RECORD_KIND: &str =
-    "review_artifact_import_hardening_record";
+pub const ARTIFACT_IMPORT_HARDENING_RECORD_KIND: &str = "review_artifact_import_hardening_record";
 
 /// Stable record-kind tag for [`ArtifactImportDiagnosticRecord`].
-pub const ARTIFACT_IMPORT_DIAGNOSTIC_RECORD_KIND: &str =
-    "review_artifact_import_diagnostic_record";
+pub const ARTIFACT_IMPORT_DIAGNOSTIC_RECORD_KIND: &str = "review_artifact_import_diagnostic_record";
 
 /// Stable record-kind tag for [`ArtifactImportRollbackCheckpoint`].
 pub const ARTIFACT_IMPORT_ROLLBACK_CHECKPOINT_RECORD_KIND: &str =
@@ -75,14 +73,7 @@ pub const ARTIFACT_IMPORT_HARDENING_INSPECTION_RECORD_KIND: &str =
     "review_artifact_import_hardening_inspection_record";
 
 /// Closed set of hardened artifact types.
-pub const ARTIFACT_TYPES: &[&str] = &[
-    "keymap",
-    "theme",
-    "settings",
-    "snippet",
-    "task",
-    "launch",
-];
+pub const ARTIFACT_TYPES: &[&str] = &["keymap", "theme", "settings", "snippet", "task", "launch"];
 
 /// Closed set of source editor ecosystems.
 pub const SOURCE_EDITOR_ECOSYSTEMS: &[&str] = &[
@@ -256,7 +247,10 @@ impl fmt::Display for ArtifactImportHardeningValidationError {
                 write!(f, "at least one consumer surface must be declared")
             }
             Self::MissingArtifactRecords => {
-                write!(f, "at least one artifact import hardening record is required")
+                write!(
+                    f,
+                    "at least one artifact import hardening record is required"
+                )
             }
             Self::InvalidStateTransition { from, to } => {
                 write!(f, "invalid state transition from {from} to {to}")

@@ -43,9 +43,9 @@
 use std::collections::BTreeSet;
 
 use aureline_settings::sync_device_registry_stable::{
-    is_canonical_object_ref, sync_device_registry_corpus, ConflictOutcomeClass, DeviceParticipationState,
-    LayoutMode, RouteSurface, SnapshotClass, StableClaimClass, StateClass, SurfaceClass,
-    SyncDeviceRegistryCertification, SYNC_DEVICE_REGISTRY_RECORD_KIND,
+    is_canonical_object_ref, sync_device_registry_corpus, ConflictOutcomeClass,
+    DeviceParticipationState, LayoutMode, RouteSurface, SnapshotClass, StableClaimClass,
+    StateClass, SurfaceClass, SyncDeviceRegistryCertification, SYNC_DEVICE_REGISTRY_RECORD_KIND,
     SYNC_DEVICE_REGISTRY_SHARED_CONTRACT_REF,
 };
 
@@ -125,7 +125,10 @@ fn device_participation_is_truthful_and_inspectable() {
             scenario.scenario_id
         );
         assert!(
-            record.device_participation.iter().any(|row| row.is_local_device),
+            record
+                .device_participation
+                .iter()
+                .any(|row| row.is_local_device),
             "{} must register the local device",
             scenario.scenario_id
         );
@@ -228,8 +231,7 @@ fn overwrites_are_protected_or_narrowed() {
                 assert!(
                     !row.widens_authority,
                     "{} conflict {} must not widen authority",
-                    scenario.scenario_id,
-                    row.setting_id
+                    scenario.scenario_id, row.setting_id
                 );
             }
             // A non-conforming row must carry a bounded waiver.
@@ -259,8 +261,11 @@ fn overwrites_are_protected_or_narrowed() {
 fn snapshots_carry_provenance_and_hold_the_secret_boundary() {
     for scenario in sync_device_registry_corpus() {
         let record = load_record(&scenario.fixture_filename);
-        let present: BTreeSet<SnapshotClass> =
-            record.snapshots.iter().map(|row| row.snapshot_class).collect();
+        let present: BTreeSet<SnapshotClass> = record
+            .snapshots
+            .iter()
+            .map(|row| row.snapshot_class)
+            .collect();
         for required in SnapshotClass::REQUIRED {
             assert!(
                 present.contains(&required),
@@ -283,7 +288,8 @@ fn snapshots_carry_provenance_and_hold_the_secret_boundary() {
                     .iter()
                     .any(|class| class.is_secret_or_volatile());
                 assert_eq!(
-                    leaks, row.carries_forbidden_state_class,
+                    leaks,
+                    row.carries_forbidden_state_class,
                     "{} snapshot {} forbidden-class flag must match its contents",
                     scenario.scenario_id,
                     row.snapshot_class.as_str()

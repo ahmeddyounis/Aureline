@@ -462,8 +462,7 @@ fn generate_fixtures() {
     for hook in &mut narrowed_hooks {
         if hook.hook_class == SchemaMigrationInspectionHookClass::CompareBeforeMigration {
             hook.available = false;
-            hook.disclosure =
-                "Compare-before-migration unavailable on this posture.".to_owned();
+            hook.disclosure = "Compare-before-migration unavailable on this posture.".to_owned();
         }
     }
     write_fixture(

@@ -46,13 +46,20 @@ fn bootstrap_truth_corpus_conformance() {
                 format!(
                     "{} ({} drill) at {}: {}",
                     drill.drill_id,
-                    if drill.positive { "positive" } else { "negative" },
+                    if drill.positive {
+                        "positive"
+                    } else {
+                        "negative"
+                    },
                     drill.fixture_path.display(),
                     reason
                 )
             })
             .collect();
-        panic!("bootstrap-truth corpus had failures: {}", failures.join("; "));
+        panic!(
+            "bootstrap-truth corpus had failures: {}",
+            failures.join("; ")
+        );
     }
 }
 
@@ -229,7 +236,11 @@ fn corpus_covers_checkout_shape_and_topology_axes() {
         .iter()
         .flat_map(|d| d.expected_honesty_labels.clone())
         .collect();
-    for required in ["submodule_init_pending", "lfs_pointer_only", "read_only_partial"] {
+    for required in [
+        "submodule_init_pending",
+        "lfs_pointer_only",
+        "read_only_partial",
+    ] {
         assert!(
             labels.iter().any(|l| l == required),
             "corpus is missing a drill carrying topology honesty label `{required}`. \

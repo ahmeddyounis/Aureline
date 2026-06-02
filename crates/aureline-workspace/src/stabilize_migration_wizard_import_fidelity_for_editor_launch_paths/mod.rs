@@ -54,16 +54,14 @@ pub const MIGRATION_WIZARD_IMPORT_FIDELITY_RECORD_KIND: &str =
     "workspace_migration_wizard_import_fidelity_record";
 
 /// Stable record-kind tag for [`EditorLaunchPathRecord`].
-pub const EDITOR_LAUNCH_PATH_RECORD_KIND: &str =
-    "workspace_editor_launch_path_record";
+pub const EDITOR_LAUNCH_PATH_RECORD_KIND: &str = "workspace_editor_launch_path_record";
 
 /// Stable record-kind tag for [`ImportMappingDiagnosticRecord`].
 pub const IMPORT_MAPPING_DIAGNOSTIC_RECORD_KIND: &str =
     "workspace_import_mapping_diagnostic_record";
 
 /// Stable record-kind tag for [`RollbackCheckpointRecord`].
-pub const ROLLBACK_CHECKPOINT_RECORD_KIND: &str =
-    "workspace_rollback_checkpoint_record";
+pub const ROLLBACK_CHECKPOINT_RECORD_KIND: &str = "workspace_rollback_checkpoint_record";
 
 /// Stable record-kind tag for [`MigrationWizardImportFidelityCommandRecord`].
 pub const MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_RECORD_KIND: &str =
@@ -107,13 +105,8 @@ pub const IMPORT_TARGET_FAMILIES: &[&str] = &[
 ];
 
 /// Closed set of import outcome labels.
-pub const IMPORT_OUTCOME_LABELS: &[&str] = &[
-    "exact",
-    "translated",
-    "partial",
-    "shimmed",
-    "unsupported",
-];
+pub const IMPORT_OUTCOME_LABELS: &[&str] =
+    &["exact", "translated", "partial", "shimmed", "unsupported"];
 
 /// Closed set of launch path states.
 pub const LAUNCH_PATH_STATES: &[&str] = &[
@@ -695,16 +688,20 @@ impl MigrationWizardImportFidelityPacket {
     /// Validates the packet invariants.
     pub fn validate(&self) -> Result<(), MigrationWizardImportFidelityValidationError> {
         if self.schema_version != MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION {
-            return Err(MigrationWizardImportFidelityValidationError::WrongSchemaVersion {
-                expected: MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
-                actual: self.schema_version,
-            });
+            return Err(
+                MigrationWizardImportFidelityValidationError::WrongSchemaVersion {
+                    expected: MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
+                    actual: self.schema_version,
+                },
+            );
         }
         if self.record_kind != MIGRATION_WIZARD_IMPORT_FIDELITY_PACKET_RECORD_KIND {
-            return Err(MigrationWizardImportFidelityValidationError::WrongRecordKind {
-                expected: MIGRATION_WIZARD_IMPORT_FIDELITY_PACKET_RECORD_KIND.to_string(),
-                actual: self.record_kind.clone(),
-            });
+            return Err(
+                MigrationWizardImportFidelityValidationError::WrongRecordKind {
+                    expected: MIGRATION_WIZARD_IMPORT_FIDELITY_PACKET_RECORD_KIND.to_string(),
+                    actual: self.record_kind.clone(),
+                },
+            );
         }
         if self.consumer_surfaces.is_empty() {
             return Err(MigrationWizardImportFidelityValidationError::MissingConsumerSurfaces);
@@ -772,11 +769,7 @@ pub fn project_migration_wizard_import_fidelity_packet(
         return Err(MigrationWizardImportFidelityError::InvalidField);
     }
 
-    let packet_id = format!(
-        "mfi-{}-{}",
-        input.source_editor,
-        uuid_placeholder()
-    );
+    let packet_id = format!("mfi-{}-{}", input.source_editor, uuid_placeholder());
     let generated_at = iso_now_placeholder();
 
     let checkpoint_id = format!("ckpt-{}-{}", input.source_editor, uuid_placeholder());

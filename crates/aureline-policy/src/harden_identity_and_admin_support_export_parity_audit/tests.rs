@@ -256,9 +256,10 @@ fn missing_row_class_narrows_to_preview() {
 #[test]
 fn empty_provisioning_class_narrows_to_beta() {
     let mut rows = seeded_rows();
-    if let Some(row) = rows.iter_mut().find(|r| {
-        r.row_class == IdentityAdminRowClass::DirectoryProviderCard
-    }) {
+    if let Some(row) = rows
+        .iter_mut()
+        .find(|r| r.row_class == IdentityAdminRowClass::DirectoryProviderCard)
+    {
         row.provisioning_class_token.clear();
     }
     let page = HardenIdentityAdminPage::new(
@@ -289,9 +290,10 @@ fn empty_provisioning_class_narrows_to_beta() {
 #[test]
 fn missing_local_governance_continuity_narrows_to_beta() {
     let mut rows = seeded_rows();
-    if let Some(row) = rows.iter_mut().find(|r| {
-        r.row_class == IdentityAdminRowClass::LocalGovernancePath
-    }) {
+    if let Some(row) = rows
+        .iter_mut()
+        .find(|r| r.row_class == IdentityAdminRowClass::LocalGovernancePath)
+    {
         row.local_core_continuity_explicit = false;
     }
     let page = HardenIdentityAdminPage::new(
@@ -309,8 +311,7 @@ fn missing_local_governance_continuity_narrows_to_beta() {
     );
     assert!(
         page.defects.iter().any(|d| {
-            d.narrow_reason
-                == HardenIdentityAdminNarrowReasonClass::LocalCoreContinuityNotExplicit
+            d.narrow_reason == HardenIdentityAdminNarrowReasonClass::LocalCoreContinuityNotExplicit
         }),
         "defects must include local_core_continuity_not_explicit"
     );
@@ -323,9 +324,10 @@ fn missing_local_governance_continuity_narrows_to_beta() {
 #[test]
 fn missing_directory_provider_fallback_narrows_to_beta() {
     let mut rows = seeded_rows();
-    if let Some(row) = rows.iter_mut().find(|r| {
-        r.row_class == IdentityAdminRowClass::DirectoryProviderCard
-    }) {
+    if let Some(row) = rows
+        .iter_mut()
+        .find(|r| r.row_class == IdentityAdminRowClass::DirectoryProviderCard)
+    {
         row.fallback_manual_path_label.clear();
     }
     let page = HardenIdentityAdminPage::new(
@@ -356,9 +358,10 @@ fn missing_directory_provider_fallback_narrows_to_beta() {
 #[test]
 fn generic_failure_kind_narrows_to_beta() {
     let mut rows = seeded_rows();
-    if let Some(row) = rows.iter_mut().find(|r| {
-        r.row_class == IdentityAdminRowClass::ProvisioningFailureLog
-    }) {
+    if let Some(row) = rows
+        .iter_mut()
+        .find(|r| r.row_class == IdentityAdminRowClass::ProvisioningFailureLog)
+    {
         row.failure_kind_token = "generic_error".to_owned();
         row.failure_kind = None;
     }

@@ -290,11 +290,9 @@ fn designated_policy_requires_signing_evidence() {
 #[test]
 fn unknown_instruction_must_fail_closed() {
     let mut packet = packet();
-    if let Some(row) = packet
-        .instruction_rows
-        .iter_mut()
-        .find(|row| row.source_class == RepoInstructionSourceClass::UnknownRepoInstructionFailClosed)
-    {
+    if let Some(row) = packet.instruction_rows.iter_mut().find(|row| {
+        row.source_class == RepoInstructionSourceClass::UnknownRepoInstructionFailClosed
+    }) {
         row.fenced_to_data_only = false;
         // Keep it from tripping the vetted-or-fenced rule first.
         row.policy_vetted = true;
@@ -576,7 +574,11 @@ fn emit_artifact() {
         format!("{}\n", packet.export_safe_json()),
     )
     .unwrap();
-    std::fs::write(format!("{dir}/summary.md"), packet.render_markdown_summary()).unwrap();
+    std::fs::write(
+        format!("{dir}/summary.md"),
+        packet.render_markdown_summary(),
+    )
+    .unwrap();
     let fixture_dir = format!("{root}/fixtures/ai/m4/harden_repo_ai_instructions");
     std::fs::create_dir_all(&fixture_dir).unwrap();
     std::fs::write(

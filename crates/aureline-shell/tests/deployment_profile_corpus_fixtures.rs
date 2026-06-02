@@ -15,11 +15,10 @@
 //! byte-for-byte.
 
 use aureline_shell::deployment_profile::corpus::{
-    render_deployment_profile_conformance_report_markdown,
-    render_residual_dependency_matrix_json, seeded_deployment_profile_corpus_packet,
-    validate_deployment_profile_corpus_packet, DeploymentProfileCorpusCase,
-    DeploymentProfileCorpusPacket, DeploymentProfileOutageDrill, OutageDrillClass,
-    SurfaceLensClass,
+    render_deployment_profile_conformance_report_markdown, render_residual_dependency_matrix_json,
+    seeded_deployment_profile_corpus_packet, validate_deployment_profile_corpus_packet,
+    DeploymentProfileCorpusCase, DeploymentProfileCorpusPacket, DeploymentProfileOutageDrill,
+    OutageDrillClass, SurfaceLensClass,
 };
 use aureline_shell::deployment_profile::{
     ConsumerSurfaceClass, DependencyClass, DeploymentProfileClass, DeploymentProfilePage,
@@ -63,13 +62,14 @@ fn fixture_packet_matches_seeded_builder() {
 fn every_case_fixture_round_trips_and_passes_audit() {
     let packet = seeded_deployment_profile_corpus_packet();
     for case in &packet.corpus_cases {
-        let body = read(&format!(
-            "{PROFILE_TRUTH_DIR}/cases/{}.json",
-            case.case_id
-        ));
+        let body = read(&format!("{PROFILE_TRUTH_DIR}/cases/{}.json", case.case_id));
         let on_disk: DeploymentProfileCorpusCase = serde_json::from_str(&body)
             .unwrap_or_else(|err| panic!("case {} did not parse: {err}", case.case_id));
-        assert_eq!(&on_disk, case, "case {} differs from seeded packet", case.case_id);
+        assert_eq!(
+            &on_disk, case,
+            "case {} differs from seeded packet",
+            case.case_id
+        );
         let defects = on_disk.page.audit();
         assert!(
             defects.is_empty(),
@@ -180,7 +180,8 @@ fn air_gapped_cases_never_route_through_companion_surface_or_omit_mirror_artifac
     for case in &packet.corpus_cases {
         if case.deployment_profile == DeploymentProfileClass::AirGapped {
             assert!(
-                !case.page
+                !case
+                    .page
                     .profile_summary
                     .consumer_surfaces
                     .contains(&ConsumerSurfaceClass::CompanionSurface),

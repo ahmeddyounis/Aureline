@@ -39,8 +39,7 @@ pub fn seeded_probe_readings() -> Vec<ServiceHealthProbeReading> {
             affected_workflows: vec![],
             last_checked: Some("2026-05-19T12:28".to_owned()),
             state_explanation:
-                "Language services are responding within their normal latency budget."
-                    .to_owned(),
+                "Language services are responding within their normal latency budget.".to_owned(),
             diagnostics_action: "shell.command:diagnostics.language_services".to_owned(),
             detail_tokens: vec!["framework_lsp".to_owned(), "local_indexer".to_owned()],
         },
@@ -215,8 +214,7 @@ mod tests {
         // it's one of those two.
         assert!(matches!(
             agg.overall_contract_state,
-            ServiceContractStateClass::ContractMismatch
-                | ServiceContractStateClass::Unavailable
+            ServiceContractStateClass::ContractMismatch | ServiceContractStateClass::Unavailable
         ));
     }
 }

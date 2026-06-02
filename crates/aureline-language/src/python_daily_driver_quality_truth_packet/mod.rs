@@ -1505,8 +1505,8 @@ mod tests {
         PythonDailyDriverQualityConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            python_daily_driver_quality_packet_id_ref:
-                "packet:m4:python_daily_driver_quality".to_owned(),
+            python_daily_driver_quality_packet_id_ref: "packet:m4:python_daily_driver_quality"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,
@@ -1565,7 +1565,10 @@ mod tests {
             DailyDriverRowClass::EnvironmentManagerRow.as_str(),
             "environment_manager_row"
         );
-        assert_eq!(DailyDriverRowClass::TestRunnerRow.as_str(), "test_runner_row");
+        assert_eq!(
+            DailyDriverRowClass::TestRunnerRow.as_str(),
+            "test_runner_row"
+        );
         assert_eq!(DailyDriverRowClass::DebuggerRow.as_str(), "debugger_row");
         assert_eq!(SupportClass::SupportUnbound.as_str(), "support_unbound");
         assert_eq!(DailyLoopStepClass::Recover.as_str(), "recover");
@@ -1581,7 +1584,10 @@ mod tests {
             EvidenceClass::TestRunnerEvidence.as_str(),
             "test_runner_evidence"
         );
-        assert_eq!(EvidenceClass::DebuggerEvidence.as_str(), "debugger_evidence");
+        assert_eq!(
+            EvidenceClass::DebuggerEvidence.as_str(),
+            "debugger_evidence"
+        );
         assert_eq!(EvidenceClass::EvidenceUnbound.as_str(), "evidence_unbound");
         assert_eq!(
             KnownLimitClass::InterpreterSubsetOnly.as_str(),
@@ -1717,9 +1723,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != ConsumerSurface::ConformanceDashboard);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != ConsumerSurface::ConformanceDashboard
+        });
         let packet = PythonDailyDriverQualityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet

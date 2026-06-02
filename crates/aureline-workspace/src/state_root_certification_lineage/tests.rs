@@ -171,7 +171,10 @@ fn clean_inputs_project_stable_record() {
         record.record_kind,
         STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND
     );
-    assert_eq!(record.schema_ref, STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF);
+    assert_eq!(
+        record.schema_ref,
+        STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF
+    );
     assert_eq!(record.claimed_profile, ClaimedStableProfile::StableDefault);
     assert!(
         record
@@ -186,15 +189,21 @@ fn clean_inputs_project_stable_record() {
     assert!(record.audit_honesty.all_rows_pin_storage_class_ref);
     assert!(record.audit_honesty.all_audit_disclosures_present);
     assert!(record.audit_honesty.all_redaction_disclosures_present);
-    assert!(record
-        .audit_honesty
-        .all_dirty_rows_have_cleanup_precondition);
+    assert!(
+        record
+            .audit_honesty
+            .all_dirty_rows_have_cleanup_precondition
+    );
     assert!(record.preservation.all_rows_preserve_restore_provenance);
     assert!(record.preservation.all_rows_preserve_encoding_fidelity);
     assert!(record.preservation.all_rows_preserve_trust_state);
     assert!(record.preservation.all_rows_preserve_lineage_refs);
     assert!(record.no_silent_rerun.all_rows_safe_rerun_posture);
-    assert!(record.no_silent_rerun.all_mutating_rows_have_commit_metadata);
+    assert!(
+        record
+            .no_silent_rerun
+            .all_mutating_rows_have_commit_metadata
+    );
     assert!(
         record
             .audit_transaction_pinning
@@ -217,12 +226,12 @@ fn missing_required_resource_class_narrows() {
     inputs
         .resource_audits
         .retain(|a| a.resource_class != StateRootResourceKind::CacheGovernanceRoot);
-    let record =
-        project_state_root_certification_lineage("posture.missing_resource", &inputs);
+    let record = project_state_root_certification_lineage("posture.missing_resource", &inputs);
     assert!(!record.is_stable_qualified());
-    assert!(record.stable_qualification.narrow_reasons.contains(
-        &StateRootCertificationLineageNarrowReason::RequiredResourceClassMissing
-    ));
+    assert!(record
+        .stable_qualification
+        .narrow_reasons
+        .contains(&StateRootCertificationLineageNarrowReason::RequiredResourceClassMissing));
 }
 
 #[test]
@@ -231,8 +240,7 @@ fn missing_required_audit_surface_narrows() {
     inputs
         .audit_surfaces
         .retain(|s| s.audit_surface_kind != AuditSurfaceKind::EvictionRuleAudit);
-    let record =
-        project_state_root_certification_lineage("posture.missing_surface", &inputs);
+    let record = project_state_root_certification_lineage("posture.missing_surface", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -246,8 +254,7 @@ fn missing_storage_class_ref_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.storage_class_ref.clear();
     }
-    let record =
-        project_state_root_certification_lineage("posture.no_storage_ref", &inputs);
+    let record = project_state_root_certification_lineage("posture.no_storage_ref", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -261,8 +268,7 @@ fn silent_rerun_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.rerun_posture = AuditRerunPosture::SilentRerunPermitted;
     }
-    let record =
-        project_state_root_certification_lineage("posture.silent_rerun", &inputs);
+    let record = project_state_root_certification_lineage("posture.silent_rerun", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -299,11 +305,9 @@ fn dirty_audit_without_disclosure_narrows() {
         a.audit_finding = AuditFindingClass::AuditDirtyWithDisclosure;
         a.audit_disclosure_ref = None;
         a.cleanup_surface_refs = vec!["cleanup:settings_panel".to_owned()];
-        a.inspection_hook_refs =
-            vec!["state_root_certification.compare_before_cleanup".to_owned()];
+        a.inspection_hook_refs = vec!["state_root_certification.compare_before_cleanup".to_owned()];
     }
-    let record =
-        project_state_root_certification_lineage("posture.dirty_no_disclosure", &inputs);
+    let record = project_state_root_certification_lineage("posture.dirty_no_disclosure", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -320,8 +324,7 @@ fn dirty_audit_without_cleanup_precondition_narrows() {
         a.cleanup_surface_refs.clear();
         a.inspection_hook_refs.clear();
     }
-    let record =
-        project_state_root_certification_lineage("posture.dirty_no_cleanup", &inputs);
+    let record = project_state_root_certification_lineage("posture.dirty_no_cleanup", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -336,8 +339,7 @@ fn redacted_without_disclosure_narrows() {
         a.redaction_class = AuditRedactionClass::RedactedWithDisclosure;
         a.redaction_disclosure_ref = None;
     }
-    let record =
-        project_state_root_certification_lineage("posture.red_no_disclosure", &inputs);
+    let record = project_state_root_certification_lineage("posture.red_no_disclosure", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -379,8 +381,7 @@ fn preservation_loss_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.preserves_restore_provenance = false;
     }
-    let record =
-        project_state_root_certification_lineage("posture.provenance_lost", &inputs);
+    let record = project_state_root_certification_lineage("posture.provenance_lost", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -408,8 +409,7 @@ fn lineage_refs_loss_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.preserves_lineage_refs = false;
     }
-    let record =
-        project_state_root_certification_lineage("posture.lineage_lost", &inputs);
+    let record = project_state_root_certification_lineage("posture.lineage_lost", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -423,8 +423,7 @@ fn audit_surface_unreachable_narrows() {
     if let Some(s) = inputs.audit_surfaces.first_mut() {
         s.reachable = false;
     }
-    let record =
-        project_state_root_certification_lineage("posture.surf_unreachable", &inputs);
+    let record = project_state_root_certification_lineage("posture.surf_unreachable", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -473,8 +472,7 @@ fn support_export_redaction_unsafe_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.support_export.raw_secrets_excluded = false;
     }
-    let record =
-        project_state_root_certification_lineage("posture.unsafe_export", &inputs);
+    let record = project_state_root_certification_lineage("posture.unsafe_export", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -488,8 +486,7 @@ fn support_export_field_dropped_narrows() {
     if let Some(a) = inputs.resource_audits.first_mut() {
         a.support_export.includes_finding_code = false;
     }
-    let record =
-        project_state_root_certification_lineage("posture.dropped_field", &inputs);
+    let record = project_state_root_certification_lineage("posture.dropped_field", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -501,8 +498,7 @@ fn support_export_field_dropped_narrows() {
 fn claimed_profile_not_stable_narrows() {
     let mut inputs = baseline_inputs();
     inputs.claimed_profile = ClaimedStableProfile::NarrowedBelowStable;
-    let record =
-        project_state_root_certification_lineage("posture.profile_narrowed", &inputs);
+    let record = project_state_root_certification_lineage("posture.profile_narrowed", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -526,8 +522,7 @@ fn producer_attribution_incomplete_narrows() {
 fn lineage_export_unsafe_narrows() {
     let mut inputs = baseline_inputs();
     inputs.workspace_ref.clear();
-    let record =
-        project_state_root_certification_lineage("posture.no_workspace", &inputs);
+    let record = project_state_root_certification_lineage("posture.no_workspace", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -560,7 +555,9 @@ fn lines_render_each_section() {
     assert!(lines.iter().any(|l| l.contains("Audit honesty")));
     assert!(lines.iter().any(|l| l.contains("Preservation")));
     assert!(lines.iter().any(|l| l.contains("No-silent-rerun")));
-    assert!(lines.iter().any(|l| l.contains("Audit-transaction pinning")));
+    assert!(lines
+        .iter()
+        .any(|l| l.contains("Audit-transaction pinning")));
     assert!(lines
         .iter()
         .any(|l| l.contains("Audit-surface reachability")));

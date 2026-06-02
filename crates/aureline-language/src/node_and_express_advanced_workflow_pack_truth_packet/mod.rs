@@ -910,8 +910,8 @@ impl NodeAndExpressAdvancedWorkflowPackTruthPacket {
         exported_at: impl Into<String>,
     ) -> NodeAndExpressAdvancedWorkflowPackTruthSupportExport {
         NodeAndExpressAdvancedWorkflowPackTruthSupportExport {
-            record_kind:
-                NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
+            record_kind: NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND
+                .to_owned(),
             schema_version: NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
             export_id: export_id.into(),
             node_and_express_advanced_workflow_pack_packet_id_ref: self.packet_id.clone(),
@@ -1316,7 +1316,8 @@ pub struct NodeAndExpressAdvancedWorkflowPackTruthSupportExport {
     /// True when ambient credentials/authority are excluded.
     pub ambient_authority_excluded: bool,
     /// Exact product packet preserved by the export.
-    pub node_and_express_advanced_workflow_pack_packet: NodeAndExpressAdvancedWorkflowPackTruthPacket,
+    pub node_and_express_advanced_workflow_pack_packet:
+        NodeAndExpressAdvancedWorkflowPackTruthPacket,
 }
 
 impl NodeAndExpressAdvancedWorkflowPackTruthSupportExport {
@@ -1325,7 +1326,9 @@ impl NodeAndExpressAdvancedWorkflowPackTruthSupportExport {
         self.record_kind == NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND
             && self.schema_version == NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION
             && self.node_and_express_advanced_workflow_pack_packet_id_ref
-                == self.node_and_express_advanced_workflow_pack_packet.packet_id
+                == self
+                    .node_and_express_advanced_workflow_pack_packet
+                    .packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
             && self
@@ -1422,11 +1425,7 @@ mod tests {
         }
     }
 
-    fn loop_row(
-        row_id: &str,
-        pack: WorkflowPackClass,
-        step: WorkflowLoopClass,
-    ) -> WorkflowPackRow {
+    fn loop_row(row_id: &str, pack: WorkflowPackClass, step: WorkflowLoopClass) -> WorkflowPackRow {
         WorkflowPackRow {
             row_id: row_id.to_owned(),
             pack_class: pack,
@@ -1491,8 +1490,8 @@ mod tests {
         );
         NodeAndExpressAdvancedWorkflowPackTruthPacketInput {
             packet_id: "packet:m4:node_and_express_advanced_workflow_pack".to_owned(),
-            workflow_or_surface_id:
-                "workflow.language.node_and_express_advanced_workflow_pack".to_owned(),
+            workflow_or_surface_id: "workflow.language.node_and_express_advanced_workflow_pack"
+                .to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_packs: WorkflowPackClass::REQUIRED.to_vec(),
             rows,
@@ -1564,8 +1563,7 @@ mod tests {
 
     #[test]
     fn baseline_materialization_is_stable() {
-        let packet =
-            NodeAndExpressAdvancedWorkflowPackTruthPacket::materialize(sample_input());
+        let packet = NodeAndExpressAdvancedWorkflowPackTruthPacket::materialize(sample_input());
         assert_eq!(
             packet.promotion_state,
             PromotionState::Stable,

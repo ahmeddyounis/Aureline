@@ -323,8 +323,7 @@ fn closed_vue_advanced_workflow_pack_tokens_are_pinned() {
         "limit_unbound"
     );
     assert_eq!(
-        VueAdvancedWorkflowPackDowngradeAutomationClass::AutoNarrowOnUnprovenProjectModel
-            .as_str(),
+        VueAdvancedWorkflowPackDowngradeAutomationClass::AutoNarrowOnUnprovenProjectModel.as_str(),
         "auto_narrow_on_unproven_project_model"
     );
     assert_eq!(

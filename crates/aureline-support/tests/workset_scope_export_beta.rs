@@ -202,16 +202,22 @@ impl ScopeDeclaredSupportExport {
             Some(declaration) => {
                 for truth in &declaration.truths {
                     if let Err(err) = truth.validate() {
-                        violations
-                            .push(ExportScopeViolation::ScopeDeclarationInvalid(err.to_string()));
+                        violations.push(ExportScopeViolation::ScopeDeclarationInvalid(
+                            err.to_string(),
+                        ));
                     }
                 }
                 // A support/audit export must declare both the export-writer and
                 // the support-packet surfaces it was produced under.
                 if declaration.truth_for(BetaConsumerSurface::Export).is_none() {
-                    violations.push(ExportScopeViolation::ScopeDeclarationMissingSurface("export"));
+                    violations.push(ExportScopeViolation::ScopeDeclarationMissingSurface(
+                        "export",
+                    ));
                 }
-                if declaration.truth_for(BetaConsumerSurface::SupportPacket).is_none() {
+                if declaration
+                    .truth_for(BetaConsumerSurface::SupportPacket)
+                    .is_none()
+                {
                     violations.push(ExportScopeViolation::ScopeDeclarationMissingSurface(
                         "support_packet",
                     ));
@@ -223,8 +229,9 @@ impl ScopeDeclaredSupportExport {
             match row.membership {
                 RowMembership::InScope => {
                     if !is_included_decision(row.decision_class) {
-                        violations
-                            .push(ExportScopeViolation::InScopeRowNotIncluded(row.row_id.clone()));
+                        violations.push(ExportScopeViolation::InScopeRowNotIncluded(
+                            row.row_id.clone(),
+                        ));
                     }
                 }
                 RowMembership::PolicyLimited => {
@@ -266,7 +273,10 @@ fn load_manifest() -> Manifest {
         std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
     let manifest: Manifest =
         serde_json::from_str(&payload).unwrap_or_else(|err| panic!("parse {path:?}: {err}"));
-    assert_eq!(manifest.record_kind, "support_workset_scope_export_beta_manifest");
+    assert_eq!(
+        manifest.record_kind,
+        "support_workset_scope_export_beta_manifest"
+    );
     assert_eq!(manifest.schema_version, 1);
     manifest
 }
@@ -281,7 +291,10 @@ fn load_case(name: &str) -> Case {
         case.record_kind, "support_workset_scope_export_beta_case",
         "unexpected record_kind in {name}"
     );
-    assert_eq!(case.schema_version, 1, "unexpected schema_version in {name}");
+    assert_eq!(
+        case.schema_version, 1,
+        "unexpected schema_version in {name}"
+    );
     case
 }
 
@@ -320,8 +333,11 @@ fn project_scope_declaration(case: &Case) -> WorksetScopeBetaSupportExport {
         parent_artifact: None,
     };
     let truths = vec![
-        case.artifact
-            .project_beta_truth(BetaConsumerSurface::Export, observation(), "mono:support:beta:export"),
+        case.artifact.project_beta_truth(
+            BetaConsumerSurface::Export,
+            observation(),
+            "mono:support:beta:export",
+        ),
         case.artifact.project_beta_truth(
             BetaConsumerSurface::SupportPacket,
             observation(),
@@ -351,8 +367,11 @@ fn export_truth(case: &Case) -> WorksetScopeBetaTruth {
         workspace_root_labels: &case.workspace.workspace_root_labels,
         parent_artifact: None,
     };
-    case.artifact
-        .project_beta_truth(BetaConsumerSurface::Export, observation, "mono:support:beta:export")
+    case.artifact.project_beta_truth(
+        BetaConsumerSurface::Export,
+        observation,
+        "mono:support:beta:export",
+    )
 }
 
 // --------------------------------------------------------------------------- //
@@ -415,9 +434,12 @@ fn every_export_declares_its_scope_and_labels_policy_limited_content() {
         // The export truth carries the export_artifact / support_archive scope
         // decisions for the active scope class.
         let truth = export_truth(case);
-        truth
-            .validate()
-            .unwrap_or_else(|err| panic!("export scope truth must validate in {}: {err}", case.case_id));
+        truth.validate().unwrap_or_else(|err| {
+            panic!(
+                "export scope truth must validate in {}: {err}",
+                case.case_id
+            )
+        });
         let export_admission = truth
             .admission_for(BroadActionClass::ExportArtifact)
             .expect("export_artifact admission must exist");
@@ -540,7 +562,11 @@ fn every_export_declares_its_scope_and_labels_policy_limited_content() {
         let payload = serde_json::to_string(&declaration).expect("declaration must serialize");
         let parsed: WorksetScopeBetaSupportExport =
             serde_json::from_str(&payload).expect("declaration must round-trip");
-        assert_eq!(parsed, declaration, "declaration round-trip mismatch in {}", case.case_id);
+        assert_eq!(
+            parsed, declaration,
+            "declaration round-trip mismatch in {}",
+            case.case_id
+        );
     }
 }
 
@@ -581,12 +607,15 @@ fn export_leaking_policy_limited_content_without_a_label_fails() {
     };
     let violations = export.validate();
     assert!(
-        violations.contains(&ExportScopeViolation::PolicyLimitedContentLeaked(leaked_id.clone())),
+        violations.contains(&ExportScopeViolation::PolicyLimitedContentLeaked(
+            leaked_id.clone()
+        )),
         "leaking policy-limited content without a label must fail; got {violations:?}"
     );
     assert!(
-        violations
-            .contains(&ExportScopeViolation::PolicyLimitedRowMissingPolicyLabel(leaked_id)),
+        violations.contains(&ExportScopeViolation::PolicyLimitedRowMissingPolicyLabel(
+            leaked_id
+        )),
         "the leaked policy-limited row must also be flagged as unlabeled; got {violations:?}"
     );
 }

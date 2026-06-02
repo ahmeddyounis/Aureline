@@ -1401,15 +1401,14 @@ impl Error for DjangoAdvancedWorkflowPackTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_django_advanced_workflow_pack_truth_packet() -> Result<
-    DjangoAdvancedWorkflowPackTruthPacket,
-    DjangoAdvancedWorkflowPackTruthArtifactError,
-> {
-    let packet: DjangoAdvancedWorkflowPackTruthPacket = serde_json::from_str(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../artifacts/language/m4/django_advanced_workflow_pack_truth_packet.json"
-    )))
-    .map_err(DjangoAdvancedWorkflowPackTruthArtifactError::Packet)?;
+pub fn current_stable_django_advanced_workflow_pack_truth_packet(
+) -> Result<DjangoAdvancedWorkflowPackTruthPacket, DjangoAdvancedWorkflowPackTruthArtifactError> {
+    let packet: DjangoAdvancedWorkflowPackTruthPacket =
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../artifacts/language/m4/django_advanced_workflow_pack_truth_packet.json"
+        )))
+        .map_err(DjangoAdvancedWorkflowPackTruthArtifactError::Packet)?;
     let findings = packet.validate();
     if findings.is_empty() {
         Ok(packet)
@@ -1451,11 +1450,7 @@ mod tests {
         }
     }
 
-    fn loop_row(
-        row_id: &str,
-        pack: WorkflowPackClass,
-        step: WorkflowLoopClass,
-    ) -> WorkflowPackRow {
+    fn loop_row(row_id: &str, pack: WorkflowPackClass, step: WorkflowLoopClass) -> WorkflowPackRow {
         WorkflowPackRow {
             row_id: row_id.to_owned(),
             pack_class: pack,
@@ -1482,8 +1477,8 @@ mod tests {
         DjangoAdvancedWorkflowPackConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            django_advanced_workflow_pack_packet_id_ref:
-                "packet:m4:django_advanced_workflow_pack".to_owned(),
+            django_advanced_workflow_pack_packet_id_ref: "packet:m4:django_advanced_workflow_pack"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_pack_vocabulary: true,

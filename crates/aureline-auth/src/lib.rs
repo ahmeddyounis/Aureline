@@ -119,6 +119,7 @@ pub mod approval_tickets;
 pub mod browser_callback;
 pub mod credential_state;
 pub mod enterprise_drill_baseline;
+pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod identity_modes;
 pub mod keychain_state;
 pub mod network_trust;
@@ -130,7 +131,6 @@ pub mod provisioning;
 pub mod region_and_tenant;
 pub mod secret_broker;
 pub mod secrets;
-pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod stabilize_system_browser_auth_passkey_capable_step_up;
 pub mod system_browser;
 pub mod trust;
@@ -407,14 +407,13 @@ pub use workspace_trust::{
 
 pub use stabilize_system_browser_auth_passkey_capable_step_up::{
     audit_stabilize_pages as audit_system_browser_auth_stabilize_pages,
-    seeded_system_browser_auth_stabilize_page,
-    validate_system_browser_auth_stabilize_page, SystemBrowserAuthStabilizeDefect,
-    SystemBrowserAuthStabilizeNarrowReasonClass, SystemBrowserAuthStabilizePage,
-    SystemBrowserAuthStabilizeQualificationClass, SystemBrowserAuthStabilizeRow,
-    SystemBrowserAuthStabilizeSummary, SystemBrowserAuthStabilizeSupportExport,
-    SYSTEM_BROWSER_AUTH_STABILIZE_ARTIFACT_REF, SYSTEM_BROWSER_AUTH_STABILIZE_DEFECT_RECORD_KIND,
-    SYSTEM_BROWSER_AUTH_STABILIZE_DOC_REF, SYSTEM_BROWSER_AUTH_STABILIZE_PAGE_RECORD_KIND,
-    SYSTEM_BROWSER_AUTH_STABILIZE_ROW_RECORD_KIND,
+    seeded_system_browser_auth_stabilize_page, validate_system_browser_auth_stabilize_page,
+    SystemBrowserAuthStabilizeDefect, SystemBrowserAuthStabilizeNarrowReasonClass,
+    SystemBrowserAuthStabilizePage, SystemBrowserAuthStabilizeQualificationClass,
+    SystemBrowserAuthStabilizeRow, SystemBrowserAuthStabilizeSummary,
+    SystemBrowserAuthStabilizeSupportExport, SYSTEM_BROWSER_AUTH_STABILIZE_ARTIFACT_REF,
+    SYSTEM_BROWSER_AUTH_STABILIZE_DEFECT_RECORD_KIND, SYSTEM_BROWSER_AUTH_STABILIZE_DOC_REF,
+    SYSTEM_BROWSER_AUTH_STABILIZE_PAGE_RECORD_KIND, SYSTEM_BROWSER_AUTH_STABILIZE_ROW_RECORD_KIND,
     SYSTEM_BROWSER_AUTH_STABILIZE_SCHEMA_VERSION,
     SYSTEM_BROWSER_AUTH_STABILIZE_SHARED_CONTRACT_REF,
     SYSTEM_BROWSER_AUTH_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
@@ -425,12 +424,11 @@ pub use finalize_no_account_local_use_proof_deprovision_preserves::{
     validate_deprovision_preserves_beta_page, DeprovisionPreservesBetaDefect,
     DeprovisionPreservesBetaPage, DeprovisionPreservesBetaProfileClass,
     DeprovisionPreservesBetaSummary, DeprovisionPreservesBetaSupportExport,
-    DeprovisionPreservesRow, DeprovisionProofNarrowReasonClass,
-    DeprovisionProofQualificationClass, LocalWorkPreservationClass, LocalWorkSurvivalBlock,
-    ManagedExitEventClass, OrgAffordanceClass, OrgScopedAffordanceBlock,
-    DEPROVISION_PRESERVES_ARTIFACT_REF, DEPROVISION_PRESERVES_BETA_DEFECT_RECORD_KIND,
-    DEPROVISION_PRESERVES_BETA_PAGE_RECORD_KIND, DEPROVISION_PRESERVES_BETA_ROW_RECORD_KIND,
-    DEPROVISION_PRESERVES_BETA_SUMMARY_RECORD_KIND,
+    DeprovisionPreservesRow, DeprovisionProofNarrowReasonClass, DeprovisionProofQualificationClass,
+    LocalWorkPreservationClass, LocalWorkSurvivalBlock, ManagedExitEventClass, OrgAffordanceClass,
+    OrgScopedAffordanceBlock, DEPROVISION_PRESERVES_ARTIFACT_REF,
+    DEPROVISION_PRESERVES_BETA_DEFECT_RECORD_KIND, DEPROVISION_PRESERVES_BETA_PAGE_RECORD_KIND,
+    DEPROVISION_PRESERVES_BETA_ROW_RECORD_KIND, DEPROVISION_PRESERVES_BETA_SUMMARY_RECORD_KIND,
     DEPROVISION_PRESERVES_BETA_SUPPORT_EXPORT_RECORD_KIND, DEPROVISION_PRESERVES_DOC_REF,
     DEPROVISION_PRESERVES_SCHEMA_VERSION, DEPROVISION_PRESERVES_SHARED_CONTRACT_REF,
 };

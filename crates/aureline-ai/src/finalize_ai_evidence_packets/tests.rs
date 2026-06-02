@@ -78,7 +78,10 @@ fn context_inputs() -> ContextInputsBlock {
 
 fn tool_policy() -> ToolPolicyBlock {
     ToolPolicyBlock {
-        tool_call_lineage_refs: vec!["tool-call:edit:0001".to_owned(), "tool-call:test:0002".to_owned()],
+        tool_call_lineage_refs: vec![
+            "tool-call:edit:0001".to_owned(),
+            "tool-call:test:0002".to_owned(),
+        ],
         policy_epoch_ref: "policy-epoch:stable:0004".to_owned(),
         approval_timeline_ref: "approval-timeline:apply:stable:0001".to_owned(),
         decisions: vec![
@@ -377,7 +380,9 @@ fn redaction_with_impact_must_carry_reproducibility_note() {
     let degraded = packet
         .redaction_manifest
         .iter_mut()
-        .find(|row| row.reproducibility_impact == ReproducibilityImpactClass::DegradedReproducibility)
+        .find(|row| {
+            row.reproducibility_impact == ReproducibilityImpactClass::DegradedReproducibility
+        })
         .expect("degraded redaction row");
     degraded.reproducibility_note_label = String::new();
 
@@ -416,7 +421,10 @@ fn retained_inventory_must_cover_every_artifact_class() {
 #[test]
 fn semantic_recall_must_exclude_raw_vectors_and_chunks() {
     let mut packet = packet();
-    packet.context_inputs.retrieval_provenance.raw_chunks_excluded = false;
+    packet
+        .context_inputs
+        .retrieval_provenance
+        .raw_chunks_excluded = false;
 
     assert!(packet
         .validate()
@@ -443,7 +451,9 @@ fn incomplete_replay_must_require_fresh_approval() {
     packet.replay_lineage.replay_posture = ReplayPostureClass::IncompleteDegradedReplay;
     packet.replay_lineage.incompleteness_reason_label =
         Some("Connector output was not retained.".to_owned());
-    packet.replay_lineage.requires_fresh_approval_for_new_tool_calls = false;
+    packet
+        .replay_lineage
+        .requires_fresh_approval_for_new_tool_calls = false;
 
     assert!(packet
         .validate()
@@ -547,7 +557,11 @@ fn emit_artifact() {
         format!("{}\n", packet.export_safe_json()),
     )
     .unwrap();
-    std::fs::write(format!("{dir}/summary.md"), packet.render_markdown_summary()).unwrap();
+    std::fs::write(
+        format!("{dir}/summary.md"),
+        packet.render_markdown_summary(),
+    )
+    .unwrap();
     let fixture_dir = format!("{root}/fixtures/ai/m4/finalize_ai_evidence_packets");
     std::fs::create_dir_all(&fixture_dir).unwrap();
     std::fs::write(

@@ -44,7 +44,9 @@ use aureline_shell::interaction_integrity_stable::{
     InteractionParityRecord, InteractionRecoveryAction, InteractionSurfaceClass,
     InteractionTruthSurface, PlatformProfileClass,
 };
-use aureline_shell::notification_attention_stable::{AttentionRouteSurface, LayoutMode, StableClaimClass};
+use aureline_shell::notification_attention_stable::{
+    AttentionRouteSurface, LayoutMode, StableClaimClass,
+};
 
 const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -514,10 +516,18 @@ fn claim_ceiling_never_overclaims() {
         let ceiling = record.claim_ceiling;
         let pillars = record.pillars;
         if ceiling.asserts_coordination_states_distinct {
-            assert!(pillars.coordination_states_distinct, "{}", scenario.scenario_id);
+            assert!(
+                pillars.coordination_states_distinct,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_identity_survives_async_updates {
-            assert!(pillars.identity_survives_async_updates, "{}", scenario.scenario_id);
+            assert!(
+                pillars.identity_survives_async_updates,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_focus_return_complete {
             assert!(pillars.focus_return_complete, "{}", scenario.scenario_id);
@@ -529,10 +539,18 @@ fn claim_ceiling_never_overclaims() {
             assert!(pillars.async_never_steals_focus, "{}", scenario.scenario_id);
         }
         if ceiling.asserts_accessibility_cues_complete {
-            assert!(pillars.accessibility_cues_complete, "{}", scenario.scenario_id);
+            assert!(
+                pillars.accessibility_cues_complete,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_platform_conformance_complete {
-            assert!(pillars.platform_conformance_complete, "{}", scenario.scenario_id);
+            assert!(
+                pillars.platform_conformance_complete,
+                "{}",
+                scenario.scenario_id
+            );
         }
     }
 }

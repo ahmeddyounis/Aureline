@@ -7,7 +7,12 @@ fn page() -> ProviderRegistryPage {
 #[test]
 fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
     let page = page();
-    assert_eq!(page.defects.len(), 0, "seeded page must be clean: {:?}", page.defects);
+    assert_eq!(
+        page.defects.len(),
+        0,
+        "seeded page must be clean: {:?}",
+        page.defects
+    );
     assert!(validate_provider_registry_page(&page).is_ok());
     assert!(page.qualifies_stable());
     assert!(page.no_withdrawn_rows());
@@ -20,7 +25,10 @@ fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
 #[test]
 fn seeded_page_passes_all_six_stability_conditions() {
     let page = page();
-    assert!(page.covers_all_required_pairs(), "all nine (family, actor) pairs must be covered");
+    assert!(
+        page.covers_all_required_pairs(),
+        "all nine (family, actor) pairs must be covered"
+    );
     assert!(
         page.all_descriptors_declare_local_core_continuity(),
         "all descriptors must declare local-core continuity"
@@ -100,8 +108,7 @@ fn seeded_page_all_rows_have_local_core_continuity_declared() {
         assert!(
             row.local_core_continuity_declared,
             "row '{}:{}' must declare local-core continuity",
-            row.provider_family_token,
-            row.actor_identity_token
+            row.provider_family_token, row.actor_identity_token
         );
     }
     assert_eq!(
@@ -117,14 +124,10 @@ fn seeded_page_all_rows_have_object_support_declared() {
         assert!(
             row.object_support_declared,
             "row '{}:{}' must declare object support",
-            row.provider_family_token,
-            row.actor_identity_token
+            row.provider_family_token, row.actor_identity_token
         );
     }
-    assert_eq!(
-        page.summary.object_support_declared_count,
-        page.rows.len()
-    );
+    assert_eq!(page.summary.object_support_declared_count, page.rows.len());
 }
 
 #[test]
@@ -242,14 +245,10 @@ fn qualification_class_checks() {
 
 #[test]
 fn narrow_reason_sentinel_checks() {
-    assert!(
-        ProviderRegistryNarrowReasonClass::RawPrivateMaterialExposed.is_withdrawal_reason()
-    );
+    assert!(ProviderRegistryNarrowReasonClass::RawPrivateMaterialExposed.is_withdrawal_reason());
     assert!(!ProviderRegistryNarrowReasonClass::RequiredRowMissing.is_withdrawal_reason());
     assert!(ProviderRegistryNarrowReasonClass::RequiredRowMissing.is_preview_reason());
-    assert!(
-        !ProviderRegistryNarrowReasonClass::LocalCoreContinuityUndeclared.is_preview_reason()
-    );
+    assert!(!ProviderRegistryNarrowReasonClass::LocalCoreContinuityUndeclared.is_preview_reason());
     assert!(!ProviderRegistryNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
 }
 
@@ -263,17 +262,35 @@ fn provider_family_tokens_are_stable() {
 #[test]
 fn actor_identity_tokens_are_stable() {
     assert_eq!(ActorIdentityClass::HumanAccount.as_str(), "human_account");
-    assert_eq!(ActorIdentityClass::InstallationGrant.as_str(), "installation_grant");
-    assert_eq!(ActorIdentityClass::DelegatedCredential.as_str(), "delegated_credential");
-    assert_eq!(ActorIdentityClass::LocalOnlyNoAccount.as_str(), "local_only_no_account");
+    assert_eq!(
+        ActorIdentityClass::InstallationGrant.as_str(),
+        "installation_grant"
+    );
+    assert_eq!(
+        ActorIdentityClass::DelegatedCredential.as_str(),
+        "delegated_credential"
+    );
+    assert_eq!(
+        ActorIdentityClass::LocalOnlyNoAccount.as_str(),
+        "local_only_no_account"
+    );
 }
 
 #[test]
 fn callback_path_tokens_are_stable() {
     assert_eq!(CallbackPathClass::PublicSaas.as_str(), "public_saas");
-    assert_eq!(CallbackPathClass::MirroredIngress.as_str(), "mirrored_ingress");
-    assert_eq!(CallbackPathClass::CustomerControlled.as_str(), "customer_controlled");
-    assert_eq!(CallbackPathClass::PollingOrImportOnly.as_str(), "polling_or_import_only");
+    assert_eq!(
+        CallbackPathClass::MirroredIngress.as_str(),
+        "mirrored_ingress"
+    );
+    assert_eq!(
+        CallbackPathClass::CustomerControlled.as_str(),
+        "customer_controlled"
+    );
+    assert_eq!(
+        CallbackPathClass::PollingOrImportOnly.as_str(),
+        "polling_or_import_only"
+    );
 }
 
 #[test]
@@ -320,8 +337,7 @@ fn seeded_snapshot_has_no_raw_private_material() {
         assert!(
             record.raw_private_material_excluded,
             "descriptor '{}:{}' must exclude raw private material",
-            record.provider_family_token,
-            record.actor_identity_token
+            record.provider_family_token, record.actor_identity_token
         );
     }
 }

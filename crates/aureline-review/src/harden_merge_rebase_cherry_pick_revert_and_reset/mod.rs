@@ -751,8 +751,14 @@ impl DiffFirstRewriteFlowPacket {
         ensure_nonempty(&self.packet_id, "packet_id")?;
         ensure_nonempty(&self.generated_at, "generated_at")?;
 
-        validate_rewrite_flow_record(&self.rewrite_flow, &self.review_workspace.review_workspace_id)?;
-        validate_diff_first_review_record(&self.diff_first_review, &self.rewrite_flow.rewrite_flow_id)?;
+        validate_rewrite_flow_record(
+            &self.rewrite_flow,
+            &self.review_workspace.review_workspace_id,
+        )?;
+        validate_diff_first_review_record(
+            &self.diff_first_review,
+            &self.rewrite_flow.rewrite_flow_id,
+        )?;
         if let Some(proposal) = &self.sequence_edit_proposal {
             validate_sequence_edit_proposal_record(proposal, &self.rewrite_flow.rewrite_flow_id)?;
         }
@@ -826,8 +832,14 @@ impl DiffFirstRewriteFlowPacket {
             && contains_token(PROTECTED_BRANCH_POSTURES, &flow.protected_branch_posture)
             && contains_token(DIVERGENCE_CLASSES, &flow.divergence_class)
             && contains_token(REWRITE_FLOW_APPROVAL_STATES, &flow.approval_state)
-            && contains_token(REWRITE_FLOW_CHECKS_FRESHNESS_STATES, &flow.checks_freshness_state)
-            && contains_token(DIFF_FIRST_REVIEW_STATES, &self.diff_first_review.diff_review_state)
+            && contains_token(
+                REWRITE_FLOW_CHECKS_FRESHNESS_STATES,
+                &flow.checks_freshness_state,
+            )
+            && contains_token(
+                DIFF_FIRST_REVIEW_STATES,
+                &self.diff_first_review.diff_review_state,
+            )
             && contains_token(
                 CHECKPOINT_SUMMARY_STATES,
                 &self.recovery_checkpoint_summary.checkpoint_state,
@@ -1030,14 +1042,21 @@ fn rewrite_flow_record(
         && input.diff_review.diff_review_state == "approved_with_checkpoints"
         && !matches!(
             input.flow_state.as_str(),
-            "executing" | "paused_conflict" | "completed" | "aborted_rolled_back" | "failed_no_changes_made"
+            "executing"
+                | "paused_conflict"
+                | "completed"
+                | "aborted_rolled_back"
+                | "failed_no_changes_made"
         );
 
     RewriteFlowRecord {
         record_kind: REWRITE_FLOW_RECORD_KIND.to_string(),
         schema_version: DIFF_FIRST_REWRITE_FLOW_SCHEMA_VERSION,
         rewrite_flow_id: input.rewrite_flow_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         operation_kind: input.operation_kind.clone(),
         flow_state: input.flow_state.clone(),
         source_ref: input.source_ref.clone(),
@@ -1170,7 +1189,10 @@ fn rewrite_flow_support_export_packet(
         schema_version: DIFF_FIRST_REWRITE_FLOW_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         rewrite_flow_id_ref: flow.rewrite_flow_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
@@ -1219,8 +1241,7 @@ fn rewrite_flow_inspection_record(
     let protected_branch_blocked = flow.protected_branch_posture == "protected_branch_blocked";
     let policy_blocks_apply = flow.protected_branch_posture == "policy_lock_active";
     let approval_invalidated = flow.approval_state == "approval_invalidated_by_changes";
-    let checks_stale_blocks_apply =
-        flow.checks_freshness_state == "checks_stale_blocks_apply";
+    let checks_stale_blocks_apply = flow.checks_freshness_state == "checks_stale_blocks_apply";
     let actionable = flow.actionable;
     let restartable = !flow.restart_session_ref.trim().is_empty()
         && support_export_can_reopen(support_export, commands);
@@ -1362,15 +1383,27 @@ fn validate_input(
         "environment_capsule_digest_ref",
     )?;
     ensure_nonempty(&input.restart_session_ref, "restart_session_ref")?;
-    ensure_token(REWRITE_FLOW_OPERATION_KINDS, &input.operation_kind, "operation_kind")?;
+    ensure_token(
+        REWRITE_FLOW_OPERATION_KINDS,
+        &input.operation_kind,
+        "operation_kind",
+    )?;
     ensure_token(REWRITE_FLOW_STATES, &input.flow_state, "flow_state")?;
     ensure_token(
         PROTECTED_BRANCH_POSTURES,
         &input.protected_branch_posture,
         "protected_branch_posture",
     )?;
-    ensure_token(DIVERGENCE_CLASSES, &input.divergence_class, "divergence_class")?;
-    ensure_token(REWRITE_FLOW_APPROVAL_STATES, &input.approval_state, "approval_state")?;
+    ensure_token(
+        DIVERGENCE_CLASSES,
+        &input.divergence_class,
+        "divergence_class",
+    )?;
+    ensure_token(
+        REWRITE_FLOW_APPROVAL_STATES,
+        &input.approval_state,
+        "approval_state",
+    )?;
     ensure_token(
         REWRITE_FLOW_CHECKS_FRESHNESS_STATES,
         &input.checks_freshness_state,
@@ -1387,7 +1420,11 @@ fn validate_input(
         "recovery_checkpoint_summary.checkpoint_state",
     )?;
     for reason in &input.invalidation_reasons {
-        ensure_token(REWRITE_FLOW_INVALIDATION_REASONS, reason, "invalidation_reason")?;
+        ensure_token(
+            REWRITE_FLOW_INVALIDATION_REASONS,
+            reason,
+            "invalidation_reason",
+        )?;
     }
     for command in &input.commands {
         ensure_nonempty(&command.command_id, "command.command_id")?;
@@ -1398,7 +1435,11 @@ fn validate_input(
         )?;
     }
     for surface in &input.support_export.consumer_surfaces {
-        ensure_token(REWRITE_FLOW_CONSUMER_SURFACES, surface, "support_export.consumer_surfaces")?;
+        ensure_token(
+            REWRITE_FLOW_CONSUMER_SURFACES,
+            surface,
+            "support_export.consumer_surfaces",
+        )?;
     }
 
     // Sequence-edit proposal required for interactive_rebase and cherry_pick
@@ -1430,7 +1471,11 @@ fn validate_rewrite_flow_record(
     record: &RewriteFlowRecord,
     expected_workspace_id: &str,
 ) -> Result<(), RewriteFlowValidationError> {
-    ensure_eq(record.record_kind.as_str(), REWRITE_FLOW_RECORD_KIND, "record_kind")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        REWRITE_FLOW_RECORD_KIND,
+        "record_kind",
+    )?;
     ensure_eq(
         record.schema_version,
         DIFF_FIRST_REWRITE_FLOW_SCHEMA_VERSION,
@@ -1453,8 +1498,16 @@ fn validate_rewrite_flow_record(
         &record.protected_branch_posture,
         "protected_branch_posture",
     )?;
-    ensure_token(DIVERGENCE_CLASSES, &record.divergence_class, "divergence_class")?;
-    ensure_token(REWRITE_FLOW_APPROVAL_STATES, &record.approval_state, "approval_state")?;
+    ensure_token(
+        DIVERGENCE_CLASSES,
+        &record.divergence_class,
+        "divergence_class",
+    )?;
+    ensure_token(
+        REWRITE_FLOW_APPROVAL_STATES,
+        &record.approval_state,
+        "approval_state",
+    )?;
     ensure_token(
         REWRITE_FLOW_CHECKS_FRESHNESS_STATES,
         &record.checks_freshness_state,
@@ -1462,7 +1515,11 @@ fn validate_rewrite_flow_record(
     )?;
     ensure_nonempty(&record.restart_session_ref, "restart_session_ref")?;
     for reason in &record.invalidation_reasons {
-        ensure_token(REWRITE_FLOW_INVALIDATION_REASONS, reason, "invalidation_reason")?;
+        ensure_token(
+            REWRITE_FLOW_INVALIDATION_REASONS,
+            reason,
+            "invalidation_reason",
+        )?;
     }
     Ok(())
 }
@@ -1492,7 +1549,8 @@ fn validate_diff_first_review_record(
         "diff_review_state",
     )?;
     ensure_nonempty(&record.diff_preview_ref, "diff_preview_ref")?;
-    if record.diff_review_state == "requires_manual_review" && record.manual_review_reason.is_none() {
+    if record.diff_review_state == "requires_manual_review" && record.manual_review_reason.is_none()
+    {
         return Err(rewrite_flow_validation_error(
             "diff_review_state requires_manual_review must include manual_review_reason",
         ));
@@ -1525,7 +1583,11 @@ fn validate_sequence_edit_proposal_record(
             "sequence_edit_proposal must have at least one ordered_operation",
         ));
     }
-    let mut ordinals: Vec<u32> = record.ordered_operations.iter().map(|op| op.ordinal).collect();
+    let mut ordinals: Vec<u32> = record
+        .ordered_operations
+        .iter()
+        .map(|op| op.ordinal)
+        .collect();
     ordinals.sort();
     for window in ordinals.windows(2) {
         if window[0] == window[1] {
@@ -1602,7 +1664,11 @@ fn validate_rewrite_flow_command_record(
         "rewrite_flow_id_ref",
     )?;
     ensure_nonempty(&record.command_id, "command_id")?;
-    ensure_token(REWRITE_FLOW_COMMAND_CLASSES, &record.command_class, "command_class")?;
+    ensure_token(
+        REWRITE_FLOW_COMMAND_CLASSES,
+        &record.command_class,
+        "command_class",
+    )?;
     Ok(())
 }
 
@@ -1722,12 +1788,16 @@ fn validate_inspection(
         packet.review_workspace.review_workspace_id.as_str(),
         "review_workspace_id_ref",
     )?;
-    if inspection.diff_approved != (packet.diff_first_review.diff_review_state == "approved_with_checkpoints") {
+    if inspection.diff_approved
+        != (packet.diff_first_review.diff_review_state == "approved_with_checkpoints")
+    {
         return Err(rewrite_flow_validation_error(
             "inspection.diff_approved must match diff_review_state",
         ));
     }
-    if inspection.checkpoint_ready != (packet.recovery_checkpoint_summary.checkpoint_state == "captured_ready") {
+    if inspection.checkpoint_ready
+        != (packet.recovery_checkpoint_summary.checkpoint_state == "captured_ready")
+    {
         return Err(rewrite_flow_validation_error(
             "inspection.checkpoint_ready must match checkpoint_state",
         ));

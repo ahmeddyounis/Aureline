@@ -286,7 +286,10 @@ impl DocsBrowserSymbolLinkClass {
 
     /// True when the row must carry at least one symbol ref.
     pub const fn requires_symbol_ref(self) -> bool {
-        matches!(self, Self::SymbolAnchorAvailable | Self::SymbolAnchorPartial)
+        matches!(
+            self,
+            Self::SymbolAnchorAvailable | Self::SymbolAnchorPartial
+        )
     }
 
     /// True when the row must carry a disclosure note.
@@ -488,9 +491,7 @@ impl DocsBrowserFindingKind {
             Self::FreshnessVocabularyDropped => "freshness_vocabulary_dropped",
             Self::SymbolFlowIdentityDropped => "symbol_flow_identity_dropped",
             Self::RawBoundaryMaterialPresent => "raw_boundary_material_present",
-            Self::RequiredSourceClassCoverageMissing => {
-                "required_source_class_coverage_missing"
-            }
+            Self::RequiredSourceClassCoverageMissing => "required_source_class_coverage_missing",
             Self::DerivedExplanationNotDowngraded => "derived_explanation_not_downgraded",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
         }
@@ -876,7 +877,9 @@ impl DocsBrowserTruthPacket {
         for source in &self.sources {
             set.insert(source.source_class);
         }
-        set.into_iter().map(DocsBrowserSourceClass::as_str).collect()
+        set.into_iter()
+            .map(DocsBrowserSourceClass::as_str)
+            .collect()
     }
 
     /// Returns the unique version-match-state tokens carried across result
@@ -939,10 +942,7 @@ impl DocsBrowserTruthPacket {
         self.results.iter().map(|r| r.result_id.as_str()).collect()
     }
 
-    fn derived_findings(
-        &self,
-        include_record_fields: bool,
-    ) -> Vec<DocsBrowserValidationFinding> {
+    fn derived_findings(&self, include_record_fields: bool) -> Vec<DocsBrowserValidationFinding> {
         let mut findings = Vec::new();
 
         if include_record_fields && self.record_kind != DOCS_BROWSER_TRUTH_PACKET_RECORD_KIND {
@@ -952,8 +952,7 @@ impl DocsBrowserTruthPacket {
                 "docs-browser truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields
-            && self.schema_version != DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION
+        if include_record_fields && self.schema_version != DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION
         {
             findings.push(DocsBrowserValidationFinding::new(
                 DocsBrowserFindingKind::WrongSchemaVersion,
@@ -1110,10 +1109,7 @@ impl DocsBrowserTruthPacket {
                 findings.push(DocsBrowserValidationFinding::new(
                     DocsBrowserFindingKind::RawBoundaryMaterialPresent,
                     DocsBrowserFindingSeverity::Blocker,
-                    format!(
-                        "result {} admits raw boundary material",
-                        result.result_id
-                    ),
+                    format!("result {} admits raw boundary material", result.result_id),
                 ));
             }
 
@@ -1177,8 +1173,11 @@ impl DocsBrowserTruthPacket {
         }
 
         // Required source-class coverage on stable claims.
-        let observed_source_classes: BTreeSet<DocsBrowserSourceClass> =
-            self.sources.iter().map(|source| source.source_class).collect();
+        let observed_source_classes: BTreeSet<DocsBrowserSourceClass> = self
+            .sources
+            .iter()
+            .map(|source| source.source_class)
+            .collect();
         for required in DocsBrowserSourceClass::REQUIRED {
             if !observed_source_classes.contains(&required) {
                 findings.push(DocsBrowserValidationFinding::new(
@@ -1340,10 +1339,9 @@ pub enum DocsBrowserTruthArtifactError {
 impl fmt::Display for DocsBrowserTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "docs-browser truth packet parse failed: {error}"
-            ),
+            Self::Packet(error) => {
+                write!(formatter, "docs-browser truth packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -1396,8 +1394,8 @@ mod seed {
                 source_id: "src:project_docs:workspace".to_owned(),
                 source_class: DocsBrowserSourceClass::ProjectDocs,
                 provider_or_pack_id: "pack:project-docs:aureline-workspace".to_owned(),
-                provider_or_pack_revision_ref:
-                    "rev:project-docs:aureline-workspace@2026.05.26".to_owned(),
+                provider_or_pack_revision_ref: "rev:project-docs:aureline-workspace@2026.05.26"
+                    .to_owned(),
                 locale: "en-US".to_owned(),
                 trust_class: DocsBrowserTrustClass::FirstPartyAuthoritative,
                 browser_handoff: DocsBrowserHandoffCapability::NotRequiredLocal,
@@ -1409,8 +1407,7 @@ mod seed {
                 source_id: "src:mirrored:rust-std".to_owned(),
                 source_class: DocsBrowserSourceClass::MirroredOfficialDocs,
                 provider_or_pack_id: "pack:mirrored-official:rust-std".to_owned(),
-                provider_or_pack_revision_ref:
-                    "rev:mirrored-official:rust-std@1.78.0".to_owned(),
+                provider_or_pack_revision_ref: "rev:mirrored-official:rust-std@1.78.0".to_owned(),
                 locale: "en-US".to_owned(),
                 trust_class: DocsBrowserTrustClass::SignedMirrorVerified,
                 browser_handoff: DocsBrowserHandoffCapability::NotRequiredLocal,
@@ -1422,8 +1419,7 @@ mod seed {
                 source_id: "src:extension_pack:python-stdlib".to_owned(),
                 source_class: DocsBrowserSourceClass::ExtensionDocsPack,
                 provider_or_pack_id: "pack:extension-docs:python-stdlib".to_owned(),
-                provider_or_pack_revision_ref:
-                    "rev:extension-docs:python-stdlib@3.12.4".to_owned(),
+                provider_or_pack_revision_ref: "rev:extension-docs:python-stdlib@3.12.4".to_owned(),
                 locale: "en-US".to_owned(),
                 trust_class: DocsBrowserTrustClass::ExtensionPackSigned,
                 browser_handoff: DocsBrowserHandoffCapability::NotRequiredLocal,
@@ -1435,8 +1431,7 @@ mod seed {
                 source_id: "src:live_external:vendor-portal".to_owned(),
                 source_class: DocsBrowserSourceClass::LiveExternalDocs,
                 provider_or_pack_id: "provider:vendor-portal".to_owned(),
-                provider_or_pack_revision_ref:
-                    "rev:vendor-portal:beta-2026.05.25".to_owned(),
+                provider_or_pack_revision_ref: "rev:vendor-portal:beta-2026.05.25".to_owned(),
                 locale: "en-US".to_owned(),
                 trust_class: DocsBrowserTrustClass::LiveProviderHandoff,
                 browser_handoff: DocsBrowserHandoffCapability::AvailableExplicit,
@@ -1450,8 +1445,8 @@ mod seed {
                 source_id: "src:derived:explainer".to_owned(),
                 source_class: DocsBrowserSourceClass::DerivedExplanation,
                 provider_or_pack_id: "pack:derived-explainer:graph-summarizer".to_owned(),
-                provider_or_pack_revision_ref:
-                    "rev:derived-explainer:graph-summarizer@2026.05.26".to_owned(),
+                provider_or_pack_revision_ref: "rev:derived-explainer:graph-summarizer@2026.05.26"
+                    .to_owned(),
                 locale: "en-US".to_owned(),
                 trust_class: DocsBrowserTrustClass::DerivedInferenceOnly,
                 browser_handoff: DocsBrowserHandoffCapability::NotRequiredLocal,
@@ -1601,10 +1596,7 @@ mod seed {
             .copied()
             .map(|surface| DocsBrowserConsumerProjection {
                 consumer_surface: surface,
-                projection_ref: format!(
-                    "projection:docs_browser_truth:{}",
-                    surface.as_str()
-                ),
+                projection_ref: format!("projection:docs_browser_truth:{}", surface.as_str()),
                 packet_id_ref: packet_id.clone(),
                 rendered_at: "2026-05-26T12:00:03Z".to_owned(),
                 preserves_source_class: true,
@@ -1817,10 +1809,7 @@ mod tests {
         ];
         let symbol_flows = vec![
             sample_symbol_flow("flow:vec_push", "result:mirrored:vec-push"),
-            sample_symbol_flow(
-                "flow:project_overview",
-                "result:project_docs:overview",
-            ),
+            sample_symbol_flow("flow:project_overview", "result:project_docs:overview"),
         ];
         let consumer_projections = DocsBrowserConsumerSurface::REQUIRED
             .iter()
@@ -1910,7 +1899,10 @@ mod tests {
             .results
             .retain(|result| result.docs_source_ref != "src:extension_pack:python-stdlib");
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::RequiredSourceClassCoverageMissing
         }));
@@ -1924,7 +1916,10 @@ mod tests {
                 .retain(|step| *step != DocsBrowserSymbolFlowStep::Split);
         }
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::SymbolFlowIdentityLost
         }));
@@ -1937,7 +1932,10 @@ mod tests {
             result.docs_source_ref = "src:ghost".to_owned();
         }
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::ResultSourceRefUnpinned
         }));
@@ -1954,7 +1952,10 @@ mod tests {
             source.browser_handoff_packet_ref = None;
         }
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::BrowserHandoffPacketMissing
         }));
@@ -1965,7 +1966,10 @@ mod tests {
         let mut input = baseline_input("packet:m4:docs_browser_truth:missing_projection");
         input.consumer_projections.pop();
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::MissingConsumerProjection
         }));
@@ -1973,12 +1977,16 @@ mod tests {
 
     #[test]
     fn consumer_projection_dropping_source_class_blocks_stable() {
-        let mut input = baseline_input("packet:m4:docs_browser_truth:projection_drops_source_class");
+        let mut input =
+            baseline_input("packet:m4:docs_browser_truth:projection_drops_source_class");
         if let Some(projection) = input.consumer_projections.first_mut() {
             projection.preserves_source_class = false;
         }
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::SourceClassTaxonomyDropped
         }));
@@ -1996,7 +2004,10 @@ mod tests {
             result.symbol_link_class = DocsBrowserSymbolLinkClass::NotSymbolLinked;
         }
         let packet = DocsBrowserTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, DocsBrowserPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            DocsBrowserPromotionState::BlocksStable
+        );
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == DocsBrowserFindingKind::DerivedExplanationNotDowngraded
         }));

@@ -6,9 +6,8 @@ use std::path::{Path, PathBuf};
 use aureline_doctor::finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos::{
     load_accuracy_corpus, load_latency_slo_catalog, load_stable_profile_parity_audit,
     AccuracyCorpusScenarioClass, BenchmarkLabTraceRef, DiagnosisLatencySloCatalog,
-    DoctorAccuracyCorpus, GroundTruthRepairClass, LatencyPercentileClass,
-    MeasurementSurfaceClass, ProjectDoctorFinalizeEvaluator,
-    StableProfileParityAudit, PROJECT_DOCTOR_FINALIZE_DOC_REF,
+    DoctorAccuracyCorpus, GroundTruthRepairClass, LatencyPercentileClass, MeasurementSurfaceClass,
+    ProjectDoctorFinalizeEvaluator, StableProfileParityAudit, PROJECT_DOCTOR_FINALIZE_DOC_REF,
     PROJECT_DOCTOR_FINALIZE_SCHEMA_REF, PROJECT_DOCTOR_FINALIZE_SUPPORT_PACKET_RECORD_KIND,
 };
 use aureline_doctor::stabilize_project_doctor_probes_finding_codes_explainability_and::{
@@ -33,9 +32,8 @@ fn repo_root() -> PathBuf {
 }
 
 fn fixture_dir() -> PathBuf {
-    repo_root().join(
-        "fixtures/support/m4/finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos",
-    )
+    repo_root()
+        .join("fixtures/support/m4/finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos")
 }
 
 fn load_manifest() -> Manifest {
@@ -146,11 +144,7 @@ fn latency_catalog_has_at_least_one_budget_per_row() {
     );
 
     for row in &catalog.latency_rows {
-        assert!(
-            !row.budgets.is_empty(),
-            "row {} has no budgets",
-            row.row_id
-        );
+        assert!(!row.budgets.is_empty(), "row {} has no budgets", row.row_id);
     }
 }
 
@@ -207,7 +201,9 @@ fn parity_audit_rows_include_required_machine_readable_fields() {
     for row in &audit.parity_rows {
         for field in &required {
             assert!(
-                row.machine_readable_result_fields.iter().any(|f| f == *field),
+                row.machine_readable_result_fields
+                    .iter()
+                    .any(|f| f == *field),
                 "row for context {} missing required field {}",
                 row.support_context_class.as_str(),
                 field
@@ -253,7 +249,10 @@ fn finalized_support_packet_excludes_raw_private_material() {
         )
         .expect("finalize support packet");
 
-    assert_eq!(packet.record_kind, PROJECT_DOCTOR_FINALIZE_SUPPORT_PACKET_RECORD_KIND);
+    assert_eq!(
+        packet.record_kind,
+        PROJECT_DOCTOR_FINALIZE_SUPPORT_PACKET_RECORD_KIND
+    );
     assert_eq!(packet.schema_ref, PROJECT_DOCTOR_FINALIZE_SCHEMA_REF);
     assert_eq!(packet.doc_ref, PROJECT_DOCTOR_FINALIZE_DOC_REF);
     assert!(packet.raw_private_material_excluded);
@@ -289,7 +288,10 @@ fn finalized_support_packet_corpus_metadata_matches_corpus() {
         .iter()
         .filter(|r| r.expected_repair_class == GroundTruthRepairClass::ObserveOnlyNoRepair)
         .count();
-    assert_eq!(packet.corpus_metadata.observe_only_count, observe_only_count);
+    assert_eq!(
+        packet.corpus_metadata.observe_only_count,
+        observe_only_count
+    );
     assert_eq!(
         packet.corpus_metadata.repair_candidate_count,
         corpus.ground_truth_records.len() - observe_only_count
@@ -383,7 +385,10 @@ fn corpus_records_declare_expected_severity_and_confidence() {
     let corpus = load_corpus();
     for record in &corpus.ground_truth_records {
         assert!(
-            !matches!(record.expected_severity, StableFindingSeverityClass::Unsupported),
+            !matches!(
+                record.expected_severity,
+                StableFindingSeverityClass::Unsupported
+            ),
             "ground truth should not declare unsupported severity; row {}",
             record.row_id
         );

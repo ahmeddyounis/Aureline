@@ -77,8 +77,7 @@ pub const FINALIZE_SECRET_BROKER_PAGE_RECORD_KIND: &str =
     "policy_finalize_secret_broker_page_record";
 
 /// Record-kind tag for [`FinalizeSecretBrokerRow`] payloads.
-pub const FINALIZE_SECRET_BROKER_ROW_RECORD_KIND: &str =
-    "policy_finalize_secret_broker_row_record";
+pub const FINALIZE_SECRET_BROKER_ROW_RECORD_KIND: &str = "policy_finalize_secret_broker_row_record";
 
 /// Record-kind tag for [`FinalizeSecretBrokerDefect`] payloads.
 pub const FINALIZE_SECRET_BROKER_DEFECT_RECORD_KIND: &str =
@@ -763,8 +762,10 @@ impl FinalizeSecretBrokerPage {
 
     /// True when all five required flow classes are covered.
     pub fn all_required_flow_classes_covered(&self) -> bool {
-        let required: Vec<&str> =
-            SecretBrokerFlowClass::ALL.iter().map(|c| c.as_str()).collect();
+        let required: Vec<&str> = SecretBrokerFlowClass::ALL
+            .iter()
+            .map(|c| c.as_str())
+            .collect();
         required
             .iter()
             .all(|fc| self.rows.iter().any(|r| r.flow_class_token == *fc))
@@ -775,7 +776,10 @@ impl FinalizeSecretBrokerPage {
     pub fn delegated_and_session_only_rows_have_explicit_rotation_notes(&self) -> bool {
         self.rows
             .iter()
-            .filter(|r| r.handle_class.is_degraded() || r.handle_class == SecretBrokerHandleClass::DelegatedIdentity)
+            .filter(|r| {
+                r.handle_class.is_degraded()
+                    || r.handle_class == SecretBrokerHandleClass::DelegatedIdentity
+            })
             .all(|r| r.rotation_state.rotation_note_is_explicit())
     }
 
@@ -851,7 +855,9 @@ impl FinalizeSecretBrokerSupportExport {
             if !reasons.contains(&defect.narrow_reason) {
                 reasons.push(defect.narrow_reason);
             }
-            *counts.entry(defect.narrow_reason_token.clone()).or_insert(0) += 1;
+            *counts
+                .entry(defect.narrow_reason_token.clone())
+                .or_insert(0) += 1;
         }
         reasons.sort();
         let generated = generated_at.into();
@@ -994,7 +1000,10 @@ pub fn audit_finalize_secret_broker_rows(
             }
 
             // Revocation trigger must be present when rotation invalidates decisions.
-            if row.rotation_state.rotation_event.invalidates_remembered_decisions()
+            if row
+                .rotation_state
+                .rotation_event
+                .invalidates_remembered_decisions()
                 && approval.revocation_trigger_token.is_empty()
             {
                 defects.push(FinalizeSecretBrokerDefect::new(
@@ -1040,9 +1049,9 @@ fn qualify_rows(
             let has_withdrawal = row_defects
                 .iter()
                 .any(|d| d.narrow_reason.is_withdrawal_reason());
-            let has_page_withdrawal = defects.iter().any(|d| {
-                d.source_row_id == "page" && d.narrow_reason.is_withdrawal_reason()
-            });
+            let has_page_withdrawal = defects
+                .iter()
+                .any(|d| d.source_row_id == "page" && d.narrow_reason.is_withdrawal_reason());
 
             if has_withdrawal || has_page_withdrawal {
                 let reason = row_defects
@@ -1050,14 +1059,17 @@ fn qualify_rows(
                     .find(|d| d.narrow_reason.is_withdrawal_reason())
                     .map(|d| d.narrow_reason)
                     .unwrap_or(FinalizeSecretBrokerNarrowReasonClass::LiteralFlatteningDetected);
-                row.qualification_token =
-                    FinalizeSecretBrokerQualificationClass::Withdrawn.as_str().to_owned();
+                row.qualification_token = FinalizeSecretBrokerQualificationClass::Withdrawn
+                    .as_str()
+                    .to_owned();
                 row.narrow_reason_token = reason.as_str().to_owned();
             } else if row_defects.is_empty() && defects.iter().all(|d| d.source_row_id != "page") {
-                row.qualification_token =
-                    FinalizeSecretBrokerQualificationClass::Stable.as_str().to_owned();
-                row.narrow_reason_token =
-                    FinalizeSecretBrokerNarrowReasonClass::NotNarrowed.as_str().to_owned();
+                row.qualification_token = FinalizeSecretBrokerQualificationClass::Stable
+                    .as_str()
+                    .to_owned();
+                row.narrow_reason_token = FinalizeSecretBrokerNarrowReasonClass::NotNarrowed
+                    .as_str()
+                    .to_owned();
             } else {
                 // Non-critical defects: check for coverage gaps that force preview.
                 let has_coverage_gap = row_defects.iter().any(|d| {
@@ -1069,23 +1081,30 @@ fn qualify_rows(
                             == FinalizeSecretBrokerNarrowReasonClass::FlowClassCoverageGap
                 });
                 if has_coverage_gap || has_page_coverage_gap {
-                    row.qualification_token =
-                        FinalizeSecretBrokerQualificationClass::Preview.as_str().to_owned();
+                    row.qualification_token = FinalizeSecretBrokerQualificationClass::Preview
+                        .as_str()
+                        .to_owned();
                     row.narrow_reason_token =
-                        FinalizeSecretBrokerNarrowReasonClass::FlowClassCoverageGap.as_str().to_owned();
+                        FinalizeSecretBrokerNarrowReasonClass::FlowClassCoverageGap
+                            .as_str()
+                            .to_owned();
                 } else {
-                    let reason = row_defects
-                        .first()
-                        .map(|d| d.narrow_reason)
-                        .unwrap_or_else(|| {
-                            defects
-                                .iter()
-                                .find(|d| d.source_row_id == "page")
-                                .map(|d| d.narrow_reason)
-                                .unwrap_or(FinalizeSecretBrokerNarrowReasonClass::BetaPageHasDefects)
-                        });
-                    row.qualification_token =
-                        FinalizeSecretBrokerQualificationClass::Beta.as_str().to_owned();
+                    let reason =
+                        row_defects
+                            .first()
+                            .map(|d| d.narrow_reason)
+                            .unwrap_or_else(|| {
+                                defects
+                                    .iter()
+                                    .find(|d| d.source_row_id == "page")
+                                    .map(|d| d.narrow_reason)
+                                    .unwrap_or(
+                                        FinalizeSecretBrokerNarrowReasonClass::BetaPageHasDefects,
+                                    )
+                            });
+                    row.qualification_token = FinalizeSecretBrokerQualificationClass::Beta
+                        .as_str()
+                        .to_owned();
                     row.narrow_reason_token = reason.as_str().to_owned();
                 }
             }
@@ -1310,8 +1329,12 @@ fn build_row(
         raw_secret_material_excluded: true,
         no_literal_flattening: true,
         // qualification and narrow_reason are set by qualify_rows
-        qualification_token: FinalizeSecretBrokerQualificationClass::Stable.as_str().to_owned(),
-        narrow_reason_token: FinalizeSecretBrokerNarrowReasonClass::NotNarrowed.as_str().to_owned(),
+        qualification_token: FinalizeSecretBrokerQualificationClass::Stable
+            .as_str()
+            .to_owned(),
+        narrow_reason_token: FinalizeSecretBrokerNarrowReasonClass::NotNarrowed
+            .as_str()
+            .to_owned(),
         plain_language_summary: plain_language_summary.to_owned(),
     }
 }

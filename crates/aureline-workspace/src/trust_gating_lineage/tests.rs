@@ -148,7 +148,10 @@ fn clean_inputs_project_stable_record() {
             .all_credential_surfaces_have_safe_posture
     );
     assert_eq!(record.inspection_hooks.len(), 6);
-    assert!(record.producer_attribution.integrity_hash.starts_with("tgl:"));
+    assert!(record
+        .producer_attribution
+        .integrity_hash
+        .starts_with("tgl:"));
 }
 
 #[test]
@@ -199,7 +202,8 @@ fn pending_workspace_with_grant_narrows_record() {
         surface.override_disclosure_id = "".to_owned();
     }
     inputs.surfaces[0].declared_gate_decision = GateDecisionClass::AllowAfterExplicitGrant;
-    inputs.surfaces[0].silent_execution_posture = SilentExecutionPosture::ExplicitUserActionRequired;
+    inputs.surfaces[0].silent_execution_posture =
+        SilentExecutionPosture::ExplicitUserActionRequired;
     inputs.surfaces[0].disclosure_id = "disclosure.tasks.run".to_owned();
     inputs.surfaces[0].explicit_user_action_required = true;
 
@@ -344,17 +348,23 @@ fn lines_projection_renders_required_sections() {
     let record = project_trust_gating_lineage("posture.lines", &inputs);
     let lines = trust_gating_lineage_lines(&record);
 
-    assert!(lines.iter().any(|line| line.contains("Trust-gating lineage")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("Trust-gating lineage")));
     assert!(lines.iter().any(|line| line.contains("surface_coverage")));
     assert!(lines.iter().any(|line| line == "Surface rows:"));
-    assert!(lines.iter().any(|line| line.contains("Gate decision truth")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("Gate decision truth")));
     assert!(lines
         .iter()
         .any(|line| line.contains("Silent execution honesty")));
     assert!(lines
         .iter()
         .any(|line| line.contains("Override route honesty")));
-    assert!(lines.iter().any(|line| line.contains("Support-export honesty")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("Support-export honesty")));
     assert!(lines.iter().any(|line| line == "Inspection hooks:"));
 }
 

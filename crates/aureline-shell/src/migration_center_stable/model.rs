@@ -108,7 +108,13 @@ const MAX_REF_CHARS: usize = 200;
 /// specific durable object. A ref pointing at one is rejected so chrome cannot
 /// wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// Returns true when `reference` is a canonical durable-object ref of the form
@@ -339,7 +345,9 @@ impl MigrationRecoveryAction {
         match self {
             Self::ReopenMigrationReport => RecoveryActionRole::Primary,
             Self::CompareBeforeAfter | Self::UndoViaRollback => RecoveryActionRole::Recovery,
-            Self::ReviewUnsupportedGaps | Self::ExportSupportPacket => RecoveryActionRole::Secondary,
+            Self::ReviewUnsupportedGaps | Self::ExportSupportPacket => {
+                RecoveryActionRole::Secondary
+            }
         }
     }
 
@@ -894,7 +902,10 @@ impl MigrationFlowDisclosureRecord {
         require_ref("migration_session_ref", &input.migration_session_ref)?;
         require_ref("diff.diff_preview_ref", &input.diff.diff_preview_ref)?;
         require_ref("rollback.checkpoint_ref", &input.rollback.checkpoint_ref)?;
-        require_ref("rollback.restore_record_ref", &input.rollback.restore_record_ref)?;
+        require_ref(
+            "rollback.restore_record_ref",
+            &input.rollback.restore_record_ref,
+        )?;
         require_ref("diagnostics_export_ref", &input.diagnostics_export_ref)?;
         require_ref("support_export_ref", &input.support_export_ref)?;
         for evidence in &input.evidence_refs {
@@ -905,7 +916,10 @@ impl MigrationFlowDisclosureRecord {
         }
 
         // --- rollback ref / availability consistency -------------------------
-        match (&input.rollback.undo_available, &input.rollback.undo_action_ref) {
+        match (
+            &input.rollback.undo_available,
+            &input.rollback.undo_action_ref,
+        ) {
             (true, Some(reference)) => require_ref("rollback.undo_action_ref", reference)?,
             (false, None) => {}
             _ => {
@@ -1089,7 +1103,11 @@ impl MigrationFlowDisclosureRecord {
             narrowing_reasons.push(StableNarrowingReason::RollbackEvidenceIncomplete);
         }
         if !input.taxonomy.unsupported_gaps_visible_before_apply
-            || !input.taxonomy.gaps.iter().all(|gap| gap.visible_before_apply)
+            || !input
+                .taxonomy
+                .gaps
+                .iter()
+                .all(|gap| gap.visible_before_apply)
         {
             narrowing_reasons.push(StableNarrowingReason::UnsupportedGapsHiddenBeforeApply);
         }
@@ -1107,8 +1125,9 @@ impl MigrationFlowDisclosureRecord {
             narrowing_reasons,
         };
 
-        let honesty_marker_present =
-            !stable_qualification.qualifies_stable || has_gaps || !input.taxonomy.is_full_fidelity();
+        let honesty_marker_present = !stable_qualification.qualifies_stable
+            || has_gaps
+            || !input.taxonomy.is_full_fidelity();
 
         Ok(Self {
             record_kind: MIGRATION_FLOW_DISCLOSURE_RECORD_KIND.to_string(),
@@ -1268,7 +1287,10 @@ impl MigrationFlowDisclosureRecord {
             self.upstream.corpus_scoreboard_ref,
             self.upstream.corpus_section_ref
         ));
-        lines.push(format!("diagnostics_export_ref: {}", self.diagnostics_export_ref));
+        lines.push(format!(
+            "diagnostics_export_ref: {}",
+            self.diagnostics_export_ref
+        ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
     }

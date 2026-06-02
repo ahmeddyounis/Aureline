@@ -196,7 +196,10 @@ impl EvictionPolicyClass {
     /// True when the policy is safe for user-state-bearing storage —
     /// content is only evicted with explicit user action.
     pub const fn is_user_state_safe(self) -> bool {
-        matches!(self, Self::Never | Self::ManualOnly | Self::ManualAfterExport)
+        matches!(
+            self,
+            Self::Never | Self::ManualOnly | Self::ManualAfterExport
+        )
     }
 
     /// True when the policy lets the runtime drop content without
@@ -901,7 +904,8 @@ pub fn project_cache_storage_class_lineage_with_hooks(
 // ---------------------------------------------------------------------------
 
 fn project_storage_class_coverage(inputs: &CacheStorageClassInputs) -> StorageClassCoverageSummary {
-    let storage_rows: Vec<CacheStorageRow> = inputs.storages.iter().map(project_storage_row).collect();
+    let storage_rows: Vec<CacheStorageRow> =
+        inputs.storages.iter().map(project_storage_row).collect();
     let observed: BTreeSet<_> = storage_rows.iter().map(|row| row.storage_class).collect();
     let all_required_storage_classes_present = REQUIRED_STORAGE_CLASSES
         .iter()
@@ -962,7 +966,9 @@ fn derive_durability_tier(storage: &CacheStorageObservation) -> ClaimedDurabilit
             | EvictionPolicyClass::QuotaPressure
             | EvictionPolicyClass::Never
             | EvictionPolicyClass::ManualOnly
-            | EvictionPolicyClass::ManualAfterExport => ClaimedDurabilityTier::StableRegenerableCache,
+            | EvictionPolicyClass::ManualAfterExport => {
+                ClaimedDurabilityTier::StableRegenerableCache
+            }
         },
     }
 }
@@ -1244,9 +1250,7 @@ fn build_summary(
 /// lineage record. The same projection is consumed by the workspace
 /// cache / storage status surface, the headless CLI emitter,
 /// Help/About, and support export.
-pub fn cache_storage_class_lineage_lines(
-    record: &CacheStorageClassLineageRecord,
-) -> Vec<String> {
+pub fn cache_storage_class_lineage_lines(record: &CacheStorageClassLineageRecord) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push(format!(
         "Cache / storage-class lineage — {} ({})",

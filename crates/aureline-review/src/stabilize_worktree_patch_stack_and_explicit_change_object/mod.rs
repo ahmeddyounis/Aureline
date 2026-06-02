@@ -825,8 +825,7 @@ impl ChangeObjectOrchestrationPacket {
         if self.schema_version != CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION {
             return Err(change_object_orchestration_validation_error(format!(
                 "schema_version mismatch: expected {}, got {}",
-                CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
-                self.schema_version
+                CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION, self.schema_version
             )));
         }
         ensure_nonempty(&self.packet_id, "packet_id")?;
@@ -939,11 +938,19 @@ impl ChangeObjectOrchestrationPacket {
     /// inspectable truths.
     pub fn truths_are_separable(&self) -> bool {
         let orch = &self.orchestration;
-        contains_token(CHANGE_OBJECT_ORCHESTRATION_OPERATION_KINDS, &orch.operation_kind)
-            && contains_token(CHANGE_OBJECT_ORCHESTRATION_FLOW_STATES, &orch.flow_state)
+        contains_token(
+            CHANGE_OBJECT_ORCHESTRATION_OPERATION_KINDS,
+            &orch.operation_kind,
+        ) && contains_token(CHANGE_OBJECT_ORCHESTRATION_FLOW_STATES, &orch.flow_state)
             && contains_token(REPO_TOPOLOGY_CLASSES, &orch.repo_topology_classes[0])
-            && contains_token(POINTER_BACKED_ASSET_POSTURES, &orch.pointer_backed_asset_posture)
-            && contains_token(MUTATION_CHECKPOINT_STATES, &self.mutation_checkpoint.checkpoint_state)
+            && contains_token(
+                POINTER_BACKED_ASSET_POSTURES,
+                &orch.pointer_backed_asset_posture,
+            )
+            && contains_token(
+                MUTATION_CHECKPOINT_STATES,
+                &self.mutation_checkpoint.checkpoint_state,
+            )
     }
 
     /// Returns true when no raw escape hatch crosses the support boundary.
@@ -1079,7 +1086,10 @@ impl fmt::Display for ChangeObjectOrchestrationError {
                 write!(formatter, "change-object orchestration parse error: {err}")
             }
             Self::Validation(err) => {
-                write!(formatter, "change-object orchestration validation error: {err}")
+                write!(
+                    formatter,
+                    "change-object orchestration validation error: {err}"
+                )
             }
         }
     }
@@ -1142,7 +1152,10 @@ fn orchestration_record(
         record_kind: CHANGE_OBJECT_ORCHESTRATION_RECORD_KIND.to_string(),
         schema_version: CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
         orchestration_id: input.orchestration_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         operation_kind: input.operation_kind.clone(),
         flow_state: input.flow_state.clone(),
         change_object_ref: input.change_object_ref.clone(),
@@ -1228,7 +1241,10 @@ fn publish_proposal_record(
         return_anchor_ref: input.return_anchor_ref.clone(),
         freshness_class: input.freshness_class.clone(),
         actor_ref: input.actor_ref.clone(),
-        summary_label: format!("publish proposal {} to {}", input.proposal_id, input.target_provider_class),
+        summary_label: format!(
+            "publish proposal {} to {}",
+            input.proposal_id, input.target_provider_class
+        ),
     }
 }
 
@@ -1255,7 +1271,10 @@ fn change_object_command_record(
 ) -> ChangeObjectCommandRecord {
     let actionable = input.blocked_reasons.is_empty()
         && orchestration.actionable
-        && contains_token(CHANGE_OBJECT_ORCHESTRATION_COMMAND_CLASSES, &input.command_class);
+        && contains_token(
+            CHANGE_OBJECT_ORCHESTRATION_COMMAND_CLASSES,
+            &input.command_class,
+        );
     ChangeObjectCommandRecord {
         record_kind: CHANGE_OBJECT_COMMAND_RECORD_KIND.to_string(),
         schema_version: CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
@@ -1284,13 +1303,16 @@ fn change_object_orchestration_support_export_packet(
         schema_version: CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         orchestration_id_ref: orchestration.orchestration_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
         consumer_surfaces: input.consumer_surfaces.clone(),
         source_schema_refs: vec![
-            "schemas/review/change_object_orchestration.schema.json".to_string(),
+            "schemas/review/change_object_orchestration.schema.json".to_string()
         ],
         raw_url_export_allowed: false,
         raw_provider_payload_export_allowed: false,
@@ -1367,7 +1389,8 @@ fn change_object_orchestration_inspection_record(
         submodule_boundary_present: orchestration.submodule_boundary_ref.is_some(),
         nested_repo_boundary_present: orchestration.nested_repo_boundary_ref.is_some(),
         shallow_boundary_present: orchestration.shallow_history_boundary_ref.is_some(),
-        pointer_backed_assets_present: orchestration.pointer_backed_asset_posture != "no_pointer_assets",
+        pointer_backed_assets_present: orchestration.pointer_backed_asset_posture
+            != "no_pointer_assets",
         summary_label: orchestration.summary_label.clone(),
     }
 }
@@ -1413,18 +1436,33 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     if let Some(worktree) = &input.worktree_operation {
-        ensure_nonempty(&worktree.source_worktree_ref, "worktree_operation.source_worktree_ref")?;
-        ensure_nonempty(&worktree.target_worktree_ref, "worktree_operation.target_worktree_ref")?;
-        ensure_nonempty(&worktree.checked_out_ref_label, "worktree_operation.checked_out_ref_label")?;
+        ensure_nonempty(
+            &worktree.source_worktree_ref,
+            "worktree_operation.source_worktree_ref",
+        )?;
+        ensure_nonempty(
+            &worktree.target_worktree_ref,
+            "worktree_operation.target_worktree_ref",
+        )?;
+        ensure_nonempty(
+            &worktree.checked_out_ref_label,
+            "worktree_operation.checked_out_ref_label",
+        )?;
     }
 
     if let Some(patch_stack) = &input.patch_stack_operation {
-        ensure_nonempty(&patch_stack.top_patch_label, "patch_stack_operation.top_patch_label")?;
+        ensure_nonempty(
+            &patch_stack.top_patch_label,
+            "patch_stack_operation.top_patch_label",
+        )?;
     }
 
     if let Some(proposal) = &input.publish_proposal {
         ensure_nonempty(&proposal.proposal_id, "publish_proposal.proposal_id")?;
-        ensure_nonempty(&proposal.provider_object_identity_ref, "publish_proposal.provider_object_identity_ref")?;
+        ensure_nonempty(
+            &proposal.provider_object_identity_ref,
+            "publish_proposal.provider_object_identity_ref",
+        )?;
         ensure_one_of(
             "publish_proposal.publish_readiness_class",
             PUBLISH_READINESS_CLASSES,
@@ -1494,8 +1532,7 @@ fn validate_orchestration_record(
     if record.schema_version != CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION {
         return Err(change_object_orchestration_validation_error(format!(
             "orchestration.schema_version mismatch: expected {}, got {}",
-            CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
-            record.schema_version
+            CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION, record.schema_version
         )));
     }
     ensure_eq(
@@ -1521,7 +1558,11 @@ fn validate_orchestration_record(
         ));
     }
     for class in &record.repo_topology_classes {
-        ensure_one_of("orchestration.repo_topology_classes[]", REPO_TOPOLOGY_CLASSES, class)?;
+        ensure_one_of(
+            "orchestration.repo_topology_classes[]",
+            REPO_TOPOLOGY_CLASSES,
+            class,
+        )?;
     }
     ensure_one_of(
         "orchestration.pointer_backed_asset_posture",

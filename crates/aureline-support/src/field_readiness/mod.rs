@@ -21,18 +21,18 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::m3_scenario_corpus::{
-    current_m3_scenario_corpus, required_beta_lane_classes, M3BetaLaneClass,
-    M3ScenarioCorpus, M3SupportScenario, M3_SCENARIO_CORPUS_DOC_REF,
-    M3_SCENARIO_CORPUS_MANIFEST_REF, M3_SUPPORT_SCENARIO_SCHEMA_VERSION,
+    current_m3_scenario_corpus, required_beta_lane_classes, M3BetaLaneClass, M3ScenarioCorpus,
+    M3SupportScenario, M3_SCENARIO_CORPUS_DOC_REF, M3_SCENARIO_CORPUS_MANIFEST_REF,
+    M3_SUPPORT_SCENARIO_SCHEMA_VERSION,
 };
 use crate::scenario_scorecard::{current_alpha_scorecard, DiagnosisLatencyScorecard};
 
 /// Stable record-kind tag for the M3 diagnosis-latency scorecard.
-pub const M3_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND: &str = "m3_diagnosis_latency_scorecard_record";
+pub const M3_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND: &str =
+    "m3_diagnosis_latency_scorecard_record";
 
 /// Stable record-kind tag for one row in the M3 diagnosis-latency scorecard.
-pub const M3_DIAGNOSIS_LATENCY_LANE_ROW_RECORD_KIND: &str =
-    "m3_diagnosis_latency_lane_row_record";
+pub const M3_DIAGNOSIS_LATENCY_LANE_ROW_RECORD_KIND: &str = "m3_diagnosis_latency_lane_row_record";
 
 /// Stable record-kind tag for the exact-build availability report.
 pub const M3_EXACT_BUILD_AVAILABILITY_REPORT_RECORD_KIND: &str =
@@ -65,8 +65,7 @@ pub const M3_FIELD_READINESS_METRICS_DOC_REF: &str = "docs/support/m3/field_read
 
 const FIELD_READINESS_SCORECARDS_REPORT_ID: &str = "support.m3.field_readiness.baseline.v1";
 
-const DIAGNOSIS_LATENCY_SCORECARD_ID: &str =
-    "support.m3.diagnosis_latency_scorecard.baseline.v1";
+const DIAGNOSIS_LATENCY_SCORECARD_ID: &str = "support.m3.diagnosis_latency_scorecard.baseline.v1";
 
 const EXACT_BUILD_AVAILABILITY_REPORT_ID: &str =
     "support.m3.exact_build_availability_report.baseline.v1";
@@ -510,9 +509,10 @@ pub fn project_field_readiness_scorecards(
     {
         scorecard_stale_triggers.push(StaleDataTrigger::SeededCorpusMissingLane);
     }
-    if corpus_violations.iter().any(|v| {
-        v.check_id == "scenario.claim_downgrade_rules.required_trigger_missing"
-    }) {
+    if corpus_violations
+        .iter()
+        .any(|v| v.check_id == "scenario.claim_downgrade_rules.required_trigger_missing")
+    {
         scorecard_stale_triggers.push(StaleDataTrigger::ClaimDowngradeRulesIncomplete);
     }
     // Drain to release the borrow.

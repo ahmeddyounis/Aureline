@@ -29,8 +29,7 @@ pub const HISTORY_REWRITE_BETA_SCHEMA_VERSION: u32 = 1;
 pub const CONFLICT_SESSION_RECORD_KIND: &str = "history_rewrite_conflict_session_record";
 
 /// Record-kind tag for [`SequenceEditSessionRecord`].
-pub const SEQUENCE_EDIT_SESSION_RECORD_KIND: &str =
-    "history_rewrite_sequence_edit_session_record";
+pub const SEQUENCE_EDIT_SESSION_RECORD_KIND: &str = "history_rewrite_sequence_edit_session_record";
 
 /// Record-kind tag for [`StashEntryRecord`].
 pub const STASH_ENTRY_RECORD_KIND: &str = "history_rewrite_stash_entry_record";
@@ -715,10 +714,7 @@ fn validate_conflict_session(
     require_non_empty("minted_at", &record.minted_at)?;
     require_non_empty("updated_at", &record.updated_at)?;
     require_non_empty("raw_todo_text_ref", &record.raw_todo_text_ref)?;
-    require_non_empty(
-        "ref_update_proposal_ref",
-        &record.ref_update_proposal_ref,
-    )?;
+    require_non_empty("ref_update_proposal_ref", &record.ref_update_proposal_ref)?;
     validate_worktree_context(&record.worktree_context)?;
     validate_ref_id("onto_ref", &record.onto_ref)?;
     validate_ref_id("source_ref", &record.source_ref)?;
@@ -751,10 +747,7 @@ fn validate_sequence_edit_session(
     record: &SequenceEditSessionRecord,
 ) -> Result<(), HistoryRewriteValidationError> {
     require_schema_version(record.schema_version)?;
-    require_non_empty(
-        "sequence_edit_session_id",
-        &record.sequence_edit_session_id,
-    )?;
+    require_non_empty("sequence_edit_session_id", &record.sequence_edit_session_id)?;
     require_one_of(
         "operation_kind",
         HISTORY_REWRITE_OPERATION_KINDS,
@@ -770,10 +763,7 @@ fn validate_sequence_edit_session(
     require_non_empty("minted_at", &record.minted_at)?;
     require_non_empty("updated_at", &record.updated_at)?;
     require_non_empty("raw_todo_text_ref", &record.raw_todo_text_ref)?;
-    require_non_empty(
-        "ref_update_proposal_ref",
-        &record.ref_update_proposal_ref,
-    )?;
+    require_non_empty("ref_update_proposal_ref", &record.ref_update_proposal_ref)?;
     validate_worktree_context(&record.worktree_context)?;
     validate_ref_id("onto_ref", &record.onto_ref)?;
     validate_ref_id("head_ref", &record.head_ref)?;
@@ -856,8 +846,10 @@ fn validate_stash_entry(record: &StashEntryRecord) -> Result<(), HistoryRewriteV
     for event in &record.audit_events {
         validate_audit_event(event)?;
     }
-    if matches!(record.lifecycle_state.as_str(), "applied_popped" | "dropped")
-        && !record.recovery_posture.satisfies_destructive_gate()
+    if matches!(
+        record.lifecycle_state.as_str(),
+        "applied_popped" | "dropped"
+    ) && !record.recovery_posture.satisfies_destructive_gate()
     {
         return Err(HistoryRewriteValidationError::new(
             "stash applied_popped/dropped requires a recovery checkpoint or explicit reflog-only disclosure",
@@ -903,10 +895,7 @@ fn validate_recovery_checkpoint(
             )));
         }
     }
-    require_unique(
-        "referencing_session_refs",
-        &record.referencing_session_refs,
-    )?;
+    require_unique("referencing_session_refs", &record.referencing_session_refs)?;
     validate_consumer_surfaces(&record.consumer_surfaces)?;
     validate_support_export(&record.support_export)?;
     for event in &record.audit_events {
@@ -940,7 +929,11 @@ fn validate_ref_update_proposal(
     validate_ref_id("new_position_ref", &record.new_position_ref)?;
     let mut seen_block_ids: BTreeSet<&str> = BTreeSet::new();
     for block in &record.blocks {
-        require_one_of("blocks[].block_class", REF_UPDATE_BLOCK_CLASSES, &block.block_class)?;
+        require_one_of(
+            "blocks[].block_class",
+            REF_UPDATE_BLOCK_CLASSES,
+            &block.block_class,
+        )?;
         require_non_empty("blocks[].block_id", &block.block_id)?;
         require_non_empty("blocks[].display_label", &block.display_label)?;
         if !seen_block_ids.insert(block.block_id.as_str()) {
@@ -979,7 +972,10 @@ fn validate_ref_update_proposal(
             "blocked proposals must publish at least one next-safe path",
         ));
     }
-    if matches!(record.lifecycle_state.as_str(), "ready_to_apply" | "applied") {
+    if matches!(
+        record.lifecycle_state.as_str(),
+        "ready_to_apply" | "applied"
+    ) {
         if !record.recovery_posture.satisfies_destructive_gate() {
             return Err(HistoryRewriteValidationError::new(
                 "ready_to_apply/applied proposals require a recovery checkpoint or explicit reflog-only disclosure",
@@ -1017,7 +1013,10 @@ fn validate_worktree_context(
     Ok(())
 }
 
-fn validate_ref_id(label: &str, ref_id: &HistoryRewriteRefId) -> Result<(), HistoryRewriteValidationError> {
+fn validate_ref_id(
+    label: &str,
+    ref_id: &HistoryRewriteRefId,
+) -> Result<(), HistoryRewriteValidationError> {
     require_non_empty(&format!("{label}.ref_id"), &ref_id.ref_id)?;
     require_non_empty(&format!("{label}.ref_class"), &ref_id.ref_class)?;
     require_non_empty(&format!("{label}.display_label"), &ref_id.display_label)?;
@@ -1032,7 +1031,10 @@ fn validate_recovery_posture(
         RECOVERY_POSTURE_CLASSES,
         &posture.posture_class,
     )?;
-    require_non_empty("recovery_posture.disclosure_label", &posture.disclosure_label)?;
+    require_non_empty(
+        "recovery_posture.disclosure_label",
+        &posture.disclosure_label,
+    )?;
     if posture.posture_class == "recovery_checkpoint_captured"
         && (!posture.checkpoint_captured || posture.recovery_checkpoint_ref.is_none())
     {
@@ -1118,7 +1120,9 @@ fn validate_support_export(
     Ok(())
 }
 
-fn validate_audit_event(event: &HistoryRewriteAuditEvent) -> Result<(), HistoryRewriteValidationError> {
+fn validate_audit_event(
+    event: &HistoryRewriteAuditEvent,
+) -> Result<(), HistoryRewriteValidationError> {
     require_one_of(
         "audit_events[].event_id",
         HISTORY_REWRITE_AUDIT_EVENTS,
@@ -1248,18 +1252,17 @@ fn project_stash_entry(record: &StashEntryRecord) -> HistoryRewriteProjection {
     }
 }
 
-fn project_recovery_checkpoint(
-    record: &RecoveryCheckpointRecord,
-) -> HistoryRewriteProjection {
-    let primary_target = record
-        .captured_refs
-        .first()
-        .cloned()
-        .unwrap_or_else(|| HistoryRewriteRefId {
-            ref_id: format!("{}.captured", record.recovery_checkpoint_id),
-            ref_class: "checkpoint".to_string(),
-            display_label: record.display_label.clone(),
-        });
+fn project_recovery_checkpoint(record: &RecoveryCheckpointRecord) -> HistoryRewriteProjection {
+    let primary_target =
+        record
+            .captured_refs
+            .first()
+            .cloned()
+            .unwrap_or_else(|| HistoryRewriteRefId {
+                ref_id: format!("{}.captured", record.recovery_checkpoint_id),
+                ref_class: "checkpoint".to_string(),
+                display_label: record.display_label.clone(),
+            });
     HistoryRewriteProjection {
         record_id: record.recovery_checkpoint_id.clone(),
         record_kind: RECOVERY_CHECKPOINT_RECORD_KIND.to_string(),
@@ -1395,10 +1398,7 @@ fn require_one_of(
     }
 }
 
-fn require_unique(
-    label: &str,
-    values: &[String],
-) -> Result<(), HistoryRewriteValidationError> {
+fn require_unique(label: &str, values: &[String]) -> Result<(), HistoryRewriteValidationError> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for value in values {
         if !seen.insert(value.as_str()) {
@@ -1453,10 +1453,7 @@ mod tests {
     fn sequence_edit_fixture_projects() {
         let projection = project_history_rewrite_record(FIXTURE_INTERACTIVE_REBASE)
             .expect("interactive rebase fixture must project");
-        assert_eq!(
-            projection.record_kind,
-            SEQUENCE_EDIT_SESSION_RECORD_KIND
-        );
+        assert_eq!(projection.record_kind, SEQUENCE_EDIT_SESSION_RECORD_KIND);
         assert_eq!(projection.lifecycle_state, "running");
     }
 

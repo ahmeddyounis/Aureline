@@ -16,8 +16,8 @@ use aureline_workspace::{
     DriftStateClass, GeneratedArtifactKind, GeneratedArtifactObservation, LabelingSurfaceKind,
     MutationAndGeneratedArtifactInputs, MutationAndGeneratedArtifactInspectionHook,
     MutationAndGeneratedArtifactInspectionHookClass, MutationAndGeneratedArtifactLineageRecord,
-    MutationNoRerunPosture, MutationPathKind, MutationPathObservation,
-    MutationSupportExportInputs, MutationSupportExportPosture, REQUIRED_LABELING_SURFACES,
+    MutationNoRerunPosture, MutationPathKind, MutationPathObservation, MutationSupportExportInputs,
+    MutationSupportExportPosture, REQUIRED_LABELING_SURFACES,
 };
 use serde::Serialize;
 

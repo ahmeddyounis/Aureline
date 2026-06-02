@@ -40,15 +40,13 @@ fn main() {
 
     match mode.as_str() {
         "project" => match project_stable_conflict_session(&payload) {
-            Ok(projection) => {
-                match serde_json::to_string_pretty(&projection) {
-                    Ok(json) => println!("{json}"),
-                    Err(err) => {
-                        eprintln!("serialization failed: {err}");
-                        std::process::exit(7);
-                    }
+            Ok(projection) => match serde_json::to_string_pretty(&projection) {
+                Ok(json) => println!("{json}"),
+                Err(err) => {
+                    eprintln!("serialization failed: {err}");
+                    std::process::exit(7);
                 }
-            }
+            },
             Err(err) => {
                 eprintln!("stable conflict session projection failed: {err}");
                 std::process::exit(6);
@@ -77,15 +75,13 @@ fn main() {
             }
         }
         "validate" => match parse_stable_conflict_session_record(&payload) {
-            Ok(record) => {
-                match serde_json::to_string_pretty(&record.project()) {
-                    Ok(json) => println!("{json}"),
-                    Err(err) => {
-                        eprintln!("serialization failed: {err}");
-                        std::process::exit(7);
-                    }
+            Ok(record) => match serde_json::to_string_pretty(&record.project()) {
+                Ok(json) => println!("{json}"),
+                Err(err) => {
+                    eprintln!("serialization failed: {err}");
+                    std::process::exit(7);
                 }
-            }
+            },
             Err(err) => {
                 eprintln!("validation failed: {err}");
                 std::process::exit(6);

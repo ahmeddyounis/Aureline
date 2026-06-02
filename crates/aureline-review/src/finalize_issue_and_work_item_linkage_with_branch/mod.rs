@@ -72,8 +72,7 @@ pub const WORK_ITEM_DETAIL_SURFACE_RECORD_KIND: &str = "review_work_item_detail_
 pub const STATUS_TRANSITION_SHEET_RECORD_KIND: &str = "review_status_transition_sheet_record";
 
 /// Stable record-kind tag for [`OfflineHandoffContinuityRecord`].
-pub const OFFLINE_HANDOFF_CONTINUITY_RECORD_KIND: &str =
-    "review_offline_handoff_continuity_record";
+pub const OFFLINE_HANDOFF_CONTINUITY_RECORD_KIND: &str = "review_offline_handoff_continuity_record";
 
 /// Stable record-kind tag for [`WorkItemBranchLinkRecord`].
 pub const WORK_ITEM_BRANCH_LINK_RECORD_KIND: &str = "review_branch_work_item_link_record";
@@ -391,7 +390,6 @@ pub struct WorkItemLinkageSupportExportInput {
     /// Redaction-safe summary.
     pub summary_label: String,
 }
-
 
 // ---------------------------------------------------------------------------
 // Record types
@@ -766,7 +764,6 @@ pub struct WorkItemLinkageInspectionRecord {
     pub summary_label: String,
 }
 
-
 // ---------------------------------------------------------------------------
 // Packet type
 // ---------------------------------------------------------------------------
@@ -824,11 +821,8 @@ impl WorkItemLinkageFinalizationPacket {
     ) -> Result<Self, WorkItemLinkageFinalizationValidationError> {
         validate_input(&input, workspace_packet, stabilization_packet)?;
 
-        let linkage_finalization = linkage_finalization_record(
-            &input,
-            workspace_packet,
-            stabilization_packet,
-        );
+        let linkage_finalization =
+            linkage_finalization_record(&input, workspace_packet, stabilization_packet);
         let detail_surfaces = input
             .detail_surfaces
             .iter()
@@ -931,13 +925,22 @@ impl WorkItemLinkageFinalizationPacket {
             &self.stabilization.stabilization_id,
         )?;
         for surface in &self.detail_surfaces {
-            validate_detail_surface_record(surface, &self.linkage_finalization.linkage_finalization_id)?;
+            validate_detail_surface_record(
+                surface,
+                &self.linkage_finalization.linkage_finalization_id,
+            )?;
         }
         for sheet in &self.transition_sheets {
-            validate_transition_sheet_record(sheet, &self.linkage_finalization.linkage_finalization_id)?;
+            validate_transition_sheet_record(
+                sheet,
+                &self.linkage_finalization.linkage_finalization_id,
+            )?;
         }
         for offline in &self.offline_handoff_continuities {
-            validate_offline_handoff_continuity_record(offline, &self.linkage_finalization.linkage_finalization_id)?;
+            validate_offline_handoff_continuity_record(
+                offline,
+                &self.linkage_finalization.linkage_finalization_id,
+            )?;
         }
         for link in &self.branch_links {
             validate_branch_link_record(link, &self.linkage_finalization.linkage_finalization_id)?;
@@ -946,7 +949,10 @@ impl WorkItemLinkageFinalizationPacket {
             validate_review_link_record(link, &self.linkage_finalization.linkage_finalization_id)?;
         }
         for continuity in &self.publish_later_continuities {
-            validate_publish_later_continuity_record(continuity, &self.linkage_finalization.linkage_finalization_id)?;
+            validate_publish_later_continuity_record(
+                continuity,
+                &self.linkage_finalization.linkage_finalization_id,
+            )?;
         }
         for command in &self.commands {
             validate_command_record(command, &self.linkage_finalization.linkage_finalization_id)?;
@@ -963,7 +969,10 @@ impl WorkItemLinkageFinalizationPacket {
     /// Returns true when every detail surface discloses its write mode.
     pub fn write_modes_disclosed(&self) -> bool {
         self.detail_surfaces.iter().all(|surface| {
-            contains_token(WRITE_MODE_DISCLOSURE_CLASSES, &surface.write_mode_disclosure_class)
+            contains_token(
+                WRITE_MODE_DISCLOSURE_CLASSES,
+                &surface.write_mode_disclosure_class,
+            )
         })
     }
 
@@ -990,19 +999,25 @@ impl WorkItemLinkageFinalizationPacket {
 
     /// Returns true when offline handoff packets survive restart and reconnect.
     pub fn offline_handoff_continuity_preserved(&self) -> bool {
-        self.offline_handoff_continuities.iter().all(|o| {
-            o.survives_restart && o.survives_reconnect && o.survives_export_import
-        })
+        self.offline_handoff_continuities
+            .iter()
+            .all(|o| o.survives_restart && o.survives_reconnect && o.survives_export_import)
     }
 
     /// Returns true when branch names, review links, and status updates are
     /// previewable before publish.
     pub fn mutations_previewable_before_publish(&self) -> bool {
-        self.branch_links.iter().all(|b| b.previewable_before_publish)
-            && self.review_links.iter().all(|r| r.previewable_before_publish)
-            && self.transition_sheets.iter().all(|t| {
-                t.export_action_available && t.cancel_action_available
-            })
+        self.branch_links
+            .iter()
+            .all(|b| b.previewable_before_publish)
+            && self
+                .review_links
+                .iter()
+                .all(|r| r.previewable_before_publish)
+            && self
+                .transition_sheets
+                .iter()
+                .all(|t| t.export_action_available && t.cancel_action_available)
     }
 }
 
@@ -1073,11 +1088,15 @@ impl From<WorkItemLinkageFinalizationPacket> for WorkItemLinkageFinalizationProj
             review_workspace_id: packet.review_workspace.review_workspace_id.clone(),
             stabilization_id: packet.stabilization.stabilization_id.clone(),
             finalization_state: packet.linkage_finalization.finalization_state.clone(),
-            provider_authoritative_surface_present: packet.inspection.provider_authoritative_surface_present,
+            provider_authoritative_surface_present: packet
+                .inspection
+                .provider_authoritative_surface_present,
             local_draft_surface_present: packet.inspection.local_draft_surface_present,
             sync_pending_surface_present: packet.inspection.sync_pending_surface_present,
             offline_captured_surface_present: packet.inspection.offline_captured_surface_present,
-            write_mode_disclosed_on_all_surfaces: packet.inspection.write_mode_disclosed_on_all_surfaces,
+            write_mode_disclosed_on_all_surfaces: packet
+                .inspection
+                .write_mode_disclosed_on_all_surfaces,
             transition_sheet_present: packet.inspection.transition_sheet_present,
             offline_handoff_survives_restart: packet.inspection.offline_handoff_survives_restart,
             mutations_previewable_before_publish: packet.mutations_previewable_before_publish(),
@@ -1104,9 +1123,15 @@ pub enum WorkItemLinkageFinalizationError {
 impl fmt::Display for WorkItemLinkageFinalizationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Parse(err) => write!(formatter, "work item linkage finalization parse error: {err}"),
+            Self::Parse(err) => write!(
+                formatter,
+                "work item linkage finalization parse error: {err}"
+            ),
             Self::Validation(err) => {
-                write!(formatter, "work item linkage finalization validation error: {err}")
+                write!(
+                    formatter,
+                    "work item linkage finalization validation error: {err}"
+                )
             }
         }
     }
@@ -1146,7 +1171,6 @@ impl fmt::Display for WorkItemLinkageFinalizationValidationError {
 }
 
 impl std::error::Error for WorkItemLinkageFinalizationValidationError {}
-
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -1214,17 +1238,22 @@ fn linkage_finalization_record(
     workspace_packet: &ReviewWorkspaceBetaPacket,
     stabilization_packet: &ReviewStabilizationPacket,
 ) -> WorkItemLinkageFinalizationRecord {
-    let blocked_reasons = derive_blocked_reasons(&input.finalization_state, &input.invalidation_reasons);
+    let blocked_reasons =
+        derive_blocked_reasons(&input.finalization_state, &input.invalidation_reasons);
     WorkItemLinkageFinalizationRecord {
         record_kind: WORK_ITEM_LINKAGE_FINALIZATION_RECORD_KIND.to_string(),
         schema_version: WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
         linkage_finalization_id: input.linkage_finalization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         stabilization_id_ref: stabilization_packet.stabilization.stabilization_id.clone(),
         finalization_state: input.finalization_state.clone(),
         invalidation_reasons: input.invalidation_reasons.clone(),
         blocked_reasons,
-        actionable: input.finalization_state == "finalized_current" && input.invalidation_reasons.is_empty(),
+        actionable: input.finalization_state == "finalized_current"
+            && input.invalidation_reasons.is_empty(),
         generated_at: input.generated_at.clone(),
         summary_label: input.summary_label.clone(),
     }
@@ -1239,7 +1268,9 @@ fn detail_surface_record(
         schema_version: WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
         detail_surface_id: input.detail_surface_id.clone(),
         linkage_finalization_id_ref: linkage_finalization.linkage_finalization_id.clone(),
-        provider_work_item_detail_record_id_ref: input.provider_work_item_detail_record_id_ref.clone(),
+        provider_work_item_detail_record_id_ref: input
+            .provider_work_item_detail_record_id_ref
+            .clone(),
         canonical_provider_id: input.canonical_provider_id.clone(),
         provider_owned_id: input.provider_owned_id.clone(),
         write_mode_disclosure_class: input.write_mode_disclosure_class.clone(),
@@ -1267,8 +1298,12 @@ fn transition_sheet_record(
         transition_sheet_id: input.transition_sheet_id.clone(),
         linkage_finalization_id_ref: linkage_finalization.linkage_finalization_id.clone(),
         work_item_detail_surface_id_ref: input.transition_sheet_id.clone(),
-        provider_status_transition_packet_record_id_ref: input.provider_status_transition_packet_record_id_ref.clone(),
-        provider_transition_review_record_id_ref: input.provider_transition_review_record_id_ref.clone(),
+        provider_status_transition_packet_record_id_ref: input
+            .provider_status_transition_packet_record_id_ref
+            .clone(),
+        provider_transition_review_record_id_ref: input
+            .provider_transition_review_record_id_ref
+            .clone(),
         previewed_side_effects: input
             .previewed_side_effects
             .iter()
@@ -1297,7 +1332,9 @@ fn offline_handoff_continuity_record(
         schema_version: WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
         offline_handoff_continuity_id: input.offline_handoff_continuity_id.clone(),
         linkage_finalization_id_ref: linkage_finalization.linkage_finalization_id.clone(),
-        provider_offline_handoff_packet_record_id_ref: input.provider_offline_handoff_packet_record_id_ref.clone(),
+        provider_offline_handoff_packet_record_id_ref: input
+            .provider_offline_handoff_packet_record_id_ref
+            .clone(),
         survives_restart: input.survives_restart,
         survives_reconnect: input.survives_reconnect,
         survives_export_import: input.survives_export_import,
@@ -1356,7 +1393,9 @@ fn publish_later_continuity_record(
         schema_version: WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
         continuity_id: input.continuity_id.clone(),
         linkage_finalization_id_ref: linkage_finalization.linkage_finalization_id.clone(),
-        publish_later_queue_item_record_id_ref: input.publish_later_queue_item_record_id_ref.clone(),
+        publish_later_queue_item_record_id_ref: input
+            .publish_later_queue_item_record_id_ref
+            .clone(),
         provider_descriptor_ref: input.provider_descriptor_ref.clone(),
         queue_state: input.queue_state.clone(),
         drain_state: input.drain_state.clone(),
@@ -1399,14 +1438,18 @@ fn linkage_support_export_packet(
         schema_version: WORK_ITEM_LINKAGE_FINALIZATION_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         linkage_finalization_id_ref: linkage_finalization.linkage_finalization_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         stabilization_id_ref: stabilization_packet.stabilization.stabilization_id.clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
         consumer_surfaces: input.consumer_surfaces.clone(),
         source_schema_refs: vec![
-            "schemas/review/finalize_issue_and_work_item_linkage_with_branch.schema.json".to_string(),
+            "schemas/review/finalize_issue_and_work_item_linkage_with_branch.schema.json"
+                .to_string(),
             "schemas/work_items/work_item_detail.schema.json".to_string(),
             "schemas/work_items/status_transition_packet.schema.json".to_string(),
             "schemas/providers/offline_handoff_packet.schema.json".to_string(),
@@ -1431,31 +1474,52 @@ fn linkage_inspection_record(
     support_export: &WorkItemLinkageSupportExportPacket,
 ) -> WorkItemLinkageInspectionRecord {
     let finalized_current = linkage_finalization.finalization_state == "finalized_current";
-    let finalized_stale_provider_overlay = linkage_finalization.finalization_state == "finalized_stale_provider_overlay";
-    let finalized_partial_work_item_scope = linkage_finalization.finalization_state == "finalized_partial_work_item_scope";
-    let finalized_diverged_requires_review = linkage_finalization.finalization_state == "finalized_diverged_requires_review";
-    let finalized_offline_handoff_only = linkage_finalization.finalization_state == "finalized_offline_handoff_only";
+    let finalized_stale_provider_overlay =
+        linkage_finalization.finalization_state == "finalized_stale_provider_overlay";
+    let finalized_partial_work_item_scope =
+        linkage_finalization.finalization_state == "finalized_partial_work_item_scope";
+    let finalized_diverged_requires_review =
+        linkage_finalization.finalization_state == "finalized_diverged_requires_review";
+    let finalized_offline_handoff_only =
+        linkage_finalization.finalization_state == "finalized_offline_handoff_only";
 
-    let provider_authoritative_surface_present = detail_surfaces.iter().any(|s| s.provider_authoritative_state_visible);
+    let provider_authoritative_surface_present = detail_surfaces
+        .iter()
+        .any(|s| s.provider_authoritative_state_visible);
     let local_draft_surface_present = detail_surfaces.iter().any(|s| s.local_draft_state_visible);
     let sync_pending_surface_present = detail_surfaces.iter().any(|s| s.sync_pending_state_visible);
-    let offline_captured_surface_present = detail_surfaces.iter().any(|s| s.offline_captured_state_visible);
+    let offline_captured_surface_present = detail_surfaces
+        .iter()
+        .any(|s| s.offline_captured_state_visible);
 
     let write_mode_disclosed_on_all_surfaces = detail_surfaces.iter().all(|s| {
-        contains_token(WRITE_MODE_DISCLOSURE_CLASSES, &s.write_mode_disclosure_class)
+        contains_token(
+            WRITE_MODE_DISCLOSURE_CLASSES,
+            &s.write_mode_disclosure_class,
+        )
     });
 
     let transition_sheet_present = !transition_sheets.is_empty();
-    let local_draft_preserved_on_failure = transition_sheets.iter().all(|t| t.local_draft_preserved_on_failure);
+    let local_draft_preserved_on_failure = transition_sheets
+        .iter()
+        .all(|t| t.local_draft_preserved_on_failure);
 
-    let offline_handoff_survives_restart = offline_handoff_continuities.iter().any(|o| o.survives_restart);
-    let offline_handoff_survives_reconnect = offline_handoff_continuities.iter().any(|o| o.survives_reconnect);
+    let offline_handoff_survives_restart = offline_handoff_continuities
+        .iter()
+        .any(|o| o.survives_restart);
+    let offline_handoff_survives_reconnect = offline_handoff_continuities
+        .iter()
+        .any(|o| o.survives_reconnect);
 
     let branch_link_previewable = branch_links.iter().any(|b| b.previewable_before_publish);
     let review_link_previewable = review_links.iter().any(|r| r.previewable_before_publish);
 
-    let publish_later_survives_restart = publish_later_continuities.iter().any(|p| p.survives_restart);
-    let publish_later_survives_reconnect = publish_later_continuities.iter().any(|p| p.survives_reconnect);
+    let publish_later_survives_restart = publish_later_continuities
+        .iter()
+        .any(|p| p.survives_restart);
+    let publish_later_survives_reconnect = publish_later_continuities
+        .iter()
+        .any(|p| p.survives_reconnect);
 
     let preview_capable = commands.iter().any(|c| c.preview_supported);
     let support_export_reopenable = !support_export.reopen_context_ref.trim().is_empty()
@@ -1542,9 +1606,18 @@ fn validate_input(
     }
 
     for surface in &input.detail_surfaces {
-        ensure_nonempty(&surface.detail_surface_id, "detail_surface.detail_surface_id")?;
-        ensure_nonempty(&surface.canonical_provider_id, "detail_surface.canonical_provider_id")?;
-        ensure_nonempty(&surface.provider_owned_id, "detail_surface.provider_owned_id")?;
+        ensure_nonempty(
+            &surface.detail_surface_id,
+            "detail_surface.detail_surface_id",
+        )?;
+        ensure_nonempty(
+            &surface.canonical_provider_id,
+            "detail_surface.canonical_provider_id",
+        )?;
+        ensure_nonempty(
+            &surface.provider_owned_id,
+            "detail_surface.provider_owned_id",
+        )?;
         ensure_token(
             WRITE_MODE_DISCLOSURE_CLASSES,
             &surface.write_mode_disclosure_class,
@@ -1553,7 +1626,10 @@ fn validate_input(
     }
 
     for sheet in &input.transition_sheets {
-        ensure_nonempty(&sheet.transition_sheet_id, "transition_sheet.transition_sheet_id")?;
+        ensure_nonempty(
+            &sheet.transition_sheet_id,
+            "transition_sheet.transition_sheet_id",
+        )?;
         if !detail_ids.contains(sheet.transition_sheet_id.as_str()) {
             return Err(linkage_finalization_validation_error(format!(
                 "transition_sheet {} must reference a known detail_surface",
@@ -1647,8 +1723,14 @@ fn validate_detail_surface_record(
         linkage_finalization_id,
         "detail_surface linkage_finalization_id_ref",
     )?;
-    ensure_nonempty(&record.canonical_provider_id, "detail_surface canonical_provider_id")?;
-    ensure_nonempty(&record.provider_owned_id, "detail_surface provider_owned_id")?;
+    ensure_nonempty(
+        &record.canonical_provider_id,
+        "detail_surface canonical_provider_id",
+    )?;
+    ensure_nonempty(
+        &record.provider_owned_id,
+        "detail_surface provider_owned_id",
+    )?;
     ensure_token(
         WRITE_MODE_DISCLOSURE_CLASSES,
         &record.write_mode_disclosure_class,
@@ -1986,7 +2068,9 @@ mod tests {
         let workspace = workspace_beta_packet();
         let stabilization = stabilization_packet();
         let result = WorkItemLinkageFinalizationPacket::from_workspace_and_stabilization_packets(
-            input, &workspace, &stabilization,
+            input,
+            &workspace,
+            &stabilization,
         );
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -2039,7 +2123,9 @@ mod tests {
         let workspace = workspace_beta_packet();
         let stabilization = stabilization_packet();
         let result = WorkItemLinkageFinalizationPacket::from_workspace_and_stabilization_packets(
-            input, &workspace, &stabilization,
+            input,
+            &workspace,
+            &stabilization,
         );
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -2073,7 +2159,8 @@ mod tests {
             }],
             transition_sheets: vec![StatusTransitionSheetInput {
                 transition_sheet_id: "detail:001".to_string(),
-                provider_status_transition_packet_record_id_ref: "provider:transition:001".to_string(),
+                provider_status_transition_packet_record_id_ref: "provider:transition:001"
+                    .to_string(),
                 provider_transition_review_record_id_ref: "provider:review:001".to_string(),
                 previewed_side_effects: vec![PreviewedSideEffectInput {
                     side_effect_id: "effect:001".to_string(),
@@ -2135,7 +2222,9 @@ mod tests {
         let workspace = workspace_beta_packet();
         let stabilization = stabilization_packet();
         let packet = WorkItemLinkageFinalizationPacket::from_workspace_and_stabilization_packets(
-            input, &workspace, &stabilization,
+            input,
+            &workspace,
+            &stabilization,
         )
         .expect("packet must construct");
 
@@ -2237,11 +2326,11 @@ mod tests {
     }
 
     fn stabilization_packet() -> ReviewStabilizationPacket {
+        use crate::landing::LandingCandidateRecord;
         use crate::stabilize_review_workspace_anchors_stale_base_labels_approval::{
             MergeabilityTruthRecord, ReviewStabilizationRecord,
             ReviewStabilizationSupportExportPacket, StaleBaseLabelRecord,
         };
-        use crate::landing::LandingCandidateRecord;
 
         let landing_candidate = LandingCandidateRecord {
             record_kind: "landing_candidate_record".to_string(),

@@ -90,15 +90,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_marketplace_catalog_truth_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.claim.support_claim_class, e.support_claim_class,
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -132,7 +148,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             "{}",
             fixture.case_name
         );
-        assert_eq!(packet.inspection.views_aligned, e.views_aligned, "{}", fixture.case_name);
+        assert_eq!(
+            packet.inspection.views_aligned, e.views_aligned,
+            "{}",
+            fixture.case_name
+        );
         assert_eq!(
             packet.inspection.scorecard_count, e.scorecard_count,
             "{}",
@@ -168,7 +188,11 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         );
 
         // The compatibility summary always re-derives from the scorecards.
-        let inherited = packet.scorecards.iter().filter(|s| s.parity_inherited()).count();
+        let inherited = packet
+            .scorecards
+            .iter()
+            .filter(|s| s.parity_inherited())
+            .count();
         assert_eq!(
             inherited, packet.compatibility_summary.inherited_count,
             "fixture {} inherited count",
@@ -202,7 +226,10 @@ fn every_fixture_builds_validates_and_matches_expectations() {
             export.runtime_class_verified,
             packet.surface_boundary.runtime_class_verified
         );
-        assert_eq!(export.support_profile_limited, packet.support_class.profile_limited);
+        assert_eq!(
+            export.support_profile_limited,
+            packet.support_class.profile_limited
+        );
     }
 }
 
@@ -243,7 +270,8 @@ fn closed_vocabularies_hold_their_anchors() {
 
 #[test]
 fn stable_fixture_holds_when_stabilized() {
-    let packet = StableMarketplaceCatalogTruthPacket::from_input(stable_input()).expect("must build");
+    let packet =
+        StableMarketplaceCatalogTruthPacket::from_input(stable_input()).expect("must build");
     assert_eq!(packet.claim.effective_tier, "stable");
     assert!(!packet.claim.downgraded);
     assert!(packet.inspection.stable_claim);
@@ -504,14 +532,17 @@ fn non_mechanically_sourced_provenance_is_rejected() {
 #[test]
 fn ranking_not_explainable_without_install_count_is_rejected() {
     let mut input = stable_input();
-    input.discoverability.ranking_explained_without_install_count = false;
+    input
+        .discoverability
+        .ranking_explained_without_install_count = false;
     let result = StableMarketplaceCatalogTruthPacket::from_input(input);
     assert!(result.is_err());
 }
 
 #[test]
 fn support_export_preserves_runtime_class_truth() {
-    let packet = StableMarketplaceCatalogTruthPacket::from_input(stable_input()).expect("must build");
+    let packet =
+        StableMarketplaceCatalogTruthPacket::from_input(stable_input()).expect("must build");
     let export = project_stable_marketplace_catalog_truth_support_export(&packet);
     assert!(!export.blocks_stable_catalog_truth);
     assert_eq!(export.runtime_class, packet.surface_boundary.runtime_class);

@@ -1428,16 +1428,16 @@ impl Error for JavaAndKotlinDailyDriverQualityTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_java_and_kotlin_daily_driver_quality_truth_packet(
-) -> Result<JavaAndKotlinDailyDriverQualityTruthPacket, JavaAndKotlinDailyDriverQualityTruthArtifactError>
-{
-    let packet: JavaAndKotlinDailyDriverQualityTruthPacket = serde_json::from_str(include_str!(
-        concat!(
+pub fn current_stable_java_and_kotlin_daily_driver_quality_truth_packet() -> Result<
+    JavaAndKotlinDailyDriverQualityTruthPacket,
+    JavaAndKotlinDailyDriverQualityTruthArtifactError,
+> {
+    let packet: JavaAndKotlinDailyDriverQualityTruthPacket =
+        serde_json::from_str(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../artifacts/language/m4/java_and_kotlin_daily_driver_quality_truth_packet.json"
-        )
-    ))
-    .map_err(JavaAndKotlinDailyDriverQualityTruthArtifactError::Packet)?;
+        )))
+        .map_err(JavaAndKotlinDailyDriverQualityTruthArtifactError::Packet)?;
     let findings = packet.validate();
     if findings.is_empty() {
         Ok(packet)
@@ -1504,9 +1504,7 @@ mod tests {
         }
     }
 
-    fn projection(
-        surface: ConsumerSurface,
-    ) -> JavaAndKotlinDailyDriverQualityConsumerProjection {
+    fn projection(surface: ConsumerSurface) -> JavaAndKotlinDailyDriverQualityConsumerProjection {
         JavaAndKotlinDailyDriverQualityConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
@@ -1527,10 +1525,7 @@ mod tests {
         }
     }
 
-    fn lane_rows(
-        lane: LanguageLaneClass,
-        prefix: &str,
-    ) -> Vec<JavaAndKotlinDailyDriverQualityRow> {
+    fn lane_rows(lane: LanguageLaneClass, prefix: &str) -> Vec<JavaAndKotlinDailyDriverQualityRow> {
         let mut out = vec![quality_row(&format!("row:{prefix}:quality"), lane)];
         for step in DailyLoopStepClass::REQUIRED_FOR_REPLACEMENT {
             out.push(loop_step_row(
@@ -1549,8 +1544,8 @@ mod tests {
         );
         JavaAndKotlinDailyDriverQualityTruthPacketInput {
             packet_id: "packet:m4:java_and_kotlin_daily_driver_quality".to_owned(),
-            workflow_or_surface_id:
-                "workflow.language.java_and_kotlin_daily_driver_quality".to_owned(),
+            workflow_or_surface_id: "workflow.language.java_and_kotlin_daily_driver_quality"
+                .to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_lanes: LanguageLaneClass::REQUIRED.to_vec(),
             rows,
@@ -1638,8 +1633,7 @@ mod tests {
 
     #[test]
     fn baseline_materialization_is_stable() {
-        let packet =
-            JavaAndKotlinDailyDriverQualityTruthPacket::materialize(sample_input());
+        let packet = JavaAndKotlinDailyDriverQualityTruthPacket::materialize(sample_input());
         assert_eq!(
             packet.promotion_state,
             PromotionState::Stable,

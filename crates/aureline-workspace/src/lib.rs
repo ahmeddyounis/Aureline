@@ -23,6 +23,7 @@ pub mod entry_flows;
 pub mod entry_hardening_lineage;
 pub mod generated_artifacts;
 pub mod generated_projects;
+pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
@@ -31,6 +32,7 @@ pub mod mutation_journal;
 pub mod portable_state_lineage;
 pub mod prebuilds;
 pub mod profiles;
+pub mod publish_stable_migration_guides_compatibility_tables_and_switching;
 pub mod reactive_state_lineage;
 pub mod recent_work;
 pub mod recovery_ladder_lineage;
@@ -43,13 +45,11 @@ pub mod scaffold;
 pub mod schema_migration_and_repair_lineage;
 pub mod scope_propagation;
 pub mod serialization;
+pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod state_packages;
 pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;
-pub mod harden_keymap_theme_settings_snippet_task_and_launch;
-pub mod publish_stable_migration_guides_compatibility_tables_and_switching;
-pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod workset_scope_ux_lineage;
 pub mod workset_switcher;
 pub mod worksets;
@@ -242,12 +242,13 @@ pub use certify_launch_bundles_imported_user_handoff_bundles_and::{
     BundleCertificationClaimInput, BundleCertificationError, BundleCertificationValidationError,
     CertifiedBundleIdentity, CertifiedBundleIdentityInput, CompatibilityScorecard,
     CompatibilityScorecardInput, CompatibilityScorecardRow, CompatibilityScorecardRowInput,
-    ImportedHandoffReport, ImportedHandoffReportInput, BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_REF,
-    BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_VERSION, BUNDLE_ARCHETYPE_CLASSES, BUNDLE_CLASSES,
-    BUNDLE_SOURCE_CLASSES as BUNDLE_CERTIFICATION_SOURCE_CLASSES,
-    BUNDLE_CERTIFICATION_CONSUMER_SURFACES, BUNDLE_CERTIFICATION_DOWNGRADE_REASONS,
-    BRIDGE_STATE_CLASSES, CERTIFICATION_STATE_CLASSES, EFFECTIVE_BADGE_CLASSES,
-    STABLE_BADGE_CLASSES, SUPPORT_CLAIM_CLASSES as BUNDLE_CERTIFICATION_SUPPORT_CLAIM_CLASSES,
+    ImportedHandoffReport, ImportedHandoffReportInput, BRIDGE_STATE_CLASSES,
+    BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_REF, BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_VERSION,
+    BUNDLE_ARCHETYPE_CLASSES, BUNDLE_CERTIFICATION_CONSUMER_SURFACES,
+    BUNDLE_CERTIFICATION_DOWNGRADE_REASONS, BUNDLE_CLASSES,
+    BUNDLE_SOURCE_CLASSES as BUNDLE_CERTIFICATION_SOURCE_CLASSES, CERTIFICATION_STATE_CLASSES,
+    EFFECTIVE_BADGE_CLASSES, STABLE_BADGE_CLASSES,
+    SUPPORT_CLAIM_CLASSES as BUNDLE_CERTIFICATION_SUPPORT_CLAIM_CLASSES,
 };
 
 pub use save::{
@@ -334,27 +335,26 @@ pub use recovery_ladder_lineage::{
     NoRerunHonestySummary as RecoveryLadderNoRerunHonestySummary, NoRerunPosture,
     RecoveryLadderInputs, RecoveryLadderInspectionHook, RecoveryLadderInspectionHookClass,
     RecoveryLadderLineageNarrowReason, RecoveryLadderLineageQualification,
-    RecoveryLadderLineageRecord, RecoveryLadderProducerAttributionSummary,
-    RecoveryRungKind, RecoveryRungObservation, RecoveryRungRow,
-    RecoverySupportExportHonestySummary, RecoverySupportExportInputs,
-    RecoverySupportExportPosture, ReversibilityClass, ReversibilityTruthSummary,
-    RungSequenceCoverageSummary, RungTriggerClass, TriggerDisclosureSummary,
-    UserStatePreservationPosture, UserStatePreservationSummary, RECOVERY_LADDER_LINEAGE_RECORD_KIND,
-    RECOVERY_LADDER_LINEAGE_SCHEMA_REF, RECOVERY_LADDER_LINEAGE_SCHEMA_VERSION,
-    REQUIRED_RECOVERY_RUNGS,
+    RecoveryLadderLineageRecord, RecoveryLadderProducerAttributionSummary, RecoveryRungKind,
+    RecoveryRungObservation, RecoveryRungRow, RecoverySupportExportHonestySummary,
+    RecoverySupportExportInputs, RecoverySupportExportPosture, ReversibilityClass,
+    ReversibilityTruthSummary, RungSequenceCoverageSummary, RungTriggerClass,
+    TriggerDisclosureSummary, UserStatePreservationPosture, UserStatePreservationSummary,
+    RECOVERY_LADDER_LINEAGE_RECORD_KIND, RECOVERY_LADDER_LINEAGE_SCHEMA_REF,
+    RECOVERY_LADDER_LINEAGE_SCHEMA_VERSION, REQUIRED_RECOVERY_RUNGS,
 };
 
 pub use cache_storage_class_lineage::{
     cache_storage_class_lineage_lines, default_cache_storage_inspection_hooks,
     project_cache_storage_class_lineage, project_cache_storage_class_lineage_with_hooks,
     CacheStorageClassInputs, CacheStorageClassLineageNarrowReason,
-    CacheStorageClassLineageQualification, CacheStorageClassLineageRecord, CacheStorageInspectionHook,
-    CacheStorageInspectionHookClass, CacheStorageObservation,
+    CacheStorageClassLineageQualification, CacheStorageClassLineageRecord,
+    CacheStorageInspectionHook, CacheStorageInspectionHookClass, CacheStorageObservation,
     CacheStorageProducerAttributionSummary, CacheStorageRow, CacheSupportExportHonestySummary,
     CacheSupportExportInputs, CacheSupportExportPosture, ClaimedDurabilityTier,
     CleanupSurfaceCoverageSummary, CleanupSurfaceKind, EvictionPolicyClass,
-    EvictionPolicyTruthSummary, StorageClassCoverageSummary, StorageClassKind,
-    UserStateClass, UserStateGovernanceSummary, CACHE_STORAGE_CLASS_LINEAGE_RECORD_KIND,
+    EvictionPolicyTruthSummary, StorageClassCoverageSummary, StorageClassKind, UserStateClass,
+    UserStateGovernanceSummary, CACHE_STORAGE_CLASS_LINEAGE_RECORD_KIND,
     CACHE_STORAGE_CLASS_LINEAGE_SCHEMA_REF, CACHE_STORAGE_CLASS_LINEAGE_SCHEMA_VERSION,
     REQUIRED_CLEANUP_SURFACES, REQUIRED_STORAGE_CLASSES,
 };
@@ -494,42 +494,41 @@ pub use workset_scope_ux_lineage::{
 
 pub use local_history_export_replay_lineage::{
     default_local_history_export_replay_inspection_hooks,
-    local_history_export_replay_lineage_lines,
-    project_local_history_export_replay_lineage,
+    local_history_export_replay_lineage_lines, project_local_history_export_replay_lineage,
     project_local_history_export_replay_lineage_with_hooks, BodyAvailabilityClass,
     BodyExportSafetySummary, CompareToDiskHonestySummary, CompareToDiskState,
-    EncodingFidelityClass, EncodingFidelitySummary, ExportPacketKind,
-    IntegrityHashPinningSummary, LocalHistoryExportReplayInputs,
-    LocalHistoryExportReplayInspectionHook, LocalHistoryExportReplayInspectionHookClass,
-    LocalHistoryExportReplayLineageNarrowReason, LocalHistoryExportReplayLineageQualification,
-    LocalHistoryExportReplayLineageRecord, LocalHistoryExportReplayProducerAttributionSummary,
+    EncodingFidelityClass, EncodingFidelitySummary, ExportPacketKind, IntegrityHashPinningSummary,
+    LocalHistoryExportReplayInputs, LocalHistoryExportReplayInspectionHook,
+    LocalHistoryExportReplayInspectionHookClass, LocalHistoryExportReplayLineageNarrowReason,
+    LocalHistoryExportReplayLineageQualification, LocalHistoryExportReplayLineageRecord,
+    LocalHistoryExportReplayProducerAttributionSummary,
     LocalHistoryExportReplaySupportExportHonestySummary,
     LocalHistoryExportReplaySupportExportInputs, LocalHistoryExportReplaySupportExportPosture,
     NoSilentRerunSummary, PacketCoverageSummary, PacketObservation, PacketRow,
     ReplayPathCoverageSummary, ReplayPathKind, ReplayPathObservation, ReplayPathRow,
     ReplayRerunPosture,
     RestoreProvenanceSummary as LocalHistoryExportReplayRestoreProvenanceSummary,
-    REQUIRED_EXPORT_PACKET_KINDS,
-    REQUIRED_REPLAY_PATH_KINDS, LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_RECORD_KIND,
+    LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_RECORD_KIND,
     LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_REF,
-    LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_VERSION,
+    LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_VERSION, REQUIRED_EXPORT_PACKET_KINDS,
+    REQUIRED_REPLAY_PATH_KINDS,
 };
 
 pub use schema_migration_and_repair_lineage::{
     default_schema_migration_inspection_hooks, project_schema_migration_and_repair_lineage,
     project_schema_migration_and_repair_lineage_with_hooks,
     schema_migration_and_repair_lineage_lines, ArtifactClassCoverageSummary, ArtifactClassKind,
-    MigrationObservation, MigrationOutcome, MigrationRow, NoSilentRerunSummary as SchemaMigrationNoSilentRerunSummary,
-    OutcomeHonestySummary, PreservationSummary, RedactionClass, RepairFlowCoverageSummary,
-    RepairFlowKind, RepairFlowObservation, RepairFlowRow, RepairOutcome,
-    RepairTransactionPinningSummary, RerunPosture as SchemaMigrationRerunPosture,
-    SchemaCompatibilityClass, SchemaMigrationAndRepairInputs,
-    SchemaMigrationAndRepairLineageNarrowReason, SchemaMigrationAndRepairLineageQualification,
-    SchemaMigrationAndRepairLineageRecord, SchemaMigrationInspectionHook,
-    SchemaMigrationInspectionHookClass, SchemaMigrationProducerAttributionSummary,
-    SchemaMigrationSupportExportHonestySummary, SchemaMigrationSupportExportInputs,
-    SchemaMigrationSupportExportPosture, SchemaVersionPinningSummary,
-    REQUIRED_ARTIFACT_CLASSES, REQUIRED_REPAIR_FLOW_KINDS,
+    MigrationObservation, MigrationOutcome, MigrationRow,
+    NoSilentRerunSummary as SchemaMigrationNoSilentRerunSummary, OutcomeHonestySummary,
+    PreservationSummary, RedactionClass, RepairFlowCoverageSummary, RepairFlowKind,
+    RepairFlowObservation, RepairFlowRow, RepairOutcome, RepairTransactionPinningSummary,
+    RerunPosture as SchemaMigrationRerunPosture, SchemaCompatibilityClass,
+    SchemaMigrationAndRepairInputs, SchemaMigrationAndRepairLineageNarrowReason,
+    SchemaMigrationAndRepairLineageQualification, SchemaMigrationAndRepairLineageRecord,
+    SchemaMigrationInspectionHook, SchemaMigrationInspectionHookClass,
+    SchemaMigrationProducerAttributionSummary, SchemaMigrationSupportExportHonestySummary,
+    SchemaMigrationSupportExportInputs, SchemaMigrationSupportExportPosture,
+    SchemaVersionPinningSummary, REQUIRED_ARTIFACT_CLASSES, REQUIRED_REPAIR_FLOW_KINDS,
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_RECORD_KIND,
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_REF,
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_VERSION,
@@ -537,17 +536,15 @@ pub use schema_migration_and_repair_lineage::{
 
 pub use state_root_certification_lineage::{
     default_state_root_inspection_hooks, project_state_root_certification_lineage,
-    project_state_root_certification_lineage_with_hooks,
-    state_root_certification_lineage_lines, AuditFindingClass, AuditHonestySummary,
-    AuditRedactionClass, AuditRerunPosture, AuditSurfaceCoverageSummary, AuditSurfaceKind,
-    AuditSurfaceObservation, AuditSurfaceReachabilitySummary, AuditSurfaceRow,
-    AuditTransactionPinningSummary, ClaimedStableProfile,
-    NoSilentRerunSummary as StateRootCertificationNoSilentRerunSummary,
-    PreservationSummary as StateRootCertificationPreservationSummary,
-    ResourceAuditObservation, ResourceAuditRow, ResourceClassCoverageSummary,
-    StateRootCertificationInputs, StateRootCertificationLineageNarrowReason,
-    StateRootCertificationLineageQualification, StateRootCertificationLineageRecord,
-    StateRootInspectionHook, StateRootInspectionHookClass,
+    project_state_root_certification_lineage_with_hooks, state_root_certification_lineage_lines,
+    AuditFindingClass, AuditHonestySummary, AuditRedactionClass, AuditRerunPosture,
+    AuditSurfaceCoverageSummary, AuditSurfaceKind, AuditSurfaceObservation,
+    AuditSurfaceReachabilitySummary, AuditSurfaceRow, AuditTransactionPinningSummary,
+    ClaimedStableProfile, NoSilentRerunSummary as StateRootCertificationNoSilentRerunSummary,
+    PreservationSummary as StateRootCertificationPreservationSummary, ResourceAuditObservation,
+    ResourceAuditRow, ResourceClassCoverageSummary, StateRootCertificationInputs,
+    StateRootCertificationLineageNarrowReason, StateRootCertificationLineageQualification,
+    StateRootCertificationLineageRecord, StateRootInspectionHook, StateRootInspectionHookClass,
     StateRootProducerAttributionSummary, StateRootResourceKind,
     StateRootSupportExportHonestySummary, StateRootSupportExportInputs,
     StateRootSupportExportPosture, REQUIRED_AUDIT_SURFACES, REQUIRED_STATE_ROOT_RESOURCES,
@@ -557,8 +554,7 @@ pub use state_root_certification_lineage::{
 
 pub use mutation_and_generated_artifact_lineage::{
     default_mutation_and_generated_artifact_inspection_hooks,
-    mutation_and_generated_artifact_lineage_lines,
-    project_mutation_and_generated_artifact_lineage,
+    mutation_and_generated_artifact_lineage_lines, project_mutation_and_generated_artifact_lineage,
     project_mutation_and_generated_artifact_lineage_with_hooks, CanonicalLineageTruthSummary,
     DefaultEditPostureClass, DriftStateClass, DriftTruthSummary, EditPostureHonestySummary,
     GeneratedArtifactCoverageSummary, GeneratedArtifactKind, GeneratedArtifactObservation,
@@ -572,8 +568,8 @@ pub use mutation_and_generated_artifact_lineage::{
     MutationPathRow, MutationSupportExportHonestySummary, MutationSupportExportInputs,
     MutationSupportExportPosture, MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_RECORD_KIND,
     MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF,
-    MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION,
-    REQUIRED_GENERATED_ARTIFACT_CLASSES, REQUIRED_LABELING_SURFACES, REQUIRED_MUTATION_PATHS,
+    MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION, REQUIRED_GENERATED_ARTIFACT_CLASSES,
+    REQUIRED_LABELING_SURFACES, REQUIRED_MUTATION_PATHS,
 };
 
 pub use mutation_journal::{
@@ -623,11 +619,11 @@ pub use harden_keymap_theme_settings_snippet_task_and_launch::{
     ArtifactImportHardeningInspectionRecord, ArtifactImportHardeningPacket,
     ArtifactImportHardeningProjection, ArtifactImportHardeningRecord,
     ArtifactImportHardeningSupportExportPacket, ArtifactImportOutcomeBreakdown,
-    ArtifactImportRollbackCheckpoint, ArtifactImportRollbackCheckpointState,
-    ArtifactImportSummary, ArtifactType,
-    ARTIFACT_IMPORT_DIAGNOSTIC_ACTION_CLASSES, ARTIFACT_IMPORT_DIAGNOSTIC_REASON_CLASSES,
-    ARTIFACT_IMPORT_HARDENING_COMMAND_CLASSES, ARTIFACT_IMPORT_HARDENING_COMMAND_RECORD_KIND,
-    ARTIFACT_IMPORT_HARDENING_CONSUMER_SURFACES, ARTIFACT_IMPORT_HARDENING_INSPECTION_RECORD_KIND,
+    ArtifactImportRollbackCheckpoint, ArtifactImportRollbackCheckpointState, ArtifactImportSummary,
+    ArtifactType, ARTIFACT_IMPORT_DIAGNOSTIC_ACTION_CLASSES,
+    ARTIFACT_IMPORT_DIAGNOSTIC_REASON_CLASSES, ARTIFACT_IMPORT_HARDENING_COMMAND_CLASSES,
+    ARTIFACT_IMPORT_HARDENING_COMMAND_RECORD_KIND, ARTIFACT_IMPORT_HARDENING_CONSUMER_SURFACES,
+    ARTIFACT_IMPORT_HARDENING_INSPECTION_RECORD_KIND,
     ARTIFACT_IMPORT_HARDENING_INVALIDATION_REASONS, ARTIFACT_IMPORT_HARDENING_PACKET_RECORD_KIND,
     ARTIFACT_IMPORT_HARDENING_RECORD_KIND, ARTIFACT_IMPORT_HARDENING_SCHEMA_VERSION,
     ARTIFACT_IMPORT_HARDENING_SUPPORT_EXPORT_PACKET_RECORD_KIND,
@@ -637,25 +633,22 @@ pub use harden_keymap_theme_settings_snippet_task_and_launch::{
 
 pub use stabilize_migration_wizard_import_fidelity_for_editor_launch_paths::{
     project_migration_wizard_import_fidelity_packet, EditorLaunchPathRecord,
-    EditorLaunchPathSummary, ImportMappingDiagnosticRecord, ImportOutcomeLabel,
-    LaunchPathState, MigrationWizardImportFidelityCommandClass,
-    MigrationWizardImportFidelityCommandRecord, MigrationWizardImportFidelityError,
-    MigrationWizardImportFidelityInput, MigrationWizardImportFidelityInspectionRecord,
-    MigrationWizardImportFidelityPacket, MigrationWizardImportFidelityProjection,
-    MigrationWizardImportFidelityRecord, MigrationWizardImportFidelitySupportExportPacket,
-    MigrationWizardImportFidelityValidationError, RollbackCheckpointRecord, RollbackCheckpointState,
-    TargetFamilyOutcome,
+    EditorLaunchPathSummary, ImportMappingDiagnosticRecord, ImportOutcomeLabel, LaunchPathState,
+    MigrationWizardImportFidelityCommandClass, MigrationWizardImportFidelityCommandRecord,
+    MigrationWizardImportFidelityError, MigrationWizardImportFidelityInput,
+    MigrationWizardImportFidelityInspectionRecord, MigrationWizardImportFidelityPacket,
+    MigrationWizardImportFidelityProjection, MigrationWizardImportFidelityRecord,
+    MigrationWizardImportFidelitySupportExportPacket, MigrationWizardImportFidelityValidationError,
+    RollbackCheckpointRecord, RollbackCheckpointState, TargetFamilyOutcome,
     EDITOR_LAUNCH_PATH_RECORD_KIND, IMPORT_DIAGNOSTIC_ACTION_CLASSES,
-    IMPORT_DIAGNOSTIC_REASON_CLASSES, IMPORT_MAPPING_DIAGNOSTIC_RECORD_KIND,
-    IMPORT_OUTCOME_LABELS, IMPORT_TARGET_FAMILIES,
-    LAUNCH_PATH_STATES, MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_CLASSES,
+    IMPORT_DIAGNOSTIC_REASON_CLASSES, IMPORT_MAPPING_DIAGNOSTIC_RECORD_KIND, IMPORT_OUTCOME_LABELS,
+    IMPORT_TARGET_FAMILIES, LAUNCH_PATH_STATES, MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_CLASSES,
     MIGRATION_WIZARD_IMPORT_FIDELITY_COMMAND_RECORD_KIND,
     MIGRATION_WIZARD_IMPORT_FIDELITY_CONSUMER_SURFACES,
     MIGRATION_WIZARD_IMPORT_FIDELITY_INSPECTION_RECORD_KIND,
     MIGRATION_WIZARD_IMPORT_FIDELITY_INVALIDATION_REASONS,
     MIGRATION_WIZARD_IMPORT_FIDELITY_PACKET_RECORD_KIND,
-    MIGRATION_WIZARD_IMPORT_FIDELITY_RECORD_KIND,
-    MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
+    MIGRATION_WIZARD_IMPORT_FIDELITY_RECORD_KIND, MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
     MIGRATION_WIZARD_IMPORT_FIDELITY_SUPPORT_EXPORT_PACKET_RECORD_KIND,
     ROLLBACK_CHECKPOINT_RECORD_KIND, ROLLBACK_CHECKPOINT_STATES, SOURCE_EDITOR_ECOSYSTEMS,
 };
@@ -696,6 +689,6 @@ pub use publish_stable_migration_guides_compatibility_tables_and_switching::{
     MIGRATION_SWITCHING_PUBLICATION_PACKET_RECORD_KIND, MIGRATION_SWITCHING_PUBLICATION_SCHEMA_REF,
     MIGRATION_SWITCHING_PUBLICATION_SCHEMA_VERSION, PROVIDER_HANDOFF_DISCLOSURE_RECORD_KIND,
     STABILITY_TIERS, STABLE_QUALIFICATION_CLAIM_RECORD_KIND, STABLE_TIERS,
-    SUPPORT_CLAIM_CLASSES as MIGRATION_SWITCHING_SUPPORT_CLAIM_CLASSES, SWITCHING_KNOWN_LIMIT_RECORD_KIND,
-    SWITCH_DOWNGRADE_REASONS,
+    SUPPORT_CLAIM_CLASSES as MIGRATION_SWITCHING_SUPPORT_CLAIM_CLASSES,
+    SWITCHING_KNOWN_LIMIT_RECORD_KIND, SWITCH_DOWNGRADE_REASONS,
 };

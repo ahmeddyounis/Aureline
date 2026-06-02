@@ -26,7 +26,7 @@
 
 use crate::attention_router::NotificationRouteOutcome;
 use crate::notification_envelope_corpus::{
-    seeded_notification_envelope_corpus_packet, route_outcome_violations, BetaAttentionFamily,
+    route_outcome_violations, seeded_notification_envelope_corpus_packet, BetaAttentionFamily,
     NotificationEnvelopeCorpusCase,
 };
 use crate::notifications::actions::{
@@ -227,10 +227,7 @@ fn is_durable_truth_surface(surface: FanoutSurfaceClass) -> bool {
     )
 }
 
-fn route_preserves_durable_path(
-    surface: FanoutSurfaceClass,
-    state: FanoutReceiptState,
-) -> bool {
+fn route_preserves_durable_path(surface: FanoutSurfaceClass, state: FanoutReceiptState) -> bool {
     is_durable_truth_surface(surface)
         && matches!(
             state,
@@ -243,10 +240,9 @@ fn route_preserves_durable_path(
 
 /// True when at least one durable surface preserves the truth (never toast-only).
 fn durable_surface_present(outcome: &NotificationRouteOutcome) -> bool {
-    outcome
-        .resolved_surface_routes
-        .iter()
-        .any(|route| route_preserves_durable_path(route.fanout_surface_class, route.resolved_receipt_state))
+    outcome.resolved_surface_routes.iter().any(|route| {
+        route_preserves_durable_path(route.fanout_surface_class, route.resolved_receipt_state)
+    })
 }
 
 /// True when a forbidden lock-screen payload was rendered visible — a leak.
@@ -255,7 +251,10 @@ fn lock_screen_leak(outcome: &NotificationRouteOutcome) -> bool {
         outcome.privacy_payload_class,
         PrivacyPayloadClass::PolicyForbiddenOnLockScreen
     ) && outcome.resolved_surface_routes.iter().any(|route| {
-        matches!(route.fanout_surface_class, FanoutSurfaceClass::LockScreenSummary) && route.is_visible()
+        matches!(
+            route.fanout_surface_class,
+            FanoutSurfaceClass::LockScreenSummary
+        ) && route.is_visible()
     })
 }
 
@@ -426,7 +425,10 @@ fn build_record(
     // --- recovery routes ------------------------------------------------------
     let recovery_actions =
         required_recovery_actions(meta.cancelable, meta.retriable, meta.resolvable);
-    let recovery_routes: Vec<_> = recovery_actions.iter().map(|action| action.route()).collect();
+    let recovery_routes: Vec<_> = recovery_actions
+        .iter()
+        .map(|action| action.route())
+        .collect();
     let recovery_action_ids: Vec<String> = recovery_routes
         .iter()
         .map(|route| route.action_id.clone())
@@ -455,7 +457,11 @@ fn build_record(
         .into_iter()
         .map(|surface| EntryRouteRecord {
             surface,
-            route_ref: format!("aureline://attention-route/{}/{}", surface.as_str(), family_token),
+            route_ref: format!(
+                "aureline://attention-route/{}/{}",
+                surface.as_str(),
+                family_token
+            ),
             keyboard_reachable: true,
             activates_same_item: true,
         })
@@ -464,7 +470,10 @@ fn build_record(
     // --- accessibility --------------------------------------------------------
     let subsystem_token = snake_token(&outcome.source_subsystem);
     let claim_phrase = if meta.surface_marker.is_below_stable() {
-        format!("on a {} attention surface (narrowed below Stable)", meta.surface_marker.as_str())
+        format!(
+            "on a {} attention surface (narrowed below Stable)",
+            meta.surface_marker.as_str()
+        )
     } else {
         "on a Stable attention surface".to_string()
     };
@@ -583,7 +592,10 @@ mod tests {
             .filter(|s| s.expected_claim_class != StableClaimClass::Stable)
             .count();
         assert!(stable >= 1, "matrix must include a Stable row");
-        assert!(narrowed >= 1, "matrix must include a row narrowed below Stable");
+        assert!(
+            narrowed >= 1,
+            "matrix must include a row narrowed below Stable"
+        );
     }
 
     #[test]
@@ -593,13 +605,21 @@ mod tests {
             if record.stable_qualification.claim_class != StableClaimClass::Stable {
                 continue;
             }
-            assert!(record.stable_qualification.qualifies_stable, "{}", scenario.scenario_id);
+            assert!(
+                record.stable_qualification.qualifies_stable,
+                "{}",
+                scenario.scenario_id
+            );
             assert!(record.stable_qualification.narrowing_reasons.is_empty());
             assert!(record.durable_job.is_durable(), "{}", scenario.scenario_id);
             assert!(record.interruptibility.holds(), "{}", scenario.scenario_id);
             assert!(record.quiet_hours.is_coherent(), "{}", scenario.scenario_id);
             assert!(record.privacy.is_privacy_safe(), "{}", scenario.scenario_id);
-            assert!(record.badge.count_class_truthful(), "{}", scenario.scenario_id);
+            assert!(
+                record.badge.count_class_truthful(),
+                "{}",
+                scenario.scenario_id
+            );
             assert!(record.reopen.is_deterministic(), "{}", scenario.scenario_id);
         }
     }
@@ -609,9 +629,16 @@ mod tests {
         for scenario in attention_lock_corpus() {
             let record = scenario.record();
             if record.stable_qualification.claim_class != StableClaimClass::Stable {
-                assert!(!record.stable_qualification.qualifies_stable, "{}", scenario.scenario_id);
                 assert!(
-                    !record.stable_qualification.claim_class.at_or_above_cutline(),
+                    !record.stable_qualification.qualifies_stable,
+                    "{}",
+                    scenario.scenario_id
+                );
+                assert!(
+                    !record
+                        .stable_qualification
+                        .claim_class
+                        .at_or_above_cutline(),
                     "{}",
                     scenario.scenario_id
                 );
@@ -634,7 +661,11 @@ mod tests {
                 "{} is toast-only",
                 scenario.scenario_id
             );
-            assert!(record.lifecycle.required_verbs_present, "{}", scenario.scenario_id);
+            assert!(
+                record.lifecycle.required_verbs_present,
+                "{}",
+                scenario.scenario_id
+            );
             assert!(record.lifecycle.verbs_distinct, "{}", scenario.scenario_id);
             for verb in REQUIRED_LIFECYCLE_VERBS {
                 assert!(
@@ -656,11 +687,16 @@ mod tests {
         for scenario in attention_lock_corpus() {
             let record = scenario.record();
             assert!(
-                record.reopen.resolves_to_exact_target || record.reopen.degrades_to_truthful_placeholder,
+                record.reopen.resolves_to_exact_target
+                    || record.reopen.degrades_to_truthful_placeholder,
                 "{} reopen is neither exact nor a truthful placeholder",
                 scenario.scenario_id
             );
-            assert!(record.reopen.no_generic_home_reopen, "{}", scenario.scenario_id);
+            assert!(
+                record.reopen.no_generic_home_reopen,
+                "{}",
+                scenario.scenario_id
+            );
             assert!(
                 record.reopen.no_side_effects_from_notification_surface,
                 "{} would re-issue a side effect from a notification surface",

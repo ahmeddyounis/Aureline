@@ -13,20 +13,19 @@
 
 use super::{
     ApprovalPostureClass, ArgumentKind, BlockedPrerequisite, BlockedPrerequisiteClass,
-    CapabilityScopeClass, ClientScope, CommandFormBundle, CommandFormsCatalog,
-    CountTruthClass, ExecutionIntentClass, FieldProvenanceSummaryEntry, FieldStateClass,
-    FieldStateRecord, FormLevelValidationRollup, FormSurfaceClass, InvocationReviewSheetRecord,
-    NetworkActionClass, ParameterFormStateRecord, PolicyContext, PreviewClass,
-    PreviewOrDryRunClass, ProcessActionClass, RedactionClass, RemoteActionClass, RepairHookRef,
-    RestartOrReloadClass, ReviewSurfaceClass, RollbackClass, ScopeAxisClass, ScopeAxisRecord,
-    SecretHandlingSummary, SideEffectClass, SourceLayerClass, TrustState,
-    UnsupportedFieldClass, ValidationFinding, ValidationFindingClass, ValidationSeverity,
-    ValueVisibilityClass, COMMAND_DESCRIPTOR_SCHEMA_REF, COMMAND_FORMS_CATALOG_ID,
-    COMMAND_FORMS_CATALOG_RECORD_KIND, COMMAND_FORMS_GENERATED_AT,
-    COMMAND_FORMS_SHARED_CONTRACT_REF, INVOCATION_REVIEW_SHEET_RECORD_KIND,
-    INVOCATION_REVIEW_SHEET_SCHEMA_REF, INVOCATION_REVIEW_SHEET_SCHEMA_VERSION,
-    PARAMETER_FORM_STATE_RECORD_KIND, PARAMETER_FORM_STATE_SCHEMA_REF,
-    PARAMETER_FORM_STATE_SCHEMA_VERSION,
+    CapabilityScopeClass, ClientScope, CommandFormBundle, CommandFormsCatalog, CountTruthClass,
+    ExecutionIntentClass, FieldProvenanceSummaryEntry, FieldStateClass, FieldStateRecord,
+    FormLevelValidationRollup, FormSurfaceClass, InvocationReviewSheetRecord, NetworkActionClass,
+    ParameterFormStateRecord, PolicyContext, PreviewClass, PreviewOrDryRunClass,
+    ProcessActionClass, RedactionClass, RemoteActionClass, RepairHookRef, RestartOrReloadClass,
+    ReviewSurfaceClass, RollbackClass, ScopeAxisClass, ScopeAxisRecord, SecretHandlingSummary,
+    SideEffectClass, SourceLayerClass, TrustState, UnsupportedFieldClass, ValidationFinding,
+    ValidationFindingClass, ValidationSeverity, ValueVisibilityClass,
+    COMMAND_DESCRIPTOR_SCHEMA_REF, COMMAND_FORMS_CATALOG_ID, COMMAND_FORMS_CATALOG_RECORD_KIND,
+    COMMAND_FORMS_GENERATED_AT, COMMAND_FORMS_SHARED_CONTRACT_REF,
+    INVOCATION_REVIEW_SHEET_RECORD_KIND, INVOCATION_REVIEW_SHEET_SCHEMA_REF,
+    INVOCATION_REVIEW_SHEET_SCHEMA_VERSION, PARAMETER_FORM_STATE_RECORD_KIND,
+    PARAMETER_FORM_STATE_SCHEMA_REF, PARAMETER_FORM_STATE_SCHEMA_VERSION,
 };
 
 fn policy_context(
@@ -248,7 +247,11 @@ fn bulk_replace_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:bulk_replace:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:bulk_replace:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
         false,
     );
@@ -330,7 +333,11 @@ fn bulk_replace_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::MetadataSafeDefault,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:bulk_replace:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:bulk_replace:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
     );
 
@@ -460,7 +467,11 @@ fn debug_attach_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:debug_attach:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:debug_attach:proposal-01"),
+        ),
         RedactionClass::OperatorOnlyRestricted,
         false,
     );
@@ -528,7 +539,11 @@ fn debug_attach_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::OperatorOnlyRestricted,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:debug_attach:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:debug_attach:proposal-01"),
+        ),
         RedactionClass::OperatorOnlyRestricted,
     );
 
@@ -542,8 +557,7 @@ fn debug_attach_bundle() -> CommandFormBundle {
 
 fn outbound_request_bundle() -> CommandFormBundle {
     let command_id = "cmd:request_workspace.send_request".to_owned();
-    let command_revision_ref =
-        "cmd-rev:request_workspace.send_request:2026.05.18-01".to_owned();
+    let command_revision_ref = "cmd-rev:request_workspace.send_request:2026.05.18-01".to_owned();
     let form_state_id = "form-state:send_request:desktop:scenario-03".to_owned();
     let review_sheet_id = "review-sheet:send_request:desktop:scenario-03".to_owned();
 
@@ -667,8 +681,8 @@ fn outbound_request_bundle() -> CommandFormBundle {
             maximum_inclusive: None,
             unsupported_field_class: None,
             unsupported_for_client_scopes: Vec::new(),
-            narration_label_ref:
-                "label:send_request:argument:include_response_in_history".to_owned(),
+            narration_label_ref: "label:send_request:argument:include_response_in_history"
+                .to_owned(),
             validation_findings: Vec::new(),
             supports_runtime_reveal: false,
             policy_pinned_when_trust_state_is: Vec::new(),
@@ -688,7 +702,11 @@ fn outbound_request_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:send_request:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:send_request:proposal-01"),
+        ),
         RedactionClass::OperatorOnlyRestricted,
         true,
     );
@@ -704,17 +722,15 @@ fn outbound_request_bundle() -> CommandFormBundle {
         PreviewClass::ExternallyMutatingPreview,
         ApprovalPostureClass::ExplicitConfirmationRequired,
         ExecutionIntentClass::ApplyAfterPreview,
-        vec![
-            ScopeAxisRecord {
-                axis_class: ScopeAxisClass::SelectedRequestsOrEndpoints,
-                included_count: 1,
-                excluded_count: 0,
-                hidden_or_blocked_count: 0,
-                count_truth_class: CountTruthClass::Exact,
-                scope_narration_ref: "narration:send_request:endpoint".to_owned(),
-                selected_scope_refs: vec!["scope:endpoint:api_staging".to_owned()],
-            },
-        ],
+        vec![ScopeAxisRecord {
+            axis_class: ScopeAxisClass::SelectedRequestsOrEndpoints,
+            included_count: 1,
+            excluded_count: 0,
+            hidden_or_blocked_count: 0,
+            count_truth_class: CountTruthClass::Exact,
+            scope_narration_ref: "narration:send_request:endpoint".to_owned(),
+            selected_scope_refs: vec!["scope:endpoint:api_staging".to_owned()],
+        }],
         vec![
             SideEffectClass::NetworkRequestOutbound,
             SideEffectClass::CredentialOrSecretUse,
@@ -764,7 +780,11 @@ fn outbound_request_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::OperatorOnlyRestricted,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:send_request:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:send_request:proposal-01"),
+        ),
         RedactionClass::OperatorOnlyRestricted,
     );
 
@@ -878,7 +898,11 @@ fn recipe_step_blocked_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:recipe_run:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:recipe_run:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
         false,
     );
@@ -949,7 +973,11 @@ fn recipe_step_blocked_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::MetadataSafeDefault,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:recipe_run:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:recipe_run:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
     );
 
@@ -1009,8 +1037,7 @@ fn publish_release_bundle() -> CommandFormBundle {
             maximum_inclusive: None,
             unsupported_field_class: None,
             unsupported_for_client_scopes: Vec::new(),
-            narration_label_ref:
-                "label:publish:argument:signing_credential_handle_ref".to_owned(),
+            narration_label_ref: "label:publish:argument:signing_credential_handle_ref".to_owned(),
             validation_findings: Vec::new(),
             supports_runtime_reveal: false,
             policy_pinned_when_trust_state_is: Vec::new(),
@@ -1083,7 +1110,11 @@ fn publish_release_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:publish:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:publish:proposal-01"),
+        ),
         RedactionClass::SigningEvidenceOnly,
         true,
     );
@@ -1099,17 +1130,15 @@ fn publish_release_bundle() -> CommandFormBundle {
         PreviewClass::IrreversiblePublishPreview,
         ApprovalPostureClass::SecondPartyReviewRequired,
         ExecutionIntentClass::ApplyWithApproval,
-        vec![
-            ScopeAxisRecord {
-                axis_class: ScopeAxisClass::SelectedRemotesOrOrigins,
-                included_count: 1,
-                excluded_count: 0,
-                hidden_or_blocked_count: 0,
-                count_truth_class: CountTruthClass::Exact,
-                scope_narration_ref: "narration:publish:remote".to_owned(),
-                selected_scope_refs: vec!["scope:remote:release_registry".to_owned()],
-            },
-        ],
+        vec![ScopeAxisRecord {
+            axis_class: ScopeAxisClass::SelectedRemotesOrOrigins,
+            included_count: 1,
+            excluded_count: 0,
+            hidden_or_blocked_count: 0,
+            count_truth_class: CountTruthClass::Exact,
+            scope_narration_ref: "narration:publish:remote".to_owned(),
+            selected_scope_refs: vec!["scope:remote:release_registry".to_owned()],
+        }],
         vec![
             SideEffectClass::CredentialOrSecretUse,
             SideEffectClass::NetworkRequestOutbound,
@@ -1154,7 +1183,11 @@ fn publish_release_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::SigningEvidenceOnly,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:publish:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:publish:proposal-01"),
+        ),
         RedactionClass::SigningEvidenceOnly,
     );
 
@@ -1168,8 +1201,7 @@ fn publish_release_bundle() -> CommandFormBundle {
 
 fn repair_runtime_prompt_bundle() -> CommandFormBundle {
     let command_id = "cmd:doctor.repair_workspace_health".to_owned();
-    let command_revision_ref =
-        "cmd-rev:doctor.repair_workspace_health:2026.05.18-01".to_owned();
+    let command_revision_ref = "cmd-rev:doctor.repair_workspace_health:2026.05.18-01".to_owned();
     let form_state_id = "form-state:repair:cli:scenario-06".to_owned();
     let review_sheet_id = "review-sheet:repair:cli:scenario-06".to_owned();
 
@@ -1266,7 +1298,11 @@ fn repair_runtime_prompt_bundle() -> CommandFormBundle {
             warning_finding_count: 0,
             informational_finding_count: 0,
         },
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:repair:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:repair:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
         false,
     );
@@ -1337,7 +1373,11 @@ fn repair_runtime_prompt_bundle() -> CommandFormBundle {
             any_runtime_reveal_armed: false,
             redaction_class: RedactionClass::MetadataSafeDefault,
         }),
-        policy_context("policy-epoch:2026.05.18", TrustState::Trusted, Some("exec:repair:proposal-01")),
+        policy_context(
+            "policy-epoch:2026.05.18",
+            TrustState::Trusted,
+            Some("exec:repair:proposal-01"),
+        ),
         RedactionClass::MetadataSafeDefault,
     );
 

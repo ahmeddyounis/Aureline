@@ -28,7 +28,8 @@ use crate::learning_mode::{
     LearningModeBetaManifest, LearningModeBetaSurfaceProjection, LearningTargetRef,
 };
 use crate::migration_corpus::{
-    seeded_migration_scoreboard, EcosystemScoreboardSection, IncumbentEcosystem, MigrationScoreboard,
+    seeded_migration_scoreboard, EcosystemScoreboardSection, IncumbentEcosystem,
+    MigrationScoreboard,
 };
 use crate::migration_wizard::{seeded_migration_wizard_page, MigrationWizardPage};
 
@@ -153,9 +154,7 @@ pub fn learnability_disclosure_corpus() -> Vec<LearnabilityDisclosureScenario> {
 }
 
 /// Maps the wizard's detected source family to its incumbent ecosystem.
-fn wizard_ecosystem(
-    classification: CompetitorConfigClassification,
-) -> Option<IncumbentEcosystem> {
+fn wizard_ecosystem(classification: CompetitorConfigClassification) -> Option<IncumbentEcosystem> {
     match classification {
         CompetitorConfigClassification::VSCodeWorkspaceRoot => {
             Some(IncumbentEcosystem::VsCodeCodeOss)
@@ -258,7 +257,10 @@ fn build_record(
                 .cloned()
                 .unwrap_or_else(|| target_docs(first_docs_node.clone()));
             GlossaryChip {
-                chip_id: format!("learnability-glossary-chip:{ecosystem_token}:{}", row.flow_id),
+                chip_id: format!(
+                    "learnability-glossary-chip:{ecosystem_token}:{}",
+                    row.flow_id
+                ),
                 incumbent_term: row.source_object_label.clone(),
                 aureline_term: row.aureline_target_label.clone(),
                 explanation: row.before_after_summary.clone(),
@@ -340,7 +342,10 @@ fn build_record(
 
     // --- recovery routes ------------------------------------------------------
     let recovery_actions = required_recovery_actions(has_guided_affordance);
-    let recovery_routes: Vec<_> = recovery_actions.iter().map(|action| action.route()).collect();
+    let recovery_routes: Vec<_> = recovery_actions
+        .iter()
+        .map(|action| action.route())
+        .collect();
     let recovery_action_ids: Vec<String> = recovery_routes
         .iter()
         .map(|route| route.action_id.clone())
@@ -415,7 +420,11 @@ fn build_record(
         learning_surface_projection_ref: surface.projection_id.clone(),
     };
 
-    let qualifier = if live { "qualifies Stable" } else { "narrowed below Stable" };
+    let qualifier = if live {
+        "qualifies Stable"
+    } else {
+        "narrowed below Stable"
+    };
     let title = format!("{ecosystem_label} switchers: why-now, glossary, and contextual docs");
     let summary = format!(
         "Learnability layer for {ecosystem_label} switchers: an opt-in why-now card, {} glossary \
@@ -474,7 +483,9 @@ fn privacy_posture(
     let user_can_export = snapshot
         .map(|snapshot| snapshot.export_posture.user_can_export_metadata)
         .unwrap_or(true);
-    let entries = snapshot.map(|snapshot| snapshot.progress_entries.as_slice()).unwrap_or(&[]);
+    let entries = snapshot
+        .map(|snapshot| snapshot.progress_entries.as_slice())
+        .unwrap_or(&[]);
     let all_inspectable = entries.iter().all(|entry| entry.inspectable_by_user);
     let all_resume_owned = entries
         .iter()
@@ -524,7 +535,10 @@ mod tests {
             .filter(|s| s.expected_claim_class != StableClaimClass::Stable)
             .count();
         assert!(stable >= 1, "matrix must include a Stable row");
-        assert!(narrowed >= 1, "matrix must include a row narrowed below Stable");
+        assert!(
+            narrowed >= 1,
+            "matrix must include a row narrowed below Stable"
+        );
     }
 
     #[test]
@@ -535,7 +549,10 @@ mod tests {
             .find(|s| s.expected_ecosystem == IncumbentEcosystem::VsCodeCodeOss)
             .expect("VS Code row present");
         let record = vs_code.record();
-        assert_eq!(record.stable_qualification.claim_class, StableClaimClass::Stable);
+        assert_eq!(
+            record.stable_qualification.claim_class,
+            StableClaimClass::Stable
+        );
         assert!(record.stable_qualification.qualifies_stable);
         assert!(record.stable_qualification.narrowing_reasons.is_empty());
         assert!(record.why_now_card.is_grounded_in_truth());
@@ -553,7 +570,10 @@ mod tests {
                     scenario.scenario_id
                 );
                 assert!(
-                    !record.stable_qualification.claim_class.at_or_above_cutline(),
+                    !record
+                        .stable_qualification
+                        .claim_class
+                        .at_or_above_cutline(),
                     "{} narrowed claim sits above the cutline",
                     scenario.scenario_id
                 );

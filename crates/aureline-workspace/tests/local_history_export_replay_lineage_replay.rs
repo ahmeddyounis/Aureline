@@ -66,10 +66,9 @@ fn projection_replays_each_fixture_exactly() {
             "projection drifted from checked-in record for fixture {name}"
         );
 
-        let roundtrip: LocalHistoryExportReplayLineageRecord = serde_json::from_str(
-            &serde_json::to_string(&projected).expect("record serializes"),
-        )
-        .expect("record round-trips");
+        let roundtrip: LocalHistoryExportReplayLineageRecord =
+            serde_json::from_str(&serde_json::to_string(&projected).expect("record serializes"))
+                .expect("record round-trips");
         assert_eq!(roundtrip, projected, "record must round-trip for {name}");
     }
 }

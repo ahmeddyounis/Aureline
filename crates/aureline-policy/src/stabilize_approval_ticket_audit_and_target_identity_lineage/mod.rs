@@ -425,8 +425,7 @@ impl StabilizeApprovalTicketPage {
     ) -> Self {
         let defects = audit_stabilize_page(&approval_ticket_beta_page);
         let rows = derive_stabilize_rows(&approval_ticket_beta_page, &defects);
-        let summary =
-            StabilizeApprovalTicketSummary::from_rows(&rows, &approval_ticket_beta_page);
+        let summary = StabilizeApprovalTicketSummary::from_rows(&rows, &approval_ticket_beta_page);
         Self {
             record_kind: STABILIZE_APPROVAL_TICKET_PAGE_RECORD_KIND.to_owned(),
             schema_version: STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION,
@@ -585,10 +584,9 @@ impl StabilizeApprovalTicketSupportExport {
             generated.clone(),
             page.approval_ticket_beta_page.clone(),
         );
-        let no_self_auth = page
-            .defects
-            .iter()
-            .all(|d| d.narrow_reason != StabilizeApprovalTicketNarrowReasonClass::SelfAuthorizationAttempted);
+        let no_self_auth = page.defects.iter().all(|d| {
+            d.narrow_reason != StabilizeApprovalTicketNarrowReasonClass::SelfAuthorizationAttempted
+        });
         Self {
             record_kind: STABILIZE_APPROVAL_TICKET_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION,
@@ -632,9 +630,7 @@ pub fn validate_stabilize_approval_ticket_page(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-fn audit_stabilize_page(
-    beta_page: &ApprovalTicketBetaPage,
-) -> Vec<StabilizeApprovalTicketDefect> {
+fn audit_stabilize_page(beta_page: &ApprovalTicketBetaPage) -> Vec<StabilizeApprovalTicketDefect> {
     let mut defects: Vec<StabilizeApprovalTicketDefect> = Vec::new();
 
     // Recompute upstream defects so we always operate on the live audit.
@@ -855,7 +851,9 @@ fn derive_stabilize_rows(
             let missing_target = beta_page
                 .ticket_rows
                 .iter()
-                .filter(|t| t.profile_token == profile_token && t.target_identity.target_ref.is_empty())
+                .filter(|t| {
+                    t.profile_token == profile_token && t.target_identity.target_ref.is_empty()
+                })
                 .count();
             let remembered_missing_evidence = beta_page
                 .ticket_rows
@@ -867,11 +865,7 @@ fn derive_stabilize_rows(
                 })
                 .count();
 
-            let summary = build_row_summary(
-                &profile_token,
-                &overall_qual,
-                narrow_reason,
-            );
+            let summary = build_row_summary(&profile_token, &overall_qual, narrow_reason);
 
             StabilizeApprovalTicketRow {
                 record_kind: STABILIZE_APPROVAL_TICKET_ROW_RECORD_KIND.to_owned(),

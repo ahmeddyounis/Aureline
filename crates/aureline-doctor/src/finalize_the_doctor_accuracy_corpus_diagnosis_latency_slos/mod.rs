@@ -753,7 +753,7 @@ impl ProjectDoctorFinalizeEvaluator {
                     "ground_truth row_id must be non-empty",
                 );
             }
-            if seen_row_ids.insert(record.row_id.clone(), ()) .is_some() {
+            if seen_row_ids.insert(record.row_id.clone(), ()).is_some() {
                 push_violation(
                     &mut violations,
                     "project_doctor_finalize.ground_truth_row_id_duplicate",
@@ -761,14 +761,15 @@ impl ProjectDoctorFinalizeEvaluator {
                     "ground_truth row_id must be unique within the corpus",
                 );
             }
-            if !record.expected_finding_code.starts_with(DOCTOR_FINDING_PREFIX) {
+            if !record
+                .expected_finding_code
+                .starts_with(DOCTOR_FINDING_PREFIX)
+            {
                 push_violation(
                     &mut violations,
                     "project_doctor_finalize.ground_truth_finding_code_prefix",
                     &record.row_id,
-                    format!(
-                        "expected_finding_code must start with {DOCTOR_FINDING_PREFIX}"
-                    ),
+                    format!("expected_finding_code must start with {DOCTOR_FINDING_PREFIX}"),
                 );
             }
             if record.expected_no_touch_boundaries.is_empty() {
@@ -797,7 +798,10 @@ impl ProjectDoctorFinalizeEvaluator {
                     &mut violations,
                     "project_doctor_finalize.corpus_scenario_incomplete",
                     &corpus.corpus_id,
-                    format!("corpus is missing ground truth for scenario {}", scenario.as_str()),
+                    format!(
+                        "corpus is missing ground truth for scenario {}",
+                        scenario.as_str()
+                    ),
                 );
             }
         }
@@ -849,7 +853,9 @@ impl ProjectDoctorFinalizeEvaluator {
                 &mut violations,
                 "project_doctor_finalize.latency_schema_ref",
                 &catalog.catalog_id,
-                format!("latency catalog schema_ref must equal {PROJECT_DOCTOR_FINALIZE_SCHEMA_REF}"),
+                format!(
+                    "latency catalog schema_ref must equal {PROJECT_DOCTOR_FINALIZE_SCHEMA_REF}"
+                ),
             );
         }
         if catalog.doc_ref != PROJECT_DOCTOR_FINALIZE_DOC_REF {
@@ -1005,7 +1011,11 @@ impl ProjectDoctorFinalizeEvaluator {
                 "exit_code_class",
             ];
             for required in &required_fields {
-                if !row.machine_readable_result_fields.iter().any(|f| f == *required) {
+                if !row
+                    .machine_readable_result_fields
+                    .iter()
+                    .any(|f| f == *required)
+                {
                     push_violation(
                         &mut violations,
                         "project_doctor_finalize.parity_missing_machine_field",
@@ -1025,10 +1035,7 @@ impl ProjectDoctorFinalizeEvaluator {
                     &mut violations,
                     "project_doctor_finalize.parity_missing_context",
                     &audit.audit_id,
-                    format!(
-                        "parity audit missing row for context {}",
-                        expected.as_str()
-                    ),
+                    format!("parity audit missing row for context {}", expected.as_str()),
                 );
             }
         }
@@ -1072,9 +1079,7 @@ impl ProjectDoctorFinalizeEvaluator {
         let observe_only_count = corpus
             .ground_truth_records
             .iter()
-            .filter(|r| {
-                r.expected_repair_class == GroundTruthRepairClass::ObserveOnlyNoRepair
-            })
+            .filter(|r| r.expected_repair_class == GroundTruthRepairClass::ObserveOnlyNoRepair)
             .count();
         let repair_candidate_count = corpus.ground_truth_records.len() - observe_only_count;
         let scenarios_covered: Vec<_> = corpus
@@ -1104,10 +1109,7 @@ impl ProjectDoctorFinalizeEvaluator {
             })
             .collect();
 
-        let parity_audit_refs = parity_audits
-            .iter()
-            .map(|a| a.audit_id.clone())
-            .collect();
+        let parity_audit_refs = parity_audits.iter().map(|a| a.audit_id.clone()).collect();
 
         Ok(ProjectDoctorFinalizeSupportPacket {
             record_kind: PROJECT_DOCTOR_FINALIZE_SUPPORT_PACKET_RECORD_KIND.to_owned(),

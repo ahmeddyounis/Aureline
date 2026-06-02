@@ -42,9 +42,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("drill-missing-lane-preview") => {
             // Remove the AI lane to trigger a missing-required-lane preview defect.
             let mut snapshot = seeded_transport_policy_snapshot();
-            snapshot
-                .records
-                .retain(|r| r.lane != EgressLaneClass::Ai);
+            snapshot.records.retain(|r| r.lane != EgressLaneClass::Ai);
             let drill_page = TransportGovernancePage::new(
                 "remote:transport_governance:drill:missing-lane",
                 "Drill — required lane absent (preview)",

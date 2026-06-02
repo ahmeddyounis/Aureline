@@ -140,10 +140,7 @@ impl MutationPathKind {
     pub const fn touches_privileged_surface(self) -> bool {
         matches!(
             self,
-            Self::AiApply
-                | Self::BuildRunner
-                | Self::LockfileResolver
-                | Self::PreviewRuntime
+            Self::AiApply | Self::BuildRunner | Self::LockfileResolver | Self::PreviewRuntime
         )
     }
 }
@@ -1050,8 +1047,7 @@ pub fn project_mutation_and_generated_artifact_lineage_with_hooks(
     let canonical_lineage_truth = project_canonical_lineage_truth(&generated_artifact_coverage);
     let drift_truth = project_drift_truth(&generated_artifact_coverage);
     let edit_posture_honesty = project_edit_posture_honesty(&generated_artifact_coverage);
-    let labeling_surface_coverage =
-        project_labeling_surface_coverage(&generated_artifact_coverage);
+    let labeling_surface_coverage = project_labeling_surface_coverage(&generated_artifact_coverage);
     let mutation_no_rerun_honesty = project_mutation_no_rerun_honesty(&mutation_path_coverage);
     let support_export_honesty = project_support_export_honesty(inputs);
     let producer_attribution = project_producer_attribution(inputs);
@@ -1059,13 +1055,11 @@ pub fn project_mutation_and_generated_artifact_lineage_with_hooks(
     let mut narrow_reasons = Vec::new();
 
     if inputs.mutation_paths.is_empty() || inputs.generated_artifacts.is_empty() {
-        narrow_reasons
-            .push(MutationAndGeneratedArtifactLineageNarrowReason::CorpusEmpty);
+        narrow_reasons.push(MutationAndGeneratedArtifactLineageNarrowReason::CorpusEmpty);
     }
     if !mutation_path_coverage.all_required_paths_present {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::RequiredMutationPathMissing,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::RequiredMutationPathMissing);
     }
     if !generated_artifact_coverage.all_required_artifact_classes_present {
         narrow_reasons.push(
@@ -1073,17 +1067,15 @@ pub fn project_mutation_and_generated_artifact_lineage_with_hooks(
         );
     }
     if !canonical_lineage_truth.all_artifacts_have_canonical_source_ref {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::CanonicalSourceRefMissing,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::CanonicalSourceRefMissing);
     }
     if !canonical_lineage_truth.all_artifacts_have_generator_identity {
         narrow_reasons
             .push(MutationAndGeneratedArtifactLineageNarrowReason::GeneratorIdentityMissing);
     }
     if !canonical_lineage_truth.all_artifacts_have_output_digest {
-        narrow_reasons
-            .push(MutationAndGeneratedArtifactLineageNarrowReason::OutputDigestMissing);
+        narrow_reasons.push(MutationAndGeneratedArtifactLineageNarrowReason::OutputDigestMissing);
     }
     if !drift_truth.all_drifted_artifacts_have_disclosure {
         narrow_reasons
@@ -1102,14 +1094,12 @@ pub fn project_mutation_and_generated_artifact_lineage_with_hooks(
             .push(MutationAndGeneratedArtifactLineageNarrowReason::LabelingSurfaceMissing);
     }
     if !mutation_no_rerun_honesty.all_privileged_paths_safe {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::MutationNoRerunPostureUnsafe,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::MutationNoRerunPostureUnsafe);
     }
     if !mutation_no_rerun_honesty.all_explicit_paths_have_metadata {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::ExplicitActionMetadataMissing,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::ExplicitActionMetadataMissing);
     }
 
     let required_hooks = [
@@ -1132,14 +1122,12 @@ pub fn project_mutation_and_generated_artifact_lineage_with_hooks(
     collect_support_export_narrows(&support_export_honesty, &mut narrow_reasons);
 
     if !producer_attribution.producer_attribution_complete {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::ProducerAttributionIncomplete,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::ProducerAttributionIncomplete);
     }
 
     if inputs.workspace_ref.trim().is_empty() || inputs.corpus_ref.trim().is_empty() {
-        narrow_reasons
-            .push(MutationAndGeneratedArtifactLineageNarrowReason::LineageExportUnsafe);
+        narrow_reasons.push(MutationAndGeneratedArtifactLineageNarrowReason::LineageExportUnsafe);
     }
 
     let qualified = narrow_reasons.is_empty();
@@ -1197,10 +1185,7 @@ fn project_mutation_path_coverage(
         .iter()
         .map(project_mutation_path_row)
         .collect();
-    let observed: BTreeSet<_> = mutation_path_rows
-        .iter()
-        .map(|row| row.path_kind)
-        .collect();
+    let observed: BTreeSet<_> = mutation_path_rows.iter().map(|row| row.path_kind).collect();
     let all_required_paths_present = REQUIRED_MUTATION_PATHS
         .iter()
         .all(|required| observed.contains(required));
@@ -1211,8 +1196,7 @@ fn project_mutation_path_coverage(
 }
 
 fn project_mutation_path_row(observation: &MutationPathObservation) -> MutationPathRow {
-    let canonical_touches_privileged_surface =
-        observation.path_kind.touches_privileged_surface();
+    let canonical_touches_privileged_surface = observation.path_kind.touches_privileged_surface();
     let privileged_surface_matches =
         observation.touches_privileged_surface == canonical_touches_privileged_surface;
     MutationPathRow {
@@ -1462,9 +1446,8 @@ fn collect_support_export_narrows(
         && summary.all_rows_exclude_delegated_credentials
         && summary.all_rows_exclude_live_authority_handles)
     {
-        narrow_reasons.push(
-            MutationAndGeneratedArtifactLineageNarrowReason::SupportExportRedactionUnsafe,
-        );
+        narrow_reasons
+            .push(MutationAndGeneratedArtifactLineageNarrowReason::SupportExportRedactionUnsafe);
     }
 }
 
@@ -1606,11 +1589,7 @@ pub fn mutation_and_generated_artifact_lineage_lines(
     ));
     lines.push("Generated artifacts:".to_owned());
     for row in &record.generated_artifact_coverage.generated_artifact_rows {
-        let surfaces: Vec<&str> = row
-            .labeled_in_surfaces
-            .iter()
-            .map(|s| s.as_str())
-            .collect();
+        let surfaces: Vec<&str> = row.labeled_in_surfaces.iter().map(|s| s.as_str()).collect();
         let missing: Vec<&str> = row
             .missing_labeling_surfaces
             .iter()

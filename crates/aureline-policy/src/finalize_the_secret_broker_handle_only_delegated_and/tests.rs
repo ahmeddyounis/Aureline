@@ -143,7 +143,8 @@ fn raw_secret_material_present_withdraws_row() {
     assert!(
         defects
             .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::RawSecretMaterialPresent),
+            .any(|d| d.narrow_reason
+                == FinalizeSecretBrokerNarrowReasonClass::RawSecretMaterialPresent),
         "RawSecretMaterialPresent defect expected"
     );
 }
@@ -156,7 +157,8 @@ fn literal_flattening_detected_withdraws_row() {
     assert!(
         defects
             .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::LiteralFlatteningDetected),
+            .any(|d| d.narrow_reason
+                == FinalizeSecretBrokerNarrowReasonClass::LiteralFlatteningDetected),
         "LiteralFlatteningDetected defect expected"
     );
 }
@@ -168,12 +170,13 @@ fn missing_handle_class_on_stable_claim_withdraws() {
     let row = &mut page.rows[0];
     row.handle_class = SecretBrokerHandleClass::Missing;
     row.handle_class_token = SecretBrokerHandleClass::Missing.as_str().to_owned();
-    row.qualification_token = FinalizeSecretBrokerQualificationClass::Stable.as_str().to_owned();
+    row.qualification_token = FinalizeSecretBrokerQualificationClass::Stable
+        .as_str()
+        .to_owned();
     let defects = audit_finalize_secret_broker_rows(&page.rows, &page.beta_page);
     assert!(
-        defects
-            .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::MissingHandleOnStableClaim),
+        defects.iter().any(|d| d.narrow_reason
+            == FinalizeSecretBrokerNarrowReasonClass::MissingHandleOnStableClaim),
         "MissingHandleOnStableClaim defect expected"
     );
 }
@@ -189,9 +192,9 @@ fn generic_rotation_note_triggers_defect_on_delegated_row() {
     delegated_row.rotation_state.rotation_note = "reconnect".to_owned();
     let defects = audit_finalize_secret_broker_rows(&page.rows, &page.beta_page);
     assert!(
-        defects
-            .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::RotationNoteIsGeneric),
+        defects.iter().any(
+            |d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::RotationNoteIsGeneric
+        ),
         "RotationNoteIsGeneric defect expected for delegated row with generic note"
     );
 }
@@ -207,9 +210,8 @@ fn narrow_approval_missing_actor_triggers_defect() {
     row_with_approvals.remembered_approvals[0].actor_ref = String::new();
     let defects = audit_finalize_secret_broker_rows(&page.rows, &page.beta_page);
     assert!(
-        defects
-            .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::RememberedApprovalNotNarrow),
+        defects.iter().any(|d| d.narrow_reason
+            == FinalizeSecretBrokerNarrowReasonClass::RememberedApprovalNotNarrow),
         "RememberedApprovalNotNarrow defect expected"
     );
 }
@@ -224,8 +226,9 @@ fn revocation_trigger_missing_when_rotation_invalidates_decisions() {
         .expect("session-only row must exist");
     // Ensure the rotation event invalidates decisions and the approval lacks a trigger.
     session_row.rotation_state.rotation_event = CredentialRotationEventClass::HandleExpired;
-    session_row.rotation_state.rotation_event_token =
-        CredentialRotationEventClass::HandleExpired.as_str().to_owned();
+    session_row.rotation_state.rotation_event_token = CredentialRotationEventClass::HandleExpired
+        .as_str()
+        .to_owned();
     if !session_row.remembered_approvals.is_empty() {
         session_row.remembered_approvals[0].revocation_trigger_token = String::new();
     }
@@ -233,7 +236,8 @@ fn revocation_trigger_missing_when_rotation_invalidates_decisions() {
     assert!(
         defects
             .iter()
-            .any(|d| d.narrow_reason == FinalizeSecretBrokerNarrowReasonClass::RevocationTriggerMissing),
+            .any(|d| d.narrow_reason
+                == FinalizeSecretBrokerNarrowReasonClass::RevocationTriggerMissing),
         "RevocationTriggerMissing defect expected when rotation invalidates remembered decisions"
     );
 }
@@ -270,8 +274,12 @@ fn qualification_class_stable_checks() {
 
 #[test]
 fn narrow_reason_withdrawal_sentinel_checks() {
-    assert!(FinalizeSecretBrokerNarrowReasonClass::LiteralFlatteningDetected.is_withdrawal_reason());
-    assert!(FinalizeSecretBrokerNarrowReasonClass::MissingHandleOnStableClaim.is_withdrawal_reason());
+    assert!(
+        FinalizeSecretBrokerNarrowReasonClass::LiteralFlatteningDetected.is_withdrawal_reason()
+    );
+    assert!(
+        FinalizeSecretBrokerNarrowReasonClass::MissingHandleOnStableClaim.is_withdrawal_reason()
+    );
     assert!(FinalizeSecretBrokerNarrowReasonClass::RawSecretMaterialPresent.is_withdrawal_reason());
     assert!(!FinalizeSecretBrokerNarrowReasonClass::BetaPageHasDefects.is_withdrawal_reason());
     assert!(!FinalizeSecretBrokerNarrowReasonClass::FlowClassCoverageGap.is_withdrawal_reason());
@@ -294,7 +302,9 @@ fn rotation_event_invalidates_decisions_checks() {
     assert!(CredentialRotationEventClass::VaultKeychainLoss.invalidates_remembered_decisions());
     assert!(CredentialRotationEventClass::HandleExpired.invalidates_remembered_decisions());
     assert!(CredentialRotationEventClass::ApprovalRevoked.invalidates_remembered_decisions());
-    assert!(!CredentialRotationEventClass::BrowserDeviceCodeRenewal.invalidates_remembered_decisions());
+    assert!(
+        !CredentialRotationEventClass::BrowserDeviceCodeRenewal.invalidates_remembered_decisions()
+    );
     assert!(!CredentialRotationEventClass::NoRotationRequired.invalidates_remembered_decisions());
 }
 

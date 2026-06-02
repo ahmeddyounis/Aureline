@@ -38,11 +38,11 @@ pub use affordances::{
     TeachingControlAffordance, LOCAL_PARTICIPANT_ID, TEACHING_AFFORDANCE_PROJECTION_RECORD_KIND,
 };
 pub use corpus::{
-    seeded_teaching_classroom_corpus, validate_teaching_classroom_corpus,
-    TeachingClassroomCorpus, TeachingClassroomCorpusSummary, TeachingClassroomSessionCase,
-    TeachingClassroomSupportExport, TeachingClassroomSupportExportRow,
-    TEACHING_CLASSROOM_CORPUS_RECORD_KIND, TEACHING_CLASSROOM_SESSION_CASE_RECORD_KIND,
-    TEACHING_CLASSROOM_SUPPORT_EXPORT_RECORD_KIND, TEACHING_CLASSROOM_SUPPORT_EXPORT_ROW_RECORD_KIND,
+    seeded_teaching_classroom_corpus, validate_teaching_classroom_corpus, TeachingClassroomCorpus,
+    TeachingClassroomCorpusSummary, TeachingClassroomSessionCase, TeachingClassroomSupportExport,
+    TeachingClassroomSupportExportRow, TEACHING_CLASSROOM_CORPUS_RECORD_KIND,
+    TEACHING_CLASSROOM_SESSION_CASE_RECORD_KIND, TEACHING_CLASSROOM_SUPPORT_EXPORT_RECORD_KIND,
+    TEACHING_CLASSROOM_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use session::{
     restore_from_checkpoint, ClientClass, DemonstratedAction, DemonstrationKind, DocsPackState,

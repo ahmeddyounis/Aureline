@@ -854,10 +854,9 @@ fn validate_approval_lineage(
     }
     // The grant must be recorded in the audit lineage so a revert/audit can replay it.
     if approval.required
-        && !approval
-            .records
-            .iter()
-            .any(|record| record.step_class == ApprovalStepClass::Granted && record.recorded_in_audit)
+        && !approval.records.iter().any(|record| {
+            record.step_class == ApprovalStepClass::Granted && record.recorded_in_audit
+        })
     {
         violations.push(HighRiskCommandHardeningViolation::ApprovalGrantNotAudited);
     }

@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use aureline_git::{
-    DailyLoopOperationKind, DailyLoopRequest, DailyLoopService, DailyLoopSnapshot,
-    DailyLoopPreview, DailyLoopResult,
+    DailyLoopOperationKind, DailyLoopPreview, DailyLoopRequest, DailyLoopResult, DailyLoopService,
+    DailyLoopSnapshot,
 };
 use serde::Serialize;
 

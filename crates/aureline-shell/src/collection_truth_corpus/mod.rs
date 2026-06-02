@@ -41,18 +41,16 @@ use crate::collection_truth::{
     BatchReviewSummary, CollectionScopeCounterRecord, CollectionScopeCounterRow,
     CollectionTruthBetaPacket, CollectionTruthCase, CollectionTruthSurfaceFamily,
     CountSummaryClass, FilterBarChipRecord, FilterBarStateRecord, NarrowingSourceClass,
-    RecoveryGuidanceClass, SavedCollectionViewRecord, SavedViewColumnPreset,
-    SavedViewDriftState, SavedViewFallbackBehavior, SavedViewPinnedCountAxis,
-    SavedViewScopeClass, ScopeCounterClass, ScopeCounterStatus, SelectAllEscalationClass,
-    COLLECTION_TRUTH_BETA_SHARED_CONTRACT_REF,
+    RecoveryGuidanceClass, SavedCollectionViewRecord, SavedViewColumnPreset, SavedViewDriftState,
+    SavedViewFallbackBehavior, SavedViewPinnedCountAxis, SavedViewScopeClass, ScopeCounterClass,
+    ScopeCounterStatus, SelectAllEscalationClass, COLLECTION_TRUTH_BETA_SHARED_CONTRACT_REF,
 };
 
 /// Schema version exported with every corpus record.
 pub const COLLECTION_TRUTH_CORPUS_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by fixtures, docs, and support exports.
-pub const COLLECTION_TRUTH_CORPUS_SHARED_CONTRACT_REF: &str =
-    "shell:collection_truth_corpus:v1";
+pub const COLLECTION_TRUTH_CORPUS_SHARED_CONTRACT_REF: &str = "shell:collection_truth_corpus:v1";
 
 /// Stable record kind for [`CollectionTruthCorpusPacket`].
 pub const COLLECTION_TRUTH_CORPUS_PACKET_RECORD_KIND: &str =
@@ -67,16 +65,14 @@ pub const SAVED_VIEW_MIGRATION_CASE_RECORD_KIND: &str =
     "shell_collection_truth_corpus_saved_view_migration_record";
 
 /// Stable record kind for [`CollectionTruthAccessibilityDrill`].
-pub const COLLECTION_TRUTH_DRILL_RECORD_KIND: &str =
-    "shell_collection_truth_corpus_drill_record";
+pub const COLLECTION_TRUTH_DRILL_RECORD_KIND: &str = "shell_collection_truth_corpus_drill_record";
 
 /// Stable record kind for [`CollectionTruthSupportExport`].
 pub const COLLECTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND: &str =
     "shell_collection_truth_corpus_support_export_record";
 
 /// Stable packet id used by every consumer.
-pub const COLLECTION_TRUTH_CORPUS_PACKET_ID: &str =
-    "shell:collection_truth_corpus:packet:default";
+pub const COLLECTION_TRUTH_CORPUS_PACKET_ID: &str = "shell:collection_truth_corpus:packet:default";
 
 /// Deterministic packet timestamp.
 pub const COLLECTION_TRUTH_CORPUS_GENERATED_AT: &str = "2026-05-18T00:00:00Z";
@@ -272,11 +268,9 @@ pub struct CollectionTruthCorpusCase {
 impl CollectionTruthCorpusCase {
     /// True when the case admits at least one ambiguous-total axis.
     pub fn has_ambiguous_total(&self) -> bool {
-        self.scope_counter
-            .rows
-            .iter()
-            .any(|row| row.counter_class == ScopeCounterClass::Total
-                && row.status != ScopeCounterStatus::Exact)
+        self.scope_counter.rows.iter().any(|row| {
+            row.counter_class == ScopeCounterClass::Total && row.status != ScopeCounterStatus::Exact
+        })
     }
 }
 
@@ -595,10 +589,16 @@ impl std::fmt::Display for CollectionTruthCorpusValidationError {
                 write!(f, "edge case class missing from corpus: {missing}")
             }
             Self::SavedViewMigrationClassMissing { missing } => {
-                write!(f, "saved view migration class missing from corpus: {missing}")
+                write!(
+                    f,
+                    "saved view migration class missing from corpus: {missing}"
+                )
             }
             Self::AccessibilityDrillClassMissing { missing } => {
-                write!(f, "accessibility drill class missing from corpus: {missing}")
+                write!(
+                    f,
+                    "accessibility drill class missing from corpus: {missing}"
+                )
             }
             Self::MigrationLeavesUndisclosedDrift { migration_case_id } => {
                 write!(
@@ -691,8 +691,8 @@ pub fn validate_collection_truth_corpus_packet(
         let bound_and_clean = restored.drift_state
             == SavedViewDriftState::BoundCurrentStateMatchesCaptured
             && restored.stale_or_degraded_labels.is_empty();
-        let migration_is_lossless = migration.case_class
-            == SavedViewMigrationCaseClass::OlderSchemaVersionUpgradedExact;
+        let migration_is_lossless =
+            migration.case_class == SavedViewMigrationCaseClass::OlderSchemaVersionUpgradedExact;
         if !migration_is_lossless && bound_and_clean {
             errors.push(
                 CollectionTruthCorpusValidationError::MigrationLeavesUndisclosedDrift {
@@ -1021,8 +1021,8 @@ pub fn render_collection_truth_corpus_report_markdown(
             "| `{family}` | {edge} | {migration} | {drill} | {ambig} | {hidden} |\n",
             family = row.surface_family.as_str(),
             edge = format_class_list(&row.edge_case_classes_exercised, |c| c.as_str()),
-            migration = format_class_list(&row.saved_view_migration_classes_exercised, |c| c
-                .as_str()),
+            migration =
+                format_class_list(&row.saved_view_migration_classes_exercised, |c| c.as_str()),
             drill = format_class_list(&row.drill_classes_exercised, |c| c.as_str()),
             ambig = if row.has_ambiguous_total { "yes" } else { "no" },
             hidden = if row.has_hidden_selected_rows {
@@ -1059,10 +1059,7 @@ pub fn render_collection_truth_corpus_report_markdown(
             case = case.case_id,
             label = case.case_label
         ));
-        out.push_str(&format!(
-            "- Surface: `{}`\n",
-            case.surface_family.as_str()
-        ));
+        out.push_str(&format!("- Surface: `{}`\n", case.surface_family.as_str()));
         out.push_str(&format!(
             "- Edge cases: {}\n",
             format_class_list(&case.edge_case_classes, |c| c.as_str())
@@ -1079,10 +1076,7 @@ pub fn render_collection_truth_corpus_report_markdown(
                 format!("`{}`", case.filter_bar.hidden_narrowing_summary)
             }
         ));
-        out.push_str(&format!(
-            "- Anchor row: `{}`\n",
-            case.anchor_row_id
-        ));
+        out.push_str(&format!("- Anchor row: `{}`\n", case.anchor_row_id));
         out.push_str(&format!(
             "- Selected ids: [{}]\n",
             case.selected_row_ids
@@ -1167,10 +1161,7 @@ pub fn render_collection_truth_corpus_report_markdown(
             drill = drill.drill_id,
             class = drill.drill_class.as_str()
         ));
-        out.push_str(&format!(
-            "- Surface: `{}`\n",
-            drill.surface_family.as_str()
-        ));
+        out.push_str(&format!("- Surface: `{}`\n", drill.surface_family.as_str()));
         out.push_str(&format!("- Label: {}\n", drill.label));
         out.push_str("- Steps:\n");
         for step in &drill.steps {
@@ -1230,7 +1221,9 @@ pub fn render_collection_truth_corpus_drills_markdown(
         "Keyboard and screen-reader drills that every claimed beta collection surface MUST pass.\n",
     );
     out.push_str("Sourced from the seeded corpus in\n");
-    out.push_str("`crates/aureline-shell/src/collection_truth_corpus/mod.rs`. Regenerate with:\n\n");
+    out.push_str(
+        "`crates/aureline-shell/src/collection_truth_corpus/mod.rs`. Regenerate with:\n\n",
+    );
     out.push_str("```sh\n");
     out.push_str(
         "cargo run -q -p aureline-shell --bin aureline_shell_collection_truth_corpus -- drills-md > \\\n  docs/qe/m3/collection_truth_drills.md\n",
@@ -1256,10 +1249,7 @@ pub fn render_collection_truth_corpus_drills_markdown(
             drill = drill.drill_id,
             label = drill.label
         ));
-        out.push_str(&format!(
-            "- Surface: `{}`\n",
-            drill.surface_family.as_str()
-        ));
+        out.push_str(&format!("- Surface: `{}`\n", drill.surface_family.as_str()));
         out.push_str(&format!(
             "- Drill class: `{}`\n\n",
             drill.drill_class.as_str()
@@ -1402,27 +1392,22 @@ mod seeds {
         {
             classes.insert(Class::VisibleEqualsLoadedExactTotal);
         }
-        if counts
-            .rows
-            .iter()
-            .any(|row| row.counter_class == ScopeCounterClass::Total
-                && row.status == ScopeCounterStatus::Partial)
-        {
+        if counts.rows.iter().any(|row| {
+            row.counter_class == ScopeCounterClass::Total
+                && row.status == ScopeCounterStatus::Partial
+        }) {
             classes.insert(Class::VirtualizedWindowPartialMatching);
         }
-        if counter_classes
-            .iter()
-            .any(|(class, status)| *class == ScopeCounterClass::Matching
+        if counter_classes.iter().any(|(class, status)| {
+            *class == ScopeCounterClass::Matching
                 && (*status == ScopeCounterStatus::Approximate
-                    || *status == ScopeCounterStatus::ProviderLimited))
-        {
+                    || *status == ScopeCounterStatus::ProviderLimited)
+        }) {
             classes.insert(Class::ProviderCappedApproximateMatching);
         }
-        if counter_classes
-            .iter()
-            .any(|(class, status)| *class == ScopeCounterClass::Total
-                && *status == ScopeCounterStatus::Unknown)
-        {
+        if counter_classes.iter().any(|(class, status)| {
+            *class == ScopeCounterClass::Total && *status == ScopeCounterStatus::Unknown
+        }) {
             classes.insert(Class::ProviderRetentionUnknownTotal);
         }
         if base_case.batch_review.summary.blocked_count > 0 {
@@ -1438,11 +1423,7 @@ mod seeds {
         base_case: &CollectionTruthCase,
     ) -> (Vec<String>, Vec<String>, Vec<String>) {
         let family = base_case.surface_family.as_str();
-        let mut selected: Vec<String> = (0..base_case
-            .batch_review
-            .summary
-            .included_count
-            .min(3))
+        let mut selected: Vec<String> = (0..base_case.batch_review.summary.included_count.min(3))
             .map(|i| format!("row:{family}:included:{i}"))
             .collect();
         if base_case.batch_review.summary.included_count > 3 {
@@ -1640,8 +1621,7 @@ mod seeds {
                 blocked_count: 0,
                 hidden_count: 0,
                 selected_versus_all_matching_label:
-                    "Rebinds the cursor; nothing is exported until rebind succeeds."
-                        .to_string(),
+                    "Rebinds the cursor; nothing is exported until rebind succeeds.".to_string(),
             },
             Vec::new(),
             RecoveryGuidanceClass::EvidenceOnlyNoRerun,
@@ -1799,9 +1779,7 @@ mod seeds {
             restored_schema_version: 1,
             captured_view: captured,
             restored_view: restored,
-            migration_notes: vec![
-                "v0 -> v1 upgrade applied without semantic loss".to_string(),
-            ],
+            migration_notes: vec!["v0 -> v1 upgrade applied without semantic loss".to_string()],
             portability_findings: Vec::new(),
         }
     }
@@ -1849,10 +1827,11 @@ mod seeds {
             captured_view: captured,
             restored_view: restored,
             migration_notes: vec![
-                "v0 -> v1 upgrade dropped removed columns and surfaced disclosure label".to_string(),
+                "v0 -> v1 upgrade dropped removed columns and surfaced disclosure label"
+                    .to_string(),
             ],
             portability_findings: vec![
-                "captured column `legacy_owner` not present in v1 schema".to_string(),
+                "captured column `legacy_owner` not present in v1 schema".to_string()
             ],
         }
     }
@@ -1888,7 +1867,8 @@ mod seeds {
             vec![("state", false)],
             vec![SavedViewPinnedCountAxis::Visible],
             vec![
-                "Unsupported column preset `legacy_swimlane` dropped from portable subset".to_string(),
+                "Unsupported column preset `legacy_swimlane` dropped from portable subset"
+                    .to_string(),
             ],
         );
         SavedViewMigrationCase {
@@ -1902,10 +1882,12 @@ mod seeds {
             captured_view: captured,
             restored_view: restored,
             migration_notes: vec![
-                "Unsupported column preset dropped and labeled rather than silently misinterpreted".to_string(),
+                "Unsupported column preset dropped and labeled rather than silently misinterpreted"
+                    .to_string(),
             ],
             portability_findings: vec![
-                "captured column `legacy_swimlane` is not supported on the current surface".to_string(),
+                "captured column `legacy_swimlane` is not supported on the current surface"
+                    .to_string(),
             ],
         }
     }
@@ -1954,9 +1936,7 @@ mod seeds {
             restored_schema_version: 1,
             captured_view: captured,
             restored_view: restored,
-            migration_notes: vec![
-                "Stale provider cursor refused; rebind path offered".to_string(),
-            ],
+            migration_notes: vec!["Stale provider cursor refused; rebind path offered".to_string()],
             portability_findings: vec![
                 "Provider cursors are never restored verbatim; rebind required".to_string(),
             ],
@@ -1986,9 +1966,7 @@ mod seeds {
             vec![SavedViewColumnPreset::new("name", "Name", true)],
             vec![("name", false)],
             vec![SavedViewPinnedCountAxis::Visible],
-            vec![
-                "Provider-owned scope no longer resolves on current provider catalog".to_string(),
-            ],
+            vec!["Provider-owned scope no longer resolves on current provider catalog".to_string()],
         );
         SavedViewMigrationCase {
             record_kind: SAVED_VIEW_MIGRATION_CASE_RECORD_KIND.to_string(),
@@ -2004,7 +1982,8 @@ mod seeds {
                 "Provider-owned scope refused; recreate-from-current path offered".to_string(),
             ],
             portability_findings: vec![
-                "Provider-owned scope is never reused silently when the provider catalog changes".to_string(),
+                "Provider-owned scope is never reused silently when the provider catalog changes"
+                    .to_string(),
             ],
         }
     }
@@ -2039,7 +2018,8 @@ mod seeds {
             vec![("name", false)],
             vec![SavedViewPinnedCountAxis::Visible],
             vec![
-                "Policy narrowing changed since this view was captured; rebind required".to_string(),
+                "Policy narrowing changed since this view was captured; rebind required"
+                    .to_string(),
             ],
         );
         SavedViewMigrationCase {
@@ -2056,7 +2036,7 @@ mod seeds {
                 "Policy narrowing changed since capture; rebind required before reuse".to_string(),
             ],
             portability_findings: vec![
-                "Captured policy-pinned scope is no longer authoritative".to_string(),
+                "Captured policy-pinned scope is no longer authoritative".to_string()
             ],
         }
     }
@@ -2275,7 +2255,8 @@ mod tests {
     fn migration_cases_disclose_drift_unless_lossless() {
         let packet = seeded_collection_truth_corpus_packet();
         for migration in &packet.saved_view_migrations {
-            if migration.case_class != SavedViewMigrationCaseClass::OlderSchemaVersionUpgradedExact {
+            if migration.case_class != SavedViewMigrationCaseClass::OlderSchemaVersionUpgradedExact
+            {
                 assert!(
                     migration.restored_view.drift_state
                         != SavedViewDriftState::BoundCurrentStateMatchesCaptured

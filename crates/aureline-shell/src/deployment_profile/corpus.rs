@@ -298,7 +298,8 @@ fn residual_row(
     unreachable_impact_label: &str,
     freshness_label: Option<&str>,
 ) -> ResidualDependencyRow {
-    let vendor_bound = dependency.is_vendor_bound_when_required() && posture == PostureClass::Required;
+    let vendor_bound =
+        dependency.is_vendor_bound_when_required() && posture == PostureClass::Required;
     ResidualDependencyRow {
         record_kind: RESIDUAL_DEPENDENCY_ROW_RECORD_KIND.to_owned(),
         schema_version: DEPLOYMENT_PROFILE_SCHEMA_VERSION,
@@ -536,7 +537,10 @@ fn self_hosted_sovereign_page(lens: SurfaceLensClass) -> DeploymentProfilePage {
         control_plane_worst_state_class: ControlPlaneServiceStateClass::Healthy,
         data_plane_worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
         residual_dependency_row_refs: residual.iter().map(|r| r.row_id.clone()).collect(),
-        mirror_offline_artifact_row_refs: vec![policy_bundle.row_id.clone(), docs_pack.row_id.clone()],
+        mirror_offline_artifact_row_refs: vec![
+            policy_bundle.row_id.clone(),
+            docs_pack.row_id.clone(),
+        ],
         plane_status_strip_ref: strip_id.clone(),
         prohibited_implied_claim_classes: vec![
             ProhibitedImpliedClaimClass::ImpliedAirGappedWhenEgressAllowed,
@@ -549,9 +553,7 @@ fn self_hosted_sovereign_page(lens: SurfaceLensClass) -> DeploymentProfilePage {
         consumer_surfaces: lens_consumer_surfaces(lens),
         redaction_class: RedactionClass::MetadataSafeDefault,
         export_safe: true,
-        linked_summary_card_ref: Some(
-            "card.deployment.self_hosted_sovereign_baseline".to_owned(),
-        ),
+        linked_summary_card_ref: Some("card.deployment.self_hosted_sovereign_baseline".to_owned()),
         linked_continuity_packet_ref: Some(
             "fixtures/deployment/continuity_cases/self_hosted_stale_policy_session.json".to_owned(),
         ),
@@ -697,8 +699,9 @@ fn enterprise_online_hybrid_page(lens: SurfaceLensClass) -> DeploymentProfilePag
         emitted_at: EMITTED_AT.to_owned(),
         control_plane_summary: ControlPlaneSummary {
             worst_state_class: ControlPlaneServiceStateClass::Healthy,
-            summary_label: "Hybrid sync, registry, auth, policy, catalog, and AI broker services healthy."
-                .to_owned(),
+            summary_label:
+                "Hybrid sync, registry, auth, policy, catalog, and AI broker services healthy."
+                    .to_owned(),
             impaired_service_classes: Vec::new(),
             healthy_service_classes: vec![
                 ControlPlaneServiceClass::SyncService,
@@ -841,8 +844,9 @@ fn enterprise_online_mirrored_page(lens: SurfaceLensClass) -> DeploymentProfileP
         emitted_at: EMITTED_AT.to_owned(),
         control_plane_summary: ControlPlaneSummary {
             worst_state_class: ControlPlaneServiceStateClass::MirrorOnly,
-            summary_label: "Control plane reached through mirror snapshot only; live fetch suppressed."
-                .to_owned(),
+            summary_label:
+                "Control plane reached through mirror snapshot only; live fetch suppressed."
+                    .to_owned(),
             impaired_service_classes: vec![
                 ControlPlaneServiceClass::RegistryService,
                 ControlPlaneServiceClass::CatalogService,
@@ -1033,9 +1037,7 @@ fn air_gapped_page(lens: SurfaceLensClass) -> DeploymentProfilePage {
         consumer_surfaces: lens_consumer_surfaces(lens),
         redaction_class: RedactionClass::MetadataSafeDefault,
         export_safe: true,
-        linked_summary_card_ref: Some(
-            "card.deployment.air_gapped_mirror_only_baseline".to_owned(),
-        ),
+        linked_summary_card_ref: Some("card.deployment.air_gapped_mirror_only_baseline".to_owned()),
         linked_continuity_packet_ref: Some(
             "fixtures/deployment/continuity_cases/air_gapped_mirror_only_docs.json".to_owned(),
         ),
@@ -1167,9 +1169,7 @@ fn managed_cloud_page(lens: SurfaceLensClass) -> DeploymentProfilePage {
         consumer_surfaces: lens_consumer_surfaces(lens),
         redaction_class: RedactionClass::MetadataSafeDefault,
         export_safe: true,
-        linked_summary_card_ref: Some(
-            "card.deployment.managed_cloud_baseline".to_owned(),
-        ),
+        linked_summary_card_ref: Some("card.deployment.managed_cloud_baseline".to_owned()),
         linked_continuity_packet_ref: Some(
             "fixtures/deployment/continuity_cases/managed_cloud_relay_disconnect.json".to_owned(),
         ),
@@ -1324,7 +1324,9 @@ fn control_plane_unavailable_page() -> DeploymentProfilePage {
             action_id: "action.strip.drill.control_plane_unavailable.reconnect_managed_session"
                 .to_owned(),
             action_class: SafestNextActionClass::ReconnectManagedSession,
-            label: SafestNextActionClass::ReconnectManagedSession.label().to_owned(),
+            label: SafestNextActionClass::ReconnectManagedSession
+                .label()
+                .to_owned(),
             scope_class: "scope_local_with_managed_recovery".to_owned(),
             authority_class: "user_managed_authority".to_owned(),
             consent_class: "explicit_consent_required_managed_recovery".to_owned(),
@@ -1436,11 +1438,13 @@ fn data_plane_blocked_page() -> DeploymentProfilePage {
         },
         data_plane_summary: DataPlaneSummary {
             worst_state_class: DataPlaneCapabilityStateClass::AvailableLocalSafe,
-            summary_label: "Remote attach is blocked pending reconnect; local-core remains available."
-                .to_owned(),
+            summary_label:
+                "Remote attach is blocked pending reconnect; local-core remains available."
+                    .to_owned(),
             impaired_capability_classes: Vec::new(),
-            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline()
-                .to_vec(),
+            available_local_safe_capability_classes: DataPlaneCapabilityClass::local_core_baseline(
+            )
+            .to_vec(),
         },
         safest_next_action: SafestNextAction::continue_local(
             "action.strip.drill.data_plane_blocked.continue_local",
@@ -1608,9 +1612,8 @@ fn sign_out_to_local_only_page() -> DeploymentProfilePage {
     let mut page = individual_local_baseline_page(EMITTED_AT);
     page.page_id = "page.drill.sign_out_to_local_only".to_owned();
     page.profile_summary.summary_id = "summary.drill.sign_out_to_local_only".to_owned();
-    page.profile_summary.linked_outage_notice_refs = vec![
-        "fixtures/deployment/mode_change_cases/sign_out_to_local_only.yaml".to_owned(),
-    ];
+    page.profile_summary.linked_outage_notice_refs =
+        vec!["fixtures/deployment/mode_change_cases/sign_out_to_local_only.yaml".to_owned()];
     page.profile_summary.notes = Some(
         "After sign-out the install collapses to the local-only baseline; managed surfaces are not claimed."
             .to_owned(),
@@ -1959,8 +1962,9 @@ fn stale_catalog_cache_page() -> DeploymentProfilePage {
     page.profile_summary.plane_status_strip_ref = page.plane_status_strip.strip_id.clone();
     page.plane_status_strip.linked_profile_summary_ref =
         Some(page.profile_summary.summary_id.clone());
-    page.plane_status_strip.control_plane_summary.impaired_service_classes =
-        vec![ControlPlaneServiceClass::CatalogService];
+    page.plane_status_strip
+        .control_plane_summary
+        .impaired_service_classes = vec![ControlPlaneServiceClass::CatalogService];
     page.plane_status_strip.control_plane_summary.summary_label =
         "Catalog service stale; cache serves last-known-good.".to_owned();
     for row in &mut page.residual_dependency_rows {
@@ -2059,72 +2063,164 @@ fn seeded_residual_dependency_matrix() -> ResidualDependencyMatrix {
     use AbsenceImpactClass::*;
     use ContinuityFallbackClass as Fallback;
     use DependencyClass::*;
-    use PostureClass as Posture;
     use Fallback::*;
     use Posture::*;
+    use PostureClass as Posture;
 
     let rows = vec![
         dependency_matrix_row(
             SignIn,
             "Sign-in / identity session",
-            (Posture::NotApplicableStructural, NoImpactCapabilityNotClaimedForProfile, Fallback::NotApplicableStructural),
+            (
+                Posture::NotApplicableStructural,
+                NoImpactCapabilityNotClaimedForProfile,
+                Fallback::NotApplicableStructural,
+            ),
             (Required, BlockedPendingReconnect, ResumeAfterReconnect),
             (Required, BlockedPendingReconnect, ResumeAfterReconnect),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
             (Required, BlockedPendingReconnect, ResumeAfterReconnect),
         ),
         dependency_matrix_row(
             PackageRegistry,
             "Package registry / extension catalog fetch",
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
-            (Mirrored, NarrowsToMirrorBackedReadOnly, MirrorSnapshotImport),
+            (
+                Mirrored,
+                NarrowsToMirrorBackedReadOnly,
+                MirrorSnapshotImport,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
         ),
         dependency_matrix_row(
             RemoteMirror,
             "Signed mirror / offline bundle",
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ContinueLocalNoRestore),
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ResumeAfterReconnect),
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ResumeAfterReconnect),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ResumeAfterReconnect,
+            ),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ResumeAfterReconnect,
+            ),
             (Required, BlockedPendingMirrorRefresh, MirrorSnapshotImport),
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ResumeAfterReconnect),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ResumeAfterReconnect,
+            ),
         ),
         dependency_matrix_row(
             RemoteAgent,
             "Remote agent / SSH-attached development host",
-            (Posture::NotApplicableStructural, NoImpactCapabilityNotClaimedForProfile, Fallback::NotApplicableStructural),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Forbidden, FailClosedForbiddenInProfile, FailClosedNoFallback),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Posture::NotApplicableStructural,
+                NoImpactCapabilityNotClaimedForProfile,
+                Fallback::NotApplicableStructural,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Forbidden,
+                FailClosedForbiddenInProfile,
+                FailClosedNoFallback,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
         ),
         dependency_matrix_row(
             SymbolService,
             "Symbol / index service",
-            (Posture::NotApplicableStructural, NoImpactCapabilityNotClaimedForProfile, Fallback::NotApplicableStructural),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Mirrored, NarrowsToMirrorBackedReadOnly, ReplayCachedSnapshot),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Posture::NotApplicableStructural,
+                NoImpactCapabilityNotClaimedForProfile,
+                Fallback::NotApplicableStructural,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Mirrored,
+                NarrowsToMirrorBackedReadOnly,
+                ReplayCachedSnapshot,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
         ),
         dependency_matrix_row(
             AiProvider,
             "Managed AI provider / broker",
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
             (Optional, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
-            (Forbidden, FailClosedForbiddenInProfile, FailClosedNoFallback),
+            (
+                Forbidden,
+                FailClosedForbiddenInProfile,
+                FailClosedNoFallback,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
         ),
         dependency_matrix_row(
             PolicyBundle,
             "Policy bundle / admin policy service",
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ContinueLocalNoRestore),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ContinueLocalNoRestore,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
-            (Mirrored, NarrowsToMirrorBackedReadOnly, MirrorSnapshotImport),
+            (
+                Mirrored,
+                NarrowsToMirrorBackedReadOnly,
+                MirrorSnapshotImport,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
         ),
         dependency_matrix_row(
@@ -2133,35 +2229,75 @@ fn seeded_residual_dependency_matrix() -> ResidualDependencyMatrix {
             (Cached, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
             (Cached, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
             (Cached, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
-            (Mirrored, NarrowsToMirrorBackedReadOnly, MirrorSnapshotImport),
+            (
+                Mirrored,
+                NarrowsToMirrorBackedReadOnly,
+                MirrorSnapshotImport,
+            ),
             (Cached, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
         ),
         dependency_matrix_row(
             BrowserHandoff,
             "Browser companion / handoff channel",
-            (Optional, NoImpactCapabilityNotClaimedForProfile, ContinueLocalNoRestore),
+            (
+                Optional,
+                NoImpactCapabilityNotClaimedForProfile,
+                ContinueLocalNoRestore,
+            ),
             (Optional, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
             (Optional, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
-            (Forbidden, FailClosedForbiddenInProfile, FailClosedNoFallback),
+            (
+                Forbidden,
+                FailClosedForbiddenInProfile,
+                FailClosedNoFallback,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ReplayCachedSnapshot),
         ),
         dependency_matrix_row(
             CompanionNotificationChannel,
             "Companion notification channel",
-            (Posture::NotApplicableStructural, NoImpactCapabilityNotClaimedForProfile, Fallback::NotApplicableStructural),
+            (
+                Posture::NotApplicableStructural,
+                NoImpactCapabilityNotClaimedForProfile,
+                Fallback::NotApplicableStructural,
+            ),
             (Optional, NarrowsToCachedLastKnownGood, ResumeAfterReconnect),
             (Optional, NarrowsToCachedLastKnownGood, ResumeAfterReconnect),
-            (Forbidden, FailClosedForbiddenInProfile, FailClosedNoFallback),
+            (
+                Forbidden,
+                FailClosedForbiddenInProfile,
+                FailClosedNoFallback,
+            ),
             (Required, NarrowsToCachedLastKnownGood, ResumeAfterReconnect),
         ),
         dependency_matrix_row(
             HostedControlPlaneReachability,
             "Hosted control-plane reachability",
-            (Posture::NotApplicableStructural, NoImpactCapabilityNotClaimedForProfile, Fallback::NotApplicableStructural),
-            (Optional, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Required, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
-            (Forbidden, FailClosedForbiddenInProfile, FailClosedNoFallback),
-            (Required, NarrowsToLocalCoreCapabilities, ContinueLocalNoRestore),
+            (
+                Posture::NotApplicableStructural,
+                NoImpactCapabilityNotClaimedForProfile,
+                Fallback::NotApplicableStructural,
+            ),
+            (
+                Optional,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Required,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
+            (
+                Forbidden,
+                FailClosedForbiddenInProfile,
+                FailClosedNoFallback,
+            ),
+            (
+                Required,
+                NarrowsToLocalCoreCapabilities,
+                ContinueLocalNoRestore,
+            ),
         ),
     ];
 
@@ -2652,7 +2788,11 @@ pub fn render_deployment_profile_conformance_report_markdown(
                 .data_plane_summary
                 .worst_state_class
                 .as_str(),
-            c.page.plane_status_strip.safest_next_action.action_class.as_str(),
+            c.page
+                .plane_status_strip
+                .safest_next_action
+                .action_class
+                .as_str(),
         ));
     }
     out.push('\n');
@@ -2676,7 +2816,11 @@ pub fn render_deployment_profile_conformance_report_markdown(
                 .data_plane_summary
                 .worst_state_class
                 .as_str(),
-            d.page.plane_status_strip.safest_next_action.action_class.as_str(),
+            d.page
+                .plane_status_strip
+                .safest_next_action
+                .action_class
+                .as_str(),
             d.local_safe_remains,
         ));
     }
@@ -2708,7 +2852,9 @@ pub fn render_deployment_profile_conformance_report_markdown(
     out.push('\n');
 
     out.push_str("## Verification\n\n");
-    out.push_str("```bash\ncargo test -p aureline-shell --test deployment_profile_corpus_fixtures\n```\n\n");
+    out.push_str(
+        "```bash\ncargo test -p aureline-shell --test deployment_profile_corpus_fixtures\n```\n\n",
+    );
     out.push_str(
         "The test loads every fixture under `fixtures/deployment/m3/profile_truth/` and \
          `fixtures/deployment/m3/control_plane_vs_data_plane/`, deserializes each one through \

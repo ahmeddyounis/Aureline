@@ -92,8 +92,7 @@ pub const STABLE_MIRROR_IMPORT_TRUTH_SCHEMA_REF: &str =
     "schemas/extensions/stable_mirror_import_truth.schema.json";
 
 /// Record-kind tag for [`StableMirrorImportTruthPacket`].
-pub const STABLE_MIRROR_IMPORT_TRUTH_PACKET_RECORD_KIND: &str =
-    "stable_mirror_import_truth_packet";
+pub const STABLE_MIRROR_IMPORT_TRUTH_PACKET_RECORD_KIND: &str = "stable_mirror_import_truth_packet";
 
 /// Record-kind tag for [`MirrorImportTruthIdentity`].
 pub const MIRROR_IMPORT_TRUTH_IDENTITY_RECORD_KIND: &str = "stable_mirror_import_truth_identity";
@@ -162,12 +161,15 @@ pub const INSTALLABLE_LIFECYCLE_STATES: &[&str] =
     &["installed", "pending_activation", "active", "recovered"];
 
 /// Closed import-route vocabulary.
-pub const IMPORT_ROUTE_CLASSES: &[&str] =
-    &["primary_catalog", "approved_mirror", "offline_bundle", "manual_artifact"];
+pub const IMPORT_ROUTE_CLASSES: &[&str] = &[
+    "primary_catalog",
+    "approved_mirror",
+    "offline_bundle",
+    "manual_artifact",
+];
 
 /// Closed source-visibility vocabulary.
-pub const SOURCE_VISIBILITY_CLASSES: &[&str] =
-    &["fully_disclosed", "source_class_only", "opaque"];
+pub const SOURCE_VISIBILITY_CLASSES: &[&str] = &["fully_disclosed", "source_class_only", "opaque"];
 
 /// Closed publisher-transfer continuity-event vocabulary. `none` means no transfer
 /// event is in flight for this row.
@@ -211,8 +213,13 @@ pub const MAPPING_OUTCOME_CLASSES: &[&str] =
 pub const STABLE_GRADE_MAPPING_OUTCOMES: &[&str] = &["exact", "translated"];
 
 /// Closed compatibility-label vocabulary.
-pub const COMPATIBILITY_LABEL_CLASSES: &[&str] =
-    &["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"];
+pub const COMPATIBILITY_LABEL_CLASSES: &[&str] = &[
+    "full_parity",
+    "high_parity",
+    "partial_parity",
+    "limited_parity",
+    "unsupported",
+];
 
 /// Closed compatibility evidence-source vocabulary. `inherited_from_adjacent` may
 /// never back a stable claim.
@@ -842,7 +849,10 @@ impl MirrorImportInstallPosture {
 
     /// Returns true when the row stays mirrorable.
     pub fn mirrorable(&self) -> bool {
-        matches!(self.mirrorability_class.as_str(), "mirrorable" | "mirror_pinned")
+        matches!(
+            self.mirrorability_class.as_str(),
+            "mirrorable" | "mirror_pinned"
+        )
     }
 }
 
@@ -1030,12 +1040,8 @@ impl StableMirrorImportTruthPacket {
         let compatibility = compatibility_record(&input.compatibility);
         let activation_budget = activation_budget_record(&input.activation_budget);
         let install_posture = install_posture_record(&input.install_posture);
-        let attribution_complete = attribution_is_complete(
-            &identity,
-            &source_class,
-            &continuity,
-            &mapping_outcome,
-        );
+        let attribution_complete =
+            attribution_is_complete(&identity, &source_class, &continuity, &mapping_outcome);
 
         let posture = ImportPosture {
             identity: &identity,
@@ -1110,7 +1116,11 @@ impl StableMirrorImportTruthPacket {
         validate_banner(&self.downgraded_banner)?;
 
         for surface in &self.consumer_surfaces {
-            ensure_token(STABLE_MIRROR_IMPORT_CONSUMER_SURFACES, surface, "consumer_surface")?;
+            ensure_token(
+                STABLE_MIRROR_IMPORT_CONSUMER_SURFACES,
+                surface,
+                "consumer_surface",
+            )?;
         }
         if self.consumer_surfaces.is_empty() {
             return Err(err("packet must bind at least one consumer surface"));
@@ -1152,7 +1162,9 @@ impl StableMirrorImportTruthPacket {
                 ));
             }
             if !self.identity.lifecycle_installable() {
-                return Err(err("stable effective tier must stay on an installable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on an installable lifecycle",
+                ));
             }
             if !self.source_class.source_class_preserved {
                 return Err(err("stable effective tier must preserve its source class"));
@@ -1201,7 +1213,9 @@ impl StableMirrorImportTruthPacket {
                 ));
             }
             if self.permission_posture.widened_on_import {
-                return Err(err("stable effective tier must not widen permissions on import"));
+                return Err(err(
+                    "stable effective tier must not widen permissions on import",
+                ));
             }
             if self.compatibility.unsupported()
                 || self.compatibility.parity_limited()
@@ -1221,7 +1235,9 @@ impl StableMirrorImportTruthPacket {
                 return Err(err("stable effective tier must disclose its install scope"));
             }
             if !self.install_posture.revocation_clean() {
-                return Err(err("stable effective tier must keep a clean revocation posture"));
+                return Err(err(
+                    "stable effective tier must keep a clean revocation posture",
+                ));
             }
             if !self.install_posture.mirrorable() {
                 return Err(err("stable effective tier must stay mirrorable"));
@@ -1230,7 +1246,9 @@ impl StableMirrorImportTruthPacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1501,7 +1519,10 @@ pub fn project_stable_mirror_import_truth_support_export(
     StableMirrorImportTruthSupportExport {
         record_kind: STABLE_MIRROR_IMPORT_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_MIRROR_IMPORT_TRUTH_SCHEMA_VERSION,
-        export_id: format!("stable_mirror_import_truth_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_mirror_import_truth_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         row_identity_ref: packet.identity.row_identity_ref.clone(),
         catalog_descriptor_ref: packet.identity.catalog_descriptor_ref.clone(),
@@ -1786,12 +1807,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -2115,7 +2144,10 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     let id = &input.identity;
-    ensure_nonempty(&id.catalog_descriptor_ref, "identity.catalog_descriptor_ref")?;
+    ensure_nonempty(
+        &id.catalog_descriptor_ref,
+        "identity.catalog_descriptor_ref",
+    )?;
     if !id.catalog_descriptor_ref.starts_with("catalog_descriptor:") {
         return Err(err(
             "identity.catalog_descriptor_ref must start with 'catalog_descriptor:'",
@@ -2139,7 +2171,11 @@ fn validate_input(
     )?;
 
     let src = &input.source_class;
-    ensure_token(IMPORT_ROUTE_CLASSES, &src.import_route_class, "source_class.import_route_class")?;
+    ensure_token(
+        IMPORT_ROUTE_CLASSES,
+        &src.import_route_class,
+        "source_class.import_route_class",
+    )?;
     ensure_token(
         SOURCE_VISIBILITY_CLASSES,
         &src.source_visibility_class,
@@ -2172,12 +2208,22 @@ fn validate_input(
     }
 
     let map = &input.mapping_outcome;
-    ensure_token(MAPPING_OUTCOME_CLASSES, &map.outcome_class, "mapping_outcome.outcome_class")?;
-    ensure_nonempty(&map.rollback_checkpoint_ref, "mapping_outcome.rollback_checkpoint_ref")?;
+    ensure_token(
+        MAPPING_OUTCOME_CLASSES,
+        &map.outcome_class,
+        "mapping_outcome.outcome_class",
+    )?;
+    ensure_nonempty(
+        &map.rollback_checkpoint_ref,
+        "mapping_outcome.rollback_checkpoint_ref",
+    )?;
     ensure_nonempty(&map.diagnostics_ref, "mapping_outcome.diagnostics_ref")?;
 
     let perm = &input.permission_posture;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture.declared_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture.declared_permission_ref",
+    )?;
     ensure_nonempty(
         &perm.effective_permission_ref,
         "permission_posture.effective_permission_ref",
@@ -2189,7 +2235,10 @@ fn validate_input(
         &compat.compatibility_label_class,
         "compatibility.compatibility_label_class",
     )?;
-    ensure_nonempty(&compat.compatibility_window_ref, "compatibility.compatibility_window_ref")?;
+    ensure_nonempty(
+        &compat.compatibility_window_ref,
+        "compatibility.compatibility_window_ref",
+    )?;
     ensure_token(
         COMPATIBILITY_EVIDENCE_SOURCE_CLASSES,
         &compat.evidence_source_class,
@@ -2197,12 +2246,26 @@ fn validate_input(
     )?;
 
     let act = &input.activation_budget;
-    ensure_token(ACTIVATION_BUDGET_CLASSES, &act.budget_class, "activation_budget.budget_class")?;
-    ensure_nonempty(&act.measured_cost_ref, "activation_budget.measured_cost_ref")?;
-    ensure_nonempty(&act.budget_ceiling_ref, "activation_budget.budget_ceiling_ref")?;
+    ensure_token(
+        ACTIVATION_BUDGET_CLASSES,
+        &act.budget_class,
+        "activation_budget.budget_class",
+    )?;
+    ensure_nonempty(
+        &act.measured_cost_ref,
+        "activation_budget.measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &act.budget_ceiling_ref,
+        "activation_budget.budget_ceiling_ref",
+    )?;
 
     let inst = &input.install_posture;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture.install_scope_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture.install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
@@ -2216,10 +2279,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_MIRROR_IMPORT_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_MIRROR_IMPORT_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2262,7 +2333,11 @@ fn validate_source_class(
         MIRROR_IMPORT_SOURCE_CLASS_RECORD_KIND,
         "source_class record_kind",
     )?;
-    ensure_token(IMPORT_ROUTE_CLASSES, &source.import_route_class, "source_class import_route_class")?;
+    ensure_token(
+        IMPORT_ROUTE_CLASSES,
+        &source.import_route_class,
+        "source_class import_route_class",
+    )?;
     ensure_token(
         SOURCE_VISIBILITY_CLASSES,
         &source.source_visibility_class,
@@ -2300,8 +2375,15 @@ fn validate_mapping_outcome(
         MIRROR_IMPORT_MAPPING_OUTCOME_RECORD_KIND,
         "mapping_outcome record_kind",
     )?;
-    ensure_token(MAPPING_OUTCOME_CLASSES, &mapping.outcome_class, "mapping_outcome outcome_class")?;
-    ensure_nonempty(&mapping.rollback_checkpoint_ref, "mapping_outcome rollback_checkpoint_ref")?;
+    ensure_token(
+        MAPPING_OUTCOME_CLASSES,
+        &mapping.outcome_class,
+        "mapping_outcome outcome_class",
+    )?;
+    ensure_nonempty(
+        &mapping.rollback_checkpoint_ref,
+        "mapping_outcome rollback_checkpoint_ref",
+    )?;
     ensure_nonempty(&mapping.diagnostics_ref, "mapping_outcome diagnostics_ref")?;
     Ok(())
 }
@@ -2314,8 +2396,14 @@ fn validate_permission_posture(
         MIRROR_IMPORT_PERMISSION_POSTURE_RECORD_KIND,
         "permission_posture record_kind",
     )?;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture effective_permission_ref",
+    )?;
     Ok(())
 }
 
@@ -2353,8 +2441,14 @@ fn validate_activation_budget(
         &activation.budget_class,
         "activation_budget budget_class",
     )?;
-    ensure_nonempty(&activation.measured_cost_ref, "activation_budget measured_cost_ref")?;
-    ensure_nonempty(&activation.budget_ceiling_ref, "activation_budget budget_ceiling_ref")?;
+    ensure_nonempty(
+        &activation.measured_cost_ref,
+        "activation_budget measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &activation.budget_ceiling_ref,
+        "activation_budget budget_ceiling_ref",
+    )?;
     Ok(())
 }
 
@@ -2366,7 +2460,11 @@ fn validate_install_posture(
         MIRROR_IMPORT_INSTALL_POSTURE_RECORD_KIND,
         "install_posture record_kind",
     )?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture install_scope_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
@@ -2389,11 +2487,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(MIRROR_IMPORT_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            MIRROR_IMPORT_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2407,12 +2521,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(MIRROR_IMPORT_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            MIRROR_IMPORT_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2467,12 +2587,18 @@ fn err(message: impl Into<String>) -> StableMirrorImportTruthValidationError {
     }
 }
 
-fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), StableMirrorImportTruthValidationError>
+fn ensure_eq<T>(
+    left: T,
+    right: T,
+    field: &str,
+) -> Result<(), StableMirrorImportTruthValidationError>
 where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2483,7 +2609,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableMirrorImportTruthValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2501,7 +2629,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableMirrorImportTruthValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

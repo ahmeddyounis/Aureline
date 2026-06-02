@@ -1381,10 +1381,7 @@ impl GoDailyDriverQualityTruthSupportExport {
                 == self.go_daily_driver_quality_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self
-                .go_daily_driver_quality_packet
-                .validate()
-                .is_empty()
+            && self.go_daily_driver_quality_packet.validate().is_empty()
     }
 }
 
@@ -1437,9 +1434,7 @@ pub fn current_stable_go_daily_driver_quality_truth_packet(
     if findings.is_empty() {
         Ok(packet)
     } else {
-        Err(GoDailyDriverQualityTruthArtifactError::Validation(
-            findings,
-        ))
+        Err(GoDailyDriverQualityTruthArtifactError::Validation(findings))
     }
 }
 
@@ -1505,8 +1500,7 @@ mod tests {
         GoDailyDriverQualityConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            go_daily_driver_quality_packet_id_ref:
-                "packet:m4:go_daily_driver_quality".to_owned(),
+            go_daily_driver_quality_packet_id_ref: "packet:m4:go_daily_driver_quality".to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_lane_vocabulary: true,
@@ -1561,7 +1555,10 @@ mod tests {
             DailyDriverRowClass::ModuleWorkspaceRow.as_str(),
             "module_workspace_row"
         );
-        assert_eq!(DailyDriverRowClass::TestRunnerRow.as_str(), "test_runner_row");
+        assert_eq!(
+            DailyDriverRowClass::TestRunnerRow.as_str(),
+            "test_runner_row"
+        );
         assert_eq!(DailyDriverRowClass::DebuggerRow.as_str(), "debugger_row");
         assert_eq!(
             DailyDriverRowClass::SymbolRefactorRow.as_str(),
@@ -1577,7 +1574,10 @@ mod tests {
             EvidenceClass::TestRunnerEvidence.as_str(),
             "test_runner_evidence"
         );
-        assert_eq!(EvidenceClass::DebuggerEvidence.as_str(), "debugger_evidence");
+        assert_eq!(
+            EvidenceClass::DebuggerEvidence.as_str(),
+            "debugger_evidence"
+        );
         assert_eq!(
             EvidenceClass::SymbolRefactorEvidence.as_str(),
             "symbol_refactor_evidence"
@@ -1647,10 +1647,7 @@ mod tests {
         assert!(packet.validation_findings.is_empty());
         assert!(packet.is_stable());
         assert!(packet
-            .support_export(
-                "support:m4:go_daily_driver_quality",
-                "2026-05-26T12:00:10Z"
-            )
+            .support_export("support:m4:go_daily_driver_quality", "2026-05-26T12:00:10Z")
             .is_export_safe());
     }
 
@@ -1717,9 +1714,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != ConsumerSurface::ConformanceDashboard);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != ConsumerSurface::ConformanceDashboard
+        });
         let packet = GoDailyDriverQualityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet

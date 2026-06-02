@@ -49,12 +49,12 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::passkey::{
-    PasskeyStepUpBetaDefectKind, PasskeyStepUpBetaPage, PasskeyStepUpBetaSupportExport,
-    seeded_passkey_step_up_beta_page,
+    seeded_passkey_step_up_beta_page, PasskeyStepUpBetaDefectKind, PasskeyStepUpBetaPage,
+    PasskeyStepUpBetaSupportExport,
 };
 use crate::system_browser::beta::{
-    SystemBrowserReturnPathBetaDefectKind, SystemBrowserReturnPathsBetaPage,
-    SystemBrowserReturnPathsBetaSupportExport, seeded_system_browser_return_paths_beta_page,
+    seeded_system_browser_return_paths_beta_page, SystemBrowserReturnPathBetaDefectKind,
+    SystemBrowserReturnPathsBetaPage, SystemBrowserReturnPathsBetaSupportExport,
 };
 
 #[cfg(test)]
@@ -100,7 +100,8 @@ pub const SYSTEM_BROWSER_RETURN_PATHS_CONTRACT_REF: &str =
     "docs/auth/system_browser_callback_packet.md";
 
 /// Repo-relative path of the passkey step-up beta contract doc.
-pub const PASSKEY_STEP_UP_CONTRACT_REF: &str = "docs/auth/managed_auth_and_session_continuity_contract.md";
+pub const PASSKEY_STEP_UP_CONTRACT_REF: &str =
+    "docs/auth/managed_auth_and_session_continuity_contract.md";
 
 // ---------------------------------------------------------------------------
 // Qualification and narrow-reason vocabulary
@@ -183,9 +184,7 @@ impl SystemBrowserAuthStabilizeNarrowReasonClass {
             Self::ReturnPathsBetaPageHasDefects => "return_paths_beta_page_has_defects",
             Self::PasskeyBetaPageHasDefects => "passkey_beta_page_has_defects",
             Self::SystemBrowserDefaultMissing => "system_browser_default_missing",
-            Self::PasskeyStepUpNotCoveredWhenClaimed => {
-                "passkey_step_up_not_covered_when_claimed"
-            }
+            Self::PasskeyStepUpNotCoveredWhenClaimed => "passkey_step_up_not_covered_when_claimed",
             Self::ReauthOrRecoveryIdentityNotPreserved => {
                 "reauth_or_recovery_identity_not_preserved"
             }
@@ -375,7 +374,11 @@ impl SystemBrowserAuthStabilizePage {
         passkey_step_up_beta_page: PasskeyStepUpBetaPage,
     ) -> Self {
         let defects = audit_stabilize_pages(&return_paths_beta_page, &passkey_step_up_beta_page);
-        let rows = derive_stabilize_rows(&return_paths_beta_page, &passkey_step_up_beta_page, &defects);
+        let rows = derive_stabilize_rows(
+            &return_paths_beta_page,
+            &passkey_step_up_beta_page,
+            &defects,
+        );
         let summary = SystemBrowserAuthStabilizeSummary::from_rows(
             &rows,
             &return_paths_beta_page,
@@ -398,7 +401,8 @@ impl SystemBrowserAuthStabilizePage {
 
     /// True when the overall qualification is stable.
     pub fn qualifies_stable(&self) -> bool {
-        self.summary.overall_qualification_token == SystemBrowserAuthStabilizeQualificationClass::Stable.as_str()
+        self.summary.overall_qualification_token
+            == SystemBrowserAuthStabilizeQualificationClass::Stable.as_str()
     }
 
     /// True when no withdrawn rows are present.
@@ -416,7 +420,8 @@ impl SystemBrowserAuthStabilizePage {
     /// True when every row that claims passkey capability names a closed
     /// step-up posture.
     pub fn passkey_step_up_present_when_claimed(&self) -> bool {
-        self.return_paths_beta_page.passkey_step_up_present_when_claimed()
+        self.return_paths_beta_page
+            .passkey_step_up_present_when_claimed()
     }
 
     /// True when every reauth / recovery row preserves the original target /
@@ -428,7 +433,8 @@ impl SystemBrowserAuthStabilizePage {
 
     /// True when every unsatisfied passkey lane names a typed fallback.
     pub fn fallback_named_when_passkey_unavailable(&self) -> bool {
-        self.passkey_step_up_beta_page.fallback_named_when_passkey_unavailable()
+        self.passkey_step_up_beta_page
+            .fallback_named_when_passkey_unavailable()
     }
 }
 
@@ -466,7 +472,9 @@ impl SystemBrowserAuthStabilizeSupportExport {
             if !reasons.contains(&defect.narrow_reason) {
                 reasons.push(defect.narrow_reason);
             }
-            *counts.entry(defect.narrow_reason_token.clone()).or_insert(0) += 1;
+            *counts
+                .entry(defect.narrow_reason_token.clone())
+                .or_insert(0) += 1;
         }
         reasons.sort();
         let generated = generated_at.into();
@@ -531,12 +539,14 @@ pub fn audit_stabilize_pages(
 
     // Check 2: passkey step-up beta page must be clean.
     if !passkey_page.defects.is_empty() {
-        let has_widening = passkey_page.defects.iter().any(|d| {
-            d.defect_kind == PasskeyStepUpBetaDefectKind::GrantedAuthorityWidensRequested
-        });
-        let has_identity_widening = passkey_page.defects.iter().any(|d| {
-            d.defect_kind == PasskeyStepUpBetaDefectKind::ReauthOrRecoveryWidened
-        });
+        let has_widening = passkey_page
+            .defects
+            .iter()
+            .any(|d| d.defect_kind == PasskeyStepUpBetaDefectKind::GrantedAuthorityWidensRequested);
+        let has_identity_widening = passkey_page
+            .defects
+            .iter()
+            .any(|d| d.defect_kind == PasskeyStepUpBetaDefectKind::ReauthOrRecoveryWidened);
         if has_widening {
             defects.push(SystemBrowserAuthStabilizeDefect::new(
                 SystemBrowserAuthStabilizeNarrowReasonClass::AuthorityWideningOnReturn,
@@ -659,7 +669,12 @@ fn derive_stabilize_rows(
             let passkey_row_id = passkey_by_claim_ref
                 .get(rp_row.source_claim_row_ref.as_str())
                 .map(|s| s.to_string());
-            let summary = build_row_summary(rp_row, passkey_row_id.as_deref(), &overall_qual, narrow_reason);
+            let summary = build_row_summary(
+                rp_row,
+                passkey_row_id.as_deref(),
+                &overall_qual,
+                narrow_reason,
+            );
             SystemBrowserAuthStabilizeRow {
                 record_kind: SYSTEM_BROWSER_AUTH_STABILIZE_ROW_RECORD_KIND.to_owned(),
                 schema_version: SYSTEM_BROWSER_AUTH_STABILIZE_SCHEMA_VERSION,

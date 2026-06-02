@@ -2,13 +2,12 @@
 //! silent-deployment lane.
 
 use aureline_install::{
-    BinaryRootClass, FleetRolloutEvidenceClass, HardenInstallTopologyPage, ManagedFleetAuditRow,
-    NarrowReasonToken, QualificationToken, RolloutRingClass, SilentDeploymentAuditRow,
-    SilentInstallSupportClass, StateRootAuditEntry, StateRootIsolationClass,
-    StateRootReviewClass, UpdaterOwnerClass, HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND,
-    HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION, HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF,
-    REQUIRED_FLEET_EVIDENCE, seeded_harden_install_topology_page,
-    validate_harden_install_topology_page,
+    seeded_harden_install_topology_page, validate_harden_install_topology_page, BinaryRootClass,
+    FleetRolloutEvidenceClass, HardenInstallTopologyPage, ManagedFleetAuditRow, NarrowReasonToken,
+    QualificationToken, RolloutRingClass, SilentDeploymentAuditRow, SilentInstallSupportClass,
+    StateRootAuditEntry, StateRootIsolationClass, StateRootReviewClass, UpdaterOwnerClass,
+    HARDEN_INSTALL_TOPOLOGY_PAGE_RECORD_KIND, HARDEN_INSTALL_TOPOLOGY_SCHEMA_VERSION,
+    HARDEN_INSTALL_TOPOLOGY_SHARED_CONTRACT_REF, REQUIRED_FLEET_EVIDENCE,
 };
 
 fn seeded_page() -> HardenInstallTopologyPage {
@@ -25,8 +24,14 @@ fn seeded_page_passes_validation() {
         "seeded page failed validation: {:#?}",
         report.findings
     );
-    assert!(report.coverage.rings_covered.contains(&RolloutRingClass::Pilot));
-    assert!(report.coverage.rings_covered.contains(&RolloutRingClass::Broad));
+    assert!(report
+        .coverage
+        .rings_covered
+        .contains(&RolloutRingClass::Pilot));
+    assert!(report
+        .coverage
+        .rings_covered
+        .contains(&RolloutRingClass::Broad));
     assert!(report
         .coverage
         .updater_owner_classes
@@ -222,7 +227,9 @@ fn silent_row_without_limits_produces_beta_defect() {
 fn silent_row_without_return_codes_produces_beta_defect() {
     let mut page = seeded_page();
     page.silent_deployment_rows[0].return_code_families_named = false;
-    page.silent_deployment_rows[0].return_code_family_refs.clear();
+    page.silent_deployment_rows[0]
+        .return_code_family_refs
+        .clear();
 
     let defects = page.audit();
     assert!(defects
@@ -250,11 +257,15 @@ fn airgap_row_uses_mirror_verification_review_class() {
         .find(|r| r.platform_token == "air_gap_bundle_target")
         .expect("air-gap managed row");
 
-    assert_eq!(airgap.binary_root_class, BinaryRootClass::OfflineBundleExtractedProgramArea);
+    assert_eq!(
+        airgap.binary_root_class,
+        BinaryRootClass::OfflineBundleExtractedProgramArea
+    );
     assert!(airgap.state_root_audit.iter().any(|entry| {
         entry.review_class == StateRootReviewClass::MirrorVerificationReviewRequired
     }));
-    assert!(airgap.state_root_audit.iter().any(|entry| {
-        entry.isolation_class == StateRootIsolationClass::MirrorMetadataOwned
-    }));
+    assert!(airgap
+        .state_root_audit
+        .iter()
+        .any(|entry| { entry.isolation_class == StateRootIsolationClass::MirrorMetadataOwned }));
 }

@@ -588,16 +588,14 @@ impl CollectionPortabilityTruthPacket {
 
     /// True when no blocker finding fires.
     pub fn is_stable(&self) -> bool {
-        !self.validate().iter().any(|finding| {
-            finding.severity == CollectionPortabilityFindingSeverity::Blocker
-        })
+        !self
+            .validate()
+            .iter()
+            .any(|finding| finding.severity == CollectionPortabilityFindingSeverity::Blocker)
     }
 
     /// True when a consumer projection preserves this packet.
-    pub fn has_projection_for(
-        &self,
-        surface: CollectionPortabilityConsumerSurface,
-    ) -> bool {
+    pub fn has_projection_for(&self, surface: CollectionPortabilityConsumerSurface) -> bool {
         self.consumer_projections.iter().any(|projection| {
             projection.consumer_surface == surface
                 && projection.preserves_truth_for(&self.packet_id)
@@ -626,7 +624,8 @@ impl CollectionPortabilityTruthPacket {
         if self.rows.is_empty() {
             return Vec::new();
         }
-        let mut tokens = vec![crate::collections::CollectionSurfaceFamily::SearchCollection.as_str()];
+        let mut tokens =
+            vec![crate::collections::CollectionSurfaceFamily::SearchCollection.as_str()];
         tokens.sort_unstable();
         tokens
     }
@@ -791,8 +790,7 @@ impl CollectionPortabilityTruthPacket {
                         format!("row {} batch review invalid: {tokens}", row.row_id),
                     ));
                 }
-                if batch_review.review_required
-                    && batch_review.recovery_guidance.trim().is_empty()
+                if batch_review.review_required && batch_review.recovery_guidance.trim().is_empty()
                 {
                     findings.push(CollectionPortabilityValidationFinding::new(
                         CollectionPortabilityFindingKind::BatchReviewRollbackGuidanceMissing,
@@ -840,8 +838,7 @@ impl CollectionPortabilityTruthPacket {
             }
 
             if row.saved_query.scope_binding_id_ref != row.scope_pack_binding.scope_binding_id
-                || row.query_history.scope_binding_id_ref
-                    != row.scope_pack_binding.scope_binding_id
+                || row.query_history.scope_binding_id_ref != row.scope_pack_binding.scope_binding_id
             {
                 findings.push(CollectionPortabilityValidationFinding::new(
                     CollectionPortabilityFindingKind::ScopePackBindingMismatch,
@@ -922,14 +919,12 @@ impl CollectionPortabilityTruthPacket {
                 ));
             }
 
-            let saved_query_state =
-                CollectionPortabilityReopenState::from_scope_honesty(
-                    row.saved_query.scope_honesty_state,
-                );
-            let history_state =
-                CollectionPortabilityReopenState::from_scope_honesty(
-                    row.query_history.scope_honesty_state,
-                );
+            let saved_query_state = CollectionPortabilityReopenState::from_scope_honesty(
+                row.saved_query.scope_honesty_state,
+            );
+            let history_state = CollectionPortabilityReopenState::from_scope_honesty(
+                row.query_history.scope_honesty_state,
+            );
             let migration_required = !matches!(
                 row.saved_query.migration_state,
                 SearchArtifactMigrationState::Current
@@ -1129,9 +1124,7 @@ impl CollectionPortabilityTruthPacket {
                     ),
                 ));
             }
-            if !projection.raw_private_material_excluded
-                || !projection.ambient_authority_excluded
-            {
+            if !projection.raw_private_material_excluded || !projection.ambient_authority_excluded {
                 findings.push(CollectionPortabilityValidationFinding::new(
                     CollectionPortabilityFindingKind::RawBoundaryMaterialPresent,
                     CollectionPortabilityFindingSeverity::Blocker,
@@ -1230,7 +1223,10 @@ impl fmt::Display for CollectionPortabilityTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => {
-                write!(formatter, "collection portability truth packet parse failed: {error}")
+                write!(
+                    formatter,
+                    "collection portability truth packet parse failed: {error}"
+                )
             }
             Self::Validation(findings) => {
                 let tokens = findings
@@ -1265,7 +1261,9 @@ pub fn current_stable_collection_portability_truth_packet(
     if findings.is_empty() {
         Ok(packet)
     } else {
-        Err(CollectionPortabilityTruthArtifactError::Validation(findings))
+        Err(CollectionPortabilityTruthArtifactError::Validation(
+            findings,
+        ))
     }
 }
 
@@ -1307,8 +1305,8 @@ mod tests {
 
     #[test]
     fn empty_input_blocks_stable() {
-        let packet = CollectionPortabilityTruthPacket::materialize(
-            CollectionPortabilityTruthPacketInput {
+        let packet =
+            CollectionPortabilityTruthPacket::materialize(CollectionPortabilityTruthPacketInput {
                 packet_id: String::new(),
                 workflow_or_surface_id: String::new(),
                 query_session_id_ref: String::new(),
@@ -1318,14 +1316,13 @@ mod tests {
                 rows: Vec::new(),
                 consumer_projections: Vec::new(),
                 source_contract_refs: Vec::new(),
-            },
-        );
+            });
         assert_eq!(
             packet.promotion_state,
             CollectionPortabilityPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == CollectionPortabilityFindingKind::MissingIdentity));
+        assert!(packet.validation_findings.iter().any(
+            |finding| finding.finding_kind == CollectionPortabilityFindingKind::MissingIdentity
+        ));
     }
 }

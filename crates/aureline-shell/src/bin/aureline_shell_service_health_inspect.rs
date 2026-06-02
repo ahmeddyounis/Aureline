@@ -15,11 +15,11 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- vocabulary
 //! ```
 
+use aureline_shell::service_health::seed::seeded_aggregator;
 use aureline_shell::service_health::{
     AffectedWorkflowClass, BoundaryClass, LastCheckedAgeClass, LocalContinuityClass,
     ServiceContractStateClass, ServiceFamilyClass,
 };
-use aureline_shell::service_health::seed::seeded_aggregator;
 
 fn main() {
     if let Err(err) = run() {
@@ -36,7 +36,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("aggregator") | None => print_json(&aggregator)?,
         Some("cards") => print_json(&aggregator.cards)?,
         Some("card") => {
-            let id = args.get(1).ok_or("card <card_id> requires an id argument")?;
+            let id = args
+                .get(1)
+                .ok_or("card <card_id> requires an id argument")?;
             let card = aggregator
                 .cards
                 .iter()

@@ -771,7 +771,10 @@ impl RedactionClass {
     }
 
     pub const fn is_export_safe_compatible(self) -> bool {
-        matches!(self, Self::MetadataSafeDefault | Self::OperatorOnlyRestricted)
+        matches!(
+            self,
+            Self::MetadataSafeDefault | Self::OperatorOnlyRestricted
+        )
     }
 }
 
@@ -836,7 +839,10 @@ impl SafestNextActionClass {
     /// True when this action preserves local work and may run without
     /// explicit managed consent.
     pub const fn is_local_safe(self) -> bool {
-        matches!(self, Self::ContinueLocal | Self::ExportPacket | Self::AwaitResolution)
+        matches!(
+            self,
+            Self::ContinueLocal | Self::ExportPacket | Self::AwaitResolution
+        )
     }
 }
 
@@ -1120,9 +1126,7 @@ pub enum DeploymentProfileDefect {
     /// A self-hosted card carried vendor-managed keys.
     SelfHostedClaimedVendorManagedKeys,
     /// An air-gapped profile did not declare offline_air_gapped mirror state.
-    AirGappedMissingOfflineAirGappedState {
-        actual: MirrorOfflineStateClass,
-    },
+    AirGappedMissingOfflineAirGappedState { actual: MirrorOfflineStateClass },
     /// An air-gapped profile routed through a companion surface.
     AirGappedRoutedThroughCompanionSurface,
     /// Mirror-only or air-gapped state emitted no mirror/offline artifact row.
@@ -1137,14 +1141,10 @@ pub enum DeploymentProfileDefect {
     /// The page surfaced generic "service degraded" copy where local-safe
     /// data plane and healthy control plane should have produced
     /// `continue_local` or `await_resolution`.
-    GenericServiceDegradedWhereLocalSafeRemains {
-        chose: SafestNextActionClass,
-    },
+    GenericServiceDegradedWhereLocalSafeRemains { chose: SafestNextActionClass },
     /// Required posture with a vendor-bound dependency class but
     /// `vendor_or_public_dependence` is false.
-    RequiredVendorBoundDependencyMissingVendorDependenceFlag {
-        dependency_class: DependencyClass,
-    },
+    RequiredVendorBoundDependencyMissingVendorDependenceFlag { dependency_class: DependencyClass },
     /// A digest-mismatched mirror/offline artifact row did not block its
     /// verify action.
     DigestMismatchVerifyActionNotBlocked {
@@ -1164,15 +1164,10 @@ pub enum DeploymentProfileDefect {
     },
     /// Profile summary claimed export_safe but carried a wider redaction
     /// class.
-    ExportSafeProfileSummaryWidenedRedaction {
-        redaction_class: RedactionClass,
-    },
+    ExportSafeProfileSummaryWidenedRedaction { redaction_class: RedactionClass },
     /// The profile summary's plane-status strip ref does not match the page's
     /// plane-status strip id.
-    PlaneStatusStripRefMismatch {
-        expected: String,
-        actual: String,
-    },
+    PlaneStatusStripRefMismatch { expected: String, actual: String },
     /// A residual-dependency row referenced a profile summary id other than
     /// the page's.
     ResidualDependencyRowProfileSummaryRefMismatch {
@@ -1261,9 +1256,11 @@ impl DeploymentProfilePage {
 
         if ps.deployment_profile == DeploymentProfileClass::AirGapped {
             if ps.mirror_offline_state_class != MirrorOfflineStateClass::OfflineAirGapped {
-                defects.push(DeploymentProfileDefect::AirGappedMissingOfflineAirGappedState {
-                    actual: ps.mirror_offline_state_class,
-                });
+                defects.push(
+                    DeploymentProfileDefect::AirGappedMissingOfflineAirGappedState {
+                        actual: ps.mirror_offline_state_class,
+                    },
+                );
             }
             if ps
                 .consumer_surfaces
@@ -1274,12 +1271,16 @@ impl DeploymentProfilePage {
             }
         }
 
-        if ps.mirror_offline_state_class.requires_mirror_offline_artifact_row()
+        if ps
+            .mirror_offline_state_class
+            .requires_mirror_offline_artifact_row()
             && ps.mirror_offline_artifact_row_refs.is_empty()
         {
-            defects.push(DeploymentProfileDefect::MirrorOrAirGappedMissingArtifactRow {
-                mirror_offline_state_class: ps.mirror_offline_state_class,
-            });
+            defects.push(
+                DeploymentProfileDefect::MirrorOrAirGappedMissingArtifactRow {
+                    mirror_offline_state_class: ps.mirror_offline_state_class,
+                },
+            );
         }
 
         if ps.mirror_offline_state_class == MirrorOfflineStateClass::OnlineMirrorOnly
@@ -1304,9 +1305,11 @@ impl DeploymentProfilePage {
         }
 
         if ps.export_safe && !ps.redaction_class.is_export_safe_compatible() {
-            defects.push(DeploymentProfileDefect::ExportSafeProfileSummaryWidenedRedaction {
-                redaction_class: ps.redaction_class,
-            });
+            defects.push(
+                DeploymentProfileDefect::ExportSafeProfileSummaryWidenedRedaction {
+                    redaction_class: ps.redaction_class,
+                },
+            );
         }
 
         if ps.plane_status_strip_ref != self.plane_status_strip.strip_id {
@@ -1318,12 +1321,13 @@ impl DeploymentProfilePage {
 
         for row in &self.residual_dependency_rows {
             if row.profile_summary_ref != ps.summary_id {
-                defects
-                    .push(DeploymentProfileDefect::ResidualDependencyRowProfileSummaryRefMismatch {
+                defects.push(
+                    DeploymentProfileDefect::ResidualDependencyRowProfileSummaryRefMismatch {
                         row_id: row.row_id.clone(),
                         expected: ps.summary_id.clone(),
                         actual: row.profile_summary_ref.clone(),
-                    });
+                    },
+                );
             }
             if row.posture_class == PostureClass::Required
                 && row.dependency_class.is_vendor_bound_when_required()
@@ -1347,8 +1351,7 @@ impl DeploymentProfilePage {
                     },
                 );
             }
-            if row.signer_state_class.requires_fingerprint()
-                && row.signer_fingerprint_ref.is_none()
+            if row.signer_state_class.requires_fingerprint() && row.signer_fingerprint_ref.is_none()
             {
                 defects.push(
                     DeploymentProfileDefect::SignedArtifactMissingSignerFingerprint {
@@ -1360,16 +1363,20 @@ impl DeploymentProfilePage {
             if row.digest_state_class == DigestStateClass::DigestMismatch
                 && row.verify_action.revalidation_on_open != "blocked_until_fresh"
             {
-                defects.push(DeploymentProfileDefect::DigestMismatchVerifyActionNotBlocked {
-                    artifact_class: row.artifact_class,
-                    revalidation_on_open: row.verify_action.revalidation_on_open.clone(),
-                });
+                defects.push(
+                    DeploymentProfileDefect::DigestMismatchVerifyActionNotBlocked {
+                        artifact_class: row.artifact_class,
+                        revalidation_on_open: row.verify_action.revalidation_on_open.clone(),
+                    },
+                );
             }
             if row.export_safe && !row.redaction_class.is_export_safe_compatible() {
-                defects.push(DeploymentProfileDefect::ExportSafeArtifactRowWidenedRedaction {
-                    artifact_class: row.artifact_class,
-                    redaction_class: row.redaction_class,
-                });
+                defects.push(
+                    DeploymentProfileDefect::ExportSafeArtifactRowWidenedRedaction {
+                        artifact_class: row.artifact_class,
+                        redaction_class: row.redaction_class,
+                    },
+                );
             }
         }
 
@@ -1439,7 +1446,10 @@ impl DeploymentProfilePage {
         out.push_str(&format!(
             "Safest next action: {} ({})\n",
             self.plane_status_strip.safest_next_action.label,
-            self.plane_status_strip.safest_next_action.action_class.as_str(),
+            self.plane_status_strip
+                .safest_next_action
+                .action_class
+                .as_str(),
         ));
         out.push_str(&format!(
             "Freshness: {} | {}\n",
@@ -1706,8 +1716,12 @@ pub fn individual_local_baseline_page(emitted_at: impl Into<String>) -> Deployme
 /// page. Used by the support-bundle assembler and by tests asserting
 /// at least one read-only surface remains hooked up.
 pub fn consumer_surfaces_present(page: &DeploymentProfilePage) -> BTreeSet<ConsumerSurfaceClass> {
-    let mut set: BTreeSet<ConsumerSurfaceClass> =
-        page.profile_summary.consumer_surfaces.iter().copied().collect();
+    let mut set: BTreeSet<ConsumerSurfaceClass> = page
+        .profile_summary
+        .consumer_surfaces
+        .iter()
+        .copied()
+        .collect();
     for s in &page.plane_status_strip.consumer_surfaces {
         set.insert(*s);
     }

@@ -38,19 +38,14 @@ fn fixture_root() -> PathBuf {
 }
 
 fn read_fixture(path: &Path) -> FixtureArtifact {
-    let bytes = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read fixture {}: {e}", path.display()));
-    serde_json::from_str(&bytes)
-        .unwrap_or_else(|e| panic!("parse fixture {}: {e}", path.display()))
+    let bytes =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("read fixture {}: {e}", path.display()));
+    serde_json::from_str(&bytes).unwrap_or_else(|e| panic!("parse fixture {}: {e}", path.display()))
 }
 
 fn fixture_paths() -> Vec<PathBuf> {
     let root = fixture_root();
-    assert!(
-        root.is_dir(),
-        "fixture root missing: {}",
-        root.display()
-    );
+    assert!(root.is_dir(), "fixture root missing: {}", root.display());
     let mut out = Vec::new();
     for entry in fs::read_dir(&root).expect("read fixture dir") {
         let entry = entry.expect("entry");
@@ -60,7 +55,11 @@ fn fixture_paths() -> Vec<PathBuf> {
         }
     }
     out.sort();
-    assert!(!out.is_empty(), "no fixtures found under {}", root.display());
+    assert!(
+        !out.is_empty(),
+        "no fixtures found under {}",
+        root.display()
+    );
     out
 }
 
@@ -178,7 +177,8 @@ fn projections_share_vocabulary_across_every_host_surface() {
             let first = tokens[0].clone();
             for token in &tokens[1..] {
                 assert_eq!(
-                    token, &first,
+                    token,
+                    &first,
                     "{}: marker {} drifted vocabulary across surfaces",
                     path.display(),
                     marker.marker_id

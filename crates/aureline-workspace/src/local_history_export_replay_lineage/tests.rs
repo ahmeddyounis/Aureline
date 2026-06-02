@@ -181,37 +181,51 @@ fn clean_inputs_project_stable_record() {
         LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_REF
     );
     assert!(record.packet_coverage.all_required_packet_kinds_present);
-    assert!(record
-        .replay_path_coverage
-        .all_required_replay_path_kinds_present);
+    assert!(
+        record
+            .replay_path_coverage
+            .all_required_replay_path_kinds_present
+    );
     assert!(record.compare_to_disk_honesty.all_compare_paths_have_state);
-    assert!(record
-        .compare_to_disk_honesty
-        .no_disk_modified_silently_clean);
+    assert!(
+        record
+            .compare_to_disk_honesty
+            .no_disk_modified_silently_clean
+    );
     assert!(record.body_export_safety.all_overrides_have_disclosure);
     assert!(record.body_export_safety.no_raw_body_by_default);
     assert!(record.encoding_fidelity.all_packets_preserve_encoding);
     assert!(record.encoding_fidelity.all_packets_preserve_newline);
     assert!(record.encoding_fidelity.all_packets_preserve_bom);
-    assert!(record
-        .encoding_fidelity
-        .all_replays_preserve_encoding_fidelity);
+    assert!(
+        record
+            .encoding_fidelity
+            .all_replays_preserve_encoding_fidelity
+    );
     assert!(record.restore_provenance.all_packets_carry_restore_of_ref);
-    assert!(record
-        .restore_provenance
-        .all_packets_carry_mutation_journal_ref);
+    assert!(
+        record
+            .restore_provenance
+            .all_packets_carry_mutation_journal_ref
+    );
     assert!(record.restore_provenance.all_packets_carry_actor_class);
-    assert!(record
-        .restore_provenance
-        .all_replays_preserve_restore_provenance);
+    assert!(
+        record
+            .restore_provenance
+            .all_replays_preserve_restore_provenance
+    );
     assert!(record.no_silent_rerun.all_replays_safe_rerun_posture);
-    assert!(record
-        .no_silent_rerun
-        .all_mutating_replays_have_commit_metadata);
+    assert!(
+        record
+            .no_silent_rerun
+            .all_mutating_replays_have_commit_metadata
+    );
     assert!(record.integrity_hash_pinning.all_packets_pin_integrity_hash);
-    assert!(record
-        .integrity_hash_pinning
-        .all_replays_verify_integrity_hash);
+    assert!(
+        record
+            .integrity_hash_pinning
+            .all_replays_verify_integrity_hash
+    );
     assert_eq!(record.inspection_hooks.len(), 6);
     assert!(record
         .producer_attribution
@@ -253,8 +267,7 @@ fn missing_required_replay_path_narrows_record() {
 fn replay_referencing_unknown_packet_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.replay_paths[0].packet_id = "nonexistent".to_owned();
-    let record =
-        project_local_history_export_replay_lineage("posture.unknown_packet", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.unknown_packet", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -289,10 +302,8 @@ fn disk_modified_silent_narrows_record() {
         .expect("seeded");
     compare.compare_to_disk_state = Some(CompareToDiskState::DiskModifiedSincePacket);
     compare.discloses_disk_modified_state = false;
-    let record = project_local_history_export_replay_lineage(
-        "posture.disk_modified_silent",
-        &inputs,
-    );
+    let record =
+        project_local_history_export_replay_lineage("posture.disk_modified_silent", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record.stable_qualification.narrow_reasons.contains(
         &LocalHistoryExportReplayLineageNarrowReason::DiskModifiedSilentlyTreatedAsClean
@@ -304,8 +315,7 @@ fn body_override_without_disclosure_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].body_availability_class = BodyAvailabilityClass::BodyObjectRefWithDisclosure;
     inputs.packets[0].body_override_disclosure_ref = None;
-    let record =
-        project_local_history_export_replay_lineage("posture.no_body_override", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_body_override", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -317,8 +327,7 @@ fn body_override_without_disclosure_narrows_record() {
 fn body_raw_with_disclosure_stays_stable_when_disclosure_present() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].body_availability_class = BodyAvailabilityClass::RawBodyWithDisclosure;
-    inputs.packets[0].body_override_disclosure_ref =
-        Some("disclosure.raw_body.entry.0".to_owned());
+    inputs.packets[0].body_override_disclosure_ref = Some("disclosure.raw_body.entry.0".to_owned());
     let record = project_local_history_export_replay_lineage("posture.raw_body_safe", &inputs);
     assert!(
         record.is_stable_qualified(),
@@ -331,8 +340,7 @@ fn body_raw_with_disclosure_stays_stable_when_disclosure_present() {
 fn replay_silent_rerun_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.replay_paths[0].rerun_posture = ReplayRerunPosture::SilentRerunPermitted;
-    let record =
-        project_local_history_export_replay_lineage("posture.silent_rerun", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.silent_rerun", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -349,20 +357,19 @@ fn mutating_replay_missing_commit_action_narrows_record() {
         .find(|r| r.replay_path_kind == ReplayPathKind::RestoreFromPacket)
         .expect("seeded");
     restore.commit_action_id = String::new();
-    let record =
-        project_local_history_export_replay_lineage("posture.no_commit_action", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_commit_action", &inputs);
     assert!(!record.is_stable_qualified());
-    assert!(record.stable_qualification.narrow_reasons.contains(
-        &LocalHistoryExportReplayLineageNarrowReason::ReplayCommitActionMetadataMissing
-    ));
+    assert!(record
+        .stable_qualification
+        .narrow_reasons
+        .contains(&LocalHistoryExportReplayLineageNarrowReason::ReplayCommitActionMetadataMissing));
 }
 
 #[test]
 fn encoding_not_preserved_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].encoding_preserved = false;
-    let record =
-        project_local_history_export_replay_lineage("posture.no_encoding", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_encoding", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -374,8 +381,7 @@ fn encoding_not_preserved_narrows_record() {
 fn newline_not_preserved_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].newline_preserved = false;
-    let record =
-        project_local_history_export_replay_lineage("posture.no_newline", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_newline", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -387,10 +393,7 @@ fn newline_not_preserved_narrows_record() {
 fn replay_dropping_encoding_fidelity_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.replay_paths[0].preserves_encoding_fidelity = false;
-    let record = project_local_history_export_replay_lineage(
-        "posture.no_replay_encoding",
-        &inputs,
-    );
+    let record = project_local_history_export_replay_lineage("posture.no_replay_encoding", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -402,8 +405,7 @@ fn replay_dropping_encoding_fidelity_narrows_record() {
 fn empty_restore_of_ref_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].restore_of_ref = String::new();
-    let record =
-        project_local_history_export_replay_lineage("posture.no_restore_of", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_restore_of", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -415,10 +417,8 @@ fn empty_restore_of_ref_narrows_record() {
 fn replay_dropping_provenance_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.replay_paths[0].preserves_restore_provenance = false;
-    let record = project_local_history_export_replay_lineage(
-        "posture.no_replay_provenance",
-        &inputs,
-    );
+    let record =
+        project_local_history_export_replay_lineage("posture.no_replay_provenance", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -430,8 +430,7 @@ fn replay_dropping_provenance_narrows_record() {
 fn empty_integrity_hash_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].integrity_hash = String::new();
-    let record =
-        project_local_history_export_replay_lineage("posture.no_integrity", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_integrity", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -443,10 +442,8 @@ fn empty_integrity_hash_narrows_record() {
 fn replay_not_verifying_integrity_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.replay_paths[0].verifies_integrity_hash = false;
-    let record = project_local_history_export_replay_lineage(
-        "posture.no_replay_integrity",
-        &inputs,
-    );
+    let record =
+        project_local_history_export_replay_lineage("posture.no_replay_integrity", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -479,8 +476,7 @@ fn missing_inspection_hook_narrows_record() {
 fn support_export_dropping_field_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].support_export.includes_integrity_hash = false;
-    let record =
-        project_local_history_export_replay_lineage("posture.support_dropped", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.support_dropped", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -492,8 +488,7 @@ fn support_export_dropping_field_narrows_record() {
 fn support_export_raw_body_leak_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets[0].support_export.raw_body_bytes_excluded = false;
-    let record =
-        project_local_history_export_replay_lineage("posture.support_raw_body", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.support_raw_body", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -505,8 +500,7 @@ fn support_export_raw_body_leak_narrows_record() {
 fn empty_workspace_ref_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.workspace_ref = String::new();
-    let record =
-        project_local_history_export_replay_lineage("posture.no_workspace", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_workspace", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -519,8 +513,7 @@ fn empty_corpus_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.packets.clear();
     inputs.replay_paths.clear();
-    let record =
-        project_local_history_export_replay_lineage("posture.empty_corpus", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.empty_corpus", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -532,8 +525,7 @@ fn empty_corpus_narrows_record() {
 fn producer_attribution_incomplete_narrows_record() {
     let mut inputs = baseline_inputs();
     inputs.producer_ref = String::new();
-    let record =
-        project_local_history_export_replay_lineage("posture.no_producer", &inputs);
+    let record = project_local_history_export_replay_lineage("posture.no_producer", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -558,9 +550,7 @@ fn lines_projection_renders_required_sections() {
     assert!(lines
         .iter()
         .any(|line| line.contains("Compare-to-disk honesty")));
-    assert!(lines
-        .iter()
-        .any(|line| line.contains("Body-export safety")));
+    assert!(lines.iter().any(|line| line.contains("Body-export safety")));
     assert!(lines.iter().any(|line| line.contains("Encoding fidelity")));
     assert!(lines.iter().any(|line| line.contains("Restore provenance")));
     assert!(lines.iter().any(|line| line.contains("No-silent-rerun")));

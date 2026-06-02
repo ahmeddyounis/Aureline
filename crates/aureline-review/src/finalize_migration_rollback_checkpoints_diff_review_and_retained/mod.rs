@@ -314,7 +314,6 @@ pub struct MigrationSupportExportInput {
     pub summary_label: String,
 }
 
-
 // ---------------------------------------------------------------------------
 // Record types
 // ---------------------------------------------------------------------------
@@ -581,7 +580,6 @@ pub struct MigrationRestartSnapshot {
     pub blocked_reasons: Vec<String>,
 }
 
-
 // ---------------------------------------------------------------------------
 // Packet type
 // ---------------------------------------------------------------------------
@@ -700,14 +698,20 @@ impl MigrationRollbackDiffReviewPacket {
         ensure_nonempty(&self.packet_id, "packet_id")?;
         ensure_nonempty(&self.generated_at, "generated_at")?;
 
-        validate_migration_flow_record(&self.migration_flow, &self.review_workspace.review_workspace_id)?;
+        validate_migration_flow_record(
+            &self.migration_flow,
+            &self.review_workspace.review_workspace_id,
+        )?;
         validate_diff_review_record(&self.diff_review, &self.migration_flow.migration_flow_id)?;
         validate_rollback_checkpoint_record(
             &self.rollback_checkpoint,
             self.migration_flow.migration_flow_id.as_str(),
         )?;
         for diagnostic in &self.retained_diagnostics {
-            validate_retained_diagnostic_record(diagnostic, &self.migration_flow.migration_flow_id)?;
+            validate_retained_diagnostic_record(
+                diagnostic,
+                &self.migration_flow.migration_flow_id,
+            )?;
         }
         for command in &self.commands {
             validate_migration_command_record(command, &self.migration_flow.migration_flow_id)?;
@@ -754,7 +758,9 @@ impl MigrationRollbackDiffReviewPacket {
                 "rolled_back flow cannot have missing_blocks_apply checkpoint",
             ));
         }
-        if self.migration_flow.flow_state == "validation_failed" && self.retained_diagnostics.is_empty() {
+        if self.migration_flow.flow_state == "validation_failed"
+            && self.retained_diagnostics.is_empty()
+        {
             return Err(migration_validation_error(
                 "validation_failed flow must retain at least one diagnostic",
             ));
@@ -768,7 +774,10 @@ impl MigrationRollbackDiffReviewPacket {
         let flow = &self.migration_flow;
         contains_token(MIGRATION_OPERATION_KINDS, &flow.operation_kind)
             && contains_token(MIGRATION_FLOW_STATES, &flow.flow_state)
-            && contains_token(MIGRATION_DIFF_REVIEW_STATES, &self.diff_review.diff_review_state)
+            && contains_token(
+                MIGRATION_DIFF_REVIEW_STATES,
+                &self.diff_review.diff_review_state,
+            )
             && contains_token(
                 MIGRATION_CHECKPOINT_STATES,
                 &self.rollback_checkpoint.checkpoint_state,
@@ -878,7 +887,6 @@ impl From<MigrationRollbackDiffReviewPacket> for MigrationRollbackDiffReviewProj
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Error types
 // ---------------------------------------------------------------------------
@@ -895,8 +903,14 @@ pub enum MigrationRollbackDiffReviewError {
 impl fmt::Display for MigrationRollbackDiffReviewError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Parse(err) => write!(formatter, "migration rollback diff-review parse error: {err}"),
-            Self::Validation(err) => write!(formatter, "migration rollback diff-review validation error: {err}"),
+            Self::Parse(err) => write!(
+                formatter,
+                "migration rollback diff-review parse error: {err}"
+            ),
+            Self::Validation(err) => write!(
+                formatter,
+                "migration rollback diff-review validation error: {err}"
+            ),
         }
     }
 }
@@ -936,7 +950,9 @@ impl fmt::Display for MigrationRollbackDiffReviewValidationError {
 
 impl std::error::Error for MigrationRollbackDiffReviewValidationError {}
 
-fn migration_validation_error(message: impl Into<String>) -> MigrationRollbackDiffReviewValidationError {
+fn migration_validation_error(
+    message: impl Into<String>,
+) -> MigrationRollbackDiffReviewValidationError {
     MigrationRollbackDiffReviewValidationError {
         message: message.into(),
     }
@@ -964,7 +980,9 @@ fn ensure_nonempty(
     field: &str,
 ) -> Result<(), MigrationRollbackDiffReviewValidationError> {
     if value.trim().is_empty() {
-        return Err(migration_validation_error(format!("{field} must be non-empty")));
+        return Err(migration_validation_error(format!(
+            "{field} must be non-empty"
+        )));
     }
     Ok(())
 }
@@ -982,22 +1000,32 @@ fn validate_input(
     ensure_nonempty(&input.generated_at, "generated_at")?;
     if !contains_token(MIGRATION_OPERATION_KINDS, &input.operation_kind) {
         return Err(migration_validation_error(format!(
-            "unsupported operation_kind {}", input.operation_kind
+            "unsupported operation_kind {}",
+            input.operation_kind
         )));
     }
     if !contains_token(MIGRATION_FLOW_STATES, &input.flow_state) {
         return Err(migration_validation_error(format!(
-            "unsupported flow_state {}", input.flow_state
+            "unsupported flow_state {}",
+            input.flow_state
         )));
     }
-    if !contains_token(MIGRATION_DIFF_REVIEW_STATES, &input.diff_review.diff_review_state) {
+    if !contains_token(
+        MIGRATION_DIFF_REVIEW_STATES,
+        &input.diff_review.diff_review_state,
+    ) {
         return Err(migration_validation_error(format!(
-            "unsupported diff_review_state {}", input.diff_review.diff_review_state
+            "unsupported diff_review_state {}",
+            input.diff_review.diff_review_state
         )));
     }
-    if !contains_token(MIGRATION_CHECKPOINT_STATES, &input.rollback_checkpoint.checkpoint_state) {
+    if !contains_token(
+        MIGRATION_CHECKPOINT_STATES,
+        &input.rollback_checkpoint.checkpoint_state,
+    ) {
         return Err(migration_validation_error(format!(
-            "unsupported checkpoint_state {}", input.rollback_checkpoint.checkpoint_state
+            "unsupported checkpoint_state {}",
+            input.rollback_checkpoint.checkpoint_state
         )));
     }
     for reason in &input.invalidation_reasons {
@@ -1010,24 +1038,34 @@ fn validate_input(
     for diag in &input.retained_diagnostics {
         if !contains_token(MIGRATION_DIAGNOSTIC_REASON_CLASSES, &diag.reason_class) {
             return Err(migration_validation_error(format!(
-                "unsupported diagnostic reason_class {}", diag.reason_class
+                "unsupported diagnostic reason_class {}",
+                diag.reason_class
             )));
         }
         if !contains_token(MIGRATION_DIAGNOSTIC_ACTION_CLASSES, &diag.suggested_action) {
             return Err(migration_validation_error(format!(
-                "unsupported diagnostic suggested_action {}", diag.suggested_action
+                "unsupported diagnostic suggested_action {}",
+                diag.suggested_action
             )));
         }
     }
     for command in &input.commands {
         if !contains_token(MIGRATION_COMMAND_CLASSES, &command.command_class) {
             return Err(migration_validation_error(format!(
-                "unsupported command_class {}", command.command_class
+                "unsupported command_class {}",
+                command.command_class
             )));
         }
     }
-    if workspace_packet.review_workspace.review_workspace_id.trim().is_empty() {
-        return Err(migration_validation_error("workspace_packet review_workspace_id must be non-empty"));
+    if workspace_packet
+        .review_workspace
+        .review_workspace_id
+        .trim()
+        .is_empty()
+    {
+        return Err(migration_validation_error(
+            "workspace_packet review_workspace_id must be non-empty",
+        ));
     }
     Ok(())
 }
@@ -1041,8 +1079,15 @@ fn validate_migration_flow_record(
         MIGRATION_ROLLBACK_DIFF_REVIEW_RECORD_KIND,
         "migration_flow.record_kind",
     )?;
-    ensure_eq(record.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "migration_flow.schema_version")?;
-    ensure_nonempty(&record.migration_flow_id, "migration_flow.migration_flow_id")?;
+    ensure_eq(
+        record.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "migration_flow.schema_version",
+    )?;
+    ensure_nonempty(
+        &record.migration_flow_id,
+        "migration_flow.migration_flow_id",
+    )?;
     ensure_eq(
         record.review_workspace_id_ref.as_str(),
         expected_workspace_id,
@@ -1051,7 +1096,10 @@ fn validate_migration_flow_record(
     ensure_nonempty(&record.operation_kind, "migration_flow.operation_kind")?;
     ensure_nonempty(&record.flow_state, "migration_flow.flow_state")?;
     ensure_nonempty(&record.source_editor, "migration_flow.source_editor")?;
-    ensure_nonempty(&record.migration_session_ref, "migration_flow.migration_session_ref")?;
+    ensure_nonempty(
+        &record.migration_session_ref,
+        "migration_flow.migration_session_ref",
+    )?;
     Ok(())
 }
 
@@ -1059,8 +1107,16 @@ fn validate_diff_review_record(
     record: &MigrationDiffReviewRecord,
     expected_flow_id: &str,
 ) -> Result<(), MigrationRollbackDiffReviewValidationError> {
-    ensure_eq(record.record_kind.as_str(), MIGRATION_DIFF_REVIEW_RECORD_KIND, "diff_review.record_kind")?;
-    ensure_eq(record.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "diff_review.schema_version")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        MIGRATION_DIFF_REVIEW_RECORD_KIND,
+        "diff_review.record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "diff_review.schema_version",
+    )?;
     ensure_eq(
         record.migration_flow_id_ref.as_str(),
         expected_flow_id,
@@ -1079,13 +1135,20 @@ fn validate_rollback_checkpoint_record(
         MIGRATION_ROLLBACK_CHECKPOINT_RECORD_KIND,
         "rollback_checkpoint.record_kind",
     )?;
-    ensure_eq(record.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "rollback_checkpoint.schema_version")?;
+    ensure_eq(
+        record.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "rollback_checkpoint.schema_version",
+    )?;
     ensure_eq(
         record.migration_flow_id_ref.as_str(),
         expected_flow_id,
         "rollback_checkpoint.migration_flow_id_ref",
     )?;
-    ensure_nonempty(&record.checkpoint_state, "rollback_checkpoint.checkpoint_state")?;
+    ensure_nonempty(
+        &record.checkpoint_state,
+        "rollback_checkpoint.checkpoint_state",
+    )?;
     Ok(())
 }
 
@@ -1093,8 +1156,16 @@ fn validate_retained_diagnostic_record(
     record: &RetainedDiagnosticRecord,
     expected_flow_id: &str,
 ) -> Result<(), MigrationRollbackDiffReviewValidationError> {
-    ensure_eq(record.record_kind.as_str(), RETAINED_DIAGNOSTIC_RECORD_KIND, "retained_diagnostic.record_kind")?;
-    ensure_eq(record.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "retained_diagnostic.schema_version")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        RETAINED_DIAGNOSTIC_RECORD_KIND,
+        "retained_diagnostic.record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "retained_diagnostic.schema_version",
+    )?;
     ensure_eq(
         record.migration_flow_id_ref.as_str(),
         expected_flow_id,
@@ -1110,8 +1181,16 @@ fn validate_migration_command_record(
     record: &MigrationCommandRecord,
     expected_flow_id: &str,
 ) -> Result<(), MigrationRollbackDiffReviewValidationError> {
-    ensure_eq(record.record_kind.as_str(), MIGRATION_COMMAND_RECORD_KIND, "command.record_kind")?;
-    ensure_eq(record.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "command.schema_version")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        MIGRATION_COMMAND_RECORD_KIND,
+        "command.record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "command.schema_version",
+    )?;
     ensure_eq(
         record.migration_flow_id_ref.as_str(),
         expected_flow_id,
@@ -1134,7 +1213,11 @@ fn validate_support_export(
         MIGRATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
         "support_export.record_kind",
     )?;
-    ensure_eq(export.schema_version, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION, "support_export.schema_version")?;
+    ensure_eq(
+        export.schema_version,
+        MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+        "support_export.schema_version",
+    )?;
     ensure_eq(
         export.migration_flow_id_ref.as_str(),
         flow.migration_flow_id.as_str(),
@@ -1145,9 +1228,18 @@ fn validate_support_export(
         flow.review_workspace_id_ref.as_str(),
         "support_export.review_workspace_id_ref",
     )?;
-    ensure_nonempty(&export.support_export_id, "support_export.support_export_id")?;
-    ensure_nonempty(&export.reopen_context_ref, "support_export.reopen_context_ref")?;
-    ensure_nonempty(&export.reopen_command_id_ref, "support_export.reopen_command_id_ref")?;
+    ensure_nonempty(
+        &export.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &export.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
+    ensure_nonempty(
+        &export.reopen_command_id_ref,
+        "support_export.reopen_command_id_ref",
+    )?;
     if export.consumer_surfaces.is_empty() {
         return Err(migration_validation_error(
             "support_export.consumer_surfaces must not be empty",
@@ -1231,7 +1323,9 @@ fn validate_inspection(
             "inspection.retained_diagnostic_count must match number of retained_diagnostics",
         ));
     }
-    if inspection.diff_approved != (packet.diff_review.diff_review_state == "approved_with_checkpoints") {
+    if inspection.diff_approved
+        != (packet.diff_review.diff_review_state == "approved_with_checkpoints")
+    {
         return Err(migration_validation_error(
             "inspection.diff_approved must match diff_review_state",
         ));
@@ -1246,7 +1340,12 @@ fn validate_inspection(
             "inspection.diff_rejected must match diff_review_state rejected",
         ));
     }
-    if inspection.checkpoint_ready != matches!(packet.rollback_checkpoint.checkpoint_state.as_str(), "captured_ready" | "restored") {
+    if inspection.checkpoint_ready
+        != matches!(
+            packet.rollback_checkpoint.checkpoint_state.as_str(),
+            "captured_ready" | "restored"
+        )
+    {
         return Err(migration_validation_error(
             "inspection.checkpoint_ready must match captured_ready or restored checkpoint_state",
         ));
@@ -1263,7 +1362,10 @@ fn migration_flow_record(
     workspace_packet: &ReviewWorkspaceBetaPacket,
 ) -> MigrationRollbackDiffReviewRecord {
     let mut blocked_reasons = Vec::new();
-    if !contains_token(MIGRATION_DIFF_REVIEW_STATES, &input.diff_review.diff_review_state) {
+    if !contains_token(
+        MIGRATION_DIFF_REVIEW_STATES,
+        &input.diff_review.diff_review_state,
+    ) {
         blocked_reasons.push("diff_review_state_invalid".to_string());
     }
     if input.diff_review.diff_review_state != "approved_with_checkpoints" {
@@ -1284,7 +1386,10 @@ fn migration_flow_record(
         record_kind: MIGRATION_ROLLBACK_DIFF_REVIEW_RECORD_KIND.to_string(),
         schema_version: MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
         migration_flow_id: input.migration_flow_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         operation_kind: input.operation_kind.clone(),
         flow_state: input.flow_state.clone(),
         source_editor: input.source_editor.clone(),
@@ -1361,9 +1466,8 @@ fn migration_command_record(
     input: &MigrationCommandInput,
     flow: &MigrationRollbackDiffReviewRecord,
 ) -> MigrationCommandRecord {
-    let actionable = input.blocked_reasons.is_empty()
-        && flow.actionable
-        && input.command_class != "abort_flow";
+    let actionable =
+        input.blocked_reasons.is_empty() && flow.actionable && input.command_class != "abort_flow";
     MigrationCommandRecord {
         record_kind: MIGRATION_COMMAND_RECORD_KIND.to_string(),
         schema_version: MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
@@ -1393,13 +1497,16 @@ fn migration_support_export_packet(
         schema_version: MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
         support_export_id: input.support_export_id.clone(),
         migration_flow_id_ref: flow.migration_flow_id.clone(),
-        review_workspace_id_ref: workspace_packet.review_workspace.review_workspace_id.clone(),
+        review_workspace_id_ref: workspace_packet
+            .review_workspace
+            .review_workspace_id
+            .clone(),
         reopen_context_ref: input.reopen_context_ref.clone(),
         reopen_command_id_ref: input.reopen_command_id_ref.clone(),
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
         consumer_surfaces: input.consumer_surfaces.clone(),
         source_schema_refs: vec![
-            "schemas/review/migration_rollback_diff_review.schema.json".to_string(),
+            "schemas/review/migration_rollback_diff_review.schema.json".to_string()
         ],
         raw_url_export_allowed: false,
         raw_provider_payload_export_allowed: false,
@@ -1431,14 +1538,23 @@ fn migration_inspection_record(
     let diff_approved = diff_review.diff_review_state == "approved_with_checkpoints";
     let diff_pending = diff_review.diff_review_state == "pending";
     let diff_rejected = diff_review.diff_review_state == "rejected";
-    let checkpoint_ready = matches!(checkpoint.checkpoint_state.as_str(), "captured_ready" | "restored");
+    let checkpoint_ready = matches!(
+        checkpoint.checkpoint_state.as_str(),
+        "captured_ready" | "restored"
+    );
     let applying = flow.flow_state == "applying";
     let completed = flow.flow_state == "applied";
     let validation_failed = flow.flow_state == "validation_failed";
     let rolled_back = flow.flow_state == "rolled_back";
     let aborted = flow.flow_state == "aborted";
-    let approval_invalidated = flow.invalidation_reasons.iter().any(|r| r == "approval_invalidated");
-    let checks_stale_blocks_apply = flow.invalidation_reasons.iter().any(|r| r == "checks_stale");
+    let approval_invalidated = flow
+        .invalidation_reasons
+        .iter()
+        .any(|r| r == "approval_invalidated");
+    let checks_stale_blocks_apply = flow
+        .invalidation_reasons
+        .iter()
+        .any(|r| r == "checks_stale");
     let restartable = !flow.restart_session_ref.trim().is_empty()
         && !aborted
         && !support_export.reopen_context_ref.trim().is_empty();

@@ -549,8 +549,7 @@ impl FinalizeTrafficOriginExposureChipsPacket {
         validate_chip_surface_rows(self, &mut violations);
         validate_evidence_export(self, &mut violations);
         if json_contains_forbidden_material(
-            &serde_json::to_value(self)
-                .expect("traffic-origin exposure-chips packet serializes"),
+            &serde_json::to_value(self).expect("traffic-origin exposure-chips packet serializes"),
         ) {
             violations.push(FinalizeTrafficOriginExposureChipsViolation::RawMaterialInExport);
         }
@@ -563,8 +562,7 @@ impl FinalizeTrafficOriginExposureChipsPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("traffic-origin exposure-chips packet serializes")
+        serde_json::to_string_pretty(self).expect("traffic-origin exposure-chips packet serializes")
     }
 
     /// Deterministic Markdown summary for support, docs, or review handoff.
@@ -579,10 +577,7 @@ impl FinalizeTrafficOriginExposureChipsPacket {
             "# Traffic-Origin and Exposure Chips, Tunnel, Port, and Publish-Target Explainability\n\n",
         );
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
-        out.push_str(&format!(
-            "- Command family: `{}`\n",
-            self.command_family_id
-        ));
+        out.push_str(&format!("- Command family: `{}`\n", self.command_family_id));
         out.push_str(&format!(
             "- Evidence id: `{}`\n",
             self.evidence_export.evidence_id
@@ -755,8 +750,7 @@ fn validate_source_contracts(
             .iter()
             .any(|reference| reference == required)
         {
-            violations
-                .push(FinalizeTrafficOriginExposureChipsViolation::MissingSourceContracts);
+            violations.push(FinalizeTrafficOriginExposureChipsViolation::MissingSourceContracts);
             break;
         }
     }
@@ -767,8 +761,7 @@ fn validate_contract_refs(
     violations: &mut Vec<FinalizeTrafficOriginExposureChipsViolation>,
 ) {
     if packet.contract_refs != StableContractRefs::canonical() {
-        violations
-            .push(FinalizeTrafficOriginExposureChipsViolation::ContractRefsNotCanonical);
+        violations.push(FinalizeTrafficOriginExposureChipsViolation::ContractRefsNotCanonical);
     }
 }
 
@@ -796,8 +789,7 @@ fn validate_tunnel_records(
 ) {
     for record in &packet.tunnel_records {
         if !record.guards_hold() {
-            violations
-                .push(FinalizeTrafficOriginExposureChipsViolation::TunnelRecordGuardsBroken);
+            violations.push(FinalizeTrafficOriginExposureChipsViolation::TunnelRecordGuardsBroken);
             break;
         }
     }
@@ -809,8 +801,7 @@ fn validate_port_records(
 ) {
     for record in &packet.port_records {
         if !record.guards_hold() {
-            violations
-                .push(FinalizeTrafficOriginExposureChipsViolation::PortRecordGuardsBroken);
+            violations.push(FinalizeTrafficOriginExposureChipsViolation::PortRecordGuardsBroken);
             break;
         }
     }
@@ -822,9 +813,8 @@ fn validate_publish_target_records(
 ) {
     for record in &packet.publish_target_records {
         if !record.guards_hold() {
-            violations.push(
-                FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken,
-            );
+            violations
+                .push(FinalizeTrafficOriginExposureChipsViolation::PublishTargetRecordGuardsBroken);
             break;
         }
     }
@@ -852,8 +842,7 @@ fn validate_chip_surface_rows(
             break;
         }
         if row.qualification.is_stable() && row.chip_visible && !row.preserves_full_disclosure() {
-            violations
-                .push(FinalizeTrafficOriginExposureChipsViolation::ChipSurfaceParityBroken);
+            violations.push(FinalizeTrafficOriginExposureChipsViolation::ChipSurfaceParityBroken);
             break;
         }
     }

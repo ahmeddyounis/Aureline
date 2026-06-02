@@ -17,12 +17,10 @@
 use std::path::{Path, PathBuf};
 
 use aureline_review::{
-    DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket,
-    LandingCandidateInput, LandingCandidatePacket,
-    ReviewBoundaryHardeningInput, ReviewBoundaryHardeningPacket,
-    ReviewStabilizationInput, ReviewStabilizationPacket,
-    ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket,
-    ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket,
+    DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket, LandingCandidateInput,
+    LandingCandidatePacket, ReviewBoundaryHardeningInput, ReviewBoundaryHardeningPacket,
+    ReviewStabilizationInput, ReviewStabilizationPacket, ReviewWorkspaceBetaInput,
+    ReviewWorkspaceBetaPacket, ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket,
 };
 use serde::Deserialize;
 
@@ -107,8 +105,8 @@ fn load_fixture(name: &str) -> BoundaryHardeningFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -128,23 +126,13 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &BoundaryHardeningFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn landing_packet_for(fixture: &BoundaryHardeningFixture) -> LandingCandidatePacket {
     let workspace_packet = workspace_packet_for(fixture);
     LandingCandidatePacket::from_workspace_packet(fixture.landing_input.clone(), &workspace_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} landing packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} landing packet must project: {err}", fixture.case_name))
 }
 
 fn stabilization_packet_for(fixture: &BoundaryHardeningFixture) -> ReviewStabilizationPacket {
@@ -158,7 +146,9 @@ fn stabilization_packet_for(fixture: &BoundaryHardeningFixture) -> ReviewStabili
     .unwrap_or_else(|err| panic!("{} stabilization must project: {err}", fixture.case_name))
 }
 
-fn boundary_hardening_packet_for(fixture: &BoundaryHardeningFixture) -> ReviewBoundaryHardeningPacket {
+fn boundary_hardening_packet_for(
+    fixture: &BoundaryHardeningFixture,
+) -> ReviewBoundaryHardeningPacket {
     let workspace_packet = workspace_packet_for(fixture);
     let stabilization_packet = stabilization_packet_for(fixture);
     ReviewBoundaryHardeningPacket::from_workspace_and_stabilization_packets(
@@ -175,8 +165,7 @@ fn assert_expected(
     case_name: &str,
 ) {
     assert_eq!(
-        packet.inspection.boundary_hardened,
-        expected.boundary_hardened,
+        packet.inspection.boundary_hardened, expected.boundary_hardened,
         "{case_name}: boundary_hardened"
     );
     assert_eq!(
@@ -205,13 +194,11 @@ fn assert_expected(
         "{case_name}: boundary_degraded_ownership_ambiguous"
     );
     assert_eq!(
-        packet.inspection.handoff_reversible_typed,
-        expected.handoff_reversible_typed,
+        packet.inspection.handoff_reversible_typed, expected.handoff_reversible_typed,
         "{case_name}: handoff_reversible_typed"
     );
     assert_eq!(
-        packet.inspection.in_product_local_authoritative,
-        expected.in_product_local_authoritative,
+        packet.inspection.in_product_local_authoritative, expected.in_product_local_authoritative,
         "{case_name}: in_product_local_authoritative"
     );
     assert_eq!(
@@ -220,23 +207,19 @@ fn assert_expected(
         "{case_name}: in_product_provider_authoritative"
     );
     assert_eq!(
-        packet.inspection.local_provider_agree,
-        expected.local_provider_agree,
+        packet.inspection.local_provider_agree, expected.local_provider_agree,
         "{case_name}: local_provider_agree"
     );
     assert_eq!(
-        packet.inspection.hidden_authority_detected,
-        expected.hidden_authority_detected,
+        packet.inspection.hidden_authority_detected, expected.hidden_authority_detected,
         "{case_name}: hidden_authority_detected"
     );
     assert_eq!(
-        packet.inspection.return_path_present_and_valid,
-        expected.return_path_present_and_valid,
+        packet.inspection.return_path_present_and_valid, expected.return_path_present_and_valid,
         "{case_name}: return_path_present_and_valid"
     );
     assert_eq!(
-        packet.inspection.boundary_fresh_or_within_grace,
-        expected.boundary_fresh_or_within_grace,
+        packet.inspection.boundary_fresh_or_within_grace, expected.boundary_fresh_or_within_grace,
         "{case_name}: boundary_fresh_or_within_grace"
     );
     assert_eq!(
@@ -250,43 +233,35 @@ fn assert_expected(
         "{case_name}: enforceable_ownership_at_boundary"
     );
     assert_eq!(
-        packet.inspection.advisory_ownership_at_boundary,
-        expected.advisory_ownership_at_boundary,
+        packet.inspection.advisory_ownership_at_boundary, expected.advisory_ownership_at_boundary,
         "{case_name}: advisory_ownership_at_boundary"
     );
     assert_eq!(
-        packet.inspection.ownership_conflict_at_boundary,
-        expected.ownership_conflict_at_boundary,
+        packet.inspection.ownership_conflict_at_boundary, expected.ownership_conflict_at_boundary,
         "{case_name}: ownership_conflict_at_boundary"
     );
     assert_eq!(
-        packet.inspection.actionable,
-        expected.actionable,
+        packet.inspection.actionable, expected.actionable,
         "{case_name}: actionable"
     );
     assert_eq!(
-        packet.inspection.invalidated,
-        expected.invalidated,
+        packet.inspection.invalidated, expected.invalidated,
         "{case_name}: invalidated"
     );
     assert_eq!(
-        packet.inspection.command_count,
-        expected.command_count,
+        packet.inspection.command_count, expected.command_count,
         "{case_name}: command_count"
     );
     assert_eq!(
-        packet.inspection.boundary_ownership_signal_count,
-        expected.boundary_ownership_signal_count,
+        packet.inspection.boundary_ownership_signal_count, expected.boundary_ownership_signal_count,
         "{case_name}: boundary_ownership_signal_count"
     );
     assert_eq!(
-        packet.inspection.preview_capable,
-        expected.preview_capable,
+        packet.inspection.preview_capable, expected.preview_capable,
         "{case_name}: preview_capable"
     );
     assert_eq!(
-        packet.inspection.support_export_reopenable,
-        expected.support_export_reopenable,
+        packet.inspection.support_export_reopenable, expected.support_export_reopenable,
         "{case_name}: support_export_reopenable"
     );
 }
@@ -308,16 +283,8 @@ fn boundary_hardening_fixtures_project_and_round_trip() {
         packet
             .validate()
             .unwrap_or_else(|err| panic!("{} must validate: {err}", fixture.case_name));
-        assert!(
-            packet.truths_are_separable(),
-            "{}",
-            fixture.case_name
-        );
-        assert!(
-            packet.raw_escape_hatches_absent(),
-            "{}",
-            fixture.case_name
-        );
+        assert!(packet.truths_are_separable(), "{}", fixture.case_name);
+        assert!(packet.raw_escape_hatches_absent(), "{}", fixture.case_name);
         assert!(
             packet.provider_identity_disclosed(),
             "{}",
@@ -346,7 +313,10 @@ fn boundary_hardening_fixtures_project_and_round_trip() {
 fn hidden_authority_rejects_boundary_hardened() {
     let fixture = load_fixture("boundary_hardened_with_reversible_handoff.json");
     let mut fixture = fixture;
-    fixture.boundary_hardening_input.in_product_boundary.hidden_authority_detected = true;
+    fixture
+        .boundary_hardening_input
+        .in_product_boundary
+        .hidden_authority_detected = true;
     fixture.boundary_hardening_input.boundary_hardening_state = "boundary_hardened".to_string();
 
     let workspace_packet = workspace_packet_for(&fixture);
@@ -359,7 +329,9 @@ fn hidden_authority_rejects_boundary_hardened() {
 
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(err.message().contains("boundary_hardened state is incompatible with hidden_authority_detected"));
+    assert!(err
+        .message()
+        .contains("boundary_hardened state is incompatible with hidden_authority_detected"));
 }
 
 #[test]
@@ -381,7 +353,8 @@ fn expired_return_path_degrades_boundary() {
 fn provider_identity_disclosed_on_every_fixture() {
     let paths = load_fixture_paths();
     for path in paths {
-        let text = std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
+        let text =
+            std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
         let fixture: BoundaryHardeningFixture =
             serde_json::from_str(&text).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
         let packet = boundary_hardening_packet_for(&fixture);

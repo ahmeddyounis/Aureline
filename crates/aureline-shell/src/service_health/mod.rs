@@ -111,11 +111,11 @@ pub mod seed;
 
 pub use aggregator::{
     AffectedWorkflowClass, AggregatorBuildError, BoundaryClass, LastCheckedAgeClass,
-    LocalContinuityClass, SERVICE_HEALTH_AGGREGATOR_NOTICE,
-    SERVICE_HEALTH_AGGREGATOR_RECORD_KIND, SERVICE_HEALTH_AGGREGATOR_SCHEMA_VERSION,
-    SERVICE_HEALTH_CARD_RECORD_KIND, SERVICE_HEALTH_CARD_SCHEMA_VERSION, ServiceContractStateClass,
-    ServiceFamilyClass, ServiceHealthAggregator, ServiceHealthAggregatorSummary,
-    ServiceHealthCard, ServiceHealthProbeReading,
+    LocalContinuityClass, ServiceContractStateClass, ServiceFamilyClass, ServiceHealthAggregator,
+    ServiceHealthAggregatorSummary, ServiceHealthCard, ServiceHealthProbeReading,
+    SERVICE_HEALTH_AGGREGATOR_NOTICE, SERVICE_HEALTH_AGGREGATOR_RECORD_KIND,
+    SERVICE_HEALTH_AGGREGATOR_SCHEMA_VERSION, SERVICE_HEALTH_CARD_RECORD_KIND,
+    SERVICE_HEALTH_CARD_SCHEMA_VERSION,
 };
 
 /// Stable record-kind tag carried in serialized service-health-beta

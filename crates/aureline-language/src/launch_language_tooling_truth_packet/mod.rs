@@ -1346,10 +1346,7 @@ pub enum LaunchLanguageToolingTruthArtifactError {
 impl fmt::Display for LaunchLanguageToolingTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "launch-tooling packet parse failed: {error}"
-            ),
+            Self::Packet(error) => write!(formatter, "launch-tooling packet parse failed: {error}"),
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -1563,10 +1560,7 @@ mod tests {
         assert!(packet.validation_findings.is_empty());
         assert!(packet.is_stable());
         assert!(packet
-            .support_export(
-                "support:m4:launch_language_tooling",
-                "2026-05-26T12:00:10Z"
-            )
+            .support_export("support:m4:launch_language_tooling", "2026-05-26T12:00:10Z")
             .is_export_safe());
     }
 
@@ -1634,9 +1628,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != ConsumerSurface::ConformanceDashboard);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != ConsumerSurface::ConformanceDashboard
+        });
         let packet = LaunchLanguageToolingTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet

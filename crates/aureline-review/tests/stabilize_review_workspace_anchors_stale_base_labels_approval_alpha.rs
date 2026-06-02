@@ -16,10 +16,10 @@
 use std::path::{Path, PathBuf};
 
 use aureline_review::{
-    DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket,
-    LandingCandidateInput, LandingCandidatePacket, ReviewStabilizationInput,
-    ReviewStabilizationPacket, ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket,
-    ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket,
+    DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket, LandingCandidateInput,
+    LandingCandidatePacket, ReviewStabilizationInput, ReviewStabilizationPacket,
+    ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket, ReviewWorkspaceSeedInput,
+    ReviewWorkspaceSeedPacket,
 };
 use serde::Deserialize;
 
@@ -77,8 +77,9 @@ struct ChangeListRowFixture {
 }
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/review/m4/stabilize-review-workspace-anchors-stale-base-labels-approval")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../fixtures/review/m4/stabilize-review-workspace-anchors-stale-base-labels-approval",
+    )
 }
 
 fn repo_root() -> PathBuf {
@@ -104,8 +105,8 @@ fn load_fixture(name: &str) -> StabilizationFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -125,23 +126,13 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &StabilizationFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn landing_packet_for(fixture: &StabilizationFixture) -> LandingCandidatePacket {
     let workspace_packet = workspace_packet_for(fixture);
     LandingCandidatePacket::from_workspace_packet(fixture.landing_input.clone(), &workspace_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} landing packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} landing packet must project: {err}", fixture.case_name))
 }
 
 fn stabilization_packet_for(fixture: &StabilizationFixture) -> ReviewStabilizationPacket {
@@ -161,23 +152,19 @@ fn assert_expected(
     case_name: &str,
 ) {
     assert_eq!(
-        packet.inspection.stabilized_current,
-        expected.stabilized_current,
+        packet.inspection.stabilized_current, expected.stabilized_current,
         "{case_name}: stabilized_current"
     );
     assert_eq!(
-        packet.inspection.stabilized_stale_pack,
-        expected.stabilized_stale_pack,
+        packet.inspection.stabilized_stale_pack, expected.stabilized_stale_pack,
         "{case_name}: stabilized_stale_pack"
     );
     assert_eq!(
-        packet.inspection.stabilized_partial_scope,
-        expected.stabilized_partial_scope,
+        packet.inspection.stabilized_partial_scope, expected.stabilized_partial_scope,
         "{case_name}: stabilized_partial_scope"
     );
     assert_eq!(
-        packet.inspection.stabilized_slice_omitted,
-        expected.stabilized_slice_omitted,
+        packet.inspection.stabilized_slice_omitted, expected.stabilized_slice_omitted,
         "{case_name}: stabilized_slice_omitted"
     );
     assert_eq!(
@@ -186,28 +173,23 @@ fn assert_expected(
         "{case_name}: stabilized_diverged_requires_review"
     );
     assert_eq!(
-        packet.inspection.all_anchors_bound_exact,
-        expected.all_anchors_bound_exact,
+        packet.inspection.all_anchors_bound_exact, expected.all_anchors_bound_exact,
         "{case_name}: all_anchors_bound_exact"
     );
     assert_eq!(
-        packet.inspection.any_anchor_drifted,
-        expected.any_anchor_drifted,
+        packet.inspection.any_anchor_drifted, expected.any_anchor_drifted,
         "{case_name}: any_anchor_drifted"
     );
     assert_eq!(
-        packet.inspection.stale_base_blocks_landing,
-        expected.stale_base_blocks_landing,
+        packet.inspection.stale_base_blocks_landing, expected.stale_base_blocks_landing,
         "{case_name}: stale_base_blocks_landing"
     );
     assert_eq!(
-        packet.inspection.approval_invalidated,
-        expected.approval_invalidated,
+        packet.inspection.approval_invalidated, expected.approval_invalidated,
         "{case_name}: approval_invalidated"
     );
     assert_eq!(
-        packet.inspection.mergeability_blocking,
-        expected.mergeability_blocking,
+        packet.inspection.mergeability_blocking, expected.mergeability_blocking,
         "{case_name}: mergeability_blocking"
     );
     assert_eq!(
@@ -216,68 +198,55 @@ fn assert_expected(
         "{case_name}: mergeability_provider_authoritative"
     );
     assert_eq!(
-        packet.inspection.enforceable_ownership_present,
-        expected.enforceable_ownership_present,
+        packet.inspection.enforceable_ownership_present, expected.enforceable_ownership_present,
         "{case_name}: enforceable_ownership_present"
     );
     assert_eq!(
-        packet.inspection.advisory_ownership_present,
-        expected.advisory_ownership_present,
+        packet.inspection.advisory_ownership_present, expected.advisory_ownership_present,
         "{case_name}: advisory_ownership_present"
     );
     assert_eq!(
-        packet.inspection.ownership_conflict_present,
-        expected.ownership_conflict_present,
+        packet.inspection.ownership_conflict_present, expected.ownership_conflict_present,
         "{case_name}: ownership_conflict_present"
     );
     assert_eq!(
-        packet.inspection.bundle_export_present,
-        expected.bundle_export_present,
+        packet.inspection.bundle_export_present, expected.bundle_export_present,
         "{case_name}: bundle_export_present"
     );
     assert_eq!(
-        packet.inspection.bundle_import_present,
-        expected.bundle_import_present,
+        packet.inspection.bundle_import_present, expected.bundle_import_present,
         "{case_name}: bundle_import_present"
     );
     assert_eq!(
-        packet.inspection.offline_handoff_present,
-        expected.offline_handoff_present,
+        packet.inspection.offline_handoff_present, expected.offline_handoff_present,
         "{case_name}: offline_handoff_present"
     );
     assert_eq!(
-        packet.inspection.actionable,
-        expected.actionable,
+        packet.inspection.actionable, expected.actionable,
         "{case_name}: actionable"
     );
     assert_eq!(
-        packet.inspection.invalidated,
-        expected.invalidated,
+        packet.inspection.invalidated, expected.invalidated,
         "{case_name}: invalidated"
     );
     assert_eq!(
-        packet.inspection.command_count,
-        expected.command_count,
+        packet.inspection.command_count, expected.command_count,
         "{case_name}: command_count"
     );
     assert_eq!(
-        packet.inspection.anchor_stability_count,
-        expected.anchor_stability_count,
+        packet.inspection.anchor_stability_count, expected.anchor_stability_count,
         "{case_name}: anchor_stability_count"
     );
     assert_eq!(
-        packet.inspection.ownership_signal_count,
-        expected.ownership_signal_count,
+        packet.inspection.ownership_signal_count, expected.ownership_signal_count,
         "{case_name}: ownership_signal_count"
     );
     assert_eq!(
-        packet.inspection.preview_capable,
-        expected.preview_capable,
+        packet.inspection.preview_capable, expected.preview_capable,
         "{case_name}: preview_capable"
     );
     assert_eq!(
-        packet.inspection.support_export_reopenable,
-        expected.support_export_reopenable,
+        packet.inspection.support_export_reopenable, expected.support_export_reopenable,
         "{case_name}: support_export_reopenable"
     );
 }
@@ -299,16 +268,8 @@ fn stabilization_fixtures_project_and_round_trip() {
         packet
             .validate()
             .unwrap_or_else(|err| panic!("{} must validate: {err}", fixture.case_name));
-        assert!(
-            packet.truths_are_separable(),
-            "{}",
-            fixture.case_name
-        );
-        assert!(
-            packet.raw_escape_hatches_absent(),
-            "{}",
-            fixture.case_name
-        );
+        assert!(packet.truths_are_separable(), "{}", fixture.case_name);
+        assert!(packet.raw_escape_hatches_absent(), "{}", fixture.case_name);
         assert!(
             packet.ownership_signals_properly_split(),
             "{}",
@@ -357,16 +318,12 @@ fn approval_invalidation_preserves_replay_evidence() {
         .expect("approval invalidation must be present");
     assert_eq!(invalidation.replay_evidence_refs.len(), 2);
     assert_eq!(invalidation.replay_evidence_classes.len(), 2);
-    assert!(
-        invalidation
-            .replay_evidence_classes
-            .contains(&"local_ci_evidence".to_string())
-    );
-    assert!(
-        invalidation
-            .replay_evidence_classes
-            .contains(&"ai_review_evidence".to_string())
-    );
+    assert!(invalidation
+        .replay_evidence_classes
+        .contains(&"local_ci_evidence".to_string()));
+    assert!(invalidation
+        .replay_evidence_classes
+        .contains(&"ai_review_evidence".to_string()));
 }
 
 #[test]
@@ -385,7 +342,9 @@ fn ownership_conflict_detects_advisory_enforceable_mismatch() {
     assert!(!export.divergence_labels.is_empty());
     assert!(!export.replay_evidence_refs.is_empty());
 
-    let handoff = packet.offline_handoff.expect("offline handoff must be present");
+    let handoff = packet
+        .offline_handoff
+        .expect("offline handoff must be present");
     assert_eq!(handoff.review_pack_version, "review.pack.version.1.0.0");
     assert!(!handoff.divergence_labels.is_empty());
     assert!(!handoff.replay_evidence_refs.is_empty());

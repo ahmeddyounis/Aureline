@@ -1006,7 +1006,10 @@ impl std::fmt::Display for BuildError {
                 write!(f, "field {field} is not a reviewable sentence")
             }
             Self::NonCanonicalRef { field, value } => {
-                write!(f, "field {field} value {value:?} is not a canonical object ref")
+                write!(
+                    f,
+                    "field {field} value {value:?} is not a canonical object ref"
+                )
             }
             Self::MissingUpstreamRef { field } => write!(f, "missing upstream ref for {field}"),
             Self::MissingCueCarrier { carrier } => {
@@ -1029,7 +1032,10 @@ impl std::fmt::Display for BuildError {
                 surface.as_str()
             ),
             Self::StricterBoundaryActionMismatch => {
-                write!(f, "stricter boundary names a different action than the surface")
+                write!(
+                    f,
+                    "stricter boundary names a different action than the surface"
+                )
             }
             Self::OverclaimsRepresentationCues => {
                 write!(f, "claims explicit representation cues not proven")
@@ -1067,10 +1073,18 @@ impl std::fmt::Display for BuildError {
                 write!(f, "missing entry-route surface {}", surface.as_str())
             }
             Self::RouteNotKeyboardReachable { surface } => {
-                write!(f, "entry route {} is not keyboard reachable", surface.as_str())
+                write!(
+                    f,
+                    "entry route {} is not keyboard reachable",
+                    surface.as_str()
+                )
             }
             Self::RouteTargetsDifferentItem { surface } => {
-                write!(f, "entry route {} targets a different item", surface.as_str())
+                write!(
+                    f,
+                    "entry route {} targets a different item",
+                    surface.as_str()
+                )
             }
             Self::DuplicateRouteSurface { surface } => {
                 write!(f, "duplicate entry-route surface {}", surface.as_str())
@@ -1082,7 +1096,10 @@ impl std::fmt::Display for BuildError {
                 write!(f, "accessibility layout mode {} unreachable", mode.as_str())
             }
             Self::AccessibilityActionLabelsMismatch => {
-                write!(f, "accessibility action labels do not match recovery routes")
+                write!(
+                    f,
+                    "accessibility action labels do not match recovery routes"
+                )
             }
             Self::HiddenWithoutAccount => write!(f, "row hidden without an account"),
             Self::HiddenWithoutManagedServices => {
@@ -1193,8 +1210,10 @@ impl SafePreviewRecord {
 
         // --- derive the pillars from the evidence ----------------------------
         let representation_cues_explicit = explicit_when_meaning_differs;
-        let suspicious_findings_surfaced =
-            input.suspicious_findings.iter().all(SuspiciousFindingRow::holds);
+        let suspicious_findings_surfaced = input
+            .suspicious_findings
+            .iter()
+            .all(SuspiciousFindingRow::holds);
         let has_exact_raw = input
             .representation_choices
             .iter()
@@ -1223,13 +1242,11 @@ impl SafePreviewRecord {
         let suspicious_content_present = !input.suspicious_findings.is_empty();
 
         // --- claim ceiling: never claim what the product cannot prove --------
-        if input.claim_ceiling.asserts_representation_cues_explicit
-            && !representation_cues_explicit
+        if input.claim_ceiling.asserts_representation_cues_explicit && !representation_cues_explicit
         {
             return Err(BuildError::OverclaimsRepresentationCues);
         }
-        if input.claim_ceiling.asserts_suspicious_findings_surfaced
-            && !suspicious_findings_surfaced
+        if input.claim_ceiling.asserts_suspicious_findings_surfaced && !suspicious_findings_surfaced
         {
             return Err(BuildError::OverclaimsSuspiciousFindings);
         }
@@ -1239,7 +1256,9 @@ impl SafePreviewRecord {
         if input.claim_ceiling.asserts_cues_survive_all_carriers && !cues_survive_all_carriers {
             return Err(BuildError::OverclaimsCueSurvival);
         }
-        if input.claim_ceiling.asserts_stricter_boundary_shown_before_commit
+        if input
+            .claim_ceiling
+            .asserts_stricter_boundary_shown_before_commit
             && !stricter_boundary_shown_before_commit
         {
             return Err(BuildError::OverclaimsStricterBoundary);
@@ -1407,7 +1426,8 @@ impl SafePreviewRecord {
             narrowing_reasons.push(SafePreviewNarrowingReason::CuesFlattenedOnCarrier);
         }
         if !stricter_boundary_shown_before_commit {
-            narrowing_reasons.push(SafePreviewNarrowingReason::StricterBoundaryNotShownBeforeCommit);
+            narrowing_reasons
+                .push(SafePreviewNarrowingReason::StricterBoundaryNotShownBeforeCommit);
         }
         if !accessibility_cues_complete {
             narrowing_reasons.push(SafePreviewNarrowingReason::AccessibilityCuesIncomplete);
@@ -1648,10 +1668,7 @@ impl SafePreviewRecord {
     }
 }
 
-fn surface_summary_line(
-    surface: SafePreviewTruthSurface,
-    input: &SafePreviewInput,
-) -> String {
+fn surface_summary_line(surface: SafePreviewTruthSurface, input: &SafePreviewInput) -> String {
     let prefix = match surface {
         SafePreviewTruthSurface::ShellSurface => "Shell surface",
         SafePreviewTruthSurface::ActivityCenter => "Activity center",

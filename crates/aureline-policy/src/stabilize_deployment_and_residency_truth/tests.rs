@@ -52,9 +52,18 @@ fn seeded_page_rows_are_all_stable() {
 fn seeded_page_rows_cover_all_five_profiles() {
     let page = page();
     let profiles: Vec<&str> = page.rows.iter().map(|r| r.profile_token.as_str()).collect();
-    assert!(profiles.contains(&"individual_local"), "missing individual_local row");
-    assert!(profiles.contains(&"managed_cloud"), "missing managed_cloud row");
-    assert!(profiles.contains(&"enterprise_online"), "missing enterprise_online row");
+    assert!(
+        profiles.contains(&"individual_local"),
+        "missing individual_local row"
+    );
+    assert!(
+        profiles.contains(&"managed_cloud"),
+        "missing managed_cloud row"
+    );
+    assert!(
+        profiles.contains(&"enterprise_online"),
+        "missing enterprise_online row"
+    );
     assert!(profiles.contains(&"self_hosted"), "missing self_hosted row");
     assert!(profiles.contains(&"air_gapped"), "missing air_gapped row");
 }
@@ -74,8 +83,7 @@ fn seeded_page_summary_counts_match_rows() {
 fn seeded_page_plane_strips_all_separated() {
     let page = page();
     assert_eq!(
-        page.summary.plane_strip_count,
-        page.summary.plane_strips_separated_count,
+        page.summary.plane_strip_count, page.summary.plane_strips_separated_count,
         "all strips must have plane separation verified"
     );
 }
@@ -88,7 +96,10 @@ fn air_gapped_row_has_mirror_artifact_rows() {
         .iter()
         .find(|r| r.profile_token == "air_gapped")
         .expect("air_gapped row must be present");
-    assert!(row.mirror_artifact_row_count > 0, "air_gapped must carry mirror artifact rows");
+    assert!(
+        row.mirror_artifact_row_count > 0,
+        "air_gapped must carry mirror artifact rows"
+    );
     assert!(
         row.sovereignty_claim_evidenced,
         "air_gapped must carry sovereignty evidence"
@@ -118,8 +129,7 @@ fn individual_local_row_requires_no_residual_deps() {
         .find(|r| r.profile_token == "individual_local")
         .expect("individual_local row must be present");
     assert_eq!(
-        row.residual_dependency_row_count,
-        0,
+        row.residual_dependency_row_count, 0,
         "individual_local must carry zero residual dependency rows"
     );
     assert_eq!(
@@ -295,8 +305,7 @@ fn unevidenced_sovereignty_claim_withdraws_packet() {
         DeploymentResidencyStabilizeQualificationClass::Withdrawn.as_str()
     );
     assert!(page.defects.iter().any(|d| {
-        d.narrow_reason
-            == DeploymentResidencyStabilizeNarrowReasonClass::ImpliedSovereigntyUnproven
+        d.narrow_reason == DeploymentResidencyStabilizeNarrowReasonClass::ImpliedSovereigntyUnproven
     }));
 }
 

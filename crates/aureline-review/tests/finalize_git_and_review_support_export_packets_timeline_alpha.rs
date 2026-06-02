@@ -99,8 +99,8 @@ fn load_fixture(name: &str) -> TimelineFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -138,8 +138,14 @@ fn assert_expected(
     case_name: &str,
 ) {
     let i = &packet.inspection;
-    assert_eq!(i.chronology_current, expected.chronology_current, "{case_name}: chronology_current");
-    assert_eq!(i.chronology_stale, expected.chronology_stale, "{case_name}: chronology_stale");
+    assert_eq!(
+        i.chronology_current, expected.chronology_current,
+        "{case_name}: chronology_current"
+    );
+    assert_eq!(
+        i.chronology_stale, expected.chronology_stale,
+        "{case_name}: chronology_stale"
+    );
     assert_eq!(
         i.chronology_reconstructed, expected.chronology_reconstructed,
         "{case_name}: chronology_reconstructed"
@@ -164,7 +170,10 @@ fn assert_expected(
         i.all_hosted_events_disclosed, expected.all_hosted_events_disclosed,
         "{case_name}: all_hosted_events_disclosed"
     );
-    assert_eq!(i.lineage_resolves, expected.lineage_resolves, "{case_name}: lineage_resolves");
+    assert_eq!(
+        i.lineage_resolves, expected.lineage_resolves,
+        "{case_name}: lineage_resolves"
+    );
     assert_eq!(
         i.all_mutating_steps_reversible_or_checkpointed,
         expected.all_mutating_steps_reversible_or_checkpointed,
@@ -183,12 +192,18 @@ fn assert_expected(
         "{case_name}: no_authority_broadening"
     );
     assert_eq!(i.actionable, expected.actionable, "{case_name}: actionable");
-    assert_eq!(i.invalidated, expected.invalidated, "{case_name}: invalidated");
+    assert_eq!(
+        i.invalidated, expected.invalidated,
+        "{case_name}: invalidated"
+    );
     assert_eq!(
         i.timeline_event_count, expected.timeline_event_count,
         "{case_name}: timeline_event_count"
     );
-    assert_eq!(i.playbook_count, expected.playbook_count, "{case_name}: playbook_count");
+    assert_eq!(
+        i.playbook_count, expected.playbook_count,
+        "{case_name}: playbook_count"
+    );
     assert_eq!(
         i.playbook_step_count, expected.playbook_step_count,
         "{case_name}: playbook_step_count"
@@ -221,7 +236,11 @@ fn timeline_fixtures_project_and_round_trip() {
             .validate()
             .unwrap_or_else(|err| panic!("{} must validate: {err}", fixture.case_name));
         assert!(packet.raw_escape_hatches_absent(), "{}", fixture.case_name);
-        assert!(packet.monotonic_ordering_preserved(), "{}", fixture.case_name);
+        assert!(
+            packet.monotonic_ordering_preserved(),
+            "{}",
+            fixture.case_name
+        );
         assert!(packet.all_events_attributed(), "{}", fixture.case_name);
         assert!(packet.hosted_events_disclosed(), "{}", fixture.case_name);
 
@@ -243,11 +262,19 @@ fn chronology_current_with_playbook_is_actionable() {
     let fixture = load_fixture("chronology_current_with_playbook.json");
     let packet = timeline_packet_for(&fixture);
 
-    assert!(packet.inspection.chronology_current, "must be chronology_current");
-    assert!(packet.inspection.actionable, "must be actionable");
-    assert!(packet.no_authority_broadening(), "must not broaden authority");
     assert!(
-        packet.inspection.all_mutating_steps_reversible_or_checkpointed,
+        packet.inspection.chronology_current,
+        "must be chronology_current"
+    );
+    assert!(packet.inspection.actionable, "must be actionable");
+    assert!(
+        packet.no_authority_broadening(),
+        "must not broaden authority"
+    );
+    assert!(
+        packet
+            .inspection
+            .all_mutating_steps_reversible_or_checkpointed,
         "mutating steps must be reversible or checkpointed"
     );
 }
@@ -257,9 +284,15 @@ fn reconstructed_timeline_resolves_lineage() {
     let fixture = load_fixture("reconstructed_timeline_from_lineage.json");
     let packet = timeline_packet_for(&fixture);
 
-    assert!(packet.inspection.chronology_reconstructed, "must be reconstructed");
+    assert!(
+        packet.inspection.chronology_reconstructed,
+        "must be reconstructed"
+    );
     assert!(packet.inspection.lineage_resolves, "lineage must resolve");
-    assert!(packet.monotonic_ordering_preserved(), "ordering must be monotonic");
+    assert!(
+        packet.monotonic_ordering_preserved(),
+        "ordering must be monotonic"
+    );
 }
 
 #[test]
@@ -271,9 +304,15 @@ fn authority_broadening_step_is_blocked() {
         !packet.no_authority_broadening(),
         "fixture must flag an authority-broadening step"
     );
-    assert!(!packet.timeline_truth.actionable, "timeline must be blocked");
     assert!(
-        packet.playbook_steps.iter().any(|s| s.would_broaden_authority && !s.actionable),
+        !packet.timeline_truth.actionable,
+        "timeline must be blocked"
+    );
+    assert!(
+        packet
+            .playbook_steps
+            .iter()
+            .any(|s| s.would_broaden_authority && !s.actionable),
         "authority-broadening step must be non-actionable"
     );
 }
@@ -290,5 +329,8 @@ fn projection_from_json_payload() {
         projection.review_workspace_id,
         packet.review_workspace.review_workspace_id
     );
-    assert_eq!(projection.chronology_state, packet.timeline_truth.chronology_state);
+    assert_eq!(
+        projection.chronology_state,
+        packet.timeline_truth.chronology_state
+    );
 }

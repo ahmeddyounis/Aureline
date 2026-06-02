@@ -116,7 +116,9 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             "fixture {name} must render user-state preservation"
         );
         assert!(
-            lines.iter().any(|line| line.contains("Reversibility truth")),
+            lines
+                .iter()
+                .any(|line| line.contains("Reversibility truth")),
             "fixture {name} must render reversibility truth"
         );
         assert!(

@@ -446,7 +446,10 @@ impl FrameworkSupportStrip {
         }
 
         if health == HealthClass::HealthyLive
-            && matches!(freshness, FreshnessClass::Stale | FreshnessClass::Unverified)
+            && matches!(
+                freshness,
+                FreshnessClass::Stale | FreshnessClass::Unverified
+            )
         {
             findings.push(Finding::new(
                 "framework_support_strip.healthy_live_freshness",

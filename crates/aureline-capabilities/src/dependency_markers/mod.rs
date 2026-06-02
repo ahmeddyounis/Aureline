@@ -38,9 +38,8 @@ pub use downgrade::{
 };
 pub use lifecycle::CapabilityLifecycleState;
 pub use transport_lanes::{
-    assert_marker_survives_all_lanes, replay_marker_through_all_lanes,
-    replay_marker_through_lane, LaneReplayAudit, LaneReplayDefect, LaneReplayOutcome,
-    LaneReplaySheet, TransportLane,
+    assert_marker_survives_all_lanes, replay_marker_through_all_lanes, replay_marker_through_lane,
+    LaneReplayAudit, LaneReplayDefect, LaneReplayOutcome, LaneReplaySheet, TransportLane,
 };
 
 /// Schema version pinned into every persisted [`CapabilityRecord`].
@@ -691,7 +690,9 @@ pub fn validate_capability_record(
 ///
 /// Cross-marker checks (duplicate ids, drift against
 /// [`CapabilityRecord`]) live in [`validate_artifact_markers`].
-pub fn validate_marker(marker: &ArtifactDependencyMarker) -> Result<(), Vec<MarkerValidationError>> {
+pub fn validate_marker(
+    marker: &ArtifactDependencyMarker,
+) -> Result<(), Vec<MarkerValidationError>> {
     let mut errors = Vec::new();
     if marker.schema_version != ARTIFACT_DEPENDENCY_MARKER_SCHEMA_VERSION {
         errors.push(MarkerValidationError::SchemaVersionMismatch {
@@ -729,11 +730,9 @@ pub fn validate_marker(marker: &ArtifactDependencyMarker) -> Result<(), Vec<Mark
         });
     }
     if marker.kill_switch_active && marker.behavior_on_missing.fallback_path.trim().is_empty() {
-        errors.push(
-            MarkerValidationError::KillSwitchActiveWithoutRecoverPath {
-                marker_id: marker.marker_id.clone(),
-            },
-        );
+        errors.push(MarkerValidationError::KillSwitchActiveWithoutRecoverPath {
+            marker_id: marker.marker_id.clone(),
+        });
     }
     if marker.dependency_class == DependencyClass::HostSpecific && marker.host_scope.is_empty() {
         errors.push(MarkerValidationError::HostSpecificMissingScope {
@@ -776,12 +775,10 @@ pub fn validate_artifact_markers(
             });
         }
         if !seen_capability_ids.insert(marker.required_capability_id.clone()) {
-            errors.push(
-                MarkerValidationError::DuplicateCapabilityWithinArtifact {
-                    artifact_ref: artifact_ref.to_owned(),
-                    capability_id: marker.required_capability_id.clone(),
-                },
-            );
+            errors.push(MarkerValidationError::DuplicateCapabilityWithinArtifact {
+                artifact_ref: artifact_ref.to_owned(),
+                capability_id: marker.required_capability_id.clone(),
+            });
         }
         if let Some(capability) = catalog_index.get(marker.required_capability_id.as_str()) {
             if marker.dependency_class != capability.dependency_class {
@@ -918,8 +915,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
                 EffectOnImport::NarrowBehaviorPreserveData,
                 "Open Settings → Labs to opt into inline completions; the original prompt template is preserved either way.",
             );
-            record.docs_ref =
-                Some("docs/help/labs/inline_completions.md".to_owned());
+            record.docs_ref = Some("docs/help/labs/inline_completions.md".to_owned());
             record
         },
         {
@@ -932,8 +928,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
                 EffectOnImport::EmulatedDowngradePreserveData,
                 "Diagnostics render in the legacy path on this target; enable the structured-diagnostics preview to restore.",
             );
-            record.docs_ref =
-                Some("docs/help/preview/structured_diagnostics.md".to_owned());
+            record.docs_ref = Some("docs/help/preview/structured_diagnostics.md".to_owned());
             record
         },
         {
@@ -946,8 +941,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
                 EffectOnImport::HoldForLaterPreserveData,
                 "Recorded macros are held in the import review sheet on this target until the beta capability is enabled.",
             );
-            record.docs_ref =
-                Some("docs/help/beta/workflow_bundle_recorded_macros.md".to_owned());
+            record.docs_ref = Some("docs/help/beta/workflow_bundle_recorded_macros.md".to_owned());
             record
         },
         {
@@ -960,8 +954,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
                 EffectOnImport::BlockApplyPreserveData,
                 "Apply is blocked on this target by the active admin policy bundle; request an admin policy change to proceed.",
             );
-            record.docs_ref =
-                Some("docs/help/policy/telemetry_redacted_bundle.md".to_owned());
+            record.docs_ref = Some("docs/help/policy/telemetry_redacted_bundle.md".to_owned());
             record
         },
         {
@@ -974,8 +967,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
                 EffectOnImport::RenderTombstonePreserveData,
                 "The SSO bundle renders as a read-only tombstone on self-hosted / account-free-local installs; request managed access to enable.",
             );
-            record.docs_ref =
-                Some("docs/help/host/managed_sso_bundle.md".to_owned());
+            record.docs_ref = Some("docs/help/host/managed_sso_bundle.md".to_owned());
             record.host_scope = vec![
                 "managed_admin_surface".to_owned(),
                 "desktop_product".to_owned(),
@@ -985,12 +977,7 @@ pub fn catalog_default_capabilities() -> Vec<CapabilityRecord> {
     ]
 }
 
-fn check_empty(
-    owner: &str,
-    field: &str,
-    value: &str,
-    errors: &mut Vec<MarkerValidationError>,
-) {
+fn check_empty(owner: &str, field: &str, value: &str, errors: &mut Vec<MarkerValidationError>) {
     if value.trim().is_empty() {
         errors.push(MarkerValidationError::EmptyField {
             owner: owner.to_owned(),
@@ -1023,7 +1010,10 @@ mod tests {
         let mut seen = BTreeSet::new();
         for record in &catalog {
             validate_capability_record(record).unwrap_or_else(|e| {
-                panic!("capability {} failed validation: {e:?}", record.capability_id)
+                panic!(
+                    "capability {} failed validation: {e:?}",
+                    record.capability_id
+                )
             });
             seen.insert(record.dependency_class);
         }
@@ -1128,14 +1118,23 @@ mod tests {
         ] {
             let projection = project_marker_for_host_surface(&marker, surface);
             assert_eq!(projection.marker_id, marker.marker_id);
-            assert_eq!(projection.required_capability_id, marker.required_capability_id);
-            assert_eq!(projection.dependency_class, marker.dependency_class.as_str());
+            assert_eq!(
+                projection.required_capability_id,
+                marker.required_capability_id
+            );
+            assert_eq!(
+                projection.dependency_class,
+                marker.dependency_class.as_str()
+            );
             assert_eq!(
                 projection.required_lifecycle_state,
                 marker.required_lifecycle_state.as_str()
             );
             assert_eq!(projection.support_promise, marker.support_promise.as_str());
-            assert_eq!(projection.effect_on_import, marker.effect_on_import.as_str());
+            assert_eq!(
+                projection.effect_on_import,
+                marker.effect_on_import.as_str()
+            );
             assert!(projection.user_authored_data_preserved);
             match surface {
                 HostSurface::SettingsInspector

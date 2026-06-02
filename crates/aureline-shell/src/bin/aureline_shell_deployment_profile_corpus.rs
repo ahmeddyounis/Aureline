@@ -21,9 +21,8 @@
 //! ```
 
 use aureline_shell::deployment_profile::corpus::{
-    render_deployment_profile_conformance_report_markdown,
-    render_residual_dependency_matrix_json, seeded_deployment_profile_corpus_packet,
-    validate_deployment_profile_corpus_packet,
+    render_deployment_profile_conformance_report_markdown, render_residual_dependency_matrix_json,
+    seeded_deployment_profile_corpus_packet, validate_deployment_profile_corpus_packet,
 };
 
 fn main() {
@@ -47,7 +46,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             render_deployment_profile_conformance_report_markdown(&packet)
         ),
         Some("case") => {
-            let id = args.get(1).ok_or("case <case_id> requires an id argument")?;
+            let id = args
+                .get(1)
+                .ok_or("case <case_id> requires an id argument")?;
             let case = packet
                 .corpus_cases
                 .iter()

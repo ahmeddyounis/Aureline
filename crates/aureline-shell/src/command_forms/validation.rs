@@ -185,16 +185,20 @@ pub fn validate_parameter_form_state(
 
     for field in &form.fields {
         if !seen.insert(field.argument_name.clone()) {
-            errors.push(CommandFormsValidationError::FormFieldDuplicateArgumentName {
-                form_state_id: form.form_state_id.clone(),
-                argument_name: field.argument_name.clone(),
-            });
+            errors.push(
+                CommandFormsValidationError::FormFieldDuplicateArgumentName {
+                    form_state_id: form.form_state_id.clone(),
+                    argument_name: field.argument_name.clone(),
+                },
+            );
         }
         if field.narration_label_ref.is_empty() {
-            errors.push(CommandFormsValidationError::FormFieldMissingNarrationLabel {
-                form_state_id: form.form_state_id.clone(),
-                argument_name: field.argument_name.clone(),
-            });
+            errors.push(
+                CommandFormsValidationError::FormFieldMissingNarrationLabel {
+                    form_state_id: form.form_state_id.clone(),
+                    argument_name: field.argument_name.clone(),
+                },
+            );
         }
         validate_field_constraints(form, field, &mut errors);
 
@@ -308,17 +312,22 @@ fn validate_field_constraints(
         FieldStateClass::UnsupportedInClientScope
         | FieldStateClass::UnsupportedInRestrictedTrust => {
             if field.unsupported_field_class.is_none() {
-                errors.push(CommandFormsValidationError::FormFieldUnsupportedMissingClass {
-                    form_state_id: form.form_state_id.clone(),
-                    argument_name: field.argument_name.clone(),
-                });
+                errors.push(
+                    CommandFormsValidationError::FormFieldUnsupportedMissingClass {
+                        form_state_id: form.form_state_id.clone(),
+                        argument_name: field.argument_name.clone(),
+                    },
+                );
             }
         }
         _ => {}
     }
 
     // CredentialHandleRef kinds must be handle-first regardless of state.
-    if matches!(field.argument_kind, super::ArgumentKind::CredentialHandleRef) {
+    if matches!(
+        field.argument_kind,
+        super::ArgumentKind::CredentialHandleRef
+    ) {
         if !matches!(
             field.value_visibility,
             ValueVisibilityClass::ValueHandleOnly
@@ -548,10 +557,7 @@ pub fn validate_invocation_review_sheet(
 }
 
 /// Validates a bundle of form + review sheet.
-fn validate_bundle(
-    bundle: &CommandFormBundle,
-    errors: &mut Vec<CommandFormsValidationError>,
-) {
+fn validate_bundle(bundle: &CommandFormBundle, errors: &mut Vec<CommandFormsValidationError>) {
     if let Err(form_errs) = validate_parameter_form_state(&bundle.form_state) {
         errors.extend(form_errs);
     }
@@ -576,9 +582,11 @@ pub fn validate_command_forms_catalog(
         });
     }
     if catalog.shared_contract_ref != COMMAND_FORMS_SHARED_CONTRACT_REF {
-        errors.push(CommandFormsValidationError::CatalogSharedContractRefMismatch {
-            actual: catalog.shared_contract_ref.clone(),
-        });
+        errors.push(
+            CommandFormsValidationError::CatalogSharedContractRefMismatch {
+                actual: catalog.shared_contract_ref.clone(),
+            },
+        );
     }
     let mut seen = std::collections::HashSet::new();
     for bundle in &catalog.bundles {
@@ -619,7 +627,10 @@ mod tests {
                 bundle.form_state.command_revision_ref,
                 bundle.review_sheet.command_revision_ref
             );
-            assert_eq!(bundle.form_state.form_state_id, bundle.review_sheet.form_state_id);
+            assert_eq!(
+                bundle.form_state.form_state_id,
+                bundle.review_sheet.form_state_id
+            );
         }
     }
 

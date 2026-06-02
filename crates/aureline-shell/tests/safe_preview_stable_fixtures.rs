@@ -34,12 +34,12 @@
 //!   center, command palette, status bar, and a menu command, keyboard-first,
 //!   without an account or managed services.
 
+use aureline_shell::notification_attention_stable::{
+    AttentionRouteSurface, LayoutMode, StableClaimClass,
+};
 use aureline_shell::shell_safe_preview_stable::{
     safe_preview_corpus, CueCarrier, SafePreviewRecord, SafePreviewRecoveryAction,
     SafePreviewTruthSurface, ShellAdjacentSurface,
-};
-use aureline_shell::notification_attention_stable::{
-    AttentionRouteSurface, LayoutMode, StableClaimClass,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -91,7 +91,11 @@ fn pinned_rollups_match_each_scenario() {
             "{} surface marker",
             scenario.scenario_id
         );
-        assert_eq!(record.posture_id, scenario.scenario_id, "{} posture id", scenario.scenario_id);
+        assert_eq!(
+            record.posture_id, scenario.scenario_id,
+            "{} posture id",
+            scenario.scenario_id
+        );
     }
 }
 
@@ -151,7 +155,10 @@ fn consumes_content_safety_trust_class_ladder() {
             "{} drops content-safety schema-version provenance",
             scenario.scenario_id,
         );
-        for choice in value["representation_choices"].as_array().expect("choices array") {
+        for choice in value["representation_choices"]
+            .as_array()
+            .expect("choices array")
+        {
             let id = choice["action_id"].as_str().expect("action_id string");
             assert!(
                 action_ids.contains(&id),
@@ -211,7 +218,10 @@ fn copy_export_offers_raw_and_safe_paths() {
     for scenario in safe_preview_corpus() {
         let record = load_record(&scenario.fixture_filename);
         assert!(
-            record.representation_choices.iter().any(|c| c.is_exact_raw()),
+            record
+                .representation_choices
+                .iter()
+                .any(|c| c.is_exact_raw()),
             "{} offers no raw copy path",
             scenario.scenario_id,
         );
@@ -261,7 +271,10 @@ fn cue_carriers_complete_and_unflattened_on_stable() {
         let record = load_record(&scenario.fixture_filename);
         for required in CueCarrier::REQUIRED {
             assert!(
-                record.cue_survival.iter().any(|row| row.carrier == required),
+                record
+                    .cue_survival
+                    .iter()
+                    .any(|row| row.carrier == required),
                 "{} missing cue carrier {}",
                 scenario.scenario_id,
                 required.as_str(),
@@ -552,16 +565,28 @@ fn claim_ceiling_never_overclaims() {
         let ceiling = record.claim_ceiling;
         let pillars = record.pillars;
         if ceiling.asserts_representation_cues_explicit {
-            assert!(pillars.representation_cues_explicit, "{}", scenario.scenario_id);
+            assert!(
+                pillars.representation_cues_explicit,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_suspicious_findings_surfaced {
-            assert!(pillars.suspicious_findings_surfaced, "{}", scenario.scenario_id);
+            assert!(
+                pillars.suspicious_findings_surfaced,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_copy_export_labeled {
             assert!(pillars.copy_export_labeled, "{}", scenario.scenario_id);
         }
         if ceiling.asserts_cues_survive_all_carriers {
-            assert!(pillars.cues_survive_all_carriers, "{}", scenario.scenario_id);
+            assert!(
+                pillars.cues_survive_all_carriers,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_stricter_boundary_shown_before_commit {
             assert!(
@@ -571,10 +596,18 @@ fn claim_ceiling_never_overclaims() {
             );
         }
         if ceiling.asserts_accessibility_cues_complete {
-            assert!(pillars.accessibility_cues_complete, "{}", scenario.scenario_id);
+            assert!(
+                pillars.accessibility_cues_complete,
+                "{}",
+                scenario.scenario_id
+            );
         }
         if ceiling.asserts_platform_conformance_complete {
-            assert!(pillars.platform_conformance_complete, "{}", scenario.scenario_id);
+            assert!(
+                pillars.platform_conformance_complete,
+                "{}",
+                scenario.scenario_id
+            );
         }
     }
 }

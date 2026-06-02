@@ -11,7 +11,12 @@ fn page() -> StabilizeApprovalTicketPage {
 #[test]
 fn seeded_page_seeds_zero_defects_and_qualifies_stable() {
     let page = page();
-    assert_eq!(page.defects.len(), 0, "expected zero defects; got {:?}", page.defects);
+    assert_eq!(
+        page.defects.len(),
+        0,
+        "expected zero defects; got {:?}",
+        page.defects
+    );
     assert!(validate_stabilize_approval_ticket_page(&page).is_ok());
     assert!(page.qualifies_stable());
     assert!(page.no_withdrawn_rows());
@@ -73,8 +78,7 @@ fn seeded_page_rows_are_all_stable() {
 #[test]
 fn seeded_page_rows_cover_all_four_required_profiles() {
     let page = page();
-    let profile_tokens: Vec<&str> =
-        page.rows.iter().map(|r| r.profile_token.as_str()).collect();
+    let profile_tokens: Vec<&str> = page.rows.iter().map(|r| r.profile_token.as_str()).collect();
     for profile in ApprovalTicketBetaProfileClass::ALL {
         assert!(
             profile_tokens.contains(&profile.as_str()),
@@ -139,7 +143,9 @@ fn injected_raw_authority_withdraws_packet() {
     let mut beta_page = seeded_approval_ticket_beta_page();
     // Inject a raw-authority-material guardrail violation on the first sandbox
     // profile row.
-    beta_page.sandbox_profile_rows[0].guardrails.raw_authority_material_present = true;
+    beta_page.sandbox_profile_rows[0]
+        .guardrails
+        .raw_authority_material_present = true;
     beta_page.defects = audit_approval_ticket_beta_page(
         &beta_page.sandbox_profile_rows,
         &beta_page.capability_envelope_rows,
@@ -167,7 +173,9 @@ fn injected_raw_authority_withdraws_packet() {
 fn injected_self_authorization_withdraws_packet() {
     let mut beta_page = seeded_approval_ticket_beta_page();
     // Inject self-authorization on the first sandbox profile row.
-    beta_page.sandbox_profile_rows[0].guardrails.self_authorization_attempted = true;
+    beta_page.sandbox_profile_rows[0]
+        .guardrails
+        .self_authorization_attempted = true;
     beta_page.defects = audit_approval_ticket_beta_page(
         &beta_page.sandbox_profile_rows,
         &beta_page.capability_envelope_rows,
@@ -327,8 +335,7 @@ fn narrow_reason_withdrawal_sentinel_checks() {
             .is_withdrawal_reason()
     );
     assert!(
-        StabilizeApprovalTicketNarrowReasonClass::SelfAuthorizationAttempted
-            .is_withdrawal_reason()
+        StabilizeApprovalTicketNarrowReasonClass::SelfAuthorizationAttempted.is_withdrawal_reason()
     );
     assert!(!StabilizeApprovalTicketNarrowReasonClass::BetaPageHasDefects.is_withdrawal_reason());
     assert!(!StabilizeApprovalTicketNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
@@ -336,19 +343,13 @@ fn narrow_reason_withdrawal_sentinel_checks() {
 
 #[test]
 fn narrow_reason_preview_sentinel_checks() {
-    assert!(
-        StabilizeApprovalTicketNarrowReasonClass::ProfileCoverageMissing.narrows_to_preview()
-    );
+    assert!(StabilizeApprovalTicketNarrowReasonClass::ProfileCoverageMissing.narrows_to_preview());
     assert!(
         StabilizeApprovalTicketNarrowReasonClass::SandboxProfileCoverageMissing
             .narrows_to_preview()
     );
-    assert!(
-        !StabilizeApprovalTicketNarrowReasonClass::TargetIdentityMissing.narrows_to_preview()
-    );
-    assert!(
-        !StabilizeApprovalTicketNarrowReasonClass::BetaPageHasDefects.narrows_to_preview()
-    );
+    assert!(!StabilizeApprovalTicketNarrowReasonClass::TargetIdentityMissing.narrows_to_preview());
+    assert!(!StabilizeApprovalTicketNarrowReasonClass::BetaPageHasDefects.narrows_to_preview());
 }
 
 #[test]

@@ -12,8 +12,8 @@
 //! ```
 
 use aureline_remote::{
-    seeded_qualification_matrix_page, seeded_qualification_snapshot,
-    QualificationMatrixPage, QualificationMatrixSupportExport,
+    seeded_qualification_matrix_page, seeded_qualification_snapshot, QualificationMatrixPage,
+    QualificationMatrixSupportExport,
 };
 
 fn main() {

@@ -641,7 +641,8 @@ impl QuickOpenLatencyTruthPacket {
     /// Returns true when a consumer projection preserves this packet.
     pub fn has_projection_for(&self, surface: LatencyConsumerSurface) -> bool {
         self.consumer_projections.iter().any(|projection| {
-            projection.consumer_surface == surface && projection.preserves_truth_for(&self.packet_id)
+            projection.consumer_surface == surface
+                && projection.preserves_truth_for(&self.packet_id)
         })
     }
 
@@ -651,7 +652,9 @@ impl QuickOpenLatencyTruthPacket {
         for row in &self.rows {
             set.insert(row.archetype);
         }
-        set.into_iter().map(CertifiedArchetypeClass::as_str).collect()
+        set.into_iter()
+            .map(CertifiedArchetypeClass::as_str)
+            .collect()
     }
 
     /// Returns the unique surface tokens observed across rows.
@@ -669,7 +672,9 @@ impl QuickOpenLatencyTruthPacket {
         for row in &self.rows {
             set.insert(row.partial_index_truth);
         }
-        set.into_iter().map(PartialIndexTruthClass::as_str).collect()
+        set.into_iter()
+            .map(PartialIndexTruthClass::as_str)
+            .collect()
     }
 
     /// Returns the unique session-readiness-state tokens kept visible across rows.
@@ -704,8 +709,7 @@ impl QuickOpenLatencyTruthPacket {
     fn derived_findings(&self, include_record_fields: bool) -> Vec<LatencyValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != QUICK_OPEN_LATENCY_TRUTH_PACKET_RECORD_KIND
+        if include_record_fields && self.record_kind != QUICK_OPEN_LATENCY_TRUTH_PACKET_RECORD_KIND
         {
             findings.push(LatencyValidationFinding::new(
                 LatencyFindingKind::WrongRecordKind,
@@ -774,7 +778,10 @@ impl QuickOpenLatencyTruthPacket {
                 findings.push(LatencyValidationFinding::new(
                     LatencyFindingKind::MissingIdentity,
                     LatencyFindingSeverity::Blocker,
-                    format!("row {} identity, session, scope, planner, or timestamp is empty", row.row_id),
+                    format!(
+                        "row {} identity, session, scope, planner, or timestamp is empty",
+                        row.row_id
+                    ),
                 ));
             }
             if row.budget.p50_ms_budget == 0 || row.budget.p95_ms_budget == 0 {
@@ -814,9 +821,7 @@ impl QuickOpenLatencyTruthPacket {
                     LatencyFindingSeverity::Blocker,
                     format!(
                         "row {} observed p50 {}ms exceeds published budget {}ms without waiver",
-                        row.row_id,
-                        row.observation.p50_ms_observed,
-                        row.budget.p50_ms_budget
+                        row.row_id, row.observation.p50_ms_observed, row.budget.p50_ms_budget
                     ),
                 ));
             }
@@ -829,9 +834,7 @@ impl QuickOpenLatencyTruthPacket {
                     LatencyFindingSeverity::Blocker,
                     format!(
                         "row {} observed p95 {}ms exceeds published budget {}ms without waiver",
-                        row.row_id,
-                        row.observation.p95_ms_observed,
-                        row.budget.p95_ms_budget
+                        row.row_id, row.observation.p95_ms_observed, row.budget.p95_ms_budget
                     ),
                 ));
             }
@@ -881,10 +884,7 @@ impl QuickOpenLatencyTruthPacket {
                     format!(
                         "row {} relies on waiver {}",
                         row.row_id,
-                        row.budget
-                            .waiver_ref
-                            .as_deref()
-                            .unwrap_or("<missing>"),
+                        row.budget.waiver_ref.as_deref().unwrap_or("<missing>"),
                     ),
                 ));
             }
@@ -959,9 +959,7 @@ impl QuickOpenLatencyTruthPacket {
     }
 }
 
-fn promotion_state_for_findings(
-    findings: &[LatencyValidationFinding],
-) -> LatencyPromotionState {
+fn promotion_state_for_findings(findings: &[LatencyValidationFinding]) -> LatencyPromotionState {
     if findings
         .iter()
         .any(|finding| finding.severity == LatencyFindingSeverity::Blocker)
@@ -1139,7 +1137,10 @@ mod tests {
         assert_eq!(LatencySurface::CommandPalette.as_str(), "command_palette");
         assert_eq!(SessionReadinessState::Partial.as_str(), "partial");
         assert_eq!(PartialIndexTruthClass::StaleShard.as_str(), "stale_shard");
-        assert_eq!(LatencyPromotionState::BlocksStable.as_str(), "blocks_stable");
+        assert_eq!(
+            LatencyPromotionState::BlocksStable.as_str(),
+            "blocks_stable"
+        );
     }
 
     #[test]

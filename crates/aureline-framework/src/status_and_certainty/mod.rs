@@ -15,18 +15,17 @@ mod object_certainty;
 mod support_strip;
 
 pub use object_certainty::{
-    AuthoredOriginClass, CertaintyLabelClass, ConventionCertaintyClass,
-    ConventionDiagnosticBlock, ConventionDiagnosticClass, ConventionFixActionClass,
-    DependencyImpactClass, EvidenceAnchor, EvidenceAnchorKindClass, FileEffectClass,
-    FileOwnershipClass, FrameworkObjectCertainty, FrameworkObjectKind,
-    FrameworkObjectRowBlock, FrameworkObjectRowKind, GeneratorFileEffectRow, GeneratorKindClass,
-    GeneratorPreviewBlock, RollbackClass, RowActionClass,
+    AuthoredOriginClass, CertaintyLabelClass, ConventionCertaintyClass, ConventionDiagnosticBlock,
+    ConventionDiagnosticClass, ConventionFixActionClass, DependencyImpactClass, EvidenceAnchor,
+    EvidenceAnchorKindClass, FileEffectClass, FileOwnershipClass, FrameworkObjectCertainty,
+    FrameworkObjectKind, FrameworkObjectRowBlock, FrameworkObjectRowKind, GeneratorFileEffectRow,
+    GeneratorKindClass, GeneratorPreviewBlock, RollbackClass, RowActionClass,
     FRAMEWORK_OBJECT_CERTAINTY_RECORD_KIND, FRAMEWORK_OBJECT_CERTAINTY_SCHEMA_VERSION,
 };
 pub use support_strip::{
-    CompatibilityBlock, FrameworkFamilyClass, FrameworkIdentityBlock,
-    FrameworkSupportActionClass, FrameworkSupportStrip, HealthBlock, HealthClass, LocalityClass,
-    PackOrBridgeSourceBlock, PackSourceClass, ScopeBlock, SupportClass, VersionCompatibilityClass,
+    CompatibilityBlock, FrameworkFamilyClass, FrameworkIdentityBlock, FrameworkSupportActionClass,
+    FrameworkSupportStrip, HealthBlock, HealthClass, LocalityClass, PackOrBridgeSourceBlock,
+    PackSourceClass, ScopeBlock, SupportClass, VersionCompatibilityClass,
     FRAMEWORK_FRESHNESS_AUTHORITATIVE_LIVE, FRAMEWORK_FRESHNESS_DEGRADED_CACHED,
     FRAMEWORK_FRESHNESS_STALE, FRAMEWORK_FRESHNESS_UNVERIFIED, FRAMEWORK_FRESHNESS_WARM_CACHED,
     FRAMEWORK_SUPPORT_STRIP_RECORD_KIND, FRAMEWORK_SUPPORT_STRIP_SCHEMA_VERSION,
@@ -90,7 +89,10 @@ impl FreshnessClass {
 
     /// Whether this freshness class admits a "healthy live" runtime health.
     pub const fn admits_healthy_live(self) -> bool {
-        matches!(self, Self::AuthoritativeLive | Self::WarmCached | Self::DegradedCached)
+        matches!(
+            self,
+            Self::AuthoritativeLive | Self::WarmCached | Self::DegradedCached
+        )
     }
 }
 

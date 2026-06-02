@@ -202,7 +202,10 @@ fn checked_in_artifact_packet_validates_and_certifies_every_archetype_surface() 
     assert_eq!(packet.promotion_state, LatencyPromotionState::Stable);
     assert!(packet.validate().is_empty());
 
-    assert_eq!(packet.archetype_tokens().len(), CertifiedArchetypeClass::ALL.len());
+    assert_eq!(
+        packet.archetype_tokens().len(),
+        CertifiedArchetypeClass::ALL.len()
+    );
     assert_eq!(packet.surface_tokens().len(), LatencySurface::ALL.len());
     for archetype in CertifiedArchetypeClass::ALL {
         for surface in LatencySurface::ALL {

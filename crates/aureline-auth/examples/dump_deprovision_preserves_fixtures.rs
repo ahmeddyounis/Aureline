@@ -53,7 +53,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .find(|r| r.exit_event_token == ManagedExitEventClass::Deprovision.as_str())
             {
                 row.local_work_survival.local_editing_token =
-                    LocalWorkPreservationClass::SilentlyPurged.as_str().to_owned();
+                    LocalWorkPreservationClass::SilentlyPurged
+                        .as_str()
+                        .to_owned();
             }
             let dirty = DeprovisionPreservesBetaPage::new(
                 "auth:deprovision_preserves:drill-silent-purge",
@@ -70,7 +72,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .find(|r| r.exit_event_token == ManagedExitEventClass::SignOut.as_str())
             {
                 row.local_work_survival.local_editing_token =
-                    LocalWorkPreservationClass::PreservedReadOnly.as_str().to_owned();
+                    LocalWorkPreservationClass::PreservedReadOnly
+                        .as_str()
+                        .to_owned();
             }
             let dirty = DeprovisionPreservesBetaPage::new(
                 "auth:deprovision_preserves:drill-blocking-exit",

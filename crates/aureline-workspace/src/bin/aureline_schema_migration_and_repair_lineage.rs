@@ -24,7 +24,8 @@
 use std::io::{self, Read};
 
 use aureline_workspace::{
-    default_schema_migration_inspection_hooks, project_schema_migration_and_repair_lineage_with_hooks,
+    default_schema_migration_inspection_hooks,
+    project_schema_migration_and_repair_lineage_with_hooks,
     schema_migration_and_repair_lineage_lines, SchemaMigrationAndRepairInputs,
     SchemaMigrationAndRepairLineageRecord, SchemaMigrationInspectionHook,
 };

@@ -97,7 +97,6 @@ pub const PROFILER_TRUTH_FIXTURE_DIR: &str =
 pub const PROFILER_TRUTH_PACKET_ARTIFACT_REF: &str =
     "artifacts/runtime/m4/harden_the_stable_profiler_and_tracing_hooks_needed_truth_packet.json";
 
-
 /// Closed profiler lane vocabulary. Every required lane MUST have at
 /// least one row in any stable packet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -132,7 +131,6 @@ impl ProfilerLaneClass {
         }
     }
 }
-
 
 /// Closed profiler row vocabulary the packet certifies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -216,7 +214,6 @@ impl ProfilerRowClass {
     }
 }
 
-
 /// Closed support-class vocabulary applied to a profiler row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -258,7 +255,6 @@ impl SupportClass {
         !matches!(self, Self::LaunchStable)
     }
 }
-
 
 /// Closed profiler wedge vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -313,7 +309,6 @@ impl WedgeClass {
     }
 }
 
-
 /// Closed capture-state vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -359,7 +354,6 @@ impl CaptureStateClass {
     }
 }
 
-
 /// Closed origin-class vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -397,7 +391,6 @@ impl OriginClass {
     }
 }
 
-
 /// Closed build-mode vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -412,10 +405,7 @@ pub enum BuildModeClass {
 
 impl BuildModeClass {
     /// Every required build mode for a `launch_stable` lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] = [
-        Self::DebugMode,
-        Self::ReleaseMode,
-    ];
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] = [Self::DebugMode, Self::ReleaseMode];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -426,7 +416,6 @@ impl BuildModeClass {
         }
     }
 }
-
 
 /// Closed run-class vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -442,10 +431,7 @@ pub enum RunClassClass {
 
 impl RunClassClass {
     /// Every required run class for a `launch_stable` lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] = [
-        Self::WarmRun,
-        Self::ColdRun,
-    ];
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 2] = [Self::WarmRun, Self::ColdRun];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -456,7 +442,6 @@ impl RunClassClass {
         }
     }
 }
-
 
 /// Closed confounder vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -474,11 +459,8 @@ pub enum ConfounderClass {
 
 impl ConfounderClass {
     /// Every required confounder for a `launch_stable` lane.
-    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 3] = [
-        Self::HardwareClass,
-        Self::PowerState,
-        Self::ThermalState,
-    ];
+    pub const REQUIRED_FOR_LAUNCH_STABLE: [Self; 3] =
+        [Self::HardwareClass, Self::PowerState, Self::ThermalState];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -490,7 +472,6 @@ impl ConfounderClass {
         }
     }
 }
-
 
 /// Closed replay-state vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -532,7 +513,6 @@ impl ReplayStateClass {
         }
     }
 }
-
 
 /// Closed profiler-surface vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -597,11 +577,12 @@ impl ProfilerSurfaceClass {
     pub const fn requires_replay_state_attestation(self) -> bool {
         matches!(
             self,
-            Self::RegressionSummarySurface | Self::ReplayControlsSurface | Self::ProfileSessionSurface
+            Self::RegressionSummarySurface
+                | Self::ReplayControlsSurface
+                | Self::ProfileSessionSurface
         )
     }
 }
-
 
 /// Closed evidence-class vocabulary describing what backs a row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -648,7 +629,6 @@ impl EvidenceClass {
         !matches!(self, Self::EvidenceUnbound)
     }
 }
-
 
 /// Closed known-limit vocabulary attached to a profiler row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -723,7 +703,6 @@ impl KnownLimitClass {
     }
 }
 
-
 /// Closed downgrade-automation vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -787,7 +766,6 @@ impl DowngradeAutomationClass {
     }
 }
 
-
 /// Closed confidence-class vocabulary for a profiler row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -810,7 +788,6 @@ impl ConfidenceClass {
         }
     }
 }
-
 
 /// Stable promotion state derived from packet validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -835,7 +812,6 @@ impl PromotionState {
     }
 }
 
-
 /// Severity for one validation finding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -847,7 +823,6 @@ pub enum FindingSeverity {
     /// Blocker finding that prevents stable publication.
     Blocker,
 }
-
 
 /// Closed validation-finding vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -940,7 +915,9 @@ impl FindingKind {
             Self::LaunchStableWithUnboundBinding => "launch_stable_with_unbound_binding",
             Self::NarrowedRowMissingDisclosureRef => "narrowed_row_missing_disclosure_ref",
             Self::KnownLimitMissingDisclosureRef => "known_limit_missing_disclosure_ref",
-            Self::DowngradeAutomationMissingDisclosureRef => "downgrade_automation_missing_disclosure_ref",
+            Self::DowngradeAutomationMissingDisclosureRef => {
+                "downgrade_automation_missing_disclosure_ref"
+            }
             Self::MissingEvidenceRefs => "missing_evidence_refs",
             Self::WedgeNotApplicable => "wedge_not_applicable",
             Self::WedgeNotPermittedOnRowClass => "wedge_not_permitted_on_row_class",
@@ -957,10 +934,18 @@ impl FindingKind {
             Self::ReplayStateNotApplicable => "replay_state_not_applicable",
             Self::ReplayStateNotPermittedOnRowClass => "replay_state_not_permitted_on_row_class",
             Self::ProfilerSurfaceNotApplicable => "profiler_surface_not_applicable",
-            Self::ProfilerSurfaceNotPermittedOnRowClass => "profiler_surface_not_permitted_on_row_class",
-            Self::ProfilerSurfaceMissingCaptureStateAttestation => "profiler_surface_missing_capture_state_attestation",
-            Self::ProfilerSurfaceMissingReplayStateAttestation => "profiler_surface_missing_replay_state_attestation",
-            Self::LineageAdmissionMissingExecutionContextId => "lineage_admission_missing_execution_context_id",
+            Self::ProfilerSurfaceNotPermittedOnRowClass => {
+                "profiler_surface_not_permitted_on_row_class"
+            }
+            Self::ProfilerSurfaceMissingCaptureStateAttestation => {
+                "profiler_surface_missing_capture_state_attestation"
+            }
+            Self::ProfilerSurfaceMissingReplayStateAttestation => {
+                "profiler_surface_missing_replay_state_attestation"
+            }
+            Self::LineageAdmissionMissingExecutionContextId => {
+                "lineage_admission_missing_execution_context_id"
+            }
             Self::RawSourceMaterialPresent => "raw_source_material_present",
             Self::SecretsPresent => "secrets_present",
             Self::AmbientAuthorityPresent => "ambient_authority_present",
@@ -978,13 +963,14 @@ impl FindingKind {
             Self::ReplayStateVocabularyCollapsed => "replay_state_vocabulary_collapsed",
             Self::ProfilerSurfaceVocabularyCollapsed => "profiler_surface_vocabulary_collapsed",
             Self::KnownLimitVocabularyCollapsed => "known_limit_vocabulary_collapsed",
-            Self::DowngradeAutomationVocabularyCollapsed => "downgrade_automation_vocabulary_collapsed",
+            Self::DowngradeAutomationVocabularyCollapsed => {
+                "downgrade_automation_vocabulary_collapsed"
+            }
             Self::EvidenceClassVocabularyCollapsed => "evidence_class_vocabulary_collapsed",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
         }
     }
 }
-
 
 /// Consumer surface that must inherit the profiler packet verbatim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1040,7 +1026,6 @@ impl ConsumerProjectionSurface {
     }
 }
 
-
 /// One validation finding emitted by the validator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationFinding {
@@ -1065,7 +1050,6 @@ impl ValidationFinding {
         }
     }
 }
-
 
 /// One profiler truth row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1143,7 +1127,6 @@ impl ProfilerRow {
     }
 }
 
-
 /// Consumer projection proving a surface reads this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfilerConsumerProjection {
@@ -1218,7 +1201,6 @@ impl ProfilerConsumerProjection {
     }
 }
 
-
 /// Constructor input for [`ProfilerTruthPacket::materialize`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfilerTruthPacketInput {
@@ -1241,7 +1223,6 @@ pub struct ProfilerTruthPacketInput {
     #[serde(default)]
     pub source_contract_refs: Vec<String>,
 }
-
 
 /// Runtime-owned packet certifying profiler and tracing-hook truth at the M4 launch-stable grade.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1324,9 +1305,7 @@ impl ProfilerTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter()
-            .map(ProfilerLaneClass::as_str)
-            .collect()
+        set.into_iter().map(ProfilerLaneClass::as_str).collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1667,10 +1646,7 @@ impl ProfilerTruthPacket {
 
             // capture-state binding rules
             if row.row_class.requires_capture_state()
-                && matches!(
-                    row.capture_state_class,
-                    CaptureStateClass::NotApplicable
-                )
+                && matches!(row.capture_state_class, CaptureStateClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::CaptureStateNotApplicable,
@@ -1682,10 +1658,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_capture_state()
-                && !matches!(
-                    row.capture_state_class,
-                    CaptureStateClass::NotApplicable
-                )
+                && !matches!(row.capture_state_class, CaptureStateClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::CaptureStateNotPermittedOnRowClass,
@@ -1701,10 +1674,7 @@ impl ProfilerTruthPacket {
 
             // origin-class binding rules
             if row.row_class.requires_origin_class()
-                && matches!(
-                    row.origin_class,
-                    OriginClass::NotApplicable
-                )
+                && matches!(row.origin_class, OriginClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::OriginClassNotApplicable,
@@ -1716,10 +1686,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_origin_class()
-                && !matches!(
-                    row.origin_class,
-                    OriginClass::NotApplicable
-                )
+                && !matches!(row.origin_class, OriginClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::OriginClassNotPermittedOnRowClass,
@@ -1735,10 +1702,7 @@ impl ProfilerTruthPacket {
 
             // build-mode binding rules
             if row.row_class.requires_build_mode()
-                && matches!(
-                    row.build_mode_class,
-                    BuildModeClass::NotApplicable
-                )
+                && matches!(row.build_mode_class, BuildModeClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::BuildModeNotApplicable,
@@ -1750,10 +1714,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_build_mode()
-                && !matches!(
-                    row.build_mode_class,
-                    BuildModeClass::NotApplicable
-                )
+                && !matches!(row.build_mode_class, BuildModeClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::BuildModeNotPermittedOnRowClass,
@@ -1769,10 +1730,7 @@ impl ProfilerTruthPacket {
 
             // run-class binding rules
             if row.row_class.requires_run_class()
-                && matches!(
-                    row.run_class_class,
-                    RunClassClass::NotApplicable
-                )
+                && matches!(row.run_class_class, RunClassClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RunClassNotApplicable,
@@ -1784,10 +1742,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_run_class()
-                && !matches!(
-                    row.run_class_class,
-                    RunClassClass::NotApplicable
-                )
+                && !matches!(row.run_class_class, RunClassClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::RunClassNotPermittedOnRowClass,
@@ -1803,10 +1758,7 @@ impl ProfilerTruthPacket {
 
             // confounder binding rules
             if row.row_class.requires_confounder()
-                && matches!(
-                    row.confounder_class,
-                    ConfounderClass::NotApplicable
-                )
+                && matches!(row.confounder_class, ConfounderClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ConfounderNotApplicable,
@@ -1818,10 +1770,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_confounder()
-                && !matches!(
-                    row.confounder_class,
-                    ConfounderClass::NotApplicable
-                )
+                && !matches!(row.confounder_class, ConfounderClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ConfounderNotPermittedOnRowClass,
@@ -1837,10 +1786,7 @@ impl ProfilerTruthPacket {
 
             // replay-state binding rules
             if row.row_class.requires_replay_state()
-                && matches!(
-                    row.replay_state_class,
-                    ReplayStateClass::NotApplicable
-                )
+                && matches!(row.replay_state_class, ReplayStateClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ReplayStateNotApplicable,
@@ -1852,10 +1798,7 @@ impl ProfilerTruthPacket {
                 ));
             }
             if !row.row_class.requires_replay_state()
-                && !matches!(
-                    row.replay_state_class,
-                    ReplayStateClass::NotApplicable
-                )
+                && !matches!(row.replay_state_class, ReplayStateClass::NotApplicable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::ReplayStateNotPermittedOnRowClass,
@@ -1903,10 +1846,7 @@ impl ProfilerTruthPacket {
                 ));
             }
 
-            if matches!(
-                row.row_class,
-                ProfilerRowClass::SurfaceBinding
-            ) {
+            if matches!(row.row_class, ProfilerRowClass::SurfaceBinding) {
                 if row
                     .profiler_surface_class
                     .requires_capture_state_attestation()
@@ -1957,10 +1897,8 @@ impl ProfilerTruthPacket {
                 ));
             }
 
-            if matches!(
-                row.confidence_class,
-                ConfidenceClass::LowConfidence
-            ) && matches!(row.support_class, SupportClass::LaunchStable)
+            if matches!(row.confidence_class, ConfidenceClass::LowConfidence)
+                && matches!(row.support_class, SupportClass::LaunchStable)
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::LaunchStableWithUnboundBinding,
@@ -2005,10 +1943,7 @@ impl ProfilerTruthPacket {
             for state in CaptureStateClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::CaptureStateAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::CaptureStateAdmission)
                         && row.capture_state_class == state
                 });
                 if !covered {
@@ -2027,10 +1962,7 @@ impl ProfilerTruthPacket {
             for origin in OriginClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::OriginClassAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::OriginClassAdmission)
                         && row.origin_class == origin
                 });
                 if !covered {
@@ -2049,10 +1981,7 @@ impl ProfilerTruthPacket {
             for mode in BuildModeClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::BuildModeAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::BuildModeAdmission)
                         && row.build_mode_class == mode
                 });
                 if !covered {
@@ -2071,10 +2000,7 @@ impl ProfilerTruthPacket {
             for run_class in RunClassClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::RunClassAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::RunClassAdmission)
                         && row.run_class_class == run_class
                 });
                 if !covered {
@@ -2093,10 +2019,7 @@ impl ProfilerTruthPacket {
             for confounder in ConfounderClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::ConfounderAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::ConfounderAdmission)
                         && row.confounder_class == confounder
                 });
                 if !covered {
@@ -2115,10 +2038,7 @@ impl ProfilerTruthPacket {
             for replay_state in ReplayStateClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::ReplayStateAdmission
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::ReplayStateAdmission)
                         && row.replay_state_class == replay_state
                 });
                 if !covered {
@@ -2137,10 +2057,7 @@ impl ProfilerTruthPacket {
             for surface in ProfilerSurfaceClass::REQUIRED_FOR_LAUNCH_STABLE {
                 let covered = self.rows.iter().any(|row| {
                     row.lane_class == *lane
-                        && matches!(
-                            row.row_class,
-                            ProfilerRowClass::SurfaceBinding
-                        )
+                        && matches!(row.row_class, ProfilerRowClass::SurfaceBinding)
                         && row.profiler_surface_class == surface
                         && (!surface.requires_capture_state_attestation()
                             || row.attests_capture_state_preserved)
@@ -2382,7 +2299,6 @@ fn promotion_state_for_findings(findings: &[ValidationFinding]) -> PromotionStat
     }
 }
 
-
 /// Support-export wrapper that preserves the product packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfilerTruthSupportExport {
@@ -2416,7 +2332,6 @@ impl ProfilerTruthSupportExport {
     }
 }
 
-
 /// Errors emitted when reading the checked-in stable packet.
 #[derive(Debug)]
 pub enum ProfilerTruthArtifactError {
@@ -2430,10 +2345,7 @@ impl fmt::Display for ProfilerTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => {
-                write!(
-                    formatter,
-                    "profiler truth packet parse failed: {error}"
-                )
+                write!(formatter, "profiler truth packet parse failed: {error}")
             }
             Self::Validation(findings) => {
                 let tokens = findings
@@ -2471,7 +2383,6 @@ pub fn current_stable_profiler_truth_packet(
         Err(ProfilerTruthArtifactError::Validation(findings))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -2515,11 +2426,7 @@ mod tests {
         }
     }
 
-    fn wedge_row(
-        prefix: &str,
-        lane: ProfilerLaneClass,
-        wedge: WedgeClass,
-    ) -> ProfilerRow {
+    fn wedge_row(prefix: &str, lane: ProfilerLaneClass, wedge: WedgeClass) -> ProfilerRow {
         ProfilerRow {
             row_id: format!("row:{prefix}:wedge:{}", wedge.as_str()),
             lane_class: lane,
@@ -2583,11 +2490,7 @@ mod tests {
         }
     }
 
-    fn origin_class_row(
-        prefix: &str,
-        lane: ProfilerLaneClass,
-        origin: OriginClass,
-    ) -> ProfilerRow {
+    fn origin_class_row(prefix: &str, lane: ProfilerLaneClass, origin: OriginClass) -> ProfilerRow {
         ProfilerRow {
             row_id: format!("row:{prefix}:origin:{}", origin.as_str()),
             lane_class: lane,
@@ -2617,11 +2520,7 @@ mod tests {
         }
     }
 
-    fn build_mode_row(
-        prefix: &str,
-        lane: ProfilerLaneClass,
-        mode: BuildModeClass,
-    ) -> ProfilerRow {
+    fn build_mode_row(prefix: &str, lane: ProfilerLaneClass, mode: BuildModeClass) -> ProfilerRow {
         ProfilerRow {
             row_id: format!("row:{prefix}:build_mode:{}", mode.as_str()),
             lane_class: lane,
@@ -2776,10 +2675,7 @@ mod tests {
             downgrade_automation_class: DowngradeAutomationClass::AutoNarrowOnProfilerSurfaceGap,
             confidence_class: ConfidenceClass::HighConfidence,
             evidence_refs: vec![fixture_ref()],
-            disclosure_ref: Some(format!(
-                "{}#auto_narrow_on_profiler_surface_gap",
-                doc_ref()
-            )),
+            disclosure_ref: Some(format!("{}#auto_narrow_on_profiler_surface_gap", doc_ref())),
             execution_context_id_binding: None,
             attests_capture_state_preserved: surface.requires_capture_state_attestation(),
             attests_replay_state_preserved: surface.requires_replay_state_attestation(),
@@ -2881,24 +2777,13 @@ mod tests {
     fn sample_input() -> ProfilerTruthPacketInput {
         let mut rows = Vec::new();
         rows.extend(lane_rows(ProfilerLaneClass::LocalLane, "local"));
-        rows.extend(lane_rows(
-            ProfilerLaneClass::RemoteHelperLane,
-            "remote",
-        ));
-        rows.extend(lane_rows(
-            ProfilerLaneClass::ContainerLane,
-            "container",
-        ));
-        rows.extend(lane_rows(
-            ProfilerLaneClass::CiImportLane,
-            "ci_import",
-        ));
+        rows.extend(lane_rows(ProfilerLaneClass::RemoteHelperLane, "remote"));
+        rows.extend(lane_rows(ProfilerLaneClass::ContainerLane, "container"));
+        rows.extend(lane_rows(ProfilerLaneClass::CiImportLane, "ci_import"));
         ProfilerTruthPacketInput {
-            packet_id: "packet:m4:harden_the_stable_profiler_and_tracing_hooks_needed"
-                .to_owned(),
+            packet_id: "packet:m4:harden_the_stable_profiler_and_tracing_hooks_needed".to_owned(),
             workflow_or_surface_id:
-                "workflow.runtime.harden_the_stable_profiler_and_tracing_hooks_needed"
-                    .to_owned(),
+                "workflow.runtime.harden_the_stable_profiler_and_tracing_hooks_needed".to_owned(),
             generated_at: "2026-05-27T12:00:00Z".to_owned(),
             covered_lanes: ProfilerLaneClass::REQUIRED.to_vec(),
             rows,
@@ -2911,14 +2796,10 @@ mod tests {
         }
     }
 
-
     #[test]
     fn closed_tokens_are_pinned() {
         assert_eq!(ProfilerLaneClass::LocalLane.as_str(), "local_lane");
-        assert_eq!(
-            ProfilerLaneClass::CiImportLane.as_str(),
-            "ci_import_lane"
-        );
+        assert_eq!(ProfilerLaneClass::CiImportLane.as_str(), "ci_import_lane");
         assert_eq!(
             ProfilerRowClass::ProfilerQuality.as_str(),
             "profiler_quality"
@@ -2947,10 +2828,7 @@ mod tests {
             ProfilerRowClass::ReplayStateAdmission.as_str(),
             "replay_state_admission"
         );
-        assert_eq!(
-            ProfilerRowClass::SurfaceBinding.as_str(),
-            "surface_binding"
-        );
+        assert_eq!(ProfilerRowClass::SurfaceBinding.as_str(), "surface_binding");
         assert_eq!(SupportClass::LaunchStable.as_str(), "launch_stable");
         assert_eq!(
             WedgeClass::ProfileSessionDescriptor.as_str(),
@@ -3061,10 +2939,8 @@ mod tests {
     fn missing_capture_state_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::CaptureStateAdmission
-            ) && row.capture_state_class == CaptureStateClass::DisabledWithReason
+            !(matches!(row.row_class, ProfilerRowClass::CaptureStateAdmission)
+                && row.capture_state_class == CaptureStateClass::DisabledWithReason
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3079,10 +2955,8 @@ mod tests {
     fn missing_origin_class_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::OriginClassAdmission
-            ) && row.origin_class == OriginClass::ImportedBundleOrigin
+            !(matches!(row.row_class, ProfilerRowClass::OriginClassAdmission)
+                && row.origin_class == OriginClass::ImportedBundleOrigin
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3097,10 +2971,8 @@ mod tests {
     fn missing_build_mode_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::BuildModeAdmission
-            ) && row.build_mode_class == BuildModeClass::ReleaseMode
+            !(matches!(row.row_class, ProfilerRowClass::BuildModeAdmission)
+                && row.build_mode_class == BuildModeClass::ReleaseMode
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3115,10 +2987,8 @@ mod tests {
     fn missing_run_class_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::RunClassAdmission
-            ) && row.run_class_class == RunClassClass::ColdRun
+            !(matches!(row.row_class, ProfilerRowClass::RunClassAdmission)
+                && row.run_class_class == RunClassClass::ColdRun
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3133,10 +3003,8 @@ mod tests {
     fn missing_confounder_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::ConfounderAdmission
-            ) && row.confounder_class == ConfounderClass::ThermalState
+            !(matches!(row.row_class, ProfilerRowClass::ConfounderAdmission)
+                && row.confounder_class == ConfounderClass::ThermalState
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3151,10 +3019,8 @@ mod tests {
     fn missing_replay_state_for_launch_stable_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|row| {
-            !(matches!(
-                row.row_class,
-                ProfilerRowClass::ReplayStateAdmission
-            ) && row.replay_state_class == ReplayStateClass::ImportViewOnly
+            !(matches!(row.row_class, ProfilerRowClass::ReplayStateAdmission)
+                && row.replay_state_class == ReplayStateClass::ImportViewOnly
                 && row.lane_class == ProfilerLaneClass::LocalLane)
         });
         let packet = ProfilerTruthPacket::materialize(input);
@@ -3169,10 +3035,8 @@ mod tests {
     fn surface_missing_capture_state_attestation_blocks() {
         let mut input = sample_input();
         for row in &mut input.rows {
-            if matches!(
-                row.row_class,
-                ProfilerRowClass::SurfaceBinding
-            ) && row.lane_class == ProfilerLaneClass::LocalLane
+            if matches!(row.row_class, ProfilerRowClass::SurfaceBinding)
+                && row.lane_class == ProfilerLaneClass::LocalLane
                 && row.profiler_surface_class == ProfilerSurfaceClass::FlamegraphSurface
             {
                 row.attests_capture_state_preserved = false;
@@ -3190,10 +3054,8 @@ mod tests {
     fn surface_missing_replay_state_attestation_blocks() {
         let mut input = sample_input();
         for row in &mut input.rows {
-            if matches!(
-                row.row_class,
-                ProfilerRowClass::SurfaceBinding
-            ) && row.lane_class == ProfilerLaneClass::LocalLane
+            if matches!(row.row_class, ProfilerRowClass::SurfaceBinding)
+                && row.lane_class == ProfilerLaneClass::LocalLane
                 && row.profiler_surface_class == ProfilerSurfaceClass::ReplayControlsSurface
             {
                 row.attests_replay_state_preserved = false;

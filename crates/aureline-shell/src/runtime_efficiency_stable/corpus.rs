@@ -279,14 +279,20 @@ fn routes_for(posture: &str) -> Vec<EntryRouteRecord> {
         .iter()
         .map(|surface| EntryRouteRecord {
             surface: *surface,
-            route_ref: format!("aureline://efficiency-posture/{posture}/{}", surface.as_str()),
+            route_ref: format!(
+                "aureline://efficiency-posture/{posture}/{}",
+                surface.as_str()
+            ),
             keyboard_reachable: true,
             activates_same_item: true,
         })
         .collect()
 }
 
-fn accessibility_for(focus_order_index: u32, routes: &[RecoveryRouteRecord]) -> AccessibilityDisclosure {
+fn accessibility_for(
+    focus_order_index: u32,
+    routes: &[RecoveryRouteRecord],
+) -> AccessibilityDisclosure {
     AccessibilityDisclosure {
         focus_order_index,
         tab_stop_count: routes.len() as u32 + 1,
@@ -417,7 +423,10 @@ fn scenario(
         upstream,
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_string(),
         support_export_ref: SUPPORT_EXPORT_REF.to_string(),
-        evidence_refs: vec![EVIDENCE_ARTIFACT_REF.to_string(), EVIDENCE_FIXTURE_REF.to_string()],
+        evidence_refs: vec![
+            EVIDENCE_ARTIFACT_REF.to_string(),
+            EVIDENCE_FIXTURE_REF.to_string(),
+        ],
         narrative_refs: vec![NARRATIVE_REF.to_string()],
     };
     let record = RuntimeEfficiencyRecord::build(input)
@@ -459,7 +468,11 @@ fn governor(
 // ---------------------------------------------------------------------------
 
 fn nominal_ac_power(page_ref: &str) -> RuntimeEfficiencyScenario {
-    let runtime = runtime_in_state(EfficiencyState::Nominal, EfficiencyPressureSource::AcPower, "ac power");
+    let runtime = runtime_in_state(
+        EfficiencyState::Nominal,
+        EfficiencyPressureSource::AcPower,
+        "ac power",
+    );
     let audit = clean_render_audit(&runtime);
     let governor = governor(
         GovernorReasonClass::NoneNominal,
@@ -500,13 +513,26 @@ fn battery_saver_efficiency_aware(page_ref: &str) -> RuntimeEfficiencyScenario {
         "os battery saver active",
     );
     let source = EfficiencyPressureSource::OsBatterySaver;
-    let prefetch = runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
+    let prefetch =
+        runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
     let warmup = runtime.decide_workload(WorkloadFamily::AiWarmup, source, CORPUS_AS_OF);
     let indexing = runtime.decide_workload(WorkloadFamily::IndexingRefresh, source, CORPUS_AS_OF);
     let shed = vec![
-        shed_row(&prefetch, ResumeOwner::AutomaticOnPressureClear, "Prefetch resumes when battery saver clears."),
-        shed_row(&warmup, ResumeOwner::AutomaticOnPressureClear, "AI warmups resume when battery saver clears."),
-        shed_row(&indexing, ResumeOwner::AutomaticOnPressureClear, "Indexing returns to full cadence when battery saver clears."),
+        shed_row(
+            &prefetch,
+            ResumeOwner::AutomaticOnPressureClear,
+            "Prefetch resumes when battery saver clears.",
+        ),
+        shed_row(
+            &warmup,
+            ResumeOwner::AutomaticOnPressureClear,
+            "AI warmups resume when battery saver clears.",
+        ),
+        shed_row(
+            &indexing,
+            ResumeOwner::AutomaticOnPressureClear,
+            "Indexing returns to full cadence when battery saver clears.",
+        ),
     ];
     let audit = clean_render_audit(&runtime);
     let governor = governor(
@@ -552,9 +578,21 @@ fn thermal_constrained(page_ref: &str) -> RuntimeEfficiencyScenario {
     let preview = runtime.decide_workload(WorkloadFamily::PreviewRefresh, source, CORPUS_AS_OF);
     let graph = runtime.decide_workload(WorkloadFamily::GraphEnrichment, source, CORPUS_AS_OF);
     let shed = vec![
-        shed_row(&warmup, ResumeOwner::AutomaticOnPressureClear, "AI warmups resume when the host cools."),
-        shed_row(&preview, ResumeOwner::AutomaticOnPressureClear, "Preview refresh returns to full cadence when the host cools."),
-        shed_row(&graph, ResumeOwner::AutomaticOnPressureClear, "Graph enrichment resumes when the host cools."),
+        shed_row(
+            &warmup,
+            ResumeOwner::AutomaticOnPressureClear,
+            "AI warmups resume when the host cools.",
+        ),
+        shed_row(
+            &preview,
+            ResumeOwner::AutomaticOnPressureClear,
+            "Preview refresh returns to full cadence when the host cools.",
+        ),
+        shed_row(
+            &graph,
+            ResumeOwner::AutomaticOnPressureClear,
+            "Graph enrichment resumes when the host cools.",
+        ),
     ];
     let audit = clean_render_audit(&runtime);
     let governor = governor(
@@ -600,9 +638,21 @@ fn critical_battery_protect_core(page_ref: &str) -> RuntimeEfficiencyScenario {
     let extension = runtime.decide_workload(WorkloadFamily::ExtensionPolling, source, CORPUS_AS_OF);
     let indexing = runtime.decide_workload(WorkloadFamily::IndexingRefresh, source, CORPUS_AS_OF);
     let shed = vec![
-        shed_row(&upload, ResumeOwner::UserRestorePower, "Uploads resume after you plug in."),
-        shed_row(&extension, ResumeOwner::UserRestorePower, "Extension background polling resumes after you plug in."),
-        shed_row(&indexing, ResumeOwner::UserRestorePower, "Indexing resumes after you plug in."),
+        shed_row(
+            &upload,
+            ResumeOwner::UserRestorePower,
+            "Uploads resume after you plug in.",
+        ),
+        shed_row(
+            &extension,
+            ResumeOwner::UserRestorePower,
+            "Extension background polling resumes after you plug in.",
+        ),
+        shed_row(
+            &indexing,
+            ResumeOwner::UserRestorePower,
+            "Indexing resumes after you plug in.",
+        ),
     ];
     let audit = clean_render_audit(&runtime);
     let governor = governor(
@@ -648,10 +698,19 @@ fn suspend_resume_recovery(
     );
     let source = EfficiencyPressureSource::PressureCleared;
     let warmup = runtime.decide_workload(WorkloadFamily::AiWarmup, source, CORPUS_AS_OF);
-    let prefetch = runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
+    let prefetch =
+        runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
     let shed = vec![
-        shed_row(&warmup, ResumeOwner::RemoteReconnect, "AI warmups stage back after reconnect completes."),
-        shed_row(&prefetch, ResumeOwner::AutomaticOnPressureClear, "Prefetch stages back automatically after resume."),
+        shed_row(
+            &warmup,
+            ResumeOwner::RemoteReconnect,
+            "AI warmups stage back after reconnect completes.",
+        ),
+        shed_row(
+            &prefetch,
+            ResumeOwner::AutomaticOnPressureClear,
+            "Prefetch stages back automatically after resume.",
+        ),
     ];
     let audit = clean_render_audit(&runtime);
     let continuity = suspend_resume_continuity(page);
@@ -722,7 +781,8 @@ fn foreground_latency_regression_drill(page_ref: &str) -> RuntimeEfficiencyScena
         "os battery saver active",
     );
     let source = EfficiencyPressureSource::OsBatterySaver;
-    let prefetch = runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
+    let prefetch =
+        runtime.decide_workload(WorkloadFamily::SpeculativePrefetch, source, CORPUS_AS_OF);
     let shed = vec![shed_row(
         &prefetch,
         ResumeOwner::AutomaticOnPressureClear,
@@ -823,8 +883,16 @@ fn low_disk_preview_surface(page_ref: &str) -> RuntimeEfficiencyScenario {
     let upload = runtime.decide_workload(WorkloadFamily::UploadTransfer, source, CORPUS_AS_OF);
     let indexing = runtime.decide_workload(WorkloadFamily::IndexingRefresh, source, CORPUS_AS_OF);
     let shed = vec![
-        shed_row(&upload, ResumeOwner::UserResume, "Uploads resume after you free disk space."),
-        shed_row(&indexing, ResumeOwner::UserResume, "Indexing resumes after you free disk space."),
+        shed_row(
+            &upload,
+            ResumeOwner::UserResume,
+            "Uploads resume after you free disk space.",
+        ),
+        shed_row(
+            &indexing,
+            ResumeOwner::UserResume,
+            "Indexing resumes after you free disk space.",
+        ),
     ];
     let audit = clean_render_audit(&runtime);
     let governor = governor(

@@ -11,12 +11,12 @@
 //! cargo run -q -p aureline-policy --example dump_effective_policy_stabilize_fixtures -- drill-exception-preview-links-missing
 //! ```
 
-use aureline_policy::{
-    seeded_effective_policy_stabilize_page,
-    EffectivePolicyStabilizePage, EffectivePolicyStabilizeSupportExport,
-};
 use aureline_policy::simulation::{
     audit_policy_simulation_beta_page, seeded_policy_simulation_beta_page,
+};
+use aureline_policy::{
+    seeded_effective_policy_stabilize_page, EffectivePolicyStabilizePage,
+    EffectivePolicyStabilizeSupportExport,
 };
 
 fn main() {

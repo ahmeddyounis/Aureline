@@ -14,9 +14,8 @@
 //! ```
 
 use aureline_policy::{
-    seeded_open_vs_paid_boundary_input, seeded_open_vs_paid_boundary_page,
-    CapabilityBoundaryClass, CapabilityFamilyClass,
-    OpenVsPaidBoundaryPage, OpenVsPaidBoundarySupportExport,
+    seeded_open_vs_paid_boundary_input, seeded_open_vs_paid_boundary_page, CapabilityBoundaryClass,
+    CapabilityFamilyClass, OpenVsPaidBoundaryPage, OpenVsPaidBoundarySupportExport,
 };
 
 fn main() {

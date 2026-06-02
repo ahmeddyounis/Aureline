@@ -26,7 +26,10 @@ fn load_plan(name: &str) -> SettingsRepairPlan {
 #[test]
 fn reset_current_value_fixture_is_scope_explicit_and_ready() {
     let plan = load_plan("plan_reset_current_value.json");
-    assert_eq!(plan.shared_contract_ref, SETTINGS_REPAIR_PLAN_SHARED_CONTRACT_REF);
+    assert_eq!(
+        plan.shared_contract_ref,
+        SETTINGS_REPAIR_PLAN_SHARED_CONTRACT_REF
+    );
     assert_eq!(plan.action_class, "reset_current_value");
     assert_eq!(plan.target_scope, "workspace");
     assert_eq!(plan.target_scope_class, "workspace");
@@ -84,7 +87,10 @@ fn revert_migration_step_fixture_carries_migration_ref_and_checkpoint() {
     let plan = load_plan("plan_revert_migration_step.json");
     assert_eq!(plan.action_class, "revert_migration_step");
     assert!(plan.checkpoint_required);
-    let step = plan.migration_step.as_ref().expect("migration step present");
+    let step = plan
+        .migration_step
+        .as_ref()
+        .expect("migration step present");
     assert_eq!(step.transform_class, "narrow_enum");
     assert!(step.rollback_supported);
     assert_eq!(plan.verdict, "ready_to_apply");

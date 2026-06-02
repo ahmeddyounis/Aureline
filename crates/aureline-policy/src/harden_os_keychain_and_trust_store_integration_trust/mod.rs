@@ -292,10 +292,7 @@ impl TrustStoreChangeAttributionClass {
     /// True when this attribution class implies a managed-authority origin
     /// that must be traced back to a policy ref.
     pub const fn implies_managed_authority(self) -> bool {
-        matches!(
-            self,
-            Self::AdminPolicyPush | Self::MirrorSync
-        )
+        matches!(self, Self::AdminPolicyPush | Self::MirrorSync)
     }
 }
 
@@ -658,10 +655,7 @@ pub struct HardenOsKeychainTrustStoreSummary {
 }
 
 impl HardenOsKeychainTrustStoreSummary {
-    fn from_rows(
-        rows: &[TrustStoreLayerRow],
-        change_events: &[TrustStoreChangeEvent],
-    ) -> Self {
+    fn from_rows(rows: &[TrustStoreLayerRow], change_events: &[TrustStoreChangeEvent]) -> Self {
         let mut stable = 0usize;
         let mut beta = 0usize;
         let mut preview = 0usize;
@@ -1010,7 +1004,10 @@ fn audit_trust_store_rows(
     }
 
     // If any withdrawal reason was found, return immediately.
-    if defects.iter().any(|d| d.narrow_reason.is_withdrawal_reason()) {
+    if defects
+        .iter()
+        .any(|d| d.narrow_reason.is_withdrawal_reason())
+    {
         return defects;
     }
 
@@ -1073,7 +1070,10 @@ fn audit_trust_store_rows(
                 | SessionImpactClass::RouteBlockedNoLocalFallback
         );
         if requires_repair
-            && matches!(event.repair_action, TrustStoreRepairActionClass::NoneRequired)
+            && matches!(
+                event.repair_action,
+                TrustStoreRepairActionClass::NoneRequired
+            )
         {
             defects.push(HardenOsKeychainTrustStoreDefect::new(
                 HardenOsKeychainTrustStoreNarrowReasonClass::ChangeEventMissingRepairAction,
@@ -1093,10 +1093,11 @@ fn audit_trust_store_rows(
     }
 
     // Coverage check: all five required layers must appear at least once.
-    let required_layers: BTreeSet<&str> =
-        TrustStoreLayerClass::ALL.iter().map(|l| l.as_str()).collect();
-    let observed_layers: BTreeSet<&str> =
-        rows.iter().map(|r| r.layer_token.as_str()).collect();
+    let required_layers: BTreeSet<&str> = TrustStoreLayerClass::ALL
+        .iter()
+        .map(|l| l.as_str())
+        .collect();
+    let observed_layers: BTreeSet<&str> = rows.iter().map(|r| r.layer_token.as_str()).collect();
     for missing in required_layers.difference(&observed_layers) {
         defects.push(HardenOsKeychainTrustStoreDefect::new(
             HardenOsKeychainTrustStoreNarrowReasonClass::MissingLayerCoverage,
@@ -1147,9 +1148,7 @@ fn qualify_rows(
         } else if has_preview {
             HardenOsKeychainTrustStoreQualificationClass::Preview
         } else {
-            let row_has_defect = page_defects
-                .iter()
-                .any(|d| d.source == row.row_id);
+            let row_has_defect = page_defects.iter().any(|d| d.source == row.row_id);
             if row_has_defect || !page_defects.is_empty() {
                 HardenOsKeychainTrustStoreQualificationClass::Beta
             } else {

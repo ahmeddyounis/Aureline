@@ -49,9 +49,7 @@
 pub mod corpus;
 pub mod model;
 
-pub use corpus::{
-    learnability_disclosure_corpus, LearnabilityDisclosureScenario, CORPUS_AS_OF,
-};
+pub use corpus::{learnability_disclosure_corpus, LearnabilityDisclosureScenario, CORPUS_AS_OF};
 pub use model::{
     is_canonical_object_ref, is_command_file_symbol_anchor, required_recovery_actions,
     AccessibilityDisclosure, BuildError, ContextualDocsDisclosure, EntryRouteRecord, GlossaryChip,

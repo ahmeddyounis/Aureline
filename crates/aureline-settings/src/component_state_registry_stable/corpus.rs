@@ -43,12 +43,11 @@ use aureline_ui::themes::AccessibilityPostureClass;
 
 use super::model::{
     is_canonical_object_ref, required_recovery_routes, AccessibilityDisclosure,
-    CertificationClaimCeiling, CertificationInput, CertificationUpstream,
-    ComponentFamilyClass, ComponentFamilyRow, ComponentStateName,
-    ComponentStateRegistryCertification, EntryRouteRecord, ExtensionInheritanceRow, LayoutMode,
-    LayoutModeDisclosure, LifecycleMarker, NonColorCueClass, NormalizedStateRow,
-    RegistryBinding, RegistrySurfaceClass, RequiredAffordanceClass, RouteSurface, ShellZoneClass,
-    ShellZoneRow, StableClaimClass, StateFixtureRow, ZoneLayoutMode,
+    CertificationClaimCeiling, CertificationInput, CertificationUpstream, ComponentFamilyClass,
+    ComponentFamilyRow, ComponentStateName, ComponentStateRegistryCertification, EntryRouteRecord,
+    ExtensionInheritanceRow, LayoutMode, LayoutModeDisclosure, LifecycleMarker, NonColorCueClass,
+    NormalizedStateRow, RegistryBinding, RegistrySurfaceClass, RequiredAffordanceClass,
+    RouteSurface, ShellZoneClass, ShellZoneRow, StableClaimClass, StateFixtureRow, ZoneLayoutMode,
 };
 
 /// Snapshot timestamp pinned for every record in the corpus.
@@ -171,9 +170,14 @@ fn family_states(family: ComponentFamilyClass) -> Vec<ComponentStateName> {
             S::Stale,
             S::Partial,
         ],
-        ComponentFamilyClass::Palette => {
-            &[S::Hover, S::Focus, S::Selected, S::Loading, S::Warming, S::Error]
-        }
+        ComponentFamilyClass::Palette => &[
+            S::Hover,
+            S::Focus,
+            S::Selected,
+            S::Loading,
+            S::Warming,
+            S::Error,
+        ],
         ComponentFamilyClass::Popover => &[S::Hover, S::Focus, S::Disabled, S::Warning, S::Error],
         ComponentFamilyClass::Dialog => &[
             S::Focus,
@@ -197,9 +201,13 @@ fn family_states(family: ComponentFamilyClass) -> Vec<ComponentStateName> {
             S::Degraded,
             S::Error,
         ],
-        ComponentFamilyClass::InlineNotice => {
-            &[S::Warning, S::Error, S::Blocked, S::PolicyLocked, S::Degraded]
-        }
+        ComponentFamilyClass::InlineNotice => &[
+            S::Warning,
+            S::Error,
+            S::Blocked,
+            S::PolicyLocked,
+            S::Degraded,
+        ],
     };
     states.to_vec()
 }
@@ -226,19 +234,39 @@ fn family_cues(family: ComponentFamilyClass) -> Vec<NonColorCueClass> {
             vec![Cue::LabelText, Cue::Icon, Cue::Border, Cue::FocusRing]
         }
         ComponentFamilyClass::Tab | ComponentFamilyClass::Tree => {
-            vec![Cue::LabelText, Cue::Icon, Cue::FocusRing, Cue::SelectionMarker]
+            vec![
+                Cue::LabelText,
+                Cue::Icon,
+                Cue::FocusRing,
+                Cue::SelectionMarker,
+            ]
         }
         ComponentFamilyClass::Palette => {
-            vec![Cue::LabelText, Cue::Icon, Cue::FocusRing, Cue::ProgressIndicator]
+            vec![
+                Cue::LabelText,
+                Cue::Icon,
+                Cue::FocusRing,
+                Cue::ProgressIndicator,
+            ]
         }
         ComponentFamilyClass::Popover | ComponentFamilyClass::Dialog => {
-            vec![Cue::LabelText, Cue::Icon, Cue::Border, Cue::LockOrShieldGlyph]
+            vec![
+                Cue::LabelText,
+                Cue::Icon,
+                Cue::Border,
+                Cue::LockOrShieldGlyph,
+            ]
         }
         ComponentFamilyClass::Banner | ComponentFamilyClass::InlineNotice => {
             vec![Cue::LabelText, Cue::Icon, Cue::Border, Cue::Shape]
         }
         ComponentFamilyClass::JobRow => {
-            vec![Cue::LabelText, Cue::Icon, Cue::ProgressIndicator, Cue::Border]
+            vec![
+                Cue::LabelText,
+                Cue::Icon,
+                Cue::ProgressIndicator,
+                Cue::Border,
+            ]
         }
     }
 }
@@ -416,11 +444,7 @@ fn extension_inheritance_rows(
                 gap_disclosed_in_review: true,
                 gap_surfaced_in_diagnostics: true,
                 gap_surfaced_in_support_export: surfaced_in_support,
-                caveat: format!(
-                    "{} appearance: {}.",
-                    axis.label(),
-                    support.label()
-                ),
+                caveat: format!("{} appearance: {}.", axis.label(), support.label()),
                 waiver_ref: waiver,
                 conforms: false,
             }
@@ -489,7 +513,11 @@ fn state_fixture_rows() -> Vec<StateFixtureRow> {
         .rows
         .iter()
         .map(|row| {
-            let slug = format!("{}-{}", row.surface_class.as_str(), row.state_class.as_str());
+            let slug = format!(
+                "{}-{}",
+                row.surface_class.as_str(),
+                row.state_class.as_str()
+            );
             StateFixtureRow {
                 surface_class: row.surface_class,
                 state_class: row.state_class,
@@ -593,7 +621,10 @@ fn build_scenario(spec: &ScenarioSpec) -> ComponentStateRegistryScenario {
         upstream: upstream(contributing),
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_owned(),
         support_export_ref: SUPPORT_EXPORT_REF.to_owned(),
-        evidence_refs: vec![EVIDENCE_ARTIFACT_REF.to_owned(), EVIDENCE_FIXTURE_REF.to_owned()],
+        evidence_refs: vec![
+            EVIDENCE_ARTIFACT_REF.to_owned(),
+            EVIDENCE_FIXTURE_REF.to_owned(),
+        ],
         narrative_refs: vec![NARRATIVE_REF.to_owned()],
     };
     let record = ComponentStateRegistryCertification::build(input)

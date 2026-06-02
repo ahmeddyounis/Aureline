@@ -1109,10 +1109,9 @@ pub fn route_outcome_violations(outcome: &NotificationRouteOutcome) -> Vec<Strin
         tokens.insert("generic_home_reopen".to_owned());
     }
 
-    let durable_preserved = outcome
-        .resolved_surface_routes
-        .iter()
-        .any(|route| route_preserves_durable_path(route.fanout_surface_class, route.resolved_receipt_state));
+    let durable_preserved = outcome.resolved_surface_routes.iter().any(|route| {
+        route_preserves_durable_path(route.fanout_surface_class, route.resolved_receipt_state)
+    });
     if !durable_preserved {
         tokens.insert("durable_truth_lost".to_owned());
     }
@@ -1124,8 +1123,10 @@ pub fn route_outcome_violations(outcome: &NotificationRouteOutcome) -> Vec<Strin
         PrivacyPayloadClass::PolicyForbiddenOnLockScreen
     ) {
         for route in &outcome.resolved_surface_routes {
-            if matches!(route.fanout_surface_class, FanoutSurfaceClass::LockScreenSummary)
-                && route_is_visible(route.resolved_receipt_state)
+            if matches!(
+                route.fanout_surface_class,
+                FanoutSurfaceClass::LockScreenSummary
+            ) && route_is_visible(route.resolved_receipt_state)
             {
                 tokens.insert("lock_screen_leak".to_owned());
             }
@@ -1220,7 +1221,10 @@ fn build_drift_drills(
         let base = find_outcome(cases, "case:policy-change-admin-suppressed");
         let mut regressed = base.clone();
         for route in &mut regressed.resolved_surface_routes {
-            if matches!(route.fanout_surface_class, FanoutSurfaceClass::LockScreenSummary) {
+            if matches!(
+                route.fanout_surface_class,
+                FanoutSurfaceClass::LockScreenSummary
+            ) {
                 route.resolved_receipt_state = FanoutReceiptState::Delivered;
                 route.visible = true;
             }
@@ -1528,7 +1532,9 @@ fn build_overlay_parity() -> Vec<OverlayParityProof> {
 // Support export
 // ---------------------------------------------------------------------------
 
-fn build_support_export(cases: &[NotificationEnvelopeCorpusCase]) -> NotificationRouteOutcomeExport {
+fn build_support_export(
+    cases: &[NotificationEnvelopeCorpusCase],
+) -> NotificationRouteOutcomeExport {
     let rows = cases
         .iter()
         .map(|case| {
@@ -1721,7 +1727,10 @@ pub fn validate_notification_envelope_corpus_packet(
         errors.push(format!("packet record_kind is {}", packet.record_kind));
     }
     if packet.schema_version != NOTIFICATION_ENVELOPE_CORPUS_SCHEMA_VERSION {
-        errors.push(format!("packet schema_version is {}", packet.schema_version));
+        errors.push(format!(
+            "packet schema_version is {}",
+            packet.schema_version
+        ));
     }
     if packet.shared_contract_ref != NOTIFICATION_ENVELOPE_CORPUS_SHARED_CONTRACT_REF {
         errors.push(format!(
@@ -1856,11 +1865,7 @@ pub fn validate_notification_envelope_corpus_packet(
 
     // Overlay parity must hold for every overlay posture.
     for required in OverlayPosture::all() {
-        if !packet
-            .coverage
-            .overlay_postures_covered
-            .contains(&required)
-        {
+        if !packet.coverage.overlay_postures_covered.contains(&required) {
             errors.push(format!("missing overlay posture {}", required.as_str()));
         }
     }
@@ -1951,7 +1956,10 @@ fn join_tokens<'a>(tokens: impl Iterator<Item = &'a str>) -> String {
     }
 }
 
-fn surface_resolution_cell(outcome: &NotificationRouteOutcome, surface: FanoutSurfaceClass) -> String {
+fn surface_resolution_cell(
+    outcome: &NotificationRouteOutcome,
+    surface: FanoutSurfaceClass,
+) -> String {
     match outcome
         .resolved_surface_routes
         .iter()
@@ -1985,9 +1993,7 @@ pub fn render_notification_privacy_and_route_audit_markdown(
         "- Shared contract ref: `{}`\n",
         packet.shared_contract_ref
     ));
-    out.push_str(
-        "- Route-outcome schema: `schemas/ux/notification_route_outcome.schema.json`\n",
-    );
+    out.push_str("- Route-outcome schema: `schemas/ux/notification_route_outcome.schema.json`\n");
     out.push_str(&format!("- Generated at: `{}`\n", packet.generated_at));
     out.push_str(&format!(
         "- Cases: {} across {} beta attention families\n",
@@ -2007,9 +2013,7 @@ pub fn render_notification_privacy_and_route_audit_markdown(
     out.push_str(
         "| Case | Family | Window | durable_job_row | status_item | activity_center_digest_card | contextual_banner | toast | os_notification | lock_screen_summary | companion_push |\n",
     );
-    out.push_str(
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n",
-    );
+    out.push_str("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
     for case in &packet.cases {
         out.push_str(&format!(
             "| `{case}` | `{family}` | `{window}` | {djr} | {si} | {acdc} | {cb} | {toast} | {os} | {ls} | {cp} |\n",
@@ -2228,7 +2232,12 @@ pub fn render_notification_route_outcome_export_report_markdown(
     ));
     out.push_str(&format!(
         "| Route and outcome reconstructable per surface | {} |\n",
-        pass_fail(export.rows.iter().all(|r| !r.surface_resolutions.is_empty()))
+        pass_fail(
+            export
+                .rows
+                .iter()
+                .all(|r| !r.surface_resolutions.is_empty())
+        )
     ));
 
     out
@@ -2415,8 +2424,7 @@ mod tests {
     #[test]
     fn seeded_packet_validates() {
         let packet = seeded_notification_envelope_corpus_packet();
-        validate_notification_envelope_corpus_packet(&packet)
-            .expect("seeded packet must validate");
+        validate_notification_envelope_corpus_packet(&packet).expect("seeded packet must validate");
     }
 
     #[test]
@@ -2471,8 +2479,16 @@ mod tests {
     fn overlays_preserve_durable_semantics_and_reopen() {
         let packet = seeded_notification_envelope_corpus_packet();
         for overlay in &packet.overlay_parity {
-            assert!(overlay.durable_resolution_matches_baseline, "{}", overlay.parity_id);
-            assert!(overlay.reopen_target_matches_baseline, "{}", overlay.parity_id);
+            assert!(
+                overlay.durable_resolution_matches_baseline,
+                "{}",
+                overlay.parity_id
+            );
+            assert!(
+                overlay.reopen_target_matches_baseline,
+                "{}",
+                overlay.parity_id
+            );
         }
         // Presentation and follow overlays must dim audience surfaces.
         for overlay in &packet.overlay_parity {

@@ -46,7 +46,9 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::harden_browser_handoff_and_in_product_review_boundaries::{InProductReviewBoundaryRecord, ReviewBoundaryHardeningRecord};
+use crate::harden_browser_handoff_and_in_product_review_boundaries::{
+    InProductReviewBoundaryRecord, ReviewBoundaryHardeningRecord,
+};
 use crate::landing::LandingCandidateRecord;
 use crate::review_pack_parity_harness::ReviewPackParityHarnessRecord;
 use crate::stabilize_provider_linked_object_models_snapshot_freshness_and::ProviderLinkedReviewStabilizationRecord;
@@ -843,12 +845,8 @@ impl MergeQueueCiStatusBrowserHandoffAuditPacket {
             .iter()
             .map(|c| audit_command_record(c, &audit))
             .collect::<Vec<_>>();
-        let support_export = audit_support_export_packet(
-            &input.support_export,
-            &audit,
-            landing_packet,
-            &commands,
-        );
+        let support_export =
+            audit_support_export_packet(&input.support_export, &audit, landing_packet, &commands);
         let inspection = audit_inspection_record(
             &audit,
             &merge_queue_audit,
@@ -913,10 +911,7 @@ impl MergeQueueCiStatusBrowserHandoffAuditPacket {
             &self.boundary_hardening.boundary_hardening_id,
             &self.provider_linked_stabilization.stabilization_id,
         )?;
-        validate_merge_queue_audit_record(
-            &self.merge_queue_audit,
-            &self.audit.audit_id,
-        )?;
+        validate_merge_queue_audit_record(&self.merge_queue_audit, &self.audit.audit_id)?;
         for check in &self.ci_check_audits {
             validate_ci_check_audit_record(check, &self.audit.audit_id)?;
         }
@@ -960,8 +955,7 @@ impl MergeQueueCiStatusBrowserHandoffAuditPacket {
 
         // Browser-handoff audit must match boundary-hardening state when present
         for handoff in &self.browser_handoff_audits {
-            if handoff.reversible
-                && handoff.handoff_boundary_class != "handoff_audited_reversible"
+            if handoff.reversible && handoff.handoff_boundary_class != "handoff_audited_reversible"
             {
                 return Err(audit_validation_error(format!(
                     "browser_handoff {} is reversible but class is not handoff_audited_reversible",
@@ -1048,10 +1042,14 @@ pub fn project_merge_queue_ci_status_browser_handoff_audit_packet(
 ) -> Result<MergeQueueCiStatusBrowserHandoffAuditProjection, AuditError> {
     let packet: MergeQueueCiStatusBrowserHandoffAuditPacket = serde_json::from_str(payload)?;
     packet.validate()?;
-    Ok(MergeQueueCiStatusBrowserHandoffAuditProjection::from(packet))
+    Ok(MergeQueueCiStatusBrowserHandoffAuditProjection::from(
+        packet,
+    ))
 }
 
-impl From<MergeQueueCiStatusBrowserHandoffAuditPacket> for MergeQueueCiStatusBrowserHandoffAuditProjection {
+impl From<MergeQueueCiStatusBrowserHandoffAuditPacket>
+    for MergeQueueCiStatusBrowserHandoffAuditProjection
+{
     fn from(packet: MergeQueueCiStatusBrowserHandoffAuditPacket) -> Self {
         Self {
             packet_id: packet.packet_id,
@@ -1163,10 +1161,19 @@ fn audit_record(
         schema_version: MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
         audit_id: input.audit_id.clone(),
         review_workspace_id_ref: landing_packet.review_workspace.review_workspace_id.clone(),
-        landing_candidate_id_ref: landing_packet.landing_candidate.landing_candidate_id.clone(),
+        landing_candidate_id_ref: landing_packet
+            .landing_candidate
+            .landing_candidate_id
+            .clone(),
         stabilization_id_ref: stabilization_packet.stabilization.stabilization_id.clone(),
-        boundary_hardening_id_ref: boundary_hardening_packet.boundary_hardening.boundary_hardening_id.clone(),
-        provider_linked_stabilization_id_ref: provider_linked_packet.stabilization.stabilization_id.clone(),
+        boundary_hardening_id_ref: boundary_hardening_packet
+            .boundary_hardening
+            .boundary_hardening_id
+            .clone(),
+        provider_linked_stabilization_id_ref: provider_linked_packet
+            .stabilization
+            .stabilization_id
+            .clone(),
         audit_state: input.audit_state.clone(),
         invalidation_reasons,
         blocked_reasons,
@@ -1326,10 +1333,12 @@ fn audit_support_export_packet(
         command_id_refs: commands.iter().map(|c| c.command_id.clone()).collect(),
         consumer_surfaces: input.consumer_surfaces.clone(),
         source_schema_refs: vec![
-            "schemas/review/harden_merge_queue_ci_status_and_browser_handoff.schema.json".to_string(),
+            "schemas/review/harden_merge_queue_ci_status_and_browser_handoff.schema.json"
+                .to_string(),
             "schemas/review/landing_candidate.schema.json".to_string(),
             "schemas/review/review_stabilization.schema.json".to_string(),
-            "schemas/review/harden_browser_handoff_and_in_product_review_boundaries.schema.json".to_string(),
+            "schemas/review/harden_browser_handoff_and_in_product_review_boundaries.schema.json"
+                .to_string(),
             "schemas/review/provider_linked_review_stabilization.schema.json".to_string(),
             "schemas/review/review_pack_parity_harness.schema.json".to_string(),
         ],
@@ -1356,37 +1365,49 @@ fn audit_inspection_record(
     let run_controls_audited = !run_control_audits.is_empty();
     let browser_handoffs_audited = !browser_handoff_audits.is_empty();
 
-    let all_provider_rows_claimed_stable = pipeline_overlay_audits.iter().all(|o| {
-        o.artifact_trust_class != "subset_unqualified_downgraded"
-    }) && run_control_audits.iter().all(|c| {
-        c.mutation_mode != "inspect_only"
-    });
+    let all_provider_rows_claimed_stable = pipeline_overlay_audits
+        .iter()
+        .all(|o| o.artifact_trust_class != "subset_unqualified_downgraded")
+        && run_control_audits
+            .iter()
+            .all(|c| c.mutation_mode != "inspect_only");
 
-    let any_provider_row_downgraded = pipeline_overlay_audits.iter().any(|o| {
-        o.artifact_trust_class == "subset_unqualified_downgraded"
-    }) || run_control_audits.iter().any(|c| {
-        c.mutation_mode == "inspect_only"
-    }) || ci_check_audits.iter().any(|c| {
-        c.freshness_class == "check_stale_blocks_mutation" || c.freshness_class == "check_freshness_unknown"
-    });
+    let any_provider_row_downgraded = pipeline_overlay_audits
+        .iter()
+        .any(|o| o.artifact_trust_class == "subset_unqualified_downgraded")
+        || run_control_audits
+            .iter()
+            .any(|c| c.mutation_mode == "inspect_only")
+        || ci_check_audits.iter().any(|c| {
+            c.freshness_class == "check_stale_blocks_mutation"
+                || c.freshness_class == "check_freshness_unknown"
+        });
 
-    let hidden_authority_detected = browser_handoff_audits.iter().any(|b| {
-        b.handoff_boundary_class == "handoff_downgraded_untyped"
-    });
+    let hidden_authority_detected = browser_handoff_audits
+        .iter()
+        .any(|b| b.handoff_boundary_class == "handoff_downgraded_untyped");
 
-    let stale_overlay_present = pipeline_overlay_audits.iter().any(|o| {
-        o.provider_source_class == "cached_provider_overlay"
-    }) || ci_check_audits.iter().any(|c| {
-        c.freshness_class == "check_stale_within_grace" || c.freshness_class == "check_stale_blocks_mutation"
-    });
+    let stale_overlay_present = pipeline_overlay_audits
+        .iter()
+        .any(|o| o.provider_source_class == "cached_provider_overlay")
+        || ci_check_audits.iter().any(|c| {
+            c.freshness_class == "check_stale_within_grace"
+                || c.freshness_class == "check_stale_blocks_mutation"
+        });
 
-    let inspect_only_controls_present = run_control_audits.iter().any(|c| c.mutation_mode == "inspect_only");
-    let provider_controlled_controls_present = run_control_audits.iter().any(|c| c.mutation_mode == "provider_controlled");
-    let auditable_in_product_controls_present = run_control_audits.iter().any(|c| c.mutation_mode == "auditable_in_product");
+    let inspect_only_controls_present = run_control_audits
+        .iter()
+        .any(|c| c.mutation_mode == "inspect_only");
+    let provider_controlled_controls_present = run_control_audits
+        .iter()
+        .any(|c| c.mutation_mode == "provider_controlled");
+    let auditable_in_product_controls_present = run_control_audits
+        .iter()
+        .any(|c| c.mutation_mode == "auditable_in_product");
 
-    let divergence_labels_present = ci_check_audits.iter().any(|c| {
-        c.divergence_label_class != "no_divergence"
-    });
+    let divergence_labels_present = ci_check_audits
+        .iter()
+        .any(|c| c.divergence_label_class != "no_divergence");
 
     let actionable = audit.actionable;
     let invalidated = !audit.invalidation_reasons.is_empty();
@@ -1452,18 +1473,23 @@ fn derive_invalidation_reasons(input: &MergeQueueCiStatusBrowserHandoffAuditInpu
         reasons.push("merge_queue_diverged".to_string());
     }
     if input.ci_check_audits.iter().any(|c| {
-        c.freshness_class == "check_stale_blocks_mutation" || c.freshness_class == "check_freshness_unknown"
+        c.freshness_class == "check_stale_blocks_mutation"
+            || c.freshness_class == "check_freshness_unknown"
     }) {
         reasons.push("ci_check_stale".to_string());
     }
-    if input.pipeline_overlay_audits.iter().any(|o| {
-        o.artifact_trust_class == "subset_unqualified_downgraded"
-    }) {
+    if input
+        .pipeline_overlay_audits
+        .iter()
+        .any(|o| o.artifact_trust_class == "subset_unqualified_downgraded")
+    {
         reasons.push("pipeline_overlay_unqualified".to_string());
     }
-    if input.browser_handoff_audits.iter().any(|b| {
-        b.handoff_boundary_class == "handoff_downgraded_untyped"
-    }) {
+    if input
+        .browser_handoff_audits
+        .iter()
+        .any(|b| b.handoff_boundary_class == "handoff_downgraded_untyped")
+    {
         reasons.push("browser_handoff_untyped".to_string());
     }
     reasons
@@ -1528,11 +1554,18 @@ fn validate_input(
         &input.merge_queue_audit.queue_authority_class,
         "merge_queue_audit.queue_authority_class",
     )?;
-    ensure_nonempty(&input.merge_queue_audit.summary_label, "merge_queue_audit.summary_label")?;
+    ensure_nonempty(
+        &input.merge_queue_audit.summary_label,
+        "merge_queue_audit.summary_label",
+    )?;
 
     for check in &input.ci_check_audits {
         ensure_nonempty(&check.check_audit_id, "ci_check_audit.check_audit_id")?;
-        ensure_token(CI_CHECK_FRESHNESS_CLASSES, &check.freshness_class, "ci_check_audit.freshness_class")?;
+        ensure_token(
+            CI_CHECK_FRESHNESS_CLASSES,
+            &check.freshness_class,
+            "ci_check_audit.freshness_class",
+        )?;
         ensure_token(
             CI_CHECK_DIVERGENCE_CLASSES,
             &check.divergence_label_class,
@@ -1542,52 +1575,124 @@ fn validate_input(
     }
 
     for overlay in &input.pipeline_overlay_audits {
-        ensure_nonempty(&overlay.overlay_audit_id, "pipeline_overlay_audit.overlay_audit_id")?;
+        ensure_nonempty(
+            &overlay.overlay_audit_id,
+            "pipeline_overlay_audit.overlay_audit_id",
+        )?;
         ensure_nonempty(&overlay.overlay_kind, "pipeline_overlay_audit.overlay_kind")?;
-        ensure_nonempty(&overlay.provider_source_class, "pipeline_overlay_audit.provider_source_class")?;
-        ensure_nonempty(&overlay.artifact_trust_class, "pipeline_overlay_audit.artifact_trust_class")?;
-        ensure_nonempty(&overlay.mutation_mode_disclosure, "pipeline_overlay_audit.mutation_mode_disclosure")?;
-        ensure_nonempty(&overlay.summary_label, "pipeline_overlay_audit.summary_label")?;
+        ensure_nonempty(
+            &overlay.provider_source_class,
+            "pipeline_overlay_audit.provider_source_class",
+        )?;
+        ensure_nonempty(
+            &overlay.artifact_trust_class,
+            "pipeline_overlay_audit.artifact_trust_class",
+        )?;
+        ensure_nonempty(
+            &overlay.mutation_mode_disclosure,
+            "pipeline_overlay_audit.mutation_mode_disclosure",
+        )?;
+        ensure_nonempty(
+            &overlay.summary_label,
+            "pipeline_overlay_audit.summary_label",
+        )?;
     }
 
     for control in &input.run_control_audits {
-        ensure_nonempty(&control.run_control_audit_id, "run_control_audit.run_control_audit_id")?;
-        ensure_token(RUN_CONTROL_MUTATION_MODES, &control.mutation_mode, "run_control_audit.mutation_mode")?;
-        ensure_nonempty(&control.provider_scope_disclosure, "run_control_audit.provider_scope_disclosure")?;
-        ensure_nonempty(&control.actor_mode_disclosure, "run_control_audit.actor_mode_disclosure")?;
-        ensure_nonempty(&control.target_run_identity, "run_control_audit.target_run_identity")?;
-        ensure_nonempty(&control.review_pack_digest_ref, "run_control_audit.review_pack_digest_ref")?;
-        ensure_nonempty(&control.base_revision_ref, "run_control_audit.base_revision_ref")?;
-        ensure_nonempty(&control.head_revision_ref, "run_control_audit.head_revision_ref")?;
+        ensure_nonempty(
+            &control.run_control_audit_id,
+            "run_control_audit.run_control_audit_id",
+        )?;
+        ensure_token(
+            RUN_CONTROL_MUTATION_MODES,
+            &control.mutation_mode,
+            "run_control_audit.mutation_mode",
+        )?;
+        ensure_nonempty(
+            &control.provider_scope_disclosure,
+            "run_control_audit.provider_scope_disclosure",
+        )?;
+        ensure_nonempty(
+            &control.actor_mode_disclosure,
+            "run_control_audit.actor_mode_disclosure",
+        )?;
+        ensure_nonempty(
+            &control.target_run_identity,
+            "run_control_audit.target_run_identity",
+        )?;
+        ensure_nonempty(
+            &control.review_pack_digest_ref,
+            "run_control_audit.review_pack_digest_ref",
+        )?;
+        ensure_nonempty(
+            &control.base_revision_ref,
+            "run_control_audit.base_revision_ref",
+        )?;
+        ensure_nonempty(
+            &control.head_revision_ref,
+            "run_control_audit.head_revision_ref",
+        )?;
         ensure_nonempty(&control.summary_label, "run_control_audit.summary_label")?;
     }
 
     for handoff in &input.browser_handoff_audits {
-        ensure_nonempty(&handoff.handoff_audit_id, "browser_handoff_audit.handoff_audit_id")?;
+        ensure_nonempty(
+            &handoff.handoff_audit_id,
+            "browser_handoff_audit.handoff_audit_id",
+        )?;
         ensure_token(
             BROWSER_HANDOFF_AUDIT_CLASSES,
             &handoff.handoff_boundary_class,
             "browser_handoff_audit.handoff_boundary_class",
         )?;
-        ensure_nonempty(&handoff.provider_class, "browser_handoff_audit.provider_class")?;
+        ensure_nonempty(
+            &handoff.provider_class,
+            "browser_handoff_audit.provider_class",
+        )?;
         ensure_nonempty(&handoff.actor_ref, "browser_handoff_audit.actor_ref")?;
-        ensure_nonempty(&handoff.summary_label, "browser_handoff_audit.summary_label")?;
+        ensure_nonempty(
+            &handoff.summary_label,
+            "browser_handoff_audit.summary_label",
+        )?;
     }
 
     for command in &input.commands {
         ensure_nonempty(&command.command_id, "command.command_id")?;
-        ensure_token(AUDIT_COMMAND_CLASSES, &command.command_class, "command.command_class")?;
+        ensure_token(
+            AUDIT_COMMAND_CLASSES,
+            &command.command_class,
+            "command.command_class",
+        )?;
         ensure_nonempty(&command.summary_label, "command.summary_label")?;
     }
 
-    ensure_nonempty(&input.support_export.support_export_id, "support_export.support_export_id")?;
-    ensure_nonempty(&input.support_export.reopen_context_ref, "support_export.reopen_context_ref")?;
-    ensure_nonempty(&input.support_export.reopen_command_id_ref, "support_export.reopen_command_id_ref")?;
+    ensure_nonempty(
+        &input.support_export.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &input.support_export.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
+    ensure_nonempty(
+        &input.support_export.reopen_command_id_ref,
+        "support_export.reopen_command_id_ref",
+    )?;
     for surface in &input.support_export.consumer_surfaces {
-        ensure_token(AUDIT_CONSUMER_SURFACES, surface, "support_export.consumer_surface")?;
+        ensure_token(
+            AUDIT_CONSUMER_SURFACES,
+            surface,
+            "support_export.consumer_surface",
+        )?;
     }
-    ensure_nonempty(&input.support_export.redaction_class, "support_export.redaction_class")?;
-    ensure_nonempty(&input.support_export.summary_label, "support_export.summary_label")?;
+    ensure_nonempty(
+        &input.support_export.redaction_class,
+        "support_export.redaction_class",
+    )?;
+    ensure_nonempty(
+        &input.support_export.summary_label,
+        "support_export.summary_label",
+    )?;
 
     // Cross-packet consistency
     if landing_packet.review_workspace.review_workspace_id
@@ -1598,7 +1703,9 @@ fn validate_input(
         ));
     }
     if stabilization_packet.review_workspace.review_workspace_id
-        != boundary_hardening_packet.review_workspace.review_workspace_id
+        != boundary_hardening_packet
+            .review_workspace
+            .review_workspace_id
     {
         return Err(audit_validation_error(
             "stabilization and boundary_hardening packets must share the same review_workspace_id",
@@ -1614,7 +1721,9 @@ fn validate_input(
 
     // Run-control review-pack digest must match stabilization when present
     for control in &input.run_control_audits {
-        if control.review_pack_digest_ref != stabilization_packet.stabilization.review_pack_digest_ref {
+        if control.review_pack_digest_ref
+            != stabilization_packet.stabilization.review_pack_digest_ref
+        {
             return Err(audit_validation_error(format!(
                 "run_control {} review_pack_digest_ref must match stabilization review_pack_digest_ref",
                 control.run_control_audit_id
@@ -1677,10 +1786,25 @@ fn validate_merge_queue_audit_record(
     record: &MergeQueueAuditRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), MERGE_QUEUE_AUDIT_RECORD_KIND, "merge_queue_audit record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "merge_queue_audit schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "merge_queue_audit audit_id_ref")?;
-    ensure_nonempty(&record.merge_queue_entry_id_ref, "merge_queue_audit merge_queue_entry_id_ref")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        MERGE_QUEUE_AUDIT_RECORD_KIND,
+        "merge_queue_audit record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "merge_queue_audit schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "merge_queue_audit audit_id_ref",
+    )?;
+    ensure_nonempty(
+        &record.merge_queue_entry_id_ref,
+        "merge_queue_audit merge_queue_entry_id_ref",
+    )?;
     Ok(())
 }
 
@@ -1688,11 +1812,27 @@ fn validate_ci_check_audit_record(
     record: &CiCheckAuditRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), CI_CHECK_AUDIT_RECORD_KIND, "ci_check_audit record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "ci_check_audit schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "ci_check_audit audit_id_ref")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        CI_CHECK_AUDIT_RECORD_KIND,
+        "ci_check_audit record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "ci_check_audit schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "ci_check_audit audit_id_ref",
+    )?;
     ensure_nonempty(&record.check_audit_id, "ci_check_audit check_audit_id")?;
-    ensure_token(CI_CHECK_FRESHNESS_CLASSES, &record.freshness_class, "ci_check_audit freshness_class")?;
+    ensure_token(
+        CI_CHECK_FRESHNESS_CLASSES,
+        &record.freshness_class,
+        "ci_check_audit freshness_class",
+    )?;
     ensure_token(
         CI_CHECK_DIVERGENCE_CLASSES,
         &record.divergence_label_class,
@@ -1705,10 +1845,25 @@ fn validate_pipeline_overlay_audit_record(
     record: &PipelineOverlayAuditRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), PIPELINE_OVERLAY_AUDIT_RECORD_KIND, "pipeline_overlay_audit record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "pipeline_overlay_audit schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "pipeline_overlay_audit audit_id_ref")?;
-    ensure_nonempty(&record.overlay_audit_id, "pipeline_overlay_audit overlay_audit_id")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        PIPELINE_OVERLAY_AUDIT_RECORD_KIND,
+        "pipeline_overlay_audit record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "pipeline_overlay_audit schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "pipeline_overlay_audit audit_id_ref",
+    )?;
+    ensure_nonempty(
+        &record.overlay_audit_id,
+        "pipeline_overlay_audit overlay_audit_id",
+    )?;
     Ok(())
 }
 
@@ -1716,11 +1871,30 @@ fn validate_run_control_audit_record(
     record: &RunControlAuditRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), RUN_CONTROL_AUDIT_RECORD_KIND, "run_control_audit record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "run_control_audit schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "run_control_audit audit_id_ref")?;
-    ensure_nonempty(&record.run_control_audit_id, "run_control_audit run_control_audit_id")?;
-    ensure_token(RUN_CONTROL_MUTATION_MODES, &record.mutation_mode, "run_control_audit mutation_mode")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        RUN_CONTROL_AUDIT_RECORD_KIND,
+        "run_control_audit record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "run_control_audit schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "run_control_audit audit_id_ref",
+    )?;
+    ensure_nonempty(
+        &record.run_control_audit_id,
+        "run_control_audit run_control_audit_id",
+    )?;
+    ensure_token(
+        RUN_CONTROL_MUTATION_MODES,
+        &record.mutation_mode,
+        "run_control_audit mutation_mode",
+    )?;
     Ok(())
 }
 
@@ -1728,10 +1902,25 @@ fn validate_browser_handoff_audit_record(
     record: &BrowserHandoffAuditRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), BROWSER_HANDOFF_AUDIT_RECORD_KIND, "browser_handoff_audit record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "browser_handoff_audit schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "browser_handoff_audit audit_id_ref")?;
-    ensure_nonempty(&record.handoff_audit_id, "browser_handoff_audit handoff_audit_id")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        BROWSER_HANDOFF_AUDIT_RECORD_KIND,
+        "browser_handoff_audit record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "browser_handoff_audit schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "browser_handoff_audit audit_id_ref",
+    )?;
+    ensure_nonempty(
+        &record.handoff_audit_id,
+        "browser_handoff_audit handoff_audit_id",
+    )?;
     ensure_token(
         BROWSER_HANDOFF_AUDIT_CLASSES,
         &record.handoff_boundary_class,
@@ -1744,11 +1933,27 @@ fn validate_command_record(
     record: &AuditCommandRecord,
     audit_id: &str,
 ) -> Result<(), AuditValidationError> {
-    ensure_eq(record.record_kind.as_str(), AUDIT_COMMAND_RECORD_KIND, "command record_kind")?;
-    ensure_eq(record.schema_version, MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, "command schema_version")?;
-    ensure_eq(record.audit_id_ref.as_str(), audit_id, "command audit_id_ref")?;
+    ensure_eq(
+        record.record_kind.as_str(),
+        AUDIT_COMMAND_RECORD_KIND,
+        "command record_kind",
+    )?;
+    ensure_eq(
+        record.schema_version,
+        MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
+        "command schema_version",
+    )?;
+    ensure_eq(
+        record.audit_id_ref.as_str(),
+        audit_id,
+        "command audit_id_ref",
+    )?;
     ensure_nonempty(&record.command_id, "command command_id")?;
-    ensure_token(AUDIT_COMMAND_CLASSES, &record.command_class, "command command_class")?;
+    ensure_token(
+        AUDIT_COMMAND_CLASSES,
+        &record.command_class,
+        "command command_class",
+    )?;
     Ok(())
 }
 
@@ -1767,14 +1972,20 @@ fn validate_support_export(
         MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION,
         "support_export schema_version",
     )?;
-    ensure_eq(export.audit_id_ref.as_str(), audit.audit_id.as_str(), "support_export audit_id_ref")?;
+    ensure_eq(
+        export.audit_id_ref.as_str(),
+        audit.audit_id.as_str(),
+        "support_export audit_id_ref",
+    )?;
     ensure_eq(
         export.review_workspace_id_ref.as_str(),
         audit.review_workspace_id_ref.as_str(),
         "support_export review_workspace_id_ref",
     )?;
     if export.raw_url_export_allowed {
-        return Err(audit_validation_error("support_export raw_url_export_allowed must be false"));
+        return Err(audit_validation_error(
+            "support_export raw_url_export_allowed must be false",
+        ));
     }
     if export.raw_provider_payload_export_allowed {
         return Err(audit_validation_error(
@@ -1814,21 +2025,30 @@ fn validate_inspection(
         "inspection review_workspace_id_ref",
     )?;
     if inspection.ci_check_audit_count != packet.ci_check_audits.len() {
-        return Err(audit_validation_error("inspection ci_check_audit_count mismatch"));
+        return Err(audit_validation_error(
+            "inspection ci_check_audit_count mismatch",
+        ));
     }
     if inspection.pipeline_overlay_audit_count != packet.pipeline_overlay_audits.len() {
-        return Err(audit_validation_error("inspection pipeline_overlay_audit_count mismatch"));
+        return Err(audit_validation_error(
+            "inspection pipeline_overlay_audit_count mismatch",
+        ));
     }
     if inspection.run_control_audit_count != packet.run_control_audits.len() {
-        return Err(audit_validation_error("inspection run_control_audit_count mismatch"));
+        return Err(audit_validation_error(
+            "inspection run_control_audit_count mismatch",
+        ));
     }
     if inspection.browser_handoff_audit_count != packet.browser_handoff_audits.len() {
-        return Err(audit_validation_error("inspection browser_handoff_audit_count mismatch"));
+        return Err(audit_validation_error(
+            "inspection browser_handoff_audit_count mismatch",
+        ));
     }
     if inspection.command_count != packet.commands.len() {
         return Err(audit_validation_error("inspection command_count mismatch"));
     }
-    if inspection.hidden_authority_detected != packet.in_product_boundary.hidden_authority_detected {
+    if inspection.hidden_authority_detected != packet.in_product_boundary.hidden_authority_detected
+    {
         return Err(audit_validation_error(
             "inspection hidden_authority_detected must match in_product_boundary.hidden_authority_detected",
         ));
@@ -1840,11 +2060,7 @@ fn validate_inspection(
 // Validation utilities
 // ---------------------------------------------------------------------------
 
-fn ensure_eq<T>(
-    left: T,
-    right: T,
-    field: &str,
-) -> Result<(), AuditValidationError>
+fn ensure_eq<T>(left: T, right: T, field: &str) -> Result<(), AuditValidationError>
 where
     T: PartialEq + fmt::Display,
 {
@@ -1863,11 +2079,7 @@ fn ensure_nonempty(value: &str, field: &str) -> Result<(), AuditValidationError>
     Ok(())
 }
 
-fn ensure_token(
-    tokens: &[&str],
-    value: &str,
-    field: &str,
-) -> Result<(), AuditValidationError> {
+fn ensure_token(tokens: &[&str], value: &str, field: &str) -> Result<(), AuditValidationError> {
     if !tokens.contains(&value) {
         return Err(audit_validation_error(format!(
             "{field} must be one of {tokens:?}, got {value}"

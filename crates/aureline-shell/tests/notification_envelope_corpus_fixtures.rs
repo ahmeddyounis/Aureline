@@ -13,7 +13,6 @@
 //! quiet-hours drift fail the lane and produce actionable diff artifacts.
 
 use aureline_shell::attention_router::ChannelResolutionClass;
-use aureline_shell::notifications::envelope::{FanoutSurfaceClass, PrivacyPayloadClass};
 use aureline_shell::notification_envelope_corpus::{
     render_notification_privacy_and_route_audit_markdown,
     render_notification_route_conformance_markdown,
@@ -24,6 +23,7 @@ use aureline_shell::notification_envelope_corpus::{
     ReopenProofClass, RouteDriftDrill, RouteDriftViolation,
     NOTIFICATION_ENVELOPE_CORPUS_SCHEMA_VERSION, NOTIFICATION_ENVELOPE_CORPUS_SHARED_CONTRACT_REF,
 };
+use aureline_shell::notifications::envelope::{FanoutSurfaceClass, PrivacyPayloadClass};
 
 const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -65,7 +65,10 @@ fn packet_fixture_matches_seeded_builder() {
         on_disk.shared_contract_ref,
         NOTIFICATION_ENVELOPE_CORPUS_SHARED_CONTRACT_REF
     );
-    assert_eq!(on_disk.schema_version, NOTIFICATION_ENVELOPE_CORPUS_SCHEMA_VERSION);
+    assert_eq!(
+        on_disk.schema_version,
+        NOTIFICATION_ENVELOPE_CORPUS_SCHEMA_VERSION
+    );
     validate_notification_envelope_corpus_packet(&on_disk).expect("fixture packet must validate");
 }
 
@@ -123,7 +126,10 @@ fn corpus_covers_the_full_resolution_class_and_reopen_proof_set() {
         ReopenProofClass::DeniedRequiresRevalidation,
     ] {
         assert!(
-            packet.coverage.reopen_proof_classes_covered.contains(&proof),
+            packet
+                .coverage
+                .reopen_proof_classes_covered
+                .contains(&proof),
             "missing reopen proof {}",
             proof.as_str()
         );
@@ -143,12 +149,17 @@ fn every_case_keeps_one_reopen_target_durable_truth_and_no_generic_home() {
             route_outcome_violations(&case.outcome)
         );
         let outcome = &case.outcome;
-        assert!(outcome.all_routes_preserve_reopen_target, "{}", case.case_id);
+        assert!(
+            outcome.all_routes_preserve_reopen_target,
+            "{}",
+            case.case_id
+        );
         assert!(outcome.durable_truth_preserved, "{}", case.case_id);
         assert!(outcome.no_generic_home_reopen, "{}", case.case_id);
         for route in &outcome.resolved_surface_routes {
             assert_eq!(
-                route.reopen_target_ref, outcome.reopen_target.reopen_target_ref,
+                route.reopen_target_ref,
+                outcome.reopen_target.reopen_target_ref,
                 "{}: surface {} diverged",
                 case.case_id,
                 route.fanout_surface_class.as_str()
@@ -162,7 +173,10 @@ fn drift_drills_fail_the_lane_and_carry_actionable_diffs() {
     let packet: NotificationEnvelopeCorpusPacket = load("packet.json");
     for required in RouteDriftViolation::all() {
         assert!(
-            packet.drift_drills.iter().any(|d| d.violation_class == required),
+            packet
+                .drift_drills
+                .iter()
+                .any(|d| d.violation_class == required),
             "missing drift drill {}",
             required.as_str()
         );
@@ -264,7 +278,10 @@ fn lock_screen_summary_never_renders_when_payload_forbids_it() {
             PrivacyPayloadClass::PolicyForbiddenOnLockScreen
         ) {
             for route in &case.outcome.resolved_surface_routes {
-                if matches!(route.fanout_surface_class, FanoutSurfaceClass::LockScreenSummary) {
+                if matches!(
+                    route.fanout_surface_class,
+                    FanoutSurfaceClass::LockScreenSummary
+                ) {
                     assert!(
                         !route.visible,
                         "{}: forbidden lock-screen summary rendered",

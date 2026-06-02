@@ -77,13 +77,7 @@ fn locate_case<'a>(
     cases
         .iter()
         .find(|case| case.surface_family == family)
-        .ok_or_else(|| {
-            format!(
-                "no seeded case for surface family {}",
-                family.as_str()
-            )
-            .into()
-        })
+        .ok_or_else(|| format!("no seeded case for surface family {}", family.as_str()).into())
 }
 
 fn parse_family(token: &str) -> Result<CollectionTruthSurfaceFamily, Box<dyn std::error::Error>> {

@@ -17,11 +17,11 @@ use aureline_language::{
     RefactorTransactionKnownLimitClass, RefactorTransactionLaunchLanguageClass,
     RefactorTransactionPhaseClass, RefactorTransactionPreviewCompletenessClass,
     RefactorTransactionPromotionState, RefactorTransactionRollbackPathClass,
-    RefactorTransactionRowClass, RefactorTransactionSupportClass,
-    RefactorTransactionTruthPacket, RefactorTransactionTruthPacketInput,
-    RefactorTransactionValidationOutcomeClass, REFACTOR_TRANSACTION_TRUTH_ARTIFACT_DOC_REF,
-    REFACTOR_TRANSACTION_TRUTH_DOC_REF, REFACTOR_TRANSACTION_TRUTH_FIXTURE_DIR,
-    REFACTOR_TRANSACTION_TRUTH_PACKET_ARTIFACT_REF, REFACTOR_TRANSACTION_TRUTH_SCHEMA_REF,
+    RefactorTransactionRowClass, RefactorTransactionSupportClass, RefactorTransactionTruthPacket,
+    RefactorTransactionTruthPacketInput, RefactorTransactionValidationOutcomeClass,
+    REFACTOR_TRANSACTION_TRUTH_ARTIFACT_DOC_REF, REFACTOR_TRANSACTION_TRUTH_DOC_REF,
+    REFACTOR_TRANSACTION_TRUTH_FIXTURE_DIR, REFACTOR_TRANSACTION_TRUTH_PACKET_ARTIFACT_REF,
+    REFACTOR_TRANSACTION_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -253,8 +253,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_refactor_transaction_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_refactor_transaction_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         RefactorTransactionPromotionState::Stable
@@ -278,8 +278,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 
 #[test]
 fn checked_in_artifact_covers_every_transaction_phase_for_every_launch_stable_lane() {
-    let packet = current_stable_refactor_transaction_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_refactor_transaction_truth_packet().expect("checked-in packet validates");
     for required in RefactorClassLaneClass::REQUIRED {
         let lane_claims_stable = packet.rows.iter().any(|row| {
             row.lane_class == required
@@ -304,8 +304,8 @@ fn checked_in_artifact_covers_every_transaction_phase_for_every_launch_stable_la
 
 #[test]
 fn checked_in_artifact_covers_preview_validation_and_rollback_admissions() {
-    let packet = current_stable_refactor_transaction_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_refactor_transaction_truth_packet().expect("checked-in packet validates");
     for required in RefactorClassLaneClass::REQUIRED {
         let lane_claims_stable = packet.rows.iter().any(|row| {
             row.lane_class == required

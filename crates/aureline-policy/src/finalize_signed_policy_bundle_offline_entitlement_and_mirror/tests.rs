@@ -239,7 +239,8 @@ fn simulation_packet_with_no_affected_surfaces_narrows_to_beta() {
         verifier_page,
     );
     assert!(
-        page.summary.overall_qualification_token == FinalizeSignedPolicyBundleQualificationClass::Beta.as_str()
+        page.summary.overall_qualification_token
+            == FinalizeSignedPolicyBundleQualificationClass::Beta.as_str()
             || page.summary.overall_qualification_token
                 == FinalizeSignedPolicyBundleQualificationClass::Withdrawn.as_str(),
         "missing affected surfaces must narrow to at least beta"

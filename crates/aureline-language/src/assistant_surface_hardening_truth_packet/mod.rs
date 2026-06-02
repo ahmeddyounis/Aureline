@@ -787,9 +787,7 @@ impl FindingKind {
             Self::WrongRecordKind => "wrong_record_kind",
             Self::WrongSchemaVersion => "wrong_schema_version",
             Self::MissingIdentity => "missing_identity",
-            Self::MissingAssistantSurfaceLaneCoverage => {
-                "missing_assistant_surface_lane_coverage"
-            }
+            Self::MissingAssistantSurfaceLaneCoverage => "missing_assistant_surface_lane_coverage",
             Self::MissingCrossCutConditionCoverage => "missing_cross_cut_condition_coverage",
             Self::MissingProviderSourceBindingCoverage => {
                 "missing_provider_source_binding_coverage"
@@ -1222,7 +1220,9 @@ impl AssistantSurfaceHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.preview_requirement_class);
         }
-        set.into_iter().map(PreviewRequirementClass::as_str).collect()
+        set.into_iter()
+            .map(PreviewRequirementClass::as_str)
+            .collect()
     }
 
     /// Returns the unique snippet-session-field tokens observed across rows.
@@ -1231,7 +1231,9 @@ impl AssistantSurfaceHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.snippet_session_field_class);
         }
-        set.into_iter().map(SnippetSessionFieldClass::as_str).collect()
+        set.into_iter()
+            .map(SnippetSessionFieldClass::as_str)
+            .collect()
     }
 
     /// Returns the unique code-action-field tokens observed across rows.
@@ -1249,7 +1251,9 @@ impl AssistantSurfaceHardeningTruthPacket {
         for row in &self.rows {
             set.insert(row.cross_cut_condition_class);
         }
-        set.into_iter().map(CrossCutConditionClass::as_str).collect()
+        set.into_iter()
+            .map(CrossCutConditionClass::as_str)
+            .collect()
     }
 
     /// Returns the unique evidence-class tokens observed across rows.
@@ -1449,10 +1453,7 @@ impl AssistantSurfaceHardeningTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDowngradeAutomation,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound downgrade-automation class",
-                    row.row_id
-                ),
+                format!("row {} has no bound downgrade-automation class", row.row_id),
             ));
         }
         if !row.evidence_class.is_bound() {
@@ -1473,10 +1474,7 @@ impl AssistantSurfaceHardeningTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingPreviewRequirementClass,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound preview-requirement class",
-                    row.row_id
-                ),
+                format!("row {} has no bound preview-requirement class", row.row_id),
             ));
         }
 
@@ -1540,14 +1538,21 @@ impl AssistantSurfaceHardeningTruthPacket {
         }
 
         // Row-class / field-binding rules.
-        let is_provider_source = matches!(row.row_class, AssistantSurfaceRowClass::ProviderSourceBinding);
+        let is_provider_source = matches!(
+            row.row_class,
+            AssistantSurfaceRowClass::ProviderSourceBinding
+        );
         let is_side_effect = matches!(row.row_class, AssistantSurfaceRowClass::SideEffectAdmission);
-        let is_snippet_session = matches!(row.row_class, AssistantSurfaceRowClass::SnippetSessionTruth);
+        let is_snippet_session =
+            matches!(row.row_class, AssistantSurfaceRowClass::SnippetSessionTruth);
         let is_code_action = matches!(row.row_class, AssistantSurfaceRowClass::CodeActionTruth);
         let is_cross_cut = matches!(row.row_class, AssistantSurfaceRowClass::CrossCutCondition);
 
         if is_provider_source
-            && matches!(row.provider_source_class, ProviderSourceClass::NotApplicable)
+            && matches!(
+                row.provider_source_class,
+                ProviderSourceClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::ProviderSourceClassNotApplicable,
@@ -1559,7 +1564,10 @@ impl AssistantSurfaceHardeningTruthPacket {
             ));
         }
         if !is_provider_source
-            && !matches!(row.provider_source_class, ProviderSourceClass::NotApplicable)
+            && !matches!(
+                row.provider_source_class,
+                ProviderSourceClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::ProviderSourceClassNotPermittedOnRowClass,
@@ -1573,9 +1581,7 @@ impl AssistantSurfaceHardeningTruthPacket {
             ));
         }
 
-        if is_side_effect
-            && matches!(row.side_effect_class, SideEffectClass::NotApplicable)
-        {
+        if is_side_effect && matches!(row.side_effect_class, SideEffectClass::NotApplicable) {
             findings.push(ValidationFinding::new(
                 FindingKind::SideEffectClassNotApplicable,
                 FindingSeverity::Blocker,
@@ -1637,7 +1643,10 @@ impl AssistantSurfaceHardeningTruthPacket {
         }
 
         if is_code_action
-            && matches!(row.code_action_field_class, CodeActionFieldClass::NotApplicable)
+            && matches!(
+                row.code_action_field_class,
+                CodeActionFieldClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::CodeActionFieldNotApplicable,
@@ -1649,7 +1658,10 @@ impl AssistantSurfaceHardeningTruthPacket {
             ));
         }
         if !is_code_action
-            && !matches!(row.code_action_field_class, CodeActionFieldClass::NotApplicable)
+            && !matches!(
+                row.code_action_field_class,
+                CodeActionFieldClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::CodeActionFieldNotPermittedOnRowClass,
@@ -1739,7 +1751,10 @@ impl AssistantSurfaceHardeningTruthPacket {
     ) {
         let lane_claims_hardened = self.rows.iter().any(|row| {
             row.lane_class == lane
-                && matches!(row.row_class, AssistantSurfaceRowClass::AssistantSurfaceQuality)
+                && matches!(
+                    row.row_class,
+                    AssistantSurfaceRowClass::AssistantSurfaceQuality
+                )
                 && matches!(row.support_class, SupportClass::LaunchHardened)
         });
         if !lane_claims_hardened {
@@ -2023,7 +2038,10 @@ impl AssistantSurfaceHardeningTruthSupportExport {
                 == self.assistant_surface_hardening_packet.packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
-            && self.assistant_surface_hardening_packet.validate().is_empty()
+            && self
+                .assistant_surface_hardening_packet
+                .validate()
+                .is_empty()
     }
 }
 
@@ -2039,10 +2057,9 @@ pub enum AssistantSurfaceHardeningTruthArtifactError {
 impl fmt::Display for AssistantSurfaceHardeningTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "assistant-surface packet parse failed: {error}"
-            ),
+            Self::Packet(error) => {
+                write!(formatter, "assistant-surface packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -2269,7 +2286,10 @@ mod tests {
 
     fn sample_input() -> AssistantSurfaceHardeningTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(AssistantSurfaceLaneClass::CompletionLane, "completion"));
+        rows.extend(lane_rows(
+            AssistantSurfaceLaneClass::CompletionLane,
+            "completion",
+        ));
         rows.extend(lane_rows(
             AssistantSurfaceLaneClass::SignatureHelpLane,
             "signature_help",
@@ -2278,7 +2298,10 @@ mod tests {
             AssistantSurfaceLaneClass::SnippetSessionLane,
             "snippet_session",
         ));
-        rows.extend(lane_rows(AssistantSurfaceLaneClass::CodeActionLane, "code_action"));
+        rows.extend(lane_rows(
+            AssistantSurfaceLaneClass::CodeActionLane,
+            "code_action",
+        ));
         rows.extend(lane_rows(
             AssistantSurfaceLaneClass::AdditionalEditLane,
             "additional_edit",
@@ -2287,7 +2310,10 @@ mod tests {
             AssistantSurfaceLaneClass::SourceLabelingLane,
             "source_labeling",
         ));
-        rows.extend(lane_rows(AssistantSurfaceLaneClass::AiGhostTextLane, "ai_ghost_text"));
+        rows.extend(lane_rows(
+            AssistantSurfaceLaneClass::AiGhostTextLane,
+            "ai_ghost_text",
+        ));
         AssistantSurfaceHardeningTruthPacketInput {
             packet_id: "packet:m4:assistant_surface_hardening".to_owned(),
             workflow_or_surface_id: "workflow.language.assistant_surface_hardening".to_owned(),
@@ -2319,10 +2345,7 @@ mod tests {
         );
         assert_eq!(SupportClass::LaunchHardened.as_str(), "launch_hardened");
         assert_eq!(SupportClass::SupportUnbound.as_str(), "support_unbound");
-        assert_eq!(
-            ProviderSourceClass::AiGhostText.as_str(),
-            "ai_ghost_text"
-        );
+        assert_eq!(ProviderSourceClass::AiGhostText.as_str(), "ai_ghost_text");
         assert_eq!(
             SideEffectClass::ProtectedSurfaceWrite.as_str(),
             "protected_surface_write"
@@ -2331,10 +2354,7 @@ mod tests {
             PreviewRequirementClass::PreviewRequiredForGeneratedFile.as_str(),
             "preview_required_for_generated_file"
         );
-        assert_eq!(
-            SnippetSessionFieldClass::ExitRoute.as_str(),
-            "exit_route"
-        );
+        assert_eq!(SnippetSessionFieldClass::ExitRoute.as_str(), "exit_route");
         assert_eq!(
             CodeActionFieldClass::PartialSupportReason.as_str(),
             "partial_support_reason"
@@ -2422,7 +2442,10 @@ mod tests {
         let mut input = sample_input();
         input.rows.retain(|row| {
             !(row.lane_class == AssistantSurfaceLaneClass::AiGhostTextLane
-                && matches!(row.row_class, AssistantSurfaceRowClass::ProviderSourceBinding)
+                && matches!(
+                    row.row_class,
+                    AssistantSurfaceRowClass::ProviderSourceBinding
+                )
                 && row.provider_source_class == ProviderSourceClass::AiGhostText)
         });
         let packet = AssistantSurfaceHardeningTruthPacket::materialize(input);

@@ -1379,11 +1379,7 @@ mod tests {
         }
     }
 
-    fn loop_row(
-        row_id: &str,
-        pack: WorkflowPackClass,
-        step: WorkflowLoopClass,
-    ) -> WorkflowPackRow {
+    fn loop_row(row_id: &str, pack: WorkflowPackClass, step: WorkflowLoopClass) -> WorkflowPackRow {
         WorkflowPackRow {
             row_id: row_id.to_owned(),
             pack_class: pack,
@@ -1410,8 +1406,8 @@ mod tests {
         ReactExpertWorkflowPackConsumerProjection {
             consumer_surface: surface,
             projection_ref: format!("projection:{}", surface.as_str()),
-            react_expert_workflow_pack_packet_id_ref:
-                "packet:m4:react_expert_workflow_pack".to_owned(),
+            react_expert_workflow_pack_packet_id_ref: "packet:m4:react_expert_workflow_pack"
+                .to_owned(),
             rendered_at: "2026-05-26T12:00:01Z".to_owned(),
             preserves_same_packet: true,
             preserves_pack_vocabulary: true,

@@ -178,9 +178,9 @@ pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
 pub use go_no_go_rehearsal::{
     current_go_no_go_rehearsal, GoNoGoRehearsal, GoNoGoRehearsalSummary, GoNoGoRehearsalViolation,
     RehearsalAction, RehearsalExportProjection, RehearsalExportRow, RehearsalGapReason,
-    RehearsalPublicationRecord, RehearsalRule, RehearsalStageRow, RehearsalState, RollbackCheckpoint,
-    StageKind, GO_NO_GO_REHEARSAL_JSON, GO_NO_GO_REHEARSAL_PATH, GO_NO_GO_REHEARSAL_RECORD_KIND,
-    GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
+    RehearsalPublicationRecord, RehearsalRule, RehearsalStageRow, RehearsalState,
+    RollbackCheckpoint, StageKind, GO_NO_GO_REHEARSAL_JSON, GO_NO_GO_REHEARSAL_PATH,
+    GO_NO_GO_REHEARSAL_RECORD_KIND, GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{

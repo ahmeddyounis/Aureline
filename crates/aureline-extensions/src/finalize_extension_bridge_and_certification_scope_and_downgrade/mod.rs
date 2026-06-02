@@ -223,8 +223,13 @@ pub const CERTIFICATION_EVIDENCE_SOURCE_CLASSES: &[&str] = &[
 ];
 
 /// Closed compatibility-label vocabulary.
-pub const COMPATIBILITY_LABEL_CLASSES: &[&str] =
-    &["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"];
+pub const COMPATIBILITY_LABEL_CLASSES: &[&str] = &[
+    "full_parity",
+    "high_parity",
+    "partial_parity",
+    "limited_parity",
+    "unsupported",
+];
 
 /// Closed activation-budget vocabulary. `within_budget` is the only state a stable
 /// claim may keep.
@@ -736,7 +741,10 @@ impl BridgeCertificationInstallPosture {
 
     /// Returns true when the row stays mirrorable.
     pub fn mirrorable(&self) -> bool {
-        matches!(self.mirrorability_class.as_str(), "mirrorable" | "mirror_pinned")
+        matches!(
+            self.mirrorability_class.as_str(),
+            "mirrorable" | "mirror_pinned"
+        )
     }
 }
 
@@ -1028,7 +1036,9 @@ impl StableBridgeCertificationScopePacket {
                 ));
             }
             if !self.bridge_surface.bridge_abi_current() {
-                return Err(err("stable effective tier must pin the published bridge ABI version"));
+                return Err(err(
+                    "stable effective tier must pin the published bridge ABI version",
+                ));
             }
             if self.claim.claim_basis_class != "evidence_backed" {
                 return Err(err(
@@ -1036,25 +1046,39 @@ impl StableBridgeCertificationScopePacket {
                 ));
             }
             if self.identity.publisher_trust_tier_class == "quarantined" {
-                return Err(err("stable effective tier must not carry a quarantined trust tier"));
+                return Err(err(
+                    "stable effective tier must not carry a quarantined trust tier",
+                ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if !self.bridge_surface.bridge_contract_finalized {
-                return Err(err("stable effective tier must finalize its bridge contract"));
+                return Err(err(
+                    "stable effective tier must finalize its bridge contract",
+                ));
             }
             if !self.bridge_surface.bridge_enforcement_backed {
-                return Err(err("stable effective tier must keep its bridge enforcement-backed"));
+                return Err(err(
+                    "stable effective tier must keep its bridge enforcement-backed",
+                ));
             }
             if !self.bridge_surface.control_plane_guarded() {
-                return Err(err("stable effective tier must keep its bridge control plane guarded"));
+                return Err(err(
+                    "stable effective tier must keep its bridge control plane guarded",
+                ));
             }
             if !self.certification_scope.in_certified_scope() {
-                return Err(err("stable effective tier must keep its category in the certified scope"));
+                return Err(err(
+                    "stable effective tier must keep its category in the certified scope",
+                ));
             }
             if !self.certification_scope.conformance_passed {
-                return Err(err("stable effective tier must pass its certification conformance"));
+                return Err(err(
+                    "stable effective tier must pass its certification conformance",
+                ));
             }
             if self.certification_scope.evidence_inherited() {
                 return Err(err(
@@ -1062,7 +1086,9 @@ impl StableBridgeCertificationScopePacket {
                 ));
             }
             if self.permission_posture.widened_on_bridge {
-                return Err(err("stable effective tier must not widen permissions across the bridge"));
+                return Err(err(
+                    "stable effective tier must not widen permissions across the bridge",
+                ));
             }
             if self.compatibility.unsupported()
                 || self.compatibility.parity_limited()
@@ -1081,7 +1107,9 @@ impl StableBridgeCertificationScopePacket {
                 return Err(err("stable effective tier must disclose its install scope"));
             }
             if !self.install_posture.revocation_clean() {
-                return Err(err("stable effective tier must keep a clean revocation posture"));
+                return Err(err(
+                    "stable effective tier must keep a clean revocation posture",
+                ));
             }
             if !self.install_posture.mirrorable() {
                 return Err(err("stable effective tier must stay mirrorable"));
@@ -1090,7 +1118,9 @@ impl StableBridgeCertificationScopePacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1122,17 +1152,23 @@ impl StableBridgeCertificationScopePacket {
             &posture,
         );
         if derived.effective_tier != self.claim.effective_tier {
-            return Err(err("stored effective tier does not match the posture-derived tier"));
+            return Err(err(
+                "stored effective tier does not match the posture-derived tier",
+            ));
         }
         if derived.downgraded != self.claim.downgraded {
-            return Err(err("stored downgrade flag does not match the posture-derived verdict"));
+            return Err(err(
+                "stored downgrade flag does not match the posture-derived verdict",
+            ));
         }
         let mut stored = self.claim.downgrade_reasons.clone();
         stored.sort();
         let mut expected = derived.downgrade_reasons.clone();
         expected.sort();
         if stored != expected {
-            return Err(err("stored downgrade reasons do not match the posture-derived reasons"));
+            return Err(err(
+                "stored downgrade reasons do not match the posture-derived reasons",
+            ));
         }
 
         // Banner truth.
@@ -1349,7 +1385,10 @@ pub fn project_stable_bridge_certification_scope_support_export(
     StableBridgeCertificationScopeSupportExport {
         record_kind: STABLE_BRIDGE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_BRIDGE_CERTIFICATION_SCHEMA_VERSION,
-        export_id: format!("stable_bridge_certification_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_bridge_certification_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         row_identity_ref: packet.identity.row_identity_ref.clone(),
         certification_scope_ref: packet.identity.certification_scope_ref.clone(),
@@ -1610,12 +1649,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1902,8 +1949,14 @@ fn validate_input(
     ensure_nonempty(&input.summary_label, "summary_label")?;
 
     let id = &input.identity;
-    ensure_nonempty(&id.certification_scope_ref, "identity.certification_scope_ref")?;
-    if !id.certification_scope_ref.starts_with("certification_scope:") {
+    ensure_nonempty(
+        &id.certification_scope_ref,
+        "identity.certification_scope_ref",
+    )?;
+    if !id
+        .certification_scope_ref
+        .starts_with("certification_scope:")
+    {
         return Err(err(
             "identity.certification_scope_ref must start with 'certification_scope:'",
         ));
@@ -1913,7 +1966,10 @@ fn validate_input(
     ensure_nonempty(&id.extension_version, "identity.extension_version")?;
     ensure_nonempty(&id.package_id, "identity.package_id")?;
     ensure_nonempty(&id.publisher_namespace, "identity.publisher_namespace")?;
-    ensure_nonempty(&id.certification_evidence_ref, "identity.certification_evidence_ref")?;
+    ensure_nonempty(
+        &id.certification_evidence_ref,
+        "identity.certification_evidence_ref",
+    )?;
     ensure_token(
         TRUST_TIER_CLASSES,
         &id.publisher_trust_tier_class,
@@ -1926,8 +1982,15 @@ fn validate_input(
     )?;
 
     let bridge = &input.bridge_surface;
-    ensure_token(BRIDGE_KIND_CLASSES, &bridge.bridge_kind_class, "bridge_surface.bridge_kind_class")?;
-    ensure_nonempty(&bridge.bridge_surface_ref, "bridge_surface.bridge_surface_ref")?;
+    ensure_token(
+        BRIDGE_KIND_CLASSES,
+        &bridge.bridge_kind_class,
+        "bridge_surface.bridge_kind_class",
+    )?;
+    ensure_nonempty(
+        &bridge.bridge_surface_ref,
+        "bridge_surface.bridge_surface_ref",
+    )?;
     ensure_token(
         CONTROL_PLANE_BOUNDARY_CLASSES,
         &bridge.control_plane_boundary_class,
@@ -1940,17 +2003,30 @@ fn validate_input(
         &scope.category_class,
         "certification_scope.category_class",
     )?;
-    ensure_token(SCOPE_STATUS_CLASSES, &scope.scope_status_class, "certification_scope.scope_status_class")?;
+    ensure_token(
+        SCOPE_STATUS_CLASSES,
+        &scope.scope_status_class,
+        "certification_scope.scope_status_class",
+    )?;
     ensure_token(
         CERTIFICATION_EVIDENCE_SOURCE_CLASSES,
         &scope.certification_evidence_source_class,
         "certification_scope.certification_evidence_source_class",
     )?;
-    ensure_nonempty(&scope.conformance_report_ref, "certification_scope.conformance_report_ref")?;
+    ensure_nonempty(
+        &scope.conformance_report_ref,
+        "certification_scope.conformance_report_ref",
+    )?;
 
     let perm = &input.permission_posture;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture.declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture.effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture.declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture.effective_permission_ref",
+    )?;
 
     let compat = &input.compatibility;
     ensure_token(
@@ -1961,25 +2037,51 @@ fn validate_input(
     ensure_nonempty(&compat.scorecard_ref, "compatibility.scorecard_ref")?;
 
     let act = &input.activation_budget;
-    ensure_token(ACTIVATION_BUDGET_CLASSES, &act.budget_class, "activation_budget.budget_class")?;
-    ensure_nonempty(&act.measured_cost_ref, "activation_budget.measured_cost_ref")?;
-    ensure_nonempty(&act.budget_ceiling_ref, "activation_budget.budget_ceiling_ref")?;
+    ensure_token(
+        ACTIVATION_BUDGET_CLASSES,
+        &act.budget_class,
+        "activation_budget.budget_class",
+    )?;
+    ensure_nonempty(
+        &act.measured_cost_ref,
+        "activation_budget.measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &act.budget_ceiling_ref,
+        "activation_budget.budget_ceiling_ref",
+    )?;
 
     let inst = &input.install_posture;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture.install_scope_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture.install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture.revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture.mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture.mirrorability_class",
+    )?;
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_BRIDGE_CERTIFICATION_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_BRIDGE_CERTIFICATION_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2022,13 +2124,20 @@ fn validate_bridge_surface(
         BRIDGE_SURFACE_BINDING_RECORD_KIND,
         "bridge_surface record_kind",
     )?;
-    ensure_token(BRIDGE_KIND_CLASSES, &bridge.bridge_kind_class, "bridge_surface bridge_kind_class")?;
+    ensure_token(
+        BRIDGE_KIND_CLASSES,
+        &bridge.bridge_kind_class,
+        "bridge_surface bridge_kind_class",
+    )?;
     ensure_token(
         CONTROL_PLANE_BOUNDARY_CLASSES,
         &bridge.control_plane_boundary_class,
         "bridge_surface control_plane_boundary_class",
     )?;
-    ensure_nonempty(&bridge.bridge_surface_ref, "bridge_surface bridge_surface_ref")?;
+    ensure_nonempty(
+        &bridge.bridge_surface_ref,
+        "bridge_surface bridge_surface_ref",
+    )?;
     Ok(())
 }
 
@@ -2045,7 +2154,11 @@ fn validate_scope(
         &scope.category_class,
         "certification_scope category_class",
     )?;
-    ensure_token(SCOPE_STATUS_CLASSES, &scope.scope_status_class, "certification_scope scope_status_class")?;
+    ensure_token(
+        SCOPE_STATUS_CLASSES,
+        &scope.scope_status_class,
+        "certification_scope scope_status_class",
+    )?;
     ensure_token(
         CERTIFICATION_EVIDENCE_SOURCE_CLASSES,
         &scope.certification_evidence_source_class,
@@ -2062,8 +2175,14 @@ fn validate_permission_posture(
         BRIDGE_CERTIFICATION_PERMISSION_POSTURE_RECORD_KIND,
         "permission_posture record_kind",
     )?;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture effective_permission_ref",
+    )?;
     Ok(())
 }
 
@@ -2097,8 +2216,14 @@ fn validate_activation_budget(
         &activation.budget_class,
         "activation_budget budget_class",
     )?;
-    ensure_nonempty(&activation.measured_cost_ref, "activation_budget measured_cost_ref")?;
-    ensure_nonempty(&activation.budget_ceiling_ref, "activation_budget budget_ceiling_ref")?;
+    ensure_nonempty(
+        &activation.measured_cost_ref,
+        "activation_budget measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &activation.budget_ceiling_ref,
+        "activation_budget budget_ceiling_ref",
+    )?;
     Ok(())
 }
 
@@ -2110,13 +2235,21 @@ fn validate_install_posture(
         BRIDGE_CERTIFICATION_INSTALL_POSTURE_RECORD_KIND,
         "install_posture record_kind",
     )?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture install_scope_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture install_scope_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture mirrorability_class",
+    )?;
     Ok(())
 }
 
@@ -2129,11 +2262,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(BRIDGE_CERTIFICATION_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            BRIDGE_CERTIFICATION_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2147,12 +2296,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(BRIDGE_CERTIFICATION_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            BRIDGE_CERTIFICATION_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2216,7 +2371,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2227,7 +2384,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableBridgeCertificationScopeValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2248,7 +2407,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableBridgeCertificationScopeValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

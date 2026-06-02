@@ -114,13 +114,13 @@ fn baseline_stable_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "baseline_stable".to_owned(),
-        scenario:
-            "Baseline stable posture: the packet binds every required source class \
+        scenario: "Baseline stable posture: the packet binds every required source class \
              (project_docs, mirrored_official_docs, extension_docs_pack, \
              live_external_docs, derived_explanation), preserves docs-result \
              identity through every required symbol-flow step (peek, split, \
              browser_handoff, support_export, ai_handoff), and the nine required \
-             consumer projections preserve the packet verbatim.".to_owned(),
+             consumer projections preserve the packet verbatim."
+            .to_owned(),
         input: seeded_stable_docs_browser_truth_packet_input(),
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::Stable.as_str(),
@@ -145,11 +145,10 @@ fn missing_source_class_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "missing_required_source_class_blocks_stable".to_owned(),
-        scenario:
-            "Required source-class coverage missing: the packet drops the \
+        scenario: "Required source-class coverage missing: the packet drops the \
              extension_docs_pack source descriptor and the validator blocks \
              promotion with required_source_class_coverage_missing."
-                .to_owned(),
+            .to_owned(),
         input,
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::BlocksStable.as_str(),
@@ -174,17 +173,14 @@ fn symbol_flow_split_dropped_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "symbol_flow_drops_split_step_blocks_stable".to_owned(),
-        scenario:
-            "Symbol flow identity lost: a symbol-linked docs flow drops the \
+        scenario: "Symbol flow identity lost: a symbol-linked docs flow drops the \
              split step from its preserved-identity list and the validator \
              blocks promotion with symbol_flow_identity_lost."
-                .to_owned(),
+            .to_owned(),
         input,
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::BlocksStable.as_str(),
-            expected_finding_kinds: vec![
-                DocsBrowserFindingKind::SymbolFlowIdentityLost.as_str(),
-            ],
+            expected_finding_kinds: vec![DocsBrowserFindingKind::SymbolFlowIdentityLost.as_str()],
         },
     }
 }
@@ -202,25 +198,21 @@ fn unpinned_source_ref_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "result_source_ref_unpinned_blocks_stable".to_owned(),
-        scenario:
-            "Result references an unpinned docs-source ref: a docs-result \
+        scenario: "Result references an unpinned docs-source ref: a docs-result \
              object points at a source id that no descriptor declared and the \
              validator blocks promotion with result_source_ref_unpinned."
-                .to_owned(),
+            .to_owned(),
         input,
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::BlocksStable.as_str(),
-            expected_finding_kinds: vec![
-                DocsBrowserFindingKind::ResultSourceRefUnpinned.as_str(),
-            ],
+            expected_finding_kinds: vec![DocsBrowserFindingKind::ResultSourceRefUnpinned.as_str()],
         },
     }
 }
 
 fn projection_drops_source_class_fixture() -> Fixture {
     let mut input = seeded_stable_docs_browser_truth_packet_input();
-    input.packet_id =
-        "packet:m4:docs_browser_truth:projection_drops_source_class".to_owned();
+    input.packet_id = "packet:m4:docs_browser_truth:projection_drops_source_class".to_owned();
     for projection in input.consumer_projections.iter_mut() {
         projection.packet_id_ref = input.packet_id.clone();
     }
@@ -235,12 +227,11 @@ fn projection_drops_source_class_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "consumer_projection_drops_source_class_blocks_stable".to_owned(),
-        scenario:
-            "Consumer projection drops the source-class taxonomy: the support \
+        scenario: "Consumer projection drops the source-class taxonomy: the support \
              export projection sets preserves_source_class = false and the \
              validator blocks promotion with source_class_taxonomy_dropped and \
              consumer_projection_drift."
-                .to_owned(),
+            .to_owned(),
         input,
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::BlocksStable.as_str(),
@@ -254,8 +245,7 @@ fn projection_drops_source_class_fixture() -> Fixture {
 
 fn live_handoff_missing_packet_fixture() -> Fixture {
     let mut input = seeded_stable_docs_browser_truth_packet_input();
-    input.packet_id =
-        "packet:m4:docs_browser_truth:live_handoff_missing_packet".to_owned();
+    input.packet_id = "packet:m4:docs_browser_truth:live_handoff_missing_packet".to_owned();
     for projection in input.consumer_projections.iter_mut() {
         projection.packet_id_ref = input.packet_id.clone();
     }
@@ -270,16 +260,15 @@ fn live_handoff_missing_packet_fixture() -> Fixture {
         record_kind: FIXTURE_RECORD_KIND,
         schema_version: DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
         case_name: "live_external_handoff_missing_packet_blocks_stable".to_owned(),
-        scenario:
-            "Live external docs declare available browser handoff but the \
+        scenario: "Live external docs declare available browser handoff but the \
              descriptor drops its handoff packet ref. The validator blocks \
              promotion with browser_handoff_packet_missing."
-                .to_owned(),
+            .to_owned(),
         input,
         expect: ExpectedFixture {
             promotion_state: DocsBrowserPromotionState::BlocksStable.as_str(),
             expected_finding_kinds: vec![
-                DocsBrowserFindingKind::BrowserHandoffPacketMissing.as_str(),
+                DocsBrowserFindingKind::BrowserHandoffPacketMissing.as_str()
             ],
         },
     }

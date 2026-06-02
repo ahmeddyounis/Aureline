@@ -85,19 +85,11 @@ pub const DAILY_LOOP_OPERATION_KINDS: &[&str] = &[
 ];
 
 /// Preview states for the daily loop.
-pub const DAILY_LOOP_PREVIEW_STATES: &[&str] = &[
-    "ready",
-    "blocked",
-    "degraded",
-];
+pub const DAILY_LOOP_PREVIEW_STATES: &[&str] = &["ready", "blocked", "degraded"];
 
 /// Outcome states for the daily loop.
-pub const DAILY_LOOP_OUTCOME_STATES: &[&str] = &[
-    "completed",
-    "blocked_no_changes_made",
-    "failed",
-    "partial",
-];
+pub const DAILY_LOOP_OUTCOME_STATES: &[&str] =
+    &["completed", "blocked_no_changes_made", "failed", "partial"];
 
 /// Stash/shelf entry lifecycle states.
 pub const STASH_SHELF_ENTRY_LIFECYCLE_STATES: &[&str] = &[
@@ -1069,10 +1061,7 @@ impl DailyLoopSupportExportRecord {
 
 impl DailyLoopJournalRecord {
     /// Builds a journal record from a preview and result.
-    pub fn from_preview_and_result(
-        preview: &DailyLoopPreview,
-        result: &DailyLoopResult,
-    ) -> Self {
+    pub fn from_preview_and_result(preview: &DailyLoopPreview, result: &DailyLoopResult) -> Self {
         Self {
             record_kind: DAILY_LOOP_JOURNAL_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_JOURNAL_SCHEMA_VERSION,
@@ -1301,8 +1290,12 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             Ok(t) => t,
             Err(err) => {
                 let state = match err.class {
-                    DailyLoopBackendErrorClass::NotARepository => DailyLoopSnapshotState::NotRepository,
-                    DailyLoopBackendErrorClass::WorktreeNotFound => DailyLoopSnapshotState::RefreshFailed,
+                    DailyLoopBackendErrorClass::NotARepository => {
+                        DailyLoopSnapshotState::NotRepository
+                    }
+                    DailyLoopBackendErrorClass::WorktreeNotFound => {
+                        DailyLoopSnapshotState::RefreshFailed
+                    }
                     _ => DailyLoopSnapshotState::GitUnavailable,
                 };
                 return DailyLoopSnapshot::degraded(request, state, err.message);
@@ -1365,10 +1358,9 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             | DailyLoopOperationKind::StashBranchFrom => {
                 self.preview_stash_operation(request, &target)
             }
-            _ => DailyLoopPreview::blocked(
-                request,
-                "preview not supported for this operation kind",
-            ),
+            _ => {
+                DailyLoopPreview::blocked(request, "preview not supported for this operation kind")
+            }
         }
     }
 
@@ -1377,7 +1369,11 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     /// # Errors
     ///
     /// Never returns `Err`; failure states are encoded in the result.
-    pub fn apply(&self, preview: &DailyLoopPreview, actor_ref: impl Into<String>) -> DailyLoopResult {
+    pub fn apply(
+        &self,
+        preview: &DailyLoopPreview,
+        actor_ref: impl Into<String>,
+    ) -> DailyLoopResult {
         let actor_ref = actor_ref.into();
         if preview.state == DailyLoopPreviewState::Blocked {
             return DailyLoopResult::blocked(&preview.target, preview.kind, "preview was blocked");
@@ -1481,7 +1477,11 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             let is_unstaged = worktree_status != " ";
             let is_untracked = index_status == "?";
             let is_conflicted = index_status == "U" || worktree_status == "U";
-            let change_kind = parse_status_char(if is_staged { index_status } else { worktree_status });
+            let change_kind = parse_status_char(if is_staged {
+                index_status
+            } else {
+                worktree_status
+            });
             path_statuses.push(DailyLoopPathStatus {
                 path: path.to_string(),
                 change_kind,
@@ -1634,7 +1634,10 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 if let Some(rest) = line.strip_prefix("author ") {
                     current_author = rest.to_string();
                 } else if let Some(rest) = line.strip_prefix("author-mail ") {
-                    current_email = rest.trim_start_matches('<').trim_end_matches('>').to_string();
+                    current_email = rest
+                        .trim_start_matches('<')
+                        .trim_end_matches('>')
+                        .to_string();
                 } else if let Some(rest) = line.strip_prefix("author-time ") {
                     current_time = rest.to_string();
                 } else if let Some(rest) = line.strip_prefix("summary ") {
@@ -1690,7 +1693,10 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         request: &DailyLoopRequest,
         target: &DailyLoopTarget,
     ) -> DailyLoopSnapshot {
-        let mut args = vec!["log", "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%cn%x00%ce%x00%ct%x00%s"];
+        let mut args = vec![
+            "log",
+            "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%cn%x00%ce%x00%ct%x00%s",
+        ];
         if let Some(commit_ref) = &request.commit_ref {
             args.push(commit_ref);
         }
@@ -1871,9 +1877,7 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             }
         };
         let staged_file_count = if output.success {
-            String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .count() as u32
+            String::from_utf8_lossy(&output.stdout).lines().count() as u32
         } else {
             0
         };
@@ -1936,7 +1940,10 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             affected_paths,
             stash_entry,
             commit_preview: None,
-            recovery_checkpoint_ref: Some(format!("checkpoint:stash:{}:preview", request.kind.as_str())),
+            recovery_checkpoint_ref: Some(format!(
+                "checkpoint:stash:{}:preview",
+                request.kind.as_str()
+            )),
             observed_at: request.target.observed_at.clone(),
         }
     }
@@ -1945,11 +1952,7 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
     // Internal: apply implementations
     // -----------------------------------------------------------------------
 
-    fn apply_stage_unstage(
-        &self,
-        preview: &DailyLoopPreview,
-        _actor_ref: &str,
-    ) -> DailyLoopResult {
+    fn apply_stage_unstage(&self, preview: &DailyLoopPreview, _actor_ref: &str) -> DailyLoopResult {
         let mut args = vec!["add"];
         if preview.kind == DailyLoopOperationKind::Unstage {
             args = vec!["reset", "HEAD"];
@@ -1958,15 +1961,12 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
             args.push("--");
             args.push(path);
         }
-        let output = match self.backend.run_git(&preview.target.worktree.worktree_root, &args) {
+        let output = match self
+            .backend
+            .run_git(&preview.target.worktree.worktree_root, &args)
+        {
             Ok(o) => o,
-            Err(err) => {
-                return DailyLoopResult::failed(
-                    &preview.target,
-                    preview.kind,
-                    err.message,
-                )
-            }
+            Err(err) => return DailyLoopResult::failed(&preview.target, preview.kind, err.message),
         };
         if output.success {
             DailyLoopResult::completed(
@@ -1983,11 +1983,7 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         }
     }
 
-    fn apply_commit_amend(
-        &self,
-        preview: &DailyLoopPreview,
-        _actor_ref: &str,
-    ) -> DailyLoopResult {
+    fn apply_commit_amend(&self, preview: &DailyLoopPreview, _actor_ref: &str) -> DailyLoopResult {
         let message = preview
             .commit_preview
             .as_ref()
@@ -1997,24 +1993,22 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
         if preview.kind == DailyLoopOperationKind::Amend {
             args.push("--amend");
         }
-        let output = match self.backend.run_git(&preview.target.worktree.worktree_root, &args) {
+        let output = match self
+            .backend
+            .run_git(&preview.target.worktree.worktree_root, &args)
+        {
             Ok(o) => o,
-            Err(err) => {
-                return DailyLoopResult::failed(
-                    &preview.target,
-                    preview.kind,
-                    err.message,
-                )
-            }
+            Err(err) => return DailyLoopResult::failed(&preview.target, preview.kind, err.message),
         };
         if output.success {
             let hash_output = self.backend.run_git(
                 &preview.target.worktree.worktree_root,
                 &["rev-parse", "HEAD"],
             );
-            let commit_hash = hash_output.ok().filter(|o| o.success).map(|o| {
-                String::from_utf8_lossy(&o.stdout).trim().to_string()
-            });
+            let commit_hash = hash_output
+                .ok()
+                .filter(|o| o.success)
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
             DailyLoopResult {
                 record_kind: DAILY_LOOP_RESULT_RECORD_KIND.to_string(),
                 schema_version: DAILY_LOOP_RESULT_SCHEMA_VERSION,
@@ -2062,28 +2056,32 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                     args.push("--");
                     args.push(path);
                 }
-                self.backend.run_git(&preview.target.worktree.worktree_root, &args)
+                self.backend
+                    .run_git(&preview.target.worktree.worktree_root, &args)
             }
             DailyLoopOperationKind::StashApply => {
                 let mut args = vec!["stash", "apply"];
                 if let Some(ref entry) = preview.stash_entry {
                     args.push(&entry.stash_entry_id);
                 }
-                self.backend.run_git(&preview.target.worktree.worktree_root, &args)
+                self.backend
+                    .run_git(&preview.target.worktree.worktree_root, &args)
             }
             DailyLoopOperationKind::StashPop => {
                 let mut args = vec!["stash", "pop"];
                 if let Some(ref entry) = preview.stash_entry {
                     args.push(&entry.stash_entry_id);
                 }
-                self.backend.run_git(&preview.target.worktree.worktree_root, &args)
+                self.backend
+                    .run_git(&preview.target.worktree.worktree_root, &args)
             }
             DailyLoopOperationKind::StashDrop => {
                 let mut args = vec!["stash", "drop"];
                 if let Some(ref entry) = preview.stash_entry {
                     args.push(&entry.stash_entry_id);
                 }
-                self.backend.run_git(&preview.target.worktree.worktree_root, &args)
+                self.backend
+                    .run_git(&preview.target.worktree.worktree_root, &args)
             }
             DailyLoopOperationKind::StashBranchFrom => {
                 let branch_name = preview
@@ -2095,7 +2093,8 @@ impl<B: DailyLoopBackend> DailyLoopService<B> {
                 if let Some(ref entry) = preview.stash_entry {
                     args.push(&entry.stash_entry_id);
                 }
-                self.backend.run_git(&preview.target.worktree.worktree_root, &args)
+                self.backend
+                    .run_git(&preview.target.worktree.worktree_root, &args)
             }
             _ => {
                 return DailyLoopResult::failed(
@@ -2230,7 +2229,11 @@ impl DailyLoopResult {
     }
 
     /// Builds a blocked result.
-    pub fn blocked(target: &DailyLoopTarget, kind: DailyLoopOperationKind, reason: impl Into<String>) -> Self {
+    pub fn blocked(
+        target: &DailyLoopTarget,
+        kind: DailyLoopOperationKind,
+        reason: impl Into<String>,
+    ) -> Self {
         Self {
             record_kind: DAILY_LOOP_RESULT_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_RESULT_SCHEMA_VERSION,
@@ -2248,7 +2251,11 @@ impl DailyLoopResult {
     }
 
     /// Builds a failed result.
-    pub fn failed(target: &DailyLoopTarget, kind: DailyLoopOperationKind, reason: impl Into<String>) -> Self {
+    pub fn failed(
+        target: &DailyLoopTarget,
+        kind: DailyLoopOperationKind,
+        reason: impl Into<String>,
+    ) -> Self {
         Self {
             record_kind: DAILY_LOOP_RESULT_RECORD_KIND.to_string(),
             schema_version: DAILY_LOOP_RESULT_SCHEMA_VERSION,

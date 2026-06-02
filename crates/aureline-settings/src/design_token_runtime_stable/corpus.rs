@@ -29,12 +29,13 @@
 
 use aureline_design_system::appearance_session::AppearanceSessionBetaContract;
 use aureline_design_system::{
-    seeded_component_state_registry, try_seeded_appearance_session_beta_contract, LaunchSurfaceClass,
+    seeded_component_state_registry, try_seeded_appearance_session_beta_contract,
+    LaunchSurfaceClass,
 };
+use aureline_ui::density::DensityClass;
 use aureline_ui::motion::OVERLAY_DIALOG_ENTER;
 use aureline_ui::themes::{AccessibilityPostureClass, AppearanceAxis};
 use aureline_ui::tokens::{seeded_token_registry, ThemeClass};
-use aureline_ui::density::DensityClass;
 
 use super::model::{
     is_canonical_object_ref, required_recovery_routes, snake_token, AccessibilityDisclosure,
@@ -211,10 +212,7 @@ fn protected_cue_rows() -> Vec<ProtectedCueRow> {
             Class::Diagnostics,
             &[Cue::LabelText, Cue::Icon, Cue::Border],
         ),
-        (
-            Class::PolicyLock,
-            &[Cue::LabelText, Cue::Icon, Cue::Shape],
-        ),
+        (Class::PolicyLock, &[Cue::LabelText, Cue::Icon, Cue::Shape]),
         (
             Class::TrustWarning,
             &[Cue::LabelText, Cue::Icon, Cue::Border],
@@ -342,10 +340,7 @@ fn launch_surface_rows(surface_override: Option<SurfaceOverride>) -> Vec<LaunchS
             match surface_override {
                 Some(SurfaceOverride::Marker(target, target_marker)) if target == surface => {
                     marker = target_marker;
-                    waiver = Some(format!(
-                        "aureline://waiver/dtr-{}-marker",
-                        surface.as_str()
-                    ));
+                    waiver = Some(format!("aureline://waiver/dtr-{}-marker", surface.as_str()));
                 }
                 Some(SurfaceOverride::Hardcoded(target)) if target == surface => {
                     honors = false;
@@ -428,7 +423,10 @@ fn binding(contract: &AppearanceSessionBetaContract) -> AppearanceSessionBinding
     }
 }
 
-fn upstream(contract: &AppearanceSessionBetaContract, capture_refs: Vec<String>) -> CertificationUpstream {
+fn upstream(
+    contract: &AppearanceSessionBetaContract,
+    capture_refs: Vec<String>,
+) -> CertificationUpstream {
     let token_registry_refs = [
         ThemeClass::DarkReference,
         ThemeClass::LightParity,
@@ -477,7 +475,10 @@ fn build_scenario(spec: &ScenarioSpec) -> DesignTokenRuntimeScenario {
         upstream: upstream(&contract, capture_refs),
         diagnostics_export_ref: DIAGNOSTICS_EXPORT_REF.to_owned(),
         support_export_ref: SUPPORT_EXPORT_REF.to_owned(),
-        evidence_refs: vec![EVIDENCE_ARTIFACT_REF.to_owned(), EVIDENCE_FIXTURE_REF.to_owned()],
+        evidence_refs: vec![
+            EVIDENCE_ARTIFACT_REF.to_owned(),
+            EVIDENCE_FIXTURE_REF.to_owned(),
+        ],
         narrative_refs: vec![NARRATIVE_REF.to_owned()],
     };
     let record = DesignTokenRuntimeCertification::build(input)
@@ -502,7 +503,8 @@ pub fn design_token_runtime_corpus() -> Vec<DesignTokenRuntimeScenario> {
             posture_id: "design_token_runtime_nominal",
             posture_label: "Nominal design-token runtime",
             title: "Design-token runtime is certified across every claimed appearance mode",
-            summary: "Dark, light, high-contrast, reduced-motion, and density rows resolve from \
+            summary:
+                "Dark, light, high-contrast, reduced-motion, and density rows resolve from \
                       one semantic token runtime; protected cues survive every mode; every axis \
                       applies live or behind a checkpoint; every launch surface honors the runtime.",
             reload_axis: None,
@@ -514,7 +516,8 @@ pub fn design_token_runtime_corpus() -> Vec<DesignTokenRuntimeScenario> {
             posture_id: "design_token_runtime_forced_colors_reload",
             posture_label: "Forced-colors reload disclosed",
             title: "Forced-colors contrast switch discloses a reload instead of silently lagging",
-            summary: "When the OS switches to forced colors the contrast axis requires a disclosed \
+            summary:
+                "When the OS switches to forced colors the contrast axis requires a disclosed \
                       surface reload; the row labels the reload rather than silently lagging the \
                       system, so the runtime stays honest and Stable.",
             reload_axis: Some(AppearanceAxis::ContrastMode),
@@ -526,7 +529,8 @@ pub fn design_token_runtime_corpus() -> Vec<DesignTokenRuntimeScenario> {
             posture_id: "design_token_runtime_density_surface_preview",
             posture_label: "Activity-center surface still in Preview",
             title: "A below-Stable surface narrows the certification instead of inheriting green",
-            summary: "Every mode and cue conforms, but the activity-center surface still carries a \
+            summary:
+                "Every mode and cue conforms, but the activity-center surface still carries a \
                       Preview marker; the posture is narrowed below Stable by its lowest surface \
                       marker rather than inheriting an adjacent green row.",
             reload_axis: None,

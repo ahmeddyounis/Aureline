@@ -3,7 +3,9 @@
 use super::*;
 
 fn make_support_export() -> WorksetScopeUxSupportExportInputs {
-    WorksetScopeUxSupportExportInputs::metadata_safe_baseline(SupportExportPosture::MetadataSafeExport)
+    WorksetScopeUxSupportExportInputs::metadata_safe_baseline(
+        SupportExportPosture::MetadataSafeExport,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -31,7 +33,10 @@ fn scope(
         readiness_state,
         hidden_result_count_known: hidden_count_known,
         hidden_result_count: hidden_count,
-        widen_actions_offered: vec![WidenActionClass::WidenWithReview, WidenActionClass::WidenToFullWorkspace],
+        widen_actions_offered: vec![
+            WidenActionClass::WidenWithReview,
+            WidenActionClass::WidenToFullWorkspace,
+        ],
         support_export: make_support_export(),
         captured_at: "mono:1700000700".to_owned(),
     }
@@ -253,52 +258,94 @@ fn clean_inputs_project_stable_record() {
     assert_eq!(record.schema_ref, WORKSET_SCOPE_UX_LINEAGE_SCHEMA_REF);
     assert!(record.scope_coverage.all_required_scope_classes_present);
     assert!(record.surface_coverage.all_required_surface_kinds_present);
-    assert!(record
-        .outside_marker_honesty
-        .all_result_bearing_surfaces_show_outside_current_slice);
-    assert!(record
-        .outside_marker_honesty
-        .all_result_bearing_surfaces_show_omitted_path);
-    assert!(record
-        .outside_marker_honesty
-        .all_result_bearing_surfaces_show_policy_hidden);
-    assert!(record.hidden_result_disclosure.all_surfaces_disclose_hidden_count);
-    assert!(record
-        .slice_ref_propagation
-        .all_surfaces_carry_slice_ref_into_deep_links);
-    assert!(record
-        .slice_ref_propagation
-        .all_export_propagating_surfaces_carry_slice_ref_into_export);
+    assert!(
+        record
+            .outside_marker_honesty
+            .all_result_bearing_surfaces_show_outside_current_slice
+    );
+    assert!(
+        record
+            .outside_marker_honesty
+            .all_result_bearing_surfaces_show_omitted_path
+    );
+    assert!(
+        record
+            .outside_marker_honesty
+            .all_result_bearing_surfaces_show_policy_hidden
+    );
+    assert!(
+        record
+            .hidden_result_disclosure
+            .all_surfaces_disclose_hidden_count
+    );
+    assert!(
+        record
+            .slice_ref_propagation
+            .all_surfaces_carry_slice_ref_into_deep_links
+    );
+    assert!(
+        record
+            .slice_ref_propagation
+            .all_export_propagating_surfaces_carry_slice_ref_into_export
+    );
     assert!(record.widen_preview_truth.all_previews_have_required_fields);
-    assert!(record.widen_preview_truth.all_previews_have_apply_action_metadata);
-    assert!(record.widen_preservation_truth.all_widens_preserve_root_identity);
-    assert!(record
-        .widen_preservation_truth
-        .all_widens_preserve_query_session_continuity);
-    assert!(record
-        .widen_preservation_truth
-        .all_widens_preserve_restore_provenance);
-    assert!(record
-        .widen_preservation_truth
-        .all_preservation_postures_safe);
-    assert_eq!(record.policy_limited_disclosure.policy_limited_scope_count, 1);
-    assert!(record
-        .policy_limited_disclosure
-        .all_policy_limited_have_narrowing_cause);
-    assert!(record
-        .policy_limited_disclosure
-        .no_admin_or_license_policy_exposes_hidden_list);
-    assert!(record
-        .readiness_truth
-        .all_ready_scopes_disclose_hidden_count_known);
+    assert!(
+        record
+            .widen_preview_truth
+            .all_previews_have_apply_action_metadata
+    );
+    assert!(
+        record
+            .widen_preservation_truth
+            .all_widens_preserve_root_identity
+    );
+    assert!(
+        record
+            .widen_preservation_truth
+            .all_widens_preserve_query_session_continuity
+    );
+    assert!(
+        record
+            .widen_preservation_truth
+            .all_widens_preserve_restore_provenance
+    );
+    assert!(
+        record
+            .widen_preservation_truth
+            .all_preservation_postures_safe
+    );
+    assert_eq!(
+        record.policy_limited_disclosure.policy_limited_scope_count,
+        1
+    );
+    assert!(
+        record
+            .policy_limited_disclosure
+            .all_policy_limited_have_narrowing_cause
+    );
+    assert!(
+        record
+            .policy_limited_disclosure
+            .no_admin_or_license_policy_exposes_hidden_list
+    );
+    assert!(
+        record
+            .readiness_truth
+            .all_ready_scopes_disclose_hidden_count_known
+    );
     assert_eq!(record.inspection_hooks.len(), 6);
-    assert!(record.producer_attribution.integrity_hash.starts_with("wsx:"));
+    assert!(record
+        .producer_attribution
+        .integrity_hash
+        .starts_with("wsx:"));
 }
 
 #[test]
 fn missing_required_scope_class_narrows_record() {
     let mut inputs = baseline_inputs();
-    inputs.scopes.retain(|s| s.scope_class != ScopeKind::SparseSlice);
+    inputs
+        .scopes
+        .retain(|s| s.scope_class != ScopeKind::SparseSlice);
     let record = project_workset_scope_ux_lineage("posture.missing_sparse_class", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
@@ -310,7 +357,9 @@ fn missing_required_scope_class_narrows_record() {
 #[test]
 fn missing_required_surface_kind_narrows_record() {
     let mut inputs = baseline_inputs();
-    inputs.surfaces.retain(|s| s.surface_kind != SurfaceKind::Graph);
+    inputs
+        .surfaces
+        .retain(|s| s.surface_kind != SurfaceKind::Graph);
     let record = project_workset_scope_ux_lineage("posture.missing_graph", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
@@ -646,8 +695,12 @@ fn lines_projection_renders_required_sections() {
     assert!(lines
         .iter()
         .any(|line| line.contains("Hidden-result disclosure")));
-    assert!(lines.iter().any(|line| line.contains("Slice-ref propagation")));
-    assert!(lines.iter().any(|line| line.contains("widen_preview_truth")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("Slice-ref propagation")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("widen_preview_truth")));
     assert!(lines.iter().any(|line| line == "Widen previews:"));
     assert!(lines
         .iter()

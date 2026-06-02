@@ -178,7 +178,12 @@ fn blocked(
     }
 }
 
-fn succeeded(action: ManagedActionClass, result: &str, at: &str, note: &str) -> HostedMutationInput {
+fn succeeded(
+    action: ManagedActionClass,
+    result: &str,
+    at: &str,
+    note: &str,
+) -> HostedMutationInput {
     HostedMutationInput {
         action_class: action,
         result_ref: result.to_owned(),

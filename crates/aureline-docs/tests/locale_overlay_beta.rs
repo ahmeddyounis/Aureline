@@ -35,12 +35,19 @@ fn manifest_fixture_matches_seeded_contract() {
     let from_code = seeded_translated_pack_locale_overlay_contract();
 
     assert_eq!(from_file, from_code);
-    assert_eq!(from_file.contract_id, TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID);
+    assert_eq!(
+        from_file.contract_id,
+        TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID
+    );
     assert_eq!(
         from_file.contract_version_ref,
         TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF
     );
-    assert!(from_file.validate().is_empty(), "{:?}", from_file.validate());
+    assert!(
+        from_file.validate().is_empty(),
+        "{:?}",
+        from_file.validate()
+    );
 }
 
 #[test]
@@ -70,7 +77,10 @@ fn support_export_fixture_matches_seeded_contract() {
     let contract = seeded_translated_pack_locale_overlay_contract();
     let from_file: LocaleOverlaySupportExport = load_json("support_export.json");
 
-    assert_eq!(from_file, seeded_translated_pack_locale_overlay_support_export());
+    assert_eq!(
+        from_file,
+        seeded_translated_pack_locale_overlay_support_export()
+    );
     from_file
         .validate_against_contract(&contract)
         .expect("support export fixture validates");

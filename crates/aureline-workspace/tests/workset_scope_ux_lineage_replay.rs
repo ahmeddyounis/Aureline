@@ -114,7 +114,9 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             "fixture {name} must render outside-vs-omitted disclosure"
         );
         assert!(
-            lines.iter().any(|line| line.contains("Slice-ref propagation")),
+            lines
+                .iter()
+                .any(|line| line.contains("Slice-ref propagation")),
             "fixture {name} must render slice-ref propagation"
         );
         assert!(

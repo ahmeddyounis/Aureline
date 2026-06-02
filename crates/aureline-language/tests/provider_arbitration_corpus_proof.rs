@@ -7,8 +7,8 @@ use aureline_language::provider_arbitration::{
     ArbitrationLocalityClass, ClaimStatusClass, ConfidenceOutcomeClass, ConflictClass,
     ConsumerSurfaceClass, DisagreementVisibilityClass, DowngradedPromiseReasonClass,
     FallbackLabelClass, LanguageActionLaneClass, ProofScenarioClass, ProviderFamily,
-    DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_RECORD_KIND, DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_ROW_RECORD_KIND,
-    PROVIDER_ARBITRATION_PROOF_CORPUS_DIR,
+    DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_RECORD_KIND,
+    DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_ROW_RECORD_KIND, PROVIDER_ARBITRATION_PROOF_CORPUS_DIR,
 };
 
 #[test]
@@ -253,7 +253,10 @@ fn every_decision_routes_to_every_required_consumer() {
 #[test]
 fn fixture_refs_all_live_in_corpus_directory() {
     let refs: Vec<&str> = current_provider_arbitration_proof_fixture_refs().collect();
-    assert!(refs.len() >= 18, "proof corpus must hold at least 18 fixtures");
+    assert!(
+        refs.len() >= 18,
+        "proof corpus must hold at least 18 fixtures"
+    );
     for fixture_ref in refs {
         assert!(
             fixture_ref.starts_with(PROVIDER_ARBITRATION_PROOF_CORPUS_DIR),

@@ -368,9 +368,7 @@ impl DeploymentResidencyStabilizeNarrowReasonClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::NotNarrowed => "not_narrowed",
-            Self::VocabularyInconsistentAcrossSurfaces => {
-                "vocabulary_inconsistent_across_surfaces"
-            }
+            Self::VocabularyInconsistentAcrossSurfaces => "vocabulary_inconsistent_across_surfaces",
             Self::ResidualDependencyLedgerIncomplete => "residual_dependency_ledger_incomplete",
             Self::PlaneSeparationMissing => "plane_separation_missing",
             Self::MirrorArtifactRowsAbsent => "mirror_artifact_rows_absent",
@@ -479,8 +477,7 @@ impl DeploymentResidencyStabilizeSummary {
         } else {
             DeploymentResidencyStabilizeQualificationClass::Stable
         };
-        let profiles_covered: Vec<String> =
-            rows.iter().map(|r| r.profile_token.clone()).collect();
+        let profiles_covered: Vec<String> = rows.iter().map(|r| r.profile_token.clone()).collect();
         let plane_strips_separated_count = input
             .plane_status_strips
             .iter()
@@ -636,9 +633,10 @@ impl DeploymentResidencyStabilizePage {
     /// True when all registered plane-status strips separate control-plane
     /// from data-plane impairment and preserve a continue-local path.
     pub fn plane_separation_is_enforced(&self) -> bool {
-        self.input.plane_status_strips.iter().all(|strip| {
-            strip.control_data_plane_separated && strip.continue_local_path_preserved
-        })
+        self.input
+            .plane_status_strips
+            .iter()
+            .all(|strip| strip.control_data_plane_separated && strip.continue_local_path_preserved)
     }
 
     /// True when all mirror/offline profiles carry at least one artifact row.
@@ -837,7 +835,9 @@ fn audit_deployment_residency_input(
 
     // Condition 4: Mirror/offline artifact rows present.
     for row in &input.profile_rows {
-        if row.mirror_offline_state_class.requires_mirror_artifact_rows()
+        if row
+            .mirror_offline_state_class
+            .requires_mirror_artifact_rows()
             && row.mirror_artifact_row_count == 0
         {
             defects.push(DeploymentResidencyStabilizeDefect::new(
@@ -856,7 +856,9 @@ fn audit_deployment_residency_input(
 
     // Condition 5: Sign-out/deprovision scope declared.
     for row in &input.profile_rows {
-        if row.tenant_org_scope_class.requires_sign_out_scope_declaration()
+        if row
+            .tenant_org_scope_class
+            .requires_sign_out_scope_declaration()
             && !row.sign_out_scope_declared
         {
             defects.push(DeploymentResidencyStabilizeDefect::new(
@@ -940,7 +942,9 @@ fn derive_stabilize_rows(
                 } else if per_profile != DeploymentResidencyStabilizeNarrowReasonClass::NotNarrowed
                 {
                     per_profile
-                } else if global_defect != DeploymentResidencyStabilizeNarrowReasonClass::NotNarrowed {
+                } else if global_defect
+                    != DeploymentResidencyStabilizeNarrowReasonClass::NotNarrowed
+                {
                     global_defect
                 } else {
                     DeploymentResidencyStabilizeNarrowReasonClass::NotNarrowed
@@ -949,7 +953,8 @@ fn derive_stabilize_rows(
 
             // Strip-level defects: does any strip for this profile have issues?
             let strip_defects_for_profile = page_defects.iter().any(|d| {
-                d.narrow_reason == DeploymentResidencyStabilizeNarrowReasonClass::PlaneSeparationMissing
+                d.narrow_reason
+                    == DeploymentResidencyStabilizeNarrowReasonClass::PlaneSeparationMissing
                     && input
                         .plane_status_strips
                         .iter()
@@ -965,17 +970,12 @@ fn derive_stabilize_rows(
                 overall_qual
             };
 
-            let summary = build_row_summary(
-                &profile_str,
-                &row_qual,
-                row_narrow,
-            );
+            let summary = build_row_summary(&profile_str, &row_qual, row_narrow);
 
             DeploymentResidencyStabilizeRow {
                 record_kind: DEPLOYMENT_RESIDENCY_STABILIZE_ROW_RECORD_KIND.to_owned(),
                 schema_version: DEPLOYMENT_RESIDENCY_STABILIZE_SCHEMA_VERSION,
-                shared_contract_ref: DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF
-                    .to_owned(),
+                shared_contract_ref: DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF.to_owned(),
                 profile_token: profile_str,
                 tenant_org_scope_token: row.tenant_org_scope_class.as_str().to_owned(),
                 mirror_offline_state_token: row.mirror_offline_state_class.as_str().to_owned(),

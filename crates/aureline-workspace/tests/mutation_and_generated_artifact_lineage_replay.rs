@@ -14,9 +14,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_workspace::{
     mutation_and_generated_artifact_lineage_lines,
-    project_mutation_and_generated_artifact_lineage_with_hooks,
-    MutationAndGeneratedArtifactInputs, MutationAndGeneratedArtifactInspectionHook,
-    MutationAndGeneratedArtifactLineageRecord,
+    project_mutation_and_generated_artifact_lineage_with_hooks, MutationAndGeneratedArtifactInputs,
+    MutationAndGeneratedArtifactInspectionHook, MutationAndGeneratedArtifactLineageRecord,
     MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_RECORD_KIND,
     MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF,
 };
@@ -129,7 +128,9 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             "fixture {name} must render drift truth"
         );
         assert!(
-            lines.iter().any(|line| line.contains("Edit-posture honesty")),
+            lines
+                .iter()
+                .any(|line| line.contains("Edit-posture honesty")),
             "fixture {name} must render edit-posture honesty"
         );
         assert!(
@@ -209,7 +210,11 @@ fn corpus_proves_diverged_from_generator_surface_is_stable_when_disclosed() {
     let fixtures = load_fixtures();
     let saw_diverged_stable = fixtures.iter().any(|(_, fixture)| {
         fixture.expected.stable_qualification.qualified
-            && fixture.expected.edit_posture_honesty.diverged_artifact_count > 0
+            && fixture
+                .expected
+                .edit_posture_honesty
+                .diverged_artifact_count
+                > 0
     });
     assert!(
         saw_diverged_stable,

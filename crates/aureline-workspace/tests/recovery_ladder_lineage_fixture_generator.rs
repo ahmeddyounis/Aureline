@@ -221,11 +221,8 @@ fn write_fixture(
     inputs: RecoveryLadderInputs,
     inspection_hooks: Vec<RecoveryLadderInspectionHook>,
 ) {
-    let record = project_recovery_ladder_lineage_with_hooks(
-        posture_id,
-        &inputs,
-        inspection_hooks.clone(),
-    );
+    let record =
+        project_recovery_ladder_lineage_with_hooks(posture_id, &inputs, inspection_hooks.clone());
     let envelope = FixtureEnvelope {
         posture_id,
         inputs: &inputs,

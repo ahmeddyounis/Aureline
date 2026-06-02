@@ -18,8 +18,7 @@ use aureline_review::{
     DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket, LandingCandidateInput,
     LandingCandidatePacket, ReviewStabilizationInput, ReviewStabilizationPacket,
     ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket, ReviewWorkspaceSeedInput,
-    ReviewWorkspaceSeedPacket, WorkItemLinkageFinalizationInput,
-    WorkItemLinkageFinalizationPacket,
+    ReviewWorkspaceSeedPacket, WorkItemLinkageFinalizationInput, WorkItemLinkageFinalizationPacket,
 };
 use serde::Deserialize;
 
@@ -110,8 +109,8 @@ fn load_fixture(name: &str) -> LinkageFinalizationFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -131,23 +130,13 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &LinkageFinalizationFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
 fn landing_packet_for(fixture: &LinkageFinalizationFixture) -> LandingCandidatePacket {
     let workspace_packet = workspace_packet_for(fixture);
     LandingCandidatePacket::from_workspace_packet(fixture.landing_input.clone(), &workspace_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} landing packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} landing packet must project: {err}", fixture.case_name))
 }
 
 fn stabilization_packet_for(fixture: &LinkageFinalizationFixture) -> ReviewStabilizationPacket {
@@ -180,8 +169,7 @@ fn assert_expected(
     case_name: &str,
 ) {
     assert_eq!(
-        packet.inspection.finalized_current,
-        expected.finalized_current,
+        packet.inspection.finalized_current, expected.finalized_current,
         "{case_name}: finalized_current"
     );
     assert_eq!(
@@ -200,8 +188,7 @@ fn assert_expected(
         "{case_name}: finalized_diverged_requires_review"
     );
     assert_eq!(
-        packet.inspection.finalized_offline_handoff_only,
-        expected.finalized_offline_handoff_only,
+        packet.inspection.finalized_offline_handoff_only, expected.finalized_offline_handoff_only,
         "{case_name}: finalized_offline_handoff_only"
     );
     assert_eq!(
@@ -210,13 +197,11 @@ fn assert_expected(
         "{case_name}: provider_authoritative_surface_present"
     );
     assert_eq!(
-        packet.inspection.local_draft_surface_present,
-        expected.local_draft_surface_present,
+        packet.inspection.local_draft_surface_present, expected.local_draft_surface_present,
         "{case_name}: local_draft_surface_present"
     );
     assert_eq!(
-        packet.inspection.sync_pending_surface_present,
-        expected.sync_pending_surface_present,
+        packet.inspection.sync_pending_surface_present, expected.sync_pending_surface_present,
         "{case_name}: sync_pending_surface_present"
     );
     assert_eq!(
@@ -230,8 +215,7 @@ fn assert_expected(
         "{case_name}: write_mode_disclosed_on_all_surfaces"
     );
     assert_eq!(
-        packet.inspection.transition_sheet_present,
-        expected.transition_sheet_present,
+        packet.inspection.transition_sheet_present, expected.transition_sheet_present,
         "{case_name}: transition_sheet_present"
     );
     assert_eq!(
@@ -250,18 +234,15 @@ fn assert_expected(
         "{case_name}: offline_handoff_survives_reconnect"
     );
     assert_eq!(
-        packet.inspection.branch_link_previewable,
-        expected.branch_link_previewable,
+        packet.inspection.branch_link_previewable, expected.branch_link_previewable,
         "{case_name}: branch_link_previewable"
     );
     assert_eq!(
-        packet.inspection.review_link_previewable,
-        expected.review_link_previewable,
+        packet.inspection.review_link_previewable, expected.review_link_previewable,
         "{case_name}: review_link_previewable"
     );
     assert_eq!(
-        packet.inspection.publish_later_survives_restart,
-        expected.publish_later_survives_restart,
+        packet.inspection.publish_later_survives_restart, expected.publish_later_survives_restart,
         "{case_name}: publish_later_survives_restart"
     );
     assert_eq!(
@@ -270,28 +251,23 @@ fn assert_expected(
         "{case_name}: publish_later_survives_reconnect"
     );
     assert_eq!(
-        packet.inspection.actionable,
-        expected.actionable,
+        packet.inspection.actionable, expected.actionable,
         "{case_name}: actionable"
     );
     assert_eq!(
-        packet.inspection.invalidated,
-        expected.invalidated,
+        packet.inspection.invalidated, expected.invalidated,
         "{case_name}: invalidated"
     );
     assert_eq!(
-        packet.inspection.command_count,
-        expected.command_count,
+        packet.inspection.command_count, expected.command_count,
         "{case_name}: command_count"
     );
     assert_eq!(
-        packet.inspection.detail_surface_count,
-        expected.detail_surface_count,
+        packet.inspection.detail_surface_count, expected.detail_surface_count,
         "{case_name}: detail_surface_count"
     );
     assert_eq!(
-        packet.inspection.transition_sheet_count,
-        expected.transition_sheet_count,
+        packet.inspection.transition_sheet_count, expected.transition_sheet_count,
         "{case_name}: transition_sheet_count"
     );
     assert_eq!(
@@ -300,28 +276,23 @@ fn assert_expected(
         "{case_name}: offline_handoff_continuity_count"
     );
     assert_eq!(
-        packet.inspection.branch_link_count,
-        expected.branch_link_count,
+        packet.inspection.branch_link_count, expected.branch_link_count,
         "{case_name}: branch_link_count"
     );
     assert_eq!(
-        packet.inspection.review_link_count,
-        expected.review_link_count,
+        packet.inspection.review_link_count, expected.review_link_count,
         "{case_name}: review_link_count"
     );
     assert_eq!(
-        packet.inspection.publish_later_continuity_count,
-        expected.publish_later_continuity_count,
+        packet.inspection.publish_later_continuity_count, expected.publish_later_continuity_count,
         "{case_name}: publish_later_continuity_count"
     );
     assert_eq!(
-        packet.inspection.preview_capable,
-        expected.preview_capable,
+        packet.inspection.preview_capable, expected.preview_capable,
         "{case_name}: preview_capable"
     );
     assert_eq!(
-        packet.inspection.support_export_reopenable,
-        expected.support_export_reopenable,
+        packet.inspection.support_export_reopenable, expected.support_export_reopenable,
         "{case_name}: support_export_reopenable"
     );
 }
@@ -340,7 +311,10 @@ fn all_fixtures_parse_validate_and_project() {
 fn write_modes_disclosed_on_all_surfaces() {
     let fixture = load_fixture("finalized_current_all_surfaces_present.json");
     let packet = linkage_finalization_packet_for(&fixture);
-    assert!(packet.write_modes_disclosed(), "write modes must be disclosed");
+    assert!(
+        packet.write_modes_disclosed(),
+        "write modes must be disclosed"
+    );
 }
 
 #[test]

@@ -8,12 +8,11 @@ use std::path::{Path, PathBuf};
 use aureline_language::{
     current_stable_daily_driver_quality_truth_packet, DailyDriverDowngradeAutomationClass,
     DailyDriverEvidenceClass, DailyDriverKnownLimitClass, DailyDriverQualityConsumerSurface,
-    DailyDriverQualityFindingKind, DailyDriverQualityPromotionState,
-    DailyDriverQualityTruthPacket, DailyDriverQualityTruthPacketInput, DailyDriverRowClass,
-    DailyDriverSupportClass, DailyLoopStepClass, LanguageLaneClass,
-    DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
-    DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR, DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
-    DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    DailyDriverQualityFindingKind, DailyDriverQualityPromotionState, DailyDriverQualityTruthPacket,
+    DailyDriverQualityTruthPacketInput, DailyDriverRowClass, DailyDriverSupportClass,
+    DailyLoopStepClass, LanguageLaneClass, DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF,
+    DAILY_DRIVER_QUALITY_TRUTH_DOC_REF, DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
+    DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF, DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -221,8 +220,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_daily_driver_quality_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_daily_driver_quality_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         DailyDriverQualityPromotionState::Stable

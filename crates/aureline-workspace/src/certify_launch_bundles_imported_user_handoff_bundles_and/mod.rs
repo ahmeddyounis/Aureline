@@ -593,7 +593,8 @@ impl BundleArchetypeCertificationPacket {
             .imported_handoff
             .as_ref()
             .map(|h| handoff_record(h, &identity));
-        let inspection = inspection_record(&identity, &scorecard, &claim, imported_handoff.as_ref());
+        let inspection =
+            inspection_record(&identity, &scorecard, &claim, imported_handoff.as_ref());
 
         let packet = Self {
             record_kind: BUNDLE_ARCHETYPE_CERTIFICATION_PACKET_RECORD_KIND.to_string(),
@@ -750,9 +751,17 @@ impl BundleArchetypeCertificationPacket {
                 "stored downgrade flag does not match the scorecard-derived verdict",
             ));
         }
-        let stored: BTreeSet<&str> =
-            self.claim.downgrade_reasons.iter().map(String::as_str).collect();
-        let expected: BTreeSet<&str> = derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let stored: BTreeSet<&str> = self
+            .claim
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the scorecard-derived reasons",
@@ -1179,7 +1188,8 @@ fn inspection_record(
                 && row.bridge_supports_parity()
         })
         .unwrap_or(false);
-    let no_prose_only_stable_claim = !stable_claim || claim.claim_basis_class == "scorecard_row_backed";
+    let no_prose_only_stable_claim =
+        !stable_claim || claim.claim_basis_class == "scorecard_row_backed";
     let imported_handoff_preserved = if identity.bundle_class == "imported_user_bundle" {
         handoff.map(|h| h.preserved).unwrap_or(false)
     } else {
@@ -1210,7 +1220,10 @@ fn identity_is_consistent(identity: &CertifiedBundleIdentity) -> bool {
         && contains(BUNDLE_CLASSES, &identity.bundle_class)
         && contains(BUNDLE_SOURCE_CLASSES, &identity.bundle_source_class)
         && contains(BUNDLE_ARCHETYPE_CLASSES, &identity.archetype_class)
-        && contains(CERTIFICATION_STATE_CLASSES, &identity.certification_state_class)
+        && contains(
+            CERTIFICATION_STATE_CLASSES,
+            &identity.certification_state_class,
+        )
         && !identity.compatible_aureline_range.trim().is_empty()
 }
 
@@ -1294,7 +1307,10 @@ fn validate_input(
             &row.known_gap_state_class,
             "scorecard_row.known_gap_state_class",
         )?;
-        ensure_nonempty(&row.freshness_expires_at, "scorecard_row.freshness_expires_at")?;
+        ensure_nonempty(
+            &row.freshness_expires_at,
+            "scorecard_row.freshness_expires_at",
+        )?;
         // A disclosed gap must list at least one gap reference.
         if row.known_gap_state_class == "known_gaps_disclosed" && row.known_gap_refs.is_empty() {
             return Err(err(format!(
@@ -1310,7 +1326,11 @@ fn validate_input(
         &claim.claimed_badge_class,
         "claim.claimed_badge_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
     if let Some(row_ref) = &claim.scorecard_row_ref {
         if !sc.rows.iter().any(|r| &r.row_id == row_ref) {
             return Err(err(format!(
@@ -1332,9 +1352,10 @@ fn validate_input(
         ensure_nonempty(&handoff.handoff_id, "imported_handoff.handoff_id")?;
     }
     if id.bundle_class == "imported_user_bundle" {
-        let handoff = input.imported_handoff.as_ref().ok_or_else(|| {
-            err("imported_user_bundle must carry an imported-handoff report")
-        })?;
+        let handoff = input
+            .imported_handoff
+            .as_ref()
+            .ok_or_else(|| err("imported_user_bundle must carry an imported-handoff report"))?;
         ensure_nonempty(
             &handoff.migration_report_ref,
             "imported_handoff.migration_report_ref",
@@ -1368,7 +1389,11 @@ fn validate_identity(
         BUNDLE_ARCHETYPE_CERTIFICATION_SCHEMA_VERSION,
         "identity schema_version",
     )?;
-    ensure_token(BUNDLE_CLASSES, &identity.bundle_class, "identity bundle_class")?;
+    ensure_token(
+        BUNDLE_CLASSES,
+        &identity.bundle_class,
+        "identity bundle_class",
+    )?;
     ensure_token(
         BUNDLE_SOURCE_CLASSES,
         &identity.bundle_source_class,
@@ -1461,7 +1486,11 @@ fn validate_claim(
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
         ensure_token(
             BUNDLE_CERTIFICATION_DOWNGRADE_REASONS,
@@ -1509,7 +1538,9 @@ fn validate_inspection(
         "inspection effective_badge_class",
     )?;
     if inspection.scorecard_row_count != packet.scorecard.rows.len() {
-        return Err(err("inspection scorecard_row_count must match scorecard rows"));
+        return Err(err(
+            "inspection scorecard_row_count must match scorecard rows",
+        ));
     }
     if inspection.no_prose_only_stable_claim != packet.no_prose_only_stable_claim() {
         return Err(err("inspection no_prose_only_stable_claim is inconsistent"));
@@ -1538,7 +1569,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -1549,7 +1582,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), BundleCertificationValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -1567,7 +1602,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), BundleCertificationValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }
@@ -1666,11 +1703,14 @@ mod tests {
 
     #[test]
     fn certified_claim_with_current_row_holds() {
-        let packet = BundleArchetypeCertificationPacket::from_input(base_input())
-            .expect("must project");
+        let packet =
+            BundleArchetypeCertificationPacket::from_input(base_input()).expect("must project");
         assert_eq!(packet.claim.effective_badge_class, "certified");
         assert!(!packet.claim.downgraded);
-        assert_eq!(packet.claim.support_claim_class, "stable_launch_wedge_claim");
+        assert_eq!(
+            packet.claim.support_claim_class,
+            "stable_launch_wedge_claim"
+        );
         assert!(packet.inspection.resolves_to_current_scorecard_row);
         assert!(packet.no_prose_only_stable_claim());
     }
@@ -1694,8 +1734,7 @@ mod tests {
     fn narrowed_bridge_downgrades_automatically() {
         let mut input = base_input();
         input.scorecard.rows[0].bridge_state_class = "approximate_bridge".to_string();
-        let packet = BundleArchetypeCertificationPacket::from_input(input)
-            .expect("must project");
+        let packet = BundleArchetypeCertificationPacket::from_input(input).expect("must project");
         assert!(packet.claim.downgraded);
         assert_eq!(packet.claim.effective_badge_class, "limited");
         assert!(packet
@@ -1709,8 +1748,7 @@ mod tests {
         let mut input = base_input();
         input.claim.claim_basis_class = "prose_only".to_string();
         input.claim.scorecard_row_ref = None;
-        let packet = BundleArchetypeCertificationPacket::from_input(input)
-            .expect("must project");
+        let packet = BundleArchetypeCertificationPacket::from_input(input).expect("must project");
         assert!(packet.claim.downgraded);
         assert!(!STABLE_BADGE_CLASSES.contains(&packet.claim.effective_badge_class.as_str()));
         assert!(packet
@@ -1726,8 +1764,7 @@ mod tests {
         // Point the claim at a row id that is not present is rejected at input;
         // instead drop the row's bundle binding to force a mismatch downgrade.
         input.scorecard.rows[0].bundle_id_ref = "bundle.other".to_string();
-        let packet = BundleArchetypeCertificationPacket::from_input(input)
-            .expect("must project");
+        let packet = BundleArchetypeCertificationPacket::from_input(input).expect("must project");
         assert!(packet.claim.downgraded);
         assert!(packet
             .claim
@@ -1738,7 +1775,11 @@ mod tests {
     #[test]
     fn imported_user_bundle_requires_preserved_handoff() {
         let mut input = base_input();
-        input.identity = identity("imported_user_bundle", "imported", "imported_pending_review");
+        input.identity = identity(
+            "imported_user_bundle",
+            "imported",
+            "imported_pending_review",
+        );
         input.claim.claimed_badge_class = "imported".to_string();
         input.claim.claim_basis_class = "scorecard_row_backed".to_string();
         input.claim.scorecard_row_ref = Some("r1".to_string());
@@ -1779,7 +1820,11 @@ mod tests {
     #[test]
     fn managed_approved_claim_holds_with_current_row() {
         let mut input = base_input();
-        input.identity = identity("org_approved_bundle", "managed_approved", "managed_approved_current");
+        input.identity = identity(
+            "org_approved_bundle",
+            "managed_approved",
+            "managed_approved_current",
+        );
         input.claim.claimed_badge_class = "managed_approved".to_string();
         let packet = BundleArchetypeCertificationPacket::from_input(input).expect("must project");
         assert_eq!(packet.claim.effective_badge_class, "managed_approved");
@@ -1789,8 +1834,8 @@ mod tests {
 
     #[test]
     fn projection_roundtrips_through_json() {
-        let packet = BundleArchetypeCertificationPacket::from_input(base_input())
-            .expect("must project");
+        let packet =
+            BundleArchetypeCertificationPacket::from_input(base_input()).expect("must project");
         let payload = serde_json::to_string(&packet).expect("serialize");
         let projection =
             project_bundle_archetype_certification(&payload).expect("must project from json");
@@ -1802,7 +1847,9 @@ mod tests {
     #[test]
     fn reference_workspace_missing_downgrades() {
         let mut input = base_input();
-        input.scorecard.rows[0].certified_reference_workspace_ids.clear();
+        input.scorecard.rows[0]
+            .certified_reference_workspace_ids
+            .clear();
         let packet = BundleArchetypeCertificationPacket::from_input(input).expect("must project");
         assert!(packet.claim.downgraded);
         assert!(packet

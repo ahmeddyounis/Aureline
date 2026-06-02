@@ -215,10 +215,10 @@ fn narrowing_panel_that_does_not_narrow_fails() {
     dashboard.publication.blocking_panel_ids = dashboard.computed_blocking_panel_ids();
 
     assert!(
-        dashboard
-            .validate()
-            .iter()
-            .any(|v| matches!(v, ShiproomDashboardViolation::DisplayedLabelNotNarrowed { .. })),
+        dashboard.validate().iter().any(|v| matches!(
+            v,
+            ShiproomDashboardViolation::DisplayedLabelNotNarrowed { .. }
+        )),
         "a panel that is not green must narrow below the cutline"
     );
 }
@@ -249,7 +249,12 @@ fn fitness_status_disagreeing_with_measurement_fails() {
     let panel = dashboard
         .panels
         .iter_mut()
-        .find(|panel| panel.fitness_functions.iter().any(|f| f.status == FitnessStatus::Pass))
+        .find(|panel| {
+            panel
+                .fitness_functions
+                .iter()
+                .any(|f| f.status == FitnessStatus::Pass)
+        })
         .expect("dashboard has a passing fitness function");
     let function = panel
         .fitness_functions
@@ -259,10 +264,10 @@ fn fitness_status_disagreeing_with_measurement_fails() {
     function.status = FitnessStatus::Fail;
 
     assert!(
-        dashboard
-            .validate()
-            .iter()
-            .any(|v| matches!(v, ShiproomDashboardViolation::FitnessStatusInconsistent { .. })),
+        dashboard.validate().iter().any(|v| matches!(
+            v,
+            ShiproomDashboardViolation::FitnessStatusInconsistent { .. }
+        )),
         "a fitness function's status must agree with its measurement"
     );
 }

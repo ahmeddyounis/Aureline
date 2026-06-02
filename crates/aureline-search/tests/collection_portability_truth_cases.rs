@@ -5,13 +5,12 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_search::{
-    current_stable_collection_portability_truth_packet,
-    CollectionPortabilityConsumerSurface, CollectionPortabilityFindingKind,
-    CollectionPortabilityPromotionState, CollectionPortabilityTruthPacket,
-    CollectionPortabilityTruthPacketInput,
+    current_stable_collection_portability_truth_packet, CollectionPortabilityConsumerSurface,
+    CollectionPortabilityFindingKind, CollectionPortabilityPromotionState,
+    CollectionPortabilityTruthPacket, CollectionPortabilityTruthPacketInput,
     COLLECTION_PORTABILITY_TRUTH_ARTIFACT_DOC_REF, COLLECTION_PORTABILITY_TRUTH_DOC_REF,
-    COLLECTION_PORTABILITY_TRUTH_FIXTURE_DIR,
-    COLLECTION_PORTABILITY_TRUTH_PACKET_ARTIFACT_REF, COLLECTION_PORTABILITY_TRUTH_SCHEMA_REF,
+    COLLECTION_PORTABILITY_TRUTH_FIXTURE_DIR, COLLECTION_PORTABILITY_TRUTH_PACKET_ARTIFACT_REF,
+    COLLECTION_PORTABILITY_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -204,8 +203,8 @@ fn reopen_state_coverage_over_declared_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_reopen_state() {
-    let packet = current_stable_collection_portability_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_collection_portability_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         CollectionPortabilityPromotionState::Stable

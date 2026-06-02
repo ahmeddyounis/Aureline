@@ -42,8 +42,14 @@ fn fixture_page_is_bit_for_bit_equal_to_seed() {
     let seeded = seeded_voice_preview_beta_page();
     assert_eq!(on_disk, seeded, "fixture page diverged from seeded page");
     assert_eq!(seeded.record_kind, VOICE_PREVIEW_PAGE_RECORD_KIND);
-    assert_eq!(seeded.shared_contract_ref, VOICE_PREVIEW_SHARED_CONTRACT_REF);
-    assert_eq!(seeded.published_report_ref, VOICE_PREVIEW_PUBLISHED_REPORT_REF);
+    assert_eq!(
+        seeded.shared_contract_ref,
+        VOICE_PREVIEW_SHARED_CONTRACT_REF
+    );
+    assert_eq!(
+        seeded.published_report_ref,
+        VOICE_PREVIEW_PUBLISHED_REPORT_REF
+    );
 }
 
 #[test]
@@ -107,15 +113,17 @@ fn high_impact_resolutions_cannot_bypass_preview_or_guards() {
                 );
                 assert!(resolution.canonical_command_id.is_some());
                 assert_eq!(
-                    resolution.keyboard_equivalent_command_id,
-                    resolution.canonical_command_id,
+                    resolution.keyboard_equivalent_command_id, resolution.canonical_command_id,
                     "{} must reach the same keyboard command",
                     resolution.resolution_id
                 );
             }
         }
     }
-    assert!(saw_high_impact, "fixture must exercise a high-impact resolution");
+    assert!(
+        saw_high_impact,
+        "fixture must exercise a high-impact resolution"
+    );
 }
 
 #[test]

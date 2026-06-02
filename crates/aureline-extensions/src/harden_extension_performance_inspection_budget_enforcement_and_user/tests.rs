@@ -93,11 +93,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_performance_budget_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.support_claim_class, e.support_claim_class, "{}", fixture.case_name);
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.support_claim_class, e.support_claim_class,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -167,9 +187,15 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         // The projection and export agree with the packet.
         assert_eq!(projection.effective_tier, packet.claim.effective_tier);
         assert_eq!(export.effective_tier, packet.claim.effective_tier);
-        assert_eq!(export.budget_status_class, packet.enforcement.budget_status_class);
+        assert_eq!(
+            export.budget_status_class,
+            packet.enforcement.budget_status_class
+        );
         assert_eq!(export.measured_p50, packet.measurement.measured_p50);
-        assert_eq!(export.published_p95_budget, packet.enforcement.published_p95_budget);
+        assert_eq!(
+            export.published_p95_budget,
+            packet.enforcement.published_p95_budget
+        );
     }
 }
 
@@ -272,7 +298,10 @@ fn over_budget_narrows_to_beta() {
     input.measurement.measured_p95 = 700;
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"budget_over".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"budget_over".to_string()));
 }
 
 #[test]
@@ -283,7 +312,10 @@ fn unbounded_budget_withdraws_the_row() {
     input.enforcement.published_p95_budget = 0;
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "withdrawn");
-    assert!(packet.claim.downgrade_reasons.contains(&"budget_unbounded".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"budget_unbounded".to_string()));
 }
 
 #[test]
@@ -355,7 +387,10 @@ fn expired_waiver_narrows_to_beta() {
     input.waiver.waiver_authority_class = Some("publisher".to_string());
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"waiver_expired".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"waiver_expired".to_string()));
 }
 
 #[test]
@@ -367,7 +402,10 @@ fn revoked_waiver_narrows_to_preview_with_banner() {
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "preview");
     assert!(packet.downgraded_banner.must_display);
-    assert!(packet.claim.downgrade_reasons.contains(&"waiver_revoked".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"waiver_revoked".to_string()));
 }
 
 #[test]
@@ -413,7 +451,10 @@ fn unbounded_cost_withdraws_the_row() {
     input.cost_explanation.cost_class = "unbounded".to_string();
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "withdrawn");
-    assert!(packet.claim.downgrade_reasons.contains(&"cost_unbounded".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"cost_unbounded".to_string()));
     assert!(packet.unbounded_cost_never_stable());
 }
 
@@ -473,7 +514,10 @@ fn not_mirrorable_narrows_to_beta() {
     input.install_posture.mirrorability_class = "not_mirrorable".to_string();
     let packet = StablePerformanceBudgetPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"not_mirrorable".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"not_mirrorable".to_string()));
 }
 
 #[test]
@@ -495,7 +539,10 @@ fn within_budget_must_be_numerically_consistent() {
     // Claim within budget but measure over the published p95 ceiling.
     input.measurement.measured_p95 = 9_000;
     let result = StablePerformanceBudgetPacket::from_input(input);
-    assert!(result.is_err(), "within_budget with measured over ceiling must be rejected");
+    assert!(
+        result.is_err(),
+        "within_budget with measured over ceiling must be rejected"
+    );
 }
 
 #[test]
@@ -504,7 +551,10 @@ fn over_budget_must_actually_exceed_ceiling() {
     input.enforcement.budget_status_class = "over_budget".to_string();
     // Measurement still inside the ceiling — inconsistent with over_budget.
     let result = StablePerformanceBudgetPacket::from_input(input);
-    assert!(result.is_err(), "over_budget with measurement inside ceiling must be rejected");
+    assert!(
+        result.is_err(),
+        "over_budget with measurement inside ceiling must be rejected"
+    );
 }
 
 #[test]

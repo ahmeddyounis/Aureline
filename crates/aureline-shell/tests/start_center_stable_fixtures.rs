@@ -195,8 +195,7 @@ fn failed_opens_keep_entry_and_recovery_routes() {
             assert!(
                 route.preserves_unrelated_state,
                 "{} recovery route {} drops unrelated state",
-                scenario.scenario_id,
-                route.action_id,
+                scenario.scenario_id, route.action_id,
             );
             if route.action_id == "remove_from_recents" {
                 assert!(
@@ -370,7 +369,11 @@ fn refs_are_canonical_durable_objects() {
                 scenario.scenario_id,
             );
         }
-        for value in record.evidence_refs.iter().chain(record.narrative_refs.iter()) {
+        for value in record
+            .evidence_refs
+            .iter()
+            .chain(record.narrative_refs.iter())
+        {
             assert!(
                 is_canonical_object_ref(value),
                 "{} ref {value:?} not canonical",

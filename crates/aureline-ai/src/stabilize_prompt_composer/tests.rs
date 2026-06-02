@@ -288,14 +288,18 @@ fn stabilization_packet_validates_against_conformance() {
 #[test]
 fn attachment_rows_cover_every_typed_source_class() {
     let mut packet = packet();
-    assert!(packet.validate_self().is_empty(), "{:?}", packet.validate_self());
+    assert!(
+        packet.validate_self().is_empty(),
+        "{:?}",
+        packet.validate_self()
+    );
     packet
         .attachment_semantic_rows
         .retain(|row| row.source_class != StableAttachmentSourceClass::ExternalText);
 
-    assert!(packet.validate_self().contains(
-        &PromptComposerStabilizationViolation::AttachmentSourceClassCoverageMissing
-    ));
+    assert!(packet
+        .validate_self()
+        .contains(&PromptComposerStabilizationViolation::AttachmentSourceClassCoverageMissing));
 }
 
 #[test]

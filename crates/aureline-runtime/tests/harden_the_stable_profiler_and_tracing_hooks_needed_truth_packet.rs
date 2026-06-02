@@ -72,9 +72,7 @@ fn assert_exists(rel: &str) {
 }
 
 fn load_fixture(file_name: &str) -> ProfilerFixture {
-    let path = repo_root()
-        .join(PROFILER_TRUTH_FIXTURE_DIR)
-        .join(file_name);
+    let path = repo_root().join(PROFILER_TRUTH_FIXTURE_DIR).join(file_name);
     let payload = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("fixture {path:?} must read: {err}"));
     serde_json::from_str(&payload)
@@ -403,10 +401,7 @@ fn checked_in_artifact_covers_required_admissions_per_launch_stable_lane() {
 #[test]
 fn closed_profiler_truth_tokens_are_pinned() {
     assert_eq!(ProfilerLaneClass::LocalLane.as_str(), "local_lane");
-    assert_eq!(
-        ProfilerLaneClass::CiImportLane.as_str(),
-        "ci_import_lane"
-    );
+    assert_eq!(ProfilerLaneClass::CiImportLane.as_str(), "ci_import_lane");
     assert_eq!(
         ProfilerRowClass::ProfilerQuality.as_str(),
         "profiler_quality"
@@ -435,10 +430,7 @@ fn closed_profiler_truth_tokens_are_pinned() {
         ProfilerRowClass::ReplayStateAdmission.as_str(),
         "replay_state_admission"
     );
-    assert_eq!(
-        ProfilerRowClass::SurfaceBinding.as_str(),
-        "surface_binding"
-    );
+    assert_eq!(ProfilerRowClass::SurfaceBinding.as_str(), "surface_binding");
     assert_eq!(
         ProfilerWedgeClass::ProfileSessionDescriptor.as_str(),
         "profile_session_descriptor"
@@ -461,8 +453,14 @@ fn closed_profiler_truth_tokens_are_pinned() {
     assert_eq!(ProfilerBuildModeClass::ReleaseMode.as_str(), "release_mode");
     assert_eq!(ProfilerRunClassClass::WarmRun.as_str(), "warm_run");
     assert_eq!(ProfilerRunClassClass::ColdRun.as_str(), "cold_run");
-    assert_eq!(ProfilerConfounderClass::HardwareClass.as_str(), "hardware_class");
-    assert_eq!(ProfilerConfounderClass::ThermalState.as_str(), "thermal_state");
+    assert_eq!(
+        ProfilerConfounderClass::HardwareClass.as_str(),
+        "hardware_class"
+    );
+    assert_eq!(
+        ProfilerConfounderClass::ThermalState.as_str(),
+        "thermal_state"
+    );
     assert_eq!(ProfilerReplayStateClass::Supported.as_str(), "supported");
     assert_eq!(
         ProfilerReplayStateClass::ImportViewOnly.as_str(),

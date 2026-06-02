@@ -18,14 +18,14 @@ use std::path::{Path, PathBuf};
 
 use aureline_git::{
     parse_stable_conflict_session_record, project_stable_conflict_session,
-    StableConflictSessionRecord,
-    STABLE_CONFLICT_CONSUMER_SURFACES, STABLE_CONFLICT_OPERATION_KINDS,
-    STABLE_CONFLICT_SESSION_RECORD_KIND,
+    StableConflictSessionRecord, STABLE_CONFLICT_CONSUMER_SURFACES,
+    STABLE_CONFLICT_OPERATION_KINDS, STABLE_CONFLICT_SESSION_RECORD_KIND,
 };
 
 fn corpus_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/git/m4/harden_conflict_resolution_external_change_reconciliation_and_merge")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../fixtures/git/m4/harden_conflict_resolution_external_change_reconciliation_and_merge",
+    )
 }
 
 fn collect_corpus() -> Vec<PathBuf> {
@@ -47,11 +47,7 @@ fn every_fixture_projects() {
         let payload = fs::read_to_string(&path)
             .unwrap_or_else(|err| panic!("read fixture {}: {err}", path.display()));
         let projection = project_stable_conflict_session(&payload).unwrap_or_else(|err| {
-            panic!(
-                "fixture {} must project: {}",
-                path.display(),
-                err.message()
-            )
+            panic!("fixture {} must project: {}", path.display(), err.message())
         });
         assert!(
             STABLE_CONFLICT_OPERATION_KINDS
@@ -208,10 +204,7 @@ fn parse_and_project_roundtrip() {
         assert_eq!(projection.record_kind, STABLE_CONFLICT_SESSION_RECORD_KIND);
         assert_eq!(projection.operation_kind, record.operation_kind);
         assert_eq!(projection.lifecycle_state, record.lifecycle_state);
-        assert_eq!(
-            projection.resolution_mode,
-            record.resolution_mode.as_str()
-        );
+        assert_eq!(projection.resolution_mode, record.resolution_mode.as_str());
     }
 }
 
@@ -277,10 +270,7 @@ fn build_packet_from_input() {
     };
 
     let packet = build_stable_conflict_session_packet(input).expect("build packet");
-    assert_eq!(
-        packet.record_kind,
-        "git_stable_conflict_session_packet"
-    );
+    assert_eq!(packet.record_kind, "git_stable_conflict_session_packet");
     assert_eq!(packet.session.session_id, "session.test.build.001");
     assert!(packet.inspection.awaiting_resolution);
     assert!(packet.inspection.structured_open);
@@ -290,12 +280,14 @@ fn build_packet_from_input() {
     assert!(packet.inspection.provenance_preserved);
     assert!(packet.inspection.support_export_reopenable);
     assert_eq!(packet.commands.len(), 2);
-    assert!(
-        packet.commands.iter().any(|cmd| cmd.command_class == "open_structured_resolver" && cmd.actionable)
-    );
-    assert!(
-        packet.commands.iter().any(|cmd| cmd.command_class == "continue_after_resolve" && !cmd.actionable)
-    );
+    assert!(packet
+        .commands
+        .iter()
+        .any(|cmd| cmd.command_class == "open_structured_resolver" && cmd.actionable));
+    assert!(packet
+        .commands
+        .iter()
+        .any(|cmd| cmd.command_class == "continue_after_resolve" && !cmd.actionable));
 }
 
 #[test]
@@ -352,7 +344,10 @@ fn build_packet_downgrade_command_actionable_only_when_structured() {
         .iter()
         .find(|cmd| cmd.command_class == "downgrade_to_raw")
         .expect("downgrade command exists");
-    assert!(downgrade_cmd.actionable, "downgrade must be actionable when structured");
+    assert!(
+        downgrade_cmd.actionable,
+        "downgrade must be actionable when structured"
+    );
 
     // Now switch to raw mode: downgrade should no longer be actionable.
     input.resolution_mode = "raw".to_string();

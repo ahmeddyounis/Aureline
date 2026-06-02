@@ -81,7 +81,11 @@ fn read_fixtures<T: for<'de> Deserialize<'de>>(subdir: &str) -> Vec<(PathBuf, T)
         out.push((path, fixture));
     }
     out.sort_by(|a, b| a.0.cmp(&b.0));
-    assert!(!out.is_empty(), "no fixtures found under {}", root.display());
+    assert!(
+        !out.is_empty(),
+        "no fixtures found under {}",
+        root.display()
+    );
     out
 }
 
@@ -109,7 +113,8 @@ fn lane_fixtures_replay_through_the_named_lane_without_drift() {
         let lane = parse_lane(&fixture.transport_lane, &path);
         for marker in &fixture.markers {
             assert_eq!(
-                marker.artifact_ref, fixture.artifact_ref,
+                marker.artifact_ref,
+                fixture.artifact_ref,
                 "{}: marker artifact_ref does not match fixture",
                 path.display()
             );
@@ -229,7 +234,8 @@ fn downgrade_fixtures_evaluate_the_named_scenario_and_match_expectations() {
         let scenario = parse_scenario(&fixture.scenario, &path);
         for marker in &fixture.markers {
             assert_eq!(
-                marker.artifact_ref, fixture.artifact_ref,
+                marker.artifact_ref,
+                fixture.artifact_ref,
                 "{}: marker artifact_ref does not match fixture",
                 path.display()
             );
@@ -265,12 +271,14 @@ fn downgrade_fixtures_evaluate_the_named_scenario_and_match_expectations() {
                 scenario.as_str()
             );
             assert_eq!(
-                sheet.effective_effect_on_import, fixture.expected_effective_effect_on_import,
+                sheet.effective_effect_on_import,
+                fixture.expected_effective_effect_on_import,
                 "{}: effective_effect_on_import mismatch",
                 path.display()
             );
             assert_eq!(
-                sheet.effective_support_promise, fixture.expected_effective_support_promise,
+                sheet.effective_support_promise,
+                fixture.expected_effective_support_promise,
                 "{}: effective_support_promise mismatch",
                 path.display()
             );

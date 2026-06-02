@@ -516,8 +516,7 @@ impl DocsDeclaration {
         if profile.is_local_only() {
             return true;
         }
-        self.docs_state != DocsCompletenessClass::Missing
-            && !self.freshness_window_token.is_empty()
+        self.docs_state != DocsCompletenessClass::Missing && !self.freshness_window_token.is_empty()
     }
 }
 
@@ -546,8 +545,7 @@ impl MatrixDeclaration {
         if profile.is_local_only() {
             return true;
         }
-        self.matrix_state != MatrixCompletenessClass::Missing
-            && !self.matrix_ref.is_empty()
+        self.matrix_state != MatrixCompletenessClass::Missing && !self.matrix_ref.is_empty()
     }
 }
 
@@ -737,7 +735,8 @@ impl EnterpriseDocsMatricesKnownLimitsSummary {
                 proof_current += 1;
             }
             if row.local_core_posture == LocalCoreContinuityPostureClass::Preserved
-                || row.local_core_posture == LocalCoreContinuityPostureClass::ImpairedManagedDependency
+                || row.local_core_posture
+                    == LocalCoreContinuityPostureClass::ImpairedManagedDependency
             {
                 local_core_preserved += 1;
             }
@@ -904,7 +903,8 @@ impl EnterpriseDocsMatricesKnownLimitsPage {
     pub fn all_rows_preserve_local_core(&self) -> bool {
         self.rows.iter().all(|r| {
             r.local_core_posture == LocalCoreContinuityPostureClass::Preserved
-                || r.local_core_posture == LocalCoreContinuityPostureClass::ImpairedManagedDependency
+                || r.local_core_posture
+                    == LocalCoreContinuityPostureClass::ImpairedManagedDependency
         })
     }
 
@@ -1010,7 +1010,8 @@ pub fn validate_enterprise_docs_matrices_known_limits_page(
 
 /// Build the seeded publish page covering all five required enterprise
 /// profiles with docs, matrices, known-limits, and proof currency declared.
-pub fn seeded_enterprise_docs_matrices_known_limits_page() -> EnterpriseDocsMatricesKnownLimitsPage {
+pub fn seeded_enterprise_docs_matrices_known_limits_page() -> EnterpriseDocsMatricesKnownLimitsPage
+{
     EnterpriseDocsMatricesKnownLimitsPage::new(
         "policy:enterprise-docs-matrices-known-limits:seeded:0001",
         "Enterprise, self-hosted, and air-gapped docs, matrices, and known-limits \
@@ -1096,7 +1097,8 @@ fn audit_enterprise_docs_matrices_known_limits_rows(
                 ));
             }
             // Known-limits disclosure checks.
-            if row.known_limits.known_limits_state == KnownLimitCompletenessClass::PartiallyDisclosed
+            if row.known_limits.known_limits_state
+                == KnownLimitCompletenessClass::PartiallyDisclosed
             {
                 defects.push(EnterpriseDocsMatricesKnownLimitsDefect::new(
                     EnterpriseDocsMatricesKnownLimitsNarrowReasonClass::KnownLimitsPartiallyDisclosed,
@@ -1188,7 +1190,9 @@ fn qualify_rows(
             .iter()
             .find(|d| d.narrow_reason.is_withdrawal_reason())
             .map(|d| d.narrow_reason)
-            .unwrap_or(EnterpriseDocsMatricesKnownLimitsNarrowReasonClass::LocalCoreBlockedByDefault);
+            .unwrap_or(
+                EnterpriseDocsMatricesKnownLimitsNarrowReasonClass::LocalCoreBlockedByDefault,
+            );
         (
             EnterpriseDocsMatricesKnownLimitsQualificationClass::Withdrawn,
             r,
@@ -1330,14 +1334,8 @@ fn make_row(
             last_docs_build_ref: last_docs_build_ref.to_owned(),
             last_docs_build_time: last_docs_build_time.to_owned(),
             freshness_window_token: freshness_window_token.to_owned(),
-            covered_doc_scope_labels: covered_doc_scopes
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
-            missing_doc_scope_labels: missing_doc_scopes
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
+            covered_doc_scope_labels: covered_doc_scopes.iter().map(|s| (*s).to_owned()).collect(),
+            missing_doc_scope_labels: missing_doc_scopes.iter().map(|s| (*s).to_owned()).collect(),
         },
         matrix: MatrixDeclaration {
             matrix_state,

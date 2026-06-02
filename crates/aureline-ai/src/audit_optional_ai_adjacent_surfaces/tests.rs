@@ -6,7 +6,9 @@ fn valid_notebook_row() -> SurfaceQualificationRow {
         surface_label: "Notebook AI affordances".to_owned(),
         qualification: SurfaceQualificationLabel::Limited,
         has_own_qualification_packet: true,
-        qualification_packet_ref: "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/notebook_qualification.json".to_owned(),
+        qualification_packet_ref:
+            "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/notebook_qualification.json"
+                .to_owned(),
         trust_boundary_explicit: true,
         route_evidence_explicit: true,
         export_support_parity_explicit: true,
@@ -39,7 +41,8 @@ fn valid_voice_row() -> SurfaceQualificationRow {
         surface_label: "Voice and dictation input".to_owned(),
         qualification: SurfaceQualificationLabel::Experimental,
         has_own_qualification_packet: true,
-        qualification_packet_ref: "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/voice_qualification.json".to_owned(),
+        qualification_packet_ref:
+            "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/voice_qualification.json".to_owned(),
         trust_boundary_explicit: true,
         route_evidence_explicit: true,
         export_support_parity_explicit: true,
@@ -102,7 +105,9 @@ fn valid_preview_designer_row() -> SurfaceQualificationRow {
         surface_label: "Preview and designer AI affordances".to_owned(),
         qualification: SurfaceQualificationLabel::Limited,
         has_own_qualification_packet: true,
-        qualification_packet_ref: "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/preview_designer_qualification.json".to_owned(),
+        qualification_packet_ref:
+            "fixtures/ai/m4/audit-optional-ai-adjacent-surfaces/preview_designer_qualification.json"
+                .to_owned(),
         trust_boundary_explicit: true,
         route_evidence_explicit: true,
         export_support_parity_explicit: true,
@@ -188,7 +193,8 @@ fn valid_packet() -> OptionalAiAdjacentSurfaceAuditPacket {
         packet_id: "optional-ai-adjacent-surface-audit:stable:0001".to_owned(),
         display_label: "Optional AI-adjacent surface qualification audit".to_owned(),
         policy_epoch_ref: "policy-epoch:stable:0004".to_owned(),
-        core_ai_graduation_packet_ref: "artifacts/ai/m4/publish_stable_ai_graduation_packets/graduation_state.json".to_owned(),
+        core_ai_graduation_packet_ref:
+            "artifacts/ai/m4/publish_stable_ai_graduation_packets/graduation_state.json".to_owned(),
         surface_rows: vec![
             valid_notebook_row(),
             valid_voice_row(),
@@ -358,9 +364,10 @@ fn browser_companion_missing_requirements_is_rejected() {
         .unwrap();
     packet.surface_rows[idx].browser_companion_requirements = None;
     let violations = packet.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, AuditViolation::BrowserCompanionRequirementsMissing { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        AuditViolation::BrowserCompanionRequirementsMissing { .. }
+    )));
 }
 
 #[test]
@@ -375,9 +382,10 @@ fn browser_companion_unsatisfied_requirements_is_rejected() {
         req.no_silent_write_back = false;
     }
     let violations = packet.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, AuditViolation::BrowserCompanionRequirementsUnsatisfied { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        AuditViolation::BrowserCompanionRequirementsUnsatisfied { .. }
+    )));
 }
 
 #[test]
@@ -407,9 +415,10 @@ fn preview_designer_unsatisfied_requirements_is_rejected() {
         req.no_hidden_runtime_mutation = false;
     }
     let violations = packet.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, AuditViolation::PreviewDesignerRequirementsUnsatisfied { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        AuditViolation::PreviewDesignerRequirementsUnsatisfied { .. }
+    )));
 }
 
 #[test]
@@ -435,10 +444,18 @@ fn downgrade_not_firing_on_route_truth_regression_is_rejected() {
 #[test]
 fn downgrade_not_propagating_is_rejected() {
     let mut packet = valid_packet();
-    packet.downgrade_automation.downgrade_propagates_to_product_copy = false;
-    packet.downgrade_automation.downgrade_propagates_to_docs_help = false;
-    packet.downgrade_automation.downgrade_propagates_to_release_packets = false;
-    packet.downgrade_automation.downgrade_propagates_to_compat_reports = false;
+    packet
+        .downgrade_automation
+        .downgrade_propagates_to_product_copy = false;
+    packet
+        .downgrade_automation
+        .downgrade_propagates_to_docs_help = false;
+    packet
+        .downgrade_automation
+        .downgrade_propagates_to_release_packets = false;
+    packet
+        .downgrade_automation
+        .downgrade_propagates_to_compat_reports = false;
     let violations = packet.validate();
     assert!(violations
         .iter()

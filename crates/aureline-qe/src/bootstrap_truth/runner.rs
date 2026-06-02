@@ -120,7 +120,10 @@ impl CorpusReport {
 pub fn load_corpus(corpus_dir: &Path) -> Result<CorpusManifest, DrillFailureReason> {
     let manifest_path = corpus_dir.join(MANIFEST_FILE_NAME);
     let payload = fs::read_to_string(&manifest_path).map_err(|err| {
-        DrillFailureReason::ManifestLoad(format!("failed to read {}: {err}", manifest_path.display()))
+        DrillFailureReason::ManifestLoad(format!(
+            "failed to read {}: {err}",
+            manifest_path.display()
+        ))
     })?;
     serde_json::from_str(&payload).map_err(|err| {
         DrillFailureReason::ManifestLoad(format!(
@@ -224,15 +227,20 @@ fn run_positive_drill(corpus_dir: &Path, spec: &PositiveDrillSpec) -> DrillRepor
         }
     };
 
-    let projection = match RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
-        locator: &fixture.locator,
-        plan: &fixture.plan,
-        bootstrap_items: &fixture.bootstrap_items,
-        surface,
-    }) {
-        Ok(projection) => projection,
-        Err(err) => return fail(DrillFailureReason::PositiveProjectionFailed(err.to_string())),
-    };
+    let projection =
+        match RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
+            locator: &fixture.locator,
+            plan: &fixture.plan,
+            bootstrap_items: &fixture.bootstrap_items,
+            surface,
+        }) {
+            Ok(projection) => projection,
+            Err(err) => {
+                return fail(DrillFailureReason::PositiveProjectionFailed(
+                    err.to_string(),
+                ))
+            }
+        };
 
     if let Err(reason) = assert_positive_expectations(spec, &fixture, &projection) {
         return fail(reason);
@@ -257,7 +265,11 @@ fn run_negative_drill(corpus_dir: &Path, spec: &NegativeDrillSpec) -> DrillRepor
 
     let payload = match fs::read_to_string(&fixture_path) {
         Ok(payload) => payload,
-        Err(err) => return report(DrillOutcome::Fail(DrillFailureReason::FixtureIo(err.to_string()))),
+        Err(err) => {
+            return report(DrillOutcome::Fail(DrillFailureReason::FixtureIo(
+                err.to_string(),
+            )))
+        }
     };
 
     let fixture: DrillFixture = match serde_json::from_str(&payload) {
@@ -267,10 +279,12 @@ fn run_negative_drill(corpus_dir: &Path, spec: &NegativeDrillSpec) -> DrillRepor
             if actual.contains(&spec.expected_failure_substring) {
                 return report(DrillOutcome::Pass);
             }
-            return report(DrillOutcome::Fail(DrillFailureReason::NegativeDrillWrongReason {
-                expected_substring: spec.expected_failure_substring.clone(),
-                actual_message: actual,
-            }));
+            return report(DrillOutcome::Fail(
+                DrillFailureReason::NegativeDrillWrongReason {
+                    expected_substring: spec.expected_failure_substring.clone(),
+                    actual_message: actual,
+                },
+            ));
         }
     };
 
@@ -284,16 +298,20 @@ fn run_negative_drill(corpus_dir: &Path, spec: &NegativeDrillSpec) -> DrillRepor
     });
 
     match result {
-        Ok(_) => report(DrillOutcome::Fail(DrillFailureReason::NegativeDrillAccepted)),
+        Ok(_) => report(DrillOutcome::Fail(
+            DrillFailureReason::NegativeDrillAccepted,
+        )),
         Err(err) => {
             let actual = err.to_string();
             if actual.contains(&spec.expected_failure_substring) {
                 report(DrillOutcome::Pass)
             } else {
-                report(DrillOutcome::Fail(DrillFailureReason::NegativeDrillWrongReason {
-                    expected_substring: spec.expected_failure_substring.clone(),
-                    actual_message: actual,
-                }))
+                report(DrillOutcome::Fail(
+                    DrillFailureReason::NegativeDrillWrongReason {
+                        expected_substring: spec.expected_failure_substring.clone(),
+                        actual_message: actual,
+                    },
+                ))
             }
         }
     }
@@ -304,7 +322,11 @@ fn assert_positive_expectations(
     fixture: &DrillFixture,
     projection: &RepositoryAcquisitionBetaProjection,
 ) -> Result<(), DrillFailureReason> {
-    scalar("surface", &spec.expected_surface, projection.surface.as_str())?;
+    scalar(
+        "surface",
+        &spec.expected_surface,
+        projection.surface.as_str(),
+    )?;
     scalar(
         "acquisition_verb",
         &spec.expected_acquisition_verb,
@@ -396,7 +418,11 @@ fn assert_positive_expectations(
         .iter()
         .map(|l| l.as_str().to_string())
         .collect();
-    list("honesty_labels", &spec.expected_honesty_labels, &observed_labels)?;
+    list(
+        "honesty_labels",
+        &spec.expected_honesty_labels,
+        &observed_labels,
+    )?;
 
     boolean(
         "guardrails_all_hold",
@@ -561,7 +587,11 @@ fn count(field: &'static str, expected: u64, actual: u64) -> Result<(), DrillFai
     }
 }
 
-fn list(field: &'static str, expected: &[String], actual: &[String]) -> Result<(), DrillFailureReason> {
+fn list(
+    field: &'static str,
+    expected: &[String],
+    actual: &[String],
+) -> Result<(), DrillFailureReason> {
     if expected == actual {
         Ok(())
     } else {

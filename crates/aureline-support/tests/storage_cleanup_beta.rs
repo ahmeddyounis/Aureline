@@ -10,11 +10,11 @@
 use std::path::{Path, PathBuf};
 
 use aureline_support::storage_inspector::{
-    current_storage_class_registry, current_storage_cleanup_corpus,
-    load_storage_cleanup_scenario, ActorLineageClass, AuthorityClass, CleanupResultClass,
-    ClearDataReview, ConsentState, ExportBeforeDeleteClass, GcPolicyClass, LowDiskStateClass,
-    StorageClassId, StorageClassRegistry, StorageCleanupReceipt, StorageCleanupScenario,
-    TriggerClass, CLEAR_DATA_REVIEW_RECORD_KIND, CLEAR_DATA_REVIEW_SCHEMA_REF,
+    current_storage_class_registry, current_storage_cleanup_corpus, load_storage_cleanup_scenario,
+    ActorLineageClass, AuthorityClass, CleanupResultClass, ClearDataReview, ConsentState,
+    ExportBeforeDeleteClass, GcPolicyClass, LowDiskStateClass, StorageClassId,
+    StorageClassRegistry, StorageCleanupReceipt, StorageCleanupScenario, TriggerClass,
+    CLEAR_DATA_REVIEW_RECORD_KIND, CLEAR_DATA_REVIEW_SCHEMA_REF,
     STORAGE_CLASS_REGISTRY_RECORD_KIND, STORAGE_CLASS_SCHEMA_REF, STORAGE_CLEANUP_CORPUS_DIR,
     STORAGE_CLEANUP_CORPUS_MANIFEST_REF, STORAGE_CLEANUP_DOC_REF,
     STORAGE_CLEANUP_RECEIPT_RECORD_KIND, STORAGE_CLEANUP_RECEIPT_SCHEMA_REF,
@@ -32,8 +32,7 @@ fn repo_root() -> PathBuf {
 
 #[test]
 fn registry_parses_and_pins_protected_classes() {
-    let registry: StorageClassRegistry =
-        current_storage_class_registry().expect("registry parses");
+    let registry: StorageClassRegistry = current_storage_class_registry().expect("registry parses");
     assert_eq!(registry.record_kind, STORAGE_CLASS_REGISTRY_RECORD_KIND);
     assert_eq!(registry.schema_ref, STORAGE_CLASS_SCHEMA_REF);
     assert_eq!(registry.doc_ref, STORAGE_CLEANUP_DOC_REF);
@@ -47,14 +46,23 @@ fn registry_parses_and_pins_protected_classes() {
         .entry(StorageClassId::EvidenceSupportCache)
         .expect("evidence cache entry present");
     assert!(evidence.protected_default);
-    assert!(matches!(evidence.gc_policy_class, GcPolicyClass::NeverEvictSilently));
-    assert!(matches!(evidence.authority_class, AuthorityClass::EvidenceGrade));
+    assert!(matches!(
+        evidence.gc_policy_class,
+        GcPolicyClass::NeverEvictSilently
+    ));
+    assert!(matches!(
+        evidence.authority_class,
+        AuthorityClass::EvidenceGrade
+    ));
 
     let recovery = registry
         .entry(StorageClassId::UserOwnedRecoveryState)
         .expect("recovery state entry present");
     assert!(recovery.protected_default);
-    assert!(matches!(recovery.gc_policy_class, GcPolicyClass::NeverEvictSilently));
+    assert!(matches!(
+        recovery.gc_policy_class,
+        GcPolicyClass::NeverEvictSilently
+    ));
     assert!(matches!(
         recovery.authority_class,
         AuthorityClass::UserAuthoredRecovery
@@ -76,10 +84,7 @@ fn registry_parses_and_pins_protected_classes() {
 fn corpus_validates_against_the_safety_contract() {
     let corpus = current_storage_cleanup_corpus().expect("corpus parses");
     let violations = corpus.validate();
-    assert!(
-        violations.is_empty(),
-        "corpus violations: {violations:#?}"
-    );
+    assert!(violations.is_empty(), "corpus violations: {violations:#?}");
 }
 
 #[test]
@@ -158,7 +163,9 @@ fn low_disk_pressure_scenarios_record_ordered_eviction_and_paused_work() {
             .expect("low_disk_pressure receipt must carry context");
         assert!(matches!(
             ctx.state_class,
-            LowDiskStateClass::Warning | LowDiskStateClass::Critical | LowDiskStateClass::QuotaPressure
+            LowDiskStateClass::Warning
+                | LowDiskStateClass::Critical
+                | LowDiskStateClass::QuotaPressure
         ));
         let orders: Vec<u32> = ctx
             .ordered_eviction_steps
@@ -167,7 +174,10 @@ fn low_disk_pressure_scenarios_record_ordered_eviction_and_paused_work() {
             .collect();
         let mut sorted = orders.clone();
         sorted.sort();
-        assert_eq!(orders, sorted, "ordered_eviction_steps not in increasing order");
+        assert_eq!(
+            orders, sorted,
+            "ordered_eviction_steps not in increasing order"
+        );
         // Protected classes are not in the eviction list.
         for step in &ctx.ordered_eviction_steps {
             assert!(
@@ -187,7 +197,10 @@ fn low_disk_pressure_scenarios_record_ordered_eviction_and_paused_work() {
         );
         assert!(scenario.receipt.actor_lineage_class == ActorLineageClass::LowDiskEvictionPrompt);
     }
-    assert!(saw_low_disk, "corpus must include a low_disk_pressure scenario");
+    assert!(
+        saw_low_disk,
+        "corpus must include a low_disk_pressure scenario"
+    );
 }
 
 #[test]
@@ -242,7 +255,10 @@ fn cancelled_review_results_in_no_bytes_reclaimed() {
             );
         }
     }
-    assert!(saw_cancelled, "corpus must include a cancelled-override scenario");
+    assert!(
+        saw_cancelled,
+        "corpus must include a cancelled-override scenario"
+    );
 }
 
 #[test]

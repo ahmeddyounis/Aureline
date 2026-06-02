@@ -655,7 +655,9 @@ impl DeprovisionPreservesBetaPage {
     pub fn local_editing_preserved_across_all_exit_events(&self) -> bool {
         self.rows
             .iter()
-            .filter(|r| r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str())
+            .filter(|r| {
+                r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str()
+            })
             .all(|r| {
                 r.local_work_survival.local_editing_token
                     == LocalWorkPreservationClass::PreservedUnchanged.as_str()
@@ -667,7 +669,9 @@ impl DeprovisionPreservesBetaPage {
     pub fn prior_export_opportunity_present_for_all_exits(&self) -> bool {
         self.rows
             .iter()
-            .filter(|r| r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str())
+            .filter(|r| {
+                r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str()
+            })
             .all(|r| r.local_work_survival.prior_export_opportunity)
     }
 
@@ -675,7 +679,9 @@ impl DeprovisionPreservesBetaPage {
     pub fn org_affordance_removal_gives_notice(&self) -> bool {
         self.rows
             .iter()
-            .filter(|r| r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str())
+            .filter(|r| {
+                r.exit_event_token != ManagedExitEventClass::AccountFreeLocalNoManagedExit.as_str()
+            })
             .all(|r| r.org_affordance.removal_notice_given)
     }
 
@@ -879,8 +885,9 @@ fn qualify_rows(
 
     for row in &mut rows {
         if withdrawn_ids.contains(&row.row_id.as_str()) {
-            row.qualification_token =
-                DeprovisionProofQualificationClass::Withdrawn.as_str().to_owned();
+            row.qualification_token = DeprovisionProofQualificationClass::Withdrawn
+                .as_str()
+                .to_owned();
             let reason = defects
                 .iter()
                 .find(|d| d.source_row_id == row.row_id && d.narrow_reason.is_withdrawal_reason())
@@ -907,11 +914,21 @@ fn qualify_rows(
 fn clean_local_work_survival(exit_event: ManagedExitEventClass) -> LocalWorkSurvivalBlock {
     let event_label = exit_event.as_str();
     LocalWorkSurvivalBlock {
-        local_editing_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_export_paths_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_history_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_settings_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        account_free_byok_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
+        local_editing_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_export_paths_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_history_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_settings_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        account_free_byok_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
         prior_export_opportunity: true,
         survival_summary: format!(
             "On '{event_label}': local editing, export paths, local history, \
@@ -943,11 +960,21 @@ fn clean_org_affordance(exit_event: ManagedExitEventClass) -> OrgScopedAffordanc
 /// Build a no-managed-exit local-only block for account-free rows.
 fn account_free_local_survival() -> LocalWorkSurvivalBlock {
     LocalWorkSurvivalBlock {
-        local_editing_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_export_paths_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_history_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        local_settings_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
-        account_free_byok_token: LocalWorkPreservationClass::PreservedUnchanged.as_str().to_owned(),
+        local_editing_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_export_paths_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_history_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        local_settings_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
+        account_free_byok_token: LocalWorkPreservationClass::PreservedUnchanged
+            .as_str()
+            .to_owned(),
         prior_export_opportunity: true,
         survival_summary: "Account-free local lane: no managed identity; all local-core \
                            capabilities are permanently available without any exit event."
@@ -1004,8 +1031,12 @@ fn seeded_row(
         row_id,
         exit_event_token: exit_event.as_str().to_owned(),
         profile_token: profile.as_str().to_owned(),
-        qualification_token: DeprovisionProofQualificationClass::Stable.as_str().to_owned(),
-        narrow_reason_token: DeprovisionProofNarrowReasonClass::NotNarrowed.as_str().to_owned(),
+        qualification_token: DeprovisionProofQualificationClass::Stable
+            .as_str()
+            .to_owned(),
+        narrow_reason_token: DeprovisionProofNarrowReasonClass::NotNarrowed
+            .as_str()
+            .to_owned(),
         local_work_survival: local_survival,
         org_affordance,
         plain_language_summary: summary,

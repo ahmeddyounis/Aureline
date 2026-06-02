@@ -275,18 +275,25 @@ fn checked_in_artifact_covers_migration_target_discovery_config_and_review_safe_
         "stable packet must include a framework_migration_row binding the Spring Boot 2.x → 3.x migration"
     );
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == SpringBootExpertWorkflowPackRowClass::ArchetypeRepoRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class == SpringBootExpertWorkflowPackRowClass::ArchetypeRepoRow),
         "stable packet must include an archetype_repo_row"
     );
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == SpringBootExpertWorkflowPackRowClass::TargetDiscoveryRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class == SpringBootExpertWorkflowPackRowClass::TargetDiscoveryRow),
         "stable packet must include a target_discovery_row"
     );
     assert!(
-        packet.rows.iter().any(|row| row.row_class
-            == SpringBootExpertWorkflowPackRowClass::ConfigPropertyAwarenessRow),
+        packet
+            .rows
+            .iter()
+            .any(|row| row.row_class
+                == SpringBootExpertWorkflowPackRowClass::ConfigPropertyAwarenessRow),
         "stable packet must include a config_property_awareness_row"
     );
     assert!(

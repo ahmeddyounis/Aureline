@@ -151,8 +151,7 @@ fn local_core_classified_managed_withdraws_packet() {
         OpenVsPaidBoundaryQualificationClass::Withdrawn.as_str()
     );
     assert!(page.defects.iter().any(|d| {
-        d.narrow_reason
-            == OpenVsPaidBoundaryNarrowReasonClass::LocalCoreRequiresManagedPrerequisite
+        d.narrow_reason == OpenVsPaidBoundaryNarrowReasonClass::LocalCoreRequiresManagedPrerequisite
     }));
 }
 
@@ -361,7 +360,10 @@ fn offboarding_packet_construction() {
 #[test]
 fn offboarding_outcome_class_tokens() {
     assert_eq!(OffboardingOutcomeClass::LocalOnly.as_str(), "local_only");
-    assert_eq!(OffboardingOutcomeClass::ManagedCopy.as_str(), "managed_copy");
+    assert_eq!(
+        OffboardingOutcomeClass::ManagedCopy.as_str(),
+        "managed_copy"
+    );
     assert_eq!(OffboardingOutcomeClass::Queued.as_str(), "queued");
     assert_eq!(OffboardingOutcomeClass::Partial.as_str(), "partial");
     assert_eq!(

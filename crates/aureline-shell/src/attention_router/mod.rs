@@ -39,9 +39,9 @@ pub use context::{
     PresentationFollowState, ScreenReaderPosture,
 };
 pub use corpus::{
-    seeded_attention_routing_corpus, validate_attention_routing_corpus, AttentionRouteSupportExport,
-    AttentionRouteSupportExportRow, AttentionRoutingCase, AttentionRoutingCorpus,
-    AttentionRoutingCorpusSummary, SupportSurfaceResolution,
+    seeded_attention_routing_corpus, validate_attention_routing_corpus,
+    AttentionRouteSupportExport, AttentionRouteSupportExportRow, AttentionRoutingCase,
+    AttentionRoutingCorpus, AttentionRoutingCorpusSummary, SupportSurfaceResolution,
     ATTENTION_ROUTER_BETA_SCHEMA_VERSION, ATTENTION_ROUTER_BETA_SHARED_CONTRACT_REF,
     ATTENTION_ROUTE_SUPPORT_EXPORT_RECORD_KIND, ATTENTION_ROUTE_SUPPORT_EXPORT_ROW_RECORD_KIND,
     ATTENTION_ROUTING_CASE_RECORD_KIND, ATTENTION_ROUTING_CORPUS_RECORD_KIND,

@@ -749,10 +749,7 @@ impl TrustGatingLineageRecord {
     }
 
     /// Returns the inspection hook of the given class, when present.
-    pub fn inspection_hook(
-        &self,
-        class: TrustInspectionHookClass,
-    ) -> Option<&TrustInspectionHook> {
+    pub fn inspection_hook(&self, class: TrustInspectionHookClass) -> Option<&TrustInspectionHook> {
         self.inspection_hooks
             .iter()
             .find(|hook| hook.hook_class == class)
@@ -899,11 +896,8 @@ fn project_surface_row(
     workspace_posture: WorkspaceTrustPosture,
 ) -> TrustGatingSurfaceRow {
     let derived = derive_gate_decision(workspace_posture, surface);
-    let gate_decision_matches = decision_at_least_as_strict(
-        surface.declared_gate_decision,
-        derived,
-        workspace_posture,
-    );
+    let gate_decision_matches =
+        decision_at_least_as_strict(surface.declared_gate_decision, derived, workspace_posture);
     TrustGatingSurfaceRow {
         surface_id: surface.surface_id.clone(),
         title: surface.title.clone(),
@@ -1063,9 +1057,7 @@ fn project_override_route_honesty(inputs: &TrustGatingInputs) -> OverrideRouteHo
     }
 }
 
-fn project_support_export_honesty(
-    inputs: &TrustGatingInputs,
-) -> TrustSupportExportHonestySummary {
+fn project_support_export_honesty(inputs: &TrustGatingInputs) -> TrustSupportExportHonestySummary {
     let mut all_surfaces_preserve_gating_fields = true;
     let mut all_surfaces_redact_raw_secrets = true;
     let mut all_surfaces_exclude_approval_tickets = true;
@@ -1112,9 +1104,7 @@ fn project_support_export_honesty(
     }
 }
 
-fn project_producer_attribution(
-    inputs: &TrustGatingInputs,
-) -> TrustProducerAttributionSummary {
+fn project_producer_attribution(inputs: &TrustGatingInputs) -> TrustProducerAttributionSummary {
     let integrity_hash = compute_integrity_hash(inputs);
     let producer_attribution_complete =
         !inputs.producer_ref.trim().is_empty() && !inputs.captured_at.trim().is_empty();
@@ -1133,7 +1123,8 @@ fn collect_gate_narrows(
     narrow_reasons: &mut Vec<TrustGatingLineageNarrowReason>,
 ) {
     if !summary.no_unconditional_allow_outside_trusted {
-        narrow_reasons.push(TrustGatingLineageNarrowReason::UnconditionalAllowWithoutTrustedPosture);
+        narrow_reasons
+            .push(TrustGatingLineageNarrowReason::UnconditionalAllowWithoutTrustedPosture);
     }
     if workspace_posture == WorkspaceTrustPosture::Restricted
         && !summary.restricted_workspace_blocks_or_routes_every_surface
@@ -1219,10 +1210,7 @@ fn compute_integrity_hash(inputs: &TrustGatingInputs) -> String {
     format!("tgl:{hash:016x}")
 }
 
-fn hook_available(
-    hooks: &[TrustInspectionHook],
-    class: TrustInspectionHookClass,
-) -> bool {
+fn hook_available(hooks: &[TrustInspectionHook], class: TrustInspectionHookClass) -> bool {
     hooks
         .iter()
         .find(|hook| hook.hook_class == class)

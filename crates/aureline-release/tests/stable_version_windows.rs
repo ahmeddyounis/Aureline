@@ -181,10 +181,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     freeze.publication.blocking_window_ids = freeze.computed_blocking_window_ids();
 
     assert!(
-        freeze
-            .validate()
-            .iter()
-            .any(|v| matches!(v, StableVersionWindowsViolation::FrozenLabelNotNarrowed { .. })),
+        freeze.validate().iter().any(|v| matches!(
+            v,
+            StableVersionWindowsViolation::FrozenLabelNotNarrowed { .. }
+        )),
         "a surface that is not frozen must narrow below the cutline"
     );
 }

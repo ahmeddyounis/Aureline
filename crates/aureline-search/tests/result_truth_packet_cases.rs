@@ -194,9 +194,11 @@ fn fact_label_dropped_fixture_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_fact_label() {
-    let packet =
-        current_stable_search_result_truth_packet().expect("checked-in packet validates");
-    assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::Stable);
+    let packet = current_stable_search_result_truth_packet().expect("checked-in packet validates");
+    assert_eq!(
+        packet.promotion_state,
+        SearchResultTruthPromotionState::Stable
+    );
     assert!(packet.validate().is_empty());
 
     let label_tokens: BTreeSet<&str> = packet.fact_label_tokens().into_iter().collect();

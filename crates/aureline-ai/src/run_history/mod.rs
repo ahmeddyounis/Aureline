@@ -46,8 +46,7 @@ pub const AI_RUN_HISTORY_PARITY_PACKET_RECORD_KIND: &str = "ai_run_history_parit
 pub const AI_RUN_HISTORY_SURFACE_ROW_RECORD_KIND: &str = "ai_run_history_surface_row_record";
 
 /// Stable record-kind tag carried by [`AiRunHistorySupportPacket`] payloads.
-pub const AI_RUN_HISTORY_SUPPORT_PACKET_RECORD_KIND: &str =
-    "ai_run_history_support_packet_record";
+pub const AI_RUN_HISTORY_SUPPORT_PACKET_RECORD_KIND: &str = "ai_run_history_support_packet_record";
 
 /// Schema version of the run-history entry, rerun review, and parity packet.
 pub const AI_RUN_HISTORY_SCHEMA_VERSION: u32 = 1;
@@ -761,7 +760,9 @@ pub struct AiRunHistoryEntry {
 impl AiRunHistoryEntry {
     /// True when this row preserves a granted approval that admits the run.
     pub fn has_granted_approval(&self) -> bool {
-        self.approval_timeline.iter().any(|event| event.admits_run())
+        self.approval_timeline
+            .iter()
+            .any(|event| event.admits_run())
     }
 
     /// True when this row records an approval that was revoked or expired.
@@ -1564,7 +1565,11 @@ impl AiRunHistorySupportRerunRow {
                 .iter()
                 .map(|row| format!("{}:{}", row.axis_class.as_str(), row.drift_class.as_str()))
                 .collect(),
-            approval_resolution_token: rerun.approval_resolution.resolution_class.as_str().to_owned(),
+            approval_resolution_token: rerun
+                .approval_resolution
+                .resolution_class
+                .as_str()
+                .to_owned(),
             action_offer_tokens: rerun
                 .action_offers
                 .iter()
@@ -1886,11 +1891,8 @@ fn validate_rerun_reviews(
             }
         }
 
-        let present_axes: BTreeSet<RerunDriftAxisClass> = rerun
-            .drift_rows
-            .iter()
-            .map(|row| row.axis_class)
-            .collect();
+        let present_axes: BTreeSet<RerunDriftAxisClass> =
+            rerun.drift_rows.iter().map(|row| row.axis_class).collect();
         for required in REQUIRED_DRIFT_AXES {
             if !present_axes.contains(required) {
                 violations.push(AiRunHistoryViolation::RerunMissingRequiredDriftAxis);

@@ -46,16 +46,14 @@
 pub mod corpus;
 pub mod model;
 
-pub use corpus::{
-    migration_flow_disclosure_corpus, MigrationFlowDisclosureScenario, CORPUS_AS_OF,
-};
+pub use corpus::{migration_flow_disclosure_corpus, MigrationFlowDisclosureScenario, CORPUS_AS_OF};
 pub use model::{
     is_canonical_object_ref, required_recovery_actions, AccessibilityDisclosure, BuildError,
     DiffDisclosure, EntryRouteRecord, GapTaxonomy, LayoutMode, LayoutModeDisclosure,
     MigrationClaimCeiling, MigrationFlowDisclosureInput, MigrationFlowDisclosureRecord,
     MigrationRecoveryAction, MigrationRouteSurface, RecoveryActionRole, RecoveryRouteRecord,
-    RollbackDisclosure, StableClaimClass, StableNarrowingReason, StableQualification, SurfaceParity,
-    UnsupportedGapDisclosure, UpstreamRefs, MIGRATION_FLOW_DISCLOSURE_NOTICE,
+    RollbackDisclosure, StableClaimClass, StableNarrowingReason, StableQualification,
+    SurfaceParity, UnsupportedGapDisclosure, UpstreamRefs, MIGRATION_FLOW_DISCLOSURE_NOTICE,
     MIGRATION_FLOW_DISCLOSURE_RECORD_KIND, MIGRATION_FLOW_DISCLOSURE_SCHEMA_VERSION,
     MIGRATION_FLOW_DISCLOSURE_SHARED_CONTRACT_REF,
 };

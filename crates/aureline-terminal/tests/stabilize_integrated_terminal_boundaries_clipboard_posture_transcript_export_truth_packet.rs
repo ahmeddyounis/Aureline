@@ -12,17 +12,17 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_terminal::{
-    current_stable_terminal_stabilization_truth_packet,
-    TerminalStabilizationClipboardPostureClass, TerminalStabilizationConsumerSurface,
-    TerminalStabilizationDowngradeAutomationClass, TerminalStabilizationEvidenceClass,
-    TerminalStabilizationFindingKind, TerminalStabilizationHostBoundaryFieldClass,
-    TerminalStabilizationKnownLimitClass, TerminalStabilizationLaneClass,
-    TerminalStabilizationPromotionState, TerminalStabilizationRowClass,
-    TerminalStabilizationSupportClass, TerminalStabilizationTranscriptExportFieldClass,
-    TerminalStabilizationTruthPacket, TerminalStabilizationTruthPacketInput,
-    TerminalStabilizationWedgeClass, TERMINAL_STABILIZATION_TRUTH_ARTIFACT_DOC_REF,
-    TERMINAL_STABILIZATION_TRUTH_DOC_REF, TERMINAL_STABILIZATION_TRUTH_FIXTURE_DIR,
-    TERMINAL_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF, TERMINAL_STABILIZATION_TRUTH_SCHEMA_REF,
+    current_stable_terminal_stabilization_truth_packet, TerminalStabilizationClipboardPostureClass,
+    TerminalStabilizationConsumerSurface, TerminalStabilizationDowngradeAutomationClass,
+    TerminalStabilizationEvidenceClass, TerminalStabilizationFindingKind,
+    TerminalStabilizationHostBoundaryFieldClass, TerminalStabilizationKnownLimitClass,
+    TerminalStabilizationLaneClass, TerminalStabilizationPromotionState,
+    TerminalStabilizationRowClass, TerminalStabilizationSupportClass,
+    TerminalStabilizationTranscriptExportFieldClass, TerminalStabilizationTruthPacket,
+    TerminalStabilizationTruthPacketInput, TerminalStabilizationWedgeClass,
+    TERMINAL_STABILIZATION_TRUTH_ARTIFACT_DOC_REF, TERMINAL_STABILIZATION_TRUTH_DOC_REF,
+    TERMINAL_STABILIZATION_TRUTH_FIXTURE_DIR, TERMINAL_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF,
+    TERMINAL_STABILIZATION_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -240,9 +240,7 @@ fn narrowed_row_missing_disclosure_ref_blocks_stable() {
 
 #[test]
 fn projection_collapses_clipboard_posture_vocabulary_blocks_stable() {
-    assert_fixture_matches(
-        "projection_collapses_clipboard_posture_vocabulary_blocks_stable.json",
-    );
+    assert_fixture_matches("projection_collapses_clipboard_posture_vocabulary_blocks_stable.json");
 }
 
 #[test]
@@ -252,8 +250,8 @@ fn raw_source_material_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_terminal_stabilization_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_terminal_stabilization_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         TerminalStabilizationPromotionState::Stable
@@ -278,8 +276,8 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
 #[test]
 fn checked_in_artifact_covers_required_wedges_fields_postures_and_admissions_per_launch_stable_lane(
 ) {
-    let packet = current_stable_terminal_stabilization_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_terminal_stabilization_truth_packet().expect("checked-in packet validates");
     for required in TerminalStabilizationLaneClass::REQUIRED {
         let lane_claims_launch = packet.rows.iter().any(|row| {
             row.lane_class == required
@@ -302,8 +300,7 @@ fn checked_in_artifact_covers_required_wedges_fields_postures_and_admissions_per
         for field in TerminalStabilizationHostBoundaryFieldClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class
-                        == TerminalStabilizationRowClass::HostBoundaryFieldBinding
+                    && row.row_class == TerminalStabilizationRowClass::HostBoundaryFieldBinding
                     && row.host_boundary_field_class == field),
                 "stable packet must cover the {} host-boundary field on the {} lane",
                 field.as_str(),
@@ -313,8 +310,7 @@ fn checked_in_artifact_covers_required_wedges_fields_postures_and_admissions_per
         for surface in TerminalStabilizationClipboardPostureClass::REQUIRED_FOR_LAUNCH_STABLE {
             assert!(
                 packet.rows.iter().any(|row| row.lane_class == required
-                    && row.row_class
-                        == TerminalStabilizationRowClass::ClipboardPostureBinding
+                    && row.row_class == TerminalStabilizationRowClass::ClipboardPostureBinding
                     && row.clipboard_posture_class == surface),
                 "stable packet must cover the {} clipboard-posture surface on the {} lane",
                 surface.as_str(),

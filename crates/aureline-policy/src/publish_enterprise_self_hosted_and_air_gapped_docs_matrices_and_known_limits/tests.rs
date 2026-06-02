@@ -152,8 +152,7 @@ fn seeded_page_sovereignty_profiles_have_current_proof() {
 fn seeded_page_local_core_preserved_count_equals_five() {
     let page = seeded_enterprise_docs_matrices_known_limits_page();
     assert_eq!(
-        page.summary.local_core_preserved_row_count,
-        5,
+        page.summary.local_core_preserved_row_count, 5,
         "all 5 rows must carry a preserved local-core continuity posture"
     );
 }
@@ -162,8 +161,7 @@ fn seeded_page_local_core_preserved_count_equals_five() {
 fn seeded_page_docs_current_count_equals_five() {
     let page = seeded_enterprise_docs_matrices_known_limits_page();
     assert_eq!(
-        page.summary.docs_current_row_count,
-        5,
+        page.summary.docs_current_row_count, 5,
         "all 5 rows must carry current or not_applicable docs"
     );
 }
@@ -172,8 +170,7 @@ fn seeded_page_docs_current_count_equals_five() {
 fn seeded_page_matrix_complete_count_equals_five() {
     let page = seeded_enterprise_docs_matrices_known_limits_page();
     assert_eq!(
-        page.summary.matrix_complete_row_count,
-        5,
+        page.summary.matrix_complete_row_count, 5,
         "all 5 rows must carry complete or not_applicable matrices"
     );
 }
@@ -182,8 +179,7 @@ fn seeded_page_matrix_complete_count_equals_five() {
 fn seeded_page_known_limits_fully_disclosed_count_equals_five() {
     let page = seeded_enterprise_docs_matrices_known_limits_page();
     assert_eq!(
-        page.summary.known_limits_fully_disclosed_row_count,
-        5,
+        page.summary.known_limits_fully_disclosed_row_count, 5,
         "all 5 rows must carry fully_disclosed or not_applicable known limits"
     );
 }
@@ -196,8 +192,9 @@ fn seeded_page_known_limits_fully_disclosed_count_equals_five() {
 fn local_core_blocked_by_default_triggers_withdrawal() {
     let mut rows = vec![row_self_hosted()];
     rows[0].local_core_posture = LocalCoreContinuityPostureClass::BlockedByDefault;
-    rows[0].local_core_posture_token =
-        LocalCoreContinuityPostureClass::BlockedByDefault.as_str().to_owned();
+    rows[0].local_core_posture_token = LocalCoreContinuityPostureClass::BlockedByDefault
+        .as_str()
+        .to_owned();
     let page = EnterpriseDocsMatricesKnownLimitsPage::new(
         "test:withdrawal:local-core-blocked",
         "Test: local core blocked by default",
@@ -414,8 +411,9 @@ fn missing_matrix_narrows_to_beta() {
 fn partially_disclosed_known_limits_narrows_to_beta() {
     let mut rows = seeded_rows();
     rows[1].known_limits.known_limits_state = KnownLimitCompletenessClass::PartiallyDisclosed;
-    rows[1].known_limits.known_limits_state_token =
-        KnownLimitCompletenessClass::PartiallyDisclosed.as_str().to_owned();
+    rows[1].known_limits.known_limits_state_token = KnownLimitCompletenessClass::PartiallyDisclosed
+        .as_str()
+        .to_owned();
     let page = EnterpriseDocsMatricesKnownLimitsPage::new(
         "test:beta:partially-disclosed-known-limits",
         "Test: partially disclosed known limits",

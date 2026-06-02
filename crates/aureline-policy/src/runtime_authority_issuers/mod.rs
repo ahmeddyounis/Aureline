@@ -982,7 +982,8 @@ fn check_issuer(
         ));
     }
     if issuer.mintable_ticket_classes.len() != issuer.mintable_ticket_class_tokens.len()
-        || issuer.allowed_requesting_surfaces.len() != issuer.allowed_requesting_surface_tokens.len()
+        || issuer.allowed_requesting_surfaces.len()
+            != issuer.allowed_requesting_surface_tokens.len()
         || issuer.attestable_authority_sources.len()
             != issuer.attestable_authority_source_tokens.len()
     {
@@ -1117,7 +1118,10 @@ fn check_requesting_surface(
         for issuer_id in &surface.allowed_issuer_ids {
             match issuers_by_id.get(issuer_id.as_str()) {
                 Some(issuer) => {
-                    if !issuer.allowed_requesting_surfaces.contains(&surface.surface_class) {
+                    if !issuer
+                        .allowed_requesting_surfaces
+                        .contains(&surface.surface_class)
+                    {
                         defects.push(RuntimeAuthorityIssuerDefect::new(
                             RuntimeAuthorityIssuerDefectKind::RequestingSurfaceIssuerNotFound,
                             surface.surface_id.clone(),
@@ -1277,7 +1281,10 @@ fn check_request(
             )),
         }
     }
-    if surfaces_by_id.get(request.requesting_surface_id.as_str()).is_none() {
+    if surfaces_by_id
+        .get(request.requesting_surface_id.as_str())
+        .is_none()
+    {
         defects.push(RuntimeAuthorityIssuerDefect::new(
             RuntimeAuthorityIssuerDefectKind::RequestingSurfaceMissingIssuer,
             request.request_id.clone(),
@@ -1285,8 +1292,7 @@ fn check_request(
             "request references an unregistered requesting surface",
         ));
     }
-    if AuthoritySourceClass::from_actor_class(request.actor_class)
-        != request.authority_source_class
+    if AuthoritySourceClass::from_actor_class(request.actor_class) != request.authority_source_class
     {
         defects.push(RuntimeAuthorityIssuerDefect::new(
             RuntimeAuthorityIssuerDefectKind::TokenDrift,
@@ -1354,7 +1360,8 @@ fn check_decision(
     let request = requests_by_id.get(decision.request_id.as_str()).copied();
 
     match decision.decision_class {
-        IssuerBoundaryDecisionClass::Granted | IssuerBoundaryDecisionClass::RememberedDecisionNarrowed => {
+        IssuerBoundaryDecisionClass::Granted
+        | IssuerBoundaryDecisionClass::RememberedDecisionNarrowed => {
             if let Some(request) = request {
                 if request.claims_self_authorization {
                     defects.push(RuntimeAuthorityIssuerDefect::new(
@@ -1390,7 +1397,8 @@ fn check_decision(
                         "admitted decisions must keep authority-source class consistent with actor class",
                     ));
                 }
-                if request.requested_target_identity.target_class == AuthorityTargetClass::ProviderObject
+                if request.requested_target_identity.target_class
+                    == AuthorityTargetClass::ProviderObject
                     && !decision.authority_source_class.can_reach_provider_targets()
                 {
                     defects.push(RuntimeAuthorityIssuerDefect::new(
@@ -1409,7 +1417,8 @@ fn check_decision(
                         .and_then(|id| rules_by_id.get(id).copied())
                     {
                         Some(rule) => {
-                            if rule.target_identity.target_ref != request.requested_target_identity.target_ref
+                            if rule.target_identity.target_ref
+                                != request.requested_target_identity.target_ref
                                 || rule.actor_subject_ref != request.actor_subject_ref
                                 || rule.sandbox_binding.policy_epoch_ref
                                     != request.requested_sandbox_binding.policy_epoch_ref
@@ -2520,10 +2529,8 @@ mod tests {
             &page.requests,
             &page.decisions,
         );
-        assert!(defects
-            .iter()
-            .any(|defect| defect.defect_kind
-                == RuntimeAuthorityIssuerDefectKind::AdmittedSelfAuthorization));
+        assert!(defects.iter().any(|defect| defect.defect_kind
+            == RuntimeAuthorityIssuerDefectKind::AdmittedSelfAuthorization));
     }
 
     #[test]
@@ -2537,18 +2544,17 @@ mod tests {
             &page.requests,
             &page.decisions,
         );
-        assert!(defects
-            .iter()
-            .any(|defect| defect.defect_kind
-                == RuntimeAuthorityIssuerDefectKind::RememberedRuleNotNarrow));
+        assert!(defects.iter().any(|defect| defect.defect_kind
+            == RuntimeAuthorityIssuerDefectKind::RememberedRuleNotNarrow));
     }
 
     #[test]
     fn validator_flags_remembered_rule_for_forbidden_class() {
         let mut page = seeded_runtime_authority_issuer_page();
         page.remembered_rules[0].ticket_class = AuthorityTicketClass::CredentialProjection;
-        page.remembered_rules[0].ticket_class_token =
-            AuthorityTicketClass::CredentialProjection.as_str().to_owned();
+        page.remembered_rules[0].ticket_class_token = AuthorityTicketClass::CredentialProjection
+            .as_str()
+            .to_owned();
         let defects = audit_runtime_authority_issuer_page(
             &page.issuers,
             &page.requesting_surfaces,
@@ -2556,10 +2562,8 @@ mod tests {
             &page.requests,
             &page.decisions,
         );
-        assert!(defects
-            .iter()
-            .any(|defect| defect.defect_kind
-                == RuntimeAuthorityIssuerDefectKind::RememberedRuleForbiddenClass));
+        assert!(defects.iter().any(|defect| defect.defect_kind
+            == RuntimeAuthorityIssuerDefectKind::RememberedRuleForbiddenClass));
     }
 
     #[test]
@@ -2574,9 +2578,11 @@ mod tests {
         shell
             .mintable_ticket_classes
             .push(AuthorityTicketClass::PolicyTrustAdminChange);
-        shell
-            .mintable_ticket_class_tokens
-            .push(AuthorityTicketClass::PolicyTrustAdminChange.as_str().to_owned());
+        shell.mintable_ticket_class_tokens.push(
+            AuthorityTicketClass::PolicyTrustAdminChange
+                .as_str()
+                .to_owned(),
+        );
         let defects = audit_runtime_authority_issuer_page(
             &page.issuers,
             &page.requesting_surfaces,
@@ -2588,8 +2594,7 @@ mod tests {
             == RuntimeAuthorityIssuerDefectKind::UnauthorizedRootAuthorityClaim));
         assert!(defects
             .iter()
-            .any(|defect| defect.defect_kind
-                == RuntimeAuthorityIssuerDefectKind::IssuerOverreach));
+            .any(|defect| defect.defect_kind == RuntimeAuthorityIssuerDefectKind::IssuerOverreach));
     }
 
     #[test]

@@ -526,10 +526,8 @@ impl DeepLinkNavigationTruthPacket {
         for row in &self.rows {
             set.insert(row.confidence_class());
         }
-        let mut tokens: Vec<&'static str> = set
-            .into_iter()
-            .map(RemapConfidenceClass::as_str)
-            .collect();
+        let mut tokens: Vec<&'static str> =
+            set.into_iter().map(RemapConfidenceClass::as_str).collect();
         tokens.sort_unstable();
         tokens
     }
@@ -573,8 +571,7 @@ impl DeepLinkNavigationTruthPacket {
                 set.insert(new_target.target_kind);
             }
         }
-        let mut tokens: Vec<&'static str> =
-            set.into_iter().map(RemapTargetKind::as_str).collect();
+        let mut tokens: Vec<&'static str> = set.into_iter().map(RemapTargetKind::as_str).collect();
         tokens.sort_unstable();
         tokens
     }
@@ -612,8 +609,7 @@ impl DeepLinkNavigationTruthPacket {
                 "deep-link/navigation truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields
-            && self.schema_version != DEEP_LINK_NAVIGATION_TRUTH_SCHEMA_VERSION
+        if include_record_fields && self.schema_version != DEEP_LINK_NAVIGATION_TRUTH_SCHEMA_VERSION
         {
             findings.push(DeepLinkNavigationTruthValidationFinding::new(
                 DeepLinkNavigationTruthFindingKind::WrongSchemaVersion,
@@ -744,7 +740,10 @@ impl DeepLinkNavigationTruthPacket {
             }
 
             if row.remap_packet.recovery_actions.is_empty()
-                && !matches!(row.outcome_class(), DeepLinkRemapOutcome::FailedExplicitReason)
+                && !matches!(
+                    row.outcome_class(),
+                    DeepLinkRemapOutcome::FailedExplicitReason
+                )
             {
                 findings.push(DeepLinkNavigationTruthValidationFinding::new(
                     DeepLinkNavigationTruthFindingKind::RecoveryActionVocabularyDropped,
@@ -1236,16 +1235,19 @@ mod tests {
     fn continuity_dropping_remap_packet_id_blocks_stable() {
         let mut input = baseline_input("packet:m4:deep_link_navigation:continuity_mismatch");
         if let Some(row) = input.rows.first_mut() {
-            row.continuity_record.remap_packet_id_ref = Some("search:remap_packet:other".to_owned());
+            row.continuity_record.remap_packet_id_ref =
+                Some("search:remap_packet:other".to_owned());
         }
         let packet = DeepLinkNavigationTruthPacket::materialize(input);
         assert_eq!(
             packet.promotion_state,
             DeepLinkNavigationTruthPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == DeepLinkNavigationTruthFindingKind::ContinuityRemapPacketMismatch));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == DeepLinkNavigationTruthFindingKind::ContinuityRemapPacketMismatch));
     }
 
     #[test]
@@ -1257,9 +1259,11 @@ mod tests {
             packet.promotion_state,
             DeepLinkNavigationTruthPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == DeepLinkNavigationTruthFindingKind::MissingConsumerProjection));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == DeepLinkNavigationTruthFindingKind::MissingConsumerProjection));
     }
 
     #[test]
@@ -1276,9 +1280,11 @@ mod tests {
             packet.promotion_state,
             DeepLinkNavigationTruthPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == DeepLinkNavigationTruthFindingKind::ProjectionDriftStateDropped));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == DeepLinkNavigationTruthFindingKind::ProjectionDriftStateDropped));
     }
 
     #[test]
@@ -1292,31 +1298,35 @@ mod tests {
             packet.promotion_state,
             DeepLinkNavigationTruthPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == DeepLinkNavigationTruthFindingKind::OutcomeCoverageOverDeclared));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == DeepLinkNavigationTruthFindingKind::OutcomeCoverageOverDeclared));
     }
 
     #[test]
     fn destination_drift_blocks_stable() {
         let mut input = baseline_input("packet:m4:deep_link_navigation:dest_drift");
         if let Some(row) = input.rows.first_mut() {
-            row.continuity_record.destination_visibility.push(
-                NavigationDestinationVisibility {
+            row.continuity_record
+                .destination_visibility
+                .push(NavigationDestinationVisibility {
                     surface_class: NavigationSurfaceClass::Peek,
                     target_root_id_ref: "root:other".to_owned(),
                     target_root_label: "other".to_owned(),
                     destination_repo_visible: true,
-                },
-            );
+                });
         }
         let packet = DeepLinkNavigationTruthPacket::materialize(input);
         assert_eq!(
             packet.promotion_state,
             DeepLinkNavigationTruthPromotionState::BlocksStable
         );
-        assert!(packet.validation_findings.iter().any(|finding| finding
-            .finding_kind
-            == DeepLinkNavigationTruthFindingKind::DestinationVisibilityDrift));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| finding.finding_kind
+                == DeepLinkNavigationTruthFindingKind::DestinationVisibilityDrift));
     }
 }

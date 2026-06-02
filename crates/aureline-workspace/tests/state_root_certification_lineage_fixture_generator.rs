@@ -342,8 +342,7 @@ fn generate_fixtures() {
         a.audit_finding = AuditFindingClass::AuditDirtyWithDisclosure;
         a.audit_disclosure_ref = None;
         a.cleanup_surface_refs = vec!["cleanup:settings_panel".to_owned()];
-        a.inspection_hook_refs =
-            vec!["state_root_certification.compare_before_cleanup".to_owned()];
+        a.inspection_hook_refs = vec!["state_root_certification.compare_before_cleanup".to_owned()];
     }
     write_fixture(
         "dirty_audit_silent_narrowed",
@@ -396,8 +395,7 @@ fn generate_fixtures() {
     for hook in &mut narrowed_hooks {
         if hook.hook_class == StateRootInspectionHookClass::CompareBeforeCleanup {
             hook.available = false;
-            hook.disclosure =
-                "Compare-before-cleanup unavailable on this posture.".to_owned();
+            hook.disclosure = "Compare-before-cleanup unavailable on this posture.".to_owned();
         }
     }
     write_fixture(

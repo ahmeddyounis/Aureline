@@ -87,12 +87,14 @@ fn pinned_rollups_match_each_scenario() {
             scenario.scenario_id
         );
         assert_eq!(
-            record.glossary_chips.len(), scenario.expected_glossary_chip_count,
+            record.glossary_chips.len(),
+            scenario.expected_glossary_chip_count,
             "{} glossary chip count",
             scenario.scenario_id
         );
         assert_eq!(
-            record.why_now_card.is_grounded_in_truth(), scenario.expected_why_now_grounded,
+            record.why_now_card.is_grounded_in_truth(),
+            scenario.expected_why_now_grounded,
             "{} why-now grounded",
             scenario.scenario_id
         );
@@ -126,7 +128,10 @@ fn claim_ceiling_never_overclaims() {
         let ceiling = record.claim_ceiling;
         if ceiling.asserts_glossary_anchors_stable {
             assert!(
-                record.glossary_chips.iter().all(|chip| chip.has_stable_anchor()),
+                record
+                    .glossary_chips
+                    .iter()
+                    .all(|chip| chip.has_stable_anchor()),
                 "{} claims stable glossary anchors it cannot prove",
                 scenario.scenario_id,
             );
@@ -252,7 +257,11 @@ fn guided_affordances_carry_a_marked_support_boundary() {
         }
         // A below-stable affordance must surface the honesty marker so it never
         // implies full stable coverage by adjacency.
-        if record.guided_affordances.iter().any(|a| a.is_below_stable()) {
+        if record
+            .guided_affordances
+            .iter()
+            .any(|a| a.is_below_stable())
+        {
             assert!(
                 record.honesty_marker_present,
                 "{} hides the honesty marker despite a below-stable affordance",
@@ -311,8 +320,7 @@ fn recovery_routes_are_complete_and_keyboard_reachable() {
             assert!(
                 route.keyboard_reachable,
                 "{} recovery route {} not keyboard reachable",
-                scenario.scenario_id,
-                route.action_id,
+                scenario.scenario_id, route.action_id,
             );
         }
     }
@@ -466,8 +474,14 @@ fn top_level_refs_are_canonical_durable_objects() {
     for scenario in learnability_disclosure_corpus() {
         let record = load_record(scenario.fixture_filename);
         for (label, value) in [
-            ("contextual_docs.docs_browser_ref", &record.contextual_docs.docs_browser_ref),
-            ("posture.focus_return_anchor_ref", &record.posture.focus_return_anchor_ref),
+            (
+                "contextual_docs.docs_browser_ref",
+                &record.contextual_docs.docs_browser_ref,
+            ),
+            (
+                "posture.focus_return_anchor_ref",
+                &record.posture.focus_return_anchor_ref,
+            ),
             ("privacy.state_store_ref", &record.privacy.state_store_ref),
             ("diagnostics_export_ref", &record.diagnostics_export_ref),
             ("support_export_ref", &record.support_export_ref),

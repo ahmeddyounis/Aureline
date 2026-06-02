@@ -405,8 +405,10 @@ fn resolve_surface(route: &SurfaceRoute, context: &ChannelContext) -> ResolvedSu
             // The core delivered; now apply live-channel narrowing.
             match route.fanout_surface_class {
                 FanoutSurfaceClass::OsNotification => {
-                    if matches!(context.active_window_state(), ActiveWindowState::ForegroundFocused)
-                    {
+                    if matches!(
+                        context.active_window_state(),
+                        ActiveWindowState::ForegroundFocused
+                    ) {
                         (
                             FanoutReceiptState::NotAttemptedNoRoute,
                             ChannelResolutionClass::SuppressedForegroundRedundant,
@@ -423,7 +425,10 @@ fn resolve_surface(route: &SurfaceRoute, context: &ChannelContext) -> ResolvedSu
                     }
                 }
                 FanoutSurfaceClass::LockScreenSummary => {
-                    if matches!(context.active_window_state(), ActiveWindowState::LockedOrAway) {
+                    if matches!(
+                        context.active_window_state(),
+                        ActiveWindowState::LockedOrAway
+                    ) {
                         (
                             core_state,
                             ChannelResolutionClass::DeliveredExternalSummary,
@@ -434,7 +439,9 @@ fn resolve_surface(route: &SurfaceRoute, context: &ChannelContext) -> ResolvedSu
                         (
                             FanoutReceiptState::NotAttemptedNoRoute,
                             ChannelResolutionClass::LockScreenNotApplicable,
-                            no_route_reason("Device not locked; lock-screen summary not applicable."),
+                            no_route_reason(
+                                "Device not locked; lock-screen summary not applicable.",
+                            ),
                             Vec::new(),
                         )
                     }
@@ -492,9 +499,12 @@ fn derive_companion_handoff(
     routes: &[ResolvedSurfaceRoute],
     context: &ChannelContext,
 ) -> CompanionHandoffPosture {
-    let companion_route = routes
-        .iter()
-        .find(|route| matches!(route.fanout_surface_class, FanoutSurfaceClass::CompanionPush));
+    let companion_route = routes.iter().find(|route| {
+        matches!(
+            route.fanout_surface_class,
+            FanoutSurfaceClass::CompanionPush
+        )
+    });
 
     let handoff_class = match companion_route {
         None => CompanionHandoffClass::NotApplicable,

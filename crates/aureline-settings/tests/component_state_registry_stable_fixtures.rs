@@ -367,7 +367,11 @@ fn record_is_reachable_keyboard_first_across_layouts() {
                 .iter()
                 .find(|mode| mode.mode == required)
                 .unwrap_or_else(|| {
-                    panic!("{} missing layout mode {}", scenario.scenario_id, required.as_str())
+                    panic!(
+                        "{} missing layout mode {}",
+                        scenario.scenario_id,
+                        required.as_str()
+                    )
                 });
             assert!(
                 disclosure.row_narration_available && disclosure.recovery_affordances_reachable

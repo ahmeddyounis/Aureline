@@ -680,7 +680,11 @@ impl RankingReason {
     /// Returns the unique signal tokens carried by the row.
     pub fn signal_tokens(&self) -> Vec<&'static str> {
         let mut set = BTreeSet::new();
-        for signal in self.promoted_signals.iter().chain(self.suppressed_signals.iter()) {
+        for signal in self
+            .promoted_signals
+            .iter()
+            .chain(self.suppressed_signals.iter())
+        {
             set.insert(*signal);
         }
         set.into_iter().map(RankingSignalClass::as_str).collect()
@@ -981,7 +985,8 @@ impl SearchResultTruthPacket {
                 "search result-truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields && self.schema_version != SEARCH_RESULT_TRUTH_PACKET_SCHEMA_VERSION {
+        if include_record_fields && self.schema_version != SEARCH_RESULT_TRUTH_PACKET_SCHEMA_VERSION
+        {
             findings.push(SearchResultTruthValidationFinding::new(
                 SearchResultTruthFindingKind::WrongSchemaVersion,
                 SearchResultTruthFindingSeverity::Blocker,
@@ -1137,10 +1142,7 @@ impl SearchResultTruthPacket {
                 findings.push(SearchResultTruthValidationFinding::new(
                     SearchResultTruthFindingKind::MissingActionBinding,
                     SearchResultTruthFindingSeverity::Blocker,
-                    format!(
-                        "row {} action binding has no open target ref",
-                        row.row_id
-                    ),
+                    format!("row {} action binding has no open target ref", row.row_id),
                 ));
             }
             if matches!(
@@ -1301,7 +1303,10 @@ impl fmt::Display for SearchResultTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => {
-                write!(formatter, "search result-truth packet parse failed: {error}")
+                write!(
+                    formatter,
+                    "search result-truth packet parse failed: {error}"
+                )
             }
             Self::Validation(findings) => {
                 let tokens = findings
@@ -1468,19 +1473,28 @@ mod tests {
         assert_eq!(FactLabelClass::PartialIndex.as_str(), "partial_index");
         assert_eq!(FactLabelClass::WithheldLatency.as_str(), "withheld_latency");
         assert_eq!(FactLabelClass::PolicyHidden.as_str(), "policy_hidden");
-        assert_eq!(ActionFallbackModeClass::PolicyNarrowed.as_str(), "policy_narrowed");
+        assert_eq!(
+            ActionFallbackModeClass::PolicyNarrowed.as_str(),
+            "policy_narrowed"
+        );
         assert_eq!(
             HistoryPolicyClass::SuppressForCapturedReplay.as_str(),
             "suppress_for_captured_replay"
         );
-        assert_eq!(CapturedVsLiveClass::CapturedSnapshot.as_str(), "captured_snapshot");
+        assert_eq!(
+            CapturedVsLiveClass::CapturedSnapshot.as_str(),
+            "captured_snapshot"
+        );
     }
 
     #[test]
     fn baseline_packet_certifies_stable() {
         let packet =
             SearchResultTruthPacket::materialize(baseline_input("packet:m4:result_truth:baseline"));
-        assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::Stable);
+        assert_eq!(
+            packet.promotion_state,
+            SearchResultTruthPromotionState::Stable
+        );
         assert!(packet.validation_findings.is_empty());
         assert_eq!(packet.fact_label_tokens(), vec!["exact"]);
     }
@@ -1490,11 +1504,15 @@ mod tests {
         let mut input = baseline_input("packet:m4:result_truth:missing_projection");
         input.consumer_projections.pop();
         let packet = SearchResultTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            SearchResultTruthPromotionState::BlocksStable
+        );
         assert!(packet
             .validation_findings
             .iter()
-            .any(|finding| finding.finding_kind == SearchResultTruthFindingKind::MissingConsumerProjection));
+            .any(|finding| finding.finding_kind
+                == SearchResultTruthFindingKind::MissingConsumerProjection));
     }
 
     #[test]
@@ -1505,7 +1523,10 @@ mod tests {
         withheld_row.action_binding.fallback_mode = ActionFallbackModeClass::Direct;
         input.rows.push(withheld_row);
         let packet = SearchResultTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            SearchResultTruthPromotionState::BlocksStable
+        );
         assert!(packet
             .validation_findings
             .iter()
@@ -1517,10 +1538,15 @@ mod tests {
     fn dropping_contributor_anchor_blocks_stable() {
         let mut input = baseline_input("packet:m4:result_truth:anchor_drift");
         if let Some(row) = input.rows.first_mut() {
-            row.result_ref.dedupe_lineage[0].canonical_anchor_ref.clear();
+            row.result_ref.dedupe_lineage[0]
+                .canonical_anchor_ref
+                .clear();
         }
         let packet = SearchResultTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            SearchResultTruthPromotionState::BlocksStable
+        );
         assert!(packet
             .validation_findings
             .iter()
@@ -1534,18 +1560,20 @@ mod tests {
     fn projection_drops_captured_vs_live_blocks_stable() {
         let packet_id = "packet:m4:result_truth:captured_drift";
         let mut input = baseline_input(packet_id);
-        if let Some(projection) = input
-            .consumer_projections
-            .iter_mut()
-            .find(|projection| projection.consumer_surface == SearchResultTruthConsumerSurface::SupportExport)
-        {
+        if let Some(projection) = input.consumer_projections.iter_mut().find(|projection| {
+            projection.consumer_surface == SearchResultTruthConsumerSurface::SupportExport
+        }) {
             projection.preserves_captured_vs_live = false;
         }
         let packet = SearchResultTruthPacket::materialize(input);
-        assert_eq!(packet.promotion_state, SearchResultTruthPromotionState::BlocksStable);
+        assert_eq!(
+            packet.promotion_state,
+            SearchResultTruthPromotionState::BlocksStable
+        );
         assert!(packet
             .validation_findings
             .iter()
-            .any(|finding| finding.finding_kind == SearchResultTruthFindingKind::CapturedVsLiveDropped));
+            .any(|finding| finding.finding_kind
+                == SearchResultTruthFindingKind::CapturedVsLiveDropped));
     }
 }

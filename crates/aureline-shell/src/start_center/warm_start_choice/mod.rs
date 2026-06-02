@@ -68,7 +68,8 @@ pub const WARM_START_CHOICE_SHARED_CONTRACT_REF: &str =
     "shell:start_center_warm_start_choice_beta:v1";
 
 /// Normative contract document this projection reads.
-pub const WARM_START_CHOICE_CONTRACT_REF: &str = "docs/workspace/m3/start_center_warm_start_beta.md";
+pub const WARM_START_CHOICE_CONTRACT_REF: &str =
+    "docs/workspace/m3/start_center_warm_start_beta.md";
 
 /// Reviewer-facing notice rendered on every warm-start choice surface so the
 /// lane's scope is never overstated.
@@ -901,10 +902,7 @@ fn compute_summary(cards: &[WarmStartChoiceCard]) -> WarmStartChoiceSummary {
         if card.source_class == WarmStartSourceClass::WorkspaceTemplate {
             summary.template_card_count += 1;
         }
-        if card
-            .lane(WarmStartPathClass::ResumeLiveWorkspace)
-            .is_some()
-        {
+        if card.lane(WarmStartPathClass::ResumeLiveWorkspace).is_some() {
             summary.live_resume_card_count += 1;
         }
         if card.snapshot.is_some() {
@@ -1079,12 +1077,17 @@ fn seed_managed_live_resume_card() -> WarmStartChoiceCard {
     };
     let environment_starter = WarmStartEnvironmentStarter {
         setup_location_class: WarmStartSetupLocationClass::ManagedCloud,
-        setup_location_token: WarmStartSetupLocationClass::ManagedCloud.as_str().to_string(),
+        setup_location_token: WarmStartSetupLocationClass::ManagedCloud
+            .as_str()
+            .to_string(),
         downloads_involved: true,
         extensions_involved: false,
         tasks_involved: true,
         trust_prompt_involved: true,
-        bypass_route_ids: vec!["open_minimal".to_string(), "start_from_snapshot".to_string()],
+        bypass_route_ids: vec![
+            "open_minimal".to_string(),
+            "start_from_snapshot".to_string(),
+        ],
         defer_route_ids: vec!["set_up_later".to_string()],
         summary: "Setup runs in the managed cloud and prompts for trust. Open the cached snapshot \
                   or local files to stay off the network."
@@ -1261,12 +1264,17 @@ fn seed_stale_snapshot_card() -> WarmStartChoiceCard {
     };
     let environment_starter = WarmStartEnvironmentStarter {
         setup_location_class: WarmStartSetupLocationClass::Devcontainer,
-        setup_location_token: WarmStartSetupLocationClass::Devcontainer.as_str().to_string(),
+        setup_location_token: WarmStartSetupLocationClass::Devcontainer
+            .as_str()
+            .to_string(),
         downloads_involved: true,
         extensions_involved: false,
         tasks_involved: true,
         trust_prompt_involved: false,
-        bypass_route_ids: vec!["open_minimal".to_string(), "start_from_snapshot".to_string()],
+        bypass_route_ids: vec![
+            "open_minimal".to_string(),
+            "start_from_snapshot".to_string(),
+        ],
         defer_route_ids: vec!["set_up_later".to_string()],
         summary: "Rebuild runs in the dev container. Inspect the snapshot or open local files \
                   without rebuilding."
@@ -1584,7 +1592,11 @@ fn validate_card(card: &WarmStartChoiceCard, errors: &mut Vec<String>) {
     }
 
     // At least one local-safe lane must exist.
-    if !card.choice_lanes.iter().any(WarmStartChoiceLane::is_local_safe) {
+    if !card
+        .choice_lanes
+        .iter()
+        .any(WarmStartChoiceLane::is_local_safe)
+    {
         errors.push(format!("card.{id}.no_local_safe_lane"));
     }
 
@@ -1597,7 +1609,10 @@ fn validate_card(card: &WarmStartChoiceCard, errors: &mut Vec<String>) {
 
     // Local-first cards must keep both escape hatches at same weight.
     if card.local_first {
-        for path in [WarmStartPathClass::OpenMinimal, WarmStartPathClass::SetUpLater] {
+        for path in [
+            WarmStartPathClass::OpenMinimal,
+            WarmStartPathClass::SetUpLater,
+        ] {
             match card.lane(path) {
                 None => errors.push(format!("card.{id}.local_first.{}.missing", path.as_str())),
                 Some(lane) => {
@@ -1648,7 +1663,9 @@ fn validate_lane(card: &WarmStartChoiceCard, lane: &WarmStartChoiceLane, errors:
             errors.push(format!("card.{id}.lane.{path}.remote_masquerades_as_local"));
         }
         if lane.path_class.is_local_escape_hatch() {
-            errors.push(format!("card.{id}.lane.{path}.escape_hatch_has_side_effect"));
+            errors.push(format!(
+                "card.{id}.lane.{path}.escape_hatch_has_side_effect"
+            ));
         }
         if lane.same_weight_local_path {
             errors.push(format!("card.{id}.lane.{path}.remote_marked_same_weight"));
@@ -1661,7 +1678,9 @@ fn validate_lane(card: &WarmStartChoiceCard, lane: &WarmStartChoiceLane, errors:
             errors.push(format!("card.{id}.lane.{path}.escape_hatch_not_local_safe"));
         }
         if !lane.same_weight_local_path {
-            errors.push(format!("card.{id}.lane.{path}.escape_hatch_not_same_weight"));
+            errors.push(format!(
+                "card.{id}.lane.{path}.escape_hatch_not_same_weight"
+            ));
         }
     }
 }
@@ -1718,12 +1737,16 @@ fn validate_environment_starter(card: &WarmStartChoiceCard, errors: &mut Vec<Str
     let starter = &card.environment_starter;
 
     if starter.setup_location_token != starter.setup_location_class.as_str() {
-        errors.push(format!("card.{id}.environment_starter.location_token.drift"));
+        errors.push(format!(
+            "card.{id}.environment_starter.location_token.drift"
+        ));
     }
 
     // A disclosed trust prompt on the card must be reflected by the starter.
     if card.side_effects.trust_prompt && !starter.trust_prompt_involved {
-        errors.push(format!("card.{id}.environment_starter.trust_prompt_undisclosed"));
+        errors.push(format!(
+            "card.{id}.environment_starter.trust_prompt_undisclosed"
+        ));
     }
     // A managed/remote attach implies the side-effect summary names it.
     let attaches = card
@@ -1825,7 +1848,10 @@ pub fn render_warm_start_choice_plaintext(page: &WarmStartChoicePage) -> String 
     ));
 
     for card in &page.cards {
-        out.push_str(&format!("- {} [{}]\n", card.card_id, card.surface_origin_token));
+        out.push_str(&format!(
+            "- {} [{}]\n",
+            card.card_id, card.surface_origin_token
+        ));
         out.push_str(&format!("    label: {}\n", card.display_label));
         out.push_str(&format!(
             "    source: {} | support: {} | runtime: {} | local_first: {}\n",

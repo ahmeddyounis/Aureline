@@ -132,10 +132,7 @@ impl ScopeKind {
     pub const fn is_narrowed(self) -> bool {
         matches!(
             self,
-            Self::SelectedWorkset
-                | Self::SparseSlice
-                | Self::PolicyLimitedView
-                | Self::CurrentRepo
+            Self::SelectedWorkset | Self::SparseSlice | Self::PolicyLimitedView | Self::CurrentRepo
         )
     }
 }
@@ -1089,8 +1086,7 @@ pub fn project_workset_scope_ux_lineage_with_hooks(
         narrow_reasons.push(WorksetScopeUxLineageNarrowReason::HiddenResultCountNotDisclosed);
     }
     if !slice_ref_propagation.all_surfaces_carry_slice_ref_into_deep_links {
-        narrow_reasons
-            .push(WorksetScopeUxLineageNarrowReason::SliceRefNotPropagatedIntoDeepLinks);
+        narrow_reasons.push(WorksetScopeUxLineageNarrowReason::SliceRefNotPropagatedIntoDeepLinks);
     }
     if !slice_ref_propagation.all_export_propagating_surfaces_carry_slice_ref_into_export {
         narrow_reasons.push(WorksetScopeUxLineageNarrowReason::SliceRefNotPropagatedIntoExport);
@@ -1117,23 +1113,19 @@ pub fn project_workset_scope_ux_lineage_with_hooks(
         // reason only if no other widen-preservation reason was
         // recorded (so the narrow list does not duplicate the
         // diagnosis).
-        if !narrow_reasons
-            .iter()
-            .any(|reason| {
-                matches!(
-                    reason,
-                    WorksetScopeUxLineageNarrowReason::WidenLosesRootIdentity
-                        | WorksetScopeUxLineageNarrowReason::WidenLosesQuerySessionContinuity
-                        | WorksetScopeUxLineageNarrowReason::WidenLosesRestoreProvenance
-                )
-            })
-        {
+        if !narrow_reasons.iter().any(|reason| {
+            matches!(
+                reason,
+                WorksetScopeUxLineageNarrowReason::WidenLosesRootIdentity
+                    | WorksetScopeUxLineageNarrowReason::WidenLosesQuerySessionContinuity
+                    | WorksetScopeUxLineageNarrowReason::WidenLosesRestoreProvenance
+            )
+        }) {
             narrow_reasons.push(WorksetScopeUxLineageNarrowReason::WidenLosesRootIdentity);
         }
     }
     if !policy_limited_disclosure.all_policy_limited_have_narrowing_cause {
-        narrow_reasons
-            .push(WorksetScopeUxLineageNarrowReason::PolicyLimitedNarrowingCauseMissing);
+        narrow_reasons.push(WorksetScopeUxLineageNarrowReason::PolicyLimitedNarrowingCauseMissing);
     }
     if !policy_limited_disclosure.no_admin_or_license_policy_exposes_hidden_list {
         narrow_reasons.push(WorksetScopeUxLineageNarrowReason::PolicyAdminHiddenListExposed);
@@ -1349,9 +1341,9 @@ fn project_widen_preview_truth(inputs: &WorksetScopeUxInputs) -> WidenPreviewTru
             && row.previews_fetch_deepen_implications
             && row.previews_blame_history_search_consequences
     });
-    let all_previews_have_apply_action_metadata = widen_preview_rows
-        .iter()
-        .all(|row| !row.apply_action_id.trim().is_empty() && !row.apply_disclosure_id.trim().is_empty());
+    let all_previews_have_apply_action_metadata = widen_preview_rows.iter().all(|row| {
+        !row.apply_action_id.trim().is_empty() && !row.apply_disclosure_id.trim().is_empty()
+    });
     WidenPreviewTruthSummary {
         widen_preview_rows,
         all_previews_have_required_fields,
@@ -1657,10 +1649,7 @@ pub fn workset_scope_ux_lineage_lines(record: &WorksetScopeUxLineageRecord) -> V
             .iter()
             .map(|a| a.as_str())
             .collect();
-        let cause = row
-            .narrowing_cause
-            .map(|c| c.as_str())
-            .unwrap_or("none");
+        let cause = row.narrowing_cause.map(|c| c.as_str()).unwrap_or("none");
         let hidden_count = row
             .hidden_result_count
             .map(|c| c.to_string())
@@ -1718,7 +1707,9 @@ pub fn workset_scope_ux_lineage_lines(record: &WorksetScopeUxLineageRecord) -> V
     ));
     lines.push(format!(
         "Hidden-result disclosure: all_disclose={}",
-        record.hidden_result_disclosure.all_surfaces_disclose_hidden_count,
+        record
+            .hidden_result_disclosure
+            .all_surfaces_disclose_hidden_count,
     ));
     lines.push(format!(
         "Slice-ref propagation: deep_links={d} export={e}",

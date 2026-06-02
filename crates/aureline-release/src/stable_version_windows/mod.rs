@@ -434,9 +434,7 @@ impl DeprecationPacket {
 
     /// True when at least one notice is still present in the window (not removed).
     pub fn has_active_notice(&self) -> bool {
-        self.deprecations
-            .iter()
-            .any(|n| n.status.still_present())
+        self.deprecations.iter().any(|n| n.status.still_present())
     }
 }
 
@@ -650,7 +648,10 @@ impl StableVersionWindows {
 
     /// Returns the rows freezing a label at or above the cutline.
     pub fn rows_frozen_stable(&self) -> Vec<&WindowRow> {
-        self.rows.iter().filter(|row| row.freezes_stable()).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.freezes_stable())
+            .collect()
     }
 
     /// Returns the rows narrowed below the cutline.
@@ -663,7 +664,10 @@ impl StableVersionWindows {
 
     /// Returns the release-blocking rows.
     pub fn release_blocking_rows(&self) -> Vec<&WindowRow> {
-        self.rows.iter().filter(|row| row.release_blocking).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.release_blocking)
+            .collect()
     }
 
     /// Returns the rows for one surface kind.
@@ -751,8 +755,11 @@ impl StableVersionWindows {
                 .count()
         };
         let kind = |kind: SurfaceKind| self.rows_for_kind(kind).len();
-        let release_blocking: Vec<&WindowRow> =
-            self.rows.iter().filter(|row| row.release_blocking).collect();
+        let release_blocking: Vec<&WindowRow> = self
+            .rows
+            .iter()
+            .filter(|row| row.release_blocking)
+            .collect();
         StableVersionWindowsSummary {
             total_surfaces: self.rows.len(),
             total_claims: self.claims().len(),
@@ -1007,7 +1014,10 @@ impl StableVersionWindows {
             ("surface_summary", &row.surface_summary),
             ("claim_ref", &row.claim_ref),
             ("rationale", &row.rationale),
-            ("version_window.floor_version", &row.version_window.floor_version),
+            (
+                "version_window.floor_version",
+                &row.version_window.floor_version,
+            ),
             (
                 "version_window.current_version",
                 &row.version_window.current_version,
@@ -1026,7 +1036,10 @@ impl StableVersionWindows {
                 "freeze_packet.freshness_slo.slo_register_ref",
                 &row.freeze_packet.freshness_slo.slo_register_ref,
             ),
-            ("deprecation_packet.packet_id", &row.deprecation_packet.packet_id),
+            (
+                "deprecation_packet.packet_id",
+                &row.deprecation_packet.packet_id,
+            ),
             ("owner_signoff.owner_ref", &row.owner_signoff.owner_ref),
         ] {
             if value.trim().is_empty() {
@@ -1116,9 +1129,11 @@ impl StableVersionWindows {
                 });
             }
             if row.deprecation_packet.has_incomplete_notice() {
-                violations.push(StableVersionWindowsViolation::HeldWithIncompleteDeprecation {
-                    window_id: row.window_id.clone(),
-                });
+                violations.push(
+                    StableVersionWindowsViolation::HeldWithIncompleteDeprecation {
+                        window_id: row.window_id.clone(),
+                    },
+                );
             }
             if !(row.owner_signoff.signed_off && row.owner_signoff.signed_at.is_some()) {
                 violations.push(StableVersionWindowsViolation::HeldWithoutSignoff {
@@ -1183,14 +1198,18 @@ impl StableVersionWindows {
         // incomplete notice, and a row with an incomplete notice must name the reason
         // (so the deprecation-completeness automation stays honest).
         if row.has_active_reason(GapReason::DeprecationPacketIncomplete) && !has_incomplete {
-            violations.push(StableVersionWindowsViolation::DeprecationReasonWithoutIncomplete {
-                window_id: row.window_id.clone(),
-            });
+            violations.push(
+                StableVersionWindowsViolation::DeprecationReasonWithoutIncomplete {
+                    window_id: row.window_id.clone(),
+                },
+            );
         }
         if has_incomplete && !row.has_active_reason(GapReason::DeprecationPacketIncomplete) {
-            violations.push(StableVersionWindowsViolation::IncompleteDeprecationWithoutReason {
-                window_id: row.window_id.clone(),
-            });
+            violations.push(
+                StableVersionWindowsViolation::IncompleteDeprecationWithoutReason {
+                    window_id: row.window_id.clone(),
+                },
+            );
         }
     }
 
@@ -1300,9 +1319,11 @@ impl StableVersionWindows {
             .collect();
         for declared_ref in &declared {
             if !covered.contains(declared_ref) {
-                violations.push(StableVersionWindowsViolation::ReleaseBlockingRefWithoutRow {
-                    surface_ref: (*declared_ref).to_owned(),
-                });
+                violations.push(
+                    StableVersionWindowsViolation::ReleaseBlockingRefWithoutRow {
+                        surface_ref: (*declared_ref).to_owned(),
+                    },
+                );
             }
         }
         for row in &self.rows {
@@ -1339,20 +1360,26 @@ impl StableVersionWindows {
         }
         let computed = self.computed_publication_decision();
         if self.publication.decision != computed {
-            violations.push(StableVersionWindowsViolation::PublicationDecisionInconsistent {
-                declared: self.publication.decision,
-                computed,
-            });
+            violations.push(
+                StableVersionWindowsViolation::PublicationDecisionInconsistent {
+                    declared: self.publication.decision,
+                    computed,
+                },
+            );
         }
         if self.publication.blocking_rule_ids != self.computed_blocking_rule_ids() {
-            violations.push(StableVersionWindowsViolation::PublicationBlockingSetMismatch {
-                field: "blocking_rule_ids",
-            });
+            violations.push(
+                StableVersionWindowsViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_rule_ids",
+                },
+            );
         }
         if self.publication.blocking_window_ids != self.computed_blocking_window_ids() {
-            violations.push(StableVersionWindowsViolation::PublicationBlockingSetMismatch {
-                field: "blocking_window_ids",
-            });
+            violations.push(
+                StableVersionWindowsViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_window_ids",
+                },
+            );
         }
     }
 }
@@ -1365,7 +1392,10 @@ fn parse_version(value: &str) -> Option<Vec<u64>> {
     if value.trim().is_empty() {
         return None;
     }
-    value.split('.').map(|part| part.parse::<u64>().ok()).collect()
+    value
+        .split('.')
+        .map(|part| part.parse::<u64>().ok())
+        .collect()
 }
 
 /// A redaction-safe export row projected from the freeze.
@@ -1838,10 +1868,7 @@ mod tests {
     #[test]
     fn embedded_freeze_parses_and_validates() {
         let freeze = freeze();
-        assert_eq!(
-            freeze.schema_version,
-            STABLE_VERSION_WINDOWS_SCHEMA_VERSION
-        );
+        assert_eq!(freeze.schema_version, STABLE_VERSION_WINDOWS_SCHEMA_VERSION);
         assert_eq!(freeze.record_kind, STABLE_VERSION_WINDOWS_RECORD_KIND);
         assert_eq!(freeze.validate(), Vec::new());
         assert!(!freeze.rows.is_empty());
@@ -1895,8 +1922,7 @@ mod tests {
         let freeze = freeze();
         assert_eq!(freeze.summary, freeze.computed_summary());
         assert_eq!(
-            freeze.summary.surfaces_frozen_stable
-                + freeze.summary.surfaces_narrowed_below_cutline,
+            freeze.summary.surfaces_frozen_stable + freeze.summary.surfaces_narrowed_below_cutline,
             freeze.rows.len()
         );
         assert_eq!(
@@ -1994,10 +2020,10 @@ mod tests {
         freeze.publication.decision = freeze.computed_publication_decision();
         freeze.publication.blocking_rule_ids = freeze.computed_blocking_rule_ids();
         freeze.publication.blocking_window_ids = freeze.computed_blocking_window_ids();
-        assert!(freeze
-            .validate()
-            .iter()
-            .any(|v| matches!(v, StableVersionWindowsViolation::FrozenLabelNotNarrowed { .. })));
+        assert!(freeze.validate().iter().any(|v| matches!(
+            v,
+            StableVersionWindowsViolation::FrozenLabelNotNarrowed { .. }
+        )));
     }
 
     #[test]

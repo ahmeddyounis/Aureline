@@ -33,8 +33,8 @@ pub use model::{
     FreshnessClass, HostedMutationInput, HostedMutationRow, LifecycleInput, LocalContinuity,
     LocalContinuityInput, LocalCoreStatusClass, ManagedActionClass, NoticeCategoryClass,
     NoticeKindClass, NoticeLifecycle, NoticeSchedule, PlanClass, RefreshAgeClass,
-    ResidencyScopeClass, ResumeTriggerClass, SaferThanRetryGuidanceClass, ScheduleInput, ScopeInput,
-    ServiceClass, TimeBasisClass, ViewBuildError, WriteContinuityPostureClass,
+    ResidencyScopeClass, ResumeTriggerClass, SaferThanRetryGuidanceClass, ScheduleInput,
+    ScopeInput, ServiceClass, TimeBasisClass, ViewBuildError, WriteContinuityPostureClass,
     CONTINUITY_NOTICE_NOTICE, CONTINUITY_NOTICE_VIEW_RECORD_KIND,
     CONTINUITY_NOTICE_VIEW_SCHEMA_VERSION,
 };

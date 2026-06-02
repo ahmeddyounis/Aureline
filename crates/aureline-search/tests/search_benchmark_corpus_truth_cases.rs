@@ -8,10 +8,10 @@ use aureline_search::{
     current_stable_search_benchmark_corpus_truth_packet, BenchmarkCorpusClass,
     CertifiedArchetypeClass, CorpusConsumerSurface, CorpusFindingKind, CorpusPromotionState,
     EvaluationDowngradeState, ProvenanceClass, QueryPackClass, RankingMetricClass,
-    RetentionPolicyClass, SearchBenchmarkCorpusTruthPacket,
-    SearchBenchmarkCorpusTruthPacketInput, SEARCH_BENCHMARK_CORPUS_TRUTH_ARTIFACT_DOC_REF,
-    SEARCH_BENCHMARK_CORPUS_TRUTH_DOC_REF, SEARCH_BENCHMARK_CORPUS_TRUTH_FIXTURE_DIR,
-    SEARCH_BENCHMARK_CORPUS_TRUTH_PACKET_ARTIFACT_REF, SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_REF,
+    RetentionPolicyClass, SearchBenchmarkCorpusTruthPacket, SearchBenchmarkCorpusTruthPacketInput,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_ARTIFACT_DOC_REF, SEARCH_BENCHMARK_CORPUS_TRUTH_DOC_REF,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_FIXTURE_DIR, SEARCH_BENCHMARK_CORPUS_TRUTH_PACKET_ARTIFACT_REF,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -260,7 +260,10 @@ fn closed_corpus_truth_tokens_are_pinned() {
         BenchmarkCorpusClass::SemanticRecallCorpus.as_str(),
         "semantic_recall_corpus"
     );
-    assert_eq!(QueryPackClass::GoldenQueryPack.as_str(), "golden_query_pack");
+    assert_eq!(
+        QueryPackClass::GoldenQueryPack.as_str(),
+        "golden_query_pack"
+    );
     assert_eq!(RankingMetricClass::RecallAt50.as_str(), "recall_at_50");
     assert_eq!(
         RetentionPolicyClass::PublishedExternal.as_str(),
@@ -278,5 +281,8 @@ fn closed_corpus_truth_tokens_are_pinned() {
         CorpusFindingKind::ImportedCorpusWithoutProvenance.as_str(),
         "imported_corpus_without_provenance"
     );
-    assert_eq!(CorpusConsumerSurface::BenchmarkLab.as_str(), "benchmark_lab");
+    assert_eq!(
+        CorpusConsumerSurface::BenchmarkLab.as_str(),
+        "benchmark_lab"
+    );
 }

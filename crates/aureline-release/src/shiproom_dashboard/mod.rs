@@ -537,7 +537,9 @@ impl DashboardPanel {
 
     /// Whether every fitness function the panel carries clears its threshold.
     pub fn all_fitness_satisfied(&self) -> bool {
-        self.fitness_functions.iter().all(FitnessFunction::is_satisfied)
+        self.fitness_functions
+            .iter()
+            .all(FitnessFunction::is_satisfied)
     }
 
     /// Whether any fitness function failed.
@@ -941,7 +943,10 @@ impl ShiproomDashboard {
             ("as_of", &self.as_of),
             ("claim_manifest_ref", &self.claim_manifest_ref),
             ("qualification_matrix_ref", &self.qualification_matrix_ref),
-            ("freshness_slo_register_ref", &self.freshness_slo_register_ref),
+            (
+                "freshness_slo_register_ref",
+                &self.freshness_slo_register_ref,
+            ),
         ] {
             if value.trim().is_empty() {
                 violations.push(ShiproomDashboardViolation::EmptyField {
@@ -1070,8 +1075,14 @@ impl ShiproomDashboard {
             ("claim_ref", &panel.claim_ref),
             ("source_ref", &panel.source_ref),
             ("rationale", &panel.rationale),
-            ("freshness_packet.packet_id", &panel.freshness_packet.packet_id),
-            ("freshness_packet.packet_ref", &panel.freshness_packet.packet_ref),
+            (
+                "freshness_packet.packet_id",
+                &panel.freshness_packet.packet_id,
+            ),
+            (
+                "freshness_packet.packet_ref",
+                &panel.freshness_packet.packet_ref,
+            ),
             (
                 "freshness_packet.proof_index_ref",
                 &panel.freshness_packet.proof_index_ref,
@@ -1255,7 +1266,8 @@ impl ShiproomDashboard {
 
         // A failing fitness function forces a narrowing panel that names the failing
         // reason; an unmeasured one names the evidence-incomplete reason.
-        if panel.any_fitness_failed() && !panel.has_active_reason(StopReason::FitnessFunctionFailing)
+        if panel.any_fitness_failed()
+            && !panel.has_active_reason(StopReason::FitnessFunctionFailing)
         {
             violations.push(ShiproomDashboardViolation::FailingFitnessWithoutReason {
                 panel_id: panel.panel_id.clone(),
@@ -1275,14 +1287,14 @@ impl ShiproomDashboard {
         panel: &DashboardPanel,
         violations: &mut Vec<ShiproomDashboardViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<ShiproomDashboardViolation>, expected: StopReason| {
-                violations.push(ShiproomDashboardViolation::StateReasonIncoherent {
-                    panel_id: panel.panel_id.clone(),
-                    state: panel.panel_state,
-                    expected_reason: expected,
-                });
-            };
+        let push_incoherent = |violations: &mut Vec<ShiproomDashboardViolation>,
+                               expected: StopReason| {
+            violations.push(ShiproomDashboardViolation::StateReasonIncoherent {
+                panel_id: panel.panel_id.clone(),
+                state: panel.panel_state,
+                expected_reason: expected,
+            });
+        };
 
         match panel.panel_state {
             PanelState::NarrowedUnbacked => {
@@ -1408,10 +1420,12 @@ impl ShiproomDashboard {
         }
         let computed = self.computed_publication_decision();
         if self.publication.decision != computed {
-            violations.push(ShiproomDashboardViolation::PublicationDecisionInconsistent {
-                declared: self.publication.decision,
-                computed,
-            });
+            violations.push(
+                ShiproomDashboardViolation::PublicationDecisionInconsistent {
+                    declared: self.publication.decision,
+                    computed,
+                },
+            );
         }
         if self.publication.blocking_rule_ids != self.computed_blocking_rule_ids() {
             violations.push(ShiproomDashboardViolation::PublicationBlockingSetMismatch {
@@ -2053,7 +2067,10 @@ mod tests {
     fn dashboard_has_a_fail_and_an_unmeasured_fitness_function() {
         let dashboard = dashboard();
         assert!(
-            dashboard.panels.iter().any(DashboardPanel::any_fitness_failed),
+            dashboard
+                .panels
+                .iter()
+                .any(DashboardPanel::any_fitness_failed),
             "dashboard must exercise a failing fitness function"
         );
         assert!(
@@ -2153,7 +2170,10 @@ mod tests {
         let dashboard = dashboard();
         let projection = dashboard.support_export_projection();
         assert_eq!(projection.panels.len(), dashboard.panels.len());
-        assert_eq!(projection.publication_decision, dashboard.publication.decision);
+        assert_eq!(
+            projection.publication_decision,
+            dashboard.publication.decision
+        );
         for (panel, projected) in dashboard.panels.iter().zip(&projection.panels) {
             assert_eq!(panel.panel_id, projected.panel_id);
             assert_eq!(panel.panel_ref, projected.panel_ref);

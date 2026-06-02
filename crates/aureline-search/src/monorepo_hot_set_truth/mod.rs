@@ -28,8 +28,7 @@ use serde::{Deserialize, Serialize};
 use crate::hot_set::SearchReadinessState;
 
 /// Stable record-kind tag for [`MonorepoHotSetTruthPacket`].
-pub const MONOREPO_HOT_SET_TRUTH_PACKET_RECORD_KIND: &str =
-    "monorepo_hot_set_truth_stable_packet";
+pub const MONOREPO_HOT_SET_TRUTH_PACKET_RECORD_KIND: &str = "monorepo_hot_set_truth_stable_packet";
 
 /// Stable record-kind tag for [`MonorepoHotSetTruthSupportExport`].
 pub const MONOREPO_HOT_SET_TRUTH_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -51,8 +50,7 @@ pub const MONOREPO_HOT_SET_TRUTH_ARTIFACT_DOC_REF: &str =
     "artifacts/search/m4/finalize-monorepo-hot-set-indexing-warming-states-and.md";
 
 /// Repo-relative path of the protected fixture corpus directory.
-pub const MONOREPO_HOT_SET_TRUTH_FIXTURE_DIR: &str =
-    "fixtures/search/m4/monorepo_hot_set_truth";
+pub const MONOREPO_HOT_SET_TRUTH_FIXTURE_DIR: &str = "fixtures/search/m4/monorepo_hot_set_truth";
 
 /// Repo-relative path of the checked-in stable monorepo truth packet.
 pub const MONOREPO_HOT_SET_TRUTH_PACKET_ARTIFACT_REF: &str =
@@ -369,7 +367,8 @@ pub struct HotSetCoverageEstimate {
 
 impl HotSetCoverageEstimate {
     fn coverage_over_declared(&self) -> bool {
-        self.declared_scope_file_count > 0 && self.hot_set_file_count > self.declared_scope_file_count
+        self.declared_scope_file_count > 0
+            && self.hot_set_file_count > self.declared_scope_file_count
     }
 }
 
@@ -416,31 +415,34 @@ impl MonorepoTruthRow {
     fn degradation_matches_readiness(&self) -> bool {
         matches!(
             (self.readiness_state, self.degradation),
-            (SearchReadinessState::FullyIndexed, GracefulDegradationClass::NoDegradation)
-                | (SearchReadinessState::HotSetReady, GracefulDegradationClass::HotSetOnly)
-                | (
-                    SearchReadinessState::PartialIndex | SearchReadinessState::WarmIndex,
-                    GracefulDegradationClass::PartialIndexDeclared
-                        | GracefulDegradationClass::KnownPathsFallback
-                        | GracefulDegradationClass::HotSetOnly,
-                )
-                | (SearchReadinessState::StaleIndex, GracefulDegradationClass::StaleShardServed)
-                | (
-                    SearchReadinessState::Reindexing,
-                    GracefulDegradationClass::PartialIndexDeclared
-                        | GracefulDegradationClass::PausedForResourcePressure,
-                )
-                | (
-                    SearchReadinessState::IndexUnavailable,
-                    GracefulDegradationClass::IndexUnavailableDisclosed
-                        | GracefulDegradationClass::KnownPathsFallback,
-                )
-                | (
-                    SearchReadinessState::NotIndexed,
-                    GracefulDegradationClass::KnownPathsFallback
-                        | GracefulDegradationClass::IndexUnavailableDisclosed
-                        | GracefulDegradationClass::PausedForResourcePressure,
-                )
+            (
+                SearchReadinessState::FullyIndexed,
+                GracefulDegradationClass::NoDegradation
+            ) | (
+                SearchReadinessState::HotSetReady,
+                GracefulDegradationClass::HotSetOnly
+            ) | (
+                SearchReadinessState::PartialIndex | SearchReadinessState::WarmIndex,
+                GracefulDegradationClass::PartialIndexDeclared
+                    | GracefulDegradationClass::KnownPathsFallback
+                    | GracefulDegradationClass::HotSetOnly,
+            ) | (
+                SearchReadinessState::StaleIndex,
+                GracefulDegradationClass::StaleShardServed
+            ) | (
+                SearchReadinessState::Reindexing,
+                GracefulDegradationClass::PartialIndexDeclared
+                    | GracefulDegradationClass::PausedForResourcePressure,
+            ) | (
+                SearchReadinessState::IndexUnavailable,
+                GracefulDegradationClass::IndexUnavailableDisclosed
+                    | GracefulDegradationClass::KnownPathsFallback,
+            ) | (
+                SearchReadinessState::NotIndexed,
+                GracefulDegradationClass::KnownPathsFallback
+                    | GracefulDegradationClass::IndexUnavailableDisclosed
+                    | GracefulDegradationClass::PausedForResourcePressure,
+            )
         )
     }
 }
@@ -615,7 +617,8 @@ impl MonorepoHotSetTruthPacket {
     /// Returns true when a consumer projection preserves this packet.
     pub fn has_projection_for(&self, surface: MonorepoConsumerSurface) -> bool {
         self.consumer_projections.iter().any(|projection| {
-            projection.consumer_surface == surface && projection.preserves_truth_for(&self.packet_id)
+            projection.consumer_surface == surface
+                && projection.preserves_truth_for(&self.packet_id)
         })
     }
 
@@ -625,7 +628,9 @@ impl MonorepoHotSetTruthPacket {
         for row in &self.rows {
             set.insert(row.archetype);
         }
-        set.into_iter().map(MonorepoArchetypeClass::as_str).collect()
+        set.into_iter()
+            .map(MonorepoArchetypeClass::as_str)
+            .collect()
     }
 
     /// Returns the unique lane tokens observed across rows.
@@ -643,7 +648,9 @@ impl MonorepoHotSetTruthPacket {
         for row in &self.rows {
             set.insert(row.degradation);
         }
-        set.into_iter().map(GracefulDegradationClass::as_str).collect()
+        set.into_iter()
+            .map(GracefulDegradationClass::as_str)
+            .collect()
     }
 
     /// Returns the unique readiness-state tokens observed across rows.
@@ -1141,7 +1148,8 @@ mod tests {
         assert!(packet
             .validation_findings
             .iter()
-            .any(|finding| finding.finding_kind == MonorepoTruthFindingKind::MissingWarmingTransition));
+            .any(|finding| finding.finding_kind
+                == MonorepoTruthFindingKind::MissingWarmingTransition));
     }
 
     #[test]
@@ -1155,10 +1163,13 @@ mod tests {
             packet.promotion_state,
             MonorepoTruthPromotionState::BlocksStable
         );
-        assert!(packet
-            .validation_findings
-            .iter()
-            .any(|finding| finding.finding_kind == MonorepoTruthFindingKind::DegradationNotLabeled));
+        assert!(
+            packet
+                .validation_findings
+                .iter()
+                .any(|finding| finding.finding_kind
+                    == MonorepoTruthFindingKind::DegradationNotLabeled)
+        );
     }
 
     #[test]
@@ -1175,7 +1186,8 @@ mod tests {
         assert!(packet
             .validation_findings
             .iter()
-            .any(|finding| finding.finding_kind == MonorepoTruthFindingKind::EditInputBlockedByWarmup));
+            .any(|finding| finding.finding_kind
+                == MonorepoTruthFindingKind::EditInputBlockedByWarmup));
     }
 
     #[test]
@@ -1197,8 +1209,7 @@ mod tests {
     #[test]
     fn missing_consumer_projection_blocks_stable() {
         let mut input = baseline_input();
-        input.consumer_projections =
-            vec![sample_projection(MonorepoConsumerSurface::SearchShell)];
+        input.consumer_projections = vec![sample_projection(MonorepoConsumerSurface::SearchShell)];
         let packet = MonorepoHotSetTruthPacket::materialize(input);
         assert_eq!(
             packet.promotion_state,

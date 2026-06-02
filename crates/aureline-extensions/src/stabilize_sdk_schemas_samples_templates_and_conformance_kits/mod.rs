@@ -104,8 +104,7 @@ pub const SDK_AUTHOR_LANE_QUALIFICATION_CLAIM_RECORD_KIND: &str =
 pub const DOWNGRADED_LANE_BANNER_RECORD_KIND: &str = "stable_sdk_downgraded_lane_banner";
 
 /// Record-kind tag for [`StableSdkAuthorLaneInspection`].
-pub const STABLE_SDK_AUTHOR_LANE_INSPECTION_RECORD_KIND: &str =
-    "stable_sdk_author_lane_inspection";
+pub const STABLE_SDK_AUTHOR_LANE_INSPECTION_RECORD_KIND: &str = "stable_sdk_author_lane_inspection";
 
 /// Record-kind tag for [`StableSdkAuthorLaneSupportExport`].
 pub const STABLE_SDK_AUTHOR_LANE_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -137,16 +136,29 @@ pub const INSTALLABLE_LIFECYCLE_STATES: &[&str] =
     &["installed", "pending_activation", "active", "recovered"];
 
 /// Closed kit-artifact-kind vocabulary. A stable lane must ship every kind.
-pub const ARTIFACT_KIND_CLASSES: &[&str] =
-    &["sdk_schema", "sample_extension", "project_template", "conformance_kit"];
+pub const ARTIFACT_KIND_CLASSES: &[&str] = &[
+    "sdk_schema",
+    "sample_extension",
+    "project_template",
+    "conformance_kit",
+];
 
 /// The artifact kinds a stable author lane must include at least one of.
-pub const REQUIRED_ARTIFACT_KINDS: &[&str] =
-    &["sdk_schema", "sample_extension", "project_template", "conformance_kit"];
+pub const REQUIRED_ARTIFACT_KINDS: &[&str] = &[
+    "sdk_schema",
+    "sample_extension",
+    "project_template",
+    "conformance_kit",
+];
 
 /// Closed host-class vocabulary carried on each artifact.
-pub const ARTIFACT_HOST_CLASSES: &[&str] =
-    &["wasm", "external_host", "webview", "headless", "not_applicable"];
+pub const ARTIFACT_HOST_CLASSES: &[&str] = &[
+    "wasm",
+    "external_host",
+    "webview",
+    "headless",
+    "not_applicable",
+];
 
 /// Closed conformance-state vocabulary. `conformant` is the only state a stable
 /// claim may keep.
@@ -682,8 +694,7 @@ impl StableSdkAuthorLanePacket {
         validate_input(&input)?;
 
         let identity = identity_record(&input.identity);
-        let artifacts: Vec<SdkKitArtifact> =
-            input.artifacts.iter().map(artifact_record).collect();
+        let artifacts: Vec<SdkKitArtifact> = input.artifacts.iter().map(artifact_record).collect();
         let conformance_summary = summarize_conformance(&artifacts);
         let activation_budget = activation_budget_record(&input.activation_budget);
         let publisher_continuity = publisher_continuity_record(&input.publisher_continuity);
@@ -767,7 +778,10 @@ impl StableSdkAuthorLanePacket {
         for artifact in &self.artifacts {
             validate_artifact(artifact)?;
             if !artifact_ids.insert(artifact.artifact_id.as_str()) {
-                return Err(err(format!("duplicate artifact_id: {}", artifact.artifact_id)));
+                return Err(err(format!(
+                    "duplicate artifact_id: {}",
+                    artifact.artifact_id
+                )));
             }
         }
         validate_conformance_summary(&self.conformance_summary)?;
@@ -833,7 +847,9 @@ impl StableSdkAuthorLanePacket {
                 ));
             }
             if !self.identity.lifecycle_installable() {
-                return Err(err("stable effective tier must stay on an installable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on an installable lifecycle",
+                ));
             }
             if !self.conformance_summary.all_required_kinds_present {
                 return Err(err(
@@ -913,8 +929,11 @@ impl StableSdkAuthorLanePacket {
             .iter()
             .map(String::as_str)
             .collect();
-        let expected: BTreeSet<&str> =
-            derived.downgrade_reasons.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = derived
+            .downgrade_reasons
+            .iter()
+            .map(String::as_str)
+            .collect();
         if stored != expected {
             return Err(err(
                 "stored downgrade reasons do not match the posture-derived reasons",
@@ -1078,7 +1097,10 @@ pub fn project_stable_sdk_author_lane_support_export(
     packet: &StableSdkAuthorLanePacket,
 ) -> StableSdkAuthorLaneSupportExport {
     let blocks_authoring = packet.claim.effective_tier == "withdrawn";
-    let ambient = packet.artifacts.iter().any(|a| a.widens_template_authority());
+    let ambient = packet
+        .artifacts
+        .iter()
+        .any(|a| a.widens_template_authority());
     let export_safe_summary = format!(
         "{} Trust={} lifecycle={}. Conformance: artifacts={} conformant={} nonconformant={} missing_kinds={}. Activation={}. Continuity={}. Tier claimed={} effective={} (downgraded={}). Banner required={}. Ambient template privilege={}.",
         packet.claim.summary_label,
@@ -1351,12 +1373,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1374,10 +1404,7 @@ fn support_claim_for(tier: &str) -> String {
 }
 
 /// Returns true when identity and every artifact are fully attributed.
-fn attribution_is_complete(
-    identity: &SdkAuthorLaneIdentity,
-    artifacts: &[SdkKitArtifact],
-) -> bool {
+fn attribution_is_complete(identity: &SdkAuthorLaneIdentity, artifacts: &[SdkKitArtifact]) -> bool {
     !identity.source_package_ref.trim().is_empty()
         && !identity.lane_identity_ref.trim().is_empty()
         && !identity.starter_pack_ref.trim().is_empty()
@@ -1405,7 +1432,10 @@ fn lane_requires_warning(
             .any(|a| a.artifact_schema_version < STABLE_SDK_AUTHOR_LANE_PUBLISHED_ARTIFACT_VERSION)
         || artifacts.iter().any(|a| a.widens_template_authority())
         || activation.unbounded()
-        || matches!(continuity.continuity_state_class.as_str(), "revoked" | "missing")
+        || matches!(
+            continuity.continuity_state_class.as_str(),
+            "revoked" | "missing"
+        )
 }
 
 /// Picks the most-severe banner reason for a lane that requires a warning.
@@ -1581,8 +1611,7 @@ fn inspection_record(
     attribution_complete: bool,
 ) -> StableSdkAuthorLaneInspection {
     let stable_claim = STABLE_TIERS.contains(&claim.effective_tier.as_str());
-    let stale_version_artifact_count =
-        artifacts.iter().filter(|a| !a.version_current()).count();
+    let stale_version_artifact_count = artifacts.iter().filter(|a| !a.version_current()).count();
     let ambient = artifacts.iter().any(|a| a.widens_template_authority());
 
     StableSdkAuthorLaneInspection {
@@ -1651,7 +1680,11 @@ fn validate_input(
         if !artifact_ids.insert(&a.artifact_id) {
             return Err(err(format!("duplicate artifact_id: {}", a.artifact_id)));
         }
-        ensure_token(ARTIFACT_KIND_CLASSES, &a.artifact_kind_class, "artifact.artifact_kind_class")?;
+        ensure_token(
+            ARTIFACT_KIND_CLASSES,
+            &a.artifact_kind_class,
+            "artifact.artifact_kind_class",
+        )?;
         ensure_token(ARTIFACT_HOST_CLASSES, &a.host_class, "artifact.host_class")?;
         ensure_nonempty(&a.published_version_ref, "artifact.published_version_ref")?;
         ensure_token(
@@ -1675,9 +1708,19 @@ fn validate_input(
     }
 
     let act = &input.activation_budget;
-    ensure_token(ACTIVATION_BUDGET_CLASSES, &act.budget_class, "activation_budget.budget_class")?;
-    ensure_nonempty(&act.measured_cost_ref, "activation_budget.measured_cost_ref")?;
-    ensure_nonempty(&act.budget_ceiling_ref, "activation_budget.budget_ceiling_ref")?;
+    ensure_token(
+        ACTIVATION_BUDGET_CLASSES,
+        &act.budget_class,
+        "activation_budget.budget_class",
+    )?;
+    ensure_nonempty(
+        &act.measured_cost_ref,
+        "activation_budget.measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &act.budget_ceiling_ref,
+        "activation_budget.budget_ceiling_ref",
+    )?;
 
     let cont = &input.publisher_continuity;
     ensure_token(
@@ -1700,10 +1743,18 @@ fn validate_input(
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_SDK_AUTHOR_LANE_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_SDK_AUTHOR_LANE_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -1738,9 +1789,7 @@ fn validate_identity(
     Ok(())
 }
 
-fn validate_artifact(
-    artifact: &SdkKitArtifact,
-) -> Result<(), StableSdkAuthorLaneValidationError> {
+fn validate_artifact(artifact: &SdkKitArtifact) -> Result<(), StableSdkAuthorLaneValidationError> {
     ensure_eq(
         artifact.record_kind.as_str(),
         SDK_KIT_ARTIFACT_RECORD_KIND,
@@ -1757,14 +1806,24 @@ fn validate_artifact(
         &artifact.artifact_kind_class,
         "artifact artifact_kind_class",
     )?;
-    ensure_token(ARTIFACT_HOST_CLASSES, &artifact.host_class, "artifact host_class")?;
+    ensure_token(
+        ARTIFACT_HOST_CLASSES,
+        &artifact.host_class,
+        "artifact host_class",
+    )?;
     ensure_token(
         CONFORMANCE_STATE_CLASSES,
         &artifact.conformance_state_class,
         "artifact conformance_state_class",
     )?;
-    ensure_nonempty(&artifact.published_version_ref, "artifact published_version_ref")?;
-    ensure_nonempty(&artifact.conformance_report_ref, "artifact conformance_report_ref")?;
+    ensure_nonempty(
+        &artifact.published_version_ref,
+        "artifact published_version_ref",
+    )?;
+    ensure_nonempty(
+        &artifact.conformance_report_ref,
+        "artifact conformance_report_ref",
+    )?;
     Ok(())
 }
 
@@ -1777,10 +1836,18 @@ fn validate_conformance_summary(
         "conformance_summary record_kind",
     )?;
     for kind in &summary.present_kinds {
-        ensure_token(ARTIFACT_KIND_CLASSES, kind, "conformance_summary.present_kinds")?;
+        ensure_token(
+            ARTIFACT_KIND_CLASSES,
+            kind,
+            "conformance_summary.present_kinds",
+        )?;
     }
     for kind in &summary.missing_required_kinds {
-        ensure_token(ARTIFACT_KIND_CLASSES, kind, "conformance_summary.missing_required_kinds")?;
+        ensure_token(
+            ARTIFACT_KIND_CLASSES,
+            kind,
+            "conformance_summary.missing_required_kinds",
+        )?;
     }
     Ok(())
 }
@@ -1798,8 +1865,14 @@ fn validate_activation_budget(
         &activation.budget_class,
         "activation_budget budget_class",
     )?;
-    ensure_nonempty(&activation.measured_cost_ref, "activation_budget measured_cost_ref")?;
-    ensure_nonempty(&activation.budget_ceiling_ref, "activation_budget budget_ceiling_ref")?;
+    ensure_nonempty(
+        &activation.measured_cost_ref,
+        "activation_budget measured_cost_ref",
+    )?;
+    ensure_nonempty(
+        &activation.budget_ceiling_ref,
+        "activation_budget budget_ceiling_ref",
+    )?;
     Ok(())
 }
 
@@ -1828,15 +1901,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
     ensure_token(
         SUPPORT_CLAIM_CLASSES,
         &claim.support_claim_class,
         "claim support_claim_class",
     )?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(SDK_AUTHOR_LANE_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            SDK_AUTHOR_LANE_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -1850,12 +1935,18 @@ fn validate_banner(
         "banner record_kind",
     )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(SDK_AUTHOR_LANE_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            SDK_AUTHOR_LANE_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -1883,15 +1974,22 @@ fn validate_inspection(
         return Err(err("inspection downgraded is inconsistent"));
     }
     if inspection.downgraded_lane_banner_required != packet.downgraded_lane_banner.must_display {
-        return Err(err("inspection downgraded_lane_banner_required is inconsistent"));
+        return Err(err(
+            "inspection downgraded_lane_banner_required is inconsistent",
+        ));
     }
     if inspection.attribution_complete != packet.attribution_complete() {
         return Err(err("inspection attribution_complete is inconsistent"));
     }
     if inspection.ambient_template_privilege_present
-        != packet.artifacts.iter().any(|a| a.widens_template_authority())
+        != packet
+            .artifacts
+            .iter()
+            .any(|a| a.widens_template_authority())
     {
-        return Err(err("inspection ambient_template_privilege_present is inconsistent"));
+        return Err(err(
+            "inspection ambient_template_privilege_present is inconsistent",
+        ));
     }
     if inspection.artifact_count != packet.artifacts.len() {
         return Err(err("inspection artifact_count is inconsistent"));
@@ -1899,9 +1997,12 @@ fn validate_inspection(
     if inspection.conformant_artifact_count != packet.conformance_summary.conformant_count {
         return Err(err("inspection conformant_artifact_count is inconsistent"));
     }
-    if inspection.missing_required_kind_count != packet.conformance_summary.missing_required_kinds.len()
+    if inspection.missing_required_kind_count
+        != packet.conformance_summary.missing_required_kinds.len()
     {
-        return Err(err("inspection missing_required_kind_count is inconsistent"));
+        return Err(err(
+            "inspection missing_required_kind_count is inconsistent",
+        ));
     }
     Ok(())
 }
@@ -1921,7 +2022,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -1932,7 +2035,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableSdkAuthorLaneValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -1950,7 +2055,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableSdkAuthorLaneValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

@@ -504,7 +504,11 @@ fn emit_artifact() {
         format!("{}\n", packet.export_safe_json()),
     )
     .unwrap();
-    std::fs::write(format!("{dir}/summary.md"), packet.render_markdown_summary()).unwrap();
+    std::fs::write(
+        format!("{dir}/summary.md"),
+        packet.render_markdown_summary(),
+    )
+    .unwrap();
     let fixture_dir = format!("{root}/fixtures/ai/m4/stabilize_ai_route_and_spend_truth");
     std::fs::create_dir_all(&fixture_dir).unwrap();
     std::fs::write(

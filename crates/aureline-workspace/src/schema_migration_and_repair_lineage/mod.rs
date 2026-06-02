@@ -1158,8 +1158,7 @@ pub fn project_schema_migration_and_repair_lineage_with_hooks(
         .iter()
         .all(|required| hook_available(&inspection_hooks, *required))
     {
-        narrow_reasons
-            .push(SchemaMigrationAndRepairLineageNarrowReason::InspectionHookUnavailable);
+        narrow_reasons.push(SchemaMigrationAndRepairLineageNarrowReason::InspectionHookUnavailable);
     }
 
     collect_support_export_narrows(&support_export_honesty, &mut narrow_reasons);
@@ -1221,9 +1220,15 @@ pub fn project_schema_migration_and_repair_lineage_with_hooks(
 fn project_artifact_class_coverage(
     inputs: &SchemaMigrationAndRepairInputs,
 ) -> ArtifactClassCoverageSummary {
-    let migration_rows: Vec<MigrationRow> =
-        inputs.migrations.iter().map(project_migration_row).collect();
-    let observed: BTreeSet<_> = migration_rows.iter().map(|row| row.artifact_class).collect();
+    let migration_rows: Vec<MigrationRow> = inputs
+        .migrations
+        .iter()
+        .map(project_migration_row)
+        .collect();
+    let observed: BTreeSet<_> = migration_rows
+        .iter()
+        .map(|row| row.artifact_class)
+        .collect();
     let all_required_artifact_classes_present = REQUIRED_ARTIFACT_CLASSES
         .iter()
         .all(|required| observed.contains(required));
@@ -1766,7 +1771,9 @@ pub fn schema_migration_and_repair_lineage_lines(
     lines.push(format!(
         "No-silent-rerun: posture={p} commit_metadata={c}",
         p = record.no_silent_rerun.all_rows_safe_rerun_posture,
-        c = record.no_silent_rerun.all_mutating_rows_have_commit_metadata,
+        c = record
+            .no_silent_rerun
+            .all_mutating_rows_have_commit_metadata,
     ));
     lines.push(format!(
         "Repair-transaction pinning: tx={t} finding={f}",

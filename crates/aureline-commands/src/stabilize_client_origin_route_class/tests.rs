@@ -59,12 +59,8 @@ fn evidence_export() -> CommandContractEvidenceExport {
         markdown_summary_ref: STABILIZE_CLIENT_ORIGIN_ROUTE_CLASS_SUMMARY_REF.to_owned(),
         admin_inspector_ref: "admin-inspector:client-origin-route-class:stable:0001".to_owned(),
         support_export_ref: "support-export:client-origin-route-class:stable:0001".to_owned(),
-        rollback_lineage_refs: vec![
-            "rollback-checkpoint:client-origin-route-class:0001".to_owned(),
-        ],
-        export_lineage_refs: vec![
-            "export-lineage:client-origin-route-class:beta:0001".to_owned(),
-        ],
+        rollback_lineage_refs: vec!["rollback-checkpoint:client-origin-route-class:0001".to_owned()],
+        export_lineage_refs: vec!["export-lineage:client-origin-route-class:beta:0001".to_owned()],
     }
 }
 
@@ -300,8 +296,7 @@ fn checked_artifact_validates() {
 fn emit_artifact() {
     let packet = packet();
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-    let dir =
-        format!("{root}/artifacts/commands/m4/stabilize_client_origin_route_class");
+    let dir = format!("{root}/artifacts/commands/m4/stabilize_client_origin_route_class");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         format!("{dir}/support_export.json"),
@@ -313,13 +308,10 @@ fn emit_artifact() {
         packet.render_markdown_summary(),
     )
     .unwrap();
-    let fixture_dir =
-        format!("{root}/fixtures/commands/m4/stabilize_client_origin_route_class");
+    let fixture_dir = format!("{root}/fixtures/commands/m4/stabilize_client_origin_route_class");
     std::fs::create_dir_all(&fixture_dir).unwrap();
     std::fs::write(
-        format!(
-            "{fixture_dir}/stabilize_client_origin_route_class_packet.json"
-        ),
+        format!("{fixture_dir}/stabilize_client_origin_route_class_packet.json"),
         format!("{}\n", packet.export_safe_json()),
     )
     .unwrap();

@@ -116,11 +116,12 @@ fn seeded_page_mirror_only_row_has_managed_attribution() {
 #[test]
 fn seeded_page_mirror_only_and_offline_rows_explicit_on_local_core_continuity() {
     let page = seeded_harden_enterprise_network_proxy_page();
-    for row in page
-        .rows
-        .iter()
-        .filter(|r| matches!(r.proxy_route, ProxyRouteClass::MirrorOnly | ProxyRouteClass::Offline))
-    {
+    for row in page.rows.iter().filter(|r| {
+        matches!(
+            r.proxy_route,
+            ProxyRouteClass::MirrorOnly | ProxyRouteClass::Offline
+        )
+    }) {
         assert!(
             row.local_core_continuity_explicit,
             "row '{}' must carry local_core_continuity_explicit: true",
@@ -326,9 +327,8 @@ fn missing_local_fallback_on_enterprise_route_narrows_to_beta() {
         "missing local fallback on enterprise route must narrow to at least beta"
     );
     assert!(
-        page.defects
-            .iter()
-            .any(|d| d.narrow_reason == HardenEnterpriseNetworkProxyNarrowReasonClass::EmptyLocalFallback),
+        page.defects.iter().any(|d| d.narrow_reason
+            == HardenEnterpriseNetworkProxyNarrowReasonClass::EmptyLocalFallback),
         "defects must include empty_local_fallback"
     );
 }

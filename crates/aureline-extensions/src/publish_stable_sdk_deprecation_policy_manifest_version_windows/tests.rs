@@ -97,11 +97,31 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         let export = project_stable_sdk_deprecation_policy_support_export(&packet);
 
         let e = &fixture.expected;
-        assert_eq!(packet.claim.claimed_tier, e.claimed_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.effective_tier, e.effective_tier, "{}", fixture.case_name);
-        assert_eq!(packet.claim.support_claim_class, e.support_claim_class, "{}", fixture.case_name);
-        assert_eq!(packet.inspection.stable_claim, e.stable_claim, "{}", fixture.case_name);
-        assert_eq!(packet.claim.downgraded, e.downgraded, "{}", fixture.case_name);
+        assert_eq!(
+            packet.claim.claimed_tier, e.claimed_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.effective_tier, e.effective_tier,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.support_claim_class, e.support_claim_class,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.inspection.stable_claim, e.stable_claim,
+            "{}",
+            fixture.case_name
+        );
+        assert_eq!(
+            packet.claim.downgraded, e.downgraded,
+            "{}",
+            fixture.case_name
+        );
 
         let mut got = packet.claim.downgrade_reasons.clone();
         got.sort();
@@ -180,9 +200,18 @@ fn every_fixture_builds_validates_and_matches_expectations() {
         // The projection and export agree with the packet.
         assert_eq!(projection.effective_tier, packet.claim.effective_tier);
         assert_eq!(export.effective_tier, packet.claim.effective_tier);
-        assert_eq!(export.deprecation_stage_class, packet.deprecation.deprecation_stage_class);
-        assert_eq!(export.migration_outcome_class, packet.migration.migration_outcome_class);
-        assert_eq!(export.manifest_within_window, packet.manifest_window.within_window());
+        assert_eq!(
+            export.deprecation_stage_class,
+            packet.deprecation.deprecation_stage_class
+        );
+        assert_eq!(
+            export.migration_outcome_class,
+            packet.migration.migration_outcome_class
+        );
+        assert_eq!(
+            export.manifest_within_window,
+            packet.manifest_window.within_window()
+        );
     }
 }
 
@@ -242,8 +271,8 @@ fn stable_fixture_holds_when_hardened() {
 
 #[test]
 fn deprecated_but_shimmed_holds_stable() {
-    let packet =
-        StableSdkDeprecationPolicyPacket::from_input(deprecated_stable_input()).expect("must build");
+    let packet = StableSdkDeprecationPolicyPacket::from_input(deprecated_stable_input())
+        .expect("must build");
     assert_eq!(packet.claim.effective_tier, "stable");
     assert!(!packet.claim.downgraded);
     assert!(packet.deprecation.deprecated_or_later());
@@ -551,7 +580,10 @@ fn not_mirrorable_narrows_to_beta() {
     input.install_posture.mirrorability_class = "not_mirrorable".to_string();
     let packet = StableSdkDeprecationPolicyPacket::from_input(input).expect("must build");
     assert_eq!(packet.claim.effective_tier, "beta");
-    assert!(packet.claim.downgrade_reasons.contains(&"not_mirrorable".to_string()));
+    assert!(packet
+        .claim
+        .downgrade_reasons
+        .contains(&"not_mirrorable".to_string()));
 }
 
 #[test]
@@ -571,7 +603,10 @@ fn manifest_window_bounds_are_cross_checked() {
     input.manifest_window.min_supported_manifest_version = 3;
     input.manifest_window.max_supported_manifest_version = 1;
     let result = StableSdkDeprecationPolicyPacket::from_input(input);
-    assert!(result.is_err(), "an inverted manifest window must be rejected");
+    assert!(
+        result.is_err(),
+        "an inverted manifest window must be rejected"
+    );
 }
 
 #[test]
@@ -581,7 +616,10 @@ fn published_manifest_version_must_sit_inside_window() {
     input.manifest_window.max_supported_manifest_version = 3;
     input.manifest_window.published_manifest_version = 1;
     let result = StableSdkDeprecationPolicyPacket::from_input(input);
-    assert!(result.is_err(), "an out-of-window published manifest version must be rejected");
+    assert!(
+        result.is_err(),
+        "an out-of-window published manifest version must be rejected"
+    );
 }
 
 #[test]
@@ -590,7 +628,10 @@ fn shimmed_outcome_requires_an_available_shim() {
     input.migration.migration_outcome_class = "shimmed".to_string();
     input.migration.shim_availability_class = "shim_unavailable".to_string();
     let result = StableSdkDeprecationPolicyPacket::from_input(input);
-    assert!(result.is_err(), "a shimmed outcome with no available shim is contradictory");
+    assert!(
+        result.is_err(),
+        "a shimmed outcome with no available shim is contradictory"
+    );
 }
 
 #[test]
@@ -609,8 +650,8 @@ fn sdk_policy_ref_prefix_is_enforced() {
 
 #[test]
 fn support_export_preserves_sdk_policy_truth() {
-    let packet =
-        StableSdkDeprecationPolicyPacket::from_input(deprecated_stable_input()).expect("must build");
+    let packet = StableSdkDeprecationPolicyPacket::from_input(deprecated_stable_input())
+        .expect("must build");
     let export = project_stable_sdk_deprecation_policy_support_export(&packet);
     assert!(!export.blocks_stable_sdk_policy);
     assert_eq!(export.deprecation_stage_class, "deprecated");

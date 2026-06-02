@@ -267,9 +267,7 @@ impl AuditFindingClass {
     pub const fn requires_cleanup_precondition(self) -> bool {
         matches!(
             self,
-            Self::AuditDirtyWithDisclosure
-                | Self::AuditInconclusiveHeld
-                | Self::AuditRefusedUnsafe
+            Self::AuditDirtyWithDisclosure | Self::AuditInconclusiveHeld | Self::AuditRefusedUnsafe
         )
     }
 }
@@ -1023,8 +1021,7 @@ pub fn project_state_root_certification_lineage_with_hooks(
             .push(StateRootCertificationLineageNarrowReason::RequiredResourceClassMissing);
     }
     if !audit_surface_coverage.all_required_audit_surfaces_present {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::RequiredAuditSurfaceMissing);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::RequiredAuditSurfaceMissing);
     }
     if !audit_honesty.all_rows_pin_storage_class_ref {
         narrow_reasons.push(StateRootCertificationLineageNarrowReason::StorageClassRefMissing);
@@ -1033,19 +1030,16 @@ pub fn project_state_root_certification_lineage_with_hooks(
         narrow_reasons.push(StateRootCertificationLineageNarrowReason::AuditDisclosureMissing);
     }
     if !audit_honesty.all_redaction_disclosures_present {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::RedactionDisclosureMissing);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::RedactionDisclosureMissing);
     }
     if !audit_honesty.all_dirty_rows_have_cleanup_precondition {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::CleanupPreconditionMissing);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::CleanupPreconditionMissing);
     }
     if !no_silent_rerun.all_rows_safe_rerun_posture {
         narrow_reasons.push(StateRootCertificationLineageNarrowReason::RerunSilentForbidden);
     }
     if !no_silent_rerun.all_mutating_rows_have_commit_metadata {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::CommitActionMetadataMissing);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::CommitActionMetadataMissing);
     }
     if !preservation.all_rows_preserve_restore_provenance {
         narrow_reasons
@@ -1062,8 +1056,7 @@ pub fn project_state_root_certification_lineage_with_hooks(
         narrow_reasons.push(StateRootCertificationLineageNarrowReason::LineageRefsNotPreserved);
     }
     if !audit_transaction_pinning.all_rows_pin_audit_transaction_id {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::AuditTransactionIdNotPinned);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::AuditTransactionIdNotPinned);
     }
     if !audit_transaction_pinning.all_rows_pin_finding_code {
         narrow_reasons.push(StateRootCertificationLineageNarrowReason::FindingCodeMissing);
@@ -1075,8 +1068,7 @@ pub fn project_state_root_certification_lineage_with_hooks(
         && audit_surface_reachability.all_required_surfaces_preserve_lineage_refs
         && audit_surface_reachability.all_required_surfaces_preserve_trust_state)
     {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::AuditSurfaceDisclosureGap);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::AuditSurfaceDisclosureGap);
     }
 
     let required_hooks = [
@@ -1093,8 +1085,7 @@ pub fn project_state_root_certification_lineage_with_hooks(
         .iter()
         .all(|required| hook_available(&inspection_hooks, *required))
     {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::InspectionHookUnavailable);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::InspectionHookUnavailable);
     }
 
     collect_support_export_narrows(&support_export_honesty, &mut narrow_reasons);
@@ -1442,8 +1433,7 @@ fn collect_support_export_narrows(
     narrow_reasons: &mut Vec<StateRootCertificationLineageNarrowReason>,
 ) {
     if !summary.all_rows_preserve_fields {
-        narrow_reasons
-            .push(StateRootCertificationLineageNarrowReason::SupportExportFieldsDropped);
+        narrow_reasons.push(StateRootCertificationLineageNarrowReason::SupportExportFieldsDropped);
     }
     if !(summary.all_rows_exclude_raw_secrets
         && summary.all_rows_exclude_raw_artifact_bytes
@@ -1494,10 +1484,7 @@ fn compute_integrity_hash(inputs: &StateRootCertificationInputs) -> String {
     format!("src:{hash:016x}")
 }
 
-fn hook_available(
-    hooks: &[StateRootInspectionHook],
-    class: StateRootInspectionHookClass,
-) -> bool {
+fn hook_available(hooks: &[StateRootInspectionHook], class: StateRootInspectionHookClass) -> bool {
     hooks
         .iter()
         .find(|hook| hook.hook_class == class)
@@ -1632,7 +1619,9 @@ pub fn state_root_certification_lineage_lines(
     lines.push(format!(
         "No-silent-rerun: posture={p} commit_metadata={c}",
         p = record.no_silent_rerun.all_rows_safe_rerun_posture,
-        c = record.no_silent_rerun.all_mutating_rows_have_commit_metadata,
+        c = record
+            .no_silent_rerun
+            .all_mutating_rows_have_commit_metadata,
     ));
     lines.push(format!(
         "Audit-transaction pinning: tx={t} finding={f}",

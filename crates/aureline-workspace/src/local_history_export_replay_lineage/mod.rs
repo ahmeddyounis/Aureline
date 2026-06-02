@@ -979,8 +979,7 @@ pub fn project_local_history_export_replay_lineage_with_hooks(
         narrow_reasons.push(LocalHistoryExportReplayLineageNarrowReason::CorpusEmpty);
     }
     if !packet_coverage.all_required_packet_kinds_present {
-        narrow_reasons
-            .push(LocalHistoryExportReplayLineageNarrowReason::RequiredPacketKindMissing);
+        narrow_reasons.push(LocalHistoryExportReplayLineageNarrowReason::RequiredPacketKindMissing);
     }
     if !replay_path_coverage.all_required_replay_path_kinds_present {
         narrow_reasons
@@ -1050,8 +1049,7 @@ pub fn project_local_history_export_replay_lineage_with_hooks(
         .iter()
         .all(|required| hook_available(&inspection_hooks, *required))
     {
-        narrow_reasons
-            .push(LocalHistoryExportReplayLineageNarrowReason::InspectionHookUnavailable);
+        narrow_reasons.push(LocalHistoryExportReplayLineageNarrowReason::InspectionHookUnavailable);
     }
 
     collect_support_export_narrows(&support_export_honesty, &mut narrow_reasons);
@@ -1228,11 +1226,13 @@ fn project_body_export_safety(coverage: &PacketCoverageSummary) -> BodyExportSaf
                 all_overrides = false;
             }
         }
-        if matches!(row.body_availability_class, BodyAvailabilityClass::RawBodyWithDisclosure)
-            && row
-                .body_override_disclosure_ref
-                .as_ref()
-                .map_or(true, |value| value.trim().is_empty())
+        if matches!(
+            row.body_availability_class,
+            BodyAvailabilityClass::RawBodyWithDisclosure
+        ) && row
+            .body_override_disclosure_ref
+            .as_ref()
+            .map_or(true, |value| value.trim().is_empty())
         {
             no_raw_default = false;
         }
@@ -1417,7 +1417,8 @@ fn collect_support_export_narrows(
     narrow_reasons: &mut Vec<LocalHistoryExportReplayLineageNarrowReason>,
 ) {
     if !summary.all_rows_preserve_fields {
-        narrow_reasons.push(LocalHistoryExportReplayLineageNarrowReason::SupportExportFieldsDropped);
+        narrow_reasons
+            .push(LocalHistoryExportReplayLineageNarrowReason::SupportExportFieldsDropped);
     }
     if !(summary.all_rows_exclude_raw_secrets
         && summary.all_rows_exclude_raw_body_bytes
@@ -1425,7 +1426,8 @@ fn collect_support_export_narrows(
         && summary.all_rows_exclude_delegated_credentials
         && summary.all_rows_exclude_live_authority_handles)
     {
-        narrow_reasons.push(LocalHistoryExportReplayLineageNarrowReason::SupportExportRedactionUnsafe);
+        narrow_reasons
+            .push(LocalHistoryExportReplayLineageNarrowReason::SupportExportRedactionUnsafe);
     }
 }
 
@@ -1565,7 +1567,9 @@ pub fn local_history_export_replay_lineage_lines(
     lines.push(format!(
         "replay_path_coverage: paths={} required_present={}",
         record.replay_path_coverage.replay_path_rows.len(),
-        record.replay_path_coverage.all_required_replay_path_kinds_present,
+        record
+            .replay_path_coverage
+            .all_required_replay_path_kinds_present,
     ));
     lines.push("Replay paths:".to_owned());
     for row in &record.replay_path_coverage.replay_path_rows {
@@ -1596,7 +1600,9 @@ pub fn local_history_export_replay_lineage_lines(
         "Compare-to-disk honesty: count={count} have_state={state} no_silent_modified={silent}",
         count = record.compare_to_disk_honesty.compare_to_disk_path_count,
         state = record.compare_to_disk_honesty.all_compare_paths_have_state,
-        silent = record.compare_to_disk_honesty.no_disk_modified_silently_clean,
+        silent = record
+            .compare_to_disk_honesty
+            .no_disk_modified_silently_clean,
     ));
     lines.push(format!(
         "Body-export safety: overrides_disclosed={overrides} no_raw_default={raw}",
@@ -1608,7 +1614,9 @@ pub fn local_history_export_replay_lineage_lines(
         enc = record.encoding_fidelity.all_packets_preserve_encoding,
         nl = record.encoding_fidelity.all_packets_preserve_newline,
         bom = record.encoding_fidelity.all_packets_preserve_bom,
-        replays = record.encoding_fidelity.all_replays_preserve_encoding_fidelity,
+        replays = record
+            .encoding_fidelity
+            .all_replays_preserve_encoding_fidelity,
     ));
     lines.push(format!(
         "Restore provenance: restore_of={r} mutation_journal={m} actor={a} replays={replays}",

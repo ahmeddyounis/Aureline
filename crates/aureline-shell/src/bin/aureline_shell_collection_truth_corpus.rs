@@ -22,9 +22,8 @@
 //! ```
 
 use aureline_shell::collection_truth_corpus::{
-    render_collection_truth_corpus_drills_markdown,
-    render_collection_truth_corpus_report_markdown, seeded_collection_truth_corpus_packet,
-    validate_collection_truth_corpus_packet,
+    render_collection_truth_corpus_drills_markdown, render_collection_truth_corpus_report_markdown,
+    seeded_collection_truth_corpus_packet, validate_collection_truth_corpus_packet,
 };
 
 fn main() {
@@ -42,8 +41,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("packet") | None => print_json(&packet)?,
         Some("support-export") => print_json(&packet.support_export)?,
         Some("matrix-json") => print_json(&packet.matrix)?,
-        Some("report-md") => print!("{}", render_collection_truth_corpus_report_markdown(&packet)),
-        Some("drills-md") => print!("{}", render_collection_truth_corpus_drills_markdown(&packet)),
+        Some("report-md") => print!(
+            "{}",
+            render_collection_truth_corpus_report_markdown(&packet)
+        ),
+        Some("drills-md") => print!(
+            "{}",
+            render_collection_truth_corpus_drills_markdown(&packet)
+        ),
         Some("migrations") => print_json(&packet.saved_view_migrations)?,
         Some("drills") => print_json(&packet.accessibility_drills)?,
         Some("cases") => print_json(&packet.corpus_cases)?,

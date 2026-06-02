@@ -171,9 +171,7 @@ fn stale_status_cannot_masquerade_as_current_online_truth() {
                 assert!(
                     card.honesty_marker_present,
                     "{} card {} has aged probe ({:?}) but does not light the honesty marker",
-                    scenario.drill_id,
-                    card.card_id,
-                    card.last_checked_age,
+                    scenario.drill_id, card.card_id, card.last_checked_age,
                 );
             }
         }
@@ -244,7 +242,10 @@ fn data_plane_drill_downgrades_overall_continuity_to_read_only() {
         .find(|c| c.card_id == "card:workspace_sync")
         .expect("data-plane drill must include the workspace_sync card");
     assert_eq!(sync.contract_state, ServiceContractStateClass::LocalOnly);
-    assert_eq!(sync.local_continuity, LocalContinuityClass::LocalSafeReadOnly);
+    assert_eq!(
+        sync.local_continuity,
+        LocalContinuityClass::LocalSafeReadOnly
+    );
 }
 
 #[test]
@@ -318,7 +319,10 @@ fn policy_block_drill_keeps_local_work_safe_and_uses_policy_blocked_token() {
             .iter()
             .find(|c| c.card_id == card_id)
             .unwrap_or_else(|| panic!("policy drill must include {card_id}"));
-        assert_eq!(card.contract_state, ServiceContractStateClass::PolicyBlocked);
+        assert_eq!(
+            card.contract_state,
+            ServiceContractStateClass::PolicyBlocked
+        );
     }
 }
 
@@ -335,7 +339,10 @@ fn auth_loss_drill_cascades_into_read_only_continuity() {
         .iter()
         .find(|c| c.card_id == "card:license_entitlement")
         .expect("auth_loss drill must include the license_entitlement card");
-    assert_eq!(license.contract_state, ServiceContractStateClass::Unavailable);
+    assert_eq!(
+        license.contract_state,
+        ServiceContractStateClass::Unavailable
+    );
     let sync = agg
         .cards
         .iter()

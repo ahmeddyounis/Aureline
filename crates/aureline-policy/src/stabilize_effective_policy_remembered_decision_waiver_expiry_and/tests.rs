@@ -60,7 +60,11 @@ fn seeded_page_rows_are_all_stable() {
 #[test]
 fn seeded_page_rows_cover_both_required_change_classes() {
     let page = page();
-    let change_classes: Vec<&str> = page.rows.iter().map(|r| r.change_class_token.as_str()).collect();
+    let change_classes: Vec<&str> = page
+        .rows
+        .iter()
+        .map(|r| r.change_class_token.as_str())
+        .collect();
     assert!(
         change_classes.contains(&"policy_bundle_change"),
         "missing policy_bundle_change row"
@@ -193,11 +197,13 @@ fn unexplained_drift_narrows_to_beta() {
     // then clear the reasons to trigger the defect.
     beta_page.remembered_decisions[0].memory_state =
         crate::simulation::MemoryStateClass::ForceRetiredByPolicy;
+    beta_page.remembered_decisions[0].memory_state_token =
+        crate::simulation::MemoryStateClass::ForceRetiredByPolicy
+            .as_str()
+            .to_owned();
     beta_page.remembered_decisions[0]
-        .memory_state_token = crate::simulation::MemoryStateClass::ForceRetiredByPolicy
-        .as_str()
-        .to_owned();
-    beta_page.remembered_decisions[0].invalidation_reasons.clear();
+        .invalidation_reasons
+        .clear();
     beta_page.remembered_decisions[0]
         .invalidation_reason_tokens
         .clear();
@@ -228,14 +234,11 @@ fn qualification_class_checks() {
 #[test]
 fn narrow_reason_withdrawal_sentinel_check() {
     assert!(
-        EffectivePolicyStabilizeNarrowReasonClass::RawPrivateMaterialExposed
-            .is_withdrawal_reason()
+        EffectivePolicyStabilizeNarrowReasonClass::RawPrivateMaterialExposed.is_withdrawal_reason()
     );
     assert!(
         !EffectivePolicyStabilizeNarrowReasonClass::PolicySimulationBetaPageHasDefects
             .is_withdrawal_reason()
     );
-    assert!(
-        !EffectivePolicyStabilizeNarrowReasonClass::NotNarrowed.is_withdrawal_reason()
-    );
+    assert!(!EffectivePolicyStabilizeNarrowReasonClass::NotNarrowed.is_withdrawal_reason());
 }

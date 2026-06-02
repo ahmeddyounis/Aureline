@@ -48,8 +48,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-pub use aureline_commands::{DisabledReasonCode, EnablementDecisionClass};
 pub use aureline_commands::invocation::NoBypassGuards;
+pub use aureline_commands::{DisabledReasonCode, EnablementDecisionClass};
 
 /// Schema version exported with every voice-preview record.
 pub const VOICE_PREVIEW_SCHEMA_VERSION: u32 = 1;
@@ -1374,8 +1374,14 @@ fn compute_row_findings(row: &VoicePreviewRow) -> Vec<VoiceBlockingFinding> {
             }
             let guards = &resolution.no_bypass_guards;
             for (name, value) in [
-                ("trust_revalidation_required", guards.trust_revalidation_required),
-                ("policy_revalidation_required", guards.policy_revalidation_required),
+                (
+                    "trust_revalidation_required",
+                    guards.trust_revalidation_required,
+                ),
+                (
+                    "policy_revalidation_required",
+                    guards.policy_revalidation_required,
+                ),
                 ("preview_path_preserved", guards.preview_path_preserved),
                 ("approval_path_preserved", guards.approval_path_preserved),
                 (
@@ -1420,7 +1426,8 @@ fn compute_row_findings(row: &VoicePreviewRow) -> Vec<VoiceBlockingFinding> {
                 // A mutating resolution must bind a canonical command id; it
                 // cannot mutate the workspace through a private path.
                 if resolution.capability_scope_class != VoiceCapabilityScope::InertMetadataOnly
-                    && resolution.capability_scope_class != VoiceCapabilityScope::ReversibleLocalRead
+                    && resolution.capability_scope_class
+                        != VoiceCapabilityScope::ReversibleLocalRead
                     && resolution.canonical_command_id.is_none()
                     && resolution.resolution_class
                         != VoiceCommandResolutionClass::ResolvesToDictationTextOnly
@@ -1554,10 +1561,7 @@ pub enum VoicePreviewValidationError {
     /// The invariant manifest is not all-true.
     InvariantManifestNotAllTrue,
     /// A blocking finding remains on a row.
-    BlockingFindingPresent {
-        row_id: String,
-        class: String,
-    },
+    BlockingFindingPresent { row_id: String, class: String },
     /// A row's docs/help anchor is empty.
     MissingDocsHelpAnchor { row_id: String },
     /// The published markdown report ref is empty.
@@ -1673,7 +1677,10 @@ mod tests {
                 }
             }
         }
-        assert!(saw_high_impact, "seed must exercise a high-impact resolution");
+        assert!(
+            saw_high_impact,
+            "seed must exercise a high-impact resolution"
+        );
     }
 
     #[test]
@@ -1710,13 +1717,10 @@ mod tests {
             .expect("resolution");
         resolution.preview_required = false;
         let rebuilt = build_voice_preview_row(row.clone());
-        assert!(rebuilt
-            .blocking_findings
-            .iter()
-            .any(|finding| matches!(
-                finding,
-                VoiceBlockingFinding::HighImpactPreviewBypassed { .. }
-            )));
+        assert!(rebuilt.blocking_findings.iter().any(|finding| matches!(
+            finding,
+            VoiceBlockingFinding::HighImpactPreviewBypassed { .. }
+        )));
     }
 
     #[test]

@@ -227,7 +227,10 @@ impl DocsPackState {
 
     /// True when the pack content is available on the local machine.
     pub const fn is_locally_available(self) -> bool {
-        matches!(self, Self::Installed | Self::Cached | Self::Mirrored | Self::Offline)
+        matches!(
+            self,
+            Self::Installed | Self::Cached | Self::Mirrored | Self::Offline
+        )
     }
 
     /// True when the pack content is stale relative to the live source.
@@ -741,9 +744,9 @@ impl TeachingSession {
     /// True when every segment cites a learning-mode object and at least one
     /// docs / graph / citation reference.
     pub fn segments_cite_learning_mode(&self) -> bool {
-        self.segments
-            .iter()
-            .all(|s| s.cites_learning_mode_object && !s.learning_object_ref.is_empty() && s.has_citation())
+        self.segments.iter().all(|s| {
+            s.cites_learning_mode_object && !s.learning_object_ref.is_empty() && s.has_citation()
+        })
     }
 
     /// True when every segment resumes across restart and reconnect.

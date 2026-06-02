@@ -22,8 +22,9 @@ fn seeded_page_validates() {
 fn validate_card_accepts_every_seeded_card_and_rejects_a_stale_resume() {
     let page = seeded_warm_start_choice_page();
     for card in &page.cards {
-        validate_warm_start_choice_card(card)
-            .unwrap_or_else(|errors| panic!("seeded card {} must validate: {errors:?}", card.card_id));
+        validate_warm_start_choice_card(card).unwrap_or_else(|errors| {
+            panic!("seeded card {} must validate: {errors:?}", card.card_id)
+        });
     }
 
     // A stale snapshot whose live-resume lane is suddenly takeable must be
@@ -89,7 +90,11 @@ fn every_path_class_is_exercised_by_the_seed() {
         WarmStartPathClass::SetUpLater,
         WarmStartPathClass::UseTemplate,
     ] {
-        assert!(seen.contains(&required), "missing lane {}", required.as_str());
+        assert!(
+            seen.contains(&required),
+            "missing lane {}",
+            required.as_str()
+        );
     }
 }
 
@@ -120,7 +125,10 @@ fn stale_snapshot_card_disables_live_resume() {
         .expect("stale snapshot card present");
     let snapshot = stale.snapshot.as_ref().expect("snapshot facts present");
     assert!(snapshot.freshness.is_stale_or_invalidated());
-    assert_eq!(snapshot.invalidation_reason.as_deref(), Some("capsule_drift"));
+    assert_eq!(
+        snapshot.invalidation_reason.as_deref(),
+        Some("capsule_drift")
+    );
 
     let resume = stale
         .lane(WarmStartPathClass::ResumeLiveWorkspace)
@@ -145,7 +153,10 @@ fn managed_live_resume_requires_reauth_and_stays_off_default() {
     let resume = managed
         .lane(WarmStartPathClass::ResumeLiveWorkspace)
         .expect("resume lane present");
-    assert_eq!(resume.availability, WarmStartLaneAvailability::RequiresReauth);
+    assert_eq!(
+        resume.availability,
+        WarmStartLaneAvailability::RequiresReauth
+    );
     assert!(resume.requires_trust_grant);
     assert!(resume.requires_network);
     assert!(resume.materializes_remote_work);
@@ -158,7 +169,10 @@ fn managed_live_resume_requires_reauth_and_stays_off_default() {
 fn local_first_cards_keep_escape_hatches_same_weight() {
     let page = seeded_warm_start_choice_page();
     for card in page.cards.iter().filter(|card| card.local_first) {
-        for path in [WarmStartPathClass::OpenMinimal, WarmStartPathClass::SetUpLater] {
+        for path in [
+            WarmStartPathClass::OpenMinimal,
+            WarmStartPathClass::SetUpLater,
+        ] {
             let lane = card.lane(path).expect("escape hatch present");
             assert!(lane.same_weight_local_path);
             assert!(lane.is_local_safe());
@@ -208,8 +222,7 @@ fn validator_rejects_stale_snapshot_with_takeable_resume() {
     // Recompute honesty marker so the inconsistency error does not mask this one.
     card.honesty_marker_present = true;
 
-    let errors =
-        validate_warm_start_choice_page(&page).expect_err("stale resume must be rejected");
+    let errors = validate_warm_start_choice_page(&page).expect_err("stale resume must be rejected");
     assert!(errors
         .iter()
         .any(|error| error.contains("stale_resume_still_takeable")));
@@ -241,7 +254,11 @@ fn plaintext_is_deterministic_and_lists_every_card() {
     assert_eq!(first, second);
     assert!(first.contains("Warm-start choices beta"));
     for card in &page.cards {
-        assert!(first.contains(&card.card_id), "missing {} in plaintext", card.card_id);
+        assert!(
+            first.contains(&card.card_id),
+            "missing {} in plaintext",
+            card.card_id
+        );
     }
 }
 
@@ -289,7 +306,10 @@ fn seeded_page_matches_checked_in_fixture() {
 fn checked_in_card_fixtures_match_seeded_cards() {
     let page = seeded_warm_start_choice_page();
     let cases = [
-        ("template_card.json", "warm_start_card:template.ts_web.local"),
+        (
+            "template_card.json",
+            "warm_start_card:template.ts_web.local",
+        ),
         (
             "live_resume_card.json",
             "warm_start_card:live_resume.managed_data_workspace",

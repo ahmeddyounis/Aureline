@@ -110,7 +110,9 @@ fn baseline_sheet() -> HandoffReviewSheet {
 
 #[test]
 fn baseline_sheet_validates() {
-    baseline_sheet().validate().expect("baseline sheet validates");
+    baseline_sheet()
+        .validate()
+        .expect("baseline sheet validates");
 }
 
 #[test]
@@ -137,7 +139,9 @@ fn security_disclosure_requires_security_channel_and_payloads() {
     sheet.draft_continuity.preserved_visibility_class = TargetVisibilityClass::SecurityDisclosure;
     sheet.draft_continuity.preserved_redaction_posture_class =
         RedactionPostureClass::SecurityChannelOnly;
-    sheet.validate().expect("well-formed security disclosure validates");
+    sheet
+        .validate()
+        .expect("well-formed security disclosure validates");
 
     // A security disclosure that tries to ride the public browser is rejected.
     sheet.target_review.network_browser_requirement_class =
@@ -179,7 +183,9 @@ fn blocked_handoff_must_preserve_draft_and_offer_export_and_save() {
     sheet.draft_continuity.handoff_outcome_class = HandoffOutcomeClass::BrowserBlocked;
     // Preserved draft + export/save still present from the baseline: this is the
     // success path for a blocked handoff.
-    sheet.validate().expect("blocked handoff with preserved draft validates");
+    sheet
+        .validate()
+        .expect("blocked handoff with preserved draft validates");
 
     // Dropping the export action turns it into silent loss territory.
     sheet.draft_continuity.available_actions = vec![PreservationActionClass::Discard];
@@ -372,5 +378,9 @@ fn all_visibility_labels_are_distinct() {
         TargetVisibilityClass::ThirdPartyVendor,
     ];
     let labels: BTreeSet<&str> = classes.iter().map(|c| c.label()).collect();
-    assert_eq!(labels.len(), classes.len(), "visibility labels must be distinct");
+    assert_eq!(
+        labels.len(),
+        classes.len(),
+        "visibility labels must be distinct"
+    );
 }

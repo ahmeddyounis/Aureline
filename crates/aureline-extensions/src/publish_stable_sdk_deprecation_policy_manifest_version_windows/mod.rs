@@ -194,8 +194,13 @@ pub const ACTIVATION_COST_CLASSES: &[&str] =
     &["negligible", "light", "moderate", "heavy", "unbounded"];
 
 /// Closed compatibility-label vocabulary.
-pub const COMPATIBILITY_LABEL_CLASSES: &[&str] =
-    &["full_parity", "high_parity", "partial_parity", "limited_parity", "unsupported"];
+pub const COMPATIBILITY_LABEL_CLASSES: &[&str] = &[
+    "full_parity",
+    "high_parity",
+    "partial_parity",
+    "limited_parity",
+    "unsupported",
+];
 
 /// Closed install-scope vocabulary.
 pub const INSTALL_SCOPE_CLASSES: &[&str] = &["user", "workspace", "machine", "portable"];
@@ -773,7 +778,10 @@ impl SdkPolicyCompatibility {
     /// Returns true when compatibility reports a parity-limited posture short of
     /// unsupported.
     pub fn parity_limited(&self) -> bool {
-        matches!(self.compatibility_label_class.as_str(), "partial_parity" | "limited_parity")
+        matches!(
+            self.compatibility_label_class.as_str(),
+            "partial_parity" | "limited_parity"
+        )
     }
 }
 
@@ -808,7 +816,10 @@ impl SdkPolicyInstallPosture {
 
     /// Returns true when the row stays mirrorable.
     pub fn mirrorable(&self) -> bool {
-        matches!(self.mirrorability_class.as_str(), "mirrorable" | "mirror_pinned")
+        matches!(
+            self.mirrorability_class.as_str(),
+            "mirrorable" | "mirror_pinned"
+        )
     }
 
     /// Returns true when the activation cost is unbounded.
@@ -1125,16 +1136,22 @@ impl StableSdkDeprecationPolicyPacket {
                 ));
             }
             if self.identity.publisher_trust_tier_class == "quarantined" {
-                return Err(err("stable effective tier must not carry a quarantined trust tier"));
+                return Err(err(
+                    "stable effective tier must not carry a quarantined trust tier",
+                ));
             }
             if !self.identity.lifecycle_runnable() {
-                return Err(err("stable effective tier must stay on a runnable lifecycle"));
+                return Err(err(
+                    "stable effective tier must stay on a runnable lifecycle",
+                ));
             }
             if self.deprecation.removed() {
                 return Err(err("stable effective tier must not carry a removed SDK"));
             }
             if self.deprecation.in_sunset() {
-                return Err(err("stable effective tier must not be in the SDK sunset window"));
+                return Err(err(
+                    "stable effective tier must not be in the SDK sunset window",
+                ));
             }
             if self.deprecation.deprecated_or_later() {
                 if !self.deprecation.replacement_named() {
@@ -1169,10 +1186,14 @@ impl StableSdkDeprecationPolicyPacket {
                 ));
             }
             if self.migration.outcome_unsupported() {
-                return Err(err("stable effective tier must not carry an unsupported migration"));
+                return Err(err(
+                    "stable effective tier must not carry an unsupported migration",
+                ));
             }
             if self.migration.outcome_partial() {
-                return Err(err("stable effective tier must not carry a partial migration"));
+                return Err(err(
+                    "stable effective tier must not carry a partial migration",
+                ));
             }
             if self.migration.needs_rollback_checkpoint()
                 && !self.migration.rollback_checkpoint_preserved
@@ -1185,7 +1206,9 @@ impl StableSdkDeprecationPolicyPacket {
                 return Err(err("stable effective tier must not widen permissions"));
             }
             if self.install_posture.activation_cost_unbounded() {
-                return Err(err("stable effective tier must not carry an unbounded activation cost"));
+                return Err(err(
+                    "stable effective tier must not carry an unbounded activation cost",
+                ));
             }
             if self.compatibility.unsupported()
                 || self.compatibility.parity_limited()
@@ -1199,7 +1222,9 @@ impl StableSdkDeprecationPolicyPacket {
                 return Err(err("stable effective tier must disclose its install scope"));
             }
             if !self.install_posture.revocation_clean() {
-                return Err(err("stable effective tier must keep a clean revocation posture"));
+                return Err(err(
+                    "stable effective tier must keep a clean revocation posture",
+                ));
             }
             if !self.install_posture.mirrorable() {
                 return Err(err("stable effective tier must stay mirrorable"));
@@ -1208,7 +1233,9 @@ impl StableSdkDeprecationPolicyPacket {
                 return Err(err("stable effective tier must be fully attributed"));
             }
             if self.claim.downgraded {
-                return Err(err("a stable effective tier must not also be marked downgraded"));
+                return Err(err(
+                    "a stable effective tier must not also be marked downgraded",
+                ));
             }
         }
 
@@ -1235,20 +1262,29 @@ impl StableSdkDeprecationPolicyPacket {
             install_posture: &self.install_posture,
             attribution_complete: self.attribution_complete(),
         };
-        let derived =
-            derive_effective_tier(&self.claim.claimed_tier, &self.claim.claim_basis_class, &posture);
+        let derived = derive_effective_tier(
+            &self.claim.claimed_tier,
+            &self.claim.claim_basis_class,
+            &posture,
+        );
         if derived.effective_tier != self.claim.effective_tier {
-            return Err(err("stored effective tier does not match the posture-derived tier"));
+            return Err(err(
+                "stored effective tier does not match the posture-derived tier",
+            ));
         }
         if derived.downgraded != self.claim.downgraded {
-            return Err(err("stored downgrade flag does not match the posture-derived verdict"));
+            return Err(err(
+                "stored downgrade flag does not match the posture-derived verdict",
+            ));
         }
         let mut stored = self.claim.downgrade_reasons.clone();
         stored.sort();
         let mut expected = derived.downgrade_reasons.clone();
         expected.sort();
         if stored != expected {
-            return Err(err("stored downgrade reasons do not match the posture-derived reasons"));
+            return Err(err(
+                "stored downgrade reasons do not match the posture-derived reasons",
+            ));
         }
 
         // Banner truth.
@@ -1498,7 +1534,10 @@ pub fn project_stable_sdk_deprecation_policy_support_export(
     StableSdkDeprecationPolicySupportExport {
         record_kind: STABLE_SDK_DEPRECATION_POLICY_SUPPORT_EXPORT_RECORD_KIND.to_string(),
         schema_version: STABLE_SDK_DEPRECATION_POLICY_SCHEMA_VERSION,
-        export_id: format!("stable_sdk_deprecation_policy_support_export:{}", packet.packet_id),
+        export_id: format!(
+            "stable_sdk_deprecation_policy_support_export:{}",
+            packet.packet_id
+        ),
         packet_ref: packet.packet_id.clone(),
         row_identity_ref: packet.identity.row_identity_ref.clone(),
         sdk_policy_ref: packet.identity.sdk_policy_ref.clone(),
@@ -1779,12 +1818,20 @@ fn derive_effective_tier(
 
 /// Picks the effective tier given the active narrowing reasons.
 fn narrow_tier_for(reasons: &[String]) -> &'static str {
-    if reasons.iter().any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str())) {
+    if reasons
+        .iter()
+        .any(|r| WITHDRAWN_CLASS_REASONS.contains(&r.as_str()))
+    {
         "withdrawn"
-    } else if reasons.iter().any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str())) {
+    } else if reasons
+        .iter()
+        .any(|r| PREVIEW_CLASS_REASONS.contains(&r.as_str()))
+    {
         "preview"
     } else {
-        debug_assert!(reasons.iter().all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
+        debug_assert!(reasons
+            .iter()
+            .all(|r| BETA_CLASS_REASONS.contains(&r.as_str())));
         "beta"
     }
 }
@@ -1827,7 +1874,10 @@ fn attribution_is_complete(
         && !migration.diagnostics_ref.trim().is_empty()
         && !compatibility.scorecard_ref.trim().is_empty()
         && !permission_posture.declared_permission_ref.trim().is_empty()
-        && !permission_posture.effective_permission_ref.trim().is_empty()
+        && !permission_posture
+            .effective_permission_ref
+            .trim()
+            .is_empty()
 }
 
 /// Returns true when the SDK-policy posture requires a pre-trust warning banner.
@@ -2116,22 +2166,52 @@ fn validate_input(
         &id.publisher_trust_tier_class,
         "identity.publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &id.lifecycle_state_class, "identity.lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &id.lifecycle_state_class,
+        "identity.lifecycle_state_class",
+    )?;
 
     let dep = &input.deprecation;
-    ensure_token(DEPRECATION_STAGE_CLASSES, &dep.deprecation_stage_class, "deprecation.deprecation_stage_class")?;
-    ensure_token(REPLACEMENT_KIND_CLASSES, &dep.replacement_kind_class, "deprecation.replacement_kind_class")?;
-    ensure_token(PIN_POLICY_CLASSES, &dep.pin_policy_class, "deprecation.pin_policy_class")?;
+    ensure_token(
+        DEPRECATION_STAGE_CLASSES,
+        &dep.deprecation_stage_class,
+        "deprecation.deprecation_stage_class",
+    )?;
+    ensure_token(
+        REPLACEMENT_KIND_CLASSES,
+        &dep.replacement_kind_class,
+        "deprecation.replacement_kind_class",
+    )?;
+    ensure_token(
+        PIN_POLICY_CLASSES,
+        &dep.pin_policy_class,
+        "deprecation.pin_policy_class",
+    )?;
 
     let mig = &input.migration;
-    ensure_token(MIGRATION_OUTCOME_CLASSES, &mig.migration_outcome_class, "migration.migration_outcome_class")?;
-    ensure_token(SHIM_AVAILABILITY_CLASSES, &mig.shim_availability_class, "migration.shim_availability_class")?;
+    ensure_token(
+        MIGRATION_OUTCOME_CLASSES,
+        &mig.migration_outcome_class,
+        "migration.migration_outcome_class",
+    )?;
+    ensure_token(
+        SHIM_AVAILABILITY_CLASSES,
+        &mig.shim_availability_class,
+        "migration.shim_availability_class",
+    )?;
     ensure_nonempty(&mig.migration_doc_ref, "migration.migration_doc_ref")?;
     ensure_nonempty(&mig.diagnostics_ref, "migration.diagnostics_ref")?;
 
     let perm = &input.permission_posture;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture.declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture.effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture.declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture.effective_permission_ref",
+    )?;
     ensure_nonempty(&perm.policy_cap_ref, "permission_posture.policy_cap_ref")?;
 
     let compat = &input.compatibility;
@@ -2143,21 +2223,41 @@ fn validate_input(
     ensure_nonempty(&compat.scorecard_ref, "compatibility.scorecard_ref")?;
 
     let inst = &input.install_posture;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture.install_scope_class")?;
-    ensure_token(ACTIVATION_COST_CLASSES, &inst.activation_cost_class, "install_posture.activation_cost_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture.install_scope_class",
+    )?;
+    ensure_token(
+        ACTIVATION_COST_CLASSES,
+        &inst.activation_cost_class,
+        "install_posture.activation_cost_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture.revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture.mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture.mirrorability_class",
+    )?;
 
     let claim = &input.claim;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim.claimed_tier")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim.claim_basis_class")?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim.claim_basis_class",
+    )?;
 
     for surface in &input.consumer_surfaces {
-        ensure_token(STABLE_SDK_DEPRECATION_POLICY_CONSUMER_SURFACES, surface, "consumer_surface")?;
+        ensure_token(
+            STABLE_SDK_DEPRECATION_POLICY_CONSUMER_SURFACES,
+            surface,
+            "consumer_surface",
+        )?;
     }
     if input.consumer_surfaces.is_empty() {
         return Err(err("input must bind at least one consumer surface"));
@@ -2169,7 +2269,11 @@ fn validate_input(
 fn validate_identity(
     identity: &SdkPolicyIdentity,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(identity.record_kind.as_str(), SDK_POLICY_IDENTITY_RECORD_KIND, "identity record_kind")?;
+    ensure_eq(
+        identity.record_kind.as_str(),
+        SDK_POLICY_IDENTITY_RECORD_KIND,
+        "identity record_kind",
+    )?;
     ensure_eq_u32(
         identity.schema_version,
         STABLE_SDK_DEPRECATION_POLICY_SCHEMA_VERSION,
@@ -2180,40 +2284,80 @@ fn validate_identity(
         &identity.publisher_trust_tier_class,
         "identity publisher_trust_tier_class",
     )?;
-    ensure_token(LIFECYCLE_STATE_CLASSES, &identity.lifecycle_state_class, "identity lifecycle_state_class")?;
+    ensure_token(
+        LIFECYCLE_STATE_CLASSES,
+        &identity.lifecycle_state_class,
+        "identity lifecycle_state_class",
+    )?;
     Ok(())
 }
 
 fn validate_deprecation(
     dep: &SdkDeprecationPolicy,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(dep.record_kind.as_str(), SDK_DEPRECATION_POLICY_RECORD_KIND, "deprecation record_kind")?;
-    ensure_token(DEPRECATION_STAGE_CLASSES, &dep.deprecation_stage_class, "deprecation deprecation_stage_class")?;
-    ensure_token(REPLACEMENT_KIND_CLASSES, &dep.replacement_kind_class, "deprecation replacement_kind_class")?;
-    ensure_token(PIN_POLICY_CLASSES, &dep.pin_policy_class, "deprecation pin_policy_class")?;
+    ensure_eq(
+        dep.record_kind.as_str(),
+        SDK_DEPRECATION_POLICY_RECORD_KIND,
+        "deprecation record_kind",
+    )?;
+    ensure_token(
+        DEPRECATION_STAGE_CLASSES,
+        &dep.deprecation_stage_class,
+        "deprecation deprecation_stage_class",
+    )?;
+    ensure_token(
+        REPLACEMENT_KIND_CLASSES,
+        &dep.replacement_kind_class,
+        "deprecation replacement_kind_class",
+    )?;
+    ensure_token(
+        PIN_POLICY_CLASSES,
+        &dep.pin_policy_class,
+        "deprecation pin_policy_class",
+    )?;
     Ok(())
 }
 
 fn validate_propagation(
     _prop: &DeprecationPropagation,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(_prop.record_kind.as_str(), DEPRECATION_PROPAGATION_RECORD_KIND, "propagation record_kind")?;
+    ensure_eq(
+        _prop.record_kind.as_str(),
+        DEPRECATION_PROPAGATION_RECORD_KIND,
+        "propagation record_kind",
+    )?;
     Ok(())
 }
 
 fn validate_manifest_window(
     win: &ManifestVersionWindow,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(win.record_kind.as_str(), MANIFEST_VERSION_WINDOW_RECORD_KIND, "manifest_window record_kind")?;
+    ensure_eq(
+        win.record_kind.as_str(),
+        MANIFEST_VERSION_WINDOW_RECORD_KIND,
+        "manifest_window record_kind",
+    )?;
     Ok(())
 }
 
 fn validate_migration(
     mig: &EcosystemMigrationGuidance,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(mig.record_kind.as_str(), ECOSYSTEM_MIGRATION_GUIDANCE_RECORD_KIND, "migration record_kind")?;
-    ensure_token(MIGRATION_OUTCOME_CLASSES, &mig.migration_outcome_class, "migration migration_outcome_class")?;
-    ensure_token(SHIM_AVAILABILITY_CLASSES, &mig.shim_availability_class, "migration shim_availability_class")?;
+    ensure_eq(
+        mig.record_kind.as_str(),
+        ECOSYSTEM_MIGRATION_GUIDANCE_RECORD_KIND,
+        "migration record_kind",
+    )?;
+    ensure_token(
+        MIGRATION_OUTCOME_CLASSES,
+        &mig.migration_outcome_class,
+        "migration migration_outcome_class",
+    )?;
+    ensure_token(
+        SHIM_AVAILABILITY_CLASSES,
+        &mig.shim_availability_class,
+        "migration shim_availability_class",
+    )?;
     ensure_nonempty(&mig.migration_doc_ref, "migration migration_doc_ref")?;
     ensure_nonempty(&mig.diagnostics_ref, "migration diagnostics_ref")?;
     Ok(())
@@ -2227,8 +2371,14 @@ fn validate_permission_posture(
         SDK_POLICY_PERMISSION_POSTURE_RECORD_KIND,
         "permission_posture record_kind",
     )?;
-    ensure_nonempty(&perm.declared_permission_ref, "permission_posture declared_permission_ref")?;
-    ensure_nonempty(&perm.effective_permission_ref, "permission_posture effective_permission_ref")?;
+    ensure_nonempty(
+        &perm.declared_permission_ref,
+        "permission_posture declared_permission_ref",
+    )?;
+    ensure_nonempty(
+        &perm.effective_permission_ref,
+        "permission_posture effective_permission_ref",
+    )?;
     ensure_nonempty(&perm.policy_cap_ref, "permission_posture policy_cap_ref")?;
     Ok(())
 }
@@ -2258,14 +2408,26 @@ fn validate_install_posture(
         SDK_POLICY_INSTALL_POSTURE_RECORD_KIND,
         "install_posture record_kind",
     )?;
-    ensure_token(INSTALL_SCOPE_CLASSES, &inst.install_scope_class, "install_posture install_scope_class")?;
-    ensure_token(ACTIVATION_COST_CLASSES, &inst.activation_cost_class, "install_posture activation_cost_class")?;
+    ensure_token(
+        INSTALL_SCOPE_CLASSES,
+        &inst.install_scope_class,
+        "install_posture install_scope_class",
+    )?;
+    ensure_token(
+        ACTIVATION_COST_CLASSES,
+        &inst.activation_cost_class,
+        "install_posture activation_cost_class",
+    )?;
     ensure_token(
         REVOCATION_POSTURE_CLASSES,
         &inst.revocation_posture_class,
         "install_posture revocation_posture_class",
     )?;
-    ensure_token(MIRRORABILITY_CLASSES, &inst.mirrorability_class, "install_posture mirrorability_class")?;
+    ensure_token(
+        MIRRORABILITY_CLASSES,
+        &inst.mirrorability_class,
+        "install_posture mirrorability_class",
+    )?;
     Ok(())
 }
 
@@ -2278,11 +2440,27 @@ fn validate_claim(
         "claim record_kind",
     )?;
     ensure_token(STABILITY_TIERS, &claim.claimed_tier, "claim claimed_tier")?;
-    ensure_token(STABILITY_TIERS, &claim.effective_tier, "claim effective_tier")?;
-    ensure_token(SUPPORT_CLAIM_CLASSES, &claim.support_claim_class, "claim support_claim_class")?;
-    ensure_token(CLAIM_BASIS_CLASSES, &claim.claim_basis_class, "claim claim_basis_class")?;
+    ensure_token(
+        STABILITY_TIERS,
+        &claim.effective_tier,
+        "claim effective_tier",
+    )?;
+    ensure_token(
+        SUPPORT_CLAIM_CLASSES,
+        &claim.support_claim_class,
+        "claim support_claim_class",
+    )?;
+    ensure_token(
+        CLAIM_BASIS_CLASSES,
+        &claim.claim_basis_class,
+        "claim claim_basis_class",
+    )?;
     for reason in &claim.downgrade_reasons {
-        ensure_token(SDK_DEPRECATION_POLICY_DOWNGRADE_REASONS, reason, "claim downgrade_reason")?;
+        ensure_token(
+            SDK_DEPRECATION_POLICY_DOWNGRADE_REASONS,
+            reason,
+            "claim downgrade_reason",
+        )?;
     }
     Ok(())
 }
@@ -2290,14 +2468,24 @@ fn validate_claim(
 fn validate_banner(
     banner: &SdkPolicyDowngradedBanner,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
-    ensure_eq(banner.record_kind.as_str(), SDK_POLICY_DOWNGRADED_BANNER_RECORD_KIND, "banner record_kind")?;
+    ensure_eq(
+        banner.record_kind.as_str(),
+        SDK_POLICY_DOWNGRADED_BANNER_RECORD_KIND,
+        "banner record_kind",
+    )?;
     if let Some(reason) = &banner.banner_reason_class {
-        ensure_token(SDK_DEPRECATION_POLICY_DOWNGRADE_REASONS, reason, "banner banner_reason_class")?;
+        ensure_token(
+            SDK_DEPRECATION_POLICY_DOWNGRADE_REASONS,
+            reason,
+            "banner banner_reason_class",
+        )?;
         if !banner.must_display {
             return Err(err("banner_reason_class is set but must_display is false"));
         }
     } else if banner.must_display {
-        return Err(err("must_display is true but no banner_reason_class is set"));
+        return Err(err(
+            "must_display is true but no banner_reason_class is set",
+        ));
     }
     Ok(())
 }
@@ -2344,7 +2532,11 @@ fn validate_inspection(
         STABLE_SDK_DEPRECATION_POLICY_INSPECTION_RECORD_KIND,
         "inspection record_kind",
     )?;
-    ensure_eq(inspection.packet_id_ref.as_str(), packet.packet_id.as_str(), "inspection packet_id_ref")?;
+    ensure_eq(
+        inspection.packet_id_ref.as_str(),
+        packet.packet_id.as_str(),
+        "inspection packet_id_ref",
+    )?;
     ensure_eq(
         inspection.effective_tier.as_str(),
         packet.claim.effective_tier.as_str(),
@@ -2393,7 +2585,9 @@ where
     T: PartialEq + fmt::Display,
 {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2404,7 +2598,9 @@ fn ensure_eq_u32(
     field: &str,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
     if left != right {
-        return Err(err(format!("{field} mismatch: expected {right}, got {left}")));
+        return Err(err(format!(
+            "{field} mismatch: expected {right}, got {left}"
+        )));
     }
     Ok(())
 }
@@ -2425,7 +2621,9 @@ fn ensure_token(
     field: &str,
 ) -> Result<(), StableSdkDeprecationPolicyValidationError> {
     if !tokens.contains(&value) {
-        return Err(err(format!("{field} must be one of {tokens:?}, got {value}")));
+        return Err(err(format!(
+            "{field} must be one of {tokens:?}, got {value}"
+        )));
     }
     Ok(())
 }

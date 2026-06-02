@@ -664,9 +664,7 @@ impl FindingKind {
             Self::MissingIdentity => "missing_identity",
             Self::MissingLaneCoverage => "missing_lane_coverage",
             Self::MissingDailyLoopStepCoverage => "missing_daily_loop_step_coverage",
-            Self::MissingSupportClassEvidenceCoverage => {
-                "missing_support_class_evidence_coverage"
-            }
+            Self::MissingSupportClassEvidenceCoverage => "missing_support_class_evidence_coverage",
             Self::MissingDowngradeRuleCoverage => "missing_downgrade_rule_coverage",
             Self::MissingSupportClass => "missing_support_class",
             Self::MissingKnownLimit => "missing_known_limit",
@@ -1011,7 +1009,9 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
         for row in &self.rows {
             set.insert(row.lane_class);
         }
-        set.into_iter().map(LaunchLanguageLaneClass::as_str).collect()
+        set.into_iter()
+            .map(LaunchLanguageLaneClass::as_str)
+            .collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1020,7 +1020,9 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
         for row in &self.rows {
             set.insert(row.row_class);
         }
-        set.into_iter().map(ConformancePackRowClass::as_str).collect()
+        set.into_iter()
+            .map(ConformancePackRowClass::as_str)
+            .collect()
     }
 
     /// Returns the unique support-class tokens observed across rows.
@@ -1038,7 +1040,9 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
         for row in &self.rows {
             set.insert(row.support_class_evidence_class);
         }
-        set.into_iter().map(SupportClassEvidenceClass::as_str).collect()
+        set.into_iter()
+            .map(SupportClassEvidenceClass::as_str)
+            .collect()
     }
 
     /// Returns the unique downgrade-rule tokens observed across rows.
@@ -1083,7 +1087,9 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
         for row in &self.rows {
             set.insert(row.downgrade_automation_class);
         }
-        set.into_iter().map(DowngradeAutomationClass::as_str).collect()
+        set.into_iter()
+            .map(DowngradeAutomationClass::as_str)
+            .collect()
     }
 
     /// Builds a support export wrapping the exact packet shown to product surfaces.
@@ -1093,9 +1099,8 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
         exported_at: impl Into<String>,
     ) -> PublishLaunchLanguageConformancePacksTruthSupportExport {
         PublishLaunchLanguageConformancePacksTruthSupportExport {
-            record_kind:
-                PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SUPPORT_EXPORT_RECORD_KIND
-                    .to_owned(),
+            record_kind: PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SUPPORT_EXPORT_RECORD_KIND
+                .to_owned(),
             schema_version: PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SCHEMA_VERSION,
             export_id: export_id.into(),
             publish_launch_language_conformance_packs_packet_id_ref: self.packet_id.clone(),
@@ -1257,10 +1262,7 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDowngradeAutomation,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound downgrade-automation class",
-                    row.row_id
-                ),
+                format!("row {} has no bound downgrade-automation class", row.row_id),
             ));
         }
         if !row.evidence_class.is_bound() {
@@ -1460,7 +1462,10 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
     ) {
         let lane_claims_stable = self.rows.iter().any(|row| {
             row.lane_class == lane
-                && matches!(row.row_class, ConformancePackRowClass::ConformancePackQuality)
+                && matches!(
+                    row.row_class,
+                    ConformancePackRowClass::ConformancePackQuality
+                )
                 && matches!(row.support_class, SupportClass::LaunchStable)
         });
         if !lane_claims_stable {
@@ -1511,7 +1516,10 @@ impl PublishLaunchLanguageConformancePacksTruthPacket {
 
         let downgrade_covered = self.rows.iter().any(|row| {
             row.lane_class == lane
-                && matches!(row.row_class, ConformancePackRowClass::DowngradeRuleAdmission)
+                && matches!(
+                    row.row_class,
+                    ConformancePackRowClass::DowngradeRuleAdmission
+                )
                 && row.downgrade_rule_class.is_bound()
                 && !matches!(row.downgrade_rule_class, DowngradeRuleClass::NotApplicable)
         });
@@ -1680,7 +1688,9 @@ impl PublishLaunchLanguageConformancePacksTruthSupportExport {
             == PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SUPPORT_EXPORT_RECORD_KIND
             && self.schema_version == PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SCHEMA_VERSION
             && self.publish_launch_language_conformance_packs_packet_id_ref
-                == self.publish_launch_language_conformance_packs_packet.packet_id
+                == self
+                    .publish_launch_language_conformance_packs_packet
+                    .packet_id
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
             && self
@@ -1702,10 +1712,9 @@ pub enum PublishLaunchLanguageConformancePacksTruthArtifactError {
 impl fmt::Display for PublishLaunchLanguageConformancePacksTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "conformance-pack packet parse failed: {error}"
-            ),
+            Self::Packet(error) => {
+                write!(formatter, "conformance-pack packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -1728,8 +1737,7 @@ impl Error for PublishLaunchLanguageConformancePacksTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_publish_launch_language_conformance_packs_truth_packet(
-) -> Result<
+pub fn current_stable_publish_launch_language_conformance_packs_truth_packet() -> Result<
     PublishLaunchLanguageConformancePacksTruthPacket,
     PublishLaunchLanguageConformancePacksTruthArtifactError,
 > {
@@ -1888,18 +1896,30 @@ mod tests {
 
     fn sample_input() -> PublishLaunchLanguageConformancePacksTruthPacketInput {
         let mut rows = Vec::new();
-        rows.extend(lane_rows(LaunchLanguageLaneClass::PythonLaunchLanguageLane, "py"));
+        rows.extend(lane_rows(
+            LaunchLanguageLaneClass::PythonLaunchLanguageLane,
+            "py",
+        ));
         rows.extend(lane_rows(
             LaunchLanguageLaneClass::TypescriptJavascriptLaunchLanguageLane,
             "tsjs",
         ));
-        rows.extend(lane_rows(LaunchLanguageLaneClass::RustLaunchLanguageLane, "rs"));
-        rows.extend(lane_rows(LaunchLanguageLaneClass::GoLaunchLanguageLane, "go"));
+        rows.extend(lane_rows(
+            LaunchLanguageLaneClass::RustLaunchLanguageLane,
+            "rs",
+        ));
+        rows.extend(lane_rows(
+            LaunchLanguageLaneClass::GoLaunchLanguageLane,
+            "go",
+        ));
         rows.extend(lane_rows(
             LaunchLanguageLaneClass::JavaKotlinLaunchLanguageLane,
             "jvm",
         ));
-        rows.extend(lane_rows(LaunchLanguageLaneClass::CCppLaunchLanguageLane, "cc"));
+        rows.extend(lane_rows(
+            LaunchLanguageLaneClass::CCppLaunchLanguageLane,
+            "cc",
+        ));
         let mut projections = Vec::new();
         for surface in ConsumerSurface::REQUIRED {
             projections.push(projection(surface));
@@ -1956,10 +1976,7 @@ mod tests {
             DowngradeRuleClass::NarrowOnMissingFixture.as_str(),
             "narrow_on_missing_fixture"
         );
-        assert_eq!(
-            DowngradeRuleClass::RuleUnbound.as_str(),
-            "rule_unbound"
-        );
+        assert_eq!(DowngradeRuleClass::RuleUnbound.as_str(), "rule_unbound");
         assert_eq!(DailyLoopStepClass::Recover.as_str(), "recover");
         assert_eq!(EvidenceClass::EvidenceUnbound.as_str(), "evidence_unbound");
         assert_eq!(KnownLimitClass::LimitUnbound.as_str(), "limit_unbound");
@@ -1992,8 +2009,7 @@ mod tests {
 
     #[test]
     fn baseline_materialization_is_stable() {
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(sample_input());
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(sample_input());
         assert_eq!(
             packet.promotion_state,
             PromotionState::Stable,
@@ -2018,8 +2034,7 @@ mod tests {
     fn launch_stable_with_unbound_evidence_blocks() {
         let mut input = sample_input();
         input.rows[0].evidence_class = EvidenceClass::EvidenceUnbound;
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
@@ -2037,8 +2052,7 @@ mod tests {
         input
             .rows
             .retain(|row| row.daily_loop_step_class != DailyLoopStepClass::Recover);
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
@@ -2055,8 +2069,7 @@ mod tests {
                 ConformancePackRowClass::SupportClassEvidenceAdmission
             )
         });
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == FindingKind::MissingSupportClassEvidenceCoverage
@@ -2072,8 +2085,7 @@ mod tests {
                 ConformancePackRowClass::DowngradeRuleAdmission
             )
         });
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
@@ -2086,8 +2098,7 @@ mod tests {
         let mut input = sample_input();
         input.rows[0].support_class = SupportClass::LaunchStableBelow;
         input.rows[0].disclosure_ref = None;
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == FindingKind::NarrowedRowMissingDisclosureRef
@@ -2100,8 +2111,7 @@ mod tests {
         input
             .consumer_projections
             .retain(|p| p.consumer_surface != ConsumerSurface::ConformanceDashboard);
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings
@@ -2117,8 +2127,7 @@ mod tests {
                 projection.preserves_support_class_evidence_vocabulary = false;
             }
         }
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet.validation_findings.iter().any(|finding| {
             finding.finding_kind == FindingKind::SupportClassEvidenceVocabularyCollapsed
@@ -2129,8 +2138,7 @@ mod tests {
     fn raw_source_material_blocks_promotion() {
         let mut input = sample_input();
         input.rows[0].raw_source_material_excluded = false;
-        let packet =
-            PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
+        let packet = PublishLaunchLanguageConformancePacksTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
             .validation_findings

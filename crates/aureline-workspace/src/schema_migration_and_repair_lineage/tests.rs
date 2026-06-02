@@ -250,7 +250,11 @@ fn clean_inputs_project_stable_record() {
     assert!(record.preservation.all_rows_preserve_trust_state);
     assert!(record.preservation.all_rows_preserve_no_rerun_semantics);
     assert!(record.no_silent_rerun.all_rows_safe_rerun_posture);
-    assert!(record.no_silent_rerun.all_mutating_rows_have_commit_metadata);
+    assert!(
+        record
+            .no_silent_rerun
+            .all_mutating_rows_have_commit_metadata
+    );
     assert!(
         record
             .repair_transaction_pinning
@@ -285,14 +289,15 @@ fn clean_inputs_project_stable_record() {
 #[test]
 fn missing_required_artifact_class_narrows() {
     let mut inputs = baseline_inputs();
-    inputs.migrations.retain(|m| {
-        m.artifact_class != ArtifactClassKind::PersistentStateEnvelope
-    });
+    inputs
+        .migrations
+        .retain(|m| m.artifact_class != ArtifactClassKind::PersistentStateEnvelope);
     let record = project_schema_migration_and_repair_lineage("posture.missing_artifact", &inputs);
     assert!(!record.is_stable_qualified());
-    assert!(record.stable_qualification.narrow_reasons.contains(
-        &SchemaMigrationAndRepairLineageNarrowReason::RequiredArtifactClassMissing
-    ));
+    assert!(record
+        .stable_qualification
+        .narrow_reasons
+        .contains(&SchemaMigrationAndRepairLineageNarrowReason::RequiredArtifactClassMissing));
 }
 
 #[test]
@@ -303,9 +308,10 @@ fn missing_required_repair_flow_narrows() {
         .retain(|r| r.repair_flow_kind != RepairFlowKind::ManualRepairHandoff);
     let record = project_schema_migration_and_repair_lineage("posture.missing_repair", &inputs);
     assert!(!record.is_stable_qualified());
-    assert!(record.stable_qualification.narrow_reasons.contains(
-        &SchemaMigrationAndRepairLineageNarrowReason::RequiredRepairFlowKindMissing
-    ));
+    assert!(record
+        .stable_qualification
+        .narrow_reasons
+        .contains(&SchemaMigrationAndRepairLineageNarrowReason::RequiredRepairFlowKindMissing));
 }
 
 #[test]
@@ -347,7 +353,8 @@ fn lossy_migration_without_disclosure_narrows() {
         m.migration_outcome = MigrationOutcome::ForwardMigratedLossyWithDisclosure;
         m.migration_disclosure_ref = None;
     }
-    let record = project_schema_migration_and_repair_lineage("posture.lossy_no_disclosure", &inputs);
+    let record =
+        project_schema_migration_and_repair_lineage("posture.lossy_no_disclosure", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -393,8 +400,7 @@ fn schema_version_downgrade_narrows() {
         m.from_schema_version = 5;
         m.to_schema_version = 3;
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.schema_downgrade", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.schema_downgrade", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -408,8 +414,7 @@ fn schema_version_unpinned_narrows() {
     if let Some(m) = inputs.migrations.first_mut() {
         m.from_schema_version = 0;
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.schema_unpinned", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.schema_unpinned", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -451,8 +456,7 @@ fn preservation_loss_narrows() {
     if let Some(m) = inputs.migrations.first_mut() {
         m.preserves_restore_provenance = false;
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.provenance_lost", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.provenance_lost", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -466,8 +470,7 @@ fn trust_state_loss_narrows() {
     if let Some(m) = inputs.migrations.first_mut() {
         m.preserves_trust_state = false;
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.trust_lost", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.trust_lost", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -481,8 +484,7 @@ fn unknown_artifact_referenced_narrows() {
     if let Some(r) = inputs.repair_flows.first_mut() {
         r.artifact_id = "unknown-artifact-xxx".to_owned();
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.unknown_artifact", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.unknown_artifact", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -531,8 +533,7 @@ fn support_export_field_dropped_narrows() {
     if let Some(m) = inputs.migrations.first_mut() {
         m.support_export.includes_finding_code = false;
     }
-    let record =
-        project_schema_migration_and_repair_lineage("posture.dropped_field", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.dropped_field", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -556,8 +557,7 @@ fn producer_attribution_incomplete_narrows() {
 fn lineage_export_unsafe_narrows() {
     let mut inputs = baseline_inputs();
     inputs.workspace_ref.clear();
-    let record =
-        project_schema_migration_and_repair_lineage("posture.no_workspace", &inputs);
+    let record = project_schema_migration_and_repair_lineage("posture.no_workspace", &inputs);
     assert!(!record.is_stable_qualified());
     assert!(record
         .stable_qualification
@@ -582,14 +582,18 @@ fn lines_render_each_section() {
     let inputs = baseline_inputs();
     let record = project_schema_migration_and_repair_lineage("posture.lines", &inputs);
     let lines = schema_migration_and_repair_lineage_lines(&record);
-    assert!(lines.iter().any(|l| l.contains("Schema-migration and repair lineage")));
+    assert!(lines
+        .iter()
+        .any(|l| l.contains("Schema-migration and repair lineage")));
     assert!(lines.iter().any(|l| l == "Migrations:"));
     assert!(lines.iter().any(|l| l == "Repair flows:"));
     assert!(lines.iter().any(|l| l.contains("Schema-version pinning")));
     assert!(lines.iter().any(|l| l.contains("Outcome honesty")));
     assert!(lines.iter().any(|l| l.contains("Preservation")));
     assert!(lines.iter().any(|l| l.contains("No-silent-rerun")));
-    assert!(lines.iter().any(|l| l.contains("Repair-transaction pinning")));
+    assert!(lines
+        .iter()
+        .any(|l| l.contains("Repair-transaction pinning")));
     assert!(lines.iter().any(|l| l.contains("Support-export honesty")));
     assert!(lines.iter().any(|l| l == "Inspection hooks:"));
 }

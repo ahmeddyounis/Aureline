@@ -183,11 +183,7 @@ fn mutating_demonstration(session: &TeachingSession) -> Option<&DemonstratedActi
         .find(|a| a.mutates_workspace)
 }
 
-fn affordance(
-    seat: &str,
-    kind: AffordanceKind,
-    command_id: &str,
-) -> TeachingControlAffordance {
+fn affordance(seat: &str, kind: AffordanceKind, command_id: &str) -> TeachingControlAffordance {
     TeachingControlAffordance {
         affordance_id: format!("aff:{seat}:{}", kind.as_str()),
         kind,
@@ -259,11 +255,8 @@ fn affordances_for(
                 .clone()
                 .unwrap_or_else(|| "cmd:workspace.import_profile".to_owned());
             if role == TeachingRole::Approver {
-                let mut approve = affordance(
-                    participant_id,
-                    AffordanceKind::ApproveMutation,
-                    &command_id,
-                );
+                let mut approve =
+                    affordance(participant_id, AffordanceKind::ApproveMutation, &command_id);
                 approve.preview_sheet_ref = demo.preview_sheet_ref.clone();
                 approve.approval_path_ref = demo.approval_path_ref.clone();
                 approve.rollback_semantics_ref = demo.rollback_semantics_ref.clone();

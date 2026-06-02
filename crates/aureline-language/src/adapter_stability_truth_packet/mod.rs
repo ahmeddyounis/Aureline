@@ -81,11 +81,7 @@ pub enum AdapterLaneClass {
 
 impl AdapterLaneClass {
     /// Every required adapter lane, in declaration order.
-    pub const REQUIRED: [Self; 3] = [
-        Self::FormatterLane,
-        Self::LinterLane,
-        Self::TestAdapterLane,
-    ];
+    pub const REQUIRED: [Self; 3] = [Self::FormatterLane, Self::LinterLane, Self::TestAdapterLane];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -198,8 +194,7 @@ pub enum AdapterCapabilityClass {
 
 impl AdapterCapabilityClass {
     /// Every required adapter capability, in declaration order.
-    pub const REQUIRED_FOR_LAUNCH: [Self; 3] =
-        [Self::Discover, Self::Execute, Self::Report];
+    pub const REQUIRED_FOR_LAUNCH: [Self; 3] = [Self::Discover, Self::Execute, Self::Report];
 
     /// Stable token used in fixtures, schemas, and support exports.
     pub const fn as_str(self) -> &'static str {
@@ -692,9 +687,7 @@ impl FindingKind {
             Self::LaneVocabularyCollapsed => "lane_vocabulary_collapsed",
             Self::RowClassVocabularyCollapsed => "row_class_vocabulary_collapsed",
             Self::SupportClassVocabularyCollapsed => "support_class_vocabulary_collapsed",
-            Self::AdapterCapabilityVocabularyCollapsed => {
-                "adapter_capability_vocabulary_collapsed"
-            }
+            Self::AdapterCapabilityVocabularyCollapsed => "adapter_capability_vocabulary_collapsed",
             Self::DegradedProviderVocabularyCollapsed => "degraded_provider_vocabulary_collapsed",
             Self::AdapterOutcomeVocabularyCollapsed => "adapter_outcome_vocabulary_collapsed",
             Self::LaunchWedgeVocabularyCollapsed => "launch_wedge_vocabulary_collapsed",
@@ -1036,7 +1029,9 @@ impl AdapterStabilityTruthPacket {
         for row in &self.rows {
             set.insert(row.adapter_capability_class);
         }
-        set.into_iter().map(AdapterCapabilityClass::as_str).collect()
+        set.into_iter()
+            .map(AdapterCapabilityClass::as_str)
+            .collect()
     }
 
     /// Returns the unique degraded-provider tokens observed across rows.
@@ -1116,9 +1111,7 @@ impl AdapterStabilityTruthPacket {
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != ADAPTER_STABILITY_TRUTH_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != ADAPTER_STABILITY_TRUTH_PACKET_RECORD_KIND {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongRecordKind,
                 FindingSeverity::Blocker,
@@ -1261,10 +1254,7 @@ impl AdapterStabilityTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDowngradeAutomation,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound downgrade-automation class",
-                    row.row_id
-                ),
+                format!("row {} has no bound downgrade-automation class", row.row_id),
             ));
         }
         if !row.evidence_class.is_bound() {
@@ -1278,10 +1268,7 @@ impl AdapterStabilityTruthPacket {
             findings.push(ValidationFinding::new(
                 FindingKind::MissingDegradedProviderClass,
                 FindingSeverity::Blocker,
-                format!(
-                    "row {} has no bound degraded-provider class",
-                    row.row_id
-                ),
+                format!("row {} has no bound degraded-provider class", row.row_id),
             ));
         }
         if !row.adapter_outcome_class.is_bound() {
@@ -1362,10 +1349,8 @@ impl AdapterStabilityTruthPacket {
             row.row_class,
             AdapterStabilityRowClass::AdapterOutcomeAdmission
         );
-        let is_launch_wedge = matches!(
-            row.row_class,
-            AdapterStabilityRowClass::LaunchWedgeCoverage
-        );
+        let is_launch_wedge =
+            matches!(row.row_class, AdapterStabilityRowClass::LaunchWedgeCoverage);
 
         if is_capability
             && matches!(
@@ -1434,7 +1419,10 @@ impl AdapterStabilityTruthPacket {
         }
 
         if is_adapter_outcome
-            && matches!(row.adapter_outcome_class, AdapterOutcomeClass::NotApplicable)
+            && matches!(
+                row.adapter_outcome_class,
+                AdapterOutcomeClass::NotApplicable
+            )
         {
             findings.push(ValidationFinding::new(
                 FindingKind::AdapterOutcomeNotApplicable,
@@ -1463,9 +1451,7 @@ impl AdapterStabilityTruthPacket {
             ));
         }
 
-        if is_launch_wedge
-            && matches!(row.launch_wedge_class, LaunchWedgeClass::NotApplicable)
-        {
+        if is_launch_wedge && matches!(row.launch_wedge_class, LaunchWedgeClass::NotApplicable) {
             findings.push(ValidationFinding::new(
                 FindingKind::LaunchWedgeNotApplicable,
                 FindingSeverity::Blocker,
@@ -1778,10 +1764,9 @@ pub enum AdapterStabilityTruthArtifactError {
 impl fmt::Display for AdapterStabilityTruthArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Packet(error) => write!(
-                formatter,
-                "adapter-stability packet parse failed: {error}"
-            ),
+            Self::Packet(error) => {
+                write!(formatter, "adapter-stability packet parse failed: {error}")
+            }
             Self::Validation(findings) => {
                 let tokens = findings
                     .iter()
@@ -1887,10 +1872,7 @@ mod tests {
             .collect()
     }
 
-    fn degraded_provider_rows(
-        lane: AdapterLaneClass,
-        prefix: &str,
-    ) -> Vec<AdapterStabilityRow> {
+    fn degraded_provider_rows(lane: AdapterLaneClass, prefix: &str) -> Vec<AdapterStabilityRow> {
         DegradedProviderClass::REQUIRED_FOR_LAUNCH
             .into_iter()
             .map(|state| {
@@ -2144,11 +2126,9 @@ mod tests {
         }
         let packet = AdapterStabilityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet
-            .validation_findings
-            .iter()
-            .any(|finding| finding.finding_kind
-                == FindingKind::DegradedProviderVocabularyCollapsed));
+        assert!(packet.validation_findings.iter().any(
+            |finding| finding.finding_kind == FindingKind::DegradedProviderVocabularyCollapsed
+        ));
     }
 
     #[test]

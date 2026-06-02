@@ -114,7 +114,10 @@ fn fixtures_expose_provider_limit_and_partial_data_chips() {
             }
         }
     }
-    assert!(saw_provider_limit, "fixtures must expose provider_limit chips");
+    assert!(
+        saw_provider_limit,
+        "fixtures must expose provider_limit chips"
+    );
     assert!(saw_partial_data, "fixtures must expose partial_data chips");
     assert!(saw_policy, "fixtures must expose policy chips");
     assert!(saw_workset, "fixtures must expose workset chips");

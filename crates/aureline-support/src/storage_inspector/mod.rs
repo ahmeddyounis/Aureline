@@ -607,7 +607,11 @@ pub struct StorageCleanupViolation {
 
 impl fmt::Display for StorageCleanupViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}] {}: {}", self.check_id, self.target_ref, self.message)
+        write!(
+            f,
+            "[{}] {}: {}",
+            self.check_id, self.target_ref, self.message
+        )
     }
 }
 
@@ -771,10 +775,7 @@ impl StorageCleanupSupportExportRow {
             .collect();
         blocked_pin_ids.sort();
         blocked_pin_ids.dedup();
-        let low_disk_state = receipt
-            .low_disk_context
-            .as_ref()
-            .map(|ctx| ctx.state_class);
+        let low_disk_state = receipt.low_disk_context.as_ref().map(|ctx| ctx.state_class);
         Self {
             record_kind: STORAGE_CLEANUP_SUPPORT_EXPORT_ROW_RECORD_KIND.to_owned(),
             fixture_ref: entry.fixture_ref.clone(),
@@ -856,7 +857,8 @@ impl From<serde_yaml::Error> for StorageCleanupLoadError {
 
 /// Loads the checked-in storage-class registry.
 pub fn current_storage_class_registry() -> Result<StorageClassRegistry, StorageCleanupLoadError> {
-    serde_yaml::from_str::<StorageClassRegistry>(REGISTRY_YAML).map_err(StorageCleanupLoadError::from)
+    serde_yaml::from_str::<StorageClassRegistry>(REGISTRY_YAML)
+        .map_err(StorageCleanupLoadError::from)
 }
 
 /// Loads the checked-in storage-cleanup corpus (registry + scenarios).
@@ -883,7 +885,10 @@ pub fn load_storage_cleanup_scenario(
     serde_yaml::from_str::<StorageCleanupScenario>(yaml).map_err(StorageCleanupLoadError::from)
 }
 
-fn validate_registry(violations: &mut Vec<StorageCleanupViolation>, registry: &StorageClassRegistry) {
+fn validate_registry(
+    violations: &mut Vec<StorageCleanupViolation>,
+    registry: &StorageClassRegistry,
+) {
     if registry.schema_version != STORAGE_INSPECTOR_SCHEMA_VERSION {
         push(
             violations,
@@ -929,7 +934,12 @@ fn validate_registry(violations: &mut Vec<StorageCleanupViolation>, registry: &S
             );
         }
         if entry.schema_version != STORAGE_INSPECTOR_SCHEMA_VERSION {
-            push(violations, "registry.entry.schema_version", target, "schema_version must be 1");
+            push(
+                violations,
+                "registry.entry.schema_version",
+                target,
+                "schema_version must be 1",
+            );
         }
         if entry.record_kind != STORAGE_CLASS_REGISTRY_ENTRY_RECORD_KIND {
             push(
@@ -940,10 +950,20 @@ fn validate_registry(violations: &mut Vec<StorageCleanupViolation>, registry: &S
             );
         }
         if entry.label.trim().is_empty() {
-            push(violations, "registry.entry.label", target, "label must be non-empty");
+            push(
+                violations,
+                "registry.entry.label",
+                target,
+                "label must be non-empty",
+            );
         }
         if entry.summary.trim().is_empty() {
-            push(violations, "registry.entry.summary", target, "summary must be non-empty");
+            push(
+                violations,
+                "registry.entry.summary",
+                target,
+                "summary must be non-empty",
+            );
         }
         if !(1..=6).contains(&entry.low_disk_eviction_priority) {
             push(
@@ -1025,7 +1045,12 @@ fn validate_scenario(
 ) {
     let target = scenario.scenario_id.as_str();
     if scenario.schema_version != STORAGE_INSPECTOR_SCHEMA_VERSION {
-        push(violations, "scenario.schema_version", target, "schema_version must be 1");
+        push(
+            violations,
+            "scenario.schema_version",
+            target,
+            "schema_version must be 1",
+        );
     }
     if scenario.record_kind != STORAGE_CLEANUP_SCENARIO_RECORD_KIND {
         push(
@@ -1036,13 +1061,28 @@ fn validate_scenario(
         );
     }
     if scenario.scenario_id.trim().is_empty() {
-        push(violations, "scenario.scenario_id", target, "scenario_id must be non-empty");
+        push(
+            violations,
+            "scenario.scenario_id",
+            target,
+            "scenario_id must be non-empty",
+        );
     }
     if scenario.title.trim().is_empty() {
-        push(violations, "scenario.title", target, "title must be non-empty");
+        push(
+            violations,
+            "scenario.title",
+            target,
+            "title must be non-empty",
+        );
     }
     if scenario.summary.trim().is_empty() {
-        push(violations, "scenario.summary", target, "summary must be non-empty");
+        push(
+            violations,
+            "scenario.summary",
+            target,
+            "summary must be non-empty",
+        );
     }
 
     validate_review(violations, target, &scenario.review, registry);
@@ -1073,7 +1113,12 @@ fn validate_review(
     registry: &StorageClassRegistry,
 ) {
     if review.schema_version != STORAGE_INSPECTOR_SCHEMA_VERSION {
-        push(violations, "review.schema_version", target, "review.schema_version must be 1");
+        push(
+            violations,
+            "review.schema_version",
+            target,
+            "review.schema_version must be 1",
+        );
     }
     if review.record_kind != CLEAR_DATA_REVIEW_RECORD_KIND {
         push(
@@ -1084,7 +1129,12 @@ fn validate_review(
         );
     }
     if review.review_id.trim().is_empty() {
-        push(violations, "review.review_id", target, "review.review_id must be non-empty");
+        push(
+            violations,
+            "review.review_id",
+            target,
+            "review.review_id must be non-empty",
+        );
     }
     if review.raw_content_exported {
         push(
@@ -1268,7 +1318,12 @@ fn validate_receipt(
     review: &ClearDataReview,
 ) {
     if receipt.schema_version != STORAGE_INSPECTOR_SCHEMA_VERSION {
-        push(violations, "receipt.schema_version", target, "receipt.schema_version must be 1");
+        push(
+            violations,
+            "receipt.schema_version",
+            target,
+            "receipt.schema_version must be 1",
+        );
     }
     if receipt.record_kind != STORAGE_CLEANUP_RECEIPT_RECORD_KIND {
         push(
@@ -1505,7 +1560,11 @@ mod tests {
             "registry must list every required class"
         );
         for required in REQUIRED_REGISTRY_CLASSES {
-            assert!(registry.entry(*required).is_some(), "missing {}", required.as_str());
+            assert!(
+                registry.entry(*required).is_some(),
+                "missing {}",
+                required.as_str()
+            );
         }
         for required in REQUIRED_PROTECTED_CLASSES {
             assert!(registry.is_protected_default(*required));
@@ -1522,10 +1581,8 @@ mod tests {
     #[test]
     fn support_export_is_metadata_safe() {
         let corpus = current_storage_cleanup_corpus().expect("corpus parses");
-        let export = corpus.support_export(
-            "support_export.storage_cleanup.v1",
-            "2026-05-19T15:30:00Z",
-        );
+        let export =
+            corpus.support_export("support_export.storage_cleanup.v1", "2026-05-19T15:30:00Z");
         assert!(export.is_export_safe());
         assert_eq!(export.rows.len(), SCENARIO_FIXTURES.len());
     }

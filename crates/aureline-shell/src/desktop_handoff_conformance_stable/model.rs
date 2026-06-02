@@ -413,7 +413,10 @@ pub fn required_recovery_routes(
     }
     actions.push(HandoffRecoveryAction::ReviewHandlerOwnership);
     actions.push(HandoffRecoveryAction::ExportHandoffSupport);
-    actions.into_iter().map(HandoffRecoveryAction::route).collect()
+    actions
+        .into_iter()
+        .map(HandoffRecoveryAction::route)
+        .collect()
 }
 
 /// Closed reason a posture is narrowed below Stable. Required whenever the claim
@@ -1021,7 +1024,10 @@ impl core::fmt::Display for BuildError {
                 write!(f, "field `{field}` must be a non-empty reviewable sentence")
             }
             Self::NonCanonicalRef { field, value } => {
-                write!(f, "field `{field}` must be a canonical object ref, got {value:?}")
+                write!(
+                    f,
+                    "field `{field}` must be a canonical object ref, got {value:?}"
+                )
             }
             Self::MissingUpstreamRef { field } => {
                 write!(f, "upstream projection ref `{field}` must be present")
@@ -1032,7 +1038,11 @@ impl core::fmt::Display for BuildError {
                 channel.as_str()
             ),
             Self::MissingPlatformProfile { profile } => {
-                write!(f, "per-OS conformance is missing profile `{}`", profile.as_str())
+                write!(
+                    f,
+                    "per-OS conformance is missing profile `{}`",
+                    profile.as_str()
+                )
             }
             Self::PlatformProofMissing { profile } => write!(
                 f,
@@ -1056,14 +1066,21 @@ impl core::fmt::Display for BuildError {
                 "claim ceiling may not assert enforced trust review it cannot prove"
             ),
             Self::OverclaimsRecovery => {
-                write!(f, "claim ceiling may not assert truthful recovery it cannot prove")
+                write!(
+                    f,
+                    "claim ceiling may not assert truthful recovery it cannot prove"
+                )
             }
             Self::OverclaimsPlatformConformance => write!(
                 f,
                 "claim ceiling may not assert complete per-OS conformance it cannot prove"
             ),
             Self::MissingRecoveryRoute { action } => {
-                write!(f, "posture must expose recovery route `{}`", action.as_str())
+                write!(
+                    f,
+                    "posture must expose recovery route `{}`",
+                    action.as_str()
+                )
             }
             Self::RecoveryRouteNotKeyboardReachable { action_id } => {
                 write!(f, "recovery route `{action_id}` must be keyboard reachable")
@@ -1093,14 +1110,22 @@ impl core::fmt::Display for BuildError {
                 surface.as_str()
             ),
             Self::DuplicateRouteSurface { surface } => {
-                write!(f, "entry route surface `{}` is duplicated", surface.as_str())
+                write!(
+                    f,
+                    "entry route surface `{}` is duplicated",
+                    surface.as_str()
+                )
             }
             Self::AccessibilityActionLabelsMismatch => write!(
                 f,
                 "accessibility action labels must match the recovery routes in order"
             ),
             Self::AccessibilityLayoutModeMissing { mode } => {
-                write!(f, "accessibility layout mode `{}` is missing", mode.as_str())
+                write!(
+                    f,
+                    "accessibility layout mode `{}` is missing",
+                    mode.as_str()
+                )
             }
             Self::AccessibilityLayoutModeUnreachable { mode } => write!(
                 f,
@@ -1108,7 +1133,10 @@ impl core::fmt::Display for BuildError {
                 mode.as_str()
             ),
             Self::HiddenWithoutAccount => {
-                write!(f, "a handoff posture must stay available without an account")
+                write!(
+                    f,
+                    "a handoff posture must stay available without an account"
+                )
             }
             Self::HiddenWithoutManagedServices => write!(
                 f,
@@ -1142,7 +1170,10 @@ impl DesktopHandoffConformanceRecord {
                 field: "posture_label",
             });
         }
-        require_canonical_ref("intent.canonical_target_ref", &input.intent.canonical_target_ref)?;
+        require_canonical_ref(
+            "intent.canonical_target_ref",
+            &input.intent.canonical_target_ref,
+        )?;
         require_canonical_ref(
             "handler_ownership.owning_channel_ref",
             &input.handler_ownership.owning_channel_ref,
@@ -1158,7 +1189,10 @@ impl DesktopHandoffConformanceRecord {
 
         // Upstream and literal projection refs keep their source scheme; only
         // presence is required so support can trace the record back.
-        require_present_ref("intent.literal_target_ref", &input.intent.literal_target_ref)?;
+        require_present_ref(
+            "intent.literal_target_ref",
+            &input.intent.literal_target_ref,
+        )?;
         require_present_ref(
             "handler_ownership.owner_build_ref",
             &input.handler_ownership.owner_build_ref,
@@ -1175,7 +1209,10 @@ impl DesktopHandoffConformanceRecord {
             "upstream.system_browser_page_ref",
             &input.upstream.system_browser_page_ref,
         )?;
-        require_present_ref("upstream.ownership_audit_ref", &input.upstream.ownership_audit_ref)?;
+        require_present_ref(
+            "upstream.ownership_audit_ref",
+            &input.upstream.ownership_audit_ref,
+        )?;
 
         // --- handler ownership: every side-by-side channel enumerated --------
         let channels: BTreeSet<ChannelClass> = input
@@ -1202,17 +1239,17 @@ impl DesktopHandoffConformanceRecord {
             }
         }
         let platform_conformance_complete = PlatformProfileClass::REQUIRED.iter().all(|profile| {
-            input
-                .platform_conformance
-                .iter()
-                .any(|row| row.profile == *profile && row.covered && !row.proof_ref.trim().is_empty())
+            input.platform_conformance.iter().any(|row| {
+                row.profile == *profile && row.covered && !row.proof_ref.trim().is_empty()
+            })
         });
 
         // --- derive the pillars from the evidence -----------------------------
         let typed_intent_preserved = input.intent.intent_preserved();
         let handler_ownership_explicit = input.handler_ownership.ownership_is_explicit();
-        let system_browser_default_or_explicit_exception =
-            input.auth_default.is_system_browser_default_or_explicit_exception();
+        let system_browser_default_or_explicit_exception = input
+            .auth_default
+            .is_system_browser_default_or_explicit_exception();
         let trust_review_enforced = input.trust_review.enforced();
         let recovery_truthful = input.recovery.recovery_truthful();
 

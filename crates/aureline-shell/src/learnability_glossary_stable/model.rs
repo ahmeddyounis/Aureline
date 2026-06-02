@@ -95,7 +95,13 @@ const MAX_REF_CHARS: usize = 200;
 /// specific durable object. A ref pointing at one is rejected so chrome cannot
 /// wire an affordance to a dashboard home.
 const GENERIC_LANDING_CLASSES: &[&str] = &[
-    "home", "dashboard", "landing", "index", "overview", "start", "root",
+    "home",
+    "dashboard",
+    "landing",
+    "index",
+    "overview",
+    "start",
+    "root",
 ];
 
 /// Returns true when `reference` is a canonical durable-object ref of the form
@@ -578,7 +584,9 @@ pub struct LearningStatePrivacyPosture {
 impl LearningStatePrivacyPosture {
     /// Returns `true` when every piece of state is user-owned.
     pub fn all_user_owned(&self) -> bool {
-        self.dismissals_user_owned && self.resume_entries_user_owned && self.learning_digest_user_owned
+        self.dismissals_user_owned
+            && self.resume_entries_user_owned
+            && self.learning_digest_user_owned
     }
 
     /// Returns `true` when the state stays local-first and unleaked.
@@ -1065,12 +1073,16 @@ impl LearnabilityDisclosureRecord {
         }
 
         // --- derive the pillars from the evidence -----------------------------
-        let glossary_anchors_stable = input.glossary_chips.iter().all(GlossaryChip::has_stable_anchor);
+        let glossary_anchors_stable = input
+            .glossary_chips
+            .iter()
+            .all(GlossaryChip::has_stable_anchor);
         let why_now_grounded = input.why_now_card.is_grounded_in_truth();
         let contextual_docs_cited = input.contextual_docs.cites_docs_nodes();
-        let focus_return_preserved =
-            input.posture.preserves_exact_focus_return && !input.posture.focus_return_anchor_ref.is_empty();
-        let non_blocking = input.posture.is_non_blocking() && !input.why_now_card.blocks_first_useful_work;
+        let focus_return_preserved = input.posture.preserves_exact_focus_return
+            && !input.posture.focus_return_anchor_ref.is_empty();
+        let non_blocking =
+            input.posture.is_non_blocking() && !input.why_now_card.blocks_first_useful_work;
 
         // --- claim ceiling: never claim what the product cannot prove ---------
         if input.claim_ceiling.asserts_glossary_anchors_stable && !glossary_anchors_stable {
@@ -1406,7 +1418,10 @@ impl LearnabilityDisclosureRecord {
             self.upstream.learning_manifest_ref,
             self.upstream.learning_surface_projection_ref
         ));
-        lines.push(format!("diagnostics_export_ref: {}", self.diagnostics_export_ref));
+        lines.push(format!(
+            "diagnostics_export_ref: {}",
+            self.diagnostics_export_ref
+        ));
         lines.push(format!("support_export_ref: {}", self.support_export_ref));
         lines
     }

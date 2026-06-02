@@ -71,8 +71,9 @@ struct ChangeListRowFixture {
 }
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/review/m4/finalize-migration-rollback-checkpoints-diff-review-and-retained")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../fixtures/review/m4/finalize-migration-rollback-checkpoints-diff-review-and-retained",
+    )
 }
 
 fn repo_root() -> PathBuf {
@@ -98,8 +99,8 @@ fn load_fixture(name: &str) -> MigrationRollbackDiffReviewFixture {
 
 fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
     let path = repo_root().join(seed_fixture_ref);
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let fixture: ReviewWorkspaceSeedFixture =
         serde_yaml::from_str(&text).unwrap_or_else(|err| panic!("seed fixture {path:?}: {err}"));
     let open_target = DiffOpenTarget::from_change_list_row_parts(
@@ -119,15 +120,12 @@ fn seed_packet_for(seed_fixture_ref: &str) -> ReviewWorkspaceSeedPacket {
 fn workspace_packet_for(fixture: &MigrationRollbackDiffReviewFixture) -> ReviewWorkspaceBetaPacket {
     let seed_packet = seed_packet_for(&fixture.seed_fixture_ref);
     ReviewWorkspaceBetaPacket::from_seed_packet(fixture.beta_workspace_input.clone(), &seed_packet)
-        .unwrap_or_else(|err| {
-            panic!(
-                "{} workspace packet must project: {err}",
-                fixture.case_name
-            )
-        })
+        .unwrap_or_else(|err| panic!("{} workspace packet must project: {err}", fixture.case_name))
 }
 
-fn packet_for_fixture(fixture: &MigrationRollbackDiffReviewFixture) -> MigrationRollbackDiffReviewPacket {
+fn packet_for_fixture(
+    fixture: &MigrationRollbackDiffReviewFixture,
+) -> MigrationRollbackDiffReviewPacket {
     let workspace_packet = workspace_packet_for(fixture);
     MigrationRollbackDiffReviewPacket::from_workspace_packet(
         fixture.migration_flow_input.clone(),
@@ -140,10 +138,16 @@ fn assert_expected(packet: &MigrationRollbackDiffReviewPacket, expected: &Expect
     assert_eq!(packet.inspection.diff_approved, expected.diff_approved);
     assert_eq!(packet.inspection.diff_pending, expected.diff_pending);
     assert_eq!(packet.inspection.diff_rejected, expected.diff_rejected);
-    assert_eq!(packet.inspection.checkpoint_ready, expected.checkpoint_ready);
+    assert_eq!(
+        packet.inspection.checkpoint_ready,
+        expected.checkpoint_ready
+    );
     assert_eq!(packet.inspection.applying, expected.applying);
     assert_eq!(packet.inspection.completed, expected.completed);
-    assert_eq!(packet.inspection.validation_failed, expected.validation_failed);
+    assert_eq!(
+        packet.inspection.validation_failed,
+        expected.validation_failed
+    );
     assert_eq!(packet.inspection.rolled_back, expected.rolled_back);
     assert_eq!(packet.inspection.aborted, expected.aborted);
     assert_eq!(packet.inspection.actionable, expected.actionable);
@@ -166,7 +170,10 @@ fn assert_expected(packet: &MigrationRollbackDiffReviewPacket, expected: &Expect
         packet.inspection.retained_diagnostic_fallback_available,
         expected.retained_diagnostic_fallback_available
     );
-    assert_eq!(packet.migration_flow.operation_kind, expected.operation_kind);
+    assert_eq!(
+        packet.migration_flow.operation_kind,
+        expected.operation_kind
+    );
     assert_eq!(packet.migration_flow.flow_state, expected.flow_state);
     assert_eq!(
         packet.diff_review.diff_review_state,
@@ -181,14 +188,20 @@ fn assert_expected(packet: &MigrationRollbackDiffReviewPacket, expected: &Expect
 #[test]
 fn migration_rollback_diff_review_fixtures_project_and_round_trip() {
     let paths = load_fixture_paths();
-    assert!(!paths.is_empty(), "migration rollback diff-review fixtures must exist");
+    assert!(
+        !paths.is_empty(),
+        "migration rollback diff-review fixtures must exist"
+    );
 
     for path in paths {
         let text =
             std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
         let fixture: MigrationRollbackDiffReviewFixture =
             serde_json::from_str(&text).unwrap_or_else(|err| panic!("fixture {path:?}: {err}"));
-        assert_eq!(fixture.record_kind, "review_migration_rollback_diff_review_case");
+        assert_eq!(
+            fixture.record_kind,
+            "review_migration_rollback_diff_review_case"
+        );
         assert_eq!(fixture.schema_version, 1);
 
         let packet = packet_for_fixture(&fixture);
@@ -205,8 +218,14 @@ fn migration_rollback_diff_review_fixtures_project_and_round_trip() {
         assert_eq!(projection.packet_id, packet.packet_id);
         assert_eq!(projection.operation_kind, fixture.expected.operation_kind);
         assert_eq!(projection.flow_state, fixture.expected.flow_state);
-        assert_eq!(projection.diff_review_state, fixture.expected.diff_review_state);
-        assert_eq!(projection.checkpoint_state, fixture.expected.checkpoint_state);
+        assert_eq!(
+            projection.diff_review_state,
+            fixture.expected.diff_review_state
+        );
+        assert_eq!(
+            projection.checkpoint_state,
+            fixture.expected.checkpoint_state
+        );
         assert_eq!(projection.command_count, fixture.expected.command_count);
         assert!(projection
             .consumer_surfaces
@@ -269,7 +288,10 @@ fn support_export_restart_snapshot_mirrors_flow_truth() {
         snapshot.checkpoint_state,
         packet.rollback_checkpoint.checkpoint_state
     );
-    assert_eq!(snapshot.operation_kind, packet.migration_flow.operation_kind);
+    assert_eq!(
+        snapshot.operation_kind,
+        packet.migration_flow.operation_kind
+    );
     assert_eq!(
         snapshot.restart_session_ref,
         packet.migration_flow.restart_session_ref
@@ -286,7 +308,10 @@ fn diff_rejected_blocks_apply() {
         .expect("rejected diff should still project");
     assert!(packet.inspection.diff_rejected);
     assert!(!packet.inspection.actionable);
-    assert!(packet.migration_flow.blocked_reasons.contains(&"diff_not_approved".to_string()));
+    assert!(packet
+        .migration_flow
+        .blocked_reasons
+        .contains(&"diff_not_approved".to_string()));
 }
 
 #[test]

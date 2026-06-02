@@ -68,8 +68,9 @@ pub use model::{
     AttentionClaimCeiling, AttentionLockInput, AttentionLockRecord, AttentionRecoveryAction,
     AttentionRouteSurface, BadgeDisclosure, BuildError, DurableJobRow, EntryRouteRecord,
     ExactTargetReopen, Interruptibility, LayoutMode, LayoutModeDisclosure, LifecycleMarker,
-    LifecycleSemantics, PrivacySafeAlert, QuietHoursPolicy, RecoveryActionRole, RecoveryRouteRecord,
-    RoutingDisclosure, StableClaimClass, StableNarrowingReason, StableQualification, SurfaceParity,
-    UpstreamRefs, ATTENTION_LOCK_NOTICE, ATTENTION_LOCK_RECORD_KIND, ATTENTION_LOCK_SCHEMA_VERSION,
-    ATTENTION_LOCK_SHARED_CONTRACT_REF, REQUIRED_LIFECYCLE_VERBS,
+    LifecycleSemantics, PrivacySafeAlert, QuietHoursPolicy, RecoveryActionRole,
+    RecoveryRouteRecord, RoutingDisclosure, StableClaimClass, StableNarrowingReason,
+    StableQualification, SurfaceParity, UpstreamRefs, ATTENTION_LOCK_NOTICE,
+    ATTENTION_LOCK_RECORD_KIND, ATTENTION_LOCK_SCHEMA_VERSION, ATTENTION_LOCK_SHARED_CONTRACT_REF,
+    REQUIRED_LIFECYCLE_VERBS,
 };

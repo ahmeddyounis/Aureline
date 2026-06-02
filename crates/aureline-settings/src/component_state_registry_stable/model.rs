@@ -70,7 +70,8 @@ use serde::{Deserialize, Serialize};
 pub use aureline_design_system::{CanonicalStateClass, LaunchSurfaceClass};
 
 /// Stable record-kind tag carried in serialized certification records.
-pub const COMPONENT_STATE_REGISTRY_RECORD_KIND: &str = "component_state_registry_certification_record";
+pub const COMPONENT_STATE_REGISTRY_RECORD_KIND: &str =
+    "component_state_registry_certification_record";
 
 /// Schema version for the [`ComponentStateRegistryCertification`] payload shape.
 pub const COMPONENT_STATE_REGISTRY_SCHEMA_VERSION: u32 = 1;
@@ -1473,7 +1474,10 @@ impl ComponentStateRegistryCertification {
         for narrative in &input.narrative_refs {
             require_canonical_ref("narrative_refs", narrative)?;
         }
-        require_canonical_ref("registry_binding.value_ref", &input.registry_binding.value_ref)?;
+        require_canonical_ref(
+            "registry_binding.value_ref",
+            &input.registry_binding.value_ref,
+        )?;
         require_present_ref(
             "registry_binding.taxonomy_ref",
             &input.registry_binding.taxonomy_ref,
@@ -1542,8 +1546,9 @@ impl ComponentStateRegistryCertification {
                 return Err(BuildError::StateVocabularyNotCovered { state: required });
             }
         }
-        let families_substantively_conform =
-            component_families.iter().all(|row| row.substantively_conforms());
+        let families_substantively_conform = component_families
+            .iter()
+            .all(|row| row.substantively_conforms());
         let registry_covers_all_families = families_substantively_conform;
 
         // --- normalized states -----------------------------------------------
@@ -2244,8 +2249,7 @@ mod tests {
     fn overclaiming_shell_zoning_is_rejected() {
         let mut input = nominal_input();
         input.shell_zones[0].metrics_token_driven = false;
-        input.shell_zones[0].waiver_ref =
-            Some("aureline://waiver/csr-test-hardcoded".to_owned());
+        input.shell_zones[0].waiver_ref = Some("aureline://waiver/csr-test-hardcoded".to_owned());
         // The claim ceiling still asserts token-driven zoning it can no longer
         // prove, so the build must refuse the over-claim.
         assert!(matches!(
@@ -2258,8 +2262,7 @@ mod tests {
     fn hardcoded_zone_with_waiver_and_lowered_ceiling_narrows() {
         let mut input = nominal_input();
         input.shell_zones[0].metrics_token_driven = false;
-        input.shell_zones[0].waiver_ref =
-            Some("aureline://waiver/csr-test-hardcoded".to_owned());
+        input.shell_zones[0].waiver_ref = Some("aureline://waiver/csr-test-hardcoded".to_owned());
         input.claim_ceiling.asserts_shell_zoning_token_driven = false;
         let record = ComponentStateRegistryCertification::build(input)
             .expect("narrowed-but-honest posture builds");

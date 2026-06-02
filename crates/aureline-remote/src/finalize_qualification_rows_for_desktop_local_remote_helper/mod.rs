@@ -66,16 +66,13 @@ mod tests;
 pub const QUALIFICATION_MATRIX_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every record in this module.
-pub const QUALIFICATION_MATRIX_SHARED_CONTRACT_REF: &str =
-    "remote:qualification_matrix:desktop:v1";
+pub const QUALIFICATION_MATRIX_SHARED_CONTRACT_REF: &str = "remote:qualification_matrix:desktop:v1";
 
 /// Record-kind tag for [`QualificationMatrixPage`] payloads.
-pub const QUALIFICATION_MATRIX_PAGE_RECORD_KIND: &str =
-    "remote_qualification_matrix_page_record";
+pub const QUALIFICATION_MATRIX_PAGE_RECORD_KIND: &str = "remote_qualification_matrix_page_record";
 
 /// Record-kind tag for [`QualificationMatrixRow`] payloads.
-pub const QUALIFICATION_MATRIX_ROW_RECORD_KIND: &str =
-    "remote_qualification_matrix_row_record";
+pub const QUALIFICATION_MATRIX_ROW_RECORD_KIND: &str = "remote_qualification_matrix_row_record";
 
 /// Record-kind tag for [`QualificationMatrixDefect`] payloads.
 pub const QUALIFICATION_MATRIX_DEFECT_RECORD_KIND: &str =
@@ -726,13 +723,12 @@ impl QualificationMatrixSummary {
         } else {
             QualificationTierClass::Stable
         };
-        let rows_covered: Vec<String> = snapshot
-            .records
+        let rows_covered: Vec<String> =
+            snapshot.records.iter().map(|r| r.row_key.clone()).collect();
+        let local_core_continuity_declared_count = rows
             .iter()
-            .map(|r| r.row_key.clone())
-            .collect();
-        let local_core_continuity_declared_count =
-            rows.iter().filter(|r| r.local_core_continuity_declared).count();
+            .filter(|r| r.local_core_continuity_declared)
+            .count();
         let no_account_compatibility_declared_count = rows
             .iter()
             .filter(|r| r.no_account_compatibility_declared)
@@ -960,7 +956,9 @@ impl QualificationMatrixSupportExport {
             if !reasons.contains(&defect.narrow_reason) {
                 reasons.push(defect.narrow_reason);
             }
-            *counts.entry(defect.narrow_reason_token.clone()).or_insert(0) += 1;
+            *counts
+                .entry(defect.narrow_reason_token.clone())
+                .or_insert(0) += 1;
         }
         reasons.sort();
         Self {
@@ -1142,8 +1140,7 @@ fn derive_matrix_rows(
         .records
         .iter()
         .map(|record| {
-            let row_narrow =
-                find_row_narrow_reason(record, page_defects, overall_narrow_reason);
+            let row_narrow = find_row_narrow_reason(record, page_defects, overall_narrow_reason);
             let row_qual = if row_narrow.is_withdrawal_reason() {
                 QualificationTierClass::Withdrawn
             } else if row_narrow.is_preview_reason() {
@@ -1180,10 +1177,7 @@ fn find_row_narrow_reason(
     page_defects: &[QualificationMatrixDefect],
     overall_narrow_reason: NarrowReasonClass,
 ) -> NarrowReasonClass {
-    if let Some(defect) = page_defects
-        .iter()
-        .find(|d| d.source == record.row_key)
-    {
+    if let Some(defect) = page_defects.iter().find(|d| d.source == record.row_key) {
         return defect.narrow_reason;
     }
     overall_narrow_reason
@@ -1241,7 +1235,6 @@ pub fn seeded_qualification_snapshot() -> QualificationSnapshot {
             // ---------------------------------------------------------------
             // desktop_local surface
             // ---------------------------------------------------------------
-
             QualificationRecord::new_surface(
                 MatrixSurfaceClass::DesktopLocal,
                 DeploymentProfileClass::LocalOss,
@@ -1296,11 +1289,9 @@ pub fn seeded_qualification_snapshot() -> QualificationSnapshot {
                 "Desktop local (air-gapped): all editing features work fully offline; \
                  no internet egress is required; local-core continuity is unconditional.",
             ),
-
             // ---------------------------------------------------------------
             // remote_helper surface
             // ---------------------------------------------------------------
-
             QualificationRecord::new_surface(
                 MatrixSurfaceClass::RemoteHelper,
                 DeploymentProfileClass::LocalOss,
@@ -1357,11 +1348,9 @@ pub fn seeded_qualification_snapshot() -> QualificationSnapshot {
                  declared signed-mirror targets; local editing continues fully; \
                  remote connections outside the declared mirror set are blocked.",
             ),
-
             // ---------------------------------------------------------------
             // provider_linked surface
             // ---------------------------------------------------------------
-
             QualificationRecord::new_surface(
                 MatrixSurfaceClass::ProviderLinked,
                 DeploymentProfileClass::LocalOss,
@@ -1418,11 +1407,9 @@ pub fn seeded_qualification_snapshot() -> QualificationSnapshot {
                  declared signed-mirror endpoints; local repo and workspace continue \
                  fully; provider connections outside the declared mirror set are blocked.",
             ),
-
             // ---------------------------------------------------------------
             // state_schema surface
             // ---------------------------------------------------------------
-
             QualificationRecord::new_surface(
                 MatrixSurfaceClass::StateSchema,
                 DeploymentProfileClass::LocalOss,
@@ -1479,11 +1466,9 @@ pub fn seeded_qualification_snapshot() -> QualificationSnapshot {
                  schema migrations are applied from local or mirror-sourced bundles \
                  only; no internet egress is required.",
             ),
-
             // ---------------------------------------------------------------
             // accessibility features
             // ---------------------------------------------------------------
-
             QualificationRecord::new_accessibility(
                 AccessibilityFeatureClass::Keyboard,
                 "policy:accessibility:keyboard:v1",
