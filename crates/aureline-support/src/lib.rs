@@ -192,6 +192,7 @@ pub mod runtime_evidence;
 pub mod runtime_health_alpha;
 pub mod safe_mode;
 pub mod scenario_scorecard;
+pub mod stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded;
 pub mod storage_inspector;
 
 pub use export_review::{
