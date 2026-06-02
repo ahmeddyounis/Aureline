@@ -190,11 +190,14 @@ pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod go_no_go_rehearsal;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
+pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
+pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
+pub mod stabilize_hot_path_performance_against_published_budgets_for;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
@@ -202,8 +205,6 @@ pub mod stable_proof_index;
 pub mod stable_publication_pack;
 pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
-pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
-pub mod stabilize_hot_path_performance_against_published_budgets_for;
 pub mod support_class_ledger;
 
 pub use correction_train::{
@@ -253,12 +254,24 @@ pub use harden_certified_reference_workspaces_archetype_pass_matrices_and_downgr
     current_certified_reference_workspaces, ArchetypePassMatrixExportRow, ArchetypePassMatrixRow,
     CertifiedReferenceWorkspaces, CertifiedReferenceWorkspacesExportProjection,
     CertifiedReferenceWorkspacesSummary, CertifiedReferenceWorkspacesViolation,
-    DowngradeReason as ReferenceWorkspaceDowngradeReason, DowngradeRule as ReferenceWorkspaceDowngradeRule,
-    MatrixAction, MatrixRowState, PublicationDecision as ReferenceWorkspacePublicationDecision,
-    PublicationDecisionRecord as ReferenceWorkspacePublicationDecisionRecord, ReferenceWorkspaceExportRow,
-    ReferenceWorkspaceReport, ReportState, ValidityWindow,
+    DowngradeReason as ReferenceWorkspaceDowngradeReason,
+    DowngradeRule as ReferenceWorkspaceDowngradeRule, MatrixAction, MatrixRowState,
+    PublicationDecision as ReferenceWorkspacePublicationDecision,
+    PublicationDecisionRecord as ReferenceWorkspacePublicationDecisionRecord,
+    ReferenceWorkspaceExportRow, ReferenceWorkspaceReport, ReportState, ValidityWindow,
     CERTIFIED_REFERENCE_WORKSPACES_JSON, CERTIFIED_REFERENCE_WORKSPACES_PATH,
     CERTIFIED_REFERENCE_WORKSPACES_RECORD_KIND, CERTIFIED_REFERENCE_WORKSPACES_SCHEMA_VERSION,
+};
+
+pub use harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity::{
+    current_harden_release_artifact_graph, ArtifactFamilyAction, ArtifactFamilyExportRow,
+    ArtifactFamilyGapReason, ArtifactFamilyKind, ArtifactFamilyRow, ArtifactFamilyRule,
+    ArtifactFamilyState, HardenReleaseArtifactGraph, HardenReleaseArtifactGraphExportProjection,
+    HardenReleaseArtifactGraphSummary, HardenReleaseArtifactGraphViolation,
+    PublicationDecision as ArtifactGraphPublicationDecision,
+    PublicationDecisionRecord as ArtifactGraphPublicationDecisionRecord,
+    HARDEN_RELEASE_ARTIFACT_GRAPH_JSON, HARDEN_RELEASE_ARTIFACT_GRAPH_PATH,
+    HARDEN_RELEASE_ARTIFACT_GRAPH_RECORD_KIND, HARDEN_RELEASE_ARTIFACT_GRAPH_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{
@@ -399,11 +412,10 @@ pub use stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_
 };
 
 pub use stabilize_hot_path_performance_against_published_budgets_for::{
-    current_hot_path_performance_budgets, BudgetAction, BudgetState,
-    GapReason as HotPathGapReason, HotPathBudget, HotPathBudgetRow, HotPathBudgetRule,
-    HotPathExportProjection, HotPathExportRow, HotPathKind, HotPathPerformanceBudgets,
-    HotPathPerformanceBudgetsSummary, HotPathPerformanceBudgetsViolation,
-    PromotionRecord, HOT_PATH_PERFORMANCE_BUDGETS_JSON,
+    current_hot_path_performance_budgets, BudgetAction, BudgetState, GapReason as HotPathGapReason,
+    HotPathBudget, HotPathBudgetRow, HotPathBudgetRule, HotPathExportProjection, HotPathExportRow,
+    HotPathKind, HotPathPerformanceBudgets, HotPathPerformanceBudgetsSummary,
+    HotPathPerformanceBudgetsViolation, PromotionRecord, HOT_PATH_PERFORMANCE_BUDGETS_JSON,
     HOT_PATH_PERFORMANCE_BUDGETS_PATH, HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND,
     HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION,
 };

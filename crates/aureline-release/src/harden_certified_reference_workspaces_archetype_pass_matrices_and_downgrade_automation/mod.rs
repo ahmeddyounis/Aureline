@@ -693,19 +693,20 @@ impl CertifiedReferenceWorkspaces {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<CertifiedReferenceWorkspacesViolation>) {
         if self.schema_version != CERTIFIED_REFERENCE_WORKSPACES_SCHEMA_VERSION {
-            violations.push(CertifiedReferenceWorkspacesViolation::UnsupportedSchemaVersion {
-                actual: self.schema_version,
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::UnsupportedSchemaVersion {
+                    actual: self.schema_version,
+                },
+            );
         }
         if self.record_kind != CERTIFIED_REFERENCE_WORKSPACES_RECORD_KIND {
-            violations.push(CertifiedReferenceWorkspacesViolation::UnsupportedRecordKind {
-                actual: self.record_kind.clone(),
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::UnsupportedRecordKind {
+                    actual: self.record_kind.clone(),
+                },
+            );
         }
         for (field, value) in [
             ("artifact_id", &self.artifact_id),
@@ -723,31 +724,36 @@ impl CertifiedReferenceWorkspaces {
             }
         }
         if self.report_states != ReportState::ALL.to_vec() {
-            violations.push(CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
-                field: "report_states",
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
+                    field: "report_states",
+                },
+            );
         }
         if self.matrix_row_states != MatrixRowState::ALL.to_vec() {
-            violations.push(CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
-                field: "matrix_row_states",
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
+                    field: "matrix_row_states",
+                },
+            );
         }
         if self.downgrade_reasons != DowngradeReason::ALL.to_vec() {
-            violations.push(CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
-                field: "downgrade_reasons",
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
+                    field: "downgrade_reasons",
+                },
+            );
         }
         if self.matrix_actions != MatrixAction::ALL.to_vec() {
-            violations.push(CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
-                field: "matrix_actions",
-            });
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::ClosedVocabularyMismatch {
+                    field: "matrix_actions",
+                },
+            );
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<CertifiedReferenceWorkspacesViolation>) {
         if self.downgrade_rules.is_empty() {
             violations.push(CertifiedReferenceWorkspacesViolation::NoDowngradeRules);
         }
@@ -801,7 +807,10 @@ impl CertifiedReferenceWorkspaces {
                 "certification_harness_output_ref",
                 &report.certification_harness_output_ref,
             ),
-            ("matrix_diff_from_prior_ref", &report.matrix_diff_from_prior_ref),
+            (
+                "matrix_diff_from_prior_ref",
+                &report.matrix_diff_from_prior_ref,
+            ),
             ("owner_ref", &report.owner_ref),
             ("known_caveat_summary", &report.known_caveat_summary),
             ("rationale", &report.rationale),
@@ -854,10 +863,12 @@ impl CertifiedReferenceWorkspaces {
                 );
             }
             if report.active_downgrade_reasons.is_empty() {
-                violations.push(CertifiedReferenceWorkspacesViolation::ReportNarrowingWithoutReason {
-                    report_id: report.report_id.clone(),
-                    state: report.report_state,
-                });
+                violations.push(
+                    CertifiedReferenceWorkspacesViolation::ReportNarrowingWithoutReason {
+                        report_id: report.report_id.clone(),
+                        state: report.report_state,
+                    },
+                );
             }
         }
 
@@ -869,17 +880,16 @@ impl CertifiedReferenceWorkspaces {
         report: &ReferenceWorkspaceReport,
         violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
-             expected: DowngradeReason| {
-                violations.push(
-                    CertifiedReferenceWorkspacesViolation::ReportStateReasonIncoherent {
-                        report_id: report.report_id.clone(),
-                        state: report.report_state,
-                        expected_reason: expected,
-                    },
-                );
-            };
+        let push_incoherent = |violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
+                               expected: DowngradeReason| {
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::ReportStateReasonIncoherent {
+                    report_id: report.report_id.clone(),
+                    state: report.report_state,
+                    expected_reason: expected,
+                },
+            );
+        };
 
         match report.report_state {
             ReportState::Expired => {
@@ -940,10 +950,12 @@ impl CertifiedReferenceWorkspaces {
                 );
             }
             if row.active_downgrade_reasons.is_empty() {
-                violations.push(CertifiedReferenceWorkspacesViolation::NarrowingWithoutReason {
-                    row_id: row.row_id.clone(),
-                    state: row.matrix_state,
-                });
+                violations.push(
+                    CertifiedReferenceWorkspacesViolation::NarrowingWithoutReason {
+                        row_id: row.row_id.clone(),
+                        state: row.matrix_state,
+                    },
+                );
             }
         }
 
@@ -990,15 +1002,16 @@ impl CertifiedReferenceWorkspaces {
         row: &ArchetypePassMatrixRow,
         violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
-             expected: DowngradeReason| {
-                violations.push(CertifiedReferenceWorkspacesViolation::StateReasonIncoherent {
+        let push_incoherent = |violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
+                               expected: DowngradeReason| {
+            violations.push(
+                CertifiedReferenceWorkspacesViolation::StateReasonIncoherent {
                     row_id: row.row_id.clone(),
                     state: row.matrix_state,
                     expected_reason: expected,
-                });
-            };
+                },
+            );
+        };
 
         match row.matrix_state {
             MatrixRowState::NarrowedUnqualified => {
@@ -1051,10 +1064,7 @@ impl CertifiedReferenceWorkspaces {
         }
     }
 
-    fn validate_publication(
-        &self,
-        violations: &mut Vec<CertifiedReferenceWorkspacesViolation>,
-    ) {
+    fn validate_publication(&self, violations: &mut Vec<CertifiedReferenceWorkspacesViolation>) {
         if self.publication.publication_gate.trim().is_empty() {
             violations.push(CertifiedReferenceWorkspacesViolation::EmptyField {
                 id: "<publication>".to_owned(),
@@ -1457,7 +1467,8 @@ impl Error for CertifiedReferenceWorkspacesViolation {}
 /// [`CertifiedReferenceWorkspaces`] — including when a row carries a report
 /// state, matrix row state, downgrade reason, or action outside the closed
 /// vocabularies.
-pub fn current_certified_reference_workspaces() -> Result<CertifiedReferenceWorkspaces, serde_json::Error> {
+pub fn current_certified_reference_workspaces(
+) -> Result<CertifiedReferenceWorkspaces, serde_json::Error> {
     serde_json::from_str(CERTIFIED_REFERENCE_WORKSPACES_JSON)
 }
 
@@ -1551,11 +1562,9 @@ mod tests {
             .push(DowngradeReason::ReferenceWorkspaceReportStale);
         let row_id = row.row_id.clone();
         artifact.summary = artifact.computed_summary();
-        assert!(artifact
-            .validate()
-            .contains(&CertifiedReferenceWorkspacesViolation::HeldRowWithActiveDowngrade {
-                row_id
-            }));
+        assert!(artifact.validate().contains(
+            &CertifiedReferenceWorkspacesViolation::HeldRowWithActiveDowngrade { row_id }
+        ));
     }
 
     #[test]
@@ -1603,7 +1612,11 @@ mod tests {
             projection.publication_decision,
             artifact.publication.decision
         );
-        for (row, projected) in artifact.archetype_pass_matrix_rows.iter().zip(&projection.matrix_rows) {
+        for (row, projected) in artifact
+            .archetype_pass_matrix_rows
+            .iter()
+            .zip(&projection.matrix_rows)
+        {
             assert_eq!(row.row_id, projected.row_id);
             assert_eq!(row.holds_certified(), projected.holds_certified);
             assert_eq!(row.effective_certified, projected.effective_certified);

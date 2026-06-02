@@ -701,13 +701,19 @@ impl BenchmarkLabGovernance {
             self_capture_parity_entries: kind(GovernanceAssetKind::SelfCaptureParityCheck),
             microbenchmark_corpus_entries: kind(GovernanceAssetKind::MicrobenchmarkCorpus),
             workflow_archetype_corpus_entries: kind(GovernanceAssetKind::WorkflowArchetypeCorpus),
-            remote_collaboration_corpus_entries: kind(GovernanceAssetKind::RemoteCollaborationCorpus),
+            remote_collaboration_corpus_entries: kind(
+                GovernanceAssetKind::RemoteCollaborationCorpus,
+            ),
             accessibility_corpus_entries: kind(GovernanceAssetKind::AccessibilityCorpus),
             protected_metrics_file_entries: kind(GovernanceAssetKind::ProtectedMetricsFile),
-            reference_hardware_manifest_entries: kind(GovernanceAssetKind::ReferenceHardwareManifest),
+            reference_hardware_manifest_entries: kind(
+                GovernanceAssetKind::ReferenceHardwareManifest,
+            ),
             lab_image_manifest_entries: kind(GovernanceAssetKind::LabImageManifest),
             protected_path_ledger_entries: kind(GovernanceAssetKind::ProtectedPathLedger),
-            public_benchmark_publication_pack_entries: kind(GovernanceAssetKind::PublicBenchmarkPublicationPack),
+            public_benchmark_publication_pack_entries: kind(
+                GovernanceAssetKind::PublicBenchmarkPublicationPack,
+            ),
             packets_current: packets(FreshnessSloState::Current),
             packets_due_for_refresh: packets(FreshnessSloState::DueForRefresh),
             packets_breached: packets(FreshnessSloState::Breached),
@@ -799,7 +805,10 @@ impl BenchmarkLabGovernance {
             ("as_of", &self.as_of),
             ("claim_manifest_ref", &self.claim_manifest_ref),
             ("corpus_governance_ref", &self.corpus_governance_ref),
-            ("benchmark_pack_template_ref", &self.benchmark_pack_template_ref),
+            (
+                "benchmark_pack_template_ref",
+                &self.benchmark_pack_template_ref,
+            ),
         ] {
             if value.trim().is_empty() {
                 violations.push(BenchmarkLabGovernanceViolation::EmptyField {
@@ -1114,22 +1123,23 @@ impl BenchmarkLabGovernance {
         // Every declared release-blocking surface ref must have at least one row.
         for surface_ref in &self.release_blocking_surface_refs {
             if !self.rows.iter().any(|row| &row.surface_ref == surface_ref) {
-                violations.push(BenchmarkLabGovernanceViolation::ReleaseBlockingSurfaceUncovered {
-                    surface_ref: surface_ref.clone(),
-                });
+                violations.push(
+                    BenchmarkLabGovernanceViolation::ReleaseBlockingSurfaceUncovered {
+                        surface_ref: surface_ref.clone(),
+                    },
+                );
             }
         }
     }
 
-    fn validate_qualification(
-        &self,
-        violations: &mut Vec<BenchmarkLabGovernanceViolation>,
-    ) {
+    fn validate_qualification(&self, violations: &mut Vec<BenchmarkLabGovernanceViolation>) {
         if self.qualification.decision != self.computed_qualification_decision() {
-            violations.push(BenchmarkLabGovernanceViolation::QualificationDecisionInconsistent {
-                recorded: self.qualification.decision,
-                computed: self.computed_qualification_decision(),
-            });
+            violations.push(
+                BenchmarkLabGovernanceViolation::QualificationDecisionInconsistent {
+                    recorded: self.qualification.decision,
+                    computed: self.computed_qualification_decision(),
+                },
+            );
         }
         let computed_blocking_ids = self.computed_blocking_rule_ids();
         if self.qualification.blocking_rule_ids != computed_blocking_ids {
@@ -1156,37 +1166,64 @@ pub fn current_benchmark_lab_governance() -> Result<BenchmarkLabGovernance, serd
 /// Every violation the register validation can report.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BenchmarkLabGovernanceViolation {
-    UnsupportedSchemaVersion { actual: u32 },
-    UnsupportedRecordKind { actual: String },
-    EmptyField { entry_id: String, field_name: &'static str },
-    ClosedVocabularyMismatch { field: &'static str },
-    DuplicateEntryId { entry_id: String },
-    DuplicateRuleId { rule_id: String },
-    RuleWithoutLabels { rule_id: String },
-    GapReasonWithoutRule { reason: GapReason },
+    UnsupportedSchemaVersion {
+        actual: u32,
+    },
+    UnsupportedRecordKind {
+        actual: String,
+    },
+    EmptyField {
+        entry_id: String,
+        field_name: &'static str,
+    },
+    ClosedVocabularyMismatch {
+        field: &'static str,
+    },
+    DuplicateEntryId {
+        entry_id: String,
+    },
+    DuplicateRuleId {
+        rule_id: String,
+    },
+    RuleWithoutLabels {
+        rule_id: String,
+    },
+    GapReasonWithoutRule {
+        reason: GapReason,
+    },
     PublishedWiderThanClaim {
         entry_id: String,
         claim: StableClaimLevel,
         published: StableClaimLevel,
     },
-    FreshnessSloInconsistent { entry_id: String },
+    FreshnessSloInconsistent {
+        entry_id: String,
+    },
     HeldOnNarrowedClaim {
         entry_id: String,
         claim: StableClaimLevel,
     },
-    ClaimNarrowedWithoutReason { entry_id: String },
+    ClaimNarrowedWithoutReason {
+        entry_id: String,
+    },
     HeldLabelNotEqualClaim {
         entry_id: String,
         claim: StableClaimLevel,
         published: StableClaimLevel,
     },
-    HeldWithActiveReason { entry_id: String },
-    HeldWithoutFreshPacket { entry_id: String },
+    HeldWithActiveReason {
+        entry_id: String,
+    },
+    HeldWithoutFreshPacket {
+        entry_id: String,
+    },
     HeldOnStalePacket {
         entry_id: String,
         slo_state: FreshnessSloState,
     },
-    HeldWithoutSignoff { entry_id: String },
+    HeldWithoutSignoff {
+        entry_id: String,
+    },
     PublishedLabelNotNarrowed {
         entry_id: String,
         state: AssetState,
@@ -1196,16 +1233,26 @@ pub enum BenchmarkLabGovernanceViolation {
         entry_id: String,
         state: AssetState,
     },
-    BreachedPacketWithoutReason { entry_id: String },
-    MissingPacketWithoutReason { entry_id: String },
-    OnWaiverWithoutWaiver { entry_id: String },
+    BreachedPacketWithoutReason {
+        entry_id: String,
+    },
+    MissingPacketWithoutReason {
+        entry_id: String,
+    },
+    OnWaiverWithoutWaiver {
+        entry_id: String,
+    },
     StateReasonMismatch {
         entry_id: String,
         state: AssetState,
         expected_reason: &'static str,
     },
-    AssetKindUncovered { kind: GovernanceAssetKind },
-    ReleaseBlockingSurfaceUncovered { surface_ref: String },
+    AssetKindUncovered {
+        kind: GovernanceAssetKind,
+    },
+    ReleaseBlockingSurfaceUncovered {
+        surface_ref: String,
+    },
     QualificationDecisionInconsistent {
         recorded: PromotionDecision,
         computed: PromotionDecision,
@@ -1273,7 +1320,10 @@ impl fmt::Display for BenchmarkLabGovernanceViolation {
                 )
             }
             Self::ClaimNarrowedWithoutReason { entry_id } => {
-                write!(f, "row {entry_id} has a narrowed claim but no claim_label_narrowed reason")
+                write!(
+                    f,
+                    "row {entry_id} has a narrowed claim but no claim_label_narrowed reason"
+                )
             }
             Self::HeldLabelNotEqualClaim {
                 entry_id,
@@ -1286,12 +1336,21 @@ impl fmt::Display for BenchmarkLabGovernanceViolation {
                 )
             }
             Self::HeldWithActiveReason { entry_id } => {
-                write!(f, "row {entry_id} holds its label but has active gap reasons")
+                write!(
+                    f,
+                    "row {entry_id} holds its label but has active gap reasons"
+                )
             }
             Self::HeldWithoutFreshPacket { entry_id } => {
-                write!(f, "row {entry_id} holds its label but its packet is not fresh")
+                write!(
+                    f,
+                    "row {entry_id} holds its label but its packet is not fresh"
+                )
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds its label but its packet SLO state is {slo_state:?}"

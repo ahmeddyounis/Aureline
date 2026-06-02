@@ -601,7 +601,6 @@ pub struct AccessibilitySurfaceSignoffs {
     pub summary: AccessibilitySurfaceSignoffsSummary,
 }
 
-
 impl AccessibilitySurfaceSignoffs {
     /// Returns the row registered for `entry_id`.
     pub fn row(&self, entry_id: &str) -> Option<&AccessibilitySurfaceSignoffRow> {
@@ -832,10 +831,7 @@ impl AccessibilitySurfaceSignoffs {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>) {
         if self.schema_version != ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION {
             violations.push(
                 AccessibilitySurfaceSignoffsViolation::UnsupportedSchemaVersion {
@@ -865,34 +861,46 @@ impl AccessibilitySurfaceSignoffs {
             }
         }
         if self.lifecycle_labels != StableClaimLevel::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "lifecycle_labels",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "lifecycle_labels",
+                },
+            );
         }
         if self.surface_kinds != SurfaceKind::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "surface_kinds",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "surface_kinds",
+                },
+            );
         }
         if self.dimension_kinds != DimensionKind::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "dimension_kinds",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "dimension_kinds",
+                },
+            );
         }
         if self.signoff_states != SignoffState::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "signoff_states",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "signoff_states",
+                },
+            );
         }
         if self.gap_reasons != GapReason::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "gap_reasons",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "gap_reasons",
+                },
+            );
         }
         if self.signoff_actions != SignoffAction::ALL.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "signoff_actions",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "signoff_actions",
+                },
+            );
         }
         if self.release_blocking_surface_refs.is_empty() {
             violations.push(AccessibilitySurfaceSignoffsViolation::EmptyField {
@@ -903,19 +911,25 @@ impl AccessibilitySurfaceSignoffs {
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.cutline_level",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.cutline_level",
+                },
+            );
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.above_cutline_levels",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.above_cutline_levels",
+                },
+            );
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.below_cutline_levels",
-            });
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.below_cutline_levels",
+                },
+            );
         }
         if cutline.description.trim().is_empty() {
             violations.push(AccessibilitySurfaceSignoffsViolation::EmptyField {
@@ -925,10 +939,7 @@ impl AccessibilitySurfaceSignoffs {
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>) {
         if self.rules.is_empty() {
             violations.push(AccessibilitySurfaceSignoffsViolation::NoRules);
         }
@@ -962,9 +973,8 @@ impl AccessibilitySurfaceSignoffs {
 
         for reason in GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(AccessibilitySurfaceSignoffsViolation::GapReasonWithoutRule {
-                    reason,
-                });
+                violations
+                    .push(AccessibilitySurfaceSignoffsViolation::GapReasonWithoutRule { reason });
             }
         }
     }
@@ -1032,22 +1042,18 @@ impl AccessibilitySurfaceSignoffs {
         let mut seen_dims: BTreeSet<DimensionKind> = BTreeSet::new();
         for check in &row.dimension_checks {
             if !seen_dims.insert(check.dimension) {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::DuplicateDimension {
-                        entry_id: row.entry_id.clone(),
-                        dimension: check.dimension,
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::DuplicateDimension {
+                    entry_id: row.entry_id.clone(),
+                    dimension: check.dimension,
+                });
             }
         }
         for dim in DimensionKind::ALL {
             if !seen_dims.contains(&dim) {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::DimensionMissing {
-                        entry_id: row.entry_id.clone(),
-                        dimension: dim,
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::DimensionMissing {
+                    entry_id: row.entry_id.clone(),
+                    dimension: dim,
+                });
             }
         }
 
@@ -1057,12 +1063,10 @@ impl AccessibilitySurfaceSignoffs {
         // to inherit that ceiling and narrow.
         if !row.claim_holds_stable() {
             if row.holds_label() {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::HeldOnNarrowedClaim {
-                        entry_id: row.entry_id.clone(),
-                        claim: row.claim_label,
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::HeldOnNarrowedClaim {
+                    entry_id: row.entry_id.clone(),
+                    claim: row.claim_label,
+                });
             }
             if !row.has_active_reason(GapReason::ClaimLabelNarrowed) {
                 violations.push(
@@ -1089,11 +1093,9 @@ impl AccessibilitySurfaceSignoffs {
                 );
             }
             if !row.active_gap_reasons.is_empty() {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::HeldWithActiveGap {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::HeldWithActiveGap {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !row.proof_packet.has_capture() {
                 violations.push(
@@ -1103,12 +1105,10 @@ impl AccessibilitySurfaceSignoffs {
                 );
             }
             if !slo_state.is_within_slo() {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::HeldOnStalePacket {
-                        entry_id: row.entry_id.clone(),
-                        slo_state,
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::HeldOnStalePacket {
+                    entry_id: row.entry_id.clone(),
+                    slo_state,
+                });
             }
             if row.has_blocked_or_pending_dimension() {
                 violations.push(
@@ -1118,11 +1118,9 @@ impl AccessibilitySurfaceSignoffs {
                 );
             }
             if !(row.owner_signoff.signed_off && row.owner_signoff.signed_at.is_some()) {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::HeldWithoutSignoff {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::HeldWithoutSignoff {
+                    entry_id: row.entry_id.clone(),
+                });
             }
         } else {
             // A narrowing state must drop the published label below the cutline and
@@ -1209,16 +1207,16 @@ impl AccessibilitySurfaceSignoffs {
         row: &AccessibilitySurfaceSignoffRow,
         violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>, expected: GapReason| {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::StateReasonIncoherent {
-                        entry_id: row.entry_id.clone(),
-                        state: row.signoff_state,
-                        expected_reason: expected,
-                    },
-                );
-            };
+        let push_incoherent = |violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
+                               expected: GapReason| {
+            violations.push(
+                AccessibilitySurfaceSignoffsViolation::StateReasonIncoherent {
+                    entry_id: row.entry_id.clone(),
+                    state: row.signoff_state,
+                    expected_reason: expected,
+                },
+            );
+        };
 
         match row.signoff_state {
             SignoffState::NotQualified => {
@@ -1267,19 +1265,14 @@ impl AccessibilitySurfaceSignoffs {
         }
     }
 
-    fn validate_coverage(
-        &self,
-        violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
-    ) {
+    fn validate_coverage(&self, violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>) {
         // Each surface ref appears at most once: a surface has one canonical row.
         let mut seen: BTreeSet<&str> = BTreeSet::new();
         for row in &self.rows {
             if !seen.insert(row.surface_ref.as_str()) {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::DuplicateSurfaceRef {
-                        surface_ref: row.surface_ref.clone(),
-                    },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::DuplicateSurfaceRef {
+                    surface_ref: row.surface_ref.clone(),
+                });
             }
         }
 
@@ -1319,17 +1312,12 @@ impl AccessibilitySurfaceSignoffs {
         // Every surface kind must have at least one row.
         for kind in SurfaceKind::ALL {
             if self.rows_for_kind(kind).is_empty() {
-                violations.push(
-                    AccessibilitySurfaceSignoffsViolation::SurfaceKindAbsent { kind },
-                );
+                violations.push(AccessibilitySurfaceSignoffsViolation::SurfaceKindAbsent { kind });
             }
         }
     }
 
-    fn validate_promotion(
-        &self,
-        violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>,
-    ) {
+    fn validate_promotion(&self, violations: &mut Vec<AccessibilitySurfaceSignoffsViolation>) {
         if self.promotion.promotion_gate.trim().is_empty() {
             violations.push(AccessibilitySurfaceSignoffsViolation::EmptyField {
                 entry_id: "<promotion>".to_owned(),
@@ -1681,12 +1669,18 @@ impl fmt::Display for AccessibilitySurfaceSignoffsViolation {
                 claim.as_str()
             ),
             Self::HeldWithActiveGap { entry_id } => {
-                write!(f, "row {entry_id} holds its label with an active gap reason")
+                write!(
+                    f,
+                    "row {entry_id} holds its label with an active gap reason"
+                )
             }
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "row {entry_id} holds its label without a fresh packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds its label on a {slo_state:?} packet"
@@ -1794,7 +1788,8 @@ impl Error for AccessibilitySurfaceSignoffsViolation {}
 ///
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`AccessibilitySurfaceSignoffs`].
-pub fn current_accessibility_surface_signoffs() -> Result<AccessibilitySurfaceSignoffs, serde_json::Error> {
+pub fn current_accessibility_surface_signoffs(
+) -> Result<AccessibilitySurfaceSignoffs, serde_json::Error> {
     serde_json::from_str(ACCESSIBILITY_SURFACE_SIGNOFFS_JSON)
 }
 
@@ -1810,7 +1805,10 @@ mod tests {
     #[test]
     fn embedded_register_parses_and_validates() {
         let reg = register();
-        assert_eq!(reg.schema_version, ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION);
+        assert_eq!(
+            reg.schema_version,
+            ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION
+        );
         assert_eq!(reg.record_kind, ACCESSIBILITY_SURFACE_SIGNOFFS_RECORD_KIND);
         assert_eq!(reg.validate(), Vec::new());
         assert!(!reg.rows.is_empty());
@@ -1888,11 +1886,8 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_rule() {
         let reg = register();
-        let covered: BTreeSet<GapReason> = reg
-            .rules
-            .iter()
-            .map(|rule| rule.trigger_reason)
-            .collect();
+        let covered: BTreeSet<GapReason> =
+            reg.rules.iter().map(|rule| rule.trigger_reason).collect();
         for reason in GapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1963,10 +1958,10 @@ mod tests {
             }
         }
         reg.summary = reg.computed_summary();
-        assert!(reg
-            .validate()
-            .iter()
-            .any(|v| matches!(v, AccessibilitySurfaceSignoffsViolation::HeldWithBlockedDimension { .. })));
+        assert!(reg.validate().iter().any(|v| matches!(
+            v,
+            AccessibilitySurfaceSignoffsViolation::HeldWithBlockedDimension { .. }
+        )));
     }
 
     #[test]
@@ -2029,10 +2024,7 @@ mod tests {
     #[test]
     fn register_shows_a_blocked_dimension() {
         let reg = register();
-        let blocked = reg
-            .rows
-            .iter()
-            .find(|row| !row.dimensions_support_stable());
+        let blocked = reg.rows.iter().find(|row| !row.dimensions_support_stable());
         assert!(
             blocked.is_some(),
             "the register must show at least one row with a blocked or pending dimension"
@@ -2047,11 +2039,15 @@ mod tests {
             .iter_mut()
             .find(|row| row.signoff_state == SignoffState::Qualified)
             .expect("a qualified row exists");
-        row.dimension_checks.retain(|c| c.dimension != DimensionKind::ReducedMotion);
+        row.dimension_checks
+            .retain(|c| c.dimension != DimensionKind::ReducedMotion);
         reg.summary = reg.computed_summary();
         assert!(reg.validate().iter().any(|v| matches!(
             v,
-            AccessibilitySurfaceSignoffsViolation::DimensionMissing { dimension: DimensionKind::ReducedMotion, .. }
+            AccessibilitySurfaceSignoffsViolation::DimensionMissing {
+                dimension: DimensionKind::ReducedMotion,
+                ..
+            }
         )));
     }
 }

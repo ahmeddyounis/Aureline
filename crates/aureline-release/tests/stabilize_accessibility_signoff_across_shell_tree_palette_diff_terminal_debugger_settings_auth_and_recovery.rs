@@ -38,7 +38,10 @@ fn repo_root() -> PathBuf {
 #[test]
 fn checked_in_register_parses_and_validates() {
     let reg = register();
-    assert_eq!(reg.schema_version, ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION);
+    assert_eq!(
+        reg.schema_version,
+        ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION
+    );
     assert_eq!(reg.record_kind, ACCESSIBILITY_SURFACE_SIGNOFFS_RECORD_KIND);
     let violations = reg.validate();
     assert!(
@@ -79,7 +82,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -92,7 +96,10 @@ fn model_matches_frozen_validation_capture() {
     );
     assert_eq!(
         summary["entries_qualified"].as_u64().unwrap() as usize,
-        reg.rows.iter().filter(|r| r.signoff_state == SignoffState::Qualified).count(),
+        reg.rows
+            .iter()
+            .filter(|r| r.signoff_state == SignoffState::Qualified)
+            .count(),
         "capture qualified count must match the model"
     );
     assert_eq!(
@@ -129,10 +136,7 @@ fn model_matches_frozen_validation_capture() {
         reg.promotion.decision.as_str(),
         "capture promotion decision must match the model"
     );
-    assert_eq!(
-        reg.promotion.decision,
-        reg.computed_promotion_decision()
-    );
+    assert_eq!(reg.promotion.decision, reg.computed_promotion_decision());
 
     for drill in capture["negative_drills"].as_array().unwrap() {
         assert_eq!(
@@ -188,7 +192,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = reg
         .rows
         .iter_mut()
-        .find(|row| row.signoff_state == SignoffState::EvidenceStale && row.claim_label == StableClaimLevel::Stable)
+        .find(|row| {
+            row.signoff_state == SignoffState::EvidenceStale
+                && row.claim_label == StableClaimLevel::Stable
+        })
         .expect("register has a stale row under a stable ceiling");
     row.published_label = StableClaimLevel::Stable;
     reg.summary = reg.computed_summary();
@@ -223,9 +230,10 @@ fn backed_row_with_blocked_dimension_fails() {
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate()
-            .iter()
-            .any(|v| matches!(v, AccessibilitySurfaceSignoffsViolation::HeldWithBlockedDimension { .. })),
+        reg.validate().iter().any(|v| matches!(
+            v,
+            AccessibilitySurfaceSignoffsViolation::HeldWithBlockedDimension { .. }
+        )),
         "a backed row may not carry a blocked or pending dimension"
     );
 }
@@ -238,13 +246,15 @@ fn backed_row_on_a_breached_packet_fails() {
         .iter_mut()
         .find(|row| row.holds_label())
         .expect("register has a backed row");
-    row.proof_packet.slo_state = aureline_release::stable_claim_manifest::FreshnessSloState::Breached;
+    row.proof_packet.slo_state =
+        aureline_release::stable_claim_manifest::FreshnessSloState::Breached;
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate()
-            .iter()
-            .any(|v| matches!(v, AccessibilitySurfaceSignoffsViolation::HeldOnStalePacket { .. })),
+        reg.validate().iter().any(|v| matches!(
+            v,
+            AccessibilitySurfaceSignoffsViolation::HeldOnStalePacket { .. }
+        )),
         "a backed row may not ride a packet outside its freshness SLO"
     );
 }
@@ -268,7 +278,8 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
     let fixtures_dir = repo_root().join("fixtures/release/m4/stabilize-accessibility-signoff-across-shell-tree-palette-diff-terminal-debugger-settings-auth-and-recovery");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 

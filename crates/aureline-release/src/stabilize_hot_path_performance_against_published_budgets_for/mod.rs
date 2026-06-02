@@ -419,8 +419,7 @@ impl HotPathBudgetRow {
     /// True when the row is on an active waiver covering an intentionally tightened
     /// budget.
     fn waiver_covers_tightened_budget(&self) -> bool {
-        self.budget_state == BudgetState::OnWaiver
-            && self.hot_path_budget.tightened
+        self.budget_state == BudgetState::OnWaiver && self.hot_path_budget.tightened
     }
 }
 
@@ -814,14 +813,13 @@ impl HotPathPerformanceBudgets {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<HotPathPerformanceBudgetsViolation>) {
         if self.schema_version != HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION {
-            violations.push(HotPathPerformanceBudgetsViolation::UnsupportedSchemaVersion {
-                actual: self.schema_version,
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::UnsupportedSchemaVersion {
+                    actual: self.schema_version,
+                },
+            );
         }
         if self.record_kind != HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND {
             violations.push(HotPathPerformanceBudgetsViolation::UnsupportedRecordKind {
@@ -845,29 +843,39 @@ impl HotPathPerformanceBudgets {
             }
         }
         if self.lifecycle_labels != StableClaimLevel::ALL.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "lifecycle_labels",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "lifecycle_labels",
+                },
+            );
         }
         if self.hot_path_kinds != HotPathKind::ALL.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "hot_path_kinds",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "hot_path_kinds",
+                },
+            );
         }
         if self.budget_states != BudgetState::ALL.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "budget_states",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "budget_states",
+                },
+            );
         }
         if self.gap_reasons != GapReason::ALL.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "gap_reasons",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "gap_reasons",
+                },
+            );
         }
         if self.budget_actions != BudgetAction::ALL.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "budget_actions",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "budget_actions",
+                },
+            );
         }
         if self.release_blocking_surface_refs.is_empty() {
             violations.push(HotPathPerformanceBudgetsViolation::EmptyField {
@@ -878,19 +886,25 @@ impl HotPathPerformanceBudgets {
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.cutline_level",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.cutline_level",
+                },
+            );
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.above_cutline_levels",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.above_cutline_levels",
+                },
+            );
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.below_cutline_levels",
-            });
+            violations.push(
+                HotPathPerformanceBudgetsViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.below_cutline_levels",
+                },
+            );
         }
         if cutline.description.trim().is_empty() {
             violations.push(HotPathPerformanceBudgetsViolation::EmptyField {
@@ -900,10 +914,7 @@ impl HotPathPerformanceBudgets {
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<HotPathPerformanceBudgetsViolation>) {
         if self.rules.is_empty() {
             violations.push(HotPathPerformanceBudgetsViolation::NoRules);
         }
@@ -937,9 +948,8 @@ impl HotPathPerformanceBudgets {
 
         for reason in GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(HotPathPerformanceBudgetsViolation::GapReasonWithoutRule {
-                    reason,
-                });
+                violations
+                    .push(HotPathPerformanceBudgetsViolation::GapReasonWithoutRule { reason });
             }
         }
     }
@@ -1010,12 +1020,10 @@ impl HotPathPerformanceBudgets {
         // to inherit that ceiling and narrow.
         if !row.claim_holds_stable() {
             if row.holds_label() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldOnNarrowedClaim {
-                        entry_id: row.entry_id.clone(),
-                        claim: row.claim_label,
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldOnNarrowedClaim {
+                    entry_id: row.entry_id.clone(),
+                    claim: row.claim_label,
+                });
             }
             if !row.has_active_reason(GapReason::ClaimLabelNarrowed) {
                 violations.push(
@@ -1034,35 +1042,27 @@ impl HotPathPerformanceBudgets {
             // budget (unless an active waiver covers an intentionally tightened budget),
             // and is owner-signed.
             if row.published_label != row.claim_label {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldLabelNotEqualClaim {
-                        entry_id: row.entry_id.clone(),
-                        claim: row.claim_label,
-                        published: row.published_label,
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldLabelNotEqualClaim {
+                    entry_id: row.entry_id.clone(),
+                    claim: row.claim_label,
+                    published: row.published_label,
+                });
             }
             if !row.active_gap_reasons.is_empty() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldWithActiveGap {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldWithActiveGap {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !row.proof_packet.has_capture() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldWithoutFreshPacket {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldWithoutFreshPacket {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !slo_state.is_within_slo() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldOnStalePacket {
-                        entry_id: row.entry_id.clone(),
-                        slo_state,
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldOnStalePacket {
+                    entry_id: row.entry_id.clone(),
+                    slo_state,
+                });
             }
             if !row.hot_path_budget.is_complete() {
                 violations.push(
@@ -1072,18 +1072,14 @@ impl HotPathPerformanceBudgets {
                 );
             }
             if !row.hot_path_budget.within_budget() && !row.waiver_covers_tightened_budget() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldOverBudget {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldOverBudget {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !(row.owner_signoff.signed_off && row.owner_signoff.signed_at.is_some()) {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HeldWithoutSignoff {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HeldWithoutSignoff {
+                    entry_id: row.entry_id.clone(),
+                });
             }
         } else {
             // A narrowing state must drop the published label below the cutline and
@@ -1098,12 +1094,10 @@ impl HotPathPerformanceBudgets {
                 );
             }
             if row.active_gap_reasons.is_empty() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::NarrowingWithoutReason {
-                        entry_id: row.entry_id.clone(),
-                        state: row.budget_state,
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::NarrowingWithoutReason {
+                    entry_id: row.entry_id.clone(),
+                    state: row.budget_state,
+                });
             }
             // A narrowing row whose packet is breached or missing must name the
             // matching freshness reason.
@@ -1184,16 +1178,14 @@ impl HotPathPerformanceBudgets {
         row: &HotPathBudgetRow,
         violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<HotPathPerformanceBudgetsViolation>, expected: GapReason| {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::StateReasonIncoherent {
-                        entry_id: row.entry_id.clone(),
-                        state: row.budget_state,
-                        expected_reason: expected,
-                    },
-                );
-            };
+        let push_incoherent = |violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
+                               expected: GapReason| {
+            violations.push(HotPathPerformanceBudgetsViolation::StateReasonIncoherent {
+                entry_id: row.entry_id.clone(),
+                state: row.budget_state,
+                expected_reason: expected,
+            });
+        };
 
         match row.budget_state {
             BudgetState::Regressed => {
@@ -1237,19 +1229,14 @@ impl HotPathPerformanceBudgets {
         }
     }
 
-    fn validate_coverage(
-        &self,
-        violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
-    ) {
+    fn validate_coverage(&self, violations: &mut Vec<HotPathPerformanceBudgetsViolation>) {
         // Each surface ref appears at most once: a path has one canonical row.
         let mut seen: BTreeSet<&str> = BTreeSet::new();
         for row in &self.rows {
             if !seen.insert(row.surface_ref.as_str()) {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::DuplicateSurfaceRef {
-                        surface_ref: row.surface_ref.clone(),
-                    },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::DuplicateSurfaceRef {
+                    surface_ref: row.surface_ref.clone(),
+                });
             }
         }
 
@@ -1289,17 +1276,12 @@ impl HotPathPerformanceBudgets {
         // Every hot path kind must have at least one row.
         for kind in HotPathKind::ALL {
             if self.rows_for_kind(kind).is_empty() {
-                violations.push(
-                    HotPathPerformanceBudgetsViolation::HotPathKindAbsent { kind },
-                );
+                violations.push(HotPathPerformanceBudgetsViolation::HotPathKindAbsent { kind });
             }
         }
     }
 
-    fn validate_promotion(
-        &self,
-        violations: &mut Vec<HotPathPerformanceBudgetsViolation>,
-    ) {
+    fn validate_promotion(&self, violations: &mut Vec<HotPathPerformanceBudgetsViolation>) {
         if self.promotion.promotion_gate.trim().is_empty() {
             violations.push(HotPathPerformanceBudgetsViolation::EmptyField {
                 entry_id: "<promotion>".to_owned(),
@@ -1592,7 +1574,9 @@ impl fmt::Display for HotPathPerformanceBudgetsViolation {
                 published,
             } => write!(
                 f,
-                "row {entry_id} publishes {} wider than claim {}", published.as_str(), claim.as_str()
+                "row {entry_id} publishes {} wider than claim {}",
+                published.as_str(),
+                claim.as_str()
             ),
             Self::FreshnessSloInconsistent { entry_id } => {
                 write!(f, "row {entry_id} has an inconsistent freshness SLO")
@@ -1615,7 +1599,8 @@ impl fmt::Display for HotPathPerformanceBudgetsViolation {
             Self::HeldOnNarrowedClaim { entry_id, claim } => {
                 write!(
                     f,
-                    "row {entry_id} holds its label while its claim is {}", claim.as_str()
+                    "row {entry_id} holds its label while its claim is {}",
+                    claim.as_str()
                 )
             }
             Self::ClaimNarrowedWithoutReason { entry_id } => {
@@ -1630,15 +1615,23 @@ impl fmt::Display for HotPathPerformanceBudgetsViolation {
                 published,
             } => write!(
                 f,
-                "row {entry_id} holds its label but publishes {} instead of {}", published.as_str(), claim.as_str()
+                "row {entry_id} holds its label but publishes {} instead of {}",
+                published.as_str(),
+                claim.as_str()
             ),
             Self::HeldWithActiveGap { entry_id } => {
-                write!(f, "row {entry_id} holds its label with an active gap reason")
+                write!(
+                    f,
+                    "row {entry_id} holds its label with an active gap reason"
+                )
             }
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "row {entry_id} holds its label without a fresh packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds its label on a {slo_state:?} packet"
@@ -1752,7 +1745,8 @@ impl Error for HotPathPerformanceBudgetsViolation {}
 ///
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`HotPathPerformanceBudgets`].
-pub fn current_hot_path_performance_budgets() -> Result<HotPathPerformanceBudgets, serde_json::Error> {
+pub fn current_hot_path_performance_budgets() -> Result<HotPathPerformanceBudgets, serde_json::Error>
+{
     serde_json::from_str(HOT_PATH_PERFORMANCE_BUDGETS_JSON)
 }
 
@@ -1768,7 +1762,10 @@ mod tests {
     #[test]
     fn embedded_register_parses_and_validates() {
         let reg = register();
-        assert_eq!(reg.schema_version, HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION);
+        assert_eq!(
+            reg.schema_version,
+            HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION
+        );
         assert_eq!(reg.record_kind, HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND);
         assert_eq!(reg.validate(), Vec::new());
     }
@@ -1835,10 +1832,7 @@ mod tests {
     fn promotion_holds_when_blocking_rules_fire() {
         let reg = register();
         assert_eq!(reg.promotion.decision, PromotionDecision::Hold);
-        assert_eq!(
-            reg.promotion.decision,
-            reg.computed_promotion_decision()
-        );
+        assert_eq!(reg.promotion.decision, reg.computed_promotion_decision());
         assert!(!reg.promotion.blocking_rule_ids.is_empty());
         assert!(!reg.promotion.blocking_entry_ids.is_empty());
     }
@@ -1846,11 +1840,8 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_rule() {
         let reg = register();
-        let covered: BTreeSet<GapReason> = reg
-            .rules
-            .iter()
-            .map(|rule| rule.trigger_reason)
-            .collect();
+        let covered: BTreeSet<GapReason> =
+            reg.rules.iter().map(|rule| rule.trigger_reason).collect();
         for reason in GapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1930,10 +1921,10 @@ mod tests {
             .expect("a backed row exists");
         row.proof_packet.slo_state = FreshnessSloState::Breached;
         reg.summary = reg.computed_summary();
-        assert!(reg
-            .validate()
-            .iter()
-            .any(|v| matches!(v, HotPathPerformanceBudgetsViolation::HeldOnStalePacket { .. })));
+        assert!(reg.validate().iter().any(|v| matches!(
+            v,
+            HotPathPerformanceBudgetsViolation::HeldOnStalePacket { .. }
+        )));
     }
 
     #[test]

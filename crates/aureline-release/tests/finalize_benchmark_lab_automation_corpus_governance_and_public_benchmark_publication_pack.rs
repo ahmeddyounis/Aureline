@@ -14,9 +14,9 @@ use std::path::{Path, PathBuf};
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::{
-    current_benchmark_lab_governance, AssetState, BenchmarkLabGapReason, GovernanceAssetKind,
-    BenchmarkLabGovernance, BenchmarkLabGovernanceViolation,
-    BENCHMARK_LAB_GOVERNANCE_RECORD_KIND, BENCHMARK_LAB_GOVERNANCE_SCHEMA_VERSION,
+    current_benchmark_lab_governance, AssetState, BenchmarkLabGapReason, BenchmarkLabGovernance,
+    BenchmarkLabGovernanceViolation, GovernanceAssetKind, BENCHMARK_LAB_GOVERNANCE_RECORD_KIND,
+    BENCHMARK_LAB_GOVERNANCE_SCHEMA_VERSION,
 };
 
 const CAPTURE_JSON: &str = include_str!(concat!(
@@ -80,7 +80,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -93,7 +94,10 @@ fn model_matches_frozen_validation_capture() {
     );
     assert_eq!(
         summary["entries_qualified_stable"].as_u64().unwrap() as usize,
-        reg.rows.iter().filter(|r| r.asset_state == AssetState::QualifiedStable).count(),
+        reg.rows
+            .iter()
+            .filter(|r| r.asset_state == AssetState::QualifiedStable)
+            .count(),
         "capture qualified-stable count must match the model"
     );
     assert_eq!(
@@ -102,17 +106,50 @@ fn model_matches_frozen_validation_capture() {
         "capture narrowed count must match the model"
     );
     for (key, kind) in [
-        ("nightly_ci_lane_entries", GovernanceAssetKind::NightlyBenchmarkCiLane),
-        ("self_capture_parity_entries", GovernanceAssetKind::SelfCaptureParityCheck),
-        ("microbenchmark_corpus_entries", GovernanceAssetKind::MicrobenchmarkCorpus),
-        ("workflow_archetype_corpus_entries", GovernanceAssetKind::WorkflowArchetypeCorpus),
-        ("remote_collaboration_corpus_entries", GovernanceAssetKind::RemoteCollaborationCorpus),
-        ("accessibility_corpus_entries", GovernanceAssetKind::AccessibilityCorpus),
-        ("protected_metrics_file_entries", GovernanceAssetKind::ProtectedMetricsFile),
-        ("reference_hardware_manifest_entries", GovernanceAssetKind::ReferenceHardwareManifest),
-        ("lab_image_manifest_entries", GovernanceAssetKind::LabImageManifest),
-        ("protected_path_ledger_entries", GovernanceAssetKind::ProtectedPathLedger),
-        ("public_benchmark_publication_pack_entries", GovernanceAssetKind::PublicBenchmarkPublicationPack),
+        (
+            "nightly_ci_lane_entries",
+            GovernanceAssetKind::NightlyBenchmarkCiLane,
+        ),
+        (
+            "self_capture_parity_entries",
+            GovernanceAssetKind::SelfCaptureParityCheck,
+        ),
+        (
+            "microbenchmark_corpus_entries",
+            GovernanceAssetKind::MicrobenchmarkCorpus,
+        ),
+        (
+            "workflow_archetype_corpus_entries",
+            GovernanceAssetKind::WorkflowArchetypeCorpus,
+        ),
+        (
+            "remote_collaboration_corpus_entries",
+            GovernanceAssetKind::RemoteCollaborationCorpus,
+        ),
+        (
+            "accessibility_corpus_entries",
+            GovernanceAssetKind::AccessibilityCorpus,
+        ),
+        (
+            "protected_metrics_file_entries",
+            GovernanceAssetKind::ProtectedMetricsFile,
+        ),
+        (
+            "reference_hardware_manifest_entries",
+            GovernanceAssetKind::ReferenceHardwareManifest,
+        ),
+        (
+            "lab_image_manifest_entries",
+            GovernanceAssetKind::LabImageManifest,
+        ),
+        (
+            "protected_path_ledger_entries",
+            GovernanceAssetKind::ProtectedPathLedger,
+        ),
+        (
+            "public_benchmark_publication_pack_entries",
+            GovernanceAssetKind::PublicBenchmarkPublicationPack,
+        ),
     ] {
         assert_eq!(
             summary[key].as_u64().unwrap() as usize,
@@ -202,7 +239,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = reg
         .rows
         .iter_mut()
-        .find(|row| row.asset_state == AssetState::NarrowedStale && row.claim_label == StableClaimLevel::Stable)
+        .find(|row| {
+            row.asset_state == AssetState::NarrowedStale
+                && row.claim_label == StableClaimLevel::Stable
+        })
         .expect("register has a stale row under a stable ceiling");
     row.published_label = StableClaimLevel::Stable;
     reg.summary = reg.computed_summary();
@@ -257,7 +297,8 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
     let fixtures_dir = repo_root().join("fixtures/release/finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 

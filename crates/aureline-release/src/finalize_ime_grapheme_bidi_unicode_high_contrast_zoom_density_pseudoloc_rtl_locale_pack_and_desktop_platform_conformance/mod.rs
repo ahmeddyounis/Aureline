@@ -866,25 +866,18 @@ impl DesktopPlatformConformance {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<DesktopPlatformConformanceViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<DesktopPlatformConformanceViolation>) {
         if self.schema_version != DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION {
-            violations.push(
-                DesktopPlatformConformanceViolation::SchemaVersionMismatch {
-                    expected: DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION,
-                    got: self.schema_version,
-                },
-            );
+            violations.push(DesktopPlatformConformanceViolation::SchemaVersionMismatch {
+                expected: DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION,
+                got: self.schema_version,
+            });
         }
         if self.record_kind != DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND {
-            violations.push(
-                DesktopPlatformConformanceViolation::RecordKindMismatch {
-                    expected: DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND.to_owned(),
-                    got: self.record_kind.clone(),
-                },
-            );
+            violations.push(DesktopPlatformConformanceViolation::RecordKindMismatch {
+                expected: DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND.to_owned(),
+                got: self.record_kind.clone(),
+            });
         }
         for (field, value) in [
             ("register_id", &self.register_id),
@@ -906,45 +899,55 @@ impl DesktopPlatformConformance {
             .map(|d| d.as_str().to_owned())
             .collect();
         if self.domain_kinds != expected_domains {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "domain_kinds",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "domain_kinds",
+                },
+            );
         }
         let expected_checks: Vec<String> = CheckKind::ALL
             .iter()
             .map(|c| c.as_str().to_owned())
             .collect();
         if self.check_kinds != expected_checks {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "check_kinds",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "check_kinds",
+                },
+            );
         }
         let expected_states: Vec<String> = ConformanceState::ALL
             .iter()
             .map(|s| s.as_str().to_owned())
             .collect();
         if self.signoff_states != expected_states {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "signoff_states",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "signoff_states",
+                },
+            );
         }
         let expected_reasons: Vec<String> = GapReason::ALL
             .iter()
             .map(|r| r.as_str().to_owned())
             .collect();
         if self.gap_reasons != expected_reasons {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "gap_reasons",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "gap_reasons",
+                },
+            );
         }
         let expected_actions: Vec<String> = ConformanceAction::ALL
             .iter()
             .map(|a| a.as_str().to_owned())
             .collect();
         if self.conformance_actions != expected_actions {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "conformance_actions",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "conformance_actions",
+                },
+            );
         }
         if self.release_blocking_domain_refs.is_empty() {
             violations.push(DesktopPlatformConformanceViolation::EmptyField {
@@ -955,19 +958,25 @@ impl DesktopPlatformConformance {
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.cutline_level",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.cutline_level",
+                },
+            );
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.above_cutline_levels",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.above_cutline_levels",
+                },
+            );
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.below_cutline_levels",
-            });
+            violations.push(
+                DesktopPlatformConformanceViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.below_cutline_levels",
+                },
+            );
         }
         if cutline.description.trim().is_empty() {
             violations.push(DesktopPlatformConformanceViolation::EmptyField {
@@ -977,10 +986,7 @@ impl DesktopPlatformConformance {
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<DesktopPlatformConformanceViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<DesktopPlatformConformanceViolation>) {
         if self.rules.is_empty() {
             violations.push(DesktopPlatformConformanceViolation::NoRules);
         }
@@ -1005,18 +1011,19 @@ impl DesktopPlatformConformance {
                 }
             }
             if rule.applies_to_labels.is_empty() {
-                violations.push(DesktopPlatformConformanceViolation::RuleWithoutFiringCondition {
-                    rule_id: rule.rule_id.clone(),
-                });
+                violations.push(
+                    DesktopPlatformConformanceViolation::RuleWithoutFiringCondition {
+                        rule_id: rule.rule_id.clone(),
+                    },
+                );
             }
             covered.insert(rule.trigger_reason);
         }
 
         for reason in GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(DesktopPlatformConformanceViolation::GapReasonWithoutRule {
-                    reason,
-                });
+                violations
+                    .push(DesktopPlatformConformanceViolation::GapReasonWithoutRule { reason });
             }
         }
     }
@@ -1082,24 +1089,20 @@ impl DesktopPlatformConformance {
         let mut seen_checks: BTreeSet<CheckKind> = BTreeSet::new();
         for check in &row.conformance_checks {
             if !seen_checks.insert(check.check_kind) {
-                violations.push(
-                    DesktopPlatformConformanceViolation::DuplicateCheckKind {
-                        entry_id: row.entry_id.clone(),
-                        check_kind: check.check_kind.as_str().to_owned(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::DuplicateCheckKind {
+                    entry_id: row.entry_id.clone(),
+                    check_kind: check.check_kind.as_str().to_owned(),
+                });
             }
             // Checks may carry evidence refs in any state; the model does not
             // enforce absence for blocked or pending checks in this register.
         }
         for &check_kind in required {
             if !seen_checks.contains(&check_kind) {
-                violations.push(
-                    DesktopPlatformConformanceViolation::MissingRequiredCheck {
-                        entry_id: row.entry_id.clone(),
-                        check_kind: check_kind.as_str().to_owned(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::MissingRequiredCheck {
+                    entry_id: row.entry_id.clone(),
+                    check_kind: check_kind.as_str().to_owned(),
+                });
             }
         }
 
@@ -1109,25 +1112,19 @@ impl DesktopPlatformConformance {
             // A backed row rides a captured within-SLO packet and has no blocked
             // or pending checks.
             if !slo_state.is_within_slo() {
-                violations.push(
-                    DesktopPlatformConformanceViolation::HeldOnStalePacket {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::HeldOnStalePacket {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if row.has_blocked_or_pending_check() {
-                violations.push(
-                    DesktopPlatformConformanceViolation::HeldWithBlockedCheck {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::HeldWithBlockedCheck {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !(row.owner_signoff.signed_off && row.owner_signoff.signed_at.is_some()) {
-                violations.push(
-                    DesktopPlatformConformanceViolation::HeldWithoutSignoff {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::HeldWithoutSignoff {
+                    entry_id: row.entry_id.clone(),
+                });
             }
         } else {
             // A narrowing state must drop the published label below the cutline and
@@ -1170,9 +1167,7 @@ impl DesktopPlatformConformance {
         }
 
         // A row with a blocked or pending check must name the check_blocked reason.
-        if row.has_blocked_or_pending_check()
-            && !row.has_active_reason(GapReason::CheckBlocked)
-        {
+        if row.has_blocked_or_pending_check() && !row.has_active_reason(GapReason::CheckBlocked) {
             violations.push(
                 DesktopPlatformConformanceViolation::BlockedCheckWithoutReason {
                     entry_id: row.entry_id.clone(),
@@ -1193,56 +1188,45 @@ impl DesktopPlatformConformance {
                 if !(row.has_active_reason(GapReason::CheckBlocked)
                     || row.has_active_reason(GapReason::EvidenceMissing))
                 {
-                    violations.push(
-                        DesktopPlatformConformanceViolation::StateReasonIncoherent {
-                            entry_id: row.entry_id.clone(),
-                            state: row.signoff_state,
-                            expected_reason: GapReason::CheckBlocked,
-                        },
-                    );
+                    violations.push(DesktopPlatformConformanceViolation::StateReasonIncoherent {
+                        entry_id: row.entry_id.clone(),
+                        state: row.signoff_state,
+                        expected_reason: GapReason::CheckBlocked,
+                    });
                 }
             }
             ConformanceState::EvidenceStale => {
                 if !(row.has_active_reason(GapReason::EvidenceStale)
                     || row.has_active_reason(GapReason::EvidenceMissing))
                 {
-                    violations.push(
-                        DesktopPlatformConformanceViolation::StateReasonIncoherent {
-                            entry_id: row.entry_id.clone(),
-                            state: row.signoff_state,
-                            expected_reason: GapReason::EvidenceStale,
-                        },
-                    );
+                    violations.push(DesktopPlatformConformanceViolation::StateReasonIncoherent {
+                        entry_id: row.entry_id.clone(),
+                        state: row.signoff_state,
+                        expected_reason: GapReason::EvidenceStale,
+                    });
                 }
             }
             ConformanceState::WaiverExpired => {
                 if !row.has_active_reason(GapReason::WaiverExpired) {
-                    violations.push(
-                        DesktopPlatformConformanceViolation::StateReasonIncoherent {
-                            entry_id: row.entry_id.clone(),
-                            state: row.signoff_state,
-                            expected_reason: GapReason::WaiverExpired,
-                        },
-                    );
+                    violations.push(DesktopPlatformConformanceViolation::StateReasonIncoherent {
+                        entry_id: row.entry_id.clone(),
+                        state: row.signoff_state,
+                        expected_reason: GapReason::WaiverExpired,
+                    });
                 }
             }
             ConformanceState::ProvisionalOnWaiver | ConformanceState::Qualified => {}
         }
     }
 
-    fn validate_coverage(
-        &self,
-        violations: &mut Vec<DesktopPlatformConformanceViolation>,
-    ) {
+    fn validate_coverage(&self, violations: &mut Vec<DesktopPlatformConformanceViolation>) {
         // Each domain ref appears at most once: a domain has one canonical row.
         let mut seen: BTreeSet<&str> = BTreeSet::new();
         for row in &self.rows {
             if !seen.insert(row.domain_ref.as_str()) {
-                violations.push(
-                    DesktopPlatformConformanceViolation::DuplicateDomainRef {
-                        domain_ref: row.domain_ref.clone(),
-                    },
-                );
+                violations.push(DesktopPlatformConformanceViolation::DuplicateDomainRef {
+                    domain_ref: row.domain_ref.clone(),
+                });
             }
         }
 
@@ -1282,9 +1266,7 @@ impl DesktopPlatformConformance {
         // Every domain kind must have at least one row.
         for kind in ConformanceDomain::ALL {
             if self.rows_for_kind(kind).is_empty() {
-                violations.push(
-                    DesktopPlatformConformanceViolation::DomainKindAbsent { kind },
-                );
+                violations.push(DesktopPlatformConformanceViolation::DomainKindAbsent { kind });
             }
         }
 
@@ -1302,10 +1284,7 @@ impl DesktopPlatformConformance {
         }
     }
 
-    fn validate_promotion(
-        &self,
-        violations: &mut Vec<DesktopPlatformConformanceViolation>,
-    ) {
+    fn validate_promotion(&self, violations: &mut Vec<DesktopPlatformConformanceViolation>) {
         if self.promotion.promotion_gate.trim().is_empty() {
             violations.push(DesktopPlatformConformanceViolation::EmptyField {
                 entry_id: "<promotion>".to_owned(),
@@ -1347,10 +1326,7 @@ impl DesktopPlatformConformance {
         }
     }
 
-    fn validate_summary(
-        &self,
-        violations: &mut Vec<DesktopPlatformConformanceViolation>,
-    ) {
+    fn validate_summary(&self, violations: &mut Vec<DesktopPlatformConformanceViolation>) {
         let computed = self.computed_summary();
         let mut check = |field: &'static str, expected: usize, got: usize| {
             if expected != got {
@@ -1361,27 +1337,111 @@ impl DesktopPlatformConformance {
                 });
             }
         };
-        check("total_entries", computed.total_entries, self.summary.total_entries);
-        check("total_claims", computed.total_claims, self.summary.total_claims);
-        check("entries_qualified", computed.entries_qualified, self.summary.entries_qualified);
-        check("entries_narrowed", computed.entries_narrowed, self.summary.entries_narrowed);
-        check("entries_on_active_waiver", computed.entries_on_active_waiver, self.summary.entries_on_active_waiver);
-        check("entries_blocked", computed.entries_blocked, self.summary.entries_blocked);
-        check("release_blocking_total", computed.release_blocking_total, self.summary.release_blocking_total);
-        check("release_blocking_qualified", computed.release_blocking_qualified, self.summary.release_blocking_qualified);
-        check("release_blocking_narrowed", computed.release_blocking_narrowed, self.summary.release_blocking_narrowed);
-        check("ime_entries", computed.ime_entries, self.summary.ime_entries);
-        check("high_contrast_entries", computed.high_contrast_entries, self.summary.high_contrast_entries);
-        check("zoom_density_entries", computed.zoom_density_entries, self.summary.zoom_density_entries);
-        check("pseudoloc_rtl_entries", computed.pseudoloc_rtl_entries, self.summary.pseudoloc_rtl_entries);
-        check("locale_pack_entries", computed.locale_pack_entries, self.summary.locale_pack_entries);
-        check("desktop_platform_entries", computed.desktop_platform_entries, self.summary.desktop_platform_entries);
-        check("packets_current", computed.packets_current, self.summary.packets_current);
-        check("packets_due_for_refresh", computed.packets_due_for_refresh, self.summary.packets_due_for_refresh);
-        check("packets_breached", computed.packets_breached, self.summary.packets_breached);
-        check("packets_missing", computed.packets_missing, self.summary.packets_missing);
-        check("total_active_gap_reasons", computed.total_active_gap_reasons, self.summary.total_active_gap_reasons);
-        check("rules_firing", computed.rules_firing, self.summary.rules_firing);
+        check(
+            "total_entries",
+            computed.total_entries,
+            self.summary.total_entries,
+        );
+        check(
+            "total_claims",
+            computed.total_claims,
+            self.summary.total_claims,
+        );
+        check(
+            "entries_qualified",
+            computed.entries_qualified,
+            self.summary.entries_qualified,
+        );
+        check(
+            "entries_narrowed",
+            computed.entries_narrowed,
+            self.summary.entries_narrowed,
+        );
+        check(
+            "entries_on_active_waiver",
+            computed.entries_on_active_waiver,
+            self.summary.entries_on_active_waiver,
+        );
+        check(
+            "entries_blocked",
+            computed.entries_blocked,
+            self.summary.entries_blocked,
+        );
+        check(
+            "release_blocking_total",
+            computed.release_blocking_total,
+            self.summary.release_blocking_total,
+        );
+        check(
+            "release_blocking_qualified",
+            computed.release_blocking_qualified,
+            self.summary.release_blocking_qualified,
+        );
+        check(
+            "release_blocking_narrowed",
+            computed.release_blocking_narrowed,
+            self.summary.release_blocking_narrowed,
+        );
+        check(
+            "ime_entries",
+            computed.ime_entries,
+            self.summary.ime_entries,
+        );
+        check(
+            "high_contrast_entries",
+            computed.high_contrast_entries,
+            self.summary.high_contrast_entries,
+        );
+        check(
+            "zoom_density_entries",
+            computed.zoom_density_entries,
+            self.summary.zoom_density_entries,
+        );
+        check(
+            "pseudoloc_rtl_entries",
+            computed.pseudoloc_rtl_entries,
+            self.summary.pseudoloc_rtl_entries,
+        );
+        check(
+            "locale_pack_entries",
+            computed.locale_pack_entries,
+            self.summary.locale_pack_entries,
+        );
+        check(
+            "desktop_platform_entries",
+            computed.desktop_platform_entries,
+            self.summary.desktop_platform_entries,
+        );
+        check(
+            "packets_current",
+            computed.packets_current,
+            self.summary.packets_current,
+        );
+        check(
+            "packets_due_for_refresh",
+            computed.packets_due_for_refresh,
+            self.summary.packets_due_for_refresh,
+        );
+        check(
+            "packets_breached",
+            computed.packets_breached,
+            self.summary.packets_breached,
+        );
+        check(
+            "packets_missing",
+            computed.packets_missing,
+            self.summary.packets_missing,
+        );
+        check(
+            "total_active_gap_reasons",
+            computed.total_active_gap_reasons,
+            self.summary.total_active_gap_reasons,
+        );
+        check(
+            "rules_firing",
+            computed.rules_firing,
+            self.summary.rules_firing,
+        );
     }
 }
 
@@ -1690,10 +1750,7 @@ impl fmt::Display for DesktopPlatformConformanceViolation {
                 )
             }
             Self::MissingReleaseBlockingSignoff { entry_id } => {
-                write!(
-                    f,
-                    "release-blocking row {entry_id} lacks owner sign-off"
-                )
+                write!(f, "release-blocking row {entry_id} lacks owner sign-off")
             }
             Self::PromotionDecisionInconsistent { expected, got } => {
                 write!(
@@ -1707,16 +1764,14 @@ impl fmt::Display for DesktopPlatformConformanceViolation {
                 write!(
                     f,
                     "promotion blocking_rule_ids {:?} disagree with expected {:?}",
-                    got,
-                    expected
+                    got, expected
                 )
             }
             Self::BlockingEntryIdsMismatch { expected, got } => {
                 write!(
                     f,
                     "promotion blocking_entry_ids {:?} disagree with expected {:?}",
-                    got,
-                    expected
+                    got, expected
                 )
             }
             Self::SummaryMismatch {
@@ -1724,16 +1779,19 @@ impl fmt::Display for DesktopPlatformConformanceViolation {
                 expected,
                 got,
             } => {
-                write!(
-                    f,
-                    "summary {field} expected {expected}, got {got}"
-                )
+                write!(f, "summary {field} expected {expected}, got {got}")
             }
             Self::UnknownDomainKind { entry_id, kind } => {
                 write!(f, "row {entry_id} references unknown domain kind {kind}")
             }
-            Self::UnknownCheckKind { entry_id, check_kind } => {
-                write!(f, "row {entry_id} references unknown check kind {check_kind}")
+            Self::UnknownCheckKind {
+                entry_id,
+                check_kind,
+            } => {
+                write!(
+                    f,
+                    "row {entry_id} references unknown check kind {check_kind}"
+                )
             }
             Self::UnknownGapReason { entry_id, reason } => {
                 write!(f, "row {entry_id} references unknown gap reason {reason}")
@@ -1750,7 +1808,8 @@ impl Error for DesktopPlatformConformanceViolation {}
 ///
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`DesktopPlatformConformance`].
-pub fn current_desktop_platform_conformance() -> Result<DesktopPlatformConformance, serde_json::Error> {
+pub fn current_desktop_platform_conformance(
+) -> Result<DesktopPlatformConformance, serde_json::Error> {
     serde_json::from_str(DESKTOP_PLATFORM_CONFORMANCE_JSON)
 }
 
@@ -1766,7 +1825,10 @@ mod tests {
     #[test]
     fn embedded_register_parses_and_validates() {
         let reg = register();
-        assert_eq!(reg.schema_version, DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION);
+        assert_eq!(
+            reg.schema_version,
+            DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION
+        );
         assert_eq!(reg.record_kind, DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND);
         assert_eq!(reg.validate(), Vec::new());
         assert!(!reg.rows.is_empty());
@@ -1841,11 +1903,8 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_rule() {
         let reg = register();
-        let covered: BTreeSet<GapReason> = reg
-            .rules
-            .iter()
-            .map(|rule| rule.trigger_reason)
-            .collect();
+        let covered: BTreeSet<GapReason> =
+            reg.rules.iter().map(|rule| rule.trigger_reason).collect();
         for reason in GapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1887,7 +1946,9 @@ mod tests {
         let row = reg
             .rows
             .iter_mut()
-            .find(|row| row.signoff_state == ConformanceState::NotQualified && !row.publishes_stable())
+            .find(|row| {
+                row.signoff_state == ConformanceState::NotQualified && !row.publishes_stable()
+            })
             .expect("a narrowed row exists");
         // Give the row a stable ceiling so widening the published label is not
         // caught by PublishedWiderThanClaim first.
@@ -1919,10 +1980,10 @@ mod tests {
             }
         }
         reg.summary = reg.computed_summary();
-        assert!(reg
-            .validate()
-            .iter()
-            .any(|v| matches!(v, DesktopPlatformConformanceViolation::HeldWithBlockedCheck { .. })));
+        assert!(reg.validate().iter().any(|v| matches!(
+            v,
+            DesktopPlatformConformanceViolation::HeldWithBlockedCheck { .. }
+        )));
     }
 
     #[test]
@@ -1995,7 +2056,8 @@ mod tests {
             .iter_mut()
             .find(|row| row.domain_kind == ConformanceDomain::ImeGraphemeBidiUnicode)
             .expect("an ime row exists");
-        row.conformance_checks.retain(|c| c.check_kind != CheckKind::EmojiPresentation);
+        row.conformance_checks
+            .retain(|c| c.check_kind != CheckKind::EmojiPresentation);
         reg.summary = reg.computed_summary();
         assert!(reg.validate().iter().any(|v| matches!(
             v,
