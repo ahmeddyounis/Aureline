@@ -1,0 +1,179 @@
+- schema_version: 1
+  record_kind: diagnosis_packet_record
+  packet_id: diagnosis:wrong_target_write:001
+  scenario_class: wrong_target_write
+  probe_pack_class: trust_policy
+  finding_code: doctor.finding.wrong_target_write
+  finding_severity: blocking
+  diagnosis_confidence: observed_authoritative
+  expected_explainability:
+    - factor_class: expected_state
+      expected_assertion_summary: The write should have targeted the resolved canonical path.
+    - factor_class: observed_state
+      expected_assertion_summary: The write landed on a different file or store.
+    - factor_class: safety_reason
+      expected_assertion_summary: Wrong-target writes can overwrite user-authored files or durable state.
+  no_touch_boundaries:
+    - boundary: user_authored_files
+      rationale: User files must never be overwritten by automated repair.
+    - boundary: credential_store
+      rationale: Credentials must not be exposed or mutated during diagnosis.
+  recovery_ladder_rungs:
+    - repair_class: reapprove_target_or_route
+      blast_radius_class: single_disposable_state
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reapprove the intended target or route from the workspace trust dialog.
+    - repair_class: reset_ephemeral_cache
+      blast_radius_class: same_family_state_classes
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reset the ephemeral cache that may contain stale target resolutions.
+    - repair_class: defer_to_escalation_packet
+      blast_radius_class: escalation_only
+      requires_user_consent: false
+      is_previewable: false
+      guidance: Escalate to support with the attached evidence packet.
+  has_observe_only_outcome: false
+  notes: Wrong-target writes occur when the active target resolution diverges from user intent, often due to stale route manifests or trust-state changes.
+
+- schema_version: 1
+  record_kind: diagnosis_packet_record
+  packet_id: diagnosis:stale_truth:001
+  scenario_class: stale_truth
+  probe_pack_class: search_index_readiness
+  finding_code: doctor.finding.stale_truth
+  finding_severity: degraded
+  diagnosis_confidence: inferred_from_evidence
+  expected_explainability:
+    - factor_class: expected_state
+      expected_assertion_summary: The indexed or cached truth should match the ground source.
+    - factor_class: observed_state
+      expected_assertion_summary: The cached truth differs from the ground source by a measurable delta.
+    - factor_class: counter_evidence
+      expected_assertion_summary: File timestamps, checksums, or git state show the cache is behind.
+  no_touch_boundaries:
+    - boundary: durable_workspace_indexes
+      rationale: Rebuilding indexes is safe; deleting them without rebuild is not.
+    - boundary: user_authored_files
+      rationale: Stale-truth diagnosis must not mutate source files.
+  recovery_ladder_rungs:
+    - repair_class: reset_ephemeral_cache
+      blast_radius_class: single_disposable_state
+      requires_user_consent: false
+      is_previewable: true
+      guidance: Reset the ephemeral derived cache and allow the watcher to reseed.
+    - repair_class: observe_only_no_repair
+      blast_radius_class: escalation_only
+      requires_user_consent: false
+      is_previewable: false
+      guidance: Observe only if the stale truth is in a durable store that requires manual review.
+  has_observe_only_outcome: true
+  notes: Stale truth is most common when the filesystem watcher misses events or when a mirror pack is delayed.
+
+- schema_version: 1
+  record_kind: diagnosis_packet_record
+  packet_id: diagnosis:policy_denial:001
+  scenario_class: policy_denial
+  probe_pack_class: trust_policy
+  finding_code: doctor.finding.policy_denial
+  finding_severity: blocking
+  diagnosis_confidence: observed_authoritative
+  expected_explainability:
+    - factor_class: expected_state
+      expected_assertion_summary: The operation should succeed under current policy.
+    - factor_class: observed_state
+      expected_assertion_summary: The policy gate returned an explicit denial.
+    - factor_class: belief_basis
+      expected_assertion_summary: The denial is recorded in the policy audit trail.
+  no_touch_boundaries:
+    - boundary: workspace_trust_store
+      rationale: Trust store mutations must be user-initiated or support-guided.
+    - boundary: credential_store
+      rationale: Credential exposure must not occur during policy diagnosis.
+  recovery_ladder_rungs:
+    - repair_class: reacquire_trust_approval
+      blast_radius_class: single_disposable_state
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reacquire trust approval for the affected workspace or path.
+    - repair_class: defer_to_escalation_packet
+      blast_radius_class: escalation_only
+      requires_user_consent: false
+      is_previewable: false
+      guidance: Escalate to support when the denial originates from enterprise policy.
+  has_observe_only_outcome: false
+  notes: Policy denials can originate from workspace trust, enterprise network policy, or provider auth constraints.
+
+- schema_version: 1
+  record_kind: diagnosis_packet_record
+  packet_id: diagnosis:route_drift:001
+  scenario_class: route_drift
+  probe_pack_class: entry_open_readiness
+  finding_code: doctor.finding.route_drift
+  finding_severity: degraded
+  diagnosis_confidence: inferred_from_evidence
+  expected_explainability:
+    - factor_class: expected_state
+      expected_assertion_summary: The command or event should route to the handler declared in the manifest.
+    - factor_class: observed_state
+      expected_assertion_summary: The command or event was handled by a different route or surface.
+    - factor_class: limitation
+      expected_assertion_summary: Route drift can be transient during extension load or manifest refresh.
+  no_touch_boundaries:
+    - boundary: settings_profile_state
+      rationale: Settings must not be reset to fix a route mismatch.
+    - boundary: session_restore_store
+      rationale: Session state must be preserved across route diagnosis.
+  recovery_ladder_rungs:
+    - repair_class: refresh_route_manifest
+      blast_radius_class: single_disposable_state
+      requires_user_consent: false
+      is_previewable: true
+      guidance: Refresh the route manifest from the canonical source and reload handlers.
+    - repair_class: reapprove_target_or_route
+      blast_radius_class: same_family_state_classes
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reapprove the route if the drift is caused by a trust-state change.
+  has_observe_only_outcome: false
+  notes: Route drift is common when extensions register overlapping command handlers or when the route manifest is stale.
+
+- schema_version: 1
+  record_kind: diagnosis_packet_record
+  packet_id: diagnosis:install_failure:001
+  scenario_class: install_failure
+  probe_pack_class: toolchain_resolution
+  finding_code: doctor.finding.install_failure
+  finding_severity: blocking
+  diagnosis_confidence: observed_authoritative
+  expected_explainability:
+    - factor_class: expected_state
+      expected_assertion_summary: The toolchain or extension should install to a usable state.
+    - factor_class: observed_state
+      expected_assertion_summary: The install exited with an error or left partial artifacts.
+    - factor_class: user_impact
+      expected_assertion_summary: The workspace cannot build, run, or lint until the install is repaired.
+  no_touch_boundaries:
+    - boundary: user_authored_files
+      rationale: Install repair must not overwrite source code or user configuration.
+    - boundary: credential_store
+      rationale: Registry credentials must not be exposed in install logs.
+  recovery_ladder_rungs:
+    - repair_class: reinstall_toolchain
+      blast_radius_class: single_disposable_state
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reinstall the affected toolchain or extension after reviewing the preview.
+    - repair_class: reset_targeted_durable_state
+      blast_radius_class: same_family_state_classes
+      requires_user_consent: true
+      is_previewable: true
+      guidance: Reset the targeted durable state for the failed install while preserving user files.
+    - repair_class: defer_to_escalation_packet
+      blast_radius_class: escalation_only
+      requires_user_consent: false
+      is_previewable: false
+      guidance: Escalate when the install failure is caused by an upstream registry outage or enterprise proxy.
+  has_observe_only_outcome: false
+  notes: Install failures can leave partial artifacts that block subsequent operations; the repair must be previewable.
