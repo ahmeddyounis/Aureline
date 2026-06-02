@@ -1,0 +1,533 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/stabilize_support_bundle_generation_with_redaction_default_manifests.schema.json",
+  "title": "Aureline stabilized support-bundle generation with redaction-default manifests and chain-of-custody fields",
+  "description": "Boundary schema for the M4 stable lane that stabilizes support-bundle generation. A stabilized_support_bundle_manifest_record carries schema version, included/excluded classes, destination class, retention note, redaction profile, chain-of-custody fields, and a clear distinction between ordinary redaction-default support export and higher-fidelity incident capture that requires explicit user consent or policy. A stabilized_support_bundle_support_packet_record is the metadata-safe projection emitted for support intake.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/stabilized_support_bundle_manifest_record"
+    },
+    {
+      "$ref": "#/$defs/stabilized_support_bundle_support_packet_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "support_bundle_generation_mode": {
+      "type": "string",
+      "enum": [
+        "ordinary_redaction_default",
+        "high_fidelity_incident_capture"
+      ]
+    },
+    "consent_escalation_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "explicit_user_consent",
+        "admin_policy_override"
+      ]
+    },
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "local_only_review",
+        "vendor_case_handoff",
+        "user_initiated_upload",
+        "managed_admin_handoff",
+        "private_security_channel"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "short_term",
+        "medium_term",
+        "long_term",
+        "legal_hold"
+      ]
+    },
+    "incident_capture_scenario_class": {
+      "type": "string",
+      "enum": [
+        "post_crash_loop_export",
+        "user_initiated_diagnostics",
+        "policy_mandated_audit",
+        "support_agent_directed"
+      ]
+    },
+    "recovery_ladder_hook_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode_minimal_profile",
+        "open_without_restore",
+        "export_evidence",
+        "retry_fault_domain",
+        "disable_recent_extension",
+        "reset_ephemeral_cache",
+        "run_project_doctor",
+        "bounded_repair_preview"
+      ]
+    },
+    "diagnostic_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "high_risk_content_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "secret_bearing",
+        "raw_dump_or_memory",
+        "full_shell_history",
+        "raw_trace_or_transcript",
+        "policy_prohibited_unknown"
+      ]
+    },
+    "custody_actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "admin_initiated",
+        "support_agent",
+        "automated_retention_job",
+        "export_pipeline",
+        "governance_packets"
+      ]
+    },
+    "custody_action_class": {
+      "type": "string",
+      "enum": [
+        "created",
+        "packaged_for_export",
+        "exported_locally",
+        "mirrored_to_managed",
+        "placed_on_hold",
+        "hold_released",
+        "delete_requested",
+        "delete_completed",
+        "receipt_issued"
+      ]
+    },
+    "custody_location_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_export_copy",
+        "managed_archive_active",
+        "managed_archive_held",
+        "managed_archive_policy_retained",
+        "destruction_receipt_only",
+        "no_remaining_location"
+      ]
+    },
+    "build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_id",
+        "producer_build_id",
+        "product_version",
+        "release_channel_class",
+        "exact_build_refs"
+      ],
+      "properties": {
+        "build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "producer_build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "product_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "release_channel_class": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exact_build_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "included_class_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "inclusion_reason",
+        "redaction_class"
+      ],
+      "properties": {
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "support_pack_item_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "inclusion_reason": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "excluded_class_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "exclusion_reason"
+      ],
+      "properties": {
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "support_pack_item_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "exclusion_reason": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "policy_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "chain_of_custody_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "actor_class",
+        "actor_ref",
+        "action_class",
+        "occurred_at",
+        "location_class",
+        "note"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actor_class": {
+          "$ref": "#/$defs/custody_actor_class"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "action_class": {
+          "$ref": "#/$defs/custody_action_class"
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "location_class": {
+          "$ref": "#/$defs/custody_location_class"
+        },
+        "evidence_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "recovery_ladder_hook_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_class",
+        "hook_ref",
+        "label",
+        "enabled",
+        "blast_radius",
+        "preserves_user_state",
+        "notes"
+      ],
+      "properties": {
+        "hook_class": {
+          "$ref": "#/$defs/recovery_ladder_hook_class"
+        },
+        "hook_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "blast_radius": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_user_state": {
+          "type": "boolean"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "stabilized_support_bundle_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "manifest_id",
+        "title",
+        "generation_mode",
+        "build_identity",
+        "included_classes",
+        "excluded_classes",
+        "destination_class",
+        "retention_class",
+        "retention_note",
+        "redaction_profile_ref",
+        "chain_of_custody",
+        "consent_escalation_class",
+        "recovery_ladder_hooks",
+        "supports_offline_inspection",
+        "emitted_at",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "enum": [
+            "stabilized_support_bundle_manifest_record",
+            "stabilized_support_bundle_manifest_seed_case_record"
+          ]
+        },
+        "manifest_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "generation_mode": {
+          "$ref": "#/$defs/support_bundle_generation_mode"
+        },
+        "build_identity": {
+          "$ref": "#/$defs/build_identity"
+        },
+        "included_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/included_class_entry"
+          }
+        },
+        "excluded_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/excluded_class_entry"
+          }
+        },
+        "destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "retention_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "chain_of_custody": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/chain_of_custody_entry"
+          }
+        },
+        "consent_escalation_class": {
+          "$ref": "#/$defs/consent_escalation_class"
+        },
+        "consent_escalation_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "incident_capture_scenario": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/incident_capture_scenario_class"
+            }
+          ]
+        },
+        "recovery_ladder_hooks": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "$ref": "#/$defs/recovery_ladder_hook_binding"
+          }
+        },
+        "supports_offline_inspection": {
+          "type": "boolean"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "stabilized_support_bundle_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "manifest_ref",
+        "generation_mode",
+        "destination_class",
+        "retention_class",
+        "redaction_profile_ref",
+        "included_class_count",
+        "excluded_class_count",
+        "custody_event_count",
+        "consent_escalation_class",
+        "supports_offline_inspection",
+        "schema_ref",
+        "doc_ref",
+        "artifact_ref",
+        "emitted_at",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "stabilized_support_bundle_support_packet_record"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "manifest_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "generation_mode": {
+          "$ref": "#/$defs/support_bundle_generation_mode"
+        },
+        "destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "included_class_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excluded_class_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "custody_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consent_escalation_class": {
+          "$ref": "#/$defs/consent_escalation_class"
+        },
+        "supports_offline_inspection": {
+          "type": "boolean"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "artifact_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    }
+  }
+}

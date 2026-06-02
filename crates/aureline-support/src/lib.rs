@@ -194,6 +194,7 @@ pub mod runtime_health_alpha;
 pub mod safe_mode;
 pub mod scenario_scorecard;
 pub mod stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded;
+pub mod stabilize_support_bundle_generation_with_redaction_default_manifests;
 pub mod storage_inspector;
 
 pub use export_review::{
