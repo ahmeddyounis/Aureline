@@ -1,0 +1,78 @@
+schema_version: 1
+record_kind: stabilized_support_scenario_record
+scenario_id: stabilized_scenario:workspace_open:offline_first:alpha
+title: Workspace open in an offline-first environment
+launch_archetype_class: workspace_open
+enterprise_network_row_class: offline_first
+stabilized_scenario_class: repair_preview_validation
+doctor_finding_ref: doctor.finding.restore_replay.blocked
+consumer_refs:
+  doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  schema_ref: schemas/support/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.schema.json
+  crate_consumer: crates/aureline-support/src/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows/mod.rs
+  integration_test: crates/aureline-support/tests/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.rs
+starting_condition:
+  state_ref: state:workspace_open:offline_first:restore_pending
+  summary: User opens an existing workspace in an offline-first environment with a pending restore replay.
+validation_steps:
+  - step_id: step:1:bind_doctor_finding
+    step_class: bind_doctor_finding
+    summary: Bind the scenario to a typed Project Doctor finding for restore replay blocked.
+    expected_artifact_kind: project_doctor_finding_record
+    expected_artifact_ref: doctor.finding.restore_replay.blocked
+  - step_id: step:2:compile_repair_skeleton
+    step_class: compile_repair_skeleton
+    summary: Compile a repair-preview skeleton from the blocked restore replay.
+    expected_artifact_kind: repair_preview_skeleton_record
+    expected_artifact_ref: repair_preview:restore_replay:blocked:offline_first
+  - step_id: step:3:compare_repair_skeleton
+    step_class: compare_repair_skeleton
+    summary: Compare the repair preview before applying in offline mode.
+    expected_artifact_kind: repair_preview_comparison_record
+    expected_artifact_ref: repair_preview_comparison:restore_replay:blocked:offline_first
+  - step_id: step:4:export_support_packet
+    step_class: export_support_packet
+    summary: Project the lane's records into a metadata-safe support packet.
+    expected_artifact_kind: support_scenario_support_packet_record
+    expected_artifact_ref: support:stabilized_scenario:workspace_open:offline_first
+expected_first_actionable_artifact:
+  artifact_kind: repair_preview_skeleton_record
+  artifact_ref: repair_preview:restore_replay:blocked:offline_first
+  recovery_action_class: preview_repair
+  reviewer_summary: Preview the repair skeleton that resolves the blocked restore replay without requiring network access.
+primary_fixture_refs:
+  - fixtures/support/seeded_scenarios_alpha/restore_replay_blocked.yaml
+  - fixtures/recovery/m3/repair_transaction_preview/cache_index_rebuild_skeleton.yaml
+scorecard_contribution:
+  scorecard_target: m4.launch_archetype.workspace_open
+  coverage_class: archetype_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    claim_state_class: stale_corpus
+    reviewer_note: Missing workspace-open fixture blocks stable promotion.
+  - trigger_class: drill_step_unproven
+    claim_state_class: yellow_aging
+    reviewer_note: Aging drill evidence for workspace-open repair preview needs refresh.
+  - trigger_class: drill_proves_regression
+    claim_state_class: red_blocked
+    reviewer_note: Regression in workspace-open repair preview blocks stable claim.
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+    - widen_workspace_trust
+  no_touch_boundary_set:
+    - user_authored_files
+references:
+  lane_doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  recovery_ladder_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+emitted_at: '2026-06-02T00:00:00Z'

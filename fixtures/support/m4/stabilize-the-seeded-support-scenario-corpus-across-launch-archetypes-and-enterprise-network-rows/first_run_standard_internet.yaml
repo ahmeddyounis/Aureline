@@ -1,0 +1,72 @@
+schema_version: 1
+record_kind: stabilized_support_scenario_record
+scenario_id: stabilized_scenario:first_run:standard_internet:alpha
+title: First-run entry with standard internet connectivity
+launch_archetype_class: first_run
+enterprise_network_row_class: standard_internet
+stabilized_scenario_class: blocked_user_recovery
+doctor_finding_ref: doctor.finding.first_run.entry_target_unavailable
+consumer_refs:
+  doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  schema_ref: schemas/support/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.schema.json
+  crate_consumer: crates/aureline-support/src/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows/mod.rs
+  integration_test: crates/aureline-support/tests/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.rs
+starting_condition:
+  state_ref: state:first_run:no_prior_workspace
+  summary: User launches the IDE for the first time with no prior workspace state and standard internet access.
+validation_steps:
+  - step_id: step:1:bind_doctor_finding
+    step_class: bind_doctor_finding
+    summary: Bind the scenario to a typed Project Doctor finding for first-run entry.
+    expected_artifact_kind: project_doctor_finding_record
+    expected_artifact_ref: doctor.finding.first_run.entry_target_unavailable
+  - step_id: step:2:enter_safe_mode
+    step_class: enter_safe_mode
+    summary: Enter safe mode to bound side effects during first-run recovery.
+    expected_artifact_kind: safe_mode_profile_record
+    expected_artifact_ref: safe_mode_profile:first_run:standard_internet
+  - step_id: step:3:export_support_packet
+    step_class: export_support_packet
+    summary: Project the lane's records into a metadata-safe support packet.
+    expected_artifact_kind: support_scenario_support_packet_record
+    expected_artifact_ref: support:stabilized_scenario:first_run:standard_internet
+expected_first_actionable_artifact:
+  artifact_kind: safe_mode_profile_record
+  artifact_ref: safe_mode_profile:first_run:standard_internet
+  recovery_action_class: enter_safe_mode
+  reviewer_summary: Enter safe mode to complete first-run setup without risking user state.
+primary_fixture_refs:
+  - fixtures/support/seeded_scenarios_alpha/first_run_entry_open_target_unavailable.yaml
+scorecard_contribution:
+  scorecard_target: m4.launch_archetype.first_run
+  coverage_class: archetype_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    claim_state_class: stale_corpus
+    reviewer_note: Missing first-run fixture blocks stable promotion.
+  - trigger_class: drill_step_unproven
+    claim_state_class: yellow_aging
+    reviewer_note: Aging drill evidence for first-run safe-mode entry needs refresh.
+  - trigger_class: drill_proves_regression
+    claim_state_class: red_blocked
+    reviewer_note: Regression in first-run safe-mode entry blocks stable claim.
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+    - widen_workspace_trust
+  no_touch_boundary_set:
+    - user_authored_files
+references:
+  lane_doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  recovery_ladder_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+emitted_at: '2026-06-02T00:00:00Z'

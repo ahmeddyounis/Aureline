@@ -1,0 +1,78 @@
+schema_version: 1
+record_kind: stabilized_support_scenario_record
+scenario_id: stabilized_scenario:crash_recovery:air_gapped:alpha
+title: Crash-loop recovery in an air-gapped environment
+launch_archetype_class: crash_recovery
+enterprise_network_row_class: air_gapped
+stabilized_scenario_class: crash_loop_center_evidence
+doctor_finding_ref: doctor.finding.crash_loop.extension_quarantine
+consumer_refs:
+  doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  schema_ref: schemas/support/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.schema.json
+  crate_consumer: crates/aureline-support/src/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows/mod.rs
+  integration_test: crates/aureline-support/tests/stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows.rs
+starting_condition:
+  state_ref: state:crash_recovery:air_gapped:budget_exhausted
+  summary: User recovers from a crash loop in an air-gapped environment with no external network access.
+validation_steps:
+  - step_id: step:1:bind_crash_loop_signal
+    step_class: bind_crash_loop_signal
+    summary: Bind the scenario to a typed crash-loop signal record.
+    expected_artifact_kind: crash_loop_signal_record
+    expected_artifact_ref: crash_loop_signal:budget_exhausted:air_gapped
+  - step_id: step:2:enter_safe_mode
+    step_class: enter_safe_mode
+    summary: Enter safe mode to prevent further crashes while diagnosing.
+    expected_artifact_kind: safe_mode_profile_record
+    expected_artifact_ref: safe_mode_profile:crash_recovery:air_gapped
+  - step_id: step:3:extension_bisect
+    step_class: extension_bisect
+    summary: Run extension bisect to attribute the crash to a specific extension.
+    expected_artifact_kind: extension_bisect_session_record
+    expected_artifact_ref: extension_bisect_session:crash_recovery:air_gapped
+  - step_id: step:4:export_support_packet
+    step_class: export_support_packet
+    summary: Export a metadata-safe support packet for offline hand-off.
+    expected_artifact_kind: support_scenario_support_packet_record
+    expected_artifact_ref: support:stabilized_scenario:crash_recovery:air_gapped
+expected_first_actionable_artifact:
+  artifact_kind: crash_loop_recovery_center_record
+  artifact_ref: crash_loop_recovery:center:crash_recovery:air_gapped
+  recovery_action_class: enter_safe_mode
+  reviewer_summary: Route the user into safe mode and extension bisect without requiring network access.
+primary_fixture_refs:
+  - fixtures/support/seeded_scenarios_alpha/crash_loop_extension_quarantine.yaml
+  - fixtures/recovery/m3/safe_mode/post_crash_loop_profile.yaml
+scorecard_contribution:
+  scorecard_target: m4.launch_archetype.crash_recovery
+  coverage_class: archetype_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    claim_state_class: stale_corpus
+    reviewer_note: Missing crash-recovery fixture blocks stable promotion.
+  - trigger_class: drill_step_unproven
+    claim_state_class: yellow_aging
+    reviewer_note: Aging drill evidence for crash-recovery safe-mode entry needs refresh.
+  - trigger_class: drill_proves_regression
+    claim_state_class: red_blocked
+    reviewer_note: Regression in crash-recovery recovery center blocks stable claim.
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+    - widen_workspace_trust
+  no_touch_boundary_set:
+    - user_authored_files
+references:
+  lane_doc_ref: docs/support/m4/stabilize-the-seeded-support-scenario-corpus-across-launch-archetypes-and-enterprise-network-rows.md
+  recovery_ladder_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+emitted_at: '2026-06-02T00:00:00Z'
