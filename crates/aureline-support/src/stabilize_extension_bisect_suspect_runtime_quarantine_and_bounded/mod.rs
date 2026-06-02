@@ -845,10 +845,7 @@ fn validate_profile(
                 &mut violations,
                 "stabilized_orchestration.preserved_state_missing",
                 &profile.profile_id,
-                &format!(
-                    "preserved state class {} is required",
-                    required.as_str()
-                ),
+                &format!("preserved state class {} is required", required.as_str()),
             );
         }
     }
@@ -866,10 +863,7 @@ fn validate_profile(
                 &mut violations,
                 "stabilized_orchestration.retained_capability_missing",
                 &profile.profile_id,
-                &format!(
-                    "retained capability {} is required",
-                    required.as_str()
-                ),
+                &format!("retained capability {} is required", required.as_str()),
             );
         }
     }
@@ -892,8 +886,7 @@ fn validate_profile(
         }
     }
 
-    let required_rungs: BTreeSet<_> =
-        RecoveryLadderRungClass::REQUIRED.iter().copied().collect();
+    let required_rungs: BTreeSet<_> = RecoveryLadderRungClass::REQUIRED.iter().copied().collect();
     let actual_rungs: BTreeSet<_> = profile
         .recovery_ladder_bindings
         .iter()
@@ -905,10 +898,7 @@ fn validate_profile(
                 &mut violations,
                 "stabilized_orchestration.recovery_ladder_rung_missing",
                 &profile.profile_id,
-                &format!(
-                    "recovery ladder rung {} is required",
-                    required.as_str()
-                ),
+                &format!("recovery ladder rung {} is required", required.as_str()),
             );
         }
     }

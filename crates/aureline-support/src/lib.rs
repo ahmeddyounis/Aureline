@@ -166,6 +166,7 @@ pub mod export_review;
 pub mod extension_bisect;
 pub mod fault_domain_views;
 pub mod field_readiness;
+pub mod finalize_typed_repair_transaction_preview_checkpoint_rollback_and;
 pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;

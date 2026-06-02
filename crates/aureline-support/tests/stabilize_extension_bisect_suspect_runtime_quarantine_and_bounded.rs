@@ -6,10 +6,9 @@ use std::path::{Path, PathBuf};
 
 use aureline_support::stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded::{
     load_stabilized_orchestration_profile, PreservedStateClass, RecoveryLadderRungClass,
-    RetainedCapabilityClass, StabilizedOrchestrationEvaluator,
-    StabilizedOrchestrationProfileClass, STABILIZED_ORCHESTRATION_DOC_REF,
-    STABILIZED_ORCHESTRATION_PROFILE_RECORD_KIND, STABILIZED_ORCHESTRATION_SCHEMA_REF,
-    STABILIZED_ORCHESTRATION_SUPPORT_PACKET_RECORD_KIND,
+    RetainedCapabilityClass, StabilizedOrchestrationEvaluator, StabilizedOrchestrationProfileClass,
+    STABILIZED_ORCHESTRATION_DOC_REF, STABILIZED_ORCHESTRATION_PROFILE_RECORD_KIND,
+    STABILIZED_ORCHESTRATION_SCHEMA_REF, STABILIZED_ORCHESTRATION_SUPPORT_PACKET_RECORD_KIND,
 };
 use serde::Deserialize;
 
@@ -38,7 +37,7 @@ fn load_manifest() -> Manifest {
     serde_yaml::from_str(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
 }
 
-fn load_profiles() -> Vec<aureline_support::stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded::StabilizedOrchestrationProfile> {
+fn load_profiles() -> Vec<aureline_support::stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded::StabilizedOrchestrationProfile>{
     load_manifest()
         .profile_files
         .into_iter()
@@ -64,7 +63,10 @@ fn stabilized_orchestration_profiles_validate_successfully() {
             .validate_profile(profile)
             .unwrap_or_else(|err| panic!("{} failed: {err:?}", profile.profile_id));
 
-        assert_eq!(profile.record_kind, STABILIZED_ORCHESTRATION_PROFILE_RECORD_KIND);
+        assert_eq!(
+            profile.record_kind,
+            STABILIZED_ORCHESTRATION_PROFILE_RECORD_KIND
+        );
         assert!(!profile.destructive_resets_present);
         assert!(profile.doctor_finding_ref.starts_with("doctor.finding."));
         covered_profile_classes.insert(profile.profile_class);
@@ -119,7 +121,10 @@ fn stabilized_orchestration_profiles_admit_all_required_retained_capabilities() 
 
         assert_eq!(
             admitted,
-            RetainedCapabilityClass::REQUIRED.iter().copied().collect::<BTreeSet<_>>(),
+            RetainedCapabilityClass::REQUIRED
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>(),
             "profile {} missing retained capabilities",
             profile.profile_id
         );
@@ -159,7 +164,10 @@ fn stabilized_orchestration_profiles_cover_all_recovery_ladder_rungs() {
 
         assert_eq!(
             covered,
-            RecoveryLadderRungClass::REQUIRED.iter().copied().collect::<BTreeSet<_>>(),
+            RecoveryLadderRungClass::REQUIRED
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>(),
             "profile {} missing recovery-ladder rungs",
             profile.profile_id
         );
