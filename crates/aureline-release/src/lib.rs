@@ -187,6 +187,7 @@
 pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
+pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod go_no_go_rehearsal;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
 pub mod maintenance_control_packet;
@@ -229,6 +230,15 @@ pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
     ScoreboardLane, ScoreboardMetric, ScoreboardPublicationRecord, ScoreboardRule, ScoreboardState,
     SignoffLoop, COHORT_SCOREBOARDS_JSON, COHORT_SCOREBOARDS_PATH, COHORT_SCOREBOARDS_RECORD_KIND,
     COHORT_SCOREBOARDS_SCHEMA_VERSION,
+};
+
+pub use finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance::{
+    current_desktop_platform_conformance, CheckKind, CheckState, ConformanceAction, ConformanceDomain,
+    ConformanceState, DesktopPlatformConformance, DesktopPlatformConformanceRule,
+    DesktopPlatformConformanceRow, DesktopPlatformConformanceSummary,
+    DesktopPlatformConformanceViolation, GapReason as ConformanceGapReason,
+    DESKTOP_PLATFORM_CONFORMANCE_JSON, DESKTOP_PLATFORM_CONFORMANCE_PATH,
+    DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND, DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION,
 };
 
 pub use go_no_go_rehearsal::{
