@@ -88,6 +88,21 @@
 //! opt-in/integration/platform/preview surface kinds and the release-relevant surface set
 //! both stay fully covered, so shiproom and release tooling can fail promotion directly from
 //! the register.
+//! The benchmark-lab-governance module is the performance-evidence layer beside those
+//! gates: where the hot-path-performance-budgets register protects the published p50/p95
+//! numbers for each individual hot path, this register governs the benchmark-lab
+//! automation lanes, corpus governance assets, and public benchmark publication packs that
+//! *produce* those numbers. For every such asset it records one row binding the asset to
+//! the public claim it backs and to the proof packet that grounds it (a CI lane health
+//! record, a corpus manifest, a protected-metrics revision, or a publication pack), protects
+//! each benchmark publication's published p50/p95 budget against the measured numbers (with
+//! corpus metadata, lab trace, and a waiver hook for intentionally tightened thresholds),
+//! and narrows below the cutline any asset whose proof packet aged out or is missing, whose
+//! corpus metadata or benchmark-lab trace is missing, whose waiver expired, whose evidence
+//! is incomplete, or whose backing public claim is itself below the cutline — while the
+//! nightly-ci/self-capture/corpus/metrics/hardware/image/ledger/publication-pack asset kinds
+//! and the release-blocking asset set both stay fully covered, so shiproom and release
+//! tooling can fail qualification directly from the register.
 //! The cohort-scoreboards module is the signoff-loop layer beside those gates: it
 //! finalizes the design-partner, certified-archetype, and stable-cohort
 //! scoreboards as one canonical packet, binds every scoreboard row to a public
@@ -154,6 +169,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
+pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod go_no_go_rehearsal;
 pub mod maintenance_control_packet;
@@ -177,6 +193,15 @@ pub use correction_train::{
     PacketTemplates, ReleaseNotesRefs, SupportProjection, TargetChannelUpdate, TriageLane,
     CORRECTION_TRAIN_PACKET_RECORD_KIND, CORRECTION_TRAIN_PACKET_SCHEMA_VERSION,
     SECURITY_OR_TRUST_ISSUE_CLASSES, SHARED_PACKET_FORM_TERMS, SUPPORTED_LINE_CLASSES,
+};
+
+pub use finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack::{
+    current_benchmark_lab_governance, AssetAction, AssetState, BenchmarkLabGovernance,
+    BenchmarkLabGovernanceExportProjection, BenchmarkLabGovernanceExportRow,
+    BenchmarkLabGovernanceSummary, BenchmarkLabGovernanceViolation, GovernanceAssetKind,
+    GovernanceAssetRow, GovernanceRule, GapReason as BenchmarkLabGapReason, QualificationRecord,
+    BENCHMARK_LAB_GOVERNANCE_JSON, BENCHMARK_LAB_GOVERNANCE_PATH,
+    BENCHMARK_LAB_GOVERNANCE_RECORD_KIND, BENCHMARK_LAB_GOVERNANCE_SCHEMA_VERSION,
 };
 
 pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
