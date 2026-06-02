@@ -18,6 +18,7 @@ pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
+pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
 pub mod runtime_authority_issuers;
 pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
@@ -170,6 +171,36 @@ pub use harden_os_keychain_and_trust_store_integration_trust::{
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SCHEMA_VERSION, HARDEN_OS_KEYCHAIN_TRUST_STORE_SHARED_CONTRACT_REF,
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SUMMARY_RECORD_KIND,
     HARDEN_OS_KEYCHAIN_TRUST_STORE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits::{
+    audit_enterprise_docs_matrices_known_limits_page,
+    seeded_enterprise_docs_matrices_known_limits_page,
+    validate_enterprise_docs_matrices_known_limits_page,
+    DocsCompletenessClass,
+    DocsDeclaration,
+    EnterpriseDocsMatricesKnownLimitsDefect,
+    EnterpriseDocsMatricesKnownLimitsNarrowReasonClass,
+    EnterpriseDocsMatricesKnownLimitsPage,
+    EnterpriseDocsMatricesKnownLimitsQualificationClass,
+    EnterpriseDocsMatricesKnownLimitsRow,
+    EnterpriseDocsMatricesKnownLimitsSummary,
+    EnterpriseDocsMatricesKnownLimitsSupportExport,
+    KnownLimitCompletenessClass,
+    KnownLimitsDeclaration,
+    MatrixCompletenessClass,
+    MatrixDeclaration,
+    ProofCurrencyClass,
+    ProofCurrencyDeclaration,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_ARTIFACT_REF,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_DEFECT_RECORD_KIND,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_DOC_REF,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_PAGE_RECORD_KIND,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_ROW_RECORD_KIND,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_SCHEMA_VERSION,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_SHARED_CONTRACT_REF,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_SUMMARY_RECORD_KIND,
+    ENTERPRISE_DOCS_MATRICES_KNOWN_LIMITS_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use stabilize_deployment_and_residency_truth::{
