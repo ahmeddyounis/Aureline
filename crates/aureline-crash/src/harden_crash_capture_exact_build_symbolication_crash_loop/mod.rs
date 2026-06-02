@@ -311,9 +311,10 @@ pub fn detect_crash_loop(inputs: &CrashLoopSignalInputs) -> Option<CrashLoopSign
     let recovery_attempt_count = matching
         .iter()
         .filter(|trail| {
-            trail.next_safe_actions.iter().any(|action| {
-                action.action_ref.contains("recovery_action:") && action.enabled
-            })
+            trail
+                .next_safe_actions
+                .iter()
+                .any(|action| action.action_ref.contains("recovery_action:") && action.enabled)
         })
         .count() as u32;
 
@@ -324,16 +325,16 @@ pub fn detect_crash_loop(inputs: &CrashLoopSignalInputs) -> Option<CrashLoopSign
         .iter()
         .any(|trail| trail.symbolication_state == SymbolicationState::BuildMismatch);
 
-    let detection_state = if strike_count >= inputs.escalation_threshold && recovery_attempt_count > 0
-    {
-        CrashLoopDetectionState::Escalating
-    } else if strike_count >= inputs.strike_budget {
-        CrashLoopDetectionState::Confirmed
-    } else if strike_count > 1 {
-        CrashLoopDetectionState::Emerging
-    } else {
-        CrashLoopDetectionState::NoLoop
-    };
+    let detection_state =
+        if strike_count >= inputs.escalation_threshold && recovery_attempt_count > 0 {
+            CrashLoopDetectionState::Escalating
+        } else if strike_count >= inputs.strike_budget {
+            CrashLoopDetectionState::Confirmed
+        } else if strike_count > 1 {
+            CrashLoopDetectionState::Emerging
+        } else {
+            CrashLoopDetectionState::NoLoop
+        };
 
     let scenario_class = classify_scenario(&matching);
     let available_hooks = default_hooks_for_scenario(scenario_class);
@@ -374,12 +375,16 @@ pub fn detect_crash_loop(inputs: &CrashLoopSignalInputs) -> Option<CrashLoopSign
 
 fn classify_scenario(trails: &[&CrashIncidentTrail]) -> CrashLoopScenarioClass {
     let has_restore_attempts = trails.iter().any(|trail| {
-        trail.next_safe_actions.iter().any(|action| {
-            action.action_ref.contains("open_without_restore") && action.enabled
-        })
+        trail
+            .next_safe_actions
+            .iter()
+            .any(|action| action.action_ref.contains("open_without_restore") && action.enabled)
     });
 
-    let fault_domain = trails.first().map(|t| t.fault_domain_id.as_str()).unwrap_or("unknown");
+    let fault_domain = trails
+        .first()
+        .map(|t| t.fault_domain_id.as_str())
+        .unwrap_or("unknown");
 
     if has_restore_attempts && trails.len() >= 3 {
         CrashLoopScenarioClass::RestoreReplayFailedRepeatedly
@@ -590,7 +595,10 @@ pub fn preview_evidence(inputs: &EvidencePreviewInputs) -> EvidencePreview {
     });
 
     // Crash-loop signal: embedded when available
-    let crash_loop_signal_ref = inputs.crash_loop_signal.as_ref().map(|s| s.signal_id.clone());
+    let crash_loop_signal_ref = inputs
+        .crash_loop_signal
+        .as_ref()
+        .map(|s| s.signal_id.clone());
     if let Some(signal) = &inputs.crash_loop_signal {
         included_items.push(EvidencePreviewItem {
             item_kind: "crash_loop_signal".into(),
@@ -785,7 +793,11 @@ pub fn export_evidence(inputs: &EvidenceExportInputs) -> EvidenceExportPacket {
             .incident_trail
             .primary_exact_build_identity_ref
             .clone(),
-        symbolication_state: inputs.incident_trail.symbolication_state.as_str().to_owned(),
+        symbolication_state: inputs
+            .incident_trail
+            .symbolication_state
+            .as_str()
+            .to_owned(),
         export_items,
         chain_of_custody,
         repair_transaction_id: inputs.repair_transaction_id.clone(),
@@ -873,7 +885,11 @@ impl HardenedCrashCaptureEvaluator {
                 "available_hooks must not be empty",
             );
         }
-        if !signal.available_hooks.iter().any(|h| h.preserves_user_state) {
+        if !signal
+            .available_hooks
+            .iter()
+            .any(|h| h.preserves_user_state)
+        {
             push_violation(
                 &mut violations,
                 "harden_crash_capture.signal_no_safe_hook",

@@ -9,11 +9,10 @@ use std::path::{Path, PathBuf};
 
 use aureline_crash::{
     detect_crash_loop, export_evidence, preview_evidence, CrashIncidentTrail,
-    CrashIncidentTrailInputs, CrashLoopDetectionState, CrashLoopScenarioClass,
-    CrashLoopSignal, CrashLoopSignalInputs, EvidenceExportInputs, EvidenceExportPacket,
-    EvidencePreview, EvidencePreviewInputs, ExportRedactionClass,
-    HardenedCrashCaptureEvaluator, RecoveryLadderHookClass,
-    SymbolicationState, EVIDENCE_EXPORT_PACKET_RECORD_KIND,
+    CrashIncidentTrailInputs, CrashLoopDetectionState, CrashLoopScenarioClass, CrashLoopSignal,
+    CrashLoopSignalInputs, EvidenceExportInputs, EvidenceExportPacket, EvidencePreview,
+    EvidencePreviewInputs, ExportRedactionClass, HardenedCrashCaptureEvaluator,
+    RecoveryLadderHookClass, SymbolicationState, EVIDENCE_EXPORT_PACKET_RECORD_KIND,
     EVIDENCE_PREVIEW_RECORD_KIND, HARDEN_CRASH_CAPTURE_DOC_REF, HARDEN_CRASH_CAPTURE_SCHEMA_REF,
     HARDEN_CRASH_CAPTURE_SCHEMA_VERSION,
 };
@@ -102,7 +101,8 @@ fn make_trails_for_fault_domain(
     let mut trails = Vec::with_capacity(count);
     for i in 0..count {
         let mut trail = incident_trail_fixture();
-        trail.incident_trail_id = format!("crash-incident-trail:alpha-preview:renderer-panic:{i:04}");
+        trail.incident_trail_id =
+            format!("crash-incident-trail:alpha-preview:renderer-panic:{i:04}");
         trail.symbolication_state = symbolication_state;
         trail.primary_exact_build_identity_ref = exact_build_identity();
         trail.fault_domain_id = fault_domain_id.into();
@@ -250,7 +250,8 @@ fn signal_carries_safe_hooks_by_default() {
     let signal = detect_crash_loop(&inputs).expect("signal produced");
     assert!(
         signal.available_hooks.iter().any(|h| {
-            h.hook_class == RecoveryLadderHookClass::SafeModeMinimalProfile && h.preserves_user_state
+            h.hook_class == RecoveryLadderHookClass::SafeModeMinimalProfile
+                && h.preserves_user_state
         }),
         "safe_mode hook must preserve user state"
     );
@@ -281,11 +282,17 @@ fn preview_lists_included_and_omitted_items() {
     assert_eq!(preview.schema_version, HARDEN_CRASH_CAPTURE_SCHEMA_VERSION);
     assert!(!preview.raw_dump_exported);
     assert!(
-        preview.included_items.iter().any(|i| i.item_kind == "crash_envelope"),
+        preview
+            .included_items
+            .iter()
+            .any(|i| i.item_kind == "crash_envelope"),
         "preview must include crash_envelope"
     );
     assert!(
-        preview.omitted_items.iter().any(|i| i.item_kind == "raw_dump_body"),
+        preview
+            .omitted_items
+            .iter()
+            .any(|i| i.item_kind == "raw_dump_body"),
         "preview must omit raw_dump_body"
     );
     assert_eq!(preview.doc_ref, HARDEN_CRASH_CAPTURE_DOC_REF);
@@ -306,7 +313,10 @@ fn preview_with_crash_loop_signal_embeds_signal() {
 
     assert!(preview.crash_loop_signal_ref.is_some());
     assert!(
-        preview.included_items.iter().any(|i| i.item_kind == "crash_loop_signal"),
+        preview
+            .included_items
+            .iter()
+            .any(|i| i.item_kind == "crash_loop_signal"),
         "preview must include crash_loop_signal when provided"
     );
 }
@@ -398,12 +408,10 @@ fn evaluator_rejects_signal_with_zero_strikes() {
     let evaluator = HardenedCrashCaptureEvaluator::new();
     let report = evaluator.validate_crash_loop_signal(&signal);
     assert!(!report.is_valid());
-    assert!(
-        report
-            .violations
-            .iter()
-            .any(|v| v.check_id.contains("strike_count_zero"))
-    );
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id.contains("strike_count_zero")));
 }
 
 #[test]
@@ -416,12 +424,10 @@ fn evaluator_rejects_signal_without_safe_hooks() {
     let evaluator = HardenedCrashCaptureEvaluator::new();
     let report = evaluator.validate_crash_loop_signal(&signal);
     assert!(!report.is_valid());
-    assert!(
-        report
-            .violations
-            .iter()
-            .any(|v| v.check_id.contains("no_safe_hook"))
-    );
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id.contains("no_safe_hook")));
 }
 
 #[test]
@@ -440,12 +446,10 @@ fn evaluator_rejects_preview_with_raw_dump_exported() {
     let evaluator = HardenedCrashCaptureEvaluator::new();
     let report = evaluator.validate_evidence_preview(&preview);
     assert!(!report.is_valid());
-    assert!(
-        report
-            .violations
-            .iter()
-            .any(|v| v.check_id.contains("raw_dump_exported"))
-    );
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id.contains("raw_dump_exported")));
 }
 
 #[test]
@@ -464,12 +468,10 @@ fn evaluator_rejects_packet_with_empty_export_items() {
     let evaluator = HardenedCrashCaptureEvaluator::new();
     let report = evaluator.validate_evidence_export_packet(&packet);
     assert!(!report.is_valid());
-    assert!(
-        report
-            .violations
-            .iter()
-            .any(|v| v.check_id.contains("export_items_empty"))
-    );
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id.contains("export_items_empty")));
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +506,11 @@ fn all_scenario_classes_have_stable_tokens() {
 
 #[test]
 fn extension_scenario_includes_disable_hook() {
-    let mut trails = make_trails_for_fault_domain(3, SymbolicationState::Exact, "fd.extension_host.crash_loop_alpha");
+    let mut trails = make_trails_for_fault_domain(
+        3,
+        SymbolicationState::Exact,
+        "fd.extension_host.crash_loop_alpha",
+    );
     // Disable restore actions so the classifier does not route into restore-replay.
     for trail in trails.iter_mut() {
         trail.next_safe_actions.iter_mut().for_each(|a| {
@@ -523,18 +529,23 @@ fn extension_scenario_includes_disable_hook() {
     };
 
     let signal = detect_crash_loop(&inputs).expect("signal produced");
-    assert_eq!(signal.scenario_class, CrashLoopScenarioClass::ExtensionHostRestartBudgetExceeded);
+    assert_eq!(
+        signal.scenario_class,
+        CrashLoopScenarioClass::ExtensionHostRestartBudgetExceeded
+    );
     assert!(
-        signal.available_hooks.iter().any(|h| {
-            h.hook_class == RecoveryLadderHookClass::DisableRecentExtension
-        }),
+        signal
+            .available_hooks
+            .iter()
+            .any(|h| { h.hook_class == RecoveryLadderHookClass::DisableRecentExtension }),
         "extension-host scenario must offer disable_recent_extension hook"
     );
 }
 
 #[test]
 fn restore_replay_scenario_includes_cache_reset_hook() {
-    let mut trails = make_trails_for_fault_domain(4, SymbolicationState::Exact, "fd.restore.crash_loop_alpha");
+    let mut trails =
+        make_trails_for_fault_domain(4, SymbolicationState::Exact, "fd.restore.crash_loop_alpha");
     for trail in trails.iter_mut() {
         trail.next_safe_actions.iter_mut().for_each(|a| {
             if a.action_ref.contains("open_without_restore") {
@@ -553,9 +564,10 @@ fn restore_replay_scenario_includes_cache_reset_hook() {
 
     let signal = detect_crash_loop(&inputs).expect("signal produced");
     assert!(
-        signal.available_hooks.iter().any(|h| {
-            h.hook_class == RecoveryLadderHookClass::ResetEphemeralCache
-        }),
+        signal
+            .available_hooks
+            .iter()
+            .any(|h| { h.hook_class == RecoveryLadderHookClass::ResetEphemeralCache }),
         "restore-replay scenario must offer reset_ephemeral_cache hook"
     );
 }

@@ -493,12 +493,18 @@ impl StabilizedSupportBundleManifest {
 
     /// True when this manifest represents ordinary redaction-default export.
     pub fn is_ordinary_redaction_default(&self) -> bool {
-        matches!(self.generation_mode, SupportBundleGenerationMode::OrdinaryRedactionDefault)
+        matches!(
+            self.generation_mode,
+            SupportBundleGenerationMode::OrdinaryRedactionDefault
+        )
     }
 
     /// True when this manifest represents high-fidelity incident capture.
     pub fn is_high_fidelity_incident_capture(&self) -> bool {
-        matches!(self.generation_mode, SupportBundleGenerationMode::HighFidelityIncidentCapture)
+        matches!(
+            self.generation_mode,
+            SupportBundleGenerationMode::HighFidelityIncidentCapture
+        )
     }
 
     /// True when the manifest supports offline inspection without upload.
@@ -636,7 +642,10 @@ impl fmt::Display for StabilizedSupportBundleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnsupportedSchemaVersion { actual, expected } => {
-                write!(f, "unsupported schema version {actual}, expected {expected}")
+                write!(
+                    f,
+                    "unsupported schema version {actual}, expected {expected}"
+                )
             }
             Self::UnknownRecordKind(kind) => write!(f, "unknown record kind: {kind}"),
             Self::InvalidManifestId => write!(f, "manifest_id must not be empty"),
@@ -652,7 +661,10 @@ impl fmt::Display for StabilizedSupportBundleError {
                 )
             }
             Self::MissingIncidentCaptureScenario => {
-                write!(f, "high_fidelity_incident_capture requires an incident_capture_scenario")
+                write!(
+                    f,
+                    "high_fidelity_incident_capture requires an incident_capture_scenario"
+                )
             }
             Self::MissingConsentEscalationRef => {
                 write!(
@@ -675,10 +687,16 @@ impl fmt::Display for StabilizedSupportBundleError {
             Self::EmptyIncludedClasses => write!(f, "included_classes must not be empty"),
             Self::EmptyExcludedClasses => write!(f, "excluded_classes must not be empty"),
             Self::EmptyIncludedReason => {
-                write!(f, "every included_classes entry must have a non-empty inclusion_reason")
+                write!(
+                    f,
+                    "every included_classes entry must have a non-empty inclusion_reason"
+                )
             }
             Self::EmptyExcludedReason => {
-                write!(f, "every excluded_classes entry must have a non-empty exclusion_reason")
+                write!(
+                    f,
+                    "every excluded_classes entry must have a non-empty exclusion_reason"
+                )
             }
             Self::EmptyRedactionProfileRef => {
                 write!(f, "redaction_profile_ref must not be empty")
@@ -699,10 +717,17 @@ impl fmt::Display for StabilizedSupportBundleError {
                 write!(f, "recovery_ladder_hooks must not be empty")
             }
             Self::MissingRecoveryLadderHook(hook) => {
-                write!(f, "missing required recovery_ladder_hook: {}", hook.as_str())
+                write!(
+                    f,
+                    "missing required recovery_ladder_hook: {}",
+                    hook.as_str()
+                )
             }
             Self::EmptyRecoveryHookRef => {
-                write!(f, "every recovery_ladder_hook must have a non-empty hook_ref")
+                write!(
+                    f,
+                    "every recovery_ladder_hook must have a non-empty hook_ref"
+                )
             }
             Self::EmptyRecoveryHookLabel => {
                 write!(f, "every recovery_ladder_hook must have a non-empty label")
@@ -788,14 +813,10 @@ impl StabilizedSupportBundleEvaluator {
         match manifest.generation_mode {
             SupportBundleGenerationMode::OrdinaryRedactionDefault => {
                 if manifest.consent_escalation_ref.is_some() {
-                    return Err(
-                        StabilizedSupportBundleError::UnexpectedConsentEscalationRef,
-                    );
+                    return Err(StabilizedSupportBundleError::UnexpectedConsentEscalationRef);
                 }
                 if manifest.incident_capture_scenario.is_some() {
-                    return Err(
-                        StabilizedSupportBundleError::UnexpectedIncidentCaptureScenario,
-                    );
+                    return Err(StabilizedSupportBundleError::UnexpectedIncidentCaptureScenario);
                 }
                 if manifest.consent_escalation_class != ConsentEscalationClass::NotRequired {
                     return Err(StabilizedSupportBundleError::GenerationModeInconsistent {
@@ -806,14 +827,10 @@ impl StabilizedSupportBundleEvaluator {
             }
             SupportBundleGenerationMode::HighFidelityIncidentCapture => {
                 if manifest.incident_capture_scenario.is_none() {
-                    return Err(
-                        StabilizedSupportBundleError::MissingIncidentCaptureScenario,
-                    );
+                    return Err(StabilizedSupportBundleError::MissingIncidentCaptureScenario);
                 }
                 if manifest.consent_escalation_ref.is_none() {
-                    return Err(
-                        StabilizedSupportBundleError::MissingConsentEscalationRef,
-                    );
+                    return Err(StabilizedSupportBundleError::MissingConsentEscalationRef);
                 }
                 if manifest.consent_escalation_class == ConsentEscalationClass::NotRequired {
                     return Err(StabilizedSupportBundleError::GenerationModeInconsistent {
@@ -834,14 +851,18 @@ impl StabilizedSupportBundleEvaluator {
             if entry.inclusion_reason.trim().is_empty() {
                 return Err(StabilizedSupportBundleError::EmptyIncludedReason);
             }
-            if matches!(entry.data_class, DiagnosticDataClass::HighRisk | DiagnosticDataClass::CodeAdjacent)
-                && manifest.consent_escalation_class != ConsentEscalationClass::ExplicitUserConsent
+            if matches!(
+                entry.data_class,
+                DiagnosticDataClass::HighRisk | DiagnosticDataClass::CodeAdjacent
+            ) && manifest.consent_escalation_class != ConsentEscalationClass::ExplicitUserConsent
                 && manifest.consent_escalation_class != ConsentEscalationClass::AdminPolicyOverride
             {
-                return Err(StabilizedSupportBundleError::ImproperlyIncludedHighRiskClass {
-                    data_class: entry.data_class,
-                    support_pack_item_id: entry.support_pack_item_id.clone(),
-                });
+                return Err(
+                    StabilizedSupportBundleError::ImproperlyIncludedHighRiskClass {
+                        data_class: entry.data_class,
+                        support_pack_item_id: entry.support_pack_item_id.clone(),
+                    },
+                );
             }
         }
         for entry in &manifest.excluded_classes {
@@ -866,11 +887,9 @@ impl StabilizedSupportBundleEvaluator {
         for entry in &manifest.chain_of_custody {
             if let Some(prev) = last_sequence {
                 if entry.sequence <= prev {
-                    return Err(
-                        StabilizedSupportBundleError::NonMonotonicCustodySequence {
-                            sequence: entry.sequence,
-                        },
-                    );
+                    return Err(StabilizedSupportBundleError::NonMonotonicCustodySequence {
+                        sequence: entry.sequence,
+                    });
                 }
             }
             last_sequence = Some(entry.sequence);
@@ -904,29 +923,29 @@ impl StabilizedSupportBundleEvaluator {
                 let lower = hook.blast_radius.to_lowercase();
                 for kw in &destructive_keywords {
                     if lower.contains(kw) {
-                        return Err(
-                            StabilizedSupportBundleError::SuspectedDestructiveHook {
-                                hook_class: hook.hook_class,
-                                blast_radius: hook.blast_radius.clone(),
-                            },
-                        );
+                        return Err(StabilizedSupportBundleError::SuspectedDestructiveHook {
+                            hook_class: hook.hook_class,
+                            blast_radius: hook.blast_radius.clone(),
+                        });
                     }
                 }
             }
         }
         for required in &RecoveryLadderHookClass::REQUIRED {
             if !covered_hooks.contains(required) {
-                return Err(StabilizedSupportBundleError::MissingRecoveryLadderHook(*required));
+                return Err(StabilizedSupportBundleError::MissingRecoveryLadderHook(
+                    *required,
+                ));
             }
         }
 
         // Local-only destination must support offline inspection.
-        if matches!(manifest.destination_class, DestinationClass::LocalOnlyReview)
-            && !manifest.supports_offline_inspection
+        if matches!(
+            manifest.destination_class,
+            DestinationClass::LocalOnlyReview
+        ) && !manifest.supports_offline_inspection
         {
-            return Err(
-                StabilizedSupportBundleError::OfflineInspectionRequiredForLocalOnly,
-            );
+            return Err(StabilizedSupportBundleError::OfflineInspectionRequiredForLocalOnly);
         }
 
         Ok(())

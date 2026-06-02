@@ -1,0 +1,725 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/finalize_support_center_surfaces_performance_inspector_language_service.schema.json",
+  "title": "Aureline finalized Support Center and Diagnostics Center surfaces contract",
+  "description": "Boundary schema for the diagnostics_center_record, health_feed_item_record, support_center_card_record, and diagnostics_export_packet_record. Defines the shared health-feed object model and the four per-subsystem inspectors (performance inspector, language-service dashboard, index-health view, AI evidence inspector) that drive Support Center cards, Diagnostics Center summaries, and support/export packets identically across desktop and CLI/headless surfaces.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/diagnostics_center_record"
+    },
+    {
+      "$ref": "#/$defs/health_feed_item_record"
+    },
+    {
+      "$ref": "#/$defs/support_center_card_record"
+    },
+    {
+      "$ref": "#/$defs/diagnostics_export_packet_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Frozen schema version for diagnostics center records."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for support previews, Diagnostics Center surfaces, or reviewer tables."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "performance",
+        "language_service",
+        "index",
+        "ai_evidence",
+        "project_doctor",
+        "support_bundle",
+        "repair_transaction",
+        "crash_evidence"
+      ],
+      "description": "Closed service-family vocabulary. Every health-feed item names exactly one service family."
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "remote_managed",
+        "offline_local",
+        "cli_headless"
+      ],
+      "description": "Closed boundary-class vocabulary. Names where the subsystem runs."
+    },
+    "freshness_state_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "unknown",
+        "partial"
+      ],
+      "description": "Closed freshness-state vocabulary."
+    },
+    "diagnostics_action_class": {
+      "type": "string",
+      "enum": [
+        "open_inspector",
+        "export_support_bundle",
+        "open_repair_preview",
+        "escalate",
+        "open_crash_evidence",
+        "open_doctor_findings",
+        "review_paused_work"
+      ],
+      "description": "Closed diagnostics-action vocabulary. Names what a user can do from a health-feed item or card."
+    },
+    "inspector_class": {
+      "type": "string",
+      "enum": [
+        "performance_inspector",
+        "language_service_dashboard",
+        "index_health_view",
+        "ai_evidence_inspector"
+      ],
+      "description": "Closed inspector-class vocabulary."
+    },
+    "health_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "quarantined"
+      ],
+      "description": "Closed health-state vocabulary."
+    },
+    "outage_scope_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "single_subsystem",
+        "partial_service",
+        "full_unavailable"
+      ],
+      "description": "Closed outage-scope vocabulary."
+    },
+    "diagnostics_recovery_hook_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode",
+        "extension_bisect",
+        "open_without_restore",
+        "cache_index_repair",
+        "export_support_bundle",
+        "open_repair_preview"
+      ],
+      "description": "Closed recovery-ladder hook class for diagnostics center."
+    },
+    "health_feed_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "item_id",
+        "service_family",
+        "boundary_class",
+        "affected_workflows_summary",
+        "last_checked_at",
+        "freshness_state",
+        "diagnostics_actions",
+        "health_state",
+        "summary",
+        "local_only_continuity_note_required"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "health_feed_item_record"
+        },
+        "item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "service_family": {
+          "$ref": "#/$defs/service_family_class"
+        },
+        "boundary_class": {
+          "$ref": "#/$defs/boundary_class"
+        },
+        "affected_workflows_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "last_checked_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "freshness_state": {
+          "$ref": "#/$defs/freshness_state_class"
+        },
+        "diagnostics_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/diagnostics_action_class"
+          }
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "local_only_continuity_note_required": {
+          "type": "boolean"
+        },
+        "local_only_continuity_note": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        }
+      }
+    },
+    "performance_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "inspector_id",
+        "health_state",
+        "p50_budget_ms",
+        "p95_budget_ms",
+        "observed_p50_ms",
+        "observed_p95_ms",
+        "within_budget",
+        "benchmark_trace_refs",
+        "corpus_metadata_ref",
+        "waiver_hooks",
+        "summary",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "performance_inspector_record"
+        },
+        "inspector_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "p50_budget_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p95_budget_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observed_p50_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observed_p95_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "within_budget": {
+          "type": "boolean"
+        },
+        "benchmark_trace_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "corpus_metadata_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "waiver_hooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "language_service_provider_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "provider_display_label",
+        "health_state",
+        "freshness_state",
+        "scope_claim_class",
+        "restart_strike_count",
+        "summary"
+      ],
+      "properties": {
+        "provider_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_display_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "freshness_state": {
+          "$ref": "#/$defs/freshness_state_class"
+        },
+        "scope_claim_class": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restart_strike_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quarantine_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "language_service_dashboard_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "inspector_id",
+        "health_state",
+        "router_decision_refs",
+        "provider_availability_rows",
+        "quarantined_provider_present",
+        "summary",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "language_service_dashboard_record"
+        },
+        "inspector_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "router_decision_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "provider_availability_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/language_service_provider_row"
+          }
+        },
+        "quarantined_provider_present": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "index_health_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "inspector_id",
+        "health_state",
+        "index_freshness",
+        "coverage_percent",
+        "corruption_checks_passed",
+        "last_full_index_at",
+        "summary",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "index_health_view_record"
+        },
+        "inspector_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "index_freshness": {
+          "$ref": "#/$defs/freshness_state_class"
+        },
+        "coverage_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "corruption_checks_passed": {
+          "type": "boolean"
+        },
+        "last_full_index_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "ai_evidence_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "inspector_id",
+        "health_state",
+        "evidence_packet_refs",
+        "redaction_class_token",
+        "replay_posture_token",
+        "raw_prompts_excluded",
+        "raw_provider_payloads_excluded",
+        "summary",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "ai_evidence_inspector_record"
+        },
+        "inspector_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "redaction_class_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "replay_posture_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "raw_prompts_excluded": {
+          "type": "boolean"
+        },
+        "raw_provider_payloads_excluded": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_center_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "card_id",
+        "health_feed_item_id",
+        "title",
+        "summary",
+        "health_state",
+        "actions",
+        "headless_reachable",
+        "read_only",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_card_record"
+        },
+        "card_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_feed_item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state_class"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostics_action_class"
+          }
+        },
+        "headless_reachable": {
+          "type": "boolean"
+        },
+        "read_only": {
+          "type": "boolean"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "diagnostics_center_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "record_id",
+        "health_feed_items",
+        "performance_inspector",
+        "language_service_dashboard",
+        "index_health_view",
+        "ai_evidence_inspector",
+        "doctor_finding_refs",
+        "support_bundle_preview_ref",
+        "repair_transaction_refs",
+        "crash_evidence_ref",
+        "exact_build_identity_ref",
+        "outage_scope",
+        "recovery_hooks",
+        "raw_private_material_excluded",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "diagnostics_center_record"
+        },
+        "record_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "health_feed_items": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "$ref": "#/$defs/health_feed_item_record"
+          }
+        },
+        "performance_inspector": {
+          "$ref": "#/$defs/performance_inspector_record"
+        },
+        "language_service_dashboard": {
+          "$ref": "#/$defs/language_service_dashboard_record"
+        },
+        "index_health_view": {
+          "$ref": "#/$defs/index_health_view_record"
+        },
+        "ai_evidence_inspector": {
+          "$ref": "#/$defs/ai_evidence_inspector_record"
+        },
+        "doctor_finding_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "support_bundle_preview_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "repair_transaction_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "crash_evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "outage_scope": {
+          "$ref": "#/$defs/outage_scope_class"
+        },
+        "recovery_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/diagnostics_recovery_hook_class"
+          }
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "diagnostics_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "outage_scope",
+        "health_feed_item_ids",
+        "inspector_ids",
+        "doctor_finding_refs",
+        "exact_build_identity_ref",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "outage_scope": {
+          "$ref": "#/$defs/outage_scope_class"
+        },
+        "health_feed_item_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "inspector_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "doctor_finding_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics_export_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "rows",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "all_rows_export_safe"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "diagnostics_export_packet_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostics_export_row"
+          }
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean"
+        },
+        "ambient_authority_excluded": {
+          "type": "boolean"
+        },
+        "all_rows_export_safe": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

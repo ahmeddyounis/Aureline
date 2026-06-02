@@ -38,7 +38,7 @@ fn load_manifest() -> Manifest {
     serde_yaml::from_str(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
 }
 
-fn load_profiles() -> Vec<aureline_support::stabilize_support_bundle_generation_with_redaction_default_manifests::StabilizedSupportBundleManifest> {
+fn load_profiles() -> Vec<aureline_support::stabilize_support_bundle_generation_with_redaction_default_manifests::StabilizedSupportBundleManifest>{
     load_manifest()
         .profile_files
         .into_iter()
@@ -77,7 +77,9 @@ fn stabilized_manifests_cover_required_generation_modes() {
 
     let mut covered_modes = BTreeSet::new();
     for profile in &profiles {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
         covered_modes.insert(profile.generation_mode);
     }
 
@@ -96,7 +98,9 @@ fn stabilized_manifests_cover_required_generation_modes() {
 fn ordinary_redaction_default_has_no_consent_escalation() {
     let evaluator = StabilizedSupportBundleEvaluator::new();
     for profile in &load_profiles() {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
         if profile.is_ordinary_redaction_default() {
             assert_eq!(
                 profile.consent_escalation_class,
@@ -112,7 +116,9 @@ fn ordinary_redaction_default_has_no_consent_escalation() {
 fn high_fidelity_incident_capture_has_consent_and_scenario() {
     let evaluator = StabilizedSupportBundleEvaluator::new();
     for profile in &load_profiles() {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
         if profile.is_high_fidelity_incident_capture() {
             assert!(
                 profile.incident_capture_scenario.is_some(),
@@ -140,7 +146,9 @@ fn stabilized_manifests_cover_all_recovery_ladder_hooks() {
     let profiles = load_profiles();
 
     for profile in &profiles {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
 
         let covered: BTreeSet<RecoveryLadderHookClass> = profile
             .recovery_ladder_hooks
@@ -174,8 +182,7 @@ fn stabilized_manifests_cover_all_recovery_ladder_hooks() {
             assert!(
                 hook.preserves_user_state,
                 "profile {} hook {:?} must preserve user state",
-                profile.manifest_id,
-                hook.hook_class
+                profile.manifest_id, hook.hook_class
             );
         }
     }
@@ -185,7 +192,9 @@ fn stabilized_manifests_cover_all_recovery_ladder_hooks() {
 fn stabilized_manifests_have_non_empty_chain_of_custody() {
     let evaluator = StabilizedSupportBundleEvaluator::new();
     for profile in &load_profiles() {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
         assert!(
             !profile.chain_of_custody.is_empty(),
             "profile {} has empty chain_of_custody",
@@ -223,11 +232,14 @@ fn stabilized_manifests_have_non_empty_chain_of_custody() {
 fn stabilized_manifests_exclude_high_risk_by_default() {
     let evaluator = StabilizedSupportBundleEvaluator::new();
     for profile in &load_profiles() {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
 
-        let has_high_risk_included = profile.included_classes.iter().any(|e| {
-            matches!(e.data_class, DiagnosticDataClass::HighRisk)
-        });
+        let has_high_risk_included = profile
+            .included_classes
+            .iter()
+            .any(|e| matches!(e.data_class, DiagnosticDataClass::HighRisk));
         assert!(
             !has_high_risk_included,
             "profile {} must not include high-risk data classes",
@@ -240,7 +252,9 @@ fn stabilized_manifests_exclude_high_risk_by_default() {
 fn stabilized_manifests_support_offline_inspection_when_local_only() {
     let evaluator = StabilizedSupportBundleEvaluator::new();
     for profile in &load_profiles() {
-        evaluator.validate_manifest(profile).expect("profile validates");
+        evaluator
+            .validate_manifest(profile)
+            .expect("profile validates");
         if matches!(profile.destination_class, DestinationClass::LocalOnlyReview) {
             assert!(
                 profile.supports_offline_inspection,
