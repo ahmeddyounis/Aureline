@@ -170,6 +170,17 @@
 //! adjacent backed budget — while the seven hot path kinds and the release-blocking path set
 //! both stay fully covered, so shiproom and release tooling can fail promotion directly from
 //! the register.
+//! The accessibility-surface-signoffs module is the accessibility-layer register beside those
+//! gates: for every touched surface — shell, tree, palette, diff, terminal, debugger, settings,
+//! auth, and recovery — it records one row binding the surface to the stable claim manifest
+//! entry whose lifecycle label it backs, the per-dimension checks that validate keyboard,
+//! screen-reader, IME/grapheme/bidi, zoom, high-contrast, and reduced-motion behavior, the
+//! proof packet that grounds them, and the waiver (if any) holding a provisional signoff, so
+//! a surface whose dimension checks are blocked or pending, whose proof packet aged out or is
+//! missing, whose owner sign-off is absent, or whose backing public claim is itself below the
+//! cutline narrows below the launch cutline and never inherits an adjacent qualified surface —
+//! while the nine surface kinds and the release-blocking surface set both stay fully covered,
+//! so shiproom and release tooling can fail promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -190,6 +201,7 @@ pub mod stable_proof_index;
 pub mod stable_publication_pack;
 pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
+pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_hot_path_performance_against_published_budgets_for;
 pub mod support_class_ledger;
 
@@ -363,6 +375,17 @@ pub use support_class_ledger::{
     SupportClassLedgerSummary, SupportClassLedgerViolation, SupportEvidence,
     SUPPORT_CLASS_LEDGER_JSON, SUPPORT_CLASS_LEDGER_PATH, SUPPORT_CLASS_LEDGER_RECORD_KIND,
     SUPPORT_CLASS_LEDGER_SCHEMA_VERSION,
+};
+
+pub use stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery::{
+    current_accessibility_surface_signoffs, AccessibilitySurfaceSignoffExportProjection,
+    AccessibilitySurfaceSignoffExportRow, AccessibilitySurfaceSignoffRule,
+    AccessibilitySurfaceSignoffRow, AccessibilitySurfaceSignoffs,
+    AccessibilitySurfaceSignoffsSummary, AccessibilitySurfaceSignoffsViolation,
+    DimensionCheck, DimensionKind, DimensionState, GapReason as AccessibilityGapReason,
+    SignoffAction, SignoffState, SurfaceKind as AccessibilitySurfaceKind,
+    ACCESSIBILITY_SURFACE_SIGNOFFS_JSON, ACCESSIBILITY_SURFACE_SIGNOFFS_PATH,
+    ACCESSIBILITY_SURFACE_SIGNOFFS_RECORD_KIND, ACCESSIBILITY_SURFACE_SIGNOFFS_SCHEMA_VERSION,
 };
 
 pub use stabilize_hot_path_performance_against_published_budgets_for::{
