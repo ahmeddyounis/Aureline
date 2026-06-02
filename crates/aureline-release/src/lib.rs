@@ -109,6 +109,11 @@
 //! claim ceiling and proof packet, and narrows any row whose packet is stale,
 //! metric fails, waiver expires, or required signoff loop is incomplete before the
 //! row can widen release, docs, Help/About, or support-export language.
+//! The certified-reference-workspaces module is the certification-evidence layer
+//! that hardens every marketed Certified archetype: it publishes one current
+//! reference-workspace report per archetype, binds each report to the archetype
+//! pass-matrix row that carries it, and automates the downgrade that narrows a
+//! Certified claim when its report goes stale, missing, or manually edited.
 //! The stable-publication-pack module is the outward-facing publication layer over all of
 //! the above: where the manifest, proof index, version windows, and maintenance packet
 //! govern what the release line *is*, this pack governs what the release line *says about
@@ -172,6 +177,7 @@ pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod go_no_go_rehearsal;
+pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
@@ -219,6 +225,18 @@ pub use go_no_go_rehearsal::{
     RehearsalPublicationRecord, RehearsalRule, RehearsalStageRow, RehearsalState,
     RollbackCheckpoint, StageKind, GO_NO_GO_REHEARSAL_JSON, GO_NO_GO_REHEARSAL_PATH,
     GO_NO_GO_REHEARSAL_RECORD_KIND, GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
+};
+
+pub use harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation::{
+    current_certified_reference_workspaces, ArchetypePassMatrixExportRow, ArchetypePassMatrixRow,
+    CertifiedReferenceWorkspaces, CertifiedReferenceWorkspacesExportProjection,
+    CertifiedReferenceWorkspacesSummary, CertifiedReferenceWorkspacesViolation,
+    DowngradeReason as ReferenceWorkspaceDowngradeReason, DowngradeRule as ReferenceWorkspaceDowngradeRule,
+    MatrixAction, MatrixRowState, PublicationDecision as ReferenceWorkspacePublicationDecision,
+    PublicationDecisionRecord as ReferenceWorkspacePublicationDecisionRecord, ReferenceWorkspaceExportRow,
+    ReferenceWorkspaceReport, ReportState, ValidityWindow,
+    CERTIFIED_REFERENCE_WORKSPACES_JSON, CERTIFIED_REFERENCE_WORKSPACES_PATH,
+    CERTIFIED_REFERENCE_WORKSPACES_RECORD_KIND, CERTIFIED_REFERENCE_WORKSPACES_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{
