@@ -183,6 +183,7 @@ pub mod policy_simulation;
 pub mod portable_bundle_handoff;
 pub mod project_doctor;
 pub mod publication_dry_run;
+pub mod publish_supportability_runbooks_field_playbooks_and_incident_advisory;
 pub mod recovery_ladder;
 pub mod refactor_preview;
 pub mod release_evidence;

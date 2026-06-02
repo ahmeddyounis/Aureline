@@ -1,0 +1,117 @@
+record_kind: supportability_runbook_catalog_entry_record
+entry_id: m4.168.entry.managed_catalog_enterprise_policy
+source_class: managed_catalog
+playbook_packet:
+  record_kind: field_playbook_packet_record
+  schema_version: 1
+  packet_id: m4.168.playbook.managed_catalog_enterprise_policy.v1
+  runbook_id: m4.168.runbook.enterprise_policy_repair
+  packet_version: "1.0.0"
+  title: Enterprise Policy Repair — Managed Catalog
+  summary: Managed catalog runbook for enterprise policy repair with admin delegation and audit logging.
+  owner:
+    owner_ref: admin-dri:aureline:enterprise
+    escalation_owner_ref: admin-dri:aureline:escalation
+    review_cadence: incident_driven
+  source_document:
+    source_ref: catalog://enterprise/aureline/policy_repair/v1
+    source_revision: catalog-rev-2026-06-01
+    source_class: managed_catalog
+    authoritative_posture: managed_admin
+    docs_freshness_state: exact_current
+    signer_or_source_ref: catalog-signer:enterprise:it-admin
+    approver_policy_summary: Enterprise IT admin approval required; two-person approval for policy mutation.
+    export_right: redacted_export
+  compatibility_window:
+    version_floor_ref: build-id:aureline:0.0.0:m4
+    version_ceiling_ref: build-id:aureline:0.0.0:m4.999
+    valid_from: "2026-06-01T00:00:00Z"
+    valid_until: "2027-06-01T00:00:00Z"
+    expiry_behavior: manual_support_review_required
+  supported_target_scopes:
+    - environment_scope
+    - service_resource
+  steps:
+    - step_id: m4.168.step.enterprise.01
+      ordinal: 0
+      step_class: observe
+      title: Observe policy denial signals
+      intent_summary: Collect policy audit logs and denial signals from the enterprise environment.
+      target_selector_scope: environment_scope
+      target_identity_ref: env://enterprise/current
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.policy_audit
+          evidence_class: command_result_packet_ref
+          required_for_completion: true
+          redaction_state: redacted_by_policy
+    - step_id: m4.168.step.enterprise.02
+      ordinal: 1
+      step_class: verify
+      title: Verify policy scope and affected services
+      intent_summary: Confirm which services are affected by the policy denial and whether the scope is expected.
+      target_selector_scope: service_resource
+      target_identity_ref: service://aureline/enterprise
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.scope_check
+          evidence_class: runbook_step_result_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+    - step_id: m4.168.step.enterprise.03
+      ordinal: 2
+      step_class: mitigate
+      title: Apply narrow policy repair
+      intent_summary: Apply the targeted policy repair without widening scope or touching unrelated services.
+      target_selector_scope: service_resource
+      target_identity_ref: service://aureline/enterprise
+      approval_requirement: two_person_approval
+      approval_ticket_ref: ticket://enterprise:policy:repair
+      deviation_note_required: true
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.repair_result
+          evidence_class: support_bundle_item_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+        - evidence_output_id: m4.168.evidence.approval_ticket
+          evidence_class: approval_ticket_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+      rollback_step_ref: m4.168.step.enterprise.04
+    - step_id: m4.168.step.enterprise.04
+      ordinal: 3
+      step_class: rollback
+      title: Revert policy repair
+      intent_summary: Revert the policy repair to the previous policy checkpoint.
+      target_selector_scope: service_resource
+      target_identity_ref: service://aureline/enterprise
+      approval_requirement: two_person_approval
+      approval_ticket_ref: ticket://enterprise:policy:revert
+      deviation_note_required: true
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.rollback_result
+          evidence_class: support_bundle_item_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+    - step_id: m4.168.step.enterprise.05
+      ordinal: 4
+      step_class: communicate
+      title: Notify security and compliance
+      intent_summary: Emit a metadata-safe notification to security and compliance channels.
+      target_selector_scope: environment_scope
+      target_identity_ref: env://enterprise/current
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.notification
+          evidence_class: incident_timeline_entry_ref
+          required_for_completion: false
+          redaction_state: metadata_embedded
+  redaction_class: metadata_safe_default
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  authored_at: "2026-06-01T00:00:00Z"
+  last_reviewed_at: "2026-06-01T00:00:00Z"
+fixture_ref: fixtures/support/m4/publish-supportability-runbooks-field-playbooks-and-incident-advisory/managed_catalog_enterprise_policy_repair.yaml

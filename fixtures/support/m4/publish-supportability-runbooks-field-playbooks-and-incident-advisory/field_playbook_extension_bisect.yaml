@@ -1,0 +1,117 @@
+record_kind: supportability_runbook_catalog_entry_record
+entry_id: m4.168.entry.field_playbook_extension_bisect
+source_class: repo_local
+playbook_packet:
+  record_kind: field_playbook_packet_record
+  schema_version: 1
+  packet_id: m4.168.playbook.field_extension_bisect.v1
+  runbook_id: m4.168.runbook.extension_bisect
+  packet_version: "1.0.0"
+  title: Extension Bisect Field Playbook
+  summary: Field playbook for extension bisect with suspect runtime quarantine, bounded restore, and exact-build evidence.
+  owner:
+    owner_ref: support-dri:aureline:extension-bisect
+    escalation_owner_ref: support-dri:aureline:escalation
+    review_cadence: per_release
+  source_document:
+    source_ref: repo://crates/aureline-support/src/extension_bisect/mod.rs
+    source_revision: v1.0.0-stable
+    source_class: repo_local
+    authoritative_posture: authoritative
+    docs_freshness_state: exact_current
+    signer_or_source_ref: ci-signer:aureline:release
+    approver_policy_summary: Runtime approval required for quarantine and restore steps.
+    export_right: metadata_safe_export
+  compatibility_window:
+    version_floor_ref: build-id:aureline:0.0.0:m4
+    version_ceiling_ref: build-id:aureline:0.0.0:m4.999
+    valid_from: "2026-06-01T00:00:00Z"
+    valid_until: "2027-06-01T00:00:00Z"
+    expiry_behavior: downgrade_to_simulation_only
+  supported_target_scopes:
+    - local_workspace
+    - runtime_target
+  steps:
+    - step_id: m4.168.step.bisect.01
+      ordinal: 0
+      step_class: observe
+      title: Observe extension state and recent changes
+      intent_summary: Record the current extension set and recent install or update changes.
+      target_selector_scope: local_workspace
+      target_identity_ref: workspace://current
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.extension_state
+          evidence_class: command_result_packet_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+    - step_id: m4.168.step.bisect.02
+      ordinal: 1
+      step_class: verify
+      title: Verify suspect extension set
+      intent_summary: Confirm the suspected extension set against the symptom pattern.
+      target_selector_scope: runtime_target
+      target_identity_ref: runtime://current
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.suspect_set
+          evidence_class: runbook_step_result_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+    - step_id: m4.168.step.bisect.03
+      ordinal: 2
+      step_class: mitigate
+      title: Quarantine suspect extensions
+      intent_summary: Disable the suspected extension set without deleting user state.
+      target_selector_scope: runtime_target
+      target_identity_ref: runtime://current
+      approval_requirement: runtime_approval_ticket
+      approval_ticket_ref: ticket://bisect:quarantine:current
+      deviation_note_required: true
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.quarantine_result
+          evidence_class: support_bundle_item_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+        - evidence_output_id: m4.168.evidence.quarantine_approval
+          evidence_class: approval_ticket_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+      rollback_step_ref: m4.168.step.bisect.04
+    - step_id: m4.168.step.bisect.04
+      ordinal: 3
+      step_class: rollback
+      title: Restore prior extension state
+      intent_summary: Re-enable the previously active extension set after bisect completes.
+      target_selector_scope: runtime_target
+      target_identity_ref: runtime://current
+      approval_requirement: runtime_approval_ticket
+      approval_ticket_ref: ticket://bisect:restore:current
+      deviation_note_required: true
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.restore_result
+          evidence_class: support_bundle_item_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+    - step_id: m4.168.step.bisect.05
+      ordinal: 4
+      step_class: communicate
+      title: Export extension bisect support packet
+      intent_summary: Export a metadata-safe support packet with the bisect session, findings, and restore records.
+      target_selector_scope: local_workspace
+      target_identity_ref: workspace://current
+      approval_requirement: no_approval_required
+      deviation_note_required: false
+      expected_evidence_outputs:
+        - evidence_output_id: m4.168.evidence.bisect_export
+          evidence_class: support_packet_index_ref
+          required_for_completion: true
+          redaction_state: redacted_by_policy
+  redaction_class: metadata_safe_default
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  authored_at: "2026-06-01T00:00:00Z"
+  last_reviewed_at: "2026-06-01T00:00:00Z"
+fixture_ref: fixtures/support/m4/publish-supportability-runbooks-field-playbooks-and-incident-advisory/field_playbook_extension_bisect.yaml
