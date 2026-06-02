@@ -119,6 +119,12 @@ pub enum RecoveryRungClass {
     OpenWithoutRestore,
     /// Disposable cache/index repair that rebuilds from authoritative state.
     CacheIndexRepair,
+    /// Repair settings or profile state from a backup or authoritative source.
+    SettingsRepair,
+    /// Repair state after a failed or incompatible schema migration.
+    StateMigrationRepair,
+    /// Narrow reset of one targeted disposable state class.
+    TargetedReset,
 }
 
 /// Opaque target kind narrowed by a recovery rung.
@@ -133,6 +139,12 @@ pub enum RecoveryTargetKind {
     ExtensionLane,
     /// One disposable cache or index lane.
     CacheIndexLane,
+    /// One settings or profile lane.
+    SettingsProfileLane,
+    /// One state-migration lane.
+    StateMigrationLane,
+    /// One targeted-reset lane.
+    TargetedResetLane,
 }
 
 /// Visible state class surfaced after the rung enters.
@@ -161,6 +173,12 @@ pub enum RecoveryLadderStateClass {
     OpenedWithoutRestore,
     /// Cache/index repair was admitted against disposable state only.
     CacheIndexRepairApplied,
+    /// Settings/profile repair was admitted against non-authoritative state.
+    SettingsRepairApplied,
+    /// State-migration repair was admitted after rollback or rebuild.
+    StateMigrationRepairApplied,
+    /// Targeted reset was admitted against a narrow disposable state class.
+    TargetedResetApplied,
 }
 
 /// Entry reason that made the ladder available.
@@ -179,6 +197,12 @@ pub enum RecoveryEntryReasonClass {
     RestoreReplayUnsafe,
     /// Disposable cache or index integrity failed.
     CacheIndexIntegrityFailure,
+    /// Settings or profile integrity failed.
+    SettingsIntegrityFailure,
+    /// State migration failed or produced incompatible state.
+    StateMigrationFailure,
+    /// User requested a targeted reset of a specific state class.
+    TargetedResetRequested,
     /// User explicitly chose a recovery rung.
     ExplicitUserChoice,
 }
@@ -247,6 +271,14 @@ pub enum RecoveryChangeClass {
     ScheduleIndexRebuild,
     /// Session restore records are kept read-only.
     KeepSessionRestoreStoreReadOnly,
+    /// Settings/profile state is repaired from backup or authoritative source.
+    RepairSettingsProfile,
+    /// State migration is rolled back or repaired.
+    RepairStateMigration,
+    /// Targeted disposable state class is reset.
+    ResetTargetedDisposableState,
+    /// Settings backup is preserved before repair.
+    PreserveSettingsBackup,
 }
 
 /// Quarantine reason class that support and release packets may quote.
@@ -293,6 +325,12 @@ pub enum RecoveryActionClass {
     ReturnToFullMode,
     /// Rebuild a cache or index from authoritative state.
     RebuildCacheIndex,
+    /// Repair settings or profile state after a failure.
+    RepairSettingsProfile,
+    /// Rollback or repair a state migration.
+    RepairStateMigration,
+    /// Apply a targeted reset to a narrow state class.
+    ApplyTargetedReset,
     /// Export diagnostics for support or release review.
     ExportDiagnostics,
 }
@@ -309,6 +347,12 @@ pub enum FullerModeClass {
     LaneReadmitted,
     /// Rebuilt cache/index service running normally.
     RebuiltIndexReady,
+    /// Settings/profile state is repaired and running normally.
+    SettingsRepaired,
+    /// State migration is repaired and running normally.
+    StateMigrationRepaired,
+    /// Targeted reset is complete and running normally.
+    TargetedResetComplete,
 }
 
 /// Diagnostic data class carried by ladder evidence.
@@ -1088,6 +1132,15 @@ fn validate_scenario(scenario: &RecoveryLadderScenario) -> Vec<RecoveryLadderVio
         RecoveryRungClass::CacheIndexRepair => {
             validate_cache_index_repair(scenario, &mut violations)
         }
+        RecoveryRungClass::SettingsRepair => {
+            validate_settings_repair(scenario, &mut violations)
+        }
+        RecoveryRungClass::StateMigrationRepair => {
+            validate_state_migration_repair(scenario, &mut violations)
+        }
+        RecoveryRungClass::TargetedReset => {
+            validate_targeted_reset(scenario, &mut violations)
+        }
     }
 
     violations
@@ -1281,6 +1334,112 @@ fn validate_cache_index_repair(
     }
 }
 
+fn validate_settings_repair(
+    scenario: &RecoveryLadderScenario,
+    violations: &mut Vec<RecoveryLadderViolation>,
+) {
+    if scenario.target.target_kind != RecoveryTargetKind::SettingsProfileLane {
+        push_violation(
+            violations,
+            "recovery_ladder.settings_repair_target_not_settings_lane",
+            &scenario.scenario_id,
+            "settings repair must target a settings or profile lane",
+        );
+    }
+    for required in [
+        RecoveryChangeClass::RepairSettingsProfile,
+        RecoveryChangeClass::PreserveSettingsBackup,
+    ] {
+        require_change(scenario, violations, required);
+    }
+    if !scenario
+        .mutation
+        .preserved_state_classes
+        .contains(&RecoveryStateClass::UserAuthoredFiles)
+    {
+        push_violation(
+            violations,
+            "recovery_ladder.settings_repair_must_preserve_user_authored_files",
+            &scenario.scenario_id,
+            "settings repair must preserve user-authored files",
+        );
+    }
+}
+
+fn validate_state_migration_repair(
+    scenario: &RecoveryLadderScenario,
+    violations: &mut Vec<RecoveryLadderViolation>,
+) {
+    if scenario.target.target_kind != RecoveryTargetKind::StateMigrationLane {
+        push_violation(
+            violations,
+            "recovery_ladder.state_migration_target_not_migration_lane",
+            &scenario.scenario_id,
+            "state-migration repair must target a state-migration lane",
+        );
+    }
+    require_change(scenario, violations, RecoveryChangeClass::RepairStateMigration);
+    if !scenario
+        .mutation
+        .preserved_state_classes
+        .contains(&RecoveryStateClass::UserAuthoredFiles)
+    {
+        push_violation(
+            violations,
+            "recovery_ladder.state_migration_must_preserve_user_authored_files",
+            &scenario.scenario_id,
+            "state-migration repair must preserve user-authored files",
+        );
+    }
+    if !scenario
+        .mutation
+        .preserved_state_classes
+        .contains(&RecoveryStateClass::DurableWorkspaceIndexes)
+    {
+        push_violation(
+            violations,
+            "recovery_ladder.state_migration_must_preserve_durable_indexes",
+            &scenario.scenario_id,
+            "state-migration repair must preserve durable workspace indexes",
+        );
+    }
+}
+
+fn validate_targeted_reset(
+    scenario: &RecoveryLadderScenario,
+    violations: &mut Vec<RecoveryLadderViolation>,
+) {
+    if scenario.target.target_kind != RecoveryTargetKind::TargetedResetLane {
+        push_violation(
+            violations,
+            "recovery_ladder.targeted_reset_target_not_reset_lane",
+            &scenario.scenario_id,
+            "targeted reset must target a targeted-reset lane",
+        );
+    }
+    require_change(scenario, violations, RecoveryChangeClass::ResetTargetedDisposableState);
+    if scenario.mutation.changes.len() > 1 {
+        push_violation(
+            violations,
+            "recovery_ladder.targeted_reset_too_many_changes",
+            &scenario.scenario_id,
+            "targeted reset must declare exactly one change",
+        );
+    }
+    if !scenario
+        .mutation
+        .preserved_state_classes
+        .contains(&RecoveryStateClass::UserAuthoredFiles)
+    {
+        push_violation(
+            violations,
+            "recovery_ladder.targeted_reset_must_preserve_user_authored_files",
+            &scenario.scenario_id,
+            "targeted reset must preserve user-authored files",
+        );
+    }
+}
+
 fn require_change(
     scenario: &RecoveryLadderScenario,
     violations: &mut Vec<RecoveryLadderViolation>,
@@ -1314,6 +1473,18 @@ fn state_for_rung(
         ),
         RecoveryRungClass::CacheIndexRepair => (
             RecoveryLadderStateClass::CacheIndexRepairApplied,
+            RecoveryVisibleStateClass::Applying,
+        ),
+        RecoveryRungClass::SettingsRepair => (
+            RecoveryLadderStateClass::SettingsRepairApplied,
+            RecoveryVisibleStateClass::Applying,
+        ),
+        RecoveryRungClass::StateMigrationRepair => (
+            RecoveryLadderStateClass::StateMigrationRepairApplied,
+            RecoveryVisibleStateClass::Applying,
+        ),
+        RecoveryRungClass::TargetedReset => (
+            RecoveryLadderStateClass::TargetedResetApplied,
             RecoveryVisibleStateClass::Applying,
         ),
     }

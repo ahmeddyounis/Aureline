@@ -171,6 +171,7 @@ pub mod finalize_typed_repair_transaction_preview_checkpoint_rollback_and;
 pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;
+pub mod harden_recovery_ladder_flows_for_cache_rebuild_settings_repair_state_migration_repair_and_targeted_resets;
 pub mod harden_the_safe_mode_runtime_profile_retained_capabilities;
 pub mod incident_workspace;
 pub mod incident_workspace_beta;

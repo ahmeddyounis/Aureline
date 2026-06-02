@@ -1295,6 +1295,9 @@ impl RecoveryRungClass {
             Self::RuntimeExtensionQuarantine => "runtime_extension_quarantine",
             Self::OpenWithoutRestore => "open_without_restore",
             Self::CacheIndexRepair => "cache_index_repair",
+            Self::SettingsRepair => "settings_repair",
+            Self::StateMigrationRepair => "state_migration_repair",
+            Self::TargetedReset => "targeted_reset",
         }
     }
 }
