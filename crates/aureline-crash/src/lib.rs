@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-crash/0.0.0")]
 
 pub mod envelope;
+pub mod harden_crash_capture_exact_build_symbolication_crash_loop;
 pub mod incident_trail;
 pub mod symbolication;
 
@@ -30,4 +31,15 @@ pub use incident_trail::{
 pub use symbolication::{
     symbolicate_exact_build, ExactBuildSymbolicationError, ExactBuildSymbolicationInput,
     InTreeSymbolFile, InTreeSymbolFrame, InTreeSymbolModule, SYMBOLICATION_REPORT_RECORD_KIND,
+};
+pub use harden_crash_capture_exact_build_symbolication_crash_loop::{
+    detect_crash_loop, export_evidence, preview_evidence,
+    ChainOfCustodyEntry, CrashLoopDetectionState, CrashLoopScenarioClass, CrashLoopSignal,
+    CrashLoopSignalInputs, EvidenceExportInputs, EvidenceExportItem, EvidenceExportPacket,
+    EvidenceInclusionState, EvidencePreview, EvidencePreviewInputs, EvidencePreviewItem,
+    ExportRedactionClass, HardenedCrashCaptureEvaluator, HardenedCrashCaptureValidationReport,
+    HardenedCrashCaptureViolation, RecoveryLadderHook, RecoveryLadderHookClass,
+    CRASH_LOOP_SIGNAL_RECORD_KIND, EVIDENCE_EXPORT_PACKET_RECORD_KIND,
+    EVIDENCE_PREVIEW_RECORD_KIND, HARDEN_CRASH_CAPTURE_DOC_REF, HARDEN_CRASH_CAPTURE_SCHEMA_REF,
+    HARDEN_CRASH_CAPTURE_SCHEMA_VERSION,
 };
