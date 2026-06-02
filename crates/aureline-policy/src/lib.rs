@@ -16,6 +16,7 @@ pub mod finalize_open_vs_paid_boundary_and_offboarding;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
+pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod runtime_authority_issuers;
 pub mod simulation;
@@ -138,6 +139,21 @@ pub use finalize_the_secret_broker_handle_only_delegated_and::{
     FINALIZE_SECRET_BROKER_ROW_RECORD_KIND, FINALIZE_SECRET_BROKER_SCHEMA_VERSION,
     FINALIZE_SECRET_BROKER_SHARED_CONTRACT_REF, FINALIZE_SECRET_BROKER_SUMMARY_RECORD_KIND,
     FINALIZE_SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND, SECRET_BROKER_BETA_CONTRACT_REF,
+};
+
+pub use harden_identity_and_admin_support_export_parity_audit::{
+    audit_harden_identity_admin_page, seeded_harden_identity_admin_page,
+    validate_harden_identity_admin_page, AdminActionLineage,
+    HardenIdentityAdminDefect, HardenIdentityAdminNarrowReasonClass,
+    HardenIdentityAdminPage, HardenIdentityAdminQualificationClass,
+    HardenIdentityAdminSummary, HardenIdentityAdminSupportExport,
+    IdentityAdminProvisioningClass, IdentityAdminRow, IdentityAdminRowClass,
+    IdentityAdminSyncFreshnessClass, LocalTenantScopeClass, ProvisioningFailureKind,
+    HARDEN_IDENTITY_ADMIN_ARTIFACT_REF, HARDEN_IDENTITY_ADMIN_DEFECT_RECORD_KIND,
+    HARDEN_IDENTITY_ADMIN_DOC_REF, HARDEN_IDENTITY_ADMIN_PAGE_RECORD_KIND,
+    HARDEN_IDENTITY_ADMIN_ROW_RECORD_KIND, HARDEN_IDENTITY_ADMIN_SCHEMA_VERSION,
+    HARDEN_IDENTITY_ADMIN_SHARED_CONTRACT_REF, HARDEN_IDENTITY_ADMIN_SUMMARY_RECORD_KIND,
+    HARDEN_IDENTITY_ADMIN_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use harden_os_keychain_and_trust_store_integration_trust::{
