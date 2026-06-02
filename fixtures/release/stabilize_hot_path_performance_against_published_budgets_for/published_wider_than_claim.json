@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "record_kind": "hot_path_performance_budgets",
+  "register_id": "hot_path_perf:m4",
+  "status": "published",
+  "overview_page": "docs/m4/stabilize-hot-path-performance-against-published-budgets-for.md",
+  "as_of": "2026-06-02",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "benchmark_template_ref": "docs/benchmarks/benchmark_publication_pack_template.md",
+  "corpus_register_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "hot_path_kinds": [
+    "startup",
+    "restore",
+    "quick_open",
+    "typing",
+    "scrolling",
+    "search",
+    "git_status"
+  ],
+  "budget_states": [
+    "meets_budget",
+    "on_waiver",
+    "regressed",
+    "stale",
+    "missing_trace",
+    "narrowed_claim"
+  ],
+  "gap_reasons": [
+    "claim_label_narrowed",
+    "budget_regressed",
+    "proof_packet_freshness_breached",
+    "proof_packet_missing",
+    "corpus_metadata_missing",
+    "owner_signoff_missing",
+    "waiver_expired"
+  ],
+  "budget_actions": [
+    "hold_promotion",
+    "narrow_label",
+    "refresh_proof_packet",
+    "retune_or_waive_budget",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "A hot-path performance budget carries a Stable (or LTS) public claim only when its measured p50/p95 is within the published budget, the proof packet is current within its freshness SLO, any waiver is unexpired, corpus metadata and a benchmark-lab trace are present, and the public claim it backs is itself at or above the cutline. A budget that loses any of those carries a label below the cutline and never inherits an adjacent backed budget."
+  },
+  "release_blocking_surface_refs": [
+    "surface:startup_time",
+    "surface:restore_session_time",
+    "surface:quick_open_latency",
+    "surface:typing_latency",
+    "surface:scrolling_frame_time",
+    "surface:search_results_latency"
+  ],
+  "rules": [
+    {
+      "rule_id": "hotpath_rule:claim_label_narrowed",
+      "title": "Backing public claim narrowed below cutline",
+      "trigger_reason": "claim_label_narrowed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "narrow_label",
+      "blocks_promotion": false,
+      "rationale": "A hot-path budget whose backing public claim is already below the stable cutline inherits that ceiling; this is expected inheritance rather than a performance defect."
+    },
+    {
+      "rule_id": "hotpath_rule:budget_regressed",
+      "title": "Measured p50/p95 regressed beyond published budget",
+      "trigger_reason": "budget_regressed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "retune_or_waive_budget",
+      "blocks_promotion": true,
+      "rationale": "A hot-path budget whose measured p50/p95 exceeds the published ceiling narrows until the implementation re-meets the budget, the numbers are re-published, or a waiver covers an intentionally tightened threshold."
+    },
+    {
+      "rule_id": "hotpath_rule:proof_packet_freshness_breached",
+      "title": "Proof packet breached freshness SLO",
+      "trigger_reason": "proof_packet_freshness_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_promotion": true,
+      "rationale": "A hot-path budget whose proof packet is stale cannot carry a Stable public claim; the trace must be re-run and the packet refreshed."
+    },
+    {
+      "rule_id": "hotpath_rule:proof_packet_missing",
+      "title": "Proof packet missing",
+      "trigger_reason": "proof_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_promotion": true,
+      "rationale": "A hot-path budget without a captured proof packet cannot carry a Stable public claim."
+    },
+    {
+      "rule_id": "hotpath_rule:corpus_metadata_missing",
+      "title": "Corpus metadata or benchmark-lab trace missing",
+      "trigger_reason": "corpus_metadata_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_promotion": true,
+      "rationale": "An untraceable benchmark cannot carry a Stable public claim; corpus metadata and lab trace must both be present."
+    },
+    {
+      "rule_id": "hotpath_rule:owner_signoff_missing",
+      "title": "Required owner sign-off missing",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_promotion": true,
+      "rationale": "A hot-path budget without owner sign-off cannot carry a Stable public claim."
+    },
+    {
+      "rule_id": "hotpath_rule:waiver_expired",
+      "title": "Waiver expired",
+      "trigger_reason": "waiver_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "retune_or_waive_budget",
+      "blocks_promotion": true,
+      "rationale": "A hot-path budget that relied on an expired waiver must narrow until the budget is re-met or a fresh waiver is obtained."
+    }
+  ],
+  "rows": [
+    {
+      "entry_id": "hotpath:startup",
+      "title": "Startup time budget",
+      "hot_path_kind": "startup",
+      "surface_ref": "surface:startup_time",
+      "surface_summary": "Cold-start time from process launch to interactive editor on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "budget_state": "regressed",
+      "proof_packet": {
+        "packet_id": "proof_packet:startup_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:startup_time_ms",
+        "published_p50_ms": 800,
+        "published_p95_ms": 2000,
+        "measured_p50_ms": 850,
+        "measured_p95_ms": 2400,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [
+        "budget_regressed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The startup p95 measured 2400 ms against a published 2000 ms ceiling on the latest benchmark-lab trace; the budget regressed and the row narrows to beta."
+    },
+    {
+      "entry_id": "hotpath:restore",
+      "title": "Restore session budget",
+      "hot_path_kind": "restore",
+      "surface_ref": "surface:restore_session_time",
+      "surface_summary": "Session-restore time from launch to previous editor state on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "beta",
+      "budget_state": "narrowed_claim",
+      "proof_packet": {
+        "packet_id": "proof_packet:restore_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:restore_time_ms",
+        "published_p50_ms": 1200,
+        "published_p95_ms": 3000,
+        "measured_p50_ms": 1100,
+        "measured_p95_ms": 2800,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet"
+      ],
+      "rationale": "The backing public claim for restore is published beta, so the hot-path budget inherits that ceiling and narrows."
+    },
+    {
+      "entry_id": "hotpath:quick_open",
+      "title": "Quick open latency budget",
+      "hot_path_kind": "quick_open",
+      "surface_ref": "surface:quick_open_latency",
+      "surface_summary": "Quick-open file-picker latency from keystroke to filtered results on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "budget_state": "on_waiver",
+      "proof_packet": {
+        "packet_id": "proof_packet:quick_open_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:quick_open_latency_ms",
+        "published_p50_ms": 100,
+        "published_p95_ms": 250,
+        "measured_p50_ms": 110,
+        "measured_p95_ms": 270,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": true
+      },
+      "waiver": {
+        "waiver_ref": "waiver:quick_open_tightened_budget",
+        "expires_at": "2026-07-01",
+        "reason": "intentionally_tightened_budget"
+      },
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The quick-open budget was intentionally tightened to 100/250 ms; measured numbers are 110/270 ms, held on an active waiver while the implementation catches up."
+    },
+    {
+      "entry_id": "hotpath:typing",
+      "title": "Typing latency budget",
+      "hot_path_kind": "typing",
+      "surface_ref": "surface:typing_latency",
+      "surface_summary": "End-to-end typing latency from key event to glyph render on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "budget_state": "meets_budget",
+      "proof_packet": {
+        "packet_id": "proof_packet:typing_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:typing_latency_ms",
+        "published_p50_ms": 8,
+        "published_p95_ms": 20,
+        "measured_p50_ms": 7,
+        "measured_p95_ms": 18,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "Typing latency measures within its published 8/20 ms budget on a current benchmark-lab trace with attached corpus metadata, owner-signed."
+    },
+    {
+      "entry_id": "hotpath:scrolling",
+      "title": "Scrolling frame-time budget",
+      "hot_path_kind": "scrolling",
+      "surface_ref": "surface:scrolling_frame_time",
+      "surface_summary": "Scroll frame time maintaining 60 Hz on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "budget_state": "stale",
+      "proof_packet": {
+        "packet_id": "proof_packet:scrolling_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:scroll_frame_time_ms",
+        "published_p50_ms": 16,
+        "published_p95_ms": 33,
+        "measured_p50_ms": 15,
+        "measured_p95_ms": 30,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [
+        "proof_packet_freshness_breached"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet"
+      ],
+      "rationale": "The scrolling budget proof packet breached its 30-day freshness SLO; the row narrows to beta until the trace is re-run."
+    },
+    {
+      "entry_id": "hotpath:search",
+      "title": "Search results latency budget",
+      "hot_path_kind": "search",
+      "surface_ref": "surface:search_results_latency",
+      "surface_summary": "Workspace search results latency from query submit to first result render on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "budget_state": "meets_budget",
+      "proof_packet": {
+        "packet_id": "proof_packet:search_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:search_results_latency_ms",
+        "published_p50_ms": 200,
+        "published_p95_ms": 600,
+        "measured_p50_ms": 180,
+        "measured_p95_ms": 550,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "Search latency measures within its published 200/600 ms budget on a current benchmark-lab trace with attached corpus metadata, owner-signed."
+    },
+    {
+      "entry_id": "hotpath:git_status",
+      "title": "Git status latency budget",
+      "hot_path_kind": "git_status",
+      "surface_ref": "surface:git_status_latency",
+      "surface_summary": "Git status refresh latency from file-system change to badge update on reference hardware.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:localization_readiness",
+      "claim_label": "beta",
+      "budget_state": "narrowed_claim",
+      "proof_packet": {
+        "packet_id": "proof_packet:git_status_budget",
+        "packet_ref": "artifacts/release/m4/stabilize_hot_path_performance_against_published_budgets_for_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json",
+        "captured_at": "2026-06-02",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/hot_path_performance_budgets.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m1/launch_wedge_warm_path_budgets.yaml",
+          "docs/benchmarks/benchmark_lab_run_results.md"
+        ]
+      },
+      "hot_path_budget": {
+        "metric_ref": "metric:git_status_latency_ms",
+        "published_p50_ms": 100,
+        "published_p95_ms": 300,
+        "measured_p50_ms": 90,
+        "measured_p95_ms": 280,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-06-02"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about"
+      ],
+      "rationale": "The backing public claim for git_status is published beta, so the hot-path budget inherits that ceiling and narrows."
+    }
+  ],
+  "promotion": {
+    "promotion_gate": "release.shiproom.hot_path_performance_budgets",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "hotpath_rule:budget_regressed",
+      "hotpath_rule:proof_packet_freshness_breached"
+    ],
+    "blocking_entry_ids": [
+      "hotpath:scrolling",
+      "hotpath:startup"
+    ],
+    "rationale": "The hot-path performance budget register holds hold. Two blocking rules fire on stable-label rows: the startup budget regressed beyond its published p95, and the scrolling budget proof packet breached its freshness SLO. The register narrows both automatically instead of letting them ride on an adjacent stable claim."
+  },
+  "summary": {
+    "total_entries": 7,
+    "total_claims": 3,
+    "entries_meeting_budget": 2,
+    "entries_narrowed": 4,
+    "entries_on_active_waiver": 1,
+    "entries_regressed": 1,
+    "release_blocking_total": 6,
+    "release_blocking_meeting": 2,
+    "release_blocking_narrowed": 3,
+    "startup_entries": 1,
+    "restore_entries": 1,
+    "quick_open_entries": 1,
+    "typing_entries": 1,
+    "scrolling_entries": 1,
+    "search_entries": 1,
+    "git_status_entries": 1,
+    "packets_current": 6,
+    "packets_due_for_refresh": 0,
+    "packets_breached": 1,
+    "packets_missing": 0,
+    "total_active_gap_reasons": 4,
+    "rules_firing": 2
+  }
+}

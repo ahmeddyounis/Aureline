@@ -138,6 +138,18 @@
 //! cutline-review/promotion-step/rollback-checkpoint/exception-review stage kinds and the
 //! release-line rehearsal set both stay fully covered, so shiproom and release tooling can
 //! fail the go/no-go directly from the rehearsal.
+//! The hot-path-performance-budgets module is the performance-layer register beside those
+//! gates: for every hot path — startup, restore, quick open, typing, scrolling, search, and
+//! Git status — it records one row binding the path to the stable claim manifest entry whose
+//! lifecycle label it backs, the benchmark budget that protects the published p50/p95 numbers,
+//! the proof packet that grounds them, and the waiver (if any) holding a tightened threshold
+//! provisionally, so a path whose measured numbers regressed beyond the published budget,
+//! whose proof packet aged out or is missing, whose corpus metadata or benchmark-lab trace is
+//! absent, whose waiver expired, whose owner sign-off is missing, or whose backing public
+//! claim is itself below the cutline narrows below the launch cutline and never inherits an
+//! adjacent backed budget — while the seven hot path kinds and the release-blocking path set
+//! both stay fully covered, so shiproom and release tooling can fail promotion directly from
+//! the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -156,6 +168,7 @@ pub mod stable_proof_index;
 pub mod stable_publication_pack;
 pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
+pub mod stabilize_hot_path_performance_against_published_budgets_for;
 pub mod support_class_ledger;
 
 pub use correction_train::{
@@ -307,4 +320,14 @@ pub use support_class_ledger::{
     SupportClassLedgerSummary, SupportClassLedgerViolation, SupportEvidence,
     SUPPORT_CLASS_LEDGER_JSON, SUPPORT_CLASS_LEDGER_PATH, SUPPORT_CLASS_LEDGER_RECORD_KIND,
     SUPPORT_CLASS_LEDGER_SCHEMA_VERSION,
+};
+
+pub use stabilize_hot_path_performance_against_published_budgets_for::{
+    current_hot_path_performance_budgets, BudgetAction, BudgetState,
+    GapReason as HotPathGapReason, HotPathBudget, HotPathBudgetRow, HotPathBudgetRule,
+    HotPathExportProjection, HotPathExportRow, HotPathKind, HotPathPerformanceBudgets,
+    HotPathPerformanceBudgetsSummary, HotPathPerformanceBudgetsViolation,
+    PromotionRecord, HOT_PATH_PERFORMANCE_BUDGETS_JSON,
+    HOT_PATH_PERFORMANCE_BUDGETS_PATH, HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND,
+    HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION,
 };
