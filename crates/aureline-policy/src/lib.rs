@@ -12,6 +12,7 @@
 
 pub mod authority;
 pub mod finalize_backup_restore_failover_and_local_core_continuity;
+pub mod finalize_open_vs_paid_boundary_and_offboarding;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
@@ -198,4 +199,20 @@ pub use stabilize_approval_ticket_audit_and_target_identity_lineage::{
     STABILIZE_APPROVAL_TICKET_PAGE_RECORD_KIND, STABILIZE_APPROVAL_TICKET_ROW_RECORD_KIND,
     STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION, STABILIZE_APPROVAL_TICKET_SHARED_CONTRACT_REF,
     STABILIZE_APPROVAL_TICKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_open_vs_paid_boundary_and_offboarding::{
+    audit_open_vs_paid_boundary_page, seeded_open_vs_paid_boundary_input,
+    seeded_open_vs_paid_boundary_page, validate_open_vs_paid_boundary_page,
+    CapabilityBoundaryClass, CapabilityBoundaryInputRow, CapabilityFamilyClass,
+    ExportRetentionClass, GraceWindowStateClass, OffboardingOutcomeClass,
+    OffboardingPacket, OpenVsPaidBoundaryDefect, OpenVsPaidBoundaryInput,
+    OpenVsPaidBoundaryNarrowReasonClass, OpenVsPaidBoundaryPage,
+    OpenVsPaidBoundaryQualificationClass, OpenVsPaidBoundaryRow,
+    OpenVsPaidBoundarySummary, OpenVsPaidBoundarySupportExport, UsageExportAvailabilityClass,
+    UsageExportPacket, OFFBOARDING_PACKET_RECORD_KIND, OPEN_VS_PAID_BOUNDARY_ARTIFACT_REF,
+    OPEN_VS_PAID_BOUNDARY_DEFECT_RECORD_KIND, OPEN_VS_PAID_BOUNDARY_DOC_REF,
+    OPEN_VS_PAID_BOUNDARY_PAGE_RECORD_KIND, OPEN_VS_PAID_BOUNDARY_ROW_RECORD_KIND,
+    OPEN_VS_PAID_BOUNDARY_SCHEMA_VERSION, OPEN_VS_PAID_BOUNDARY_SHARED_CONTRACT_REF,
+    OPEN_VS_PAID_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND, USAGE_EXPORT_PACKET_RECORD_KIND,
 };
