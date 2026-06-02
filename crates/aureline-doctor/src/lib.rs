@@ -13,6 +13,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
+pub mod finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos;
 pub mod probe_packs;
 pub mod probes;
 pub mod stabilize_project_doctor_probes_finding_codes_explainability_and;

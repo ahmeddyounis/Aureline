@@ -1,0 +1,203 @@
+# Doctor accuracy corpus — ground truth records for the eight seeded support
+# scenarios. Each record binds a scenario to an expected finding code,
+# severity, confidence, repair class, and explainability factors.
+
+schema_version: 1
+record_kind: project_doctor_accuracy_corpus_record
+corpus_id: doctor.accuracy_corpus.m4_stable.v1
+corpus_version: "1.0.0"
+schema_ref: schemas/support/finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos.schema.json
+doc_ref: docs/support/m4/finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos.md
+
+ground_truth_records:
+  - row_id: ground_truth:missing_toolchain
+    scenario_class: missing_toolchain
+    probe_pack_class: toolchain_resolution
+    expected_finding_code: doctor.finding.toolchain.missing_component
+    expected_severity: blocking
+    expected_confidence: observed_authoritative
+    expected_repair_class: install_or_repair_toolchain
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The toolchain manifest lists a required component.
+      - factor_class: observed_state
+        expected_assertion_summary: The component binary is absent from the expected path.
+      - factor_class: belief_basis
+        expected_assertion_summary: The environment probe checked PATH and the install root.
+    expected_no_touch_boundaries:
+      - user_source_files
+      - git_repository
+      - credential_store
+    has_observe_only_outcome: false
+    notes: >
+      Doctor must detect a missing toolchain component with authoritative
+      confidence and suggest install_or_repair_toolchain without touching
+      source files or credentials.
+
+  - row_id: ground_truth:blocked_trust_state
+    scenario_class: blocked_trust_state
+    probe_pack_class: trust_policy
+    expected_finding_code: doctor.finding.trust.state_blocked
+    expected_severity: blocking
+    expected_confidence: observed_authoritative
+    expected_repair_class: observe_only_no_repair
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The workspace trust policy allows open.
+      - factor_class: observed_state
+        expected_assertion_summary: The trust store marks the workspace as restricted.
+      - factor_class: safety_reason
+        expected_assertion_summary: Opening without trust approval would violate the policy boundary.
+    expected_no_touch_boundaries:
+      - trust_store
+      - managed_policy_override
+      - credential_store
+    has_observe_only_outcome: true
+    notes: >
+      Doctor must report the blocked trust state as an observe-only finding.
+      The trust store itself must not be modified by the diagnosis; user
+      action is required to reacquire approval.
+
+  - row_id: ground_truth:broken_watcher
+    scenario_class: broken_watcher
+    probe_pack_class: entry_open_readiness
+    expected_finding_code: doctor.finding.filesystem.watcher_degraded
+    expected_severity: degraded
+    expected_confidence: observed_with_gap
+    expected_repair_class: restart_watcher_with_reseed
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The filesystem watcher reports events for the workspace root.
+      - factor_class: observed_state
+        expected_assertion_summary: The watcher handle is stale or the inotify limit is exhausted.
+      - factor_class: limitation
+        expected_assertion_summary: The probe cannot distinguish between watcher crash and OS limit exhaustion.
+    expected_no_touch_boundaries:
+      - user_source_files
+      - git_repository
+    has_observe_only_outcome: false
+    notes: >
+      Doctor may infer from partial evidence because the exact root cause
+      (crash vs. OS limit) is not always observable.
+
+  - row_id: ground_truth:incompatible_cache_profile
+    scenario_class: incompatible_cache_profile
+    probe_pack_class: entry_open_readiness
+    expected_finding_code: doctor.finding.cache.profile_incompatible
+    expected_severity: degraded
+    expected_confidence: observed_authoritative
+    expected_repair_class: reset_ephemeral_cache
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The cache profile version matches the current build.
+      - factor_class: observed_state
+        expected_assertion_summary: The cache profile version is older than the minimum supported.
+      - factor_class: next_action_reason
+        expected_assertion_summary: Resetting the ephemeral cache is safe because durable state is stored elsewhere.
+    expected_no_touch_boundaries:
+      - user_source_files
+      - git_repository
+      - credential_store
+    has_observe_only_outcome: false
+    notes: >
+      Doctor must identify the version mismatch authoritatively and suggest
+      a narrow cache reset that does not touch durable workspace state.
+
+  - row_id: ground_truth:extension_regression
+    scenario_class: extension_regression
+    probe_pack_class: entry_open_readiness
+    expected_finding_code: doctor.finding.extension.regression_detected
+    expected_severity: blocking
+    expected_confidence: inferred_from_evidence
+    expected_repair_class: quarantine_and_bisect_extension
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The extension host initializes without unhandled exceptions.
+      - factor_class: observed_state
+        expected_assertion_summary: The extension activation throws a reproducible error matching a known regression signature.
+      - factor_class: belief_basis
+        expected_assertion_summary: The error signature matches the regression catalog for the installed extension version.
+      - factor_class: limitation
+        expected_assertion_summary: The inference depends on the regression catalog being current; novel regressions may not match.
+    expected_no_touch_boundaries:
+      - user_source_files
+      - git_repository
+      - credential_store
+    has_observe_only_outcome: true
+    notes: >
+      Confidence is inferred_from_evidence because the root cause is traced
+      through a regression catalog rather than directly observed.
+
+  - row_id: ground_truth:wrong_target_environment
+    scenario_class: wrong_target_environment
+    probe_pack_class: toolchain_resolution
+    expected_finding_code: doctor.finding.target.environment_mismatch
+    expected_severity: blocking
+    expected_confidence: observed_authoritative
+    expected_repair_class: reapprove_target_or_route
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The active target environment matches the workspace declared environment.
+      - factor_class: observed_state
+        expected_assertion_summary: The active target environment differs from the workspace declaration.
+      - factor_class: user_impact
+        expected_assertion_summary: Builds will fail or produce artifacts for the wrong platform.
+    expected_no_touch_boundaries:
+      - managed_workspace_control_plane
+      - credential_store
+    has_observe_only_outcome: false
+    notes: >
+      Doctor must detect the mismatch authoritatively and suggest
+      reapproval of the target or route without modifying the control plane.
+
+  - row_id: ground_truth:failed_helper_attach
+    scenario_class: failed_helper_attach
+    probe_pack_class: provider_auth
+    expected_finding_code: doctor.finding.helper.attach_failed
+    expected_severity: blocking
+    expected_confidence: observed_with_gap
+    expected_repair_class: reattach_helper_with_new_approval
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The helper process attaches and responds to health checks.
+      - factor_class: observed_state
+        expected_assertion_summary: The helper process exited with a non-zero code or failed to start.
+      - factor_class: limitation
+        expected_assertion_summary: The exact reason for exit may require reading helper logs that are not available to the probe.
+    expected_no_touch_boundaries:
+      - remote_helper_authorization
+      - credential_store
+      - managed_workspace_control_plane
+    has_observe_only_outcome: true
+    notes: >
+      Doctor reports the attach failure with observed_with_gap because
+      helper logs may not be locally available.
+
+  - row_id: ground_truth:degraded_docs_mirror
+    scenario_class: degraded_docs_mirror
+    probe_pack_class: search_index_readiness
+    expected_finding_code: doctor.finding.docs.mirror_degraded
+    expected_severity: degraded
+    expected_confidence: observed_authoritative
+    expected_repair_class: refresh_docs_or_mirror_pack
+    expected_explainability:
+      - factor_class: expected_state
+        expected_assertion_summary: The docs mirror responds within the latency budget.
+      - factor_class: observed_state
+        expected_assertion_summary: The docs mirror returned HTTP 503 or exceeded the timeout.
+      - factor_class: next_action_reason
+        expected_assertion_summary: Refreshing the mirror pack re-fetches the latest index without mutating local docs.
+    expected_no_touch_boundaries:
+      - user_source_files
+      - git_repository
+    has_observe_only_outcome: false
+    notes: >
+      Doctor must detect mirror degradation authoritatively and suggest
+      a refresh of the mirror pack.
+
+notes: >
+  The accuracy corpus covers all eight scenario families required by the
+  M4 stable lane. Every record declares at least one no-touch boundary
+  and at least one explainability factor. Observe-only outcomes exist
+  alongside repair-candidate outcomes so diagnosis-only paths are
+  explicitly represented.
