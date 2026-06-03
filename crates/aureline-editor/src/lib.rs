@@ -24,6 +24,7 @@ pub mod paint;
 pub mod recovery_state_lineage;
 pub mod save_fidelity_lineage;
 pub mod selection;
+pub mod stabilize_modal_editing_leader_register_safety;
 pub mod text_nav;
 pub mod undo;
 pub mod viewport;
@@ -107,6 +108,14 @@ pub use save_fidelity_lineage::{
     SaveFidelityLineageRecord, SaveParticipantLineageEntry, SaveParticipantStage,
     SourceFidelitySummary, SAVE_FIDELITY_LINEAGE_RECORD_KIND, SAVE_FIDELITY_LINEAGE_SCHEMA_REF,
     SAVE_FIDELITY_LINEAGE_SCHEMA_VERSION,
+};
+pub use stabilize_modal_editing_leader_register_safety::{
+    modal_editing_safety_corpus, BuildError, KeymapImportOutcomeClass,
+    KeymapImportRegressionRecord, ModalEditingSafetyInput, ModalEditingSafetyPacket,
+    ModalEditingSafetyScenario, SurfaceDowngradeKind, SurfaceDowngradeRecord,
+    MODAL_CUE_LATENCY_BUDGET_MICROS, MODAL_EDITING_SAFETY_CORPUS_AS_OF,
+    MODAL_EDITING_SAFETY_PACKET_RECORD_KIND, MODAL_EDITING_SAFETY_SCHEMA_REF,
+    MODAL_EDITING_SAFETY_SCHEMA_VERSION,
 };
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use undo::UndoGroupSummary;
