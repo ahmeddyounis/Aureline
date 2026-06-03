@@ -198,6 +198,7 @@ pub mod release_center_model;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_hot_path_performance_against_published_budgets_for;
+pub mod stabilize_the_release_center_promotion_evidence_canary_pilot;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
@@ -418,4 +419,15 @@ pub use stabilize_hot_path_performance_against_published_budgets_for::{
     HotPathPerformanceBudgetsViolation, PromotionRecord, HOT_PATH_PERFORMANCE_BUDGETS_JSON,
     HOT_PATH_PERFORMANCE_BUDGETS_PATH, HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND,
     HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION,
+};
+
+pub use stabilize_the_release_center_promotion_evidence_canary_pilot::{
+    current_ring_promotion_control, Action as PromotionAction,
+    GapReason as PromotionGapReason, KillSwitchPosture, PromotionDecision as RingPromotionDecision,
+    PromotionPublicationRecord, PromotionRule, PromotionState, PromotionSubjectExportRow,
+    PromotionSubjectKind, PromotionSubjectRow, Ring, RingPromotionControl,
+    RingPromotionControlExportProjection, RingPromotionControlSummary,
+    RingPromotionControlViolation, RollbackStopTrigger, RollbackTriggerKind, SoakWindow,
+    RING_PROMOTION_CONTROL_JSON, RING_PROMOTION_CONTROL_PATH, RING_PROMOTION_CONTROL_RECORD_KIND,
+    RING_PROMOTION_CONTROL_SCHEMA_VERSION,
 };
