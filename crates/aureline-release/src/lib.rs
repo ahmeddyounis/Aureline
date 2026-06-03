@@ -188,6 +188,7 @@ pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
+pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod go_no_go_rehearsal;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
@@ -241,6 +242,15 @@ pub use finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_
     DesktopPlatformConformanceViolation, GapReason as ConformanceGapReason,
     DESKTOP_PLATFORM_CONFORMANCE_JSON, DESKTOP_PLATFORM_CONFORMANCE_PATH,
     DESKTOP_PLATFORM_CONFORMANCE_RECORD_KIND, DESKTOP_PLATFORM_CONFORMANCE_SCHEMA_VERSION,
+};
+
+pub use finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills::{
+    current_security_response_packet, EmergencyControl, GapReason as ResponseGapReason,
+    MirrorDrillCheckpoint, ResponseAction, ResponseExportProjection, ResponseExportRow,
+    ResponseKind, ResponsePublicationRecord, ResponseRule, ResponseRow, ResponseState,
+    SecurityResponsePacket, SecurityResponsePacketSummary, SecurityResponsePacketViolation,
+    SECURITY_RESPONSE_PACKET_JSON, SECURITY_RESPONSE_PACKET_PATH,
+    SECURITY_RESPONSE_PACKET_RECORD_KIND, SECURITY_RESPONSE_PACKET_SCHEMA_VERSION,
 };
 
 pub use go_no_go_rehearsal::{

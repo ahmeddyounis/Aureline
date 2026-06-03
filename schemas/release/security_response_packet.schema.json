@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/security_response_packet.schema.json",
+  "title": "Aureline security-response packet",
+  "description": "Canonical, machine-readable packet governing the stable release line's security-response lanes: the core security response process, security advisory publication, CVE/GHSA publication, emergency disable capability, and mirror/offline publication drills. Each row binds one lane to the response packet that grounds it, the emergency controls or mirror drill checkpoints it must satisfy, and backs the lane against a public claim whose canonical lifecycle label is a hard ceiling. A lane whose response packet breached its freshness SLO or is missing, whose waiver expired, whose emergency controls are unsatisfied, whose mirror drill checkpoints are unverified, or whose backing public claim is itself below the cutline narrows below the launch cutline. The packet is metadata-only: it carries typed states and opaque refs, never raw artifacts, logs, signatures, or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "claim_manifest_ref",
+    "stable_proof_index_ref",
+    "lifecycle_labels",
+    "response_kinds",
+    "response_states",
+    "gap_reasons",
+    "response_actions",
+    "launch_cutline",
+    "release_blocking_lane_refs",
+    "rules",
+    "rows",
+    "publication",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "security_response_packet" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "claim_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+    "stable_proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+    "lifecycle_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_label" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "response_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/response_kind" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "response_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/response_state" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "gap_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gap_reason" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "response_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/response_action" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "launch_cutline": { "$ref": "#/$defs/launch_cutline" },
+    "release_blocking_lane_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/response_rule" },
+      "minItems": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" },
+      "minItems": 1
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["lts", "stable", "beta", "preview", "withdrawn"]
+    },
+    "response_kind": {
+      "type": "string",
+      "enum": [
+        "security_response",
+        "advisory_publication",
+        "cve_ghsa_publication",
+        "emergency_disable",
+        "mirror_offline_drill"
+      ]
+    },
+    "response_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "ready_on_waiver",
+        "not_ready_unbacked",
+        "not_ready_claim_narrowed",
+        "not_ready_stale",
+        "not_ready_waiver_expired"
+      ]
+    },
+    "gap_reason": {
+      "type": "string",
+      "enum": [
+        "claim_label_narrowed",
+        "response_evidence_incomplete",
+        "response_packet_freshness_breached",
+        "response_packet_missing",
+        "waiver_expired",
+        "owner_signoff_missing",
+        "emergency_control_unsatisfied",
+        "mirror_drill_unverified"
+      ]
+    },
+    "response_action": {
+      "type": "string",
+      "enum": [
+        "hold_publication",
+        "narrow_response_label",
+        "refresh_response_packet",
+        "satisfy_emergency_control",
+        "verify_mirror_drill",
+        "recapture_response_evidence",
+        "request_owner_signoff"
+      ]
+    },
+    "launch_cutline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutline_level",
+        "above_cutline_levels",
+        "below_cutline_levels",
+        "description"
+      ],
+      "properties": {
+        "cutline_level": { "$ref": "#/$defs/lifecycle_label" },
+        "above_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "below_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "response_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "applies_to_labels",
+        "default_action",
+        "blocks_publication",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_reason": { "$ref": "#/$defs/gap_reason" },
+        "applies_to_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" },
+          "minItems": 1
+        },
+        "default_action": { "$ref": "#/$defs/response_action" },
+        "blocks_publication": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "proof_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "packet_ref",
+        "proof_index_ref",
+        "freshness_slo",
+        "slo_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "type": ["string", "null"], "format": "date" },
+        "freshness_slo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_max_age_days",
+            "warn_within_days",
+            "slo_register_ref"
+          ],
+          "properties": {
+            "target_max_age_days": { "type": "integer", "minimum": 1 },
+            "warn_within_days": { "type": "integer", "minimum": 0 },
+            "slo_register_ref": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "slo_state": {
+          "type": "string",
+          "enum": ["current", "due_for_refresh", "breached", "missing"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "owner_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "signed_off", "signed_at"],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "qualification_waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["waiver_ref", "expires_at", "reason"],
+      "properties": {
+        "waiver_ref": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": { "type": "string", "format": "date" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "emergency_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "title", "control_ref", "satisfied"],
+      "properties": {
+        "control_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "control_ref": { "$ref": "#/$defs/non_empty_string" },
+        "satisfied": { "type": "boolean" }
+      }
+    },
+    "mirror_drill_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_id", "title", "restore_point_ref", "verified"],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "restore_point_ref": { "$ref": "#/$defs/non_empty_string" },
+        "verified": { "type": "boolean" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "response_kind",
+        "lane_ref",
+        "lane_summary",
+        "release_blocking",
+        "claim_ref",
+        "claim_label",
+        "response_state",
+        "response_packet",
+        "owner_signoff",
+        "emergency_controls",
+        "mirror_drill_checkpoints",
+        "active_gap_reasons",
+        "effective_label",
+        "publication_destinations",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "response_kind": { "$ref": "#/$defs/response_kind" },
+        "lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lane_summary": { "$ref": "#/$defs/non_empty_string" },
+        "release_blocking": { "type": "boolean" },
+        "claim_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_label": { "$ref": "#/$defs/lifecycle_label" },
+        "response_state": { "$ref": "#/$defs/response_state" },
+        "response_packet": { "$ref": "#/$defs/proof_packet" },
+        "waiver": { "oneOf": [{ "$ref": "#/$defs/qualification_waiver" }, { "type": "null" }] },
+        "owner_signoff": { "$ref": "#/$defs/owner_signoff" },
+        "emergency_controls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/emergency_control" }
+        },
+        "mirror_drill_checkpoints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mirror_drill_checkpoint" }
+        },
+        "active_gap_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gap_reason" }
+        },
+        "effective_label": { "$ref": "#/$defs/lifecycle_label" },
+        "publication_destinations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_gate",
+        "decision",
+        "blocking_rule_ids",
+        "blocking_entry_ids",
+        "rationale"
+      ],
+      "properties": {
+        "publication_gate": { "$ref": "#/$defs/non_empty_string" },
+        "decision": {
+          "type": "string",
+          "enum": ["proceed", "hold"]
+        },
+        "blocking_rule_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "blocking_entry_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "total_claims",
+        "rows_ready",
+        "rows_narrowed_below_cutline",
+        "release_blocking_total",
+        "release_blocking_ready",
+        "release_blocking_narrowed",
+        "rows_on_active_waiver",
+        "packets_current",
+        "packets_due_for_refresh",
+        "packets_breached",
+        "packets_missing",
+        "total_emergency_controls",
+        "emergency_controls_satisfied",
+        "emergency_controls_unsatisfied",
+        "total_mirror_checkpoints",
+        "mirror_checkpoints_verified",
+        "mirror_checkpoints_unverified",
+        "total_active_gap_reasons",
+        "rules_firing"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "total_claims": { "type": "integer", "minimum": 0 },
+        "rows_ready": { "type": "integer", "minimum": 0 },
+        "rows_narrowed_below_cutline": { "type": "integer", "minimum": 0 },
+        "release_blocking_total": { "type": "integer", "minimum": 0 },
+        "release_blocking_ready": { "type": "integer", "minimum": 0 },
+        "release_blocking_narrowed": { "type": "integer", "minimum": 0 },
+        "rows_on_active_waiver": { "type": "integer", "minimum": 0 },
+        "packets_current": { "type": "integer", "minimum": 0 },
+        "packets_due_for_refresh": { "type": "integer", "minimum": 0 },
+        "packets_breached": { "type": "integer", "minimum": 0 },
+        "packets_missing": { "type": "integer", "minimum": 0 },
+        "total_emergency_controls": { "type": "integer", "minimum": 0 },
+        "emergency_controls_satisfied": { "type": "integer", "minimum": 0 },
+        "emergency_controls_unsatisfied": { "type": "integer", "minimum": 0 },
+        "total_mirror_checkpoints": { "type": "integer", "minimum": 0 },
+        "mirror_checkpoints_verified": { "type": "integer", "minimum": 0 },
+        "mirror_checkpoints_unverified": { "type": "integer", "minimum": 0 },
+        "total_active_gap_reasons": { "type": "integer", "minimum": 0 },
+        "rules_firing": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
