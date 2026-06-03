@@ -1886,6 +1886,7 @@ fn route_for(request: &AdmissionCheckpointBuildRequest) -> FirstUsefulWorkRoute 
         }
         DetectionOutcome::MissingPrerequisite => {
             route_reason_class = RouteReasonClass::MissingPrerequisiteLimitedReady;
+            switch_options.push(RouteSwitchOption::OpenMinimal);
             switch_options.push(RouteSwitchOption::OpenProjectDoctor);
         }
         _ => {}

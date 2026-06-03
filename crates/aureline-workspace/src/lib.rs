@@ -46,6 +46,7 @@ pub mod schema_migration_and_repair_lineage;
 pub mod scope_propagation;
 pub mod serialization;
 pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
+pub mod stabilize_workspace_archetype_detection_readiness_preflight;
 pub mod state_packages;
 pub mod state_root_certification_lineage;
 pub mod templates;
@@ -651,6 +652,15 @@ pub use stabilize_migration_wizard_import_fidelity_for_editor_launch_paths::{
     MIGRATION_WIZARD_IMPORT_FIDELITY_RECORD_KIND, MIGRATION_WIZARD_IMPORT_FIDELITY_SCHEMA_VERSION,
     MIGRATION_WIZARD_IMPORT_FIDELITY_SUPPORT_EXPORT_PACKET_RECORD_KIND,
     ROLLBACK_CHECKPOINT_RECORD_KIND, ROLLBACK_CHECKPOINT_STATES, SOURCE_EDITOR_ECOSYSTEMS,
+};
+
+pub use stabilize_workspace_archetype_detection_readiness_preflight::{
+    workspace_archetype_readiness_preflight_corpus, BuildError, PreflightInput,
+    WorkspaceArchetypeReadinessPreflightRecord, WorkspaceArchetypeReadinessPreflightScenario,
+    WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_NOTICE,
+    WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_RECORD_KIND,
+    WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_SCHEMA_VERSION,
+    WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_SHARED_CONTRACT_REF,
 };
 
 pub use worksets::{
