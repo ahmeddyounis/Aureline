@@ -190,6 +190,12 @@
 //! cutline narrows below the launch cutline and never inherits an adjacent qualified surface —
 //! while the nine surface kinds and the release-blocking surface set both stay fully covered,
 //! so shiproom and release tooling can fail promotion directly from the register.
+//! The clean-room-rebuild proof module is the exact-build supportability lane beside those
+//! gates: for every marketed package-channel row, exact-build symbolication row, and release
+//! truth parity surface, it records whether a fresh packet, verified rebuild evidence, and
+//! exact-build symbol linkage still support the published claim or have already narrowed below
+//! it — while mirror/offline publication coherence stays explicitly governed instead of being
+//! inferred from the primary package rows alone.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -210,6 +216,7 @@ pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbo
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
+pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
@@ -244,6 +251,14 @@ pub use finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark
     BENCHMARK_LAB_GOVERNANCE_RECORD_KIND, BENCHMARK_LAB_GOVERNANCE_SCHEMA_VERSION,
 };
 
+pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
+    current_cohort_scoreboards, CohortScoreboardRow, CohortScoreboards,
+    CohortScoreboardsExportProjection, CohortScoreboardsExportRow, CohortScoreboardsSummary,
+    CohortScoreboardsViolation, RequiredSignoff, ScoreboardAction, ScoreboardGapReason,
+    ScoreboardLane, ScoreboardMetric, ScoreboardPublicationRecord, ScoreboardRule, ScoreboardState,
+    SignoffLoop, COHORT_SCOREBOARDS_JSON, COHORT_SCOREBOARDS_PATH, COHORT_SCOREBOARDS_RECORD_KIND,
+    COHORT_SCOREBOARDS_SCHEMA_VERSION,
+};
 pub use finalize_experiments_labs_inventory::{
     audit_finalize_experiments_labs_inventory_page, build_page_from_inventory,
     seeded_finalize_experiments_labs_inventory_page,
@@ -263,14 +278,6 @@ pub use finalize_experiments_labs_inventory::{
     FINALIZE_EXPERIMENTS_LABS_INVENTORY_SHARED_CONTRACT_REF,
     FINALIZE_EXPERIMENTS_LABS_INVENTORY_SUMMARY_RECORD_KIND,
     FINALIZE_EXPERIMENTS_LABS_INVENTORY_SUPPORT_EXPORT_RECORD_KIND,
-};
-pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
-    current_cohort_scoreboards, CohortScoreboardRow, CohortScoreboards,
-    CohortScoreboardsExportProjection, CohortScoreboardsExportRow, CohortScoreboardsSummary,
-    CohortScoreboardsViolation, RequiredSignoff, ScoreboardAction, ScoreboardGapReason,
-    ScoreboardLane, ScoreboardMetric, ScoreboardPublicationRecord, ScoreboardRule, ScoreboardState,
-    SignoffLoop, COHORT_SCOREBOARDS_JSON, COHORT_SCOREBOARDS_PATH, COHORT_SCOREBOARDS_RECORD_KIND,
-    COHORT_SCOREBOARDS_SCHEMA_VERSION,
 };
 
 pub use finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance::{
@@ -421,6 +428,16 @@ pub use publish_the_signed_m4_stable_evidence_pack_plus::{
     SignedM4StableEvidencePack, SignedM4StableEvidencePackViolation,
     SIGNED_M4_STABLE_EVIDENCE_PACK_JSON, SIGNED_M4_STABLE_EVIDENCE_PACK_PATH,
     SIGNED_M4_STABLE_EVIDENCE_PACK_RECORD_KIND, SIGNED_M4_STABLE_EVIDENCE_PACK_SCHEMA_VERSION,
+};
+
+pub use prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence::{
+    current_clean_room_rebuild_proof, ChannelFamilyAction, ChannelFamilyCategory, ChannelFamilyExportRow,
+    ChannelFamilyGapReason, ChannelFamilyKind, ChannelFamilyRow, ChannelFamilyRule, ChannelFamilyState,
+    CleanRoomRebuildProof, CleanRoomRebuildProofExportProjection, CleanRoomRebuildProofSummary,
+    CleanRoomRebuildProofViolation, PublicationDecision as CleanRoomRebuildPublicationDecision,
+    PublicationDecisionRecord as CleanRoomRebuildPublicationDecisionRecord, RebuildState,
+    SymbolicationState, CLEAN_ROOM_REBUILD_PROOF_JSON, CLEAN_ROOM_REBUILD_PROOF_PATH,
+    CLEAN_ROOM_REBUILD_PROOF_RECORD_KIND, CLEAN_ROOM_REBUILD_PROOF_SCHEMA_VERSION,
 };
 
 pub use optional_surface_qualification::{
