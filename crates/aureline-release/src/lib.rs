@@ -197,6 +197,7 @@ pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
+pub mod finalize_experiments_labs_inventory;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support;
@@ -243,6 +244,26 @@ pub use finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark
     BENCHMARK_LAB_GOVERNANCE_RECORD_KIND, BENCHMARK_LAB_GOVERNANCE_SCHEMA_VERSION,
 };
 
+pub use finalize_experiments_labs_inventory::{
+    audit_finalize_experiments_labs_inventory_page, build_page_from_inventory,
+    seeded_finalize_experiments_labs_inventory_page,
+    validate_finalize_experiments_labs_inventory_page,
+    FinalizeExperimentsLabsInventoryCliProjection, FinalizeExperimentsLabsInventoryCliRow,
+    FinalizeExperimentsLabsInventoryDefect, FinalizeExperimentsLabsInventoryError,
+    FinalizeExperimentsLabsInventoryPage, FinalizeExperimentsLabsInventoryRow,
+    FinalizeExperimentsLabsInventorySummary, FinalizeExperimentsLabsInventorySupportExport,
+    InventoryDependencyMarker, InventoryNarrowReasonClass, InventoryQualificationClass,
+    InventorySurfaceClass, KillSwitchVisibilityRow,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_ARTIFACT_REF,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_DEFECT_RECORD_KIND,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_DOC_REF,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_PAGE_RECORD_KIND,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_ROW_RECORD_KIND,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_SHARED_CONTRACT_REF,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_SUMMARY_RECORD_KIND,
+    FINALIZE_EXPERIMENTS_LABS_INVENTORY_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
     current_cohort_scoreboards, CohortScoreboardRow, CohortScoreboards,
     CohortScoreboardsExportProjection, CohortScoreboardsExportRow, CohortScoreboardsSummary,

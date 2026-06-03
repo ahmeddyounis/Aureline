@@ -35,6 +35,7 @@ pub mod component_state_registry_stable;
 pub mod design_token_runtime_stable;
 pub mod experiments;
 pub mod finalize_appearance_session_theme_packages_token_overlays;
+pub mod finalize_settings_definition_registry;
 pub mod inspector;
 pub mod keybindings;
 pub mod locale_beta;
@@ -79,6 +80,30 @@ pub use finalize_appearance_session_theme_packages_token_overlays::{
     APPEARANCE_SESSION_FINALIZATION_NOTICE, APPEARANCE_SESSION_FINALIZATION_RECORD_KIND,
     APPEARANCE_SESSION_FINALIZATION_SCHEMA_VERSION,
     APPEARANCE_SESSION_FINALIZATION_SHARED_CONTRACT_REF,
+};
+pub use finalize_settings_definition_registry::{
+    audit_finalize_settings_definition_registry_page,
+    seeded_finalize_settings_definition_registry_page,
+    validate_finalize_settings_definition_registry_page,
+    FinalizeSettingsDefinitionRegistryCliProjection,
+    FinalizeSettingsDefinitionRegistryCliRow,
+    FinalizeSettingsDefinitionRegistryDefect,
+    FinalizeSettingsDefinitionRegistryError,
+    FinalizeSettingsDefinitionRegistryPage,
+    FinalizeSettingsDefinitionRegistryRow,
+    FinalizeSettingsDefinitionRegistrySummary,
+    FinalizeSettingsDefinitionRegistrySupportExport,
+    InspectSurfaceClass, LifecycleDependencyMarker, OfflineEntitlementGraceRow,
+    RegistryNarrowReasonClass, RegistryQualificationClass, SurfaceParityRow,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_ARTIFACT_REF,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_DEFECT_RECORD_KIND,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_DOC_REF,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_PAGE_RECORD_KIND,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_ROW_RECORD_KIND,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_SCHEMA_VERSION,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_SHARED_CONTRACT_REF,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_SUMMARY_RECORD_KIND,
+    FINALIZE_SETTINGS_DEFINITION_REGISTRY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use keybindings::mode_state::{
     ModeStateOrientationSettingsSummary, ModeStateSettingsInspectionRecord,
