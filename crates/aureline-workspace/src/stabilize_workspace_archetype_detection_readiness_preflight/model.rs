@@ -9,8 +9,7 @@ use crate::admission::checkpoint::{
     AdmissionCheckpointRouteRecord, ContinueWithoutClass, DetectionConfidenceClass,
     DetectionEvidenceFreshness, DetectionOutcome, DetectionSignal, DetectionSignalSourceClass,
     DetectorState, FirstUsefulEntrySource, LandingSurface, MixedWorkspaceBoundaryChoice,
-    ReadinessBuckets, RouteReasonClass, RouteSwitchOption, SignalFreshnessClass,
-    SupportClaimClass,
+    ReadinessBuckets, RouteReasonClass, RouteSwitchOption, SignalFreshnessClass, SupportClaimClass,
 };
 
 /// Stable record-kind tag carried in serialized preflight records.
@@ -58,7 +57,10 @@ fn is_canonical_object_ref(reference: &str) -> bool {
     if class.is_empty() || ident.is_empty() {
         return false;
     }
-    !matches!(class, "home" | "dashboard" | "landing" | "index" | "overview" | "start" | "root")
+    !matches!(
+        class,
+        "home" | "dashboard" | "landing" | "index" | "overview" | "start" | "root"
+    )
 }
 
 fn is_reviewable_sentence(text: &str) -> bool {
@@ -220,7 +222,9 @@ pub enum BuildError {
     /// Stale evidence requires downgrade from certified archetype match.
     StaleEvidenceRequiresDowngrade { outcome: DetectionOutcome },
     /// Mixed workspace is missing a required boundary choice.
-    MixedWorkspaceMissingBoundaryChoice { choice: MixedWorkspaceBoundaryChoice },
+    MixedWorkspaceMissingBoundaryChoice {
+        choice: MixedWorkspaceBoundaryChoice,
+    },
     /// Same-weight bypass actions are missing a required action.
     MissingSameWeightBypass { action: ContinueWithoutClass },
     /// Restricted or missing-prerequisite route must offer Open minimal.
@@ -257,7 +261,10 @@ impl core::fmt::Display for BuildError {
             }
             Self::TrustWidenedNotAllowed => write!(f, "trust_widened must remain false"),
             Self::EmptyArchetypeSignals => {
-                write!(f, "archetype outcome must carry at least one detection signal")
+                write!(
+                    f,
+                    "archetype outcome must carry at least one detection signal"
+                )
             }
             Self::ReadinessTaskMissingSourceSignal { task_ref } => {
                 write!(
@@ -365,7 +372,10 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
 
         // For outcomes that carry recommendations, at least one signal must use a required source class.
         if !archetype.recommendation_refs.is_empty()
-            && !matches!(archetype.outcome, DetectionOutcome::UnknownOrGenericWorkspace)
+            && !matches!(
+                archetype.outcome,
+                DetectionOutcome::UnknownOrGenericWorkspace
+            )
         {
             let has_required_source = archetype
                 .signals
@@ -414,7 +424,9 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
                 MixedWorkspaceBoundaryChoice::CreateWorksetOrSlice,
             ] {
                 if !input.underlying.boundary_choices.contains(&required) {
-                    return Err(BuildError::MixedWorkspaceMissingBoundaryChoice { choice: required });
+                    return Err(BuildError::MixedWorkspaceMissingBoundaryChoice {
+                        choice: required,
+                    });
                 }
             }
         }
@@ -440,7 +452,9 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
         if matches!(
             archetype.outcome,
             DetectionOutcome::RestrictedOrPolicyBlocked | DetectionOutcome::MissingPrerequisite
-        ) && !route.switch_options.contains(&RouteSwitchOption::OpenMinimal)
+        ) && !route
+            .switch_options
+            .contains(&RouteSwitchOption::OpenMinimal)
         {
             return Err(BuildError::MissingOpenMinimalForNarrowedRoute);
         }
@@ -534,16 +548,17 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
             findings.push("archetype outcome must carry at least one detection signal".to_string());
         }
         if !self.recommendation_refs.is_empty()
-            && !matches!(self.detection_outcome, DetectionOutcome::UnknownOrGenericWorkspace)
+            && !matches!(
+                self.detection_outcome,
+                DetectionOutcome::UnknownOrGenericWorkspace
+            )
         {
             let has_required_source = self
                 .source_labeled_signals
                 .iter()
                 .any(|signal| REQUIRED_SOURCE_CLASSES.contains(&signal.source_class));
             if !has_required_source {
-                findings.push(
-                    "at least one signal must use a required source class".to_string(),
-                );
+                findings.push("at least one signal must use a required source class".to_string());
             }
         }
         for task in self.readiness_buckets.all_tasks() {
@@ -605,7 +620,9 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
         if matches!(
             self.detection_outcome,
             DetectionOutcome::RestrictedOrPolicyBlocked | DetectionOutcome::MissingPrerequisite
-        ) && !self.switch_options.contains(&RouteSwitchOption::OpenMinimal)
+        ) && !self
+            .switch_options
+            .contains(&RouteSwitchOption::OpenMinimal)
         {
             findings.push(
                 "restricted or missing-prerequisite route must offer open_minimal".to_string(),
@@ -624,13 +641,7 @@ impl WorkspaceArchetypeReadinessPreflightRecord {
         let signal_sources = self
             .source_labeled_signals
             .iter()
-            .map(|signal| {
-                format!(
-                    "{}:{}",
-                    signal.source_class.as_str(),
-                    signal.signal_ref
-                )
-            })
+            .map(|signal| format!("{}:{}", signal.source_class.as_str(), signal.signal_ref))
             .collect::<Vec<_>>()
             .join(", ");
         let evidence = self

@@ -10,8 +10,7 @@ use std::path::{Path, PathBuf};
 
 use aureline_workspace::{
     workspace_archetype_readiness_preflight_corpus, ContinueWithoutClass, DetectionOutcome,
-    MixedWorkspaceBoundaryChoice, RouteSwitchOption,
-    WorkspaceArchetypeReadinessPreflightRecord,
+    MixedWorkspaceBoundaryChoice, RouteSwitchOption, WorkspaceArchetypeReadinessPreflightRecord,
     WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_RECORD_KIND,
     WORKSPACE_ARCHETYPE_READINESS_PREFLIGHT_SCHEMA_VERSION,
 };
@@ -78,10 +77,7 @@ fn corpus_replays_each_fixture_exactly() {
         let roundtrip: WorkspaceArchetypeReadinessPreflightRecord =
             serde_json::from_str(&serde_json::to_string(projected).expect("record serializes"))
                 .expect("record round-trips");
-        assert_eq!(
-            roundtrip, *projected,
-            "record must round-trip for {path}"
-        );
+        assert_eq!(roundtrip, *projected, "record must round-trip for {path}");
     }
 }
 
@@ -189,7 +185,9 @@ fn restricted_and_missing_prerequisite_offer_open_minimal() {
             DetectionOutcome::RestrictedOrPolicyBlocked | DetectionOutcome::MissingPrerequisite
         ) {
             assert!(
-                record.switch_options.contains(&RouteSwitchOption::OpenMinimal),
+                record
+                    .switch_options
+                    .contains(&RouteSwitchOption::OpenMinimal),
                 "fixture {name} must offer OpenMinimal"
             );
         }

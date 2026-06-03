@@ -21,6 +21,7 @@ pub mod certify_launch_bundles_imported_user_handoff_bundles_and;
 pub mod entry;
 pub mod entry_flows;
 pub mod entry_hardening_lineage;
+pub mod finalize_workflow_bundle_lifecycle_drift_and_overrides;
 pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod harden_keymap_theme_settings_snippet_task_and_launch;
@@ -169,6 +170,21 @@ pub use entry::{
     ImportWriteBehaviorClass, OpenEntryReviewSheet, OpenWorkspaceReviewSheet,
     ProjectEntryReviewRecord, ProjectEntryReviewRecordKind, ProjectEntryReviewRequest,
     RestoreEntryReviewSheet, ENTRY_REVIEW_SCHEMA_VERSION,
+};
+
+pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
+    project_bundle_lifecycle_finalization, BundleAssetProvenanceInput, BundleAssetProvenanceRecord,
+    BundleDependencyMarkerInput, BundleDependencyMarkerRecord, BundleLifecycleError,
+    BundleLifecycleFinalizationInput, BundleLifecycleFinalizationProjection,
+    BundleLifecycleFinalizationRecord, BundleLifecycleInspectionRecord,
+    BundleLifecycleOperationInput, BundleLifecycleOperationRecord, BundleLifecycleValidationError,
+    ScorecardLinkedDriftEntry, ScorecardLinkedDriftEntryInput, ScorecardLinkedDriftSummaryInput,
+    ScorecardLinkedDriftSummaryRecord, TrustEgressChangeDisclosureInput,
+    TrustEgressChangeDisclosureRecord, BUNDLE_ASSET_PROVENANCE_CLASSES,
+    BUNDLE_DEPENDENCY_CAPABILITY_CLASSES, BUNDLE_DEPENDENCY_NARROWING_CLASSES,
+    BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
+    BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
+    BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
 };
 
 pub use admission::{

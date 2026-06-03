@@ -27,16 +27,15 @@ use crate::{
     ResultingMode, TargetKind, TrustState,
 };
 
-use super::model::{
-    PreflightInput, WorkspaceArchetypeReadinessPreflightRecord,
-
-};
+use super::model::{PreflightInput, WorkspaceArchetypeReadinessPreflightRecord};
 
 /// Snapshot timestamp pinned for every record in the corpus.
 pub const CORPUS_AS_OF: &str = "2026-06-02T12:00:00Z";
 
-const DIAGNOSTICS_EXPORT_REF: &str = "aureline://diagnostics/workspace-archetype-readiness-preflight";
-const SUPPORT_EXPORT_REF: &str = "aureline://support-export/workspace-archetype-readiness-preflight";
+const DIAGNOSTICS_EXPORT_REF: &str =
+    "aureline://diagnostics/workspace-archetype-readiness-preflight";
+const SUPPORT_EXPORT_REF: &str =
+    "aureline://support-export/workspace-archetype-readiness-preflight";
 const EVIDENCE_REF: &str = "aureline://artifact/ux-m4-stabilize-workspace-archetype-detection";
 const NARRATIVE_REF: &str = "aureline://doc/ux-m4-stabilize-workspace-archetype-detection";
 
@@ -201,29 +200,25 @@ fn probable_python_service_seed() -> ScenarioSeed {
         DetectionConfidenceClass::HighProbable,
         SupportClaimClass::SupportedScoped,
         DetectorState::RetestNeeded,
-        vec![
-            DetectionSignal::new(
-                "signal.py.manifest",
-                DetectionSignalSourceClass::Manifest,
-                vec![
-                    SignalMaterialEffect::SupportClaim,
-                    SignalMaterialEffect::Recommendation,
-                ],
-                "Project manifest (pyproject.toml) matches the Python service archetype.",
-            )
-            .with_freshness_class(SignalFreshnessClass::CachedCurrentEnough),
-        ],
+        vec![DetectionSignal::new(
+            "signal.py.manifest",
+            DetectionSignalSourceClass::Manifest,
+            vec![
+                SignalMaterialEffect::SupportClaim,
+                SignalMaterialEffect::Recommendation,
+            ],
+            "Project manifest (pyproject.toml) matches the Python service archetype.",
+        )
+        .with_freshness_class(SignalFreshnessClass::CachedCurrentEnough)],
     )
     .with_archetype_ref("archetype.python_service.probable")
     .with_compatible_bundle_refs(vec!["bundle.python_api.current".to_string()])
-    .with_evidence_freshness(vec![
-        DetectionEvidenceFreshness::new(
-            "evidence.python_service.scorecard",
-            SignalFreshnessClass::CachedCurrentEnough,
-            "Python service archetype evidence is cached but still current enough for routing.",
-        )
-        .with_review_window(Some("2026-04-15".to_string()), Some("P60D".to_string())),
-    ])
+    .with_evidence_freshness(vec![DetectionEvidenceFreshness::new(
+        "evidence.python_service.scorecard",
+        SignalFreshnessClass::CachedCurrentEnough,
+        "Python service archetype evidence is cached but still current enough for routing.",
+    )
+    .with_review_window(Some("2026-04-15".to_string()), Some("P60D".to_string()))])
     .with_detected_fact_refs(vec!["fact.py.pyproject_present".to_string()])
     .with_recommendation_refs(vec!["rec.py.compare_bundle".to_string()]);
 
@@ -376,14 +371,12 @@ fn unknown_plain_folder_seed() -> ScenarioSeed {
         DetectionConfidenceClass::GenericUnknown,
         SupportClaimClass::GenericNoClaim,
         DetectorState::Unknown,
-        vec![
-            DetectionSignal::new(
-                "signal.unknown.no_markers",
-                DetectionSignalSourceClass::FilesystemLayout,
-                vec![SignalMaterialEffect::DiagnosticOnly],
-                "Bounded scan found no recognized archetype markers at depth <= 2.",
-            ),
-        ],
+        vec![DetectionSignal::new(
+            "signal.unknown.no_markers",
+            DetectionSignalSourceClass::FilesystemLayout,
+            vec![SignalMaterialEffect::DiagnosticOnly],
+            "Bounded scan found no recognized archetype markers at depth <= 2.",
+        )],
     )
     .with_detected_fact_refs(vec!["fact.unknown.no_recognized_markers".to_string()]);
 
@@ -629,7 +622,10 @@ fn build_seed(seed: &ScenarioSeed) -> WorkspaceArchetypeReadinessPreflightRecord
         .with_continue_without(seed.continue_without)
         .with_availability(seed.plain_open_available, seed.ordinary_editing_available)
         .with_boundary_choices(seed.boundary_choices.clone())
-        .with_remembered_routing(seed.rememberable, crate::admission::checkpoint::RememberedRoutingEffect::NotRemembered),
+        .with_remembered_routing(
+            seed.rememberable,
+            crate::admission::checkpoint::RememberedRoutingEffect::NotRemembered,
+        ),
     );
 
     let input = PreflightInput {
@@ -676,8 +672,10 @@ mod tests {
         let corpus = workspace_archetype_readiness_preflight_corpus();
         assert_eq!(corpus.len(), all_seeds().len());
 
-        let outcomes: Vec<DetectionOutcome> =
-            corpus.iter().map(|s| s.expected_detection_outcome).collect();
+        let outcomes: Vec<DetectionOutcome> = corpus
+            .iter()
+            .map(|s| s.expected_detection_outcome)
+            .collect();
         for required in [
             DetectionOutcome::CertifiedArchetypeMatch,
             DetectionOutcome::ProbableArchetype,
@@ -751,7 +749,9 @@ mod tests {
                 DetectionOutcome::RestrictedOrPolicyBlocked | DetectionOutcome::MissingPrerequisite
             ) {
                 assert!(
-                    record.switch_options.contains(&RouteSwitchOption::OpenMinimal),
+                    record
+                        .switch_options
+                        .contains(&RouteSwitchOption::OpenMinimal),
                     "{} must offer OpenMinimal",
                     scenario.scenario_id
                 );
