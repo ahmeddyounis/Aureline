@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/service_health_continuity.schema.json",
+  "title": "Aureline service-health continuity records",
+  "description": "Boundary schema for scheduled maintenance, read-only/drain windows, tenant migration, failover, and publish-later/local-draft continuity records. The contract keeps exact time, blocked-write disclosure, local-safe actions, stale-notice downgrade rules, and post-window reconciliation visible across desktop, review, collab, provider-sync, update-center, service-health-card, CLI/headless, and support-export surfaces. Raw tenant identifiers, raw endpoints, raw policy bundles, raw auth tokens, and raw queue payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/service_health_continuity_page_record" },
+    { "$ref": "#/$defs/scheduled_maintenance_notice_record" },
+    { "$ref": "#/$defs/maintenance_window_state_record" },
+    { "$ref": "#/$defs/blocked_write_disclosure_record" },
+    { "$ref": "#/$defs/stale_notice_downgrade_rule_record" },
+    { "$ref": "#/$defs/post_window_reconciliation_result_record" },
+    { "$ref": "#/$defs/service_health_continuity_validation_report_record" },
+    { "$ref": "#/$defs/service_health_continuity_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "service_health:continuity:v1"
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "maintenance_notice_kind": {
+      "type": "string",
+      "enum": [
+        "scheduled_maintenance",
+        "unplanned_interruption",
+        "tenant_migration",
+        "failover_test",
+        "failover_recovery",
+        "read_only_window",
+        "drain_in_progress"
+      ]
+    },
+    "maintenance_window_state": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "read_only",
+        "drain_in_progress",
+        "migration",
+        "failover",
+        "reconciling",
+        "resolved"
+      ]
+    },
+    "blocked_write_class": {
+      "type": "string",
+      "enum": [
+        "provider_mutation",
+        "review_publish",
+        "work_item_create_or_update",
+        "comment_publish",
+        "issue_report_create",
+        "share_or_join",
+        "collaboration_sync_push",
+        "settings_sync_mutation"
+      ]
+    },
+    "local_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "local_draft_authoring",
+        "inspect_only",
+        "export_evidence_packet",
+        "queue_publish_later",
+        "defer_to_post_window",
+        "open_in_provider_browser_handoff"
+      ]
+    },
+    "affected_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "review",
+        "collab",
+        "provider_sync",
+        "update_center",
+        "service_health_card",
+        "support_export",
+        "cli_headless"
+      ]
+    },
+    "stale_notice_downgrade_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_within_grace",
+        "expired_requires_refresh"
+      ]
+    },
+    "post_window_reconciliation_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "replayed",
+        "expired",
+        "cancelled",
+        "needs_explicit_review"
+      ]
+    },
+    "revalidation_dimension": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "region",
+        "endpoint",
+        "policy",
+        "auth",
+        "target_identity"
+      ]
+    },
+    "defer_option_class": {
+      "type": "string",
+      "enum": [
+        "remind_at",
+        "silence_until_start",
+        "export_to_calendar"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["error", "warning"]
+    },
+    "freshness_label": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window",
+        "never_observed",
+        "revoked_or_disconnected"
+      ]
+    },
+    "exact_time_window": {
+      "type": "object",
+      "required": ["start_time", "end_time", "timezone", "latest_refresh_time"],
+      "additionalProperties": false,
+      "properties": {
+        "start_time": { "$ref": "#/$defs/timestamp" },
+        "end_time": { "$ref": "#/$defs/timestamp" },
+        "timezone": { "$ref": "#/$defs/non_empty" },
+        "latest_refresh_time": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "freshness_truth": {
+      "type": "object",
+      "required": ["freshness_class", "freshness_floor_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_label" },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "freshness_floor_ref": { "$ref": "#/$defs/non_empty" },
+        "stale_after": { "$ref": "#/$defs/timestamp" },
+        "degraded_reason": { "type": "string" },
+        "import_session_ref": { "type": "string" }
+      }
+    },
+    "blocked_write_disclosure_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "disclosure_id",
+        "write_class",
+        "rationale",
+        "prevents_action_summary",
+        "affected_surfaces",
+        "local_draft_alternative_offered",
+        "redaction_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "blocked_write_disclosure_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "disclosure_id": { "$ref": "#/$defs/non_empty" },
+        "write_class": { "$ref": "#/$defs/blocked_write_class" },
+        "rationale": { "$ref": "#/$defs/non_empty" },
+        "prevents_action_summary": { "$ref": "#/$defs/non_empty" },
+        "affected_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_surface_class" }
+        },
+        "local_draft_alternative_offered": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "local_safe_action_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "action_id",
+        "action_class",
+        "rationale",
+        "available_on_surfaces",
+        "redaction_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "service_health:continuity:v1" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "action_id": { "$ref": "#/$defs/non_empty" },
+        "action_class": { "$ref": "#/$defs/local_safe_action_class" },
+        "rationale": { "$ref": "#/$defs/non_empty" },
+        "available_on_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_surface_class" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "scheduled_maintenance_notice_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "notice_id",
+        "notice_kind",
+        "time_window",
+        "affected_surfaces",
+        "blocked_writes",
+        "local_safe_actions",
+        "defer_options",
+        "export_option_offered",
+        "freshness",
+        "stale_downgrade_class",
+        "support_export_summary",
+        "redaction_class",
+        "no_vague_copy",
+        "local_safe_action_named"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "scheduled_maintenance_notice_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "notice_id": { "$ref": "#/$defs/non_empty" },
+        "notice_kind": { "$ref": "#/$defs/maintenance_notice_kind" },
+        "time_window": { "$ref": "#/$defs/exact_time_window" },
+        "affected_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_surface_class" }
+        },
+        "blocked_writes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_write_disclosure_record" }
+        },
+        "local_safe_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_safe_action_record" }
+        },
+        "defer_options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defer_option_class" }
+        },
+        "export_option_offered": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/freshness_truth" },
+        "stale_downgrade_class": { "$ref": "#/$defs/stale_notice_downgrade_class" },
+        "support_export_summary": { "$ref": "#/$defs/non_empty" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "no_vague_copy": { "type": "boolean" },
+        "local_safe_action_named": { "type": "boolean" }
+      }
+    },
+    "maintenance_window_state_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "state_id",
+        "current_state",
+        "time_window",
+        "blocked_writes",
+        "local_safe_actions",
+        "support_export_summary",
+        "redaction_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "maintenance_window_state_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "state_id": { "$ref": "#/$defs/non_empty" },
+        "current_state": { "$ref": "#/$defs/maintenance_window_state" },
+        "previous_state": { "$ref": "#/$defs/maintenance_window_state" },
+        "time_window": { "$ref": "#/$defs/exact_time_window" },
+        "blocked_writes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_write_disclosure_record" }
+        },
+        "local_safe_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_safe_action_record" }
+        },
+        "next_expected_transition": { "$ref": "#/$defs/maintenance_window_state" },
+        "next_transition_time": { "$ref": "#/$defs/timestamp" },
+        "support_export_summary": { "$ref": "#/$defs/non_empty" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "stale_notice_downgrade_rule_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "rule_id",
+        "freshness_class",
+        "downgrade_class",
+        "visible_label",
+        "hide_notice",
+        "refresh_action_offered",
+        "rationale",
+        "redaction_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "stale_notice_downgrade_rule_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "rule_id": { "$ref": "#/$defs/non_empty" },
+        "freshness_class": { "$ref": "#/$defs/freshness_label" },
+        "downgrade_class": { "$ref": "#/$defs/stale_notice_downgrade_class" },
+        "visible_label": { "$ref": "#/$defs/non_empty" },
+        "hide_notice": { "type": "boolean" },
+        "refresh_action_offered": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "revalidation_dimension_result": {
+      "type": "object",
+      "required": [
+        "dimension",
+        "pre_window_value",
+        "post_window_value",
+        "drifted"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dimension": { "$ref": "#/$defs/revalidation_dimension" },
+        "pre_window_value": { "$ref": "#/$defs/non_empty" },
+        "post_window_value": { "$ref": "#/$defs/non_empty" },
+        "drifted": { "type": "boolean" },
+        "drift_explanation": { "type": "string" }
+      }
+    },
+    "post_window_reconciliation_result_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "result_id",
+        "pre_window_state_ref",
+        "post_window_state_ref",
+        "revalidation_results",
+        "drifted_dimensions",
+        "reconciliation_state",
+        "queued_intent_refs",
+        "replay_requires_review",
+        "provider_drift_class",
+        "next_safe_action",
+        "support_export_summary",
+        "redaction_class",
+        "no_invisible_replay"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "post_window_reconciliation_result_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "result_id": { "$ref": "#/$defs/non_empty" },
+        "pre_window_state_ref": { "$ref": "#/$defs/non_empty" },
+        "post_window_state_ref": { "$ref": "#/$defs/non_empty" },
+        "revalidation_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revalidation_dimension_result" }
+        },
+        "drifted_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revalidation_dimension" }
+        },
+        "reconciliation_state": { "$ref": "#/$defs/post_window_reconciliation_state" },
+        "queued_intent_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "replay_requires_review": { "type": "boolean" },
+        "provider_drift_class": {
+          "type": "string",
+          "enum": [
+            "no_material_drift",
+            "freshness_floor_unsatisfied",
+            "target_content_drifted",
+            "target_identity_changed",
+            "actor_scope_changed",
+            "policy_epoch_changed",
+            "provider_object_deleted",
+            "unknown_material_drift"
+          ]
+        },
+        "next_safe_action": {
+          "type": "string",
+          "enum": [
+            "mutate_provider_now",
+            "refresh_then_retry",
+            "reauth_then_retry",
+            "rescope_then_retry",
+            "compare_rebase_review",
+            "cancel_or_export",
+            "open_in_provider",
+            "hold_for_backfill"
+          ]
+        },
+        "support_export_summary": { "$ref": "#/$defs/non_empty" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "no_invisible_replay": { "type": "boolean" }
+      }
+    },
+    "service_health_continuity_page_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "contract_refs",
+        "maintenance_notices",
+        "window_state_records",
+        "stale_notice_rules",
+        "reconciliation_results",
+        "support_export_summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "service_health_continuity_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/non_empty" },
+        "contract_refs": {
+          "type": "object",
+          "required": [
+            "publish_later_queue_schema_ref",
+            "deferred_publish_queue_schema_ref",
+            "provider_event_reconciliation_schema_ref",
+            "provider_object_model_schema_ref",
+            "settings_sync_state_schema_ref",
+            "backup_restore_failover_schema_ref"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "publish_later_queue_schema_ref": { "$ref": "#/$defs/non_empty" },
+            "deferred_publish_queue_schema_ref": { "$ref": "#/$defs/non_empty" },
+            "provider_event_reconciliation_schema_ref": { "$ref": "#/$defs/non_empty" },
+            "provider_object_model_schema_ref": { "$ref": "#/$defs/non_empty" },
+            "settings_sync_state_schema_ref": { "$ref": "#/$defs/non_empty" },
+            "backup_restore_failover_schema_ref": { "$ref": "#/$defs/non_empty" }
+          }
+        },
+        "maintenance_notices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scheduled_maintenance_notice_record" }
+        },
+        "window_state_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/maintenance_window_state_record" }
+        },
+        "stale_notice_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_notice_downgrade_rule_record" }
+        },
+        "reconciliation_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_window_reconciliation_result_record" }
+        },
+        "support_export_summary": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "service_health_continuity_validation_report_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "page_id",
+        "passed",
+        "coverage",
+        "findings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "service_health_continuity_validation_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "page_id": { "$ref": "#/$defs/non_empty" },
+        "passed": { "type": "boolean" },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "notice_kinds": { "type": "array", "items": { "$ref": "#/$defs/maintenance_notice_kind" } },
+            "window_states": { "type": "array", "items": { "$ref": "#/$defs/maintenance_window_state" } },
+            "blocked_write_classes": { "type": "array", "items": { "$ref": "#/$defs/blocked_write_class" } },
+            "local_safe_action_classes": { "type": "array", "items": { "$ref": "#/$defs/local_safe_action_class" } },
+            "stale_downgrade_classes": { "type": "array", "items": { "$ref": "#/$defs/stale_notice_downgrade_class" } },
+            "reconciliation_states": { "type": "array", "items": { "$ref": "#/$defs/post_window_reconciliation_state" } },
+            "affected_surfaces": { "type": "array", "items": { "$ref": "#/$defs/affected_surface_class" } },
+            "revalidation_dimensions": { "type": "array", "items": { "$ref": "#/$defs/revalidation_dimension" } }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "check_id", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "severity": { "$ref": "#/$defs/finding_severity" },
+              "check_id": { "$ref": "#/$defs/non_empty" },
+              "message": { "$ref": "#/$defs/non_empty" }
+            }
+          }
+        }
+      }
+    },
+    "service_health_continuity_support_export_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "page_id",
+        "notice_summaries",
+        "window_state_summaries",
+        "stale_rule_summaries",
+        "reconciliation_summaries",
+        "redaction_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "service_health_continuity_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "page_id": { "$ref": "#/$defs/non_empty" },
+        "notice_summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["notice_id", "notice_kind", "start_time", "end_time", "timezone", "stale_downgrade_class", "support_export_summary"],
+            "additionalProperties": false,
+            "properties": {
+              "notice_id": { "$ref": "#/$defs/non_empty" },
+              "notice_kind": { "$ref": "#/$defs/maintenance_notice_kind" },
+              "start_time": { "$ref": "#/$defs/timestamp" },
+              "end_time": { "$ref": "#/$defs/timestamp" },
+              "timezone": { "$ref": "#/$defs/non_empty" },
+              "stale_downgrade_class": { "$ref": "#/$defs/stale_notice_downgrade_class" },
+              "support_export_summary": { "$ref": "#/$defs/non_empty" }
+            }
+          }
+        },
+        "window_state_summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["state_id", "current_state", "start_time", "end_time", "support_export_summary"],
+            "additionalProperties": false,
+            "properties": {
+              "state_id": { "$ref": "#/$defs/non_empty" },
+              "current_state": { "$ref": "#/$defs/maintenance_window_state" },
+              "start_time": { "$ref": "#/$defs/timestamp" },
+              "end_time": { "$ref": "#/$defs/timestamp" },
+              "support_export_summary": { "$ref": "#/$defs/non_empty" }
+            }
+          }
+        },
+        "stale_rule_summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rule_id", "freshness_class", "downgrade_class", "visible_label", "hide_notice"],
+            "additionalProperties": false,
+            "properties": {
+              "rule_id": { "$ref": "#/$defs/non_empty" },
+              "freshness_class": { "$ref": "#/$defs/freshness_label" },
+              "downgrade_class": { "$ref": "#/$defs/stale_notice_downgrade_class" },
+              "visible_label": { "$ref": "#/$defs/non_empty" },
+              "hide_notice": { "type": "boolean" }
+            }
+          }
+        },
+        "reconciliation_summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "result_id",
+              "pre_window_state_ref",
+              "post_window_state_ref",
+              "drifted_dimensions",
+              "reconciliation_state",
+              "replay_requires_review",
+              "provider_drift_class",
+              "next_safe_action",
+              "support_export_summary"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "result_id": { "$ref": "#/$defs/non_empty" },
+              "pre_window_state_ref": { "$ref": "#/$defs/non_empty" },
+              "post_window_state_ref": { "$ref": "#/$defs/non_empty" },
+              "drifted_dimensions": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/revalidation_dimension" }
+              },
+              "reconciliation_state": { "$ref": "#/$defs/post_window_reconciliation_state" },
+              "replay_requires_review": { "type": "boolean" },
+              "provider_drift_class": {
+                "type": "string",
+                "enum": [
+                  "no_material_drift",
+                  "freshness_floor_unsatisfied",
+                  "target_content_drifted",
+                  "target_identity_changed",
+                  "actor_scope_changed",
+                  "policy_epoch_changed",
+                  "provider_object_deleted",
+                  "unknown_material_drift"
+                ]
+              },
+              "next_safe_action": {
+                "type": "string",
+                "enum": [
+                  "mutate_provider_now",
+                  "refresh_then_retry",
+                  "reauth_then_retry",
+                  "rescope_then_retry",
+                  "compare_rebase_review",
+                  "cancel_or_export",
+                  "open_in_provider",
+                  "hold_for_backfill"
+                ]
+              },
+              "support_export_summary": { "$ref": "#/$defs/non_empty" }
+            }
+          }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
