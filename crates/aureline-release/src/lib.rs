@@ -190,6 +190,7 @@ pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod go_no_go_rehearsal;
+pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
 pub mod maintenance_control_packet;
@@ -259,6 +260,16 @@ pub use go_no_go_rehearsal::{
     RehearsalPublicationRecord, RehearsalRule, RehearsalStageRow, RehearsalState,
     RollbackCheckpoint, StageKind, GO_NO_GO_REHEARSAL_JSON, GO_NO_GO_REHEARSAL_PATH,
     GO_NO_GO_REHEARSAL_RECORD_KIND, GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
+};
+
+pub use harden_docs_help_about_and_service_health_truth::{
+    current_docs_help_about_service_health_truth, AboutProvenanceCard, DestinationTrustClass,
+    DocsHelpAboutServiceHealthTruth, DocsHelpAboutServiceHealthTruthViolation, HelpDestination,
+    PackageSafetyDisclosure, ServiceContractState, TruthAction, TruthExportProjection,
+    TruthExportRow, TruthPublicationRecord, TruthRule, TruthRow, TruthState, TruthSummary,
+    DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_JSON, DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_PATH,
+    DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_RECORD_KIND,
+    DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_SCHEMA_VERSION,
 };
 
 pub use harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation::{
