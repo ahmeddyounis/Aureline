@@ -25,6 +25,7 @@ pub mod recovery_state_lineage;
 pub mod save_fidelity_lineage;
 pub mod selection;
 pub mod stabilize_modal_editing_leader_register_safety;
+pub mod stabilize_orientation_aids_breadcrumbs_folds_minimap;
 pub mod text_nav;
 pub mod undo;
 pub mod viewport;
@@ -116,6 +117,15 @@ pub use stabilize_modal_editing_leader_register_safety::{
     MODAL_CUE_LATENCY_BUDGET_MICROS, MODAL_EDITING_SAFETY_CORPUS_AS_OF,
     MODAL_EDITING_SAFETY_PACKET_RECORD_KIND, MODAL_EDITING_SAFETY_SCHEMA_REF,
     MODAL_EDITING_SAFETY_SCHEMA_VERSION,
+};
+pub use stabilize_orientation_aids_breadcrumbs_folds_minimap::{
+    orientation_aids_stability_corpus, BuildError as OrientationAidsBuildError,
+    OrientationAidsStabilityInput, OrientationAidsStabilityPacket,
+    OrientationAidsStabilityScenario, ORIENTATION_AID_FILE_SWITCH_BUDGET_MICROS,
+    ORIENTATION_AID_LATENCY_BUDGET_MICROS, ORIENTATION_AID_SCROLL_BUDGET_MICROS,
+    ORIENTATION_AID_TYPING_BUDGET_MICROS, ORIENTATION_AIDS_STABILITY_CORPUS_AS_OF,
+    ORIENTATION_AIDS_STABILITY_PACKET_RECORD_KIND, ORIENTATION_AIDS_STABILITY_SCHEMA_REF,
+    ORIENTATION_AIDS_STABILITY_SCHEMA_VERSION,
 };
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use undo::UndoGroupSummary;
