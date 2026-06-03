@@ -22,6 +22,7 @@ pub mod finalize_traffic_origin_and_exposure_chips;
 pub mod harden_ai_and_command_support_export_parity_audit;
 pub mod harden_high_risk_command;
 pub mod invocation;
+pub mod publish_capability_route_inspector;
 pub mod registry;
 pub mod stabilize_client_origin_route_class;
 pub mod stabilize_command_contract;
@@ -105,6 +106,17 @@ pub use harden_high_risk_command::{
 };
 pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
+};
+pub use publish_capability_route_inspector::{
+    current_capability_route_inspector_export, CapabilityRouteInspectorArtifactError,
+    CapabilityRouteInspectorPacket, CapabilityRouteInspectorPacketInput,
+    CapabilityRouteInspectorViolation, DriftClass, FlowClass, FlowPublicationRecord,
+    KeyboardReachabilityRecord, LineagePreservationRecord, PublicationSurfaceRow,
+    ReapprovalPolicyRecord, CAPABILITY_ROUTE_INSPECTOR_ARTIFACT_REF,
+    CAPABILITY_ROUTE_INSPECTOR_DESCRIPTOR_CONTRACT_REF, CAPABILITY_ROUTE_INSPECTOR_DOC_REF,
+    CAPABILITY_ROUTE_INSPECTOR_FIXTURE_DIR, CAPABILITY_ROUTE_INSPECTOR_PARITY_CONTRACT_REF,
+    CAPABILITY_ROUTE_INSPECTOR_RECORD_KIND, CAPABILITY_ROUTE_INSPECTOR_SCHEMA_REF,
+    CAPABILITY_ROUTE_INSPECTOR_SCHEMA_VERSION, CAPABILITY_ROUTE_INSPECTOR_SUMMARY_REF,
 };
 pub use registry::{
     CommandDescriptorPublicContractRecord, CommandPreviewGateMetadata, CommandRegistry,

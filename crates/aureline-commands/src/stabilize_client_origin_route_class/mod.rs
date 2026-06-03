@@ -346,7 +346,7 @@ pub struct CapabilityRouteInspector {
 }
 
 impl CapabilityRouteInspector {
-    fn guards_hold(&self) -> bool {
+    pub fn guards_hold(&self) -> bool {
         !self.inspector_id.trim().is_empty()
             && !self.target_identity_ref.trim().is_empty()
             && !self.approval_scope_ref.trim().is_empty()
@@ -359,7 +359,7 @@ impl CapabilityRouteInspector {
             && self.reachable_without_debug_toggle
     }
 
-    fn covers_all_revalidation_triggers(&self) -> bool {
+    pub fn covers_all_revalidation_triggers(&self) -> bool {
         RevalidationTriggerClass::required_coverage()
             .iter()
             .all(|required| self.revalidation_triggers.iter().any(|t| t == required))
