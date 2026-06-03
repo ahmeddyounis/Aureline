@@ -1,0 +1,59 @@
+case_id: unlabeled_row_promotion_blocked
+description: >
+  Demonstrates the shiproom promotion gate. A row that is missing required
+  governance dimensions — specifically endpoint_policy_truth_by_context for
+  a required context, or an empty retention_note, or a missing redaction_profile_ref
+  — must be rejected by validate_registry() before stable promotion.
+
+  This fixture is not a real registry row. It shows the shape of a row that
+  would fail the gate, and lists which RegistryViolation values would be
+  returned.
+
+synthetic_row:
+  entry_id: "hypothetical.unlabeled_payload"
+  family_class: telemetry_payload
+  owner_ref: "hypothetical-team"
+  schema_ref: "schemas/hypothetical/unlabeled.schema.json"
+  schema_version: 1
+  lifecycle_state: stable
+  consent_class: ""
+  endpoint_class: ""
+  retention_note: ""
+  redaction_profile_ref: ""
+  open_source_default_posture: ""
+  endpoint_policy_truth_by_context:
+    oss_local: local_only
+    # MISSING: self_hosted and managed_enterprise
+  deprecated_field_handling: preserve_as_unknown
+  partial_outcome_marker: none
+  offboarding_compatibility_note: ""
+  oss_telemetry_exception_packet_ref: null
+  schema_diff_report_ref: null
+
+when:
+  action: validate_registry() is called with this row present
+
+then:
+  violations_expected:
+    - violation_type: MissingContextPolicy
+      detail: "Row hypothetical.unlabeled_payload is missing endpoint_policy for self_hosted"
+    - violation_type: MissingContextPolicy
+      detail: "Row hypothetical.unlabeled_payload is missing endpoint_policy for managed_enterprise"
+    - violation_type: EmptyRetentionNote
+      detail: "Row hypothetical.unlabeled_payload has an empty retention_note"
+    - violation_type: EmptyRedactionProfileRef
+      detail: "Row hypothetical.unlabeled_payload has an empty redaction_profile_ref"
+    - violation_type: TelemetryOssPostureViolation
+      detail: "Row hypothetical.unlabeled_payload is telemetry_payload but open_source_default_posture is empty"
+  promotion_allowed: false
+
+assertions:
+  - invariant: >
+      A row with missing context policies, empty retention notes, empty
+      redaction profile refs, or invalid telemetry posture must not pass
+      the validate_registry() gate. CI must treat any non-empty
+      Vec<RegistryViolation> as a build/shiproom gate failure.
+  - invariant: >
+      The RegistryViolation enum is the authoritative machine-readable
+      description of what is missing. Human-readable summaries are derived
+      from the Display impl on RegistryViolation.

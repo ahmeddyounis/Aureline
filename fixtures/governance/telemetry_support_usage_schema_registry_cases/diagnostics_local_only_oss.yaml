@@ -1,0 +1,45 @@
+case_id: diagnostics_local_only_oss
+description: >
+  Demonstrates that diagnostics.crash_payload is local_only across all three
+  deployment contexts. Crash diagnostics never leave the device automatically
+  in any context, including managed enterprise. The partial_suppressed_by_policy
+  marker reflects that individual fields may be redacted under the redaction profile,
+  but the packet envelope itself is always available locally.
+
+registry_entry_ref: diagnostics.crash_payload
+
+given:
+  context: all
+  family_class: diagnostic_payload
+  endpoint_policy_truth_by_context:
+    oss_local: local_only
+    self_hosted: local_only
+    managed_enterprise: local_only
+
+when:
+  query: Does crash diagnostic data ever leave the device in any context?
+
+then:
+  endpoint_policy_oss_local: local_only
+  endpoint_policy_self_hosted: local_only
+  endpoint_policy_managed_enterprise: local_only
+  data_leaves_device_in_any_context: false
+  partial_outcome_marker: partial_suppressed_by_policy
+
+assertions:
+  - field: endpoint_policy_truth_by_context.oss_local
+    expected: local_only
+  - field: endpoint_policy_truth_by_context.self_hosted
+    expected: local_only
+  - field: endpoint_policy_truth_by_context.managed_enterprise
+    expected: local_only
+  - field: partial_outcome_marker
+    expected: partial_suppressed_by_policy
+  - invariant: >
+      Crash diagnostics are a local capture by default in every deployment context.
+      Even in managed enterprise, crash payloads stay on-device unless a separate
+      optional crash upload consent is established. That upload consent is a distinct
+      governed contract and not implied by this family's endpoint class.
+  - invariant: >
+      Partial suppression means readers may see fewer fields than the full schema
+      defines; they must not interpret absence as absence of the event.

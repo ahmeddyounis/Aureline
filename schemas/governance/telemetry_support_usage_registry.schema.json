@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/telemetry_support_usage_registry.schema.json",
+  "title": "Aureline telemetry, support-export, and usage-export stable schema registry",
+  "description": "Schema for the telemetry_support_usage_schema_registry artifact. Extends the governed schema registry with endpoint-policy truth per deployment context, redaction profile references, deprecated-field handling policy, partial-outcome markers, offboarding compatibility notes, and OSS telemetry exception packet provenance. Each row cross-references an existing entry in schemas/registry/schema_registry.json via entry_id and adds the M4 governance dimensions that were not present in the base registry. A row may not claim stable promotion until all required governance dimensions are present and validated.",
+  "$ref": "#/$defs/telemetry_support_usage_registry",
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path. Consumers treat it as opaque text."
+    },
+    "entry_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable dot-separated id matching an entry in schemas/registry/schema_registry.json."
+    },
+    "context_class": {
+      "type": "string",
+      "enum": ["oss_local", "self_hosted", "managed_enterprise"],
+      "description": "Deployment context that determines which endpoint policy applies."
+    },
+    "endpoint_policy_truth": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "queued_for_manual_export",
+        "managed_endpoint",
+        "disabled_by_policy_or_flavor"
+      ],
+      "description": "Operative endpoint policy for a specific deployment context. local_only means data never leaves the device. queued_for_manual_export means data is held locally and only leaves on explicit user or admin action. managed_endpoint means the data flows to a vendor-operated managed plane. disabled_by_policy_or_flavor means the family is not active on this lane."
+    },
+    "deprecated_field_handling": {
+      "type": "string",
+      "enum": [
+        "drop_on_read",
+        "preserve_as_unknown",
+        "refuse_read",
+        "require_manual_review"
+      ],
+      "description": "Policy for what readers do when they encounter a deprecated or unknown field version. preserve_as_unknown is the safe default for most families. refuse_read applies to authoritative managed packets where schema drift is a data-integrity risk."
+    },
+    "partial_outcome_marker": {
+      "type": "string",
+      "enum": [
+        "none",
+        "partial_suppressed_by_policy",
+        "partial_offboarding_window_bounded",
+        "requires_manual_reconciliation"
+      ],
+      "description": "Whether packets in this family can be partial. none means the packet is always complete. partial_suppressed_by_policy means fields may be omitted under redaction or admin policy suppression. partial_offboarding_window_bounded means completeness depends on an offboarding availability window. requires_manual_reconciliation means partial packets need human review to resolve."
+    },
+    "context_endpoint_policy_row": {
+      "type": "object",
+      "required": ["context_class", "endpoint_policy_truth", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "context_class": { "$ref": "#/$defs/context_class" },
+        "endpoint_policy_truth": { "$ref": "#/$defs/endpoint_policy_truth" },
+        "note": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable sentence explaining why this policy truth applies for the context."
+        }
+      }
+    },
+    "telemetry_support_usage_row": {
+      "type": "object",
+      "required": [
+        "entry_id",
+        "title",
+        "family_class",
+        "owner_ref",
+        "schema_ref",
+        "schema_version",
+        "lifecycle_state",
+        "consent_class",
+        "endpoint_class",
+        "retention_note",
+        "redaction_profile_ref",
+        "open_source_default_posture",
+        "endpoint_policy_truth_by_context",
+        "deprecated_field_handling",
+        "partial_outcome_marker",
+        "offboarding_compatibility_note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/entry_id",
+          "description": "Stable id matching the corresponding entry in schemas/registry/schema_registry.json."
+        },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "family_class": {
+          "type": "string",
+          "enum": [
+            "telemetry_payload",
+            "diagnostic_payload",
+            "support_export_payload",
+            "usage_export_payload",
+            "offboarding_packet",
+            "cli_headless_packet"
+          ],
+          "description": "Payload family class. Must match the family_class field of the corresponding entry in schemas/registry/schema_registry.json."
+        },
+        "owner_ref": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "schema_ref": { "$ref": "#/$defs/path_ref" },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["active", "deprecated", "retired"],
+          "description": "Governed lifecycle state. Stable promotion requires active with all required governance dimensions present."
+        },
+        "consent_class": {
+          "type": "string",
+          "enum": [
+            "not_applicable_local_mechanics",
+            "implied_for_local_authoritative",
+            "explicit_opt_in_required",
+            "admin_policy_gated",
+            "export_only_on_user_request"
+          ]
+        },
+        "endpoint_class": {
+          "type": "string",
+          "enum": [
+            "local_device_only",
+            "local_authoritative_with_optional_upload",
+            "export_only_user_initiated",
+            "managed_mirror_when_enabled",
+            "managed_authoritative_when_enabled",
+            "admin_broker_gated",
+            "deletion_or_offboarding_export_channel_only",
+            "cli_stdio_local_only"
+          ]
+        },
+        "retention_note": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative reference to the redaction profile or ADR that governs what bytes this family excludes when crossing a boundary."
+        },
+        "open_source_default_posture": {
+          "type": "string",
+          "enum": [
+            "opt_in_disabled_until_user_consent",
+            "local_capture_no_upload_by_default",
+            "user_initiated_export_only",
+            "not_available_without_managed_policy",
+            "local_stdio_only"
+          ],
+          "description": "Default posture for OSS and local builds. Telemetry families must stay opt_in_disabled_until_user_consent unless a signed exception packet overrides it."
+        },
+        "oss_telemetry_exception_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/path_ref" }
+          ],
+          "description": "Signed exception packet reference that authorizes a narrower OSS posture than opt_in_disabled_until_user_consent. Null when the default posture applies. May not be a free-form string; it must resolve to an exception packet artifact."
+        },
+        "schema_diff_report_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/path_ref" }
+          ],
+          "description": "Reference to the schema diff report artifact produced when this family's schema version advanced from a prior stable version. Null only for initial-version registrations. Required before stable promotion whenever schema_version increases."
+        },
+        "endpoint_policy_truth_by_context": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/context_endpoint_policy_row" },
+          "description": "Per-deployment-context endpoint policy truth. Must include entries for oss_local, self_hosted, and managed_enterprise."
+        },
+        "deprecated_field_handling": { "$ref": "#/$defs/deprecated_field_handling" },
+        "partial_outcome_marker": { "$ref": "#/$defs/partial_outcome_marker" },
+        "offboarding_compatibility_note": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable sentence stating how this family behaves when the managed entitlement ends or the user initiates account exit. Required for all rows before stable promotion."
+        }
+      }
+    },
+    "telemetry_support_usage_summary": {
+      "type": "object",
+      "required": [
+        "total_rows",
+        "labeled_rows",
+        "telemetry_rows_with_oss_opt_in_default",
+        "local_only_oss_context_rows",
+        "managed_endpoint_rows",
+        "queued_manual_export_rows"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of rows in this registry."
+        },
+        "labeled_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows that carry all required governance dimensions. Must equal total_rows for stable promotion."
+        },
+        "telemetry_rows_with_oss_opt_in_default": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Telemetry-family rows whose open_source_default_posture is opt_in_disabled_until_user_consent."
+        },
+        "local_only_oss_context_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows whose endpoint_policy_truth in the oss_local context is local_only."
+        },
+        "managed_endpoint_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows whose endpoint_policy_truth in the managed_enterprise context is managed_endpoint."
+        },
+        "queued_manual_export_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows that require explicit user or admin action to emit (queued_for_manual_export in any context)."
+        }
+      }
+    },
+    "telemetry_support_usage_registry": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "record_kind",
+        "registry_id",
+        "status",
+        "overview_page",
+        "governed_schema_registry_ref",
+        "consent_ledger_ref",
+        "context_classes",
+        "endpoint_policy_truth_classes",
+        "deprecated_field_handling_classes",
+        "partial_outcome_marker_classes",
+        "rows",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Registry schema version."
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "telemetry_support_usage_schema_registry",
+          "description": "Stable record-kind discriminator."
+        },
+        "registry_id": { "$ref": "#/$defs/non_empty_string" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "superseded"]
+        },
+        "overview_page": { "$ref": "#/$defs/path_ref" },
+        "governed_schema_registry_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Path to schemas/registry/schema_registry.json. Rows in this registry must match entry_ids found there."
+        },
+        "consent_ledger_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Path to artifacts/governance/consent_ledger_seed.yaml. Families in this registry correspond to seed rows there."
+        },
+        "context_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/context_class" },
+          "description": "Closed set of deployment context classes."
+        },
+        "endpoint_policy_truth_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/endpoint_policy_truth" },
+          "description": "Closed set of endpoint policy truth values."
+        },
+        "deprecated_field_handling_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deprecated_field_handling" },
+          "description": "Closed set of deprecated-field handling policies."
+        },
+        "partial_outcome_marker_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partial_outcome_marker" },
+          "description": "Closed set of partial-outcome markers."
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/telemetry_support_usage_row" }
+        },
+        "summary": { "$ref": "#/$defs/telemetry_support_usage_summary" }
+      }
+    }
+  }
+}

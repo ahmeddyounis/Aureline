@@ -1,0 +1,45 @@
+case_id: usage_export_managed_endpoint
+description: >
+  Demonstrates that usage.metering_export_packet flows to a managed endpoint
+  only in the managed_enterprise context, and is disabled in oss_local and
+  self_hosted contexts. The partial_outcome_marker is partial_offboarding_window_bounded
+  because completeness depends on how much of the entitlement retention window
+  remains at offboarding time.
+
+registry_entry_ref: usage.metering_export_packet
+
+given:
+  context: managed_enterprise
+  family_class: usage_export_payload
+  endpoint_policy_truth_by_context:
+    oss_local: disabled_by_policy_or_flavor
+    self_hosted: disabled_by_policy_or_flavor
+    managed_enterprise: managed_endpoint
+
+when:
+  query: In which contexts does usage metering export data, and what are the completeness guarantees?
+
+then:
+  endpoint_policy_oss_local: disabled_by_policy_or_flavor
+  endpoint_policy_self_hosted: disabled_by_policy_or_flavor
+  endpoint_policy_managed_enterprise: managed_endpoint
+  data_flows_to_managed_plane_in_managed_enterprise: true
+  data_produced_in_oss_local: false
+  data_produced_in_self_hosted: false
+  partial_outcome_marker: partial_offboarding_window_bounded
+
+assertions:
+  - field: endpoint_policy_truth_by_context.oss_local
+    expected: disabled_by_policy_or_flavor
+  - field: endpoint_policy_truth_by_context.self_hosted
+    expected: disabled_by_policy_or_flavor
+  - field: endpoint_policy_truth_by_context.managed_enterprise
+    expected: managed_endpoint
+  - field: partial_outcome_marker
+    expected: partial_offboarding_window_bounded
+  - invariant: >
+      Usage metering export is a managed-enterprise-only concept.
+      OSS and self-hosted builds produce no usage metering packets.
+  - invariant: >
+      At offboarding, completeness of the export is bounded by the
+      entitlement retention window, not unlimited historical export.

@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "record_kind": "telemetry_support_usage_schema_registry",
+  "registry_id": "telemetry_support_usage_schema_registry",
+  "status": "active",
+  "overview_page": "docs/governance/telemetry_support_usage_stable_registry.md",
+  "governed_schema_registry_ref": "schemas/registry/schema_registry.json",
+  "consent_ledger_ref": "artifacts/governance/consent_ledger_seed.yaml",
+  "context_classes": ["oss_local", "self_hosted", "managed_enterprise"],
+  "endpoint_policy_truth_classes": [
+    "local_only",
+    "queued_for_manual_export",
+    "managed_endpoint",
+    "disabled_by_policy_or_flavor"
+  ],
+  "deprecated_field_handling_classes": [
+    "drop_on_read",
+    "preserve_as_unknown",
+    "refuse_read",
+    "require_manual_review"
+  ],
+  "partial_outcome_marker_classes": [
+    "none",
+    "partial_suppressed_by_policy",
+    "partial_offboarding_window_bounded",
+    "requires_manual_reconciliation"
+  ],
+  "rows": [
+    {
+      "entry_id": "telemetry.ux_product_event",
+      "title": "UX product telemetry event catalog",
+      "family_class": "telemetry_payload",
+      "owner_ref": "telemetry_governance",
+      "schema_ref": "schemas/telemetry/event_catalog.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "explicit_opt_in_required",
+      "endpoint_class": "local_authoritative_with_optional_upload",
+      "retention_note": "Local aggregates remain user-owned until version-replace or user reset; uploaded aggregates close on the same triggers. Declining this family never degrades local product function.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "opt_in_disabled_until_user_consent",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "local_only",
+          "note": "OSS and local builds capture events locally; upload is disabled until the user explicitly consents. No exception packet currently overrides this posture."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "local_only",
+          "note": "Self-hosted deployments have no vendor-operated upload endpoint; telemetry stays local unless the operator provides a custom endpoint under separate governance."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "disabled_by_policy_or_flavor",
+          "note": "Managed enterprise deployments default to admin-forced-disabled for UX telemetry upload; the admin must explicitly enable via policy."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "none",
+      "offboarding_compatibility_note": "Telemetry events are ephemeral analytics signals and carry no offboarding obligation. On account exit they are not included in portability or exit packets."
+    },
+    {
+      "entry_id": "diagnostics.crash_payload",
+      "title": "Crash and diagnostic payload",
+      "family_class": "diagnostic_payload",
+      "owner_ref": "diagnostics_governance",
+      "schema_ref": "schemas/support/crash_diagnostic_payload.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "explicit_opt_in_required",
+      "endpoint_class": "local_authoritative_with_optional_upload",
+      "retention_note": "Local crash captures are user-owned and persist until attached to a support case or manually deleted. Managed support-case retention follows the crash_diagnostic_payload record class.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "local_capture_no_upload_by_default",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "local_only",
+          "note": "OSS builds capture crash metadata locally by default; upload requires explicit user opt-in and is not enabled without consent."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "local_only",
+          "note": "Self-hosted deployments capture locally; no vendor-operated upload target exists. Operator-supplied upload targets are covered by separate governance."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "local_only",
+          "note": "Managed builds capture locally by default; upload to the managed support case endpoint is admin-policy-gated and off by default."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "partial_suppressed_by_policy",
+      "offboarding_compatibility_note": "Crash captures are local files and are not included in portability or exit packets unless the user explicitly attaches them to a support case. No managed retention obligation survives account exit for captures that were never uploaded."
+    },
+    {
+      "entry_id": "support.bundle_manifest",
+      "title": "Support-bundle manifest",
+      "family_class": "support_export_payload",
+      "owner_ref": "support_export",
+      "schema_ref": "schemas/support/support_bundle_manifest.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "export_only_on_user_request",
+      "endpoint_class": "export_only_user_initiated",
+      "retention_note": "Bundle manifests are generated on explicit preview or export action and include an included, excluded, and redacted class summary. The manifest itself is user-owned and stored locally until sent.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "user_initiated_export_only",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "queued_for_manual_export",
+          "note": "OSS users may generate a support bundle at any time; the manifest is held locally until the user explicitly sends it. No background upload path exists."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "queued_for_manual_export",
+          "note": "Self-hosted deployments follow the same user-initiated export path; no vendor upload endpoint is present."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "queued_for_manual_export",
+          "note": "Managed enterprise deployments also require explicit user or admin action to send a support bundle; admin policy may restrict which fields are included but the upload remains user-initiated."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "partial_suppressed_by_policy",
+      "offboarding_compatibility_note": "Support bundle manifests are not included in offboarding exit packets by default. If a support case was open at exit time, the bundle reference is cited in the exit packet by reference only; the raw bundle bytes are not embedded."
+    },
+    {
+      "entry_id": "usage.metering_export_packet",
+      "title": "Metering and usage-export packet",
+      "family_class": "usage_export_payload",
+      "owner_ref": "finance_controls",
+      "schema_ref": "schemas/governance/usage_export_record.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "admin_policy_gated",
+      "endpoint_class": "managed_authoritative_when_enabled",
+      "retention_note": "Usage export packets are point-in-time summaries owned by the managed admin or finance system. They are not available on OSS or self-hosted lanes without a managed entitlement.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "not_available_without_managed_policy",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "disabled_by_policy_or_flavor",
+          "note": "Usage export is not available on OSS or local-only lanes; there is no managed billing or entitlement endpoint to export to."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "disabled_by_policy_or_flavor",
+          "note": "Self-hosted deployments do not expose a managed usage export endpoint unless a separate managed entitlement exists and is explicitly enabled by the admin."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "managed_endpoint",
+          "note": "Managed enterprise deployments route usage export packets to the vendor-operated managed plane under admin-forced-enabled policy."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "partial_offboarding_window_bounded",
+      "offboarding_compatibility_note": "Usage export packets MUST remain accessible for the duration of the contractually promised offboarding window even after account exit. Entitlement loss may narrow fields via policy suppression but must not silently remove the last contractual export. The exit packet references usage export packets by opaque id rather than embedding them."
+    },
+    {
+      "entry_id": "offboarding.exit_packet",
+      "title": "Offboarding exit packet",
+      "family_class": "offboarding_packet",
+      "owner_ref": "finance_controls",
+      "schema_ref": "schemas/governance/offboarding_exit_packet.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "admin_policy_gated",
+      "endpoint_class": "deletion_or_offboarding_export_channel_only",
+      "retention_note": "Exit packets are available on the offboarding/deletion channel for the duration of the exit window. They reference sibling families by opaque id; they do not embed raw payloads.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "not_available_without_managed_policy",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "disabled_by_policy_or_flavor",
+          "note": "Offboarding exit packets are not produced on OSS or local-only lanes; there is no managed entitlement or exit channel."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "disabled_by_policy_or_flavor",
+          "note": "Self-hosted deployments do not produce managed exit packets unless a managed entitlement exists; self-hosted operators manage their own exit flows."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "queued_for_manual_export",
+          "note": "Managed enterprise exit packets are produced on account exit and made available on the offboarding/deletion channel. Admin or user action is required to retrieve and verify the packet; they are not pushed automatically."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "partial_offboarding_window_bounded",
+      "offboarding_compatibility_note": "Exit packets ARE the offboarding artifact; they cite usage export, portability, support, and destruction receipt ids by reference. Schema changes before stable promotion require an offboarding compatibility note verifying that existing exit packets remain readable under the new schema version."
+    },
+    {
+      "entry_id": "cli.headless_diagnostic_payload",
+      "title": "CLI and headless diagnostic payload",
+      "family_class": "cli_headless_packet",
+      "owner_ref": "cli_governance",
+      "schema_ref": "schemas/cli/headless_diagnostic_payload.schema.json",
+      "schema_version": 1,
+      "lifecycle_state": "active",
+      "consent_class": "implied_for_local_authoritative",
+      "endpoint_class": "cli_stdio_local_only",
+      "retention_note": "CLI diagnostic payloads are emitted to local stdio and are not persisted beyond the process lifetime. They are never uploaded automatically.",
+      "redaction_profile_ref": "docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md",
+      "open_source_default_posture": "local_stdio_only",
+      "oss_telemetry_exception_packet_ref": null,
+      "schema_diff_report_ref": null,
+      "endpoint_policy_truth_by_context": [
+        {
+          "context_class": "oss_local",
+          "endpoint_policy_truth": "local_only",
+          "note": "CLI diagnostic output is always local stdio only; no upload path exists in any build flavor."
+        },
+        {
+          "context_class": "self_hosted",
+          "endpoint_policy_truth": "local_only",
+          "note": "Self-hosted CLI diagnostic output is identical to OSS local; no vendor upload target."
+        },
+        {
+          "context_class": "managed_enterprise",
+          "endpoint_policy_truth": "local_only",
+          "note": "Even managed enterprise CLI invocations emit diagnostic output to local stdio only; the CLI is never repurposed as an analytics upload pipe."
+        }
+      ],
+      "deprecated_field_handling": "preserve_as_unknown",
+      "partial_outcome_marker": "none",
+      "offboarding_compatibility_note": "CLI diagnostic payloads are ephemeral stdio output with no managed retention. They carry no offboarding obligation and are not included in exit or portability packets."
+    }
+  ],
+  "summary": {
+    "total_rows": 6,
+    "labeled_rows": 6,
+    "telemetry_rows_with_oss_opt_in_default": 1,
+    "local_only_oss_context_rows": 3,
+    "managed_endpoint_rows": 1,
+    "queued_manual_export_rows": 2
+  }
+}

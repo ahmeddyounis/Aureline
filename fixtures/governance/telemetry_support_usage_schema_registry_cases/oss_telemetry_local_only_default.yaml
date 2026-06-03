@@ -1,0 +1,34 @@
+case_id: oss_telemetry_local_only_default
+description: >
+  Demonstrates that a telemetry_payload family stays local in the oss_local
+  deployment context and carries the required opt_in_disabled_until_user_consent
+  default posture. No telemetry data leaves the device without explicit user opt-in.
+
+registry_entry_ref: telemetry.ux_product_event
+
+given:
+  context: oss_local
+  family_class: telemetry_payload
+  open_source_default_posture: opt_in_disabled_until_user_consent
+  endpoint_policy_truth_by_context:
+    oss_local: local_only
+    self_hosted: local_only
+    managed_enterprise: disabled_by_policy_or_flavor
+
+when:
+  query: What is the endpoint policy for this family in the oss_local context?
+
+then:
+  endpoint_policy: local_only
+  data_leaves_device: false
+  oss_default_requires_consent: true
+  promotion_gate: passes_oss_posture_check
+
+assertions:
+  - field: endpoint_policy_truth_by_context.oss_local
+    expected: local_only
+  - field: open_source_default_posture
+    expected: opt_in_disabled_until_user_consent
+  - field: oss_telemetry_exception_packet_ref
+    expected: null
+  - invariant: No telemetry bytes leave the device for oss_local context without user consent.
