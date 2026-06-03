@@ -84,14 +84,16 @@ use crate::stable_claim_matrix::{
 pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for the register.
-pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND: &str = "finalize_qualification_packets_for_optional_surfaces_and_enforce";
+pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND: &str =
+    "finalize_qualification_packets_for_optional_surfaces_and_enforce";
 
 /// Repo-relative path to the checked-in register.
 pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_PATH: &str =
     "artifacts/release/finalize_qualification_packets_for_optional_surfaces_and_enforce.json";
 
 /// Embedded checked-in register JSON.
-pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_JSON: &str = include_str!(concat!(
+pub const FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_JSON: &str =
+    include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../artifacts/release/finalize_qualification_packets_for_optional_surfaces_and_enforce.json"
 ));
@@ -639,7 +641,10 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
     }
 
     /// Returns the surfaces of one kind.
-    pub fn surfaces_for_kind(&self, kind: FinalizeOptionalSurfaceKind) -> Vec<&FinalizeOptionalSurface> {
+    pub fn surfaces_for_kind(
+        &self,
+        kind: FinalizeOptionalSurfaceKind,
+    ) -> Vec<&FinalizeOptionalSurface> {
         self.surfaces
             .iter()
             .filter(|surface| surface.surface_kind == kind)
@@ -864,19 +869,19 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
     }
 
     fn validate_envelope(&self, violations: &mut Vec<FinalizeQualificationViolation>) {
-        if self.schema_version != FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_SCHEMA_VERSION {
-            violations.push(
-                FinalizeQualificationViolation::UnsupportedSchemaVersion {
-                    actual: self.schema_version,
-                },
-            );
+        if self.schema_version
+            != FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_SCHEMA_VERSION
+        {
+            violations.push(FinalizeQualificationViolation::UnsupportedSchemaVersion {
+                actual: self.schema_version,
+            });
         }
-        if self.record_kind != FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND {
-            violations.push(
-                FinalizeQualificationViolation::UnsupportedRecordKind {
-                    actual: self.record_kind.clone(),
-                },
-            );
+        if self.record_kind
+            != FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND
+        {
+            violations.push(FinalizeQualificationViolation::UnsupportedRecordKind {
+                actual: self.record_kind.clone(),
+            });
         }
         for (field, value) in [
             ("register_id", &self.register_id),
@@ -897,39 +902,29 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
             }
         }
         if self.lifecycle_labels != StableClaimLevel::ALL.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "lifecycle_labels",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "lifecycle_labels",
+            });
         }
         if self.surface_kinds != FinalizeOptionalSurfaceKind::ALL.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "surface_kinds",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "surface_kinds",
+            });
         }
         if self.surface_states != FinalizeSurfaceState::ALL.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "surface_states",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "surface_states",
+            });
         }
         if self.narrow_reasons != FinalizeNarrowReason::ALL.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "narrow_reasons",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "narrow_reasons",
+            });
         }
         if self.narrow_actions != FinalizeNarrowAction::ALL.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "narrow_actions",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "narrow_actions",
+            });
         }
         if self.release_relevant_surface_refs.is_empty() {
             violations.push(FinalizeQualificationViolation::EmptyField {
@@ -940,25 +935,19 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "launch_cutline.cutline_level",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "launch_cutline.cutline_level",
+            });
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "launch_cutline.above_cutline_levels",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "launch_cutline.above_cutline_levels",
+            });
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(
-                FinalizeQualificationViolation::ClosedVocabularyMismatch {
-                    field: "launch_cutline.below_cutline_levels",
-                },
-            );
+            violations.push(FinalizeQualificationViolation::ClosedVocabularyMismatch {
+                field: "launch_cutline.below_cutline_levels",
+            });
         }
         if cutline.description.trim().is_empty() {
             violations.push(FinalizeQualificationViolation::EmptyField {
@@ -1004,8 +993,7 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
         // corresponding promotion gate.
         for reason in FinalizeNarrowReason::ALL {
             if !covered.contains(&reason) {
-                violations
-                    .push(FinalizeQualificationViolation::ReasonWithoutRule { reason });
+                violations.push(FinalizeQualificationViolation::ReasonWithoutRule { reason });
             }
         }
     }
@@ -1036,13 +1024,11 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
         // The ceiling: no surface may render a label wider than the public claim's canonical
         // label.
         if surface.displayed_label.rank() > surface.claim_label.rank() {
-            violations.push(
-                FinalizeQualificationViolation::DisplayedWiderThanClaim {
-                    surface_id: surface.surface_id.clone(),
-                    claim: surface.claim_label,
-                    displayed: surface.displayed_label,
-                },
-            );
+            violations.push(FinalizeQualificationViolation::DisplayedWiderThanClaim {
+                surface_id: surface.surface_id.clone(),
+                claim: surface.claim_label,
+                displayed: surface.displayed_label,
+            });
         }
 
         self.validate_packet(surface, violations);
@@ -1051,19 +1037,15 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
         // inherit that ceiling and narrow.
         if !surface.claim_holds_stable() {
             if surface.renders_qualified() {
-                violations.push(
-                    FinalizeQualificationViolation::QualifiedOnNarrowedClaim {
-                        surface_id: surface.surface_id.clone(),
-                        claim: surface.claim_label,
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::QualifiedOnNarrowedClaim {
+                    surface_id: surface.surface_id.clone(),
+                    claim: surface.claim_label,
+                });
             }
             if !surface.has_active_reason(FinalizeNarrowReason::ClaimLabelNarrowed) {
-                violations.push(
-                    FinalizeQualificationViolation::ClaimNarrowedWithoutReason {
-                        surface_id: surface.surface_id.clone(),
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::ClaimNarrowedWithoutReason {
+                    surface_id: surface.surface_id.clone(),
+                });
             }
         }
 
@@ -1072,18 +1054,14 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
         // never inherit an adjacent qualified surface.
         if !surface.has_packet() {
             if surface.renders_qualified() {
-                violations.push(
-                    FinalizeQualificationViolation::QualifiedWithoutPacket {
-                        surface_id: surface.surface_id.clone(),
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::QualifiedWithoutPacket {
+                    surface_id: surface.surface_id.clone(),
+                });
             }
             if !surface.has_active_reason(FinalizeNarrowReason::QualificationPacketAbsent) {
-                violations.push(
-                    FinalizeQualificationViolation::AbsentPacketWithoutReason {
-                        surface_id: surface.surface_id.clone(),
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::AbsentPacketWithoutReason {
+                    surface_id: surface.surface_id.clone(),
+                });
             }
         } else if surface.has_active_reason(FinalizeNarrowReason::QualificationPacketAbsent) {
             // A surface that *does* carry a packet may not claim the packet is absent.
@@ -1109,11 +1087,9 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
                 );
             }
             if !surface.active_narrow_reasons.is_empty() {
-                violations.push(
-                    FinalizeQualificationViolation::QualifiedWithActiveReason {
-                        surface_id: surface.surface_id.clone(),
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::QualifiedWithActiveReason {
+                    surface_id: surface.surface_id.clone(),
+                });
             }
             match &surface.qualification_packet {
                 None => {
@@ -1128,41 +1104,33 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
                         );
                     }
                     if !packet.slo_state.is_within_slo() {
-                        violations.push(
-                            FinalizeQualificationViolation::QualifiedOnStalePacket {
-                                surface_id: surface.surface_id.clone(),
-                                slo_state: packet.slo_state,
-                            },
-                        );
+                        violations.push(FinalizeQualificationViolation::QualifiedOnStalePacket {
+                            surface_id: surface.surface_id.clone(),
+                            slo_state: packet.slo_state,
+                        });
                     }
                 }
             }
             if !(surface.owner_signoff.signed_off && surface.owner_signoff.signed_at.is_some()) {
-                violations.push(
-                    FinalizeQualificationViolation::QualifiedWithoutSignoff {
-                        surface_id: surface.surface_id.clone(),
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::QualifiedWithoutSignoff {
+                    surface_id: surface.surface_id.clone(),
+                });
             }
         } else {
             // A narrowing state must drop the displayed label below the cutline and name at
             // least one active reason.
             if surface.renders_stable() {
-                violations.push(
-                    FinalizeQualificationViolation::DisplayedLabelNotNarrowed {
-                        surface_id: surface.surface_id.clone(),
-                        state: surface.surface_state,
-                        displayed: surface.displayed_label,
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::DisplayedLabelNotNarrowed {
+                    surface_id: surface.surface_id.clone(),
+                    state: surface.surface_state,
+                    displayed: surface.displayed_label,
+                });
             }
             if surface.active_narrow_reasons.is_empty() {
-                violations.push(
-                    FinalizeQualificationViolation::NarrowingWithoutReason {
-                        surface_id: surface.surface_id.clone(),
-                        state: surface.surface_state,
-                    },
-                );
+                violations.push(FinalizeQualificationViolation::NarrowingWithoutReason {
+                    surface_id: surface.surface_id.clone(),
+                    state: surface.surface_state,
+                });
             }
             // A narrowing surface whose packet is breached must name the matching freshness
             // reason, so the freshness automation stays honest.
@@ -1239,11 +1207,9 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
             });
         }
         if !packet.freshness_slo.window_is_consistent() {
-            violations.push(
-                FinalizeQualificationViolation::FreshnessSloInconsistent {
-                    surface_id: surface.surface_id.clone(),
-                },
-            );
+            violations.push(FinalizeQualificationViolation::FreshnessSloInconsistent {
+                surface_id: surface.surface_id.clone(),
+            });
         }
         // A present packet must be a real captured packet within the SLO window — `missing`
         // (no capture) is expressed by the absence of the whole packet, not by a degenerate
@@ -1264,13 +1230,11 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
     ) {
         let push_incoherent = |violations: &mut Vec<FinalizeQualificationViolation>,
                                expected: FinalizeNarrowReason| {
-            violations.push(
-                FinalizeQualificationViolation::StateReasonIncoherent {
-                    surface_id: surface.surface_id.clone(),
-                    state: surface.surface_state,
-                    expected_reason: expected,
-                },
-            );
+            violations.push(FinalizeQualificationViolation::StateReasonIncoherent {
+                surface_id: surface.surface_id.clone(),
+                state: surface.surface_state,
+                expected_reason: expected,
+            });
         };
 
         match surface.surface_state {
@@ -1279,11 +1243,9 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
                     push_incoherent(violations, FinalizeNarrowReason::QualificationPacketAbsent);
                 }
                 if surface.has_packet() {
-                    violations.push(
-                        FinalizeQualificationViolation::NoPacketStateWithPacket {
-                            surface_id: surface.surface_id.clone(),
-                        },
-                    );
+                    violations.push(FinalizeQualificationViolation::NoPacketStateWithPacket {
+                        surface_id: surface.surface_id.clone(),
+                    });
                 }
             }
             FinalizeSurfaceState::NarrowedIncomplete => {
@@ -1298,7 +1260,10 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
             }
             FinalizeSurfaceState::NarrowedStale => {
                 if !surface.has_active_reason(FinalizeNarrowReason::QualificationPacketBreached) {
-                    push_incoherent(violations, FinalizeNarrowReason::QualificationPacketBreached);
+                    push_incoherent(
+                        violations,
+                        FinalizeNarrowReason::QualificationPacketBreached,
+                    );
                 }
             }
             FinalizeSurfaceState::NarrowedClaimNarrowed => {
@@ -1311,12 +1276,10 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
                     push_incoherent(violations, FinalizeNarrowReason::WaiverExpired);
                 }
                 if surface.waiver.is_none() {
-                    violations.push(
-                        FinalizeQualificationViolation::WaiverStateWithoutWaiver {
-                            surface_id: surface.surface_id.clone(),
-                            state: surface.surface_state,
-                        },
-                    );
+                    violations.push(FinalizeQualificationViolation::WaiverStateWithoutWaiver {
+                        surface_id: surface.surface_id.clone(),
+                        state: surface.surface_state,
+                    });
                 }
             }
             FinalizeSurfaceState::QualifiedOnWaiver => {
@@ -1326,12 +1289,10 @@ impl FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
                     .map(|w| w.waiver_ref.trim().is_empty() || w.expires_at.trim().is_empty())
                     .unwrap_or(true)
                 {
-                    violations.push(
-                        FinalizeQualificationViolation::WaiverStateWithoutWaiver {
-                            surface_id: surface.surface_id.clone(),
-                            state: surface.surface_state,
-                        },
-                    );
+                    violations.push(FinalizeQualificationViolation::WaiverStateWithoutWaiver {
+                        surface_id: surface.surface_id.clone(),
+                        state: surface.surface_state,
+                    });
                 }
             }
             FinalizeSurfaceState::QualifiedStable => {}
@@ -1927,7 +1888,8 @@ mod tests {
     use super::*;
 
     fn register() -> FinalizeQualificationPacketsForOptionalSurfacesAndEnforce {
-        current_finalize_qualification_packets_for_optional_surfaces_and_enforce().expect("register parses")
+        current_finalize_qualification_packets_for_optional_surfaces_and_enforce()
+            .expect("register parses")
     }
 
     #[test]
@@ -2161,9 +2123,9 @@ mod tests {
         surface.owner_signoff.signed_at = None;
         let surface_id = surface.surface_id.clone();
         register.summary = register.computed_summary();
-        assert!(register.validate().contains(
-            &FinalizeQualificationViolation::QualifiedWithoutSignoff { surface_id }
-        ));
+        assert!(register
+            .validate()
+            .contains(&FinalizeQualificationViolation::QualifiedWithoutSignoff { surface_id }));
     }
 
     #[test]

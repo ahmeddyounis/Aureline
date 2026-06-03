@@ -673,7 +673,8 @@ pub struct FreshnessObjectExportProjection {
 /// The typed register.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport {
+pub struct FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport
+{
     /// Register schema version.
     pub schema_version: u32,
     /// Record-kind discriminator.
@@ -718,11 +719,17 @@ pub struct FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExpo
 }
 
 /// Parses the embedded checked-in register JSON.
-pub fn current_finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support() -> Result<FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport, serde_json::Error> {
+pub fn current_finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support(
+) -> Result<
+    FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport,
+    serde_json::Error,
+> {
     serde_json::from_str(FINALIZE_RELEASE_PACKET_FRESHNESS_SLOS_SHIPROOM_DASHBOARDS_AND_PROOF_INDEX_EXPORT_FOR_PROCUREMENT_AND_SUPPORT_JSON)
 }
 
-impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport {
+impl
+    FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport
+{
     /// Returns the row registered for `entry_id`.
     pub fn row(&self, entry_id: &str) -> Option<&FreshnessObjectRow> {
         self.rows.iter().find(|row| row.entry_id == entry_id)
@@ -730,18 +737,12 @@ impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForP
 
     /// Returns the rows whose effective label is at or above the cutline.
     pub fn rows_current_stable(&self) -> Vec<&FreshnessObjectRow> {
-        self.rows
-            .iter()
-            .filter(|row| row.holds_stable())
-            .collect()
+        self.rows.iter().filter(|row| row.holds_stable()).collect()
     }
 
     /// Returns the rows narrowed below the cutline.
     pub fn rows_narrowed(&self) -> Vec<&FreshnessObjectRow> {
-        self.rows
-            .iter()
-            .filter(|row| !row.holds_stable())
-            .collect()
+        self.rows.iter().filter(|row| !row.holds_stable()).collect()
     }
 
     /// Returns the release-blocking rows.
@@ -857,11 +858,7 @@ impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForP
         FreshnessObjectSummary {
             total_entries: self.rows.len(),
             total_claims: self.claims().len(),
-            entries_current_stable: self
-                .rows
-                .iter()
-                .filter(|row| row.holds_stable())
-                .count(),
+            entries_current_stable: self.rows.iter().filter(|row| row.holds_stable()).count(),
             entries_narrowed_below_cutline: self
                 .rows
                 .iter()
@@ -1111,7 +1108,11 @@ impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForP
         }
     }
 
-    fn validate_row(&self, row: &FreshnessObjectRow, violations: &mut Vec<FreshnessObjectViolation>) {
+    fn validate_row(
+        &self,
+        row: &FreshnessObjectRow,
+        violations: &mut Vec<FreshnessObjectViolation>,
+    ) {
         for (field, value) in [
             ("entry_id", &row.entry_id),
             ("title", &row.title),
@@ -1131,9 +1132,18 @@ impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForP
                 "proof_packet.freshness_slo.slo_register_ref",
                 &row.proof_packet.freshness_slo.slo_register_ref,
             ),
-            ("validity_window.captured_at", &row.validity_window.captured_at),
-            ("validity_window.expires_at", &row.validity_window.expires_at),
-            ("validity_window.stale_after", &row.validity_window.stale_after),
+            (
+                "validity_window.captured_at",
+                &row.validity_window.captured_at,
+            ),
+            (
+                "validity_window.expires_at",
+                &row.validity_window.expires_at,
+            ),
+            (
+                "validity_window.stale_after",
+                &row.validity_window.stale_after,
+            ),
             ("owner_signoff.owner_ref", &row.owner_signoff.owner_ref),
         ] {
             if value.trim().is_empty() {
@@ -1262,15 +1272,14 @@ impl FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForP
         row: &FreshnessObjectRow,
         violations: &mut Vec<FreshnessObjectViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<FreshnessObjectViolation>,
-             expected: FreshnessObjectGapReason| {
-                violations.push(FreshnessObjectViolation::StateReasonIncoherent {
-                    entry_id: row.entry_id.clone(),
-                    state: row.object_state,
-                    expected_reason: expected,
-                });
-            };
+        let push_incoherent = |violations: &mut Vec<FreshnessObjectViolation>,
+                               expected: FreshnessObjectGapReason| {
+            violations.push(FreshnessObjectViolation::StateReasonIncoherent {
+                entry_id: row.entry_id.clone(),
+                state: row.object_state,
+                expected_reason: expected,
+            });
+        };
 
         match row.object_state {
             FreshnessObjectState::NarrowedUnbacked => {
@@ -1596,7 +1605,10 @@ impl fmt::Display for FreshnessObjectViolation {
             }
             Self::EmptyRegister => write!(f, "register has no rows"),
             Self::NoRules => write!(f, "register has no rules"),
-            Self::EmptyField { entry_id, field_name } => {
+            Self::EmptyField {
+                entry_id,
+                field_name,
+            } => {
                 write!(f, "empty field '{}' in {}", field_name, entry_id)
             }
             Self::DuplicateEntryId { entry_id } => {
@@ -1651,7 +1663,10 @@ impl fmt::Display for FreshnessObjectViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "entry '{}' is held without a fresh packet", entry_id)
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "entry '{}' is held on a stale packet ({})",
@@ -1659,7 +1674,11 @@ impl fmt::Display for FreshnessObjectViolation {
                     slo_state.as_str()
                 )
             }
-            Self::HeldLabelNotEqualClaim { entry_id, claim, effective } => {
+            Self::HeldLabelNotEqualClaim {
+                entry_id,
+                claim,
+                effective,
+            } => {
                 write!(
                     f,
                     "entry '{}' is held but effective '{}' != claim '{}'",

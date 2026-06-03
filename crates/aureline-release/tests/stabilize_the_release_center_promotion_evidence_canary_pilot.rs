@@ -11,9 +11,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_release::stabilize_the_release_center_promotion_evidence_canary_pilot::{
-    current_ring_promotion_control, GapReason, PromotionDecision,
-    PromotionState, RingPromotionControl, RingPromotionControlViolation,
-    RING_PROMOTION_CONTROL_RECORD_KIND, RING_PROMOTION_CONTROL_SCHEMA_VERSION,
+    current_ring_promotion_control, GapReason, PromotionDecision, PromotionState,
+    RingPromotionControl, RingPromotionControlViolation, RING_PROMOTION_CONTROL_RECORD_KIND,
+    RING_PROMOTION_CONTROL_SCHEMA_VERSION,
 };
 
 fn artifact() -> RingPromotionControl {
@@ -34,10 +34,7 @@ fn checked_in_artifact_parses_and_validates() {
         artifact.schema_version,
         RING_PROMOTION_CONTROL_SCHEMA_VERSION
     );
-    assert_eq!(
-        artifact.record_kind,
-        RING_PROMOTION_CONTROL_RECORD_KIND
-    );
+    assert_eq!(artifact.record_kind, RING_PROMOTION_CONTROL_RECORD_KIND);
     let violations = artifact.validate();
     assert!(
         violations.is_empty(),
@@ -150,9 +147,8 @@ fn publication_proceed_while_a_rule_fires_fails() {
 
 #[test]
 fn checked_in_fixtures_are_rejected_by_the_model() {
-    let fixtures_dir = repo_root().join(
-        "fixtures/release/m4/stabilize_the_release_center_promotion_evidence_canary_pilot",
-    );
+    let fixtures_dir = repo_root()
+        .join("fixtures/release/m4/stabilize_the_release_center_promotion_evidence_canary_pilot");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
     let manifest: serde_json::Value =

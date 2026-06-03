@@ -86,7 +86,8 @@ fn covers_every_declared_release_blocking_lane() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let packet = packet();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(packet.as_of.as_str()));
@@ -104,10 +105,19 @@ fn model_matches_frozen_validation_capture() {
     );
     for (key, kind) in [
         ("security_response_rows", ResponseKind::SecurityResponse),
-        ("advisory_publication_rows", ResponseKind::AdvisoryPublication),
-        ("cve_ghsa_publication_rows", ResponseKind::CveGhsaPublication),
+        (
+            "advisory_publication_rows",
+            ResponseKind::AdvisoryPublication,
+        ),
+        (
+            "cve_ghsa_publication_rows",
+            ResponseKind::CveGhsaPublication,
+        ),
         ("emergency_disable_rows", ResponseKind::EmergencyDisable),
-        ("mirror_offline_drill_rows", ResponseKind::MirrorOfflineDrill),
+        (
+            "mirror_offline_drill_rows",
+            ResponseKind::MirrorOfflineDrill,
+        ),
     ] {
         assert_eq!(
             summary[key].as_u64().unwrap() as usize,
@@ -205,10 +215,10 @@ fn ready_row_on_a_breached_packet_fails() {
     packet.summary = packet.computed_summary();
 
     assert!(
-        packet.validate().iter().any(|v| matches!(
-            v,
-            SecurityResponsePacketViolation::HeldOnStalePacket { .. }
-        )),
+        packet
+            .validate()
+            .iter()
+            .any(|v| matches!(v, SecurityResponsePacketViolation::HeldOnStalePacket { .. })),
         "a ready row may not ride a packet outside its freshness SLO"
     );
 }
@@ -276,4 +286,3 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
         );
     }
 }
-

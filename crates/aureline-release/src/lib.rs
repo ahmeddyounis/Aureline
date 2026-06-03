@@ -195,15 +195,16 @@
 
 pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
+pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
-pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
-pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
 pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support;
+pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod go_no_go_rehearsal;
-pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
+pub mod harden_docs_help_about_and_service_health_truth;
+pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
@@ -272,7 +273,7 @@ pub use finalize_compatibility_reports_deprecation_packets_schema_version_window
     current_finalize_compatibility_reports_deprecation_packets_schema_version_windows,
     CompatibilityOutcome, CompatibilityReportPacket, DeprecationDetail, FinalizeAction,
     FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows, FinalizeExportProjection,
-    FinalizeExportRow, FinalizeKind, FinalizePublicationRecord, FinalizeRule, FinalizeRow,
+    FinalizeExportRow, FinalizeKind, FinalizePublicationRecord, FinalizeRow, FinalizeRule,
     FinalizeState, FinalizeSummary, FinalizeViolation, GapReason as FinalizeGapReason,
     MigrationDetail, Scorecard, ValidityWindow as FinalizeValidityWindow,
     FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_JSON,
@@ -282,15 +283,13 @@ pub use finalize_compatibility_reports_deprecation_packets_schema_version_window
 };
 
 pub use finalize_qualification_packets_for_optional_surfaces_and_enforce::{
-    current_finalize_qualification_packets_for_optional_surfaces_and_enforce,
-    DeploymentAccessMode, DeploymentQualification, DeploymentTarget,
-    FinalizeNarrowAction as OptionalSurfaceNarrowAction,
-    FinalizeNarrowReason as OptionalSurfaceNarrowReason,
-    FinalizeOptionalSurface, FinalizeOptionalSurfaceKind,
-    FinalizeQualificationPacketsForOptionalSurfacesAndEnforce, FinalizeQualificationSummary,
-    FinalizeQualificationViolation, FinalizeSurfaceExportProjection, FinalizeSurfaceExportRow,
-    FinalizeSurfacePublicationRecord, FinalizeSurfaceState, FinalizeSurfaceStopRule,
-    FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_JSON,
+    current_finalize_qualification_packets_for_optional_surfaces_and_enforce, DeploymentAccessMode,
+    DeploymentQualification, DeploymentTarget, FinalizeNarrowAction as OptionalSurfaceNarrowAction,
+    FinalizeNarrowReason as OptionalSurfaceNarrowReason, FinalizeOptionalSurface,
+    FinalizeOptionalSurfaceKind, FinalizeQualificationPacketsForOptionalSurfacesAndEnforce,
+    FinalizeQualificationSummary, FinalizeQualificationViolation, FinalizeSurfaceExportProjection,
+    FinalizeSurfaceExportRow, FinalizeSurfacePublicationRecord, FinalizeSurfaceState,
+    FinalizeSurfaceStopRule, FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_JSON,
     FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_PATH,
     FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND,
     FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_SCHEMA_VERSION,
@@ -322,7 +321,7 @@ pub use harden_docs_help_about_and_service_health_truth::{
     current_docs_help_about_service_health_truth, AboutProvenanceCard, DestinationTrustClass,
     DocsHelpAboutServiceHealthTruth, DocsHelpAboutServiceHealthTruthViolation, HelpDestination,
     PackageSafetyDisclosure, ServiceContractState, TruthAction, TruthExportProjection,
-    TruthExportRow, TruthPublicationRecord, TruthRule, TruthRow, TruthState, TruthSummary,
+    TruthExportRow, TruthPublicationRecord, TruthRow, TruthRule, TruthState, TruthSummary,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_JSON, DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_PATH,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_RECORD_KIND,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_SCHEMA_VERSION,
@@ -330,14 +329,14 @@ pub use harden_docs_help_about_and_service_health_truth::{
 
 pub use stabilize_embedded_surface_boundary_truth::{
     current_embedded_surface_boundary_truth, AuthHandoffSnapshot,
-    BoundaryState as EmbeddedBoundaryState, BrowserFallbackSnapshot,
-    EmbeddedSurfaceBoundaryTruth, EmbeddedSurfaceBoundaryTruthViolation,
-    GapReason as EmbeddedSurfaceGapReason, NativeApprovalSnapshot, SourceTruthSnapshot,
-    SurfaceKind as EmbeddedSurfaceKind, TruthAction as EmbeddedSurfaceTruthAction,
+    BoundaryState as EmbeddedBoundaryState, BrowserFallbackSnapshot, EmbeddedSurfaceBoundaryTruth,
+    EmbeddedSurfaceBoundaryTruthViolation, GapReason as EmbeddedSurfaceGapReason,
+    NativeApprovalSnapshot, SourceTruthSnapshot, SurfaceKind as EmbeddedSurfaceKind,
+    TruthAction as EmbeddedSurfaceTruthAction,
     TruthExportProjection as EmbeddedSurfaceTruthExportProjection,
     TruthExportRow as EmbeddedSurfaceTruthExportRow,
     TruthPublicationRecord as EmbeddedSurfaceTruthPublicationRecord,
-    TruthRule as EmbeddedSurfaceTruthRule, TruthRow as EmbeddedSurfaceTruthRow,
+    TruthRow as EmbeddedSurfaceTruthRow, TruthRule as EmbeddedSurfaceTruthRule,
     TruthState as EmbeddedSurfaceTruthState, TruthSummary as EmbeddedSurfaceTruthSummary,
     EMBEDDED_SURFACE_BOUNDARY_TRUTH_JSON, EMBEDDED_SURFACE_BOUNDARY_TRUTH_PATH,
     EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND, EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION,
@@ -365,6 +364,16 @@ pub use harden_the_release_artifact_graph_with_one_build_identity_provenance_sbo
     PublicationDecisionRecord as ArtifactGraphPublicationDecisionRecord,
     HARDEN_RELEASE_ARTIFACT_GRAPH_JSON, HARDEN_RELEASE_ARTIFACT_GRAPH_PATH,
     HARDEN_RELEASE_ARTIFACT_GRAPH_RECORD_KIND, HARDEN_RELEASE_ARTIFACT_GRAPH_SCHEMA_VERSION,
+};
+
+pub use harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage::{
+    current_harden_critical_dependency_register, HardenCriticalDependencyRegister,
+    HardenCriticalDependencyRegisterExportProjection, HardenCriticalDependencyRegisterSummary,
+    HardenCriticalDependencyRegisterViolation, LaneAction, LaneExportRow, LaneGapReason,
+    LaneKind as DependencyLaneKind, LaneRow, LaneRule, LaneState, PublicationDecision as DependencyRegisterPublicationDecision,
+    PublicationDecisionRecord as DependencyRegisterPublicationDecisionRecord,
+    HARDEN_CRITICAL_DEPENDENCY_REGISTER_JSON, HARDEN_CRITICAL_DEPENDENCY_REGISTER_PATH,
+    HARDEN_CRITICAL_DEPENDENCY_REGISTER_RECORD_KIND, HARDEN_CRITICAL_DEPENDENCY_REGISTER_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{
@@ -525,12 +534,11 @@ pub use stabilize_the_known_limits_matrix_public_support_windows_and_stable_line
 };
 
 pub use stabilize_the_release_center_promotion_evidence_canary_pilot::{
-    current_ring_promotion_control, Action as PromotionAction,
-    GapReason as PromotionGapReason, KillSwitchPosture, PromotionDecision as RingPromotionDecision,
-    PromotionPublicationRecord, PromotionRule, PromotionState, PromotionSubjectExportRow,
-    PromotionSubjectKind, PromotionSubjectRow, Ring, RingPromotionControl,
-    RingPromotionControlExportProjection, RingPromotionControlSummary,
-    RingPromotionControlViolation, RollbackStopTrigger, RollbackTriggerKind, SoakWindow,
-    RING_PROMOTION_CONTROL_JSON, RING_PROMOTION_CONTROL_PATH, RING_PROMOTION_CONTROL_RECORD_KIND,
-    RING_PROMOTION_CONTROL_SCHEMA_VERSION,
+    current_ring_promotion_control, Action as PromotionAction, GapReason as PromotionGapReason,
+    KillSwitchPosture, PromotionDecision as RingPromotionDecision, PromotionPublicationRecord,
+    PromotionRule, PromotionState, PromotionSubjectExportRow, PromotionSubjectKind,
+    PromotionSubjectRow, Ring, RingPromotionControl, RingPromotionControlExportProjection,
+    RingPromotionControlSummary, RingPromotionControlViolation, RollbackStopTrigger,
+    RollbackTriggerKind, SoakWindow, RING_PROMOTION_CONTROL_JSON, RING_PROMOTION_CONTROL_PATH,
+    RING_PROMOTION_CONTROL_RECORD_KIND, RING_PROMOTION_CONTROL_SCHEMA_VERSION,
 };

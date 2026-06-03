@@ -68,12 +68,12 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
-use serde::{{Deserialize, Serialize}};
+use serde::{Deserialize, Serialize};
 
-use crate::stable_claim_manifest::{{FreshnessSloState, ProofPacket}};
-use crate::stable_claim_matrix::{{
+use crate::stable_claim_manifest::{FreshnessSloState, ProofPacket};
+use crate::stable_claim_matrix::{
     LaunchCutline, OwnerSignoff, PromotionDecision, QualificationWaiver, StableClaimLevel,
-}};
+};
 
 /// Supported schema version.
 pub const STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_SCHEMA_VERSION: u32 = 1;
@@ -479,7 +479,11 @@ pub struct StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnersh
 }
 
 /// Parses the embedded checked-in register JSON.
-pub fn current_stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication() -> Result<StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPublication, serde_json::Error> {
+pub fn current_stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication(
+) -> Result<
+    StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPublication,
+    serde_json::Error,
+> {
     serde_json::from_str(STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_JSON)
 }
 
@@ -515,10 +519,7 @@ impl StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPubl
 
     /// Returns the rows for one kind.
     pub fn rows_for_kind(&self, kind: StabilizeKind) -> Vec<&StabilizeRow> {
-        self.rows
-            .iter()
-            .filter(|row| row.kind == kind)
-            .collect()
+        self.rows.iter().filter(|row| row.kind == kind).collect()
     }
 
     /// Distinct public claims (by claim ref) the register covers.
@@ -724,7 +725,10 @@ impl StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPubl
             ("as_of", &self.as_of),
             ("claim_manifest_ref", &self.claim_manifest_ref),
             ("known_limits_register_ref", &self.known_limits_register_ref),
-            ("support_window_template_ref", &self.support_window_template_ref),
+            (
+                "support_window_template_ref",
+                &self.support_window_template_ref,
+            ),
             ("ownership_template_ref", &self.ownership_template_ref),
         ] {
             if value.trim().is_empty() {
@@ -740,9 +744,7 @@ impl StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPubl
             });
         }
         if self.kinds != StabilizeKind::ALL.to_vec() {
-            violations.push(StabilizeViolation::ClosedVocabularyMismatch {
-                field: "kinds",
-            });
+            violations.push(StabilizeViolation::ClosedVocabularyMismatch { field: "kinds" });
         }
         if self.publication_states != StabilizeState::ALL.to_vec() {
             violations.push(StabilizeViolation::ClosedVocabularyMismatch {
@@ -1329,7 +1331,10 @@ impl fmt::Display for StabilizeViolation {
             }
             Self::EmptyRegister => write!(f, "register has no rows"),
             Self::NoRules => write!(f, "register has no rules"),
-            Self::EmptyField { entry_id, field_name } => {
+            Self::EmptyField {
+                entry_id,
+                field_name,
+            } => {
                 write!(f, "empty field '{}' in {}", field_name, entry_id)
             }
             Self::DuplicateEntryId { entry_id } => {
@@ -1384,7 +1389,10 @@ impl fmt::Display for StabilizeViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "entry '{}' is held without a fresh packet", entry_id)
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "entry '{}' is held on a stale packet ({})",
@@ -1392,7 +1400,11 @@ impl fmt::Display for StabilizeViolation {
                     slo_state.as_str()
                 )
             }
-            Self::HeldLabelNotEqualClaim { entry_id, claim, published } => {
+            Self::HeldLabelNotEqualClaim {
+                entry_id,
+                claim,
+                published,
+            } => {
                 write!(
                     f,
                     "entry '{}' is held but published '{}' != claim '{}'",
@@ -1461,12 +1473,14 @@ impl fmt::Display for StabilizeViolation {
                     surface_ref
                 )
             }
-            Self::ReleaseBlockingRowNotInSet { entry_id, surface_ref } => {
+            Self::ReleaseBlockingRowNotInSet {
+                entry_id,
+                surface_ref,
+            } => {
                 write!(
                     f,
                     "release-blocking row '{}' (surface '{}') is not in the declared set",
-                    entry_id,
-                    surface_ref
+                    entry_id, surface_ref
                 )
             }
             Self::PublicationDecisionInconsistent { declared, computed } => {

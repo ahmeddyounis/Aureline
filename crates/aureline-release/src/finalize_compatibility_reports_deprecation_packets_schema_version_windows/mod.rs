@@ -78,7 +78,8 @@ use crate::stable_claim_matrix::{
 pub const FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for the register.
-pub const FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND: &str = "compatibility_deprecation_schema_migration_finalize";
+pub const FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND:
+    &str = "compatibility_deprecation_schema_migration_finalize";
 
 /// Repo-relative path to the checked-in register.
 pub const FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_PATH: &str =
@@ -647,10 +648,7 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
 
     /// Returns the rows for one finalize kind.
     pub fn rows_for_kind(&self, kind: FinalizeKind) -> Vec<&FinalizeRow> {
-        self.rows
-            .iter()
-            .filter(|row| row.kind == kind)
-            .collect()
+        self.rows.iter().filter(|row| row.kind == kind).collect()
     }
 
     /// Distinct public claims (by claim ref) the register covers.
@@ -738,7 +736,11 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
         FinalizeSummary {
             total_entries: self.rows.len(),
             total_claims: self.claims().len(),
-            entries_finalized_stable: self.rows.iter().filter(|row| row.publishes_stable()).count(),
+            entries_finalized_stable: self
+                .rows
+                .iter()
+                .filter(|row| row.publishes_stable())
+                .count(),
             entries_narrowed_below_cutline: self
                 .rows
                 .iter()
@@ -841,7 +843,9 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
                 actual: self.schema_version,
             });
         }
-        if self.record_kind != FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND {
+        if self.record_kind
+            != FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND
+        {
             violations.push(FinalizeViolation::UnsupportedRecordKind {
                 actual: self.record_kind.clone(),
             });
@@ -866,14 +870,10 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
             });
         }
         if self.kinds != FinalizeKind::ALL.to_vec() {
-            violations.push(FinalizeViolation::ClosedVocabularyMismatch {
-                field: "kinds",
-            });
+            violations.push(FinalizeViolation::ClosedVocabularyMismatch { field: "kinds" });
         }
         if self.states != FinalizeState::ALL.to_vec() {
-            violations.push(FinalizeViolation::ClosedVocabularyMismatch {
-                field: "states",
-            });
+            violations.push(FinalizeViolation::ClosedVocabularyMismatch { field: "states" });
         }
         if self.gap_reasons != GapReason::ALL.to_vec() {
             violations.push(FinalizeViolation::ClosedVocabularyMismatch {
@@ -881,9 +881,7 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
             });
         }
         if self.actions != FinalizeAction::ALL.to_vec() {
-            violations.push(FinalizeViolation::ClosedVocabularyMismatch {
-                field: "actions",
-            });
+            violations.push(FinalizeViolation::ClosedVocabularyMismatch { field: "actions" });
         }
         if self.release_blocking_surface_refs.is_empty() {
             violations.push(FinalizeViolation::EmptyField {
@@ -965,8 +963,14 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
             ("rationale", &row.rationale),
             ("proof_packet.packet_id", &row.proof_packet.packet_id),
             ("proof_packet.packet_ref", &row.proof_packet.packet_ref),
-            ("proof_packet.proof_index_ref", &row.proof_packet.proof_index_ref),
-            ("proof_packet.freshness_slo.slo_register_ref", &row.proof_packet.freshness_slo.slo_register_ref),
+            (
+                "proof_packet.proof_index_ref",
+                &row.proof_packet.proof_index_ref,
+            ),
+            (
+                "proof_packet.freshness_slo.slo_register_ref",
+                &row.proof_packet.freshness_slo.slo_register_ref,
+            ),
             ("owner_signoff.owner_ref", &row.owner_signoff.owner_ref),
         ] {
             if value.trim().is_empty() {
@@ -1113,7 +1117,9 @@ impl FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows {
         }
 
         if row.release_blocking
-            && !self.release_blocking_surface_refs.contains(&row.surface_ref)
+            && !self
+                .release_blocking_surface_refs
+                .contains(&row.surface_ref)
         {
             violations.push(FinalizeViolation::ReleaseBlockingSurfaceNotDeclared {
                 entry_id: row.entry_id.clone(),
@@ -1218,7 +1224,10 @@ pub enum FinalizeViolation {
     /// The record kind does not match the expected kind.
     UnsupportedRecordKind { actual: String },
     /// A required string field is empty or missing.
-    EmptyField { entry_id: String, field_name: &'static str },
+    EmptyField {
+        entry_id: String,
+        field_name: &'static str,
+    },
     /// A closed vocabulary field does not match the canonical set.
     ClosedVocabularyMismatch { field: &'static str },
     /// No rules are defined.
@@ -1312,7 +1321,10 @@ impl fmt::Display for FinalizeViolation {
             Self::UnsupportedRecordKind { actual } => {
                 write!(f, "unsupported record kind {actual}")
             }
-            Self::EmptyField { entry_id, field_name } => {
+            Self::EmptyField {
+                entry_id,
+                field_name,
+            } => {
                 write!(f, "field {field_name} is empty on {entry_id}")
             }
             Self::ClosedVocabularyMismatch { field } => {
@@ -1365,9 +1377,15 @@ impl fmt::Display for FinalizeViolation {
                 )
             }
             Self::HeldWithActiveReason { entry_id } => {
-                write!(f, "row {entry_id} holds its label but has active gap reasons")
+                write!(
+                    f,
+                    "row {entry_id} holds its label but has active gap reasons"
+                )
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds its label but its packet SLO state is {slo_state:?}"
@@ -1448,9 +1466,10 @@ impl Error for FinalizeViolation {}
 /// row carries a lifecycle label, finalize kind, finalize state, freshness-SLO state, gap
 /// reason, or finalize action outside the closed vocabularies.
 pub fn current_finalize_compatibility_reports_deprecation_packets_schema_version_windows(
-) -> Result<FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows, serde_json::Error>
-{
-    serde_json::from_str(FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_JSON)
+) -> Result<FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows, serde_json::Error> {
+    serde_json::from_str(
+        FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_JSON,
+    )
 }
 
 #[cfg(test)]
@@ -1559,11 +1578,8 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_rule() {
         let reg = register();
-        let covered: BTreeSet<GapReason> = reg
-            .rules
-            .iter()
-            .map(|rule| rule.trigger_reason)
-            .collect();
+        let covered: BTreeSet<GapReason> =
+            reg.rules.iter().map(|rule| rule.trigger_reason).collect();
         for reason in GapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1611,20 +1627,20 @@ mod tests {
         reg.publication.decision = reg.computed_publication_decision();
         reg.publication.blocking_rule_ids = reg.computed_blocking_rule_ids();
         reg.publication.blocking_entry_ids = reg.computed_blocking_entry_ids();
-        assert!(reg.validate().iter().any(|v| matches!(
-            v,
-            FinalizeViolation::PublishedLabelNotNarrowed { .. }
-        )));
+        assert!(reg
+            .validate()
+            .iter()
+            .any(|v| matches!(v, FinalizeViolation::PublishedLabelNotNarrowed { .. })));
     }
 
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut reg = register();
         reg.publication.decision = PromotionDecision::Proceed;
-        assert!(reg.validate().iter().any(|v| matches!(
-            v,
-            FinalizeViolation::PublicationDecisionInconsistent { .. }
-        )));
+        assert!(reg
+            .validate()
+            .iter()
+            .any(|v| matches!(v, FinalizeViolation::PublicationDecisionInconsistent { .. })));
     }
 
     #[test]

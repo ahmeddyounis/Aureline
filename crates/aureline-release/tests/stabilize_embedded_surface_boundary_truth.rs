@@ -4,14 +4,13 @@
 
 use std::path::{Path, PathBuf};
 
-use aureline_release::stable_claim_manifest::FreshnessSloState;
-use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::stabilize_embedded_surface_boundary_truth::{
     current_embedded_surface_boundary_truth, BoundaryState, EmbeddedSurfaceBoundaryTruth,
     EmbeddedSurfaceBoundaryTruthViolation, SurfaceKind, TruthState,
-    EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND,
-    EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION,
+    EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND, EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION,
 };
+use aureline_release::stable_claim_manifest::FreshnessSloState;
+use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 
 const CAPTURE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -37,10 +36,7 @@ fn checked_in_register_parses_and_validates() {
         reg.schema_version,
         EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION
     );
-    assert_eq!(
-        reg.record_kind,
-        EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND
-    );
+    assert_eq!(reg.record_kind, EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND);
     let violations = reg.validate();
     assert!(
         violations.is_empty(),
@@ -145,7 +141,8 @@ fn native_approval_remains_host_owned_on_all_rows() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -157,18 +154,25 @@ fn model_matches_frozen_validation_capture() {
         "capture entry count must match the model"
     );
     assert_eq!(
-        summary["entries_published_stable"]
-            .as_u64()
-            .unwrap() as usize,
+        summary["entries_published_stable"].as_u64().unwrap() as usize,
         reg.rows_published_stable().len(),
         "capture published count must match the model"
     );
     for (key, kind) in [
         ("docs_help_entries", SurfaceKind::EmbeddedDocsHelp),
         ("extension_entries", SurfaceKind::ExtensionHostedSurface),
-        ("marketplace_entries", SurfaceKind::EmbeddedMarketplaceOrAccount),
-        ("service_dashboard_entries", SurfaceKind::EmbeddedServiceDashboard),
-        ("auth_confirmation_entries", SurfaceKind::EmbeddedAuthConfirmation),
+        (
+            "marketplace_entries",
+            SurfaceKind::EmbeddedMarketplaceOrAccount,
+        ),
+        (
+            "service_dashboard_entries",
+            SurfaceKind::EmbeddedServiceDashboard,
+        ),
+        (
+            "auth_confirmation_entries",
+            SurfaceKind::EmbeddedAuthConfirmation,
+        ),
     ] {
         assert_eq!(
             summary[key].as_u64().unwrap() as usize,
@@ -254,7 +258,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = reg
         .rows
         .iter_mut()
-        .find(|row| row.truth_state == TruthState::NarrowedStale && row.claim_label == StableClaimLevel::Stable)
+        .find(|row| {
+            row.truth_state == TruthState::NarrowedStale
+                && row.claim_label == StableClaimLevel::Stable
+        })
         .expect("register has a narrowed-stale row under a stable ceiling");
     row.published_label = StableClaimLevel::Stable;
     reg.summary = reg.computed_summary();
@@ -323,9 +330,10 @@ fn native_approval_leak_fails() {
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate()
-            .iter()
-            .any(|v| matches!(v, EmbeddedSurfaceBoundaryTruthViolation::NativeApprovalLeaked { .. })),
+        reg.validate().iter().any(|v| matches!(
+            v,
+            EmbeddedSurfaceBoundaryTruthViolation::NativeApprovalLeaked { .. }
+        )),
         "a row with leaked native approval must fail validation"
     );
 }
@@ -342,9 +350,10 @@ fn backed_row_on_a_breached_packet_fails() {
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate()
-            .iter()
-            .any(|v| matches!(v, EmbeddedSurfaceBoundaryTruthViolation::HeldOnStalePacket { .. })),
+        reg.validate().iter().any(|v| matches!(
+            v,
+            EmbeddedSurfaceBoundaryTruthViolation::HeldOnStalePacket { .. }
+        )),
         "a backed row may not ride a packet outside its freshness SLO"
     );
 }
@@ -365,10 +374,12 @@ fn publication_proceed_while_a_rule_fires_fails() {
 
 #[test]
 fn checked_in_fixtures_are_rejected_by_the_model() {
-    let fixtures_dir = repo_root().join("fixtures/release/stabilize_embedded_surface_boundary_truth");
+    let fixtures_dir =
+        repo_root().join("fixtures/release/stabilize_embedded_surface_boundary_truth");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 

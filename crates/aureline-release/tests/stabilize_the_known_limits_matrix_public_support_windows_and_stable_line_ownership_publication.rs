@@ -26,7 +26,8 @@ const CAPTURE_JSON: &str = include_str!(concat!(
     "/../../artifacts/release/captures/stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication_validation_capture.json"
 ));
 
-fn register() -> StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPublication {
+fn register() -> StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPublication
+{
     current_stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication()
         .expect("checked-in register parses into the model")
 }
@@ -88,7 +89,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -206,10 +208,9 @@ fn narrowing_entry_that_does_not_narrow_fails() {
     reg.summary = reg.computed_summary();
     let violations = reg.validate();
     assert!(
-        violations.iter().any(|v| matches!(
-            v,
-            StabilizeViolation::PublishedLabelNotNarrowed { .. }
-        )),
+        violations
+            .iter()
+            .any(|v| matches!(v, StabilizeViolation::PublishedLabelNotNarrowed { .. })),
         "a narrowing row that does not narrow must fail validation: {violations:#?}"
     );
 }
@@ -229,10 +230,9 @@ fn held_entry_on_breached_packet_fails() {
     reg.summary = reg.computed_summary();
     let violations = reg.validate();
     assert!(
-        violations.iter().any(|v| matches!(
-            v,
-            StabilizeViolation::HeldOnStalePacket { .. }
-        )),
+        violations
+            .iter()
+            .any(|v| matches!(v, StabilizeViolation::HeldOnStalePacket { .. })),
         "a held row on a breached packet must fail validation: {violations:#?}"
     );
 }
@@ -249,10 +249,9 @@ fn published_wider_than_claim_fails() {
     reg.summary = reg.computed_summary();
     let violations = reg.validate();
     assert!(
-        violations.iter().any(|v| matches!(
-            v,
-            StabilizeViolation::PublishedWiderThanClaim { .. }
-        )),
+        violations
+            .iter()
+            .any(|v| matches!(v, StabilizeViolation::PublishedWiderThanClaim { .. })),
         "a row published wider than its claim must fail validation: {violations:#?}"
     );
 }

@@ -431,7 +431,10 @@ impl ResponseRow {
     /// True when every required emergency control is satisfied.
     pub fn all_emergency_controls_satisfied(&self) -> bool {
         !self.emergency_controls.is_empty()
-            && self.emergency_controls.iter().all(|control| control.satisfied)
+            && self
+                .emergency_controls
+                .iter()
+                .all(|control| control.satisfied)
     }
 
     /// Count of required emergency controls that are unsatisfied.
@@ -682,8 +685,11 @@ impl SecurityResponsePacket {
             .iter()
             .filter(|row| row.release_blocking)
             .collect();
-        let total_emergency_controls: usize =
-            self.rows.iter().map(|row| row.emergency_controls.len()).sum();
+        let total_emergency_controls: usize = self
+            .rows
+            .iter()
+            .map(|row| row.emergency_controls.len())
+            .sum();
         let emergency_controls_unsatisfied: usize = self
             .rows
             .iter()
@@ -936,10 +942,7 @@ impl SecurityResponsePacket {
             ("lane_summary", &row.lane_summary),
             ("claim_ref", &row.claim_ref),
             ("rationale", &row.rationale),
-            (
-                "response_packet.packet_id",
-                &row.response_packet.packet_id,
-            ),
+            ("response_packet.packet_id", &row.response_packet.packet_id),
             (
                 "response_packet.packet_ref",
                 &row.response_packet.packet_ref,
@@ -999,9 +1002,11 @@ impl SecurityResponsePacket {
                 });
             }
             if !row.has_active_reason(GapReason::ClaimLabelNarrowed) {
-                violations.push(SecurityResponsePacketViolation::ClaimNarrowedWithoutReason {
-                    entry_id: row.entry_id.clone(),
-                });
+                violations.push(
+                    SecurityResponsePacketViolation::ClaimNarrowedWithoutReason {
+                        entry_id: row.entry_id.clone(),
+                    },
+                );
             }
         }
 
@@ -1043,9 +1048,7 @@ impl SecurityResponsePacket {
                     },
                 );
             }
-            if !row.mirror_drill_checkpoints.is_empty()
-                && !row.all_mirror_checkpoints_verified()
-            {
+            if !row.mirror_drill_checkpoints.is_empty() && !row.all_mirror_checkpoints_verified() {
                 violations.push(
                     SecurityResponsePacketViolation::HeldWithUnverifiedMirrorCheckpoint {
                         entry_id: row.entry_id.clone(),

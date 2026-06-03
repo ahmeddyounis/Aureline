@@ -27,7 +27,9 @@ const CAPTURE_JSON: &str = include_str!(concat!(
     "/../../artifacts/release/captures/finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support_validation_capture.json"
 ));
 
-fn register() -> FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport {
+fn register(
+) -> FinalizeReleasePacketFreshnessSlosShiproomDashboardsAndProofIndexExportForProcurementAndSupport
+{
     current_finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support()
         .expect("checked-in register parses into the model")
 }
@@ -89,7 +91,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -220,10 +223,9 @@ fn held_entry_on_breached_packet_fails() {
     reg.summary = reg.computed_summary();
     let violations = reg.validate();
     assert!(
-        violations.iter().any(|v| matches!(
-            v,
-            FreshnessObjectViolation::HeldOnStalePacket { .. }
-        )),
+        violations
+            .iter()
+            .any(|v| matches!(v, FreshnessObjectViolation::HeldOnStalePacket { .. })),
         "a held row on a breached packet must fail validation: {violations:#?}"
     );
 }
@@ -240,10 +242,9 @@ fn effective_wider_than_claim_fails() {
     reg.summary = reg.computed_summary();
     let violations = reg.validate();
     assert!(
-        violations.iter().any(|v| matches!(
-            v,
-            FreshnessObjectViolation::EffectiveWiderThanClaim { .. }
-        )),
+        violations
+            .iter()
+            .any(|v| matches!(v, FreshnessObjectViolation::EffectiveWiderThanClaim { .. })),
         "a row effective wider than its claim must fail validation: {violations:#?}"
     );
 }

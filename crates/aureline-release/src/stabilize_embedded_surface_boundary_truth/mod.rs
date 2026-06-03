@@ -789,11 +789,9 @@ impl EmbeddedSurfaceBoundaryTruth {
         let mut seen = BTreeSet::new();
         for row in &self.rows {
             if !seen.insert(row.entry_id.clone()) {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::DuplicateEntryId {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::DuplicateEntryId {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             self.validate_row(row, &mut violations);
         }
@@ -811,10 +809,7 @@ impl EmbeddedSurfaceBoundaryTruth {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>) {
         if self.schema_version != EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION {
             violations.push(
                 EmbeddedSurfaceBoundaryTruthViolation::UnsupportedSchemaVersion {
@@ -930,10 +925,7 @@ impl EmbeddedSurfaceBoundaryTruth {
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>) {
         if self.truth_rules.is_empty() {
             violations.push(EmbeddedSurfaceBoundaryTruthViolation::NoTruthRules);
         }
@@ -941,11 +933,9 @@ impl EmbeddedSurfaceBoundaryTruth {
         let mut covered = BTreeSet::new();
         for rule in &self.truth_rules {
             if !seen.insert(rule.rule_id.clone()) {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::DuplicateRuleId {
-                        rule_id: rule.rule_id.clone(),
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::DuplicateRuleId {
+                    rule_id: rule.rule_id.clone(),
+                });
             }
             for (field, value) in [
                 ("rule_id", &rule.rule_id),
@@ -960,22 +950,17 @@ impl EmbeddedSurfaceBoundaryTruth {
                 }
             }
             if rule.applies_to_labels.is_empty() {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::RuleWithoutLabels {
-                        rule_id: rule.rule_id.clone(),
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::RuleWithoutLabels {
+                    rule_id: rule.rule_id.clone(),
+                });
             }
             covered.insert(rule.trigger_reason);
         }
 
         for reason in GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::GapReasonWithoutRule {
-                        reason,
-                    },
-                );
+                violations
+                    .push(EmbeddedSurfaceBoundaryTruthViolation::GapReasonWithoutRule { reason });
             }
         }
     }
@@ -1049,9 +1034,7 @@ impl EmbeddedSurfaceBoundaryTruth {
         }
 
         // Auth-confirmation rows must carry an auth_handoff snapshot.
-        if row.surface_kind == SurfaceKind::EmbeddedAuthConfirmation
-            && row.auth_handoff.is_none()
-        {
+        if row.surface_kind == SurfaceKind::EmbeddedAuthConfirmation && row.auth_handoff.is_none() {
             violations.push(
                 EmbeddedSurfaceBoundaryTruthViolation::AuthWithoutHandoffSnapshot {
                     entry_id: row.entry_id.clone(),
@@ -1116,11 +1099,9 @@ impl EmbeddedSurfaceBoundaryTruth {
                 );
             }
             if !row.active_gap_reasons.is_empty() {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::HeldWithActiveGap {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::HeldWithActiveGap {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if !row.proof_packet.has_capture() {
                 violations.push(
@@ -1130,19 +1111,15 @@ impl EmbeddedSurfaceBoundaryTruth {
                 );
             }
             if !slo_state.is_within_slo() {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::HeldOnStalePacket {
-                        entry_id: row.entry_id.clone(),
-                        slo_state,
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::HeldOnStalePacket {
+                    entry_id: row.entry_id.clone(),
+                    slo_state,
+                });
             }
             if !(row.owner_signoff.signed_off && row.owner_signoff.signed_at.is_some()) {
-                violations.push(
-                    EmbeddedSurfaceBoundaryTruthViolation::HeldWithoutSignoff {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(EmbeddedSurfaceBoundaryTruthViolation::HeldWithoutSignoff {
+                    entry_id: row.entry_id.clone(),
+                });
             }
         } else {
             // A narrowing state must drop the published label below the cutline
@@ -1265,10 +1242,7 @@ impl EmbeddedSurfaceBoundaryTruth {
         }
     }
 
-    fn validate_coverage(
-        &self,
-        violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>,
-    ) {
+    fn validate_coverage(&self, violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>) {
         let covered: BTreeSet<String> = self
             .rows
             .iter()
@@ -1286,10 +1260,7 @@ impl EmbeddedSurfaceBoundaryTruth {
         }
     }
 
-    fn validate_publication(
-        &self,
-        violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>,
-    ) {
+    fn validate_publication(&self, violations: &mut Vec<EmbeddedSurfaceBoundaryTruthViolation>) {
         if self.publication.publication_gate.trim().is_empty() {
             violations.push(EmbeddedSurfaceBoundaryTruthViolation::EmptyField {
                 entry_id: "<publication>".to_owned(),
@@ -1635,7 +1606,10 @@ impl fmt::Display for EmbeddedSurfaceBoundaryTruthViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "'{entry_id}' is held but has no fresh proof packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "'{entry_id}' is held but rides a stale packet ({slo_state:?})"
@@ -1655,7 +1629,10 @@ impl fmt::Display for EmbeddedSurfaceBoundaryTruthViolation {
                 )
             }
             Self::NarrowingWithoutReason { entry_id, state } => {
-                write!(f, "'{entry_id}' state '{state:?}' narrows without an active reason")
+                write!(
+                    f,
+                    "'{entry_id}' state '{state:?}' narrows without an active reason"
+                )
             }
             Self::BreachedPacketWithoutReason { entry_id } => {
                 write!(
@@ -1717,7 +1694,10 @@ mod tests {
     fn embedded_register_parses_and_validates() {
         let reg = current_embedded_surface_boundary_truth()
             .expect("checked-in embedded surface boundary truth register parses into the model");
-        assert_eq!(reg.schema_version, EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION);
+        assert_eq!(
+            reg.schema_version,
+            EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION
+        );
         assert_eq!(reg.record_kind, EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND);
         let violations = reg.validate();
         assert!(
@@ -1741,11 +1721,7 @@ mod tests {
     #[test]
     fn covers_every_boundary_state() {
         let reg = current_embedded_surface_boundary_truth().unwrap();
-        let covered: Vec<BoundaryState> = reg
-            .rows
-            .iter()
-            .map(|row| row.boundary_state)
-            .collect();
+        let covered: Vec<BoundaryState> = reg.rows.iter().map(|row| row.boundary_state).collect();
         for state in BoundaryState::ALL {
             assert!(
                 covered.contains(&state),

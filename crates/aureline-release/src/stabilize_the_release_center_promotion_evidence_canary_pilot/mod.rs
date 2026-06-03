@@ -232,7 +232,10 @@ impl PromotionState {
 
     /// Whether the state lets the subject carry its claimed ring.
     pub const fn holds_ring(self) -> bool {
-        matches!(self, Self::Qualified | Self::ProvisionalOnWaiver | Self::Soaking)
+        matches!(
+            self,
+            Self::Qualified | Self::ProvisionalOnWaiver | Self::Soaking
+        )
     }
 
     /// Whether the state forces narrowing or rollback.
@@ -513,8 +516,7 @@ impl PromotionSubjectRow {
     /// True when the row's effective label is not a narrowing label relative to
     /// the claim.
     pub fn holds_claim(&self) -> bool {
-        self.effective_label.rank() >= self.claim_label.rank()
-            && self.promotion_state.holds_ring()
+        self.effective_label.rank() >= self.claim_label.rank() && self.promotion_state.holds_ring()
     }
 
     /// True when the subject is currently soaking.
@@ -536,7 +538,11 @@ impl PromotionSubjectRow {
 
     /// True when the transition is part of the path from current to target ring.
     fn transition_is_active(&self, transition: &str) -> bool {
-        let expected = format!("{}_to_{}", self.current_ring.as_str(), self.target_ring.as_str());
+        let expected = format!(
+            "{}_to_{}",
+            self.current_ring.as_str(),
+            self.target_ring.as_str()
+        );
         transition == expected
     }
 
@@ -723,7 +729,10 @@ impl RingPromotionControl {
 
     /// Returns rows at a given ring.
     pub fn rows_at_ring(&self, ring: Ring) -> Vec<&PromotionSubjectRow> {
-        self.rows.iter().filter(|r| r.current_ring == ring).collect()
+        self.rows
+            .iter()
+            .filter(|r| r.current_ring == ring)
+            .collect()
     }
 
     /// True when `rule` fires: a row in its watch set carries its trigger reason.
@@ -792,14 +801,22 @@ impl RingPromotionControl {
                 .filter(|r| r.promotion_state == PromotionState::ProvisionalOnWaiver)
                 .count(),
             rows_soaking: self.rows.iter().filter(|r| r.is_soaking()).count(),
-            rows_blocked: self.rows.iter().filter(|r| r.promotion_state == PromotionState::Blocked).count(),
+            rows_blocked: self
+                .rows
+                .iter()
+                .filter(|r| r.promotion_state == PromotionState::Blocked)
+                .count(),
             rows_rolled_back: self
                 .rows
                 .iter()
                 .filter(|r| r.promotion_state == PromotionState::RolledBack)
                 .count(),
             total_active_gap_reasons: self.rows.iter().map(|r| r.active_gap_reasons.len()).sum(),
-            rules_firing: self.rules.iter().filter(|rule| self.rule_fires(rule)).count(),
+            rules_firing: self
+                .rules
+                .iter()
+                .filter(|rule| self.rule_fires(rule))
+                .count(),
             canary_subjects: self.rows_at_ring(Ring::Canary).len(),
             pilot_subjects: self.rows_at_ring(Ring::Pilot).len(),
             broad_subjects: self.rows_at_ring(Ring::Broad).len(),
@@ -906,9 +923,8 @@ impl RingPromotionControl {
             }
         }
         if self.rings != Ring::ALL.to_vec() {
-            violations.push(RingPromotionControlViolation::ClosedVocabularyMismatch {
-                field: "rings",
-            });
+            violations
+                .push(RingPromotionControlViolation::ClosedVocabularyMismatch { field: "rings" });
         }
         if self.subject_kinds != PromotionSubjectKind::ALL.to_vec() {
             violations.push(RingPromotionControlViolation::ClosedVocabularyMismatch {
@@ -926,9 +942,8 @@ impl RingPromotionControl {
             });
         }
         if self.actions != Action::ALL.to_vec() {
-            violations.push(RingPromotionControlViolation::ClosedVocabularyMismatch {
-                field: "actions",
-            });
+            violations
+                .push(RingPromotionControlViolation::ClosedVocabularyMismatch { field: "actions" });
         }
         if self.kill_switch_postures != KillSwitchPosture::ALL.to_vec() {
             violations.push(RingPromotionControlViolation::ClosedVocabularyMismatch {
@@ -1004,25 +1019,25 @@ impl RingPromotionControl {
 
         // Target ring must be at or wider than current ring.
         if row.target_ring.rank() < row.current_ring.rank() {
-            violations.push(RingPromotionControlViolation::TargetRingNarrowerThanCurrent {
-                row_id: row.entry_id.clone(),
-                current: row.current_ring,
-                target: row.target_ring,
-            });
+            violations.push(
+                RingPromotionControlViolation::TargetRingNarrowerThanCurrent {
+                    row_id: row.entry_id.clone(),
+                    current: row.current_ring,
+                    target: row.target_ring,
+                },
+            );
         }
 
         // No widening: a narrowing state must drop the effective label below the
         // claim label.
         if row.promotion_state.forces_narrowing() {
             if row.effective_label.rank() >= row.claim_label.rank() {
-                violations.push(
-                    RingPromotionControlViolation::EffectiveLabelNotNarrowed {
-                        row_id: row.entry_id.clone(),
-                        state: row.promotion_state,
-                        claim_label: row.claim_label,
-                        effective_label: row.effective_label,
-                    },
-                );
+                violations.push(RingPromotionControlViolation::EffectiveLabelNotNarrowed {
+                    row_id: row.entry_id.clone(),
+                    state: row.promotion_state,
+                    claim_label: row.claim_label,
+                    effective_label: row.effective_label,
+                });
             }
             if row.active_gap_reasons.is_empty() {
                 violations.push(RingPromotionControlViolation::NarrowingWithoutReason {
@@ -1059,11 +1074,13 @@ impl RingPromotionControl {
 
         // Rollback target must be at or narrower than current ring.
         if row.rollback_target_ring.rank() > row.current_ring.rank() {
-            violations.push(RingPromotionControlViolation::RollbackTargetWiderThanCurrent {
-                row_id: row.entry_id.clone(),
-                current: row.current_ring,
-                rollback_target: row.rollback_target_ring,
-            });
+            violations.push(
+                RingPromotionControlViolation::RollbackTargetWiderThanCurrent {
+                    row_id: row.entry_id.clone(),
+                    current: row.current_ring,
+                    rollback_target: row.rollback_target_ring,
+                },
+            );
         }
 
         self.validate_row_state_reason_coherence(row, violations);
@@ -1122,12 +1139,10 @@ impl RingPromotionControl {
                     push_incoherent(violations, GapReason::WaiverExpired);
                 }
                 if row.waiver.is_none() {
-                    violations.push(
-                        RingPromotionControlViolation::WaiverStateWithoutWaiver {
-                            row_id: row.entry_id.clone(),
-                            state: row.promotion_state,
-                        },
-                    );
+                    violations.push(RingPromotionControlViolation::WaiverStateWithoutWaiver {
+                        row_id: row.entry_id.clone(),
+                        state: row.promotion_state,
+                    });
                 }
             }
             PromotionState::RolledBack => {
@@ -1142,12 +1157,10 @@ impl RingPromotionControl {
                     .map(|w| w.waiver_ref.trim().is_empty() || w.expires_at.trim().is_empty())
                     .unwrap_or(true)
                 {
-                    violations.push(
-                        RingPromotionControlViolation::WaiverStateWithoutWaiver {
-                            row_id: row.entry_id.clone(),
-                            state: row.promotion_state,
-                        },
-                    );
+                    violations.push(RingPromotionControlViolation::WaiverStateWithoutWaiver {
+                        row_id: row.entry_id.clone(),
+                        state: row.promotion_state,
+                    });
                 }
             }
             PromotionState::Qualified => {}
@@ -1401,7 +1414,11 @@ impl fmt::Display for RingPromotionControlViolation {
                 "gap reason {} has no rule watching for it",
                 reason.as_str()
             ),
-            Self::TargetRingNarrowerThanCurrent { row_id, current, target } => write!(
+            Self::TargetRingNarrowerThanCurrent {
+                row_id,
+                current,
+                target,
+            } => write!(
                 f,
                 "row {row_id} target ring {} is narrower than current ring {}",
                 target.as_str(),
@@ -1424,10 +1441,9 @@ impl fmt::Display for RingPromotionControlViolation {
                 "row {row_id} state {} narrows without naming an active gap reason",
                 state.as_str()
             ),
-            Self::HeldRowWithActiveGap { row_id } => write!(
-                f,
-                "row {row_id} holds claim while a gap reason is active"
-            ),
+            Self::HeldRowWithActiveGap { row_id } => {
+                write!(f, "row {row_id} holds claim while a gap reason is active")
+            }
             Self::HeldRowWithoutSignoff { row_id } => {
                 write!(f, "row {row_id} holds claim without owner sign-off")
             }
@@ -1441,11 +1457,9 @@ impl fmt::Display for RingPromotionControlViolation {
                 state.as_str(),
                 expected_reason.as_str()
             ),
-            Self::WaiverStateWithoutWaiver { row_id, state } => write!(
-                f,
-                "row {row_id} state {} names no waiver",
-                state.as_str()
-            ),
+            Self::WaiverStateWithoutWaiver { row_id, state } => {
+                write!(f, "row {row_id} state {} names no waiver", state.as_str())
+            }
             Self::RollbackTargetWiderThanCurrent {
                 row_id,
                 current,
@@ -1462,14 +1476,10 @@ impl fmt::Display for RingPromotionControlViolation {
                 declared.as_str(),
                 computed.as_str()
             ),
-            Self::PublicationBlockingSetMismatch { field } => write!(
-                f,
-                "publication {field} disagrees with the firing rules"
-            ),
-            Self::SummaryMismatch => write!(
-                f,
-                "artifact summary counts disagree with the rows"
-            ),
+            Self::PublicationBlockingSetMismatch { field } => {
+                write!(f, "publication {field} disagrees with the firing rules")
+            }
+            Self::SummaryMismatch => write!(f, "artifact summary counts disagree with the rows"),
         }
     }
 }
@@ -1501,10 +1511,7 @@ mod tests {
             artifact.schema_version,
             RING_PROMOTION_CONTROL_SCHEMA_VERSION
         );
-        assert_eq!(
-            artifact.record_kind,
-            RING_PROMOTION_CONTROL_RECORD_KIND
-        );
+        assert_eq!(artifact.record_kind, RING_PROMOTION_CONTROL_RECORD_KIND);
         assert_eq!(artifact.validate(), Vec::new());
         assert!(!artifact.rows.is_empty());
     }
@@ -1659,9 +1666,7 @@ mod tests {
         let entry_id = row.entry_id.clone();
         assert!(artifact
             .validate()
-            .contains(&RingPromotionControlViolation::HeldRowWithoutSignoff {
-                row_id: entry_id,
-            }));
+            .contains(&RingPromotionControlViolation::HeldRowWithoutSignoff { row_id: entry_id }));
     }
 
     #[test]

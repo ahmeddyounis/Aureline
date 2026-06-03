@@ -882,19 +882,20 @@ impl DocsHelpAboutServiceHealthTruth {
         violations
     }
 
-    fn validate_envelope(
-        &self,
-        violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>,
-    ) {
+    fn validate_envelope(&self, violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>) {
         if self.schema_version != DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_SCHEMA_VERSION {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::UnsupportedSchemaVersion {
-                actual: self.schema_version,
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::UnsupportedSchemaVersion {
+                    actual: self.schema_version,
+                },
+            );
         }
         if self.record_kind != DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_RECORD_KIND {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::UnsupportedRecordKind {
-                actual: self.record_kind.clone(),
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::UnsupportedRecordKind {
+                    actual: self.record_kind.clone(),
+                },
+            );
         }
         for (field, value) in [
             ("register_id", &self.register_id),
@@ -923,39 +924,53 @@ impl DocsHelpAboutServiceHealthTruth {
             }
         }
         if self.lifecycle_labels != StableClaimLevel::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "lifecycle_labels",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "lifecycle_labels",
+                },
+            );
         }
         if self.surface_kinds != SurfaceKind::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "surface_kinds",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "surface_kinds",
+                },
+            );
         }
         if self.service_contract_states != ServiceContractState::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "service_contract_states",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "service_contract_states",
+                },
+            );
         }
         if self.destination_trust_classes != DestinationTrustClass::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "destination_trust_classes",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "destination_trust_classes",
+                },
+            );
         }
         if self.truth_states != TruthState::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "truth_states",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "truth_states",
+                },
+            );
         }
         if self.gap_reasons != GapReason::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "gap_reasons",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "gap_reasons",
+                },
+            );
         }
         if self.truth_actions != TruthAction::ALL.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "truth_actions",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "truth_actions",
+                },
+            );
         }
         if self.release_blocking_surface_refs.is_empty() {
             violations.push(DocsHelpAboutServiceHealthTruthViolation::EmptyField {
@@ -966,19 +981,25 @@ impl DocsHelpAboutServiceHealthTruth {
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.cutline_level",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.cutline_level",
+                },
+            );
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.above_cutline_levels",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.above_cutline_levels",
+                },
+            );
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.below_cutline_levels",
-            });
+            violations.push(
+                DocsHelpAboutServiceHealthTruthViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.below_cutline_levels",
+                },
+            );
         }
         if cutline.description.trim().is_empty() {
             violations.push(DocsHelpAboutServiceHealthTruthViolation::EmptyField {
@@ -988,10 +1009,7 @@ impl DocsHelpAboutServiceHealthTruth {
         }
     }
 
-    fn validate_rules(
-        &self,
-        violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>,
-    ) {
+    fn validate_rules(&self, violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>) {
         if self.truth_rules.is_empty() {
             violations.push(DocsHelpAboutServiceHealthTruthViolation::NoTruthRules);
         }
@@ -1016,9 +1034,11 @@ impl DocsHelpAboutServiceHealthTruth {
                 }
             }
             if rule.applies_to_labels.is_empty() {
-                violations.push(DocsHelpAboutServiceHealthTruthViolation::RuleWithoutLabels {
-                    rule_id: rule.rule_id.clone(),
-                });
+                violations.push(
+                    DocsHelpAboutServiceHealthTruthViolation::RuleWithoutLabels {
+                        rule_id: rule.rule_id.clone(),
+                    },
+                );
             }
             covered.insert(rule.trigger_reason);
         }
@@ -1027,9 +1047,9 @@ impl DocsHelpAboutServiceHealthTruth {
         // corresponding publication gate.
         for reason in GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(DocsHelpAboutServiceHealthTruthViolation::GapReasonWithoutRule {
-                    reason,
-                });
+                violations.push(
+                    DocsHelpAboutServiceHealthTruthViolation::GapReasonWithoutRule { reason },
+                );
             }
         }
     }
@@ -1286,10 +1306,7 @@ impl DocsHelpAboutServiceHealthTruth {
         }
     }
 
-    fn validate_coverage(
-        &self,
-        violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>,
-    ) {
+    fn validate_coverage(&self, violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>) {
         let covered: BTreeSet<String> = self
             .rows
             .iter()
@@ -1307,10 +1324,7 @@ impl DocsHelpAboutServiceHealthTruth {
         }
     }
 
-    fn validate_publication(
-        &self,
-        violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>,
-    ) {
+    fn validate_publication(&self, violations: &mut Vec<DocsHelpAboutServiceHealthTruthViolation>) {
         if self.publication.publication_gate.trim().is_empty() {
             violations.push(DocsHelpAboutServiceHealthTruthViolation::EmptyField {
                 entry_id: "<publication>".to_owned(),
@@ -1631,7 +1645,10 @@ impl fmt::Display for DocsHelpAboutServiceHealthTruthViolation {
                 write!(f, "'{entry_id}' is an About row without an about_card")
             }
             Self::PackageSafetyWithoutDisclosure { entry_id } => {
-                write!(f, "'{entry_id}' is a package-safety row without a package_safety disclosure")
+                write!(
+                    f,
+                    "'{entry_id}' is a package-safety row without a package_safety disclosure"
+                )
             }
             Self::HeldLabelNotEqualClaimed {
                 entry_id,
@@ -1649,7 +1666,10 @@ impl fmt::Display for DocsHelpAboutServiceHealthTruthViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "'{entry_id}' is held but has no fresh proof packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "'{entry_id}' is held but rides a stale packet ({slo_state:?})"
@@ -1669,7 +1689,10 @@ impl fmt::Display for DocsHelpAboutServiceHealthTruthViolation {
                 )
             }
             Self::NarrowingWithoutReason { entry_id, state } => {
-                write!(f, "'{entry_id}' state '{state:?}' narrows without an active reason")
+                write!(
+                    f,
+                    "'{entry_id}' state '{state:?}' narrows without an active reason"
+                )
             }
             Self::BreachedPacketWithoutReason { entry_id } => {
                 write!(
@@ -1718,8 +1741,7 @@ impl fmt::Display for DocsHelpAboutServiceHealthTruthViolation {
 /// Parse the embedded checked-in register JSON.
 pub fn current_docs_help_about_service_health_truth(
 ) -> Result<DocsHelpAboutServiceHealthTruth, Box<dyn Error>> {
-    let parsed: DocsHelpAboutServiceHealthTruth = serde_json::from_str(
-        DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_JSON,
-    )?;
+    let parsed: DocsHelpAboutServiceHealthTruth =
+        serde_json::from_str(DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_JSON)?;
     Ok(parsed)
 }

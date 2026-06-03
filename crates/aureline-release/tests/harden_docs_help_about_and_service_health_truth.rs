@@ -12,14 +12,15 @@
 
 use std::path::{Path, PathBuf};
 
-use aureline_release::stable_claim_manifest::FreshnessSloState;
-use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::harden_docs_help_about_and_service_health_truth::{
-    current_docs_help_about_service_health_truth, DestinationTrustClass, DocsHelpAboutServiceHealthTruth,
-    DocsHelpAboutServiceHealthTruthViolation, ServiceContractState, SurfaceKind, TruthState,
+    current_docs_help_about_service_health_truth, DestinationTrustClass,
+    DocsHelpAboutServiceHealthTruth, DocsHelpAboutServiceHealthTruthViolation,
+    ServiceContractState, SurfaceKind, TruthState,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_RECORD_KIND,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_SCHEMA_VERSION,
 };
+use aureline_release::stable_claim_manifest::FreshnessSloState;
+use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 
 const CAPTURE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -118,11 +119,8 @@ fn about_row_carries_provenance_card_with_trust_class_destinations() {
         !card.destinations.is_empty(),
         "provenance card must list destinations"
     );
-    let classes: Vec<DestinationTrustClass> = card
-        .destinations
-        .iter()
-        .map(|d| d.trust_class)
-        .collect();
+    let classes: Vec<DestinationTrustClass> =
+        card.destinations.iter().map(|d| d.trust_class).collect();
     assert!(
         classes.contains(&DestinationTrustClass::Official),
         "card must have at least one official destination"
@@ -153,7 +151,8 @@ fn package_safety_row_carries_disclosure() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let reg = register();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(reg.as_of.as_str()));
@@ -165,9 +164,7 @@ fn model_matches_frozen_validation_capture() {
         "capture entry count must match the model"
     );
     assert_eq!(
-        summary["entries_published_stable"]
-            .as_u64()
-            .unwrap() as usize,
+        summary["entries_published_stable"].as_u64().unwrap() as usize,
         reg.rows_published_stable().len(),
         "capture published count must match the model"
     );
@@ -262,7 +259,10 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = reg
         .rows
         .iter_mut()
-        .find(|row| row.truth_state == TruthState::NarrowedStale && row.claim_label == StableClaimLevel::Stable)
+        .find(|row| {
+            row.truth_state == TruthState::NarrowedStale
+                && row.claim_label == StableClaimLevel::Stable
+        })
         .expect("register has a narrowed-stale row under a stable ceiling");
     row.published_label = StableClaimLevel::Stable;
     reg.summary = reg.computed_summary();
@@ -311,9 +311,10 @@ fn backed_row_on_a_breached_packet_fails() {
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate()
-            .iter()
-            .any(|v| matches!(v, DocsHelpAboutServiceHealthTruthViolation::HeldOnStalePacket { .. })),
+        reg.validate().iter().any(|v| matches!(
+            v,
+            DocsHelpAboutServiceHealthTruthViolation::HeldOnStalePacket { .. }
+        )),
         "a backed row may not ride a packet outside its freshness SLO"
     );
 }
@@ -334,10 +335,12 @@ fn publication_proceed_while_a_rule_fires_fails() {
 
 #[test]
 fn checked_in_fixtures_are_rejected_by_the_model() {
-    let fixtures_dir = repo_root().join("fixtures/release/harden_docs_help_about_and_service_health_truth");
+    let fixtures_dir =
+        repo_root().join("fixtures/release/harden_docs_help_about_and_service_health_truth");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 
