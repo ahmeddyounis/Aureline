@@ -1,0 +1,555 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/records/record-class-registry.schema.json",
+  "title": "Aureline record-class registry: stable hold/delete/export outcome vocabulary, hold evaluation, chronology export, and destruction receipt",
+  "description": "Boundary schema for the stable record-class registry vocabulary frozen in docs/records/m4/stabilize-record-class-registry-legal-hold-delete-honesty.md. This schema defines the unified RecordOperationOutcome vocabulary, HoldEvaluation, ChronologyEntry/ChronologyExport, ExportBundleManifest, DestructionReceipt, and CollabBundleMetadata types that every surface reads when it needs to answer: what is the outcome of a delete, hold, export, or offboarding operation? Hold evaluation is fail-closed: unknown/indeterminate hold status blocks destructive completion identically to an active hold. Hold never grants new read or export rights. Local-only artifacts are explicitly labeled as outside managed hold/delete scope. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, and raw credential material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/destruction_receipt" },
+    { "$ref": "#/$defs/export_bundle_manifest" },
+    { "$ref": "#/$defs/chronology_export" },
+    { "$ref": "#/$defs/hold_evaluation" }
+  ],
+  "$defs": {
+
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the record-class registry boundary vocabulary. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests and support bundles. Never contains raw paths, credentials, or user identity material."
+    },
+
+    "rfc3339_utc_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp in RFC 3339 format."
+    },
+
+    "policy_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque policy version token in effect when the action was evaluated or executed."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet",
+        "collaboration_session_record",
+        "collaboration_join_audit_event",
+        "collaboration_transcript_record",
+        "observer_only_archive",
+        "replayable_session_bundle",
+        "collaboration_review_evidence",
+        "operational_audit_record",
+        "managed_workspace_metadata",
+        "billing_usage_aggregate"
+      ],
+      "description": "Stable record-class id registered in the alpha registry. Consumers must treat unknown values as outside_platform_scope rather than ignoring them."
+    },
+
+    "record_operation_outcome": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "queued",
+        "blocked_by_hold",
+        "completed",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "partial",
+        "not_found",
+        "omitted_by_redaction"
+      ],
+      "description": "Unified user/admin/support-visible outcome vocabulary for delete, hold, export, and offboarding operations. Use this as the single source of truth across UI chips, CLI/headless output, support export packets, and admin audit views. omitted_by_redaction means the record exists but its content was withheld; it must never be presented as equivalent to not_found."
+    },
+
+    "hold_phase": {
+      "type": "string",
+      "enum": ["planning", "execution"],
+      "description": "Whether hold evaluation is in a planning (pre-flight) or execution (final safety gate) phase."
+    },
+
+    "hold_status": {
+      "type": "string",
+      "enum": ["active", "unknown_indeterminate", "cleared"],
+      "description": "Resolved hold status. unknown_indeterminate is treated identically to active for blocking destructive actions (fail-closed). cleared means no active hold applies and the destructive action may proceed if other checks pass."
+    },
+
+    "hold_scope": {
+      "type": "string",
+      "enum": ["managed_only", "local_only", "both"],
+      "description": "The scope covered by this hold evaluation."
+    },
+
+    "hold_evaluation": {
+      "type": "object",
+      "description": "Fail-closed hold evaluation result for a record or record set. Hold evaluation never grants new read or export rights; it only determines whether a destructive action is blocked.",
+      "required": [
+        "record_kind",
+        "phase",
+        "status",
+        "scope",
+        "active_hold_refs",
+        "policy_version"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "hold_evaluation",
+          "description": "Discriminator for this payload shape."
+        },
+        "phase": { "$ref": "#/$defs/hold_phase" },
+        "status": { "$ref": "#/$defs/hold_status" },
+        "scope": { "$ref": "#/$defs/hold_scope" },
+        "active_hold_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs for the active holds that matched. Empty when status is cleared or unknown_indeterminate with no matched holds."
+        },
+        "policy_version": { "$ref": "#/$defs/policy_version" },
+        "local_only_artifact_note": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required when scope includes local-device content that the platform does not possess. Prevents false assurances that managed hold covers local-only artifacts."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "chronology_entry": {
+      "type": "object",
+      "description": "A single entry in a timezone-aware chronology export. Actor lineage and event IDs are preserved so incident/support packets can attribute events without re-deriving identity from raw logs.",
+      "required": [
+        "event_id",
+        "actor_ref",
+        "timestamp_utc",
+        "event_class",
+        "is_local_only",
+        "is_attributed"
+      ],
+      "properties": {
+        "event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable, opaque event id."
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque actor reference. Never raw identity or credential material."
+        },
+        "timestamp_utc": { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+        "source_timezone_label": {
+          "type": ["string", "null"],
+          "description": "IANA timezone label for the originating clock source, when available."
+        },
+        "event_class": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Event-class token describing the kind of event."
+        },
+        "record_class_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/record_class_id" },
+            { "type": "null" }
+          ],
+          "description": "Record class the event is associated with, if it belongs to one."
+        },
+        "is_local_only": {
+          "type": "boolean",
+          "description": "Whether this event came from a local-only source and is outside managed hold or managed delete scope."
+        },
+        "is_attributed": {
+          "type": "boolean",
+          "description": "Whether actor lineage is preserved for this entry. When false, the actor_ref is a placeholder and attribution is incomplete."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "chronology_export": {
+      "type": "object",
+      "description": "An ordered, timezone-aware chronology export for an incident or support packet. Entries are ordered ascending by timestamp_utc. Consumers must not re-sort by local timestamps; the UTC ordering in this export is canonical.",
+      "required": [
+        "record_kind",
+        "export_id",
+        "scope_selector",
+        "policy_version",
+        "exported_at",
+        "actor_lineage_preserved",
+        "timezone_aware",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "chronology_export",
+          "description": "Discriminator for this payload shape."
+        },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_selector": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Scope selector describing what records are covered by this export."
+        },
+        "policy_version": { "$ref": "#/$defs/policy_version" },
+        "exported_at": { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+        "actor_lineage_preserved": {
+          "type": "boolean",
+          "description": "Whether actor lineage is preserved across all entries in this export."
+        },
+        "timezone_aware": {
+          "type": "boolean",
+          "description": "Whether every entry carries a source timezone label."
+        },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/chronology_entry" },
+          "description": "Ordered list of chronology entries, ascending by timestamp_utc."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "ref_record": {
+      "type": "object",
+      "description": "A ref with its resolved operation outcome.",
+      "required": ["ref_id", "outcome"],
+      "properties": {
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "reason": {
+          "type": ["string", "null"],
+          "description": "Human-readable reason for the outcome, safe for support/admin views."
+        },
+        "record_class_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/record_class_id" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "ref_checksum": {
+      "type": "object",
+      "description": "Hash/checksum entry for one ref in a manifest or receipt.",
+      "required": ["ref_id", "algorithm", "hash"],
+      "properties": {
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha512", "sha3_256"],
+          "description": "Hash algorithm name."
+        },
+        "hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hex-encoded hash value."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "omission_reason": {
+      "type": "object",
+      "description": "Reason why a record class was excluded or redacted from an export bundle.",
+      "required": ["record_class_id", "outcome"],
+      "properties": {
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "detail": {
+          "type": ["string", "null"],
+          "description": "Human-readable detail safe for support/admin views."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "collab_bundle_metadata": {
+      "type": "object",
+      "description": "Collaboration-specific metadata appended to export bundles and destruction receipts to prove what was retained, redacted, denied, or outside scope for collaboration evidence. Required by v22 for support, compliance, and incident packets.",
+      "required": [
+        "session_ref",
+        "role",
+        "guest_boundary",
+        "consent_envelope_ref",
+        "transcript_classes",
+        "local_only_artifacts_excluded"
+      ],
+      "properties": {
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque session ref."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["host", "participant", "observer", "admin"],
+          "description": "Role of the principal whose records are in scope."
+        },
+        "guest_boundary": {
+          "type": "boolean",
+          "description": "Whether the records cross a guest/host boundary."
+        },
+        "consent_envelope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the consent envelope governing this session's recording and retention posture."
+        },
+        "transcript_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "terminal_transcript",
+              "debug_transcript",
+              "session_recording",
+              "text_only_transcript",
+              "structured_captions_transcript"
+            ]
+          },
+          "description": "Transcript class tokens present in this bundle."
+        },
+        "local_only_artifacts_excluded": {
+          "type": "boolean",
+          "description": "Whether local-only artifacts were excluded from this bundle because they are outside managed hold/delete scope."
+        },
+        "local_only_artifact_note": {
+          "type": ["string", "null"],
+          "description": "Explicit note when local-only artifacts were excluded. Required when local_only_artifacts_excluded is true."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "export_bundle_manifest": {
+      "type": "object",
+      "description": "A complete export bundle manifest. Every export bundle must carry a manifest so support, admin, and compliance consumers can verify scope, redaction, and integrity without re-reading the full bundle payload.",
+      "required": [
+        "record_kind",
+        "bundle_id",
+        "created_at",
+        "scope_selectors",
+        "included_classes",
+        "excluded_classes",
+        "omission_reasons",
+        "policy_version",
+        "hash_checksum_manifest",
+        "redaction_profile",
+        "signer_ref",
+        "refs"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "export_bundle_manifest",
+          "description": "Discriminator for this payload shape."
+        },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+        "scope_selectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1,
+          "description": "Scope selectors that determined what was included."
+        },
+        "time_range_start": {
+          "oneOf": [
+            { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Earliest UTC timestamp covered by this bundle, if bounded."
+        },
+        "time_range_end": {
+          "oneOf": [
+            { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Latest UTC timestamp covered by this bundle, if bounded."
+        },
+        "included_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" },
+          "description": "Record classes explicitly included in this bundle."
+        },
+        "excluded_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" },
+          "description": "Record classes explicitly excluded from this bundle."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_reason" },
+          "description": "Reasons why specific classes were omitted or redacted."
+        },
+        "policy_version": { "$ref": "#/$defs/policy_version" },
+        "hash_checksum_manifest": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_checksum" },
+          "description": "Hash/checksum entries for refs included in the bundle."
+        },
+        "redaction_profile": {
+          "type": "string",
+          "enum": ["metadata_safe_default", "structured_field_only", "full_content_omit"],
+          "description": "Redaction profile applied to evidence in this bundle."
+        },
+        "signer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque signer or verifier reference."
+        },
+        "refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "All refs in scope with their resolved outcomes."
+        },
+        "collab_metadata": {
+          "oneOf": [
+            { "$ref": "#/$defs/collab_bundle_metadata" },
+            { "type": "null" }
+          ],
+          "description": "Collaboration-specific metadata when the bundle covers collaboration evidence."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "destruction_receipt": {
+      "type": "object",
+      "description": "A durable, diffable destruction receipt. Destruction receipts replace hand-written deletion assurances for managed, enterprise, and support evidence rows. Every receipt must be referenced by support/admin evidence. deleted_refs contains only refs for which deletion is confirmed. held_refs contains only refs blocked by an active or indeterminate hold. local_only_not_held_note must be set when any local-only artifacts are in scope.",
+      "required": [
+        "record_kind",
+        "receipt_id",
+        "executed_action",
+        "executed_at",
+        "policy_version",
+        "scope_selectors",
+        "included_classes",
+        "excluded_classes",
+        "deleted_refs",
+        "skipped_refs",
+        "retained_refs",
+        "held_refs",
+        "outside_scope_refs",
+        "total_destroyed_count",
+        "total_retained_count",
+        "total_outside_scope_count",
+        "hash_checksum_manifest",
+        "redaction_profile",
+        "verifier_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "destruction_receipt",
+          "description": "Discriminator for this payload shape."
+        },
+        "receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "executed_action": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Token describing the action that triggered this receipt (e.g. offboarding_delete, legal_hold_release_delete)."
+        },
+        "executed_at": { "$ref": "#/$defs/rfc3339_utc_timestamp" },
+        "policy_version": { "$ref": "#/$defs/policy_version" },
+        "scope_selectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1,
+          "description": "Scope selectors that determined what was in scope."
+        },
+        "included_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" },
+          "description": "Record classes included in the scope."
+        },
+        "excluded_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" },
+          "description": "Record classes excluded from the scope."
+        },
+        "deleted_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "Refs for which deletion was confirmed."
+        },
+        "skipped_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "Refs skipped (not attempted) due to exclusion rules."
+        },
+        "retained_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "Refs retained by policy (not deleted)."
+        },
+        "held_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "Refs blocked by an active or indeterminate hold."
+        },
+        "outside_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" },
+          "description": "Refs outside the platform's management scope."
+        },
+        "total_destroyed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of confirmed-deleted records."
+        },
+        "total_retained_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of policy-retained records."
+        },
+        "total_outside_scope_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of records outside platform scope."
+        },
+        "hash_checksum_manifest": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_checksum" },
+          "description": "Hash/checksum entries for refs in this receipt."
+        },
+        "redaction_profile": {
+          "type": "string",
+          "enum": ["metadata_safe_default", "structured_field_only", "full_content_omit"],
+          "description": "Redaction profile applied to evidence in this receipt."
+        },
+        "verifier_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque verifier or signer reference."
+        },
+        "local_only_not_held_note": {
+          "type": ["string", "null"],
+          "description": "Explicit note when local-only artifacts are in scope but outside managed delete controls. Must be set whenever local-only content was in scope to prevent false assurances of managed deletion."
+        },
+        "collab_metadata": {
+          "oneOf": [
+            { "$ref": "#/$defs/collab_bundle_metadata" },
+            { "type": "null" }
+          ],
+          "description": "Collaboration-specific metadata when the receipt covers collaboration evidence."
+        }
+      },
+      "additionalProperties": false
+    }
+
+  }
+}

@@ -4,6 +4,14 @@
 //! producer `record_kind` constants against registered lifecycle classes.
 //! Runtime producers call [`validate`] before emitting a record so support,
 //! export, delete, and hold semantics stay tied to the governed registry.
+//!
+//! The [`stabilize_record_class_registry_legal_hold_delete_honesty`] module
+//! provides the unified outcome vocabulary, fail-closed hold evaluation, and
+//! durable export/destruction receipt types that every surface reuses so
+//! delete-honesty, hold-honesty, and chronology integrity are consistent
+//! across UI, CLI/headless, support export, and admin audit views.
+
+pub mod stabilize_record_class_registry_legal_hold_delete_honesty;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
@@ -45,6 +53,24 @@ pub enum RecordClassId {
     DestructionReceiptRecord,
     /// AI evidence packets retained under managed policy.
     AiRetainedEvidencePacket,
+    /// Collaboration session records (local and managed copies distinct).
+    CollaborationSessionRecord,
+    /// Collaboration join, request, admit, and revoke audit events.
+    CollaborationJoinAuditEvent,
+    /// Shared-terminal or shared-debug transcript records.
+    CollaborationTranscriptRecord,
+    /// Observer-only collaboration archives.
+    ObserverOnlyArchive,
+    /// Replayable and exportable session bundles.
+    ReplayableSessionBundle,
+    /// Collaboration and review evidence retained under managed policy.
+    CollaborationReviewEvidence,
+    /// Operational audit and policy history records.
+    OperationalAuditRecord,
+    /// Managed-workspace metadata records.
+    ManagedWorkspaceMetadata,
+    /// Billing and usage aggregate records.
+    BillingUsageAggregate,
 }
 
 impl RecordClassId {
@@ -60,6 +86,15 @@ impl RecordClassId {
             Self::OffboardingExitPacket => "offboarding_exit_packet",
             Self::DestructionReceiptRecord => "destruction_receipt_record",
             Self::AiRetainedEvidencePacket => "ai_retained_evidence_packet",
+            Self::CollaborationSessionRecord => "collaboration_session_record",
+            Self::CollaborationJoinAuditEvent => "collaboration_join_audit_event",
+            Self::CollaborationTranscriptRecord => "collaboration_transcript_record",
+            Self::ObserverOnlyArchive => "observer_only_archive",
+            Self::ReplayableSessionBundle => "replayable_session_bundle",
+            Self::CollaborationReviewEvidence => "collaboration_review_evidence",
+            Self::OperationalAuditRecord => "operational_audit_record",
+            Self::ManagedWorkspaceMetadata => "managed_workspace_metadata",
+            Self::BillingUsageAggregate => "billing_usage_aggregate",
         }
     }
 
@@ -75,6 +110,15 @@ impl RecordClassId {
             "offboarding_exit_packet" => Some(Self::OffboardingExitPacket),
             "destruction_receipt_record" => Some(Self::DestructionReceiptRecord),
             "ai_retained_evidence_packet" => Some(Self::AiRetainedEvidencePacket),
+            "collaboration_session_record" => Some(Self::CollaborationSessionRecord),
+            "collaboration_join_audit_event" => Some(Self::CollaborationJoinAuditEvent),
+            "collaboration_transcript_record" => Some(Self::CollaborationTranscriptRecord),
+            "observer_only_archive" => Some(Self::ObserverOnlyArchive),
+            "replayable_session_bundle" => Some(Self::ReplayableSessionBundle),
+            "collaboration_review_evidence" => Some(Self::CollaborationReviewEvidence),
+            "operational_audit_record" => Some(Self::OperationalAuditRecord),
+            "managed_workspace_metadata" => Some(Self::ManagedWorkspaceMetadata),
+            "billing_usage_aggregate" => Some(Self::BillingUsageAggregate),
             _ => None,
         }
     }
@@ -206,6 +250,10 @@ pub enum RecordClassScope {
     ExportPacket,
     /// Receipt record class.
     Receipt,
+    /// Collaboration session record class.
+    CollaborationSession,
+    /// Audit trail record class.
+    AuditTrail,
 }
 
 /// Retention label declared for a record class.
@@ -359,6 +407,19 @@ pub struct RecordClassRow {
     pub placeholder_exit_criteria: Option<String>,
     /// Schema rows governed by this record class.
     pub schema_row_refs: Vec<String>,
+    /// Canonical residency scope token for this class
+    /// (e.g. `"local_device_only"`, `"managed_service"`, `"local_and_managed"`).
+    ///
+    /// Absent on rows that pre-date this field; consumers should treat
+    /// absence as unknown residency rather than assuming local-only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residency_scope: Option<String>,
+    /// Redaction profile applied to exported evidence from this class
+    /// (e.g. `"metadata_safe_default"`, `"structured_field_only"`).
+    ///
+    /// Absent on rows that pre-date this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redaction_profile: Option<String>,
     /// Local authority and managed-copy posture.
     pub local_truth: LocalTruth,
     /// Retention defaults.
@@ -706,7 +767,7 @@ mod tests {
             registry.schema_version,
             RECORD_CLASS_REGISTRY_SCHEMA_VERSION
         );
-        assert_eq!(registry.record_classes.len(), 9);
+        assert_eq!(registry.record_classes.len(), 18);
 
         for row in &registry.record_classes {
             let yaml = serde_yaml::to_string(row).expect("row serializes");
@@ -714,6 +775,58 @@ mod tests {
             assert_eq!(reparsed, *row);
             assert!(registry.contains_class(row.record_class_id));
         }
+    }
+
+    #[test]
+    fn new_collaboration_and_audit_classes_are_registered() {
+        let registry = load_alpha_registry().expect("registry parses");
+        let required = [
+            RecordClassId::CollaborationSessionRecord,
+            RecordClassId::CollaborationJoinAuditEvent,
+            RecordClassId::CollaborationTranscriptRecord,
+            RecordClassId::ObserverOnlyArchive,
+            RecordClassId::ReplayableSessionBundle,
+            RecordClassId::CollaborationReviewEvidence,
+            RecordClassId::OperationalAuditRecord,
+            RecordClassId::ManagedWorkspaceMetadata,
+            RecordClassId::BillingUsageAggregate,
+        ];
+        for id in required {
+            assert!(
+                registry.contains_class(id),
+                "registry missing required class: {id}"
+            );
+        }
+    }
+
+    #[test]
+    fn collaboration_session_record_has_honest_hold_and_delete_semantics() {
+        let registry = load_alpha_registry().expect("registry parses");
+        let row = registry
+            .row(RecordClassId::CollaborationSessionRecord)
+            .expect("collaboration_session_record row exists");
+        assert!(row.hold_semantics.eligible.as_bool());
+        assert!(row.delete_semantics.hold_blocks_completion);
+        assert!(row.delete_semantics.local_and_managed_actions_are_distinct);
+        assert_eq!(
+            row.residency_scope.as_deref(),
+            Some("local_and_managed"),
+            "collaboration_session_record residency_scope must be explicit"
+        );
+    }
+
+    #[test]
+    fn collaboration_transcript_record_has_local_only_honesty() {
+        let registry = load_alpha_registry().expect("registry parses");
+        let row = registry
+            .row(RecordClassId::CollaborationTranscriptRecord)
+            .expect("collaboration_transcript_record row exists");
+        assert!(row.delete_semantics.local_and_managed_actions_are_distinct);
+        assert_eq!(
+            row.residency_scope.as_deref(),
+            Some("local_and_managed"),
+            "transcript row must declare residency_scope"
+        );
     }
 
     #[test]

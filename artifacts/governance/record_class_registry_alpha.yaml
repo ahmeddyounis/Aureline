@@ -41,6 +41,8 @@ class_scope_vocabulary:
   - managed_copy
   - export_packet
   - receipt
+  - collaboration_session
+  - audit_trail
 
 authority_class_vocabulary:
   - local_authoritative
@@ -707,3 +709,614 @@ record_classes:
       - docs/governance/record_class_governance.md
     docs_refs:
       - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:collaboration_session_record
+    record_class_id: collaboration_session_record
+    title: Collaboration session record
+    class_scope: collaboration_session
+    owner_dri: "@ahmeddyounis"
+    residency_scope: local_and_managed
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - collaboration_session_record
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.session_record
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: mixed_local_managed
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        Local and managed copies are distinct. Managed retention applies only
+        when the session is hosted on a managed surface; local-only sessions are
+        never subject to managed hold or managed delete.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: session_end_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#collaboration_session_record
+        - docs/collaboration/recording_retention_delete_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - outside_platform_scope
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/collaboration/recording_retention_delete_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:collaboration_join_audit_event
+    record_class_id: collaboration_join_audit_event
+    title: Collaboration join and access audit event
+    class_scope: audit_trail
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - collaboration_join_audit_event
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.join_audit_event
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_cache_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Join, request, admit, and revoke audit events are managed-authoritative.
+        Local-only sessions may emit ephemeral join events that are never held
+        or deleted by managed controls.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: session_end_or_policy_timer
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#collaboration_join_audit_event
+        - docs/governance/record_state_and_policy_simulation_models.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/collaboration/recording_retention_delete_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:collaboration_transcript_record
+    record_class_id: collaboration_transcript_record
+    title: Collaboration transcript and shared-terminal or shared-debug transcript
+    class_scope: collaboration_session
+    owner_dri: "@ahmeddyounis"
+    residency_scope: local_and_managed
+    redaction_profile: structured_field_only
+    base_record_class_refs:
+      - collaboration_transcript_record
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.transcript_record
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: mixed_local_managed
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        Local and managed transcript copies are distinct. Shared-terminal and
+        shared-debug transcripts are never captured as managed copies unless the
+        session is hosted on a managed surface with an explicit-enable consent
+        envelope. Local-only copies are outside managed hold and managed delete.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: session_end_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#collaboration_transcript_record
+        - docs/collaboration/recording_retention_delete_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - omitted_by_redaction
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/collaboration/recording_retention_delete_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:observer_only_archive
+    record_class_id: observer_only_archive
+    title: Observer-only collaboration archive
+    class_scope: collaboration_session
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - observer_only_archive
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.observer_archive
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_cache_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Observer-only archives are managed-authoritative. The observer role does
+        not receive local export rights beyond what the session policy admits.
+        Archive capture requires a managed surface; local-only observation is
+        ephemeral and outside managed hold or delete scope.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: archive_seal_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#observer_only_archive
+        - docs/collaboration/recording_retention_delete_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/collaboration/recording_retention_delete_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:replayable_session_bundle
+    record_class_id: replayable_session_bundle
+    title: Replayable and exportable session bundle
+    class_scope: collaboration_session
+    owner_dri: "@ahmeddyounis"
+    residency_scope: local_and_managed
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - replayable_session_bundle
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.replayable_session_bundle
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: mixed_local_managed
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        Replayable session bundles have distinct local and managed copies.
+        Managed bundles require an explicit-enable consent envelope. Local-only
+        bundles are outside managed hold and managed delete scope.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: bundle_seal_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#replayable_session_bundle
+        - docs/collaboration/recording_retention_delete_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - outside_platform_scope
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/collaboration/recording_retention_delete_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:collaboration_review_evidence
+    record_class_id: collaboration_review_evidence
+    title: Collaboration and review evidence retained under managed policy
+    class_scope: managed_copy
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - collaboration_review_evidence
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:collaboration.review_evidence
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        Review evidence (comments, review threads, decision records) retained
+        under managed policy. Local-only review artifacts are not subject to
+        managed hold or managed delete and are explicitly excluded from this
+        record class.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: governance_packets
+      trigger_class: review_close_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#collaboration_review_evidence
+        - docs/governance/record_state_and_policy_simulation_models.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - omitted_by_redaction
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/record_class_governance.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:operational_audit_record
+    record_class_id: operational_audit_record
+    title: Operational audit and policy history record
+    class_scope: audit_trail
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - operational_audit_record
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:audit.operational_audit_record
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_cache_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Operational audit events and policy history records are
+        managed-authoritative. Local surfaces may cache audit projections but
+        the managed copy governs retention, hold, and delete for compliance.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: operator_admin
+      managed_owner_ref: governance_packets
+      trigger_class: policy_timer_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#operational_audit_record
+        - docs/governance/record_state_and_policy_simulation_models.md
+        - artifacts/service/retention_rows.yaml
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/record_class_governance.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:managed_workspace_metadata
+    record_class_id: managed_workspace_metadata
+    title: Managed-workspace metadata record
+    class_scope: managed_copy
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - managed_workspace_metadata
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:managed_copy.workspace_metadata
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_cache_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Managed-workspace metadata is managed-authoritative. Local workspace
+        projections are cache-only and do not carry independent retention
+        rights. Managed delete triggers a destruction receipt.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: operator_admin
+      managed_owner_ref: operator_admin
+      trigger_class: workspace_decommission_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#managed_workspace_metadata
+        - docs/governance/managed_copy_vs_local_truth.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - outside_platform_scope
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/record_class_governance.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:billing_usage_aggregate
+    record_class_id: billing_usage_aggregate
+    title: Billing and usage aggregate record
+    class_scope: export_packet
+    owner_dri: "@ahmeddyounis"
+    residency_scope: managed_service
+    redaction_profile: metadata_safe_default
+    base_record_class_refs:
+      - billing_usage_aggregate
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:export.billing_usage_aggregate
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_cache_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Billing and usage aggregate records are managed-authoritative. Local
+        usage projections are cache-only summaries. Managed retention governs
+        the authoritative aggregate; local summaries do not carry retention
+        rights and are not subject to managed hold.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: operator_admin
+      managed_owner_ref: operator_admin
+      trigger_class: billing_period_close_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#billing_usage_aggregate
+        - artifacts/service/retention_rows.yaml
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: false
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/usage_export_and_offboarding_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/usage_export_and_offboarding_contract.md
