@@ -34,6 +34,7 @@
 pub mod component_state_registry_stable;
 pub mod design_token_runtime_stable;
 pub mod experiments;
+pub mod finalize_appearance_session_theme_packages_token_overlays;
 pub mod inspector;
 pub mod keybindings;
 pub mod locale_beta;
@@ -102,6 +103,20 @@ pub use sync::{
     SyncConflictReviewBetaPage, SyncConflictReviewBetaRequest, SyncConflictReviewBetaRow,
     SyncConflictReviewBetaSupportExport, SyncStateClass, SyncStateSummary,
     SETTINGS_SYNC_BETA_SCHEMA_VERSION, SETTINGS_SYNC_BETA_SHARED_CONTRACT_REF,
+};
+pub use finalize_appearance_session_theme_packages_token_overlays::{
+    appearance_session_finalization_corpus, required_recovery_routes,
+    AccessibilityDisclosure, AppearanceSessionBinding, AppearanceSessionFinalizationCertification,
+    AppearanceSessionFinalizationScenario, AppearanceSessionSummaryRow, BuildError,
+    CertificationClaimCeiling, CertificationInput, CertificationNarrowingReason, CertificationPillars,
+    CertificationQualification, CertificationRecoveryAction, CertificationUpstream,
+    EntryRouteRecord, ExtensionAppearanceDescriptorRow, ExtensionInheritanceState,
+    ImportedThemeMappingReportRow, LayoutMode, LayoutModeDisclosure, LiveAppearanceChangeRow,
+    LiveAppearanceAxisClass, LiveApplyClass, OverlayScopeClass, ProvenanceDimensionClass,
+    ProvenancePreservationRow, RecoveryActionRole, RecoveryRouteRecord, RouteSurface,
+    StableClaimClass, ThemePackageManifestRow, TokenOverlayValidationRow,
+    APPEARANCE_SESSION_FINALIZATION_NOTICE, APPEARANCE_SESSION_FINALIZATION_RECORD_KIND,
+    APPEARANCE_SESSION_FINALIZATION_SCHEMA_VERSION, APPEARANCE_SESSION_FINALIZATION_SHARED_CONTRACT_REF,
 };
 pub use sync_device_registry_stable::{
     sync_device_registry_corpus, ConflictOutcomeClass, ConflictReviewRow, DeviceParticipationRow,
