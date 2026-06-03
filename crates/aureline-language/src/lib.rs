@@ -28,6 +28,7 @@ pub mod next_js_expert_workflow_pack_truth_packet;
 pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
+pub mod provider_arbitration_diagnostics_convergence;
 pub mod publish_launch_language_conformance_packs_truth_packet;
 pub mod python;
 pub mod python_daily_driver_quality_truth_packet;
@@ -416,6 +417,20 @@ pub use provider_arbitration::{
     PROVIDER_ARBITRATION_PROOF_REPORT_ARTIFACT_REF, PROVIDER_ARBITRATION_PROOF_REPORT_RECORD_KIND,
     PROVIDER_HEALTH_STATE_RECORD_KIND, PROVIDER_HEALTH_STATE_SCHEMA_REF,
     PROVIDER_HEALTH_STATE_SCHEMA_VERSION,
+};
+pub use provider_arbitration_diagnostics_convergence::{
+    current_diagnostics_convergence_corpus, current_diagnostics_convergence_fixture_refs,
+    current_diagnostics_convergence_packet, load_convergence_cluster, BatchFixScopeClass,
+    ConvergedDiagnosticCluster, ConvergenceAggregateCounts, ConvergenceDisplayStateClass,
+    ConvergenceInspector, ConvergencePacketAggregateCounts, ConvergenceValidationDefect,
+    ConvergenceValidationReport, ProviderArbitrationDiagnosticsConvergencePacket,
+    ProviderArbitrationDiagnosticsConvergenceSchemaVersion, ProviderClaimRow, QuickFixSafetyClass,
+    SeverityConvergenceClass, SuppressionClass, CONVERGED_DIAGNOSTIC_CLUSTER_RECORD_KIND,
+    CONVERGENCE_PACKET_RECORD_KIND, PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_ARTIFACT_REF,
+    PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_CORPUS_DIR,
+    PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_DOC_REF,
+    PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_REF,
+    PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_VERSION,
 };
 pub use publish_launch_language_conformance_packs_truth_packet::{
     current_stable_publish_launch_language_conformance_packs_truth_packet,

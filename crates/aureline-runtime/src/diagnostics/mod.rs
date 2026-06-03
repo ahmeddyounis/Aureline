@@ -1611,6 +1611,60 @@ pub enum DiagnosticPlaneViolation {
     AiEvidenceIncludesRawContent,
 }
 
+impl UnifiedDiagnosticCluster {
+    /// Builds a runtime unified cluster from a language converged diagnostic cluster
+    /// and the canonical diagnostic records that back its provider claims.
+    ///
+    /// This projection preserves source-kind diversity, freshness diversity, and remap
+    /// state diversity so that compact surfaces do not flatten multi-provider truth
+    /// into one anonymous row.
+    pub fn from_converged_cluster(
+        cluster: &aureline_language::ConvergedDiagnosticCluster,
+        records: &[DiagnosticRecord],
+    ) -> Self {
+        let preserved_source_kinds = records
+            .iter()
+            .map(|record| record.source.source_kind)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let preserved_freshness_classes = records
+            .iter()
+            .map(|record| record.freshness_class)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let preserved_remap_states = records
+            .iter()
+            .map(|record| record.anchor_remap.remap_state_class)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let disclosure_required = records.iter().any(DiagnosticRecord::requires_disclosure)
+            || cluster.requires_degraded_disclosure();
+
+        Self {
+            record_kind: UNIFIED_DIAGNOSTIC_CLUSTER_RECORD_KIND.to_owned(),
+            diagnostic_record_schema_version: UNIFIED_DIAGNOSTIC_SCHEMA_VERSION,
+            cluster_id: cluster.cluster_id.clone(),
+            primary_diagnostic_id: cluster.primary_diagnostic_ref.clone(),
+            contributing_diagnostic_ids: records
+                .iter()
+                .map(|record| record.diagnostic_id.clone())
+                .collect(),
+            dedupe_reason_ref: format!(
+                "converged:{}:{:?}",
+                cluster.cluster_id, cluster.convergence_outcome_class
+            ),
+            preserved_source_kinds,
+            preserved_freshness_classes,
+            preserved_remap_states,
+            disclosure_required,
+            export_safe_summary: cluster.export_safe_summary.clone(),
+        }
+    }
+}
+
 fn sanitize_id(value: &str) -> String {
     value
         .chars()
