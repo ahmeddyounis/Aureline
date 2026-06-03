@@ -200,6 +200,7 @@ pub mod stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded;
 pub mod stabilize_support_bundle_generation_with_redaction_default_manifests;
 pub mod stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows;
 pub mod storage_inspector;
+pub mod supervised_restart_evidence_pipeline;
 
 pub use export_review::{
     current_escalation_packet_reviews, load_profile_corpus, load_reopen_corpus,
@@ -228,4 +229,17 @@ pub use route_exposure_beta::{
     ROUTE_EXPOSURE_MATRIX_PATH, ROUTE_EXPOSURE_MATRIX_RECORD_KIND,
     ROUTE_EXPOSURE_MATRIX_SCHEMA_PATH, ROUTE_EXPOSURE_MATRIX_SCHEMA_VERSION,
     ROUTE_EXPOSURE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use supervised_restart_evidence_pipeline::{
+    seeded_supervised_restart_evidence_packet, FaultDomainRestartSummary, HostLaneIdentityRecord,
+    NoRerunPolicyClass, NoRerunPolicyRecord, RestartBudgetToken, RestartDomainClass,
+    RestartLineageEntry, RestartTriggerClass, SupervisedRestartDecisionClass,
+    SupervisedRestartEvidencePacket, SupervisedRestartReviewDecision,
+    SupervisedRestartViolation, FAULT_DOMAIN_RESTART_SUMMARY_RECORD_KIND,
+    HOST_LANE_IDENTITY_RECORD_KIND, NO_RERUN_POLICY_RECORD_KIND,
+    RESTART_LINEAGE_ENTRY_RECORD_KIND, SUPERVISED_RESTART_EVIDENCE_PACKET_RECORD_KIND,
+    SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF,
+    SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF,
+    SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_VERSION,
+    SUPERVISED_RESTART_REVIEW_DECISION_RECORD_KIND,
 };
