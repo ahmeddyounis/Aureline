@@ -48,8 +48,7 @@ fn load_flows() -> Vec<HardenedRecoveryFlowRecord> {
             let path = fixture_dir().join(file);
             let yaml =
                 std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
-            load_hardened_recovery_flow(&yaml)
-                .unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
+            load_hardened_recovery_flow(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
         })
         .collect()
 }
@@ -149,7 +148,10 @@ fn cache_rebuild_flow_binds_to_cache_index_repair_with_regenerate_or_exact() {
         .validate_flow(cache_rebuild)
         .unwrap_or_else(|err| panic!("{} failed: {err:?}", cache_rebuild.flow_id));
 
-    assert_eq!(cache_rebuild.rung_class, RecoveryRungClass::CacheIndexRepair);
+    assert_eq!(
+        cache_rebuild.rung_class,
+        RecoveryRungClass::CacheIndexRepair
+    );
     assert_eq!(
         cache_rebuild.blast_radius_class,
         HardenedRecoveryBlastRadiusClass::SingleDisposableStateClass
@@ -177,7 +179,10 @@ fn settings_repair_flow_binds_to_settings_repair_with_durable_checkpoint() {
         .validate_flow(settings_repair)
         .unwrap_or_else(|err| panic!("{} failed: {err:?}", settings_repair.flow_id));
 
-    assert_eq!(settings_repair.rung_class, RecoveryRungClass::SettingsRepair);
+    assert_eq!(
+        settings_repair.rung_class,
+        RecoveryRungClass::SettingsRepair
+    );
     assert_eq!(
         settings_repair.checkpoint_class,
         HardenedRecoveryCheckpointClass::DurablePreApply
@@ -339,7 +344,8 @@ fn evaluator_refuses_targeted_reset_with_two_impacted_states() {
         .find(|f| f.flow_id == "hardened_recovery_flow:targeted_reset.alpha_v1")
         .expect("targeted_reset flow present");
 
-    flow.impacted_state_classes.push(HardenedRecoveryImpactedStateClass::WatcherBacklogState);
+    flow.impacted_state_classes
+        .push(HardenedRecoveryImpactedStateClass::WatcherBacklogState);
 
     let evaluator = HardenedRecoveryFlowEvaluator::new();
     let err = evaluator.validate_flow(&flow).expect_err("should fail");

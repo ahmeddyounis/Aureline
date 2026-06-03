@@ -764,7 +764,8 @@ fn evaluate_flow(flow: &HardenedRecoveryFlowRecord) -> Vec<HardenedRecoveryFlowV
                     "targeted_reset must bind to TargetedReset rung",
                 );
             }
-            if flow.blast_radius_class != HardenedRecoveryBlastRadiusClass::SingleDisposableStateClass
+            if flow.blast_radius_class
+                != HardenedRecoveryBlastRadiusClass::SingleDisposableStateClass
             {
                 push_violation(
                     &mut violations,

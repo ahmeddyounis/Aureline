@@ -90,7 +90,10 @@ fn every_scenario_pins_repo_relative_doc_schema_crate_and_test_refs_that_exist()
     let root = repo_root();
     for entry in &corpus.entries {
         let scenario = &entry.scenario;
-        assert_eq!(scenario.record_kind, STABILIZED_SUPPORT_SCENARIO_RECORD_KIND);
+        assert_eq!(
+            scenario.record_kind,
+            STABILIZED_SUPPORT_SCENARIO_RECORD_KIND
+        );
         let refs = &scenario.consumer_refs;
         assert!(
             root.join(&refs.doc_ref).is_file(),
@@ -169,15 +172,9 @@ fn every_scenario_declares_export_support_packet_step_and_downgrade_baseline() {
 #[test]
 fn report_projects_one_metadata_safe_row_per_scenario() {
     let corpus = current_stabilized_scenario_corpus().expect("corpus parses");
-    let report = corpus.report(
-        "m4.stabilized_scenario_report.v1",
-        "2026-06-02T00:00:00Z",
-    );
+    let report = corpus.report("m4.stabilized_scenario_report.v1", "2026-06-02T00:00:00Z");
     assert_eq!(report.record_kind, STABILIZED_SCENARIO_REPORT_RECORD_KIND);
-    assert_eq!(
-        report.rows.len(),
-        LaunchArchetypeClass::REQUIRED.len()
-    );
+    assert_eq!(report.rows.len(), LaunchArchetypeClass::REQUIRED.len());
     assert!(report.is_export_safe());
     assert_eq!(report.corpus_doc_ref, STABILIZED_SCENARIO_DOC_REF);
     assert_eq!(report.corpus_schema_ref, STABILIZED_SCENARIO_SCHEMA_REF);
@@ -330,9 +327,9 @@ emitted_at: 2026-06-02T00:00:00Z
 #[test]
 fn validate_refuses_a_corpus_missing_a_required_archetype() {
     let mut corpus = current_stabilized_scenario_corpus().expect("corpus parses");
-    corpus
-        .entries
-        .retain(|entry| entry.scenario.launch_archetype_class != LaunchArchetypeClass::CrashRecovery);
+    corpus.entries.retain(|entry| {
+        entry.scenario.launch_archetype_class != LaunchArchetypeClass::CrashRecovery
+    });
     let violations = corpus.validate();
     assert!(violations
         .iter()
@@ -343,14 +340,13 @@ fn validate_refuses_a_corpus_missing_a_required_archetype() {
 #[test]
 fn validate_refuses_a_corpus_missing_a_required_network_row() {
     let mut corpus = current_stabilized_scenario_corpus().expect("corpus parses");
-    corpus
-        .entries
-        .retain(|entry| entry.scenario.enterprise_network_row_class != EnterpriseNetworkRowClass::AirGapped);
+    corpus.entries.retain(|entry| {
+        entry.scenario.enterprise_network_row_class != EnterpriseNetworkRowClass::AirGapped
+    });
     let violations = corpus.validate();
-    assert!(violations
-        .iter()
-        .any(|v| v.check_id == "corpus.required_network_row_missing"
-            && v.target_ref == "air_gapped"));
+    assert!(violations.iter().any(
+        |v| v.check_id == "corpus.required_network_row_missing" && v.target_ref == "air_gapped"
+    ));
 }
 
 #[test]
@@ -435,7 +431,11 @@ fn every_scenario_preserves_user_authored_files() {
             scenario.scenario_id
         );
         assert!(
-            scenario.safety.no_touch_boundary_set.iter().any(|b| b == "user_authored_files"),
+            scenario
+                .safety
+                .no_touch_boundary_set
+                .iter()
+                .any(|b| b == "user_authored_files"),
             "{} no_touch_boundary_set must contain user_authored_files",
             scenario.scenario_id
         );

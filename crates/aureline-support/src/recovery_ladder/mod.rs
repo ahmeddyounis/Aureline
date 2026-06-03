@@ -1132,15 +1132,11 @@ fn validate_scenario(scenario: &RecoveryLadderScenario) -> Vec<RecoveryLadderVio
         RecoveryRungClass::CacheIndexRepair => {
             validate_cache_index_repair(scenario, &mut violations)
         }
-        RecoveryRungClass::SettingsRepair => {
-            validate_settings_repair(scenario, &mut violations)
-        }
+        RecoveryRungClass::SettingsRepair => validate_settings_repair(scenario, &mut violations),
         RecoveryRungClass::StateMigrationRepair => {
             validate_state_migration_repair(scenario, &mut violations)
         }
-        RecoveryRungClass::TargetedReset => {
-            validate_targeted_reset(scenario, &mut violations)
-        }
+        RecoveryRungClass::TargetedReset => validate_targeted_reset(scenario, &mut violations),
     }
 
     violations
@@ -1378,7 +1374,11 @@ fn validate_state_migration_repair(
             "state-migration repair must target a state-migration lane",
         );
     }
-    require_change(scenario, violations, RecoveryChangeClass::RepairStateMigration);
+    require_change(
+        scenario,
+        violations,
+        RecoveryChangeClass::RepairStateMigration,
+    );
     if !scenario
         .mutation
         .preserved_state_classes
@@ -1417,7 +1417,11 @@ fn validate_targeted_reset(
             "targeted reset must target a targeted-reset lane",
         );
     }
-    require_change(scenario, violations, RecoveryChangeClass::ResetTargetedDisposableState);
+    require_change(
+        scenario,
+        violations,
+        RecoveryChangeClass::ResetTargetedDisposableState,
+    );
     if scenario.mutation.changes.len() > 1 {
         push_violation(
             violations,

@@ -658,7 +658,12 @@ impl StabilizedScenarioReportRow {
                 .iter()
                 .map(|step| step.expected_artifact_kind.clone())
                 .collect::<Vec<_>>();
-            kinds.push(scenario.expected_first_actionable_artifact.artifact_kind.clone());
+            kinds.push(
+                scenario
+                    .expected_first_actionable_artifact
+                    .artifact_kind
+                    .clone(),
+            );
             kinds.sort();
             kinds.dedup();
             kinds
@@ -704,7 +709,9 @@ impl StabilizedScenarioReportRow {
             scorecard_target: scenario.scorecard_contribution.scorecard_target.clone(),
             coverage_class: scenario.scorecard_contribution.coverage_class.clone(),
             expected_state: scenario.scorecard_contribution.expected_state.clone(),
-            contributes_to_release_gate: scenario.scorecard_contribution.contributes_to_release_gate,
+            contributes_to_release_gate: scenario
+                .scorecard_contribution
+                .contributes_to_release_gate,
             downgrade_trigger_classes,
             claim_state_classes,
             doc_ref: scenario.consumer_refs.doc_ref.clone(),
@@ -904,12 +911,20 @@ impl StabilizedScenarioEvaluator {
                     .iter()
                     .map(|s| s.expected_artifact_kind.clone())
                     .collect::<Vec<_>>();
-                kinds.push(scenario.expected_first_actionable_artifact.artifact_kind.clone());
+                kinds.push(
+                    scenario
+                        .expected_first_actionable_artifact
+                        .artifact_kind
+                        .clone(),
+                );
                 kinds.sort();
                 kinds.dedup();
                 kinds
             },
-            recovery_action_class: scenario.expected_first_actionable_artifact.recovery_action_class.clone(),
+            recovery_action_class: scenario
+                .expected_first_actionable_artifact
+                .recovery_action_class
+                .clone(),
             scorecard_target: scenario.scorecard_contribution.scorecard_target.clone(),
             coverage_class: scenario.scorecard_contribution.coverage_class.clone(),
             expected_state: scenario.scorecard_contribution.expected_state.clone(),
@@ -948,7 +963,11 @@ pub struct StabilizedScenarioValidationReport {
 
 impl fmt::Display for StabilizedScenarioValidationReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} stabilized scenario violation(s)", self.violations.len())
+        write!(
+            f,
+            "{} stabilized scenario violation(s)",
+            self.violations.len()
+        )
     }
 }
 
@@ -1073,7 +1092,12 @@ fn validate_scenario(
             );
         }
     }
-    if scenario.expected_first_actionable_artifact.artifact_ref.trim().is_empty() {
+    if scenario
+        .expected_first_actionable_artifact
+        .artifact_ref
+        .trim()
+        .is_empty()
+    {
         push_violation(
             violations,
             "scenario.first_actionable_artifact_ref_empty",
@@ -1081,7 +1105,12 @@ fn validate_scenario(
             "expected_first_actionable_artifact.artifact_ref must be non-empty",
         );
     }
-    if scenario.expected_first_actionable_artifact.recovery_action_class.trim().is_empty() {
+    if scenario
+        .expected_first_actionable_artifact
+        .recovery_action_class
+        .trim()
+        .is_empty()
+    {
         push_violation(
             violations,
             "scenario.recovery_action_class_empty",
@@ -1097,7 +1126,12 @@ fn validate_scenario(
             "primary_fixture_refs must not be empty",
         );
     }
-    if scenario.scorecard_contribution.scorecard_target.trim().is_empty() {
+    if scenario
+        .scorecard_contribution
+        .scorecard_target
+        .trim()
+        .is_empty()
+    {
         push_violation(
             violations,
             "scenario.scorecard_target_empty",

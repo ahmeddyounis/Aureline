@@ -209,6 +209,7 @@ pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbo
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
+pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
@@ -391,6 +392,14 @@ pub use open_paid_boundary_audit::{
     AuditRule, AuditState, OpenPaidBoundaryAudit, OpenPaidBoundaryAuditSummary,
     OpenPaidBoundaryAuditViolation, OPEN_PAID_BOUNDARY_AUDIT_JSON, OPEN_PAID_BOUNDARY_AUDIT_PATH,
     OPEN_PAID_BOUNDARY_AUDIT_RECORD_KIND, OPEN_PAID_BOUNDARY_AUDIT_SCHEMA_VERSION,
+};
+
+pub use publish_the_signed_m4_stable_evidence_pack_plus::{
+    current_signed_m4_stable_evidence_pack, BundleAction, BundleExportProjection, BundleExportRow,
+    BundleGapReason, BundleRule, BundleState, EvidenceBundleKind, EvidenceBundleRow,
+    SignedM4StableEvidencePack, SignedM4StableEvidencePackViolation,
+    SIGNED_M4_STABLE_EVIDENCE_PACK_JSON, SIGNED_M4_STABLE_EVIDENCE_PACK_PATH,
+    SIGNED_M4_STABLE_EVIDENCE_PACK_RECORD_KIND, SIGNED_M4_STABLE_EVIDENCE_PACK_SCHEMA_VERSION,
 };
 
 pub use optional_surface_qualification::{
