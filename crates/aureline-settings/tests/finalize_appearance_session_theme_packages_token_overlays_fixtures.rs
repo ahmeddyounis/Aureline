@@ -43,8 +43,8 @@ use std::collections::BTreeSet;
 
 use aureline_settings::finalize_appearance_session_theme_packages_token_overlays::{
     appearance_session_finalization_corpus, is_canonical_object_ref,
-    AppearanceSessionFinalizationCertification, LayoutMode, LiveApplyClass,
-    OverlayScopeClass, ProvenanceDimensionClass, RouteSurface, StableClaimClass,
+    AppearanceSessionFinalizationCertification, LayoutMode, LiveApplyClass, OverlayScopeClass,
+    ProvenanceDimensionClass, RouteSurface, StableClaimClass,
     APPEARANCE_SESSION_FINALIZATION_RECORD_KIND,
     APPEARANCE_SESSION_FINALIZATION_SHARED_CONTRACT_REF,
 };
@@ -134,20 +134,17 @@ fn every_theme_package_is_versioned_and_declares_provenance() {
             assert!(
                 row.manifest_versioned,
                 "{} package {} must be versioned",
-                scenario.scenario_id,
-                row.package_ref
+                scenario.scenario_id, row.package_ref
             );
             assert!(
                 row.provenance_declared,
                 "{} package {} must declare provenance",
-                scenario.scenario_id,
-                row.package_ref
+                scenario.scenario_id, row.package_ref
             );
             assert!(
                 row.trust_severity_semantics_preserved,
                 "{} package {} must preserve trust/severity semantics",
-                scenario.scenario_id,
-                row.package_ref
+                scenario.scenario_id, row.package_ref
             );
             assert!(
                 !row.supported_theme_classes.is_empty(),
@@ -184,18 +181,15 @@ fn appearance_session_summaries_are_exportable_and_cite_one_package() {
             assert!(
                 row.summary_exportable,
                 "{} session {} must be exportable",
-                scenario.scenario_id,
-                row.appearance_session_id
+                scenario.scenario_id, row.appearance_session_id
             );
             assert!(
                 row.cites_one_package_source,
                 "{} session {} must cite one package source",
-                scenario.scenario_id,
-                row.appearance_session_id
+                scenario.scenario_id, row.appearance_session_id
             );
             assert_eq!(
-                row.appearance_session_id,
-                record.appearance_session.appearance_session_id,
+                row.appearance_session_id, record.appearance_session.appearance_session_id,
                 "{} session must cite the binding session",
                 scenario.scenario_id
             );
@@ -244,20 +238,17 @@ fn imported_theme_reports_are_honest_and_block_overclaim() {
             assert!(
                 row.syntax_coverage_reported,
                 "{} import {} must report syntax coverage",
-                scenario.scenario_id,
-                row.report_ref
+                scenario.scenario_id, row.report_ref
             );
             assert!(
                 row.parity_notes_visible,
                 "{} import {} must show parity notes",
-                scenario.scenario_id,
-                row.report_ref
+                scenario.scenario_id, row.report_ref
             );
             assert!(
                 row.fallback_behavior_documented,
                 "{} import {} must document fallback behavior",
-                scenario.scenario_id,
-                row.report_ref
+                scenario.scenario_id, row.report_ref
             );
         }
     }
@@ -280,7 +271,9 @@ fn extension_gaps_are_visible_or_inheritance_is_full() {
                 && row.reduced_motion_inheritance.inherits_fully();
             if !all_inherit {
                 assert!(
-                    row.gap_visible_in_product && row.gap_visible_in_export && row.gap_visible_in_diagnostics,
+                    row.gap_visible_in_product
+                        && row.gap_visible_in_export
+                        && row.gap_visible_in_diagnostics,
                     "{} extension {} gap must be visible in product, export, and diagnostics",
                     scenario.scenario_id,
                     row.surface_id

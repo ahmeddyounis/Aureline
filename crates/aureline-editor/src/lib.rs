@@ -110,6 +110,7 @@ pub use save_fidelity_lineage::{
     SourceFidelitySummary, SAVE_FIDELITY_LINEAGE_RECORD_KIND, SAVE_FIDELITY_LINEAGE_SCHEMA_REF,
     SAVE_FIDELITY_LINEAGE_SCHEMA_VERSION,
 };
+pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use stabilize_modal_editing_leader_register_safety::{
     modal_editing_safety_corpus, BuildError, KeymapImportOutcomeClass,
     KeymapImportRegressionRecord, ModalEditingSafetyInput, ModalEditingSafetyPacket,
@@ -121,13 +122,12 @@ pub use stabilize_modal_editing_leader_register_safety::{
 pub use stabilize_orientation_aids_breadcrumbs_folds_minimap::{
     orientation_aids_stability_corpus, BuildError as OrientationAidsBuildError,
     OrientationAidsStabilityInput, OrientationAidsStabilityPacket,
-    OrientationAidsStabilityScenario, ORIENTATION_AID_FILE_SWITCH_BUDGET_MICROS,
-    ORIENTATION_AID_LATENCY_BUDGET_MICROS, ORIENTATION_AID_SCROLL_BUDGET_MICROS,
-    ORIENTATION_AID_TYPING_BUDGET_MICROS, ORIENTATION_AIDS_STABILITY_CORPUS_AS_OF,
+    OrientationAidsStabilityScenario, ORIENTATION_AIDS_STABILITY_CORPUS_AS_OF,
     ORIENTATION_AIDS_STABILITY_PACKET_RECORD_KIND, ORIENTATION_AIDS_STABILITY_SCHEMA_REF,
-    ORIENTATION_AIDS_STABILITY_SCHEMA_VERSION,
+    ORIENTATION_AIDS_STABILITY_SCHEMA_VERSION, ORIENTATION_AID_FILE_SWITCH_BUDGET_MICROS,
+    ORIENTATION_AID_LATENCY_BUDGET_MICROS, ORIENTATION_AID_SCROLL_BUDGET_MICROS,
+    ORIENTATION_AID_TYPING_BUDGET_MICROS,
 };
-pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use undo::UndoGroupSummary;
 pub use viewport::{
     CaretMove, EditorAction, EditorViewport, EditorViewportSnapshot, ImeComposition,

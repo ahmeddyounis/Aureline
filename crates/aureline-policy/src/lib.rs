@@ -12,6 +12,7 @@
 
 pub mod authority;
 pub mod finalize_backup_restore_failover_and_local_core_continuity;
+pub mod finalize_managed_workspace_lifecycle_truth;
 pub mod finalize_open_vs_paid_boundary_and_offboarding;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
@@ -235,6 +236,30 @@ pub use stabilize_approval_ticket_audit_and_target_identity_lineage::{
     STABILIZE_APPROVAL_TICKET_PAGE_RECORD_KIND, STABILIZE_APPROVAL_TICKET_ROW_RECORD_KIND,
     STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION, STABILIZE_APPROVAL_TICKET_SHARED_CONTRACT_REF,
     STABILIZE_APPROVAL_TICKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use finalize_managed_workspace_lifecycle_truth::{
+    audit_finalize_managed_workspace_lifecycle_truth_page,
+    seeded_finalize_managed_workspace_lifecycle_truth_page,
+    seeded_managed_workspace_lifecycle_input,
+    validate_finalize_managed_workspace_lifecycle_truth_page,
+    FinalizeManagedWorkspaceLifecycleNarrowReasonClass,
+    FinalizeManagedWorkspaceLifecycleQualificationClass,
+    FinalizeManagedWorkspaceLifecycleTruthDefect, FinalizeManagedWorkspaceLifecycleTruthPage,
+    FinalizeManagedWorkspaceLifecycleTruthRow, FinalizeManagedWorkspaceLifecycleTruthSummary,
+    FinalizeManagedWorkspaceLifecycleTruthSupportExport, ManagedDestructiveOperationClass,
+    ManagedFallbackPathClass, ManagedJoinModeClass, ManagedPersistenceClass,
+    ManagedProvisioningEvent, ManagedProvisioningStateClass, ManagedRebuildPlan,
+    ManagedSecretModelClass, ManagedShareHandoffToken, ManagedSuspendResumeCheckpoint,
+    ManagedWorkspaceDescriptor, ManagedWorkspaceLifecycleInputRow,
+    ManagedWorkspaceLifecycleTruthInput, FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_ARTIFACT_REF,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_DEFECT_RECORD_KIND,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_DOC_REF,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_PAGE_RECORD_KIND,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_ROW_RECORD_KIND,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SCHEMA_VERSION,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SHARED_CONTRACT_REF,
+    FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use finalize_open_vs_paid_boundary_and_offboarding::{

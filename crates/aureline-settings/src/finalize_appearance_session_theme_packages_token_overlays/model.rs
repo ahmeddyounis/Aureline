@@ -2012,9 +2012,7 @@ impl CertificationRecoveryAction {
     pub const fn role(self) -> RecoveryActionRole {
         match self {
             Self::OpenAppearanceSettings => RecoveryActionRole::Primary,
-            Self::InspectThemePackages | Self::InspectTokenOverlays => {
-                RecoveryActionRole::Recovery
-            }
+            Self::InspectThemePackages | Self::InspectTokenOverlays => RecoveryActionRole::Recovery,
             Self::ExportAppearanceSupport => RecoveryActionRole::Secondary,
         }
     }

@@ -20,9 +20,7 @@ use crate::orientation_aids::{
     OrientationSurfaceClass,
 };
 
-use super::model::{
-    OrientationAidsStabilityInput, OrientationAidsStabilityPacket,
-};
+use super::model::{OrientationAidsStabilityInput, OrientationAidsStabilityPacket};
 
 /// Snapshot timestamp pinned for every record in the corpus.
 pub const ORIENTATION_AIDS_STABILITY_CORPUS_AS_OF: &str = "2026-06-03T00:00:00Z";

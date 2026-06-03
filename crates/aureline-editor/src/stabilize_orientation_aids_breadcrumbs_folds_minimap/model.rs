@@ -25,8 +25,7 @@ pub const ORIENTATION_AIDS_STABILITY_SCHEMA_REF: &str =
     "schemas/editor/orientation_aid_state.schema.json";
 
 /// Stable record-kind tag for [`OrientationAidsStabilityPacket`].
-pub const ORIENTATION_AIDS_STABILITY_PACKET_RECORD_KIND: &str =
-    "orientation_aids_stability_packet";
+pub const ORIENTATION_AIDS_STABILITY_PACKET_RECORD_KIND: &str = "orientation_aids_stability_packet";
 
 /// Latency budget in microseconds for orientation-aid rendering on claimed stable rows.
 pub const ORIENTATION_AID_LATENCY_BUDGET_MICROS: u64 = 1_000;
@@ -254,10 +253,7 @@ impl OrientationAidsStabilityPacket {
     pub fn support_export_lines(&self) -> Vec<String> {
         let state = &self.orientation_aid_state;
         let mut lines = vec![
-            format!(
-                "orientation_aids_stability_packet: {}",
-                self.packet_id
-            ),
+            format!("orientation_aids_stability_packet: {}", self.packet_id),
             format!("schema_version: {}", self.schema_version),
             format!("schema_ref: {}", self.schema_ref),
             format!("surface_class: {}", state.surface_class.as_str()),
@@ -306,8 +302,7 @@ impl OrientationAidsStabilityPacket {
 
         lines.push(format!(
             "breadcrumb: {} -> {}",
-            state.breadcrumb.file_identity_ref,
-            state.breadcrumb.symbol_path_state
+            state.breadcrumb.file_identity_ref, state.breadcrumb.symbol_path_state
         ));
         lines.push(format!(
             "  back_forward_preserved: {}",

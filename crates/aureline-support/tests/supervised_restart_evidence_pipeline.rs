@@ -3,11 +3,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_support::{
-    seeded_fault_domain_view_packet, seeded_supervised_restart_evidence_packet,
-    RestartDomainClass, SupervisedRestartEvidencePacket,
-    SUPERVISED_RESTART_EVIDENCE_PACKET_RECORD_KIND,
-    SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF,
-    SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF,
+    seeded_fault_domain_view_packet, seeded_supervised_restart_evidence_packet, RestartDomainClass,
+    SupervisedRestartEvidencePacket, SUPERVISED_RESTART_EVIDENCE_PACKET_RECORD_KIND,
+    SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF, SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF,
     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_VERSION,
 };
 
@@ -77,8 +75,7 @@ fn non_mutating_lanes_may_rehydrate_safely_while_mutating_lanes_require_review()
             assert!(
                 policy.forbids_silent_rerun,
                 "mutating or externally routed lane {} must forbid silent rerun (policy={})",
-                lane.host_lane_ref,
-                policy.policy_token
+                lane.host_lane_ref, policy.policy_token
             );
         }
     }
@@ -206,8 +203,7 @@ fn validation_rejects_review_required_decision_that_claims_current() {
 fn packet_round_trips_through_json() {
     let packet = seeded_supervised_restart_evidence_packet();
     let json = serde_json::to_string(&packet).expect("serialize");
-    let round: SupervisedRestartEvidencePacket =
-        serde_json::from_str(&json).expect("deserialize");
+    let round: SupervisedRestartEvidencePacket = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(round, packet);
 }
 
@@ -233,13 +229,10 @@ fn domain_summary_counts_are_consistent_with_lane_state() {
             .host_lane_identities
             .iter()
             .filter(|lane| {
-                packet
-                    .lineage_entries
-                    .iter()
-                    .any(|entry| {
-                        entry.host_lane_ref == lane.host_lane_ref
-                            && entry.domain_token == summary.domain_token
-                    })
+                packet.lineage_entries.iter().any(|entry| {
+                    entry.host_lane_ref == lane.host_lane_ref
+                        && entry.domain_token == summary.domain_token
+                })
             })
             .collect();
 

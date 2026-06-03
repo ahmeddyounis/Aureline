@@ -10,9 +10,7 @@
 
 use std::path::PathBuf;
 
-use aureline_editor::{
-    modal_editing_safety_corpus, MODAL_EDITING_SAFETY_CORPUS_AS_OF,
-};
+use aureline_editor::{modal_editing_safety_corpus, MODAL_EDITING_SAFETY_CORPUS_AS_OF};
 
 fn main() {
     let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,8 +18,8 @@ fn main() {
         .join("..")
         .canonicalize()
         .expect("repo root must resolve");
-    let fixture_dir = repo_root
-        .join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
+    let fixture_dir =
+        repo_root.join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
     std::fs::create_dir_all(&fixture_dir).unwrap_or_else(|err| {
         eprintln!("failed to create fixture dir {fixture_dir:?}: {err}");
         std::process::exit(2);
@@ -69,5 +67,8 @@ fn main() {
     println!("wrote manifest -> {}", manifest_path.display());
     written += 1;
 
-    println!("done: {written} files written under {}", fixture_dir.display());
+    println!(
+        "done: {written} files written under {}",
+        fixture_dir.display()
+    );
 }

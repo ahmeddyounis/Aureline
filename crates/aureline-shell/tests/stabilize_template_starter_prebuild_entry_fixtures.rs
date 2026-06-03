@@ -107,7 +107,8 @@ fn every_bypass_path_is_equal_weight() {
         let record = load_record(scenario.fixture_filename);
         for path in &record.bypass_paths {
             assert_eq!(
-                path.bypass_continuity_class, "equal_weight_with_apply",
+                path.bypass_continuity_class,
+                "equal_weight_with_apply",
                 "{}: bypass path {} must be equal_weight_with_apply",
                 scenario.scenario_id,
                 path.path_class.as_str()
@@ -140,7 +141,9 @@ fn local_only_runtime_does_not_require_remote_or_managed() {
         if record.runtime_review.runtime_scope_class == RuntimeScopeClass::LocalOnly {
             assert!(
                 matches!(
-                    record.side_effect_envelope.required_remote_provisioning_class,
+                    record
+                        .side_effect_envelope
+                        .required_remote_provisioning_class,
                     RemoteProvisioningClass::NoRemoteProvisioningRequired
                         | RemoteProvisioningClass::RemoteProvisioningUnknownRequiresReview
                 ),
@@ -190,7 +193,8 @@ fn prebuild_entries_declare_freshness() {
         let record = load_record(scenario.fixture_filename);
         if record.accelerator_identity.entry_kind == EntryKind::Prebuild {
             assert!(
-                record.freshness_review.freshness_class != FreshnessClass::UnknownRequiresRevalidation,
+                record.freshness_review.freshness_class
+                    != FreshnessClass::UnknownRequiresRevalidation,
                 "{}: prebuild must declare freshness",
                 scenario.scenario_id
             );

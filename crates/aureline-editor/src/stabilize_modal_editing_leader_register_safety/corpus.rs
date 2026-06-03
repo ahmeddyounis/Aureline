@@ -220,8 +220,7 @@ fn restricted_mode_downgrade() -> ModalEditingSafetyScenario {
                 "Trust the workspace through the trust gate to restore full modal fidelity."
                     .to_string(),
             accessibility_announcement:
-                "Restricted mode disables run-capable commands and macro replay."
-                    .to_string(),
+                "Restricted mode disables run-capable commands and macro replay.".to_string(),
         }],
         import_regressions: Vec::new(),
         support_export_refs: vec![SUPPORT_EXPORT_REF.to_string()],

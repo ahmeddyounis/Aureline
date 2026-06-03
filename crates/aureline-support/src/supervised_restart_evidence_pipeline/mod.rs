@@ -64,8 +64,7 @@ pub const SUPERVISED_RESTART_REVIEW_DECISION_RECORD_KIND: &str =
 pub const NO_RERUN_POLICY_RECORD_KIND: &str = "no_rerun_policy_record";
 
 /// Stable record-kind tag for one fault-domain restart summary.
-pub const FAULT_DOMAIN_RESTART_SUMMARY_RECORD_KIND: &str =
-    "fault_domain_restart_summary_record";
+pub const FAULT_DOMAIN_RESTART_SUMMARY_RECORD_KIND: &str = "fault_domain_restart_summary_record";
 
 /// Repo-relative path of the boundary schema this module mirrors.
 pub const SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF: &str =
@@ -93,7 +92,13 @@ pub enum RestartDomainClass {
 
 impl RestartDomainClass {
     /// All restart domain classes in canonical order.
-    pub const ALL: [Self; 5] = [Self::Local, Self::Remote, Self::Extension, Self::Debug, Self::Notebook];
+    pub const ALL: [Self; 5] = [
+        Self::Local,
+        Self::Remote,
+        Self::Extension,
+        Self::Debug,
+        Self::Notebook,
+    ];
 
     /// Stable snake-case token.
     pub const fn as_str(self) -> &'static str {
@@ -235,7 +240,10 @@ impl SupervisedRestartDecisionClass {
     pub const fn requires_explicit_review(self) -> bool {
         matches!(
             self,
-            Self::ReviewRequired | Self::ReapprovalRequired | Self::RerunRequired | Self::BlockedManualRepair
+            Self::ReviewRequired
+                | Self::ReapprovalRequired
+                | Self::RerunRequired
+                | Self::BlockedManualRepair
         )
     }
 }
@@ -542,7 +550,8 @@ impl SupervisedRestartEvidencePacket {
             *domain_quarantine_counts.entry(domain).or_insert(0) += if quarantined { 1 } else { 0 };
             *domain_review_counts.entry(domain).or_insert(0) += if review_required { 1 } else { 0 };
             *domain_mutating_counts.entry(domain).or_insert(0) += if can_mutate { 1 } else { 0 };
-            *domain_external_counts.entry(domain).or_insert(0) += if externally_routed { 1 } else { 0 };
+            *domain_external_counts.entry(domain).or_insert(0) +=
+                if externally_routed { 1 } else { 0 };
             let prev = domain_blocks_healthy.entry(domain).or_insert(false);
             *prev = *prev || blocks_healthy;
 
@@ -576,7 +585,10 @@ impl SupervisedRestartEvidencePacket {
             lineage_entries.push(RestartLineageEntry {
                 record_kind: RESTART_LINEAGE_ENTRY_RECORD_KIND.to_owned(),
                 schema_version: SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_VERSION,
-                entry_id: format!("lineage:{}:{}", row.host_lane_ref, fault_packet.generated_at),
+                entry_id: format!(
+                    "lineage:{}:{}",
+                    row.host_lane_ref, fault_packet.generated_at
+                ),
                 domain,
                 domain_token: domain.as_str().to_owned(),
                 host_lane_ref: row.host_lane_ref.clone(),
@@ -616,7 +628,10 @@ impl SupervisedRestartEvidencePacket {
             review_decisions.push(SupervisedRestartReviewDecision {
                 record_kind: SUPERVISED_RESTART_REVIEW_DECISION_RECORD_KIND.to_owned(),
                 schema_version: SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_VERSION,
-                decision_id: format!("decision:{}:{}", row.host_lane_ref, fault_packet.generated_at),
+                decision_id: format!(
+                    "decision:{}:{}",
+                    row.host_lane_ref, fault_packet.generated_at
+                ),
                 host_lane_ref: row.host_lane_ref.clone(),
                 decision,
                 decision_token: decision.as_str().to_owned(),
@@ -675,7 +690,10 @@ impl SupervisedRestartEvidencePacket {
                 quarantined_lane_count: domain_quarantine_counts.get(&domain).copied().unwrap_or(0),
                 review_required_lane_count: domain_review_counts.get(&domain).copied().unwrap_or(0),
                 mutating_lane_count: domain_mutating_counts.get(&domain).copied().unwrap_or(0),
-                externally_routed_lane_count: domain_external_counts.get(&domain).copied().unwrap_or(0),
+                externally_routed_lane_count: domain_external_counts
+                    .get(&domain)
+                    .copied()
+                    .unwrap_or(0),
                 blocks_healthy_claim: domain_blocks_healthy.get(&domain).copied().unwrap_or(false),
             });
         }
@@ -686,11 +704,16 @@ impl SupervisedRestartEvidencePacket {
             .iter()
             .filter(|d| d.explicit_review_required)
             .count() as u32;
-        let mutating_lane_count = host_lane_identities.iter().filter(|l| l.can_mutate).count() as u32;
-        let externally_routed_lane_count =
-            host_lane_identities.iter().filter(|l| l.externally_routed).count() as u32;
-        let quarantined_lane_count =
-            no_rerun_policies.iter().filter(|p| p.policy == NoRerunPolicyClass::BlockedUntilRepair).count() as u32;
+        let mutating_lane_count =
+            host_lane_identities.iter().filter(|l| l.can_mutate).count() as u32;
+        let externally_routed_lane_count = host_lane_identities
+            .iter()
+            .filter(|l| l.externally_routed)
+            .count() as u32;
+        let quarantined_lane_count = no_rerun_policies
+            .iter()
+            .filter(|p| p.policy == NoRerunPolicyClass::BlockedUntilRepair)
+            .count() as u32;
 
         Self {
             record_kind: SUPERVISED_RESTART_EVIDENCE_PACKET_RECORD_KIND.to_owned(),
@@ -829,7 +852,9 @@ impl SupervisedRestartEvidencePacket {
         out.push_str(&format!("Lanes: {}\n", self.host_lane_count));
         out.push_str(&format!(
             "Mutating: {} | External: {} | Quarantined: {}\n",
-            self.mutating_lane_count, self.externally_routed_lane_count, self.quarantined_lane_count
+            self.mutating_lane_count,
+            self.externally_routed_lane_count,
+            self.quarantined_lane_count
         ));
         out.push_str(&format!(
             "Review required: {}\n",
@@ -925,7 +950,9 @@ fn budget_state_from_token(token: &str) -> RestartBudgetToken {
 fn decision_class_from_token(token: &str) -> SupervisedRestartDecisionClass {
     match token {
         "current" => SupervisedRestartDecisionClass::Current,
-        "auto_reattached_stale_refresh" => SupervisedRestartDecisionClass::AutoReattachedStaleRefresh,
+        "auto_reattached_stale_refresh" => {
+            SupervisedRestartDecisionClass::AutoReattachedStaleRefresh
+        }
         "review_required" => SupervisedRestartDecisionClass::ReviewRequired,
         "reapproval_required" => SupervisedRestartDecisionClass::ReapprovalRequired,
         "rerun_required" => SupervisedRestartDecisionClass::RerunRequired,

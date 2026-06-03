@@ -357,9 +357,7 @@ impl NetworkEgressClass {
             Self::EgressToManagedWorkspaceEnvelopeOnly => {
                 "egress_to_managed_workspace_envelope_only"
             }
-            Self::EgressEnvelopeUnknownRequiresReview => {
-                "egress_envelope_unknown_requires_review"
-            }
+            Self::EgressEnvelopeUnknownRequiresReview => "egress_envelope_unknown_requires_review",
         }
     }
 }
@@ -452,7 +450,9 @@ impl ManagedServiceClass {
         match self {
             Self::NoManagedServiceRequired => "no_managed_service_required",
             Self::ManagedWorkspaceEnvelopeRequired => "managed_workspace_envelope_required",
-            Self::ManagedOnlyChannelInvocationRequired => "managed_only_channel_invocation_required",
+            Self::ManagedOnlyChannelInvocationRequired => {
+                "managed_only_channel_invocation_required"
+            }
             Self::ThirdPartyConnectedProviderRequired => "third_party_connected_provider_required",
             Self::FirstPartyManagedServiceRequired => "first_party_managed_service_required",
             Self::ManagedServiceClassUnknownRequiresReview => {
@@ -1031,7 +1031,9 @@ impl TemplateStarterPrebuildEntryRecord {
 
         // --- runtime consistency ---------------------------------------------
         let runtime = input.runtime_review.runtime_scope_class;
-        let remote = input.side_effect_envelope.required_remote_provisioning_class;
+        let remote = input
+            .side_effect_envelope
+            .required_remote_provisioning_class;
         let managed = input.side_effect_envelope.required_managed_service_class;
         let egress = input.side_effect_envelope.required_network_egress_class;
 
@@ -1105,7 +1107,8 @@ impl TemplateStarterPrebuildEntryRecord {
             }
         }
 
-        let honesty_marker_present = input.freshness_review.freshness_class != FreshnessClass::FreshUnderWindow
+        let honesty_marker_present = input.freshness_review.freshness_class
+            != FreshnessClass::FreshUnderWindow
             || input.trust_auth_boundaries.trust_posture_class != TrustPostureClass::Trusted
             || input.support_review.support_class != SupportClass::OfficiallySupported
             || input.failure_summary.is_some();
@@ -1328,7 +1331,8 @@ mod tests {
         SideEffectEnvelope {
             required_network_egress_class: NetworkEgressClass::NoNetworkEgressRequired,
             required_extension_install_class: ExtensionInstallClass::NoExtensionInstallRequired,
-            required_remote_provisioning_class: RemoteProvisioningClass::NoRemoteProvisioningRequired,
+            required_remote_provisioning_class:
+                RemoteProvisioningClass::NoRemoteProvisioningRequired,
             required_managed_service_class: ManagedServiceClass::NoManagedServiceRequired,
             required_credential_provisioning_class:
                 CredentialProvisioningClass::NoCredentialProvisioningRequired,
@@ -1402,8 +1406,14 @@ mod tests {
     #[test]
     fn minimal_input_builds() {
         let record = TemplateStarterPrebuildEntryRecord::build(minimal_input()).unwrap();
-        assert_eq!(record.record_kind, TEMPLATE_STARTER_PREBUILD_ENTRY_RECORD_KIND);
-        assert_eq!(record.schema_version, TEMPLATE_STARTER_PREBUILD_ENTRY_SCHEMA_VERSION);
+        assert_eq!(
+            record.record_kind,
+            TEMPLATE_STARTER_PREBUILD_ENTRY_RECORD_KIND
+        );
+        assert_eq!(
+            record.schema_version,
+            TEMPLATE_STARTER_PREBUILD_ENTRY_SCHEMA_VERSION
+        );
         // PendingEvaluation trust posture triggers the honesty marker, which is correct.
         assert!(record.honesty_marker_present);
     }
@@ -1421,7 +1431,10 @@ mod tests {
         let mut input = minimal_input();
         input.bypass_paths[0].bypass_continuity_class = "subordinate".to_string();
         let err = TemplateStarterPrebuildEntryRecord::build(input).unwrap_err();
-        assert!(matches!(err, BuildError::InvalidBypassContinuityClass { .. }));
+        assert!(matches!(
+            err,
+            BuildError::InvalidBypassContinuityClass { .. }
+        ));
     }
 
     #[test]
@@ -1435,7 +1448,9 @@ mod tests {
     #[test]
     fn local_only_cannot_require_remote() {
         let mut input = minimal_input();
-        input.side_effect_envelope.required_remote_provisioning_class =
+        input
+            .side_effect_envelope
+            .required_remote_provisioning_class =
             RemoteProvisioningClass::DevcontainerAttachRequired;
         let err = TemplateStarterPrebuildEntryRecord::build(input).unwrap_err();
         assert!(matches!(err, BuildError::LocalOnlyRequiresRemote));
@@ -1446,8 +1461,9 @@ mod tests {
         let mut input = minimal_input();
         input.runtime_review.runtime_scope_class = RuntimeScopeClass::ManagedCloudRequired;
         input.runtime_review.host_boundary_class = HostBoundaryClass::HostManagedWorkspaceRequired;
-        input.side_effect_envelope.required_remote_provisioning_class =
-            RemoteProvisioningClass::ManagedWorkspaceRequired;
+        input
+            .side_effect_envelope
+            .required_remote_provisioning_class = RemoteProvisioningClass::ManagedWorkspaceRequired;
         input.side_effect_envelope.required_network_egress_class =
             NetworkEgressClass::EgressToManagedWorkspaceEnvelopeOnly;
         // managed service still missing
@@ -1460,8 +1476,9 @@ mod tests {
         let mut input = minimal_input();
         input.runtime_review.runtime_scope_class = RuntimeScopeClass::ManagedCloudRequired;
         input.runtime_review.host_boundary_class = HostBoundaryClass::HostManagedWorkspaceRequired;
-        input.side_effect_envelope.required_remote_provisioning_class =
-            RemoteProvisioningClass::ManagedWorkspaceRequired;
+        input
+            .side_effect_envelope
+            .required_remote_provisioning_class = RemoteProvisioningClass::ManagedWorkspaceRequired;
         input.side_effect_envelope.required_managed_service_class =
             ManagedServiceClass::ManagedWorkspaceEnvelopeRequired;
         // egress still no_network_egress_required
@@ -1508,7 +1525,10 @@ mod tests {
         input.accelerator_identity.entry_kind = EntryKind::Prebuild;
         input.resulting_mode = ResultingMode::CreateProject;
         let err = TemplateStarterPrebuildEntryRecord::build(input).unwrap_err();
-        assert!(matches!(err, BuildError::InvalidResultingModeForEntryKind { .. }));
+        assert!(matches!(
+            err,
+            BuildError::InvalidResultingModeForEntryKind { .. }
+        ));
     }
 
     #[test]

@@ -37,16 +37,16 @@ use aureline_ui::themes::{
 };
 use aureline_ui::tokens::ThemeClass;
 
+use super::model::AppearanceSessionFinalizationCertification;
 use super::model::{
     is_canonical_object_ref, required_recovery_routes, AccessibilityDisclosure,
     AppearanceSessionBinding, AppearanceSessionSummaryRow, CertificationClaimCeiling,
     CertificationInput, CertificationUpstream, EntryRouteRecord, ExtensionAppearanceDescriptorRow,
     ExtensionInheritanceState, ImportedThemeMappingReportRow, LayoutMode, LayoutModeDisclosure,
-    LifecycleMarker, LiveAppearanceChangeRow, LiveAppearanceAxisClass, LiveApplyClass,
+    LifecycleMarker, LiveAppearanceAxisClass, LiveAppearanceChangeRow, LiveApplyClass,
     OverlayScopeClass, ProvenanceDimensionClass, ProvenancePreservationRow, RouteSurface,
     StableClaimClass, ThemePackageManifestRow, TokenOverlayValidationRow,
 };
-use super::model::AppearanceSessionFinalizationCertification;
 
 /// Snapshot timestamp pinned for every record in the corpus.
 pub const CORPUS_AS_OF: &str = "2026-06-03T12:00:00Z";
@@ -114,8 +114,10 @@ fn binding() -> AppearanceSessionBinding {
     let contract = try_seeded_appearance_session_beta_contract()
         .expect("seeded appearance-session beta contract must project");
     let session = &contract.appearance_session;
-    let value_ref =
-        AppearanceSessionBinding::value_ref_for(&session.appearance_session_id, session.session_revision);
+    let value_ref = AppearanceSessionBinding::value_ref_for(
+        &session.appearance_session_id,
+        session.session_revision,
+    );
     AppearanceSessionBinding {
         appearance_session_id: session.appearance_session_id.clone(),
         session_revision: session.session_revision,
@@ -134,7 +136,8 @@ fn binding() -> AppearanceSessionBinding {
 }
 
 fn theme_package_rows() -> Vec<ThemePackageManifestRow> {
-    let manifest = first_party_theme_package_manifest().expect("first-party theme package manifest");
+    let manifest =
+        first_party_theme_package_manifest().expect("first-party theme package manifest");
     vec![ThemePackageManifestRow {
         package_ref: manifest.package_id().to_owned(),
         package_revision_ref: manifest.theme_package_revision_ref().to_owned(),
@@ -224,7 +227,9 @@ fn token_overlay_rows(
         .collect()
 }
 
-fn import_report_rows(import_rollback_override: Option<&str>) -> Vec<ImportedThemeMappingReportRow> {
+fn import_report_rows(
+    import_rollback_override: Option<&str>,
+) -> Vec<ImportedThemeMappingReportRow> {
     let report = imported_theme_mapping_report_with_warnings().expect("import mapping report");
     let summary = report.summary();
     let rollback_present = import_rollback_override.is_none();
@@ -370,8 +375,9 @@ fn accessibility() -> AccessibilityDisclosure {
     AccessibilityDisclosure {
         focus_order_index: 0,
         tab_stop_count: 5,
-        row_narration: "Appearance-session finalization certification for the active appearance session"
-            .to_owned(),
+        row_narration:
+            "Appearance-session finalization certification for the active appearance session"
+                .to_owned(),
         action_labels,
         layout_modes,
     }
@@ -424,9 +430,8 @@ fn build_scenario(spec: &ScenarioSpec) -> AppearanceSessionFinalizationScenario 
     let live_changes = live_change_rows();
     let provenance = provenance_rows();
 
-    let capture_refs: Vec<String> = vec![
-        "aureline://artifact/appearance-session-finalization-nominal".to_owned(),
-    ];
+    let capture_refs: Vec<String> =
+        vec!["aureline://artifact/appearance-session-finalization-nominal".to_owned()];
 
     let input = CertificationInput {
         record_id: spec.scenario_id.to_owned(),

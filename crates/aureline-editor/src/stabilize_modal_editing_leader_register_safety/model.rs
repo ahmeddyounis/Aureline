@@ -22,8 +22,7 @@ use crate::modes::EditorModeStateRecord;
 pub const MODAL_EDITING_SAFETY_SCHEMA_VERSION: u32 = 1;
 
 /// Schema reference consumed by every surface that ingests this record.
-pub const MODAL_EDITING_SAFETY_SCHEMA_REF: &str =
-    "schemas/editor/mode_state_record.schema.json";
+pub const MODAL_EDITING_SAFETY_SCHEMA_REF: &str = "schemas/editor/mode_state_record.schema.json";
 
 /// Stable record-kind tag for [`ModalEditingSafetyPacket`].
 pub const MODAL_EDITING_SAFETY_PACKET_RECORD_KIND: &str = "modal_editing_safety_packet";
@@ -308,9 +307,7 @@ impl ModalEditingSafetyPacket {
             );
         }
         if !self.mode_state.unsafe_macro_replays_are_bounded() {
-            findings.push(
-                "unsafe macro replays must require review or be rejected".to_string(),
-            );
+            findings.push("unsafe macro replays must require review or be rejected".to_string());
         }
         if !self.mode_state.exposes_partial_and_unsupported_sequences() {
             findings.push(
@@ -364,17 +361,17 @@ impl ModalEditingSafetyPacket {
             format!("schema_version: {}", self.schema_version),
             format!("schema_ref: {}", self.schema_ref),
             format!("current_mode: {}", mode.current_mode.as_str()),
-            format!("source_preset: {} ({})", mode.source_preset_ref, mode.source_preset_label),
+            format!(
+                "source_preset: {} ({})",
+                mode.source_preset_ref, mode.source_preset_label
+            ),
             format!("surface: {}", mode.surface_ref),
             format!("platform: {}", mode.platform_class),
             format!("command_graph_unified: {}", self.command_graph_unified),
             format!("latency_budget_micros: {}", self.latency_budget_micros),
         ];
 
-        lines.push(format!(
-            "sequence_guides: {}",
-            mode.sequence_guides.len()
-        ));
+        lines.push(format!("sequence_guides: {}", mode.sequence_guides.len()));
         for guide in &mode.sequence_guides {
             lines.push(format!(
                 "  guide {}: state={} prefix={:?}",
@@ -411,22 +408,19 @@ impl ModalEditingSafetyPacket {
             ));
         }
 
-        lines.push(format!(
-            "recovery_actions: {}",
-            mode.recovery_actions.len()
-        ));
+        lines.push(format!("recovery_actions: {}", mode.recovery_actions.len()));
         for action in &mode.recovery_actions {
             lines.push(format!(
                 "  action {}: label={:?} command_id={:?} route={:?}",
-                action.action_ref,
-                action.label,
-                action.command_id,
-                action.keyboard_route
+                action.action_ref, action.label, action.command_id, action.keyboard_route
             ));
         }
 
         if !self.surface_downgrades.is_empty() {
-            lines.push(format!("surface_downgrades: {}", self.surface_downgrades.len()));
+            lines.push(format!(
+                "surface_downgrades: {}",
+                self.surface_downgrades.len()
+            ));
             for downgrade in &self.surface_downgrades {
                 lines.push(format!(
                     "  downgrade {}: kind={} reversible={} surface={} reason={:?} restore_route={:?}",
@@ -441,7 +435,10 @@ impl ModalEditingSafetyPacket {
         }
 
         if !self.import_regressions.is_empty() {
-            lines.push(format!("import_regressions: {}", self.import_regressions.len()));
+            lines.push(format!(
+                "import_regressions: {}",
+                self.import_regressions.len()
+            ));
             for regression in &self.import_regressions {
                 lines.push(format!(
                     "  regression {}: outcome={} preset={} seq={} reason={:?} fallback={:?}",

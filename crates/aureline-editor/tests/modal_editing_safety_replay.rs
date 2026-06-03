@@ -2,9 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use aureline_editor::{
-    modal_editing_safety_corpus, ModalEditingSafetyPacket,
-};
+use aureline_editor::{modal_editing_safety_corpus, ModalEditingSafetyPacket};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -53,7 +51,8 @@ fn corpus_manifest_matches_live_scenarios() {
 
 #[test]
 fn every_fixture_is_contract_valid() {
-    let fixture_dir = repo_root().join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
+    let fixture_dir =
+        repo_root().join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
     let corpus = modal_editing_safety_corpus();
 
     for scenario in &corpus {
@@ -90,7 +89,8 @@ fn every_fixture_is_contract_valid() {
 
 #[test]
 fn fixture_files_match_live_packet_serialization() {
-    let fixture_dir = repo_root().join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
+    let fixture_dir =
+        repo_root().join("fixtures/editor/m4/stabilize-modal-editing-leader-register-safety");
     let corpus = modal_editing_safety_corpus();
 
     for scenario in &corpus {
@@ -123,8 +123,7 @@ fn blocked_routes_fail_closed_with_reason() {
                 assert!(
                     route.fail_closed,
                     "{}: route {} must fail closed",
-                    scenario.scenario_id,
-                    route.route_ref
+                    scenario.scenario_id, route.route_ref
                 );
                 assert!(
                     !route.visible_reason.trim().is_empty(),

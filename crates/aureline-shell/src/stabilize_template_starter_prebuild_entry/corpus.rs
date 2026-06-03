@@ -9,12 +9,12 @@
 //! in any invariant fails the fixture-replay test instead of shipping silently.
 
 use super::model::{
-    AcceleratorIdentity, BypassPath, BypassPathClass, CleanupRollback,
-    CredentialProvisioningClass, EntryKind, ExtensionInstallClass, FailureOutcomeClass,
-    FailureSummary, FailureSummaryItem, FreshnessClass, FreshnessReview, HostBoundaryClass,
-    ManagedServiceClass, NetworkEgressClass, RemoteProvisioningClass, ResultingMode, RuntimeReview,
-    RuntimeScopeClass, SetupActionClass, SetupReview, SideEffectEnvelope, SourceClass, SourceReview,
-    SupportClass, SupportExportMetadata, SupportReview, TemplateStarterPrebuildEntryInput,
+    AcceleratorIdentity, BypassPath, BypassPathClass, CleanupRollback, CredentialProvisioningClass,
+    EntryKind, ExtensionInstallClass, FailureOutcomeClass, FailureSummary, FailureSummaryItem,
+    FreshnessClass, FreshnessReview, HostBoundaryClass, ManagedServiceClass, NetworkEgressClass,
+    RemoteProvisioningClass, ResultingMode, RuntimeReview, RuntimeScopeClass, SetupActionClass,
+    SetupReview, SideEffectEnvelope, SourceClass, SourceReview, SupportClass,
+    SupportExportMetadata, SupportReview, TemplateStarterPrebuildEntryInput,
     TemplateStarterPrebuildEntryRecord, TrustAuthBoundaries, TrustPostureClass,
 };
 
@@ -76,7 +76,14 @@ fn identity(
     }
 }
 
-fn source(class: SourceClass, dist: &str, sig: &str, publisher: &str, trust: &str, notes: Vec<&str>) -> SourceReview {
+fn source(
+    class: SourceClass,
+    dist: &str,
+    sig: &str,
+    publisher: &str,
+    trust: &str,
+    notes: Vec<&str>,
+) -> SourceReview {
     SourceReview {
         source_class: class,
         source_distribution_class: dist.to_string(),
@@ -94,7 +101,12 @@ fn support(class: SupportClass, lifecycle: &str) -> SupportReview {
     }
 }
 
-fn runtime(scope: RuntimeScopeClass, host: HostBoundaryClass, ecosystems: Vec<&str>, platforms: Vec<&str>) -> RuntimeReview {
+fn runtime(
+    scope: RuntimeScopeClass,
+    host: HostBoundaryClass,
+    ecosystems: Vec<&str>,
+    platforms: Vec<&str>,
+) -> RuntimeReview {
     RuntimeReview {
         runtime_scope_class: scope,
         host_boundary_class: host,
@@ -103,7 +115,13 @@ fn runtime(scope: RuntimeScopeClass, host: HostBoundaryClass, ecosystems: Vec<&s
     }
 }
 
-fn freshness(class: FreshnessClass, age: Option<u64>, max: Option<u64>, producer: &str, signer: &str) -> FreshnessReview {
+fn freshness(
+    class: FreshnessClass,
+    age: Option<u64>,
+    max: Option<u64>,
+    producer: &str,
+    signer: &str,
+) -> FreshnessReview {
     FreshnessReview {
         freshness_class: class,
         age_seconds: age,
@@ -113,7 +131,12 @@ fn freshness(class: FreshnessClass, age: Option<u64>, max: Option<u64>, producer
     }
 }
 
-fn setup(actions: Vec<SetupActionClass>, duration: &str, connectivity: bool, expectation: &str) -> SetupReview {
+fn setup(
+    actions: Vec<SetupActionClass>,
+    duration: &str,
+    connectivity: bool,
+    expectation: &str,
+) -> SetupReview {
     SetupReview {
         expected_actions: actions,
         estimated_duration_label: duration.to_string(),
@@ -171,7 +194,12 @@ fn trust_auth(
     }
 }
 
-fn cleanup(cleanup: bool, rollback: bool, cleanup_sum: &str, rollback_sum: &str) -> CleanupRollback {
+fn cleanup(
+    cleanup: bool,
+    rollback: bool,
+    cleanup_sum: &str,
+    rollback_sum: &str,
+) -> CleanupRollback {
     CleanupRollback {
         cleanup_path_available: cleanup,
         rollback_path_available: rollback,
