@@ -189,6 +189,7 @@ pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
+pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
 pub mod go_no_go_rehearsal;
 pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
@@ -253,6 +254,19 @@ pub use finalize_security_response_advisory_cve_ghsa_publication_emergency_disab
     SecurityResponsePacket, SecurityResponsePacketSummary, SecurityResponsePacketViolation,
     SECURITY_RESPONSE_PACKET_JSON, SECURITY_RESPONSE_PACKET_PATH,
     SECURITY_RESPONSE_PACKET_RECORD_KIND, SECURITY_RESPONSE_PACKET_SCHEMA_VERSION,
+};
+
+pub use finalize_compatibility_reports_deprecation_packets_schema_version_windows::{
+    current_finalize_compatibility_reports_deprecation_packets_schema_version_windows,
+    CompatibilityOutcome, CompatibilityReportPacket, DeprecationDetail, FinalizeAction,
+    FinalizeCompatibilityReportsDeprecationPacketsSchemaVersionWindows, FinalizeExportProjection,
+    FinalizeExportRow, FinalizeKind, FinalizePublicationRecord, FinalizeRule, FinalizeRow,
+    FinalizeState, FinalizeSummary, FinalizeViolation, GapReason as FinalizeGapReason,
+    MigrationDetail, Scorecard, ValidityWindow as FinalizeValidityWindow,
+    FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_JSON,
+    FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_PATH,
+    FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND,
+    FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_SCHEMA_VERSION,
 };
 
 pub use go_no_go_rehearsal::{
