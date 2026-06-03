@@ -199,6 +199,7 @@ pub mod optional_surface_qualification;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
+pub mod stabilize_embedded_surface_boundary_truth;
 pub mod stabilize_hot_path_performance_against_published_budgets_for;
 pub mod stabilize_the_release_center_promotion_evidence_canary_pilot;
 pub mod stable_boundary_manifest;
@@ -270,6 +271,21 @@ pub use harden_docs_help_about_and_service_health_truth::{
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_JSON, DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_PATH,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_RECORD_KIND,
     DOCS_HELP_ABOUT_SERVICE_HEALTH_TRUTH_SCHEMA_VERSION,
+};
+
+pub use stabilize_embedded_surface_boundary_truth::{
+    current_embedded_surface_boundary_truth, AuthHandoffSnapshot,
+    BoundaryState as EmbeddedBoundaryState, BrowserFallbackSnapshot,
+    EmbeddedSurfaceBoundaryTruth, EmbeddedSurfaceBoundaryTruthViolation,
+    GapReason as EmbeddedSurfaceGapReason, NativeApprovalSnapshot, SourceTruthSnapshot,
+    SurfaceKind as EmbeddedSurfaceKind, TruthAction as EmbeddedSurfaceTruthAction,
+    TruthExportProjection as EmbeddedSurfaceTruthExportProjection,
+    TruthExportRow as EmbeddedSurfaceTruthExportRow,
+    TruthPublicationRecord as EmbeddedSurfaceTruthPublicationRecord,
+    TruthRule as EmbeddedSurfaceTruthRule, TruthRow as EmbeddedSurfaceTruthRow,
+    TruthState as EmbeddedSurfaceTruthState, TruthSummary as EmbeddedSurfaceTruthSummary,
+    EMBEDDED_SURFACE_BOUNDARY_TRUTH_JSON, EMBEDDED_SURFACE_BOUNDARY_TRUTH_PATH,
+    EMBEDDED_SURFACE_BOUNDARY_TRUTH_RECORD_KIND, EMBEDDED_SURFACE_BOUNDARY_TRUTH_SCHEMA_VERSION,
 };
 
 pub use harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation::{
