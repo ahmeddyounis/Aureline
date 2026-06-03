@@ -212,6 +212,7 @@ pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_embedded_surface_boundary_truth;
 pub mod stabilize_hot_path_performance_against_published_budgets_for;
+pub mod stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication;
 pub mod stabilize_the_release_center_promotion_evidence_canary_pilot;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
@@ -495,6 +496,17 @@ pub use stabilize_hot_path_performance_against_published_budgets_for::{
     HotPathPerformanceBudgetsViolation, PromotionRecord, HOT_PATH_PERFORMANCE_BUDGETS_JSON,
     HOT_PATH_PERFORMANCE_BUDGETS_PATH, HOT_PATH_PERFORMANCE_BUDGETS_RECORD_KIND,
     HOT_PATH_PERFORMANCE_BUDGETS_SCHEMA_VERSION,
+};
+
+pub use stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication::{
+    current_stabilize_the_known_limits_matrix_public_support_windows_and_stable_line_ownership_publication,
+    StabilizeAction, StabilizeExportProjection, StabilizeExportRow, StabilizeGapReason,
+    StabilizeKind, StabilizePublicationRecord, StabilizeRow, StabilizeRule, StabilizeState,
+    StabilizeSummary, StabilizeTheKnownLimitsMatrixPublicSupportWindowsAndStableLineOwnershipPublication,
+    StabilizeViolation, STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_JSON,
+    STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_PATH,
+    STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_RECORD_KIND,
+    STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_SCHEMA_VERSION,
 };
 
 pub use stabilize_the_release_center_promotion_evidence_canary_pilot::{
