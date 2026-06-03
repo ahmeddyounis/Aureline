@@ -25,6 +25,7 @@ pub mod publish_later;
 pub mod reconciliation;
 pub mod registry;
 pub mod route_resolution;
+pub mod stabilize_provider_account_install_grant_registry;
 pub mod work_item_sync;
 pub mod work_items;
 
@@ -194,6 +195,24 @@ pub use route_resolution::{
     ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
     ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
     ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_provider_account_install_grant_registry::{
+    audit_stable_registry_packet, seeded_stable_provider_account_install_grant_registry_packet,
+    validate_stable_registry_packet, ActionModeClass, MappingStaleStateClass,
+    RegistryHealthStateClass, StableInstallGrantInput, StableInstallGrantRecord,
+    StableMappingReviewInput, StableMappingReviewRow, StableProviderAccountInput,
+    StableProviderAccountInstallGrantRegistryPacket, StableProviderAccountRecord,
+    StableRegistryError, StableRegistryInput, StableRegistryInspectionRecord, StableRegistryRecord,
+    StableRegistrySupportExportInput, StableRegistrySupportExportPacket,
+    StableRegistryValidationError, STABLE_INSTALL_GRANT_RECORD_KIND,
+    STABLE_MAPPING_REVIEW_ROW_RECORD_KIND,
+    STABLE_PROVIDER_ACCOUNT_INSTALL_GRANT_REGISTRY_PACKET_RECORD_KIND,
+    STABLE_PROVIDER_ACCOUNT_INSTALL_GRANT_REGISTRY_SCHEMA_VERSION,
+    STABLE_PROVIDER_ACCOUNT_INSTALL_GRANT_REGISTRY_SHARED_CONTRACT_REF,
+    STABLE_PROVIDER_ACCOUNT_RECORD_KIND, STABLE_REGISTRY_COMMAND_CLASSES,
+    STABLE_REGISTRY_CONSUMER_SURFACES, STABLE_REGISTRY_INSPECTION_RECORD_KIND,
+    STABLE_REGISTRY_INVALIDATION_REASONS, STABLE_REGISTRY_RECORD_KIND,
+    STABLE_REGISTRY_SUPPORT_EXPORT_PACKET_RECORD_KIND,
 };
 pub use work_item_sync::{
     audit_work_item_sync_beta_page, seeded_work_item_sync_beta_page,

@@ -27,6 +27,7 @@ pub mod review_pack_parity_harness;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
 pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
+pub mod stabilize_work_item_status_transition_review;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
@@ -268,6 +269,26 @@ pub use stabilize_review_workspace_anchors_stale_base_labels_approval::{
     REVIEW_STABILIZATION_PACKET_RECORD_KIND, REVIEW_STABILIZATION_RECORD_KIND,
     REVIEW_STABILIZATION_SCHEMA_VERSION, REVIEW_STABILIZATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
     STABILIZATION_STATES, STALE_BASE_LABEL_CLASSES, STALE_BASE_LABEL_RECORD_KIND,
+};
+pub use stabilize_work_item_status_transition_review::{
+    audit_stable_work_item_packet, seeded_stable_work_item_status_transition_packet,
+    validate_stable_work_item_packet, StableOfflineHandoffInput, StableOfflineHandoffRecord,
+    StablePreviewedSideEffectInput, StablePreviewedSideEffectRecord,
+    StablePublishLaterContinuityInput, StablePublishLaterContinuityRecord,
+    StableStatusTransitionSheetInput, StableStatusTransitionSheetRecord,
+    StableWorkItemCommandInput, StableWorkItemCommandRecord, StableWorkItemDetailInput,
+    StableWorkItemDetailRecord, StableWorkItemError, StableWorkItemInspectionRecord,
+    StableWorkItemStatusTransitionInput, StableWorkItemStatusTransitionPacket,
+    StableWorkItemStatusTransitionRecord, StableWorkItemSupportExportInput,
+    StableWorkItemSupportExportPacket, StableWorkItemValidationError,
+    STABLE_OFFLINE_HANDOFF_RECORD_KIND, STABLE_PUBLISH_LATER_CONTINUITY_RECORD_KIND,
+    STABLE_STATUS_TRANSITION_SHEET_RECORD_KIND, STABLE_WORK_ITEM_COMMAND_RECORD_KIND,
+    STABLE_WORK_ITEM_DETAIL_RECORD_KIND, STABLE_WORK_ITEM_INSPECTION_RECORD_KIND,
+    STABLE_WORK_ITEM_STATUS_TRANSITION_PACKET_RECORD_KIND,
+    STABLE_WORK_ITEM_STATUS_TRANSITION_RECORD_KIND,
+    STABLE_WORK_ITEM_STATUS_TRANSITION_REVIEW_SCHEMA_VERSION,
+    STABLE_WORK_ITEM_STATUS_TRANSITION_REVIEW_SHARED_CONTRACT_REF,
+    STABLE_WORK_ITEM_SUPPORT_EXPORT_PACKET_RECORD_KIND,
 };
 pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
     project_change_object_orchestration_packet, ChangeObjectCommandInput,
