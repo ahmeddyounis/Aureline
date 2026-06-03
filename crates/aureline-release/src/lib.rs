@@ -88,6 +88,15 @@
 //! opt-in/integration/platform/preview surface kinds and the release-relevant surface set
 //! both stay fully covered, so shiproom and release tooling can fail promotion directly from
 //! the register.
+//! The finalize-qualification-packets-for-optional-surfaces module is the M4-stable-line
+//! finalization layer on top of that register: it enumerates every optional surface required
+//! for M4 stable promotion — notebook/data-rich, voice/dictation, browser/mobile companion,
+//! preview/designer/publish, AI-adjacent, browser-runtime inspectors, package/dependency
+//! mutation, infrastructure/cluster live-state, pipeline/run-control overlays, collaboration
+//! session admission, observer/follow modes, shared terminal/debug control, consent/retention
+//! envelopes, and session export/delete — and records per-deployment-target access modes
+//! (desktop local, remote/helper, managed, self-hosted, air-gapped) so a missing packet
+//! forces automatic downgrade on every target rather than inheriting an adjacent green row.
 //! The benchmark-lab-governance module is the performance-evidence layer beside those
 //! gates: where the hot-path-performance-budgets register protects the published p50/p95
 //! numbers for each individual hot path, this register governs the benchmark-lab
@@ -190,6 +199,7 @@ pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_rtl_locale_pack_and_desktop_platform_conformance;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
+pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod go_no_go_rehearsal;
 pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
@@ -267,6 +277,21 @@ pub use finalize_compatibility_reports_deprecation_packets_schema_version_window
     FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_PATH,
     FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_RECORD_KIND,
     FINALIZE_COMPATIBILITY_REPORTS_DEPRECATION_PACKETS_SCHEMA_VERSION_WINDOWS_SCHEMA_VERSION,
+};
+
+pub use finalize_qualification_packets_for_optional_surfaces_and_enforce::{
+    current_finalize_qualification_packets_for_optional_surfaces_and_enforce,
+    DeploymentAccessMode, DeploymentQualification, DeploymentTarget,
+    FinalizeNarrowAction as OptionalSurfaceNarrowAction,
+    FinalizeNarrowReason as OptionalSurfaceNarrowReason,
+    FinalizeOptionalSurface, FinalizeOptionalSurfaceKind,
+    FinalizeQualificationPacketsForOptionalSurfacesAndEnforce, FinalizeQualificationSummary,
+    FinalizeQualificationViolation, FinalizeSurfaceExportProjection, FinalizeSurfaceExportRow,
+    FinalizeSurfacePublicationRecord, FinalizeSurfaceState, FinalizeSurfaceStopRule,
+    FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_JSON,
+    FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_PATH,
+    FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_RECORD_KIND,
+    FINALIZE_QUALIFICATION_PACKETS_FOR_OPTIONAL_SURFACES_AND_ENFORCE_SCHEMA_VERSION,
 };
 
 pub use go_no_go_rehearsal::{
