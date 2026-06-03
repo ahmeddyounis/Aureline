@@ -1,0 +1,657 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/learning/guided-learning-contracts.schema.json",
+  "title": "Aureline guided-learning qualification contracts",
+  "description": "Boundary schema for the qualification records produced by the M4 learning-surface qualification gate. Every glossary pack, tour package, guided exercise rail, learning-mode profile, progress snapshot, and teaching/presentation session present on a claimed M4 Stable row resolves through one qualification record that derives a typed verdict (qualified_stable, narrowed_preview, narrowed_beta, absent) from citation proof, privacy posture, offline/cached degradation posture, explain-vs-apply separation class, scope posture, restore proof, role/authority separation class, speaker-note locality, and accessibility posture — rather than trusting input claims. The manifest record aggregates all surface records and carries the strictest (narrowest) overall verdict. This schema mints no new guided_surface_kind, freshness_class, tour_audience_class, share_state_class, speaker_note_locality_class, replay_retention_class, or layout_anchor_kind vocabulary; those are defined in schemas/ux/guided_surface_state.schema.json, schemas/ux/guided_tour.schema.json, and schemas/ux/presentation_mode_state.schema.json. Adding a new record_kind, qualification_verdict_class, explain_apply_class, scope_class, role_authority_class, speaker_note_locality_class, or denial_reason is additive-minor; repurposing an existing value is breaking and requires a new decision row. Raw pack bodies, raw speaker-note text, raw audience identity, raw URLs, raw absolute paths, and raw credential material MUST NOT appear in any record; the schema carries opaque ids, typed vocabulary, short privacy-safe labels, and typed evidence metadata only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/glossary_pack_qualification_record" },
+    { "$ref": "#/$defs/tour_package_qualification_record" },
+    { "$ref": "#/$defs/exercise_rail_qualification_record" },
+    { "$ref": "#/$defs/learning_mode_profile_qualification_record" },
+    { "$ref": "#/$defs/progress_snapshot_qualification_record" },
+    { "$ref": "#/$defs/teaching_session_qualification_record" },
+    { "$ref": "#/$defs/guided_learning_qualification_manifest" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for guided-learning qualification records. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier. Raw URLs, raw absolute paths, raw speaker-note text, raw audience identity, and raw secret material MUST NOT appear."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "opaque_id_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["stable", "preview", "beta", "alpha", "absent"],
+      "description": "Lifecycle label rendered in product, docs/help, and support export. A surface that lacks current citation/privacy/authority packets MUST carry 'beta', 'preview', or 'absent' rather than 'stable'."
+    },
+
+    "qualification_verdict": {
+      "type": "string",
+      "enum": [
+        "qualified_stable",
+        "narrowed_preview",
+        "narrowed_beta",
+        "absent"
+      ],
+      "description": "Typed verdict derived from citation, privacy, offline, and authority proofs. qualified_stable requires all proofs to pass. Any failing proof yields narrowed_beta or narrowed_preview. absent means the surface is not present or is policy-disabled."
+    },
+
+    "explain_apply_class": {
+      "type": "string",
+      "enum": [
+        "fully_separated",
+        "apply_requires_approval",
+        "read_only",
+        "conflated"
+      ],
+      "description": "Separation class for Explain vs Apply verbs. fully_separated and apply_requires_approval satisfy Stable requirements. conflated automatically narrows below Stable."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "user_local",
+        "user_or_workspace_opt_in",
+        "shared_named_audience_granted",
+        "classroom_managed_pool",
+        "policy_disabled"
+      ],
+      "description": "Named scope for a learning surface. user_local keeps progress and dismissals on the local machine. Any shared scope requires explicit user action."
+    },
+
+    "role_authority_class": {
+      "type": "string",
+      "enum": [
+        "participation_only_no_authority_grant",
+        "workspace_authority_only",
+        "authority_overstated"
+      ],
+      "description": "Role authority class for teaching/presentation surfaces. participation_only_no_authority_grant and workspace_authority_only satisfy Stable requirements. authority_overstated automatically narrows below Stable."
+    },
+
+    "speaker_note_locality_class": {
+      "type": "string",
+      "enum": [
+        "facilitator_only_local",
+        "co_presenters_after_explicit_promotion",
+        "not_applicable",
+        "audience_visible"
+      ],
+      "description": "Where speaker notes reside by default. facilitator_only_local and co_presenters_after_explicit_promotion satisfy Stable requirements. audience_visible automatically narrows below Stable."
+    },
+
+    "citation_proof": {
+      "type": "object",
+      "required": [
+        "has_citation",
+        "all_anchors_live_authoritative"
+      ],
+      "properties": {
+        "has_citation": {
+          "type": "boolean",
+          "description": "Whether the surface cites at least one stable anchor (command id, docs node, symbol, or file object). A surface with has_citation: false narrows below Stable."
+        },
+        "command_id_refs": {
+          "$ref": "#/$defs/opaque_id_array",
+          "description": "Opaque refs to canonical command ids this surface cites."
+        },
+        "docs_citation_anchor_refs": {
+          "$ref": "#/$defs/opaque_id_array",
+          "description": "Opaque refs to docs/help citation anchors this surface cites."
+        },
+        "symbol_linked_refs": {
+          "$ref": "#/$defs/opaque_id_array",
+          "description": "Opaque refs to symbol-linked references this surface cites."
+        },
+        "all_anchors_live_authoritative": {
+          "type": "boolean",
+          "description": "Whether every cited anchor resolves to the installed/live-authoritative pack revision. A surface with all_anchors_live_authoritative: false narrows below Stable."
+        },
+        "narrowing_reason": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Named narrowing reason when has_citation is false or anchors are not live."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "privacy_posture": {
+      "type": "object",
+      "required": [
+        "progress_local_by_default",
+        "explicit_promotion_required_for_sharing",
+        "repo_visible",
+        "telemetry_grade_read_access"
+      ],
+      "properties": {
+        "progress_local_by_default": {
+          "type": "boolean",
+          "description": "Whether progress and dismissal state is stored locally by default."
+        },
+        "explicit_promotion_required_for_sharing": {
+          "type": "boolean",
+          "description": "Whether the user must explicitly promote data to shared/retained status."
+        },
+        "repo_visible": {
+          "type": "boolean",
+          "description": "Whether the repository can observe this surface's progress state. Must be false for Stable."
+        },
+        "telemetry_grade_read_access": {
+          "type": "boolean",
+          "description": "Whether any background service gains telemetry-grade read access. Must be false for Stable."
+        },
+        "narrowing_reason": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "offline_posture": {
+      "type": "object",
+      "required": [
+        "degradation_state",
+        "silent_disappearance_on_offline",
+        "cached_pack_accepted_with_disclosure",
+        "available_in_local_only_profile"
+      ],
+      "properties": {
+        "degradation_state": {
+          "type": "string",
+          "enum": [
+            "no_degradation",
+            "cached_disclosed",
+            "local_only_disclosed",
+            "not_installed_disclosed",
+            "preview_degraded",
+            "unsupported_disclosed"
+          ],
+          "description": "Explicit degradation state label. A surface must declare an explicit named state rather than silently disappearing."
+        },
+        "silent_disappearance_on_offline": {
+          "type": "boolean",
+          "description": "Whether the surface silently disappears instead of showing a named state. Must be false for Stable."
+        },
+        "cached_pack_accepted_with_disclosure": {
+          "type": "boolean",
+          "description": "Whether a cached docs/glossary pack is accepted with freshness disclosed."
+        },
+        "available_in_local_only_profile": {
+          "type": "boolean",
+          "description": "Whether the surface is available in air-gapped / local-only profiles."
+        },
+        "narrowing_reason": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "scope_posture": {
+      "type": "object",
+      "required": [
+        "scope_class",
+        "follow_mode_requires_explicit_grant",
+        "share_requires_explicit_user_action"
+      ],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "follow_mode_requires_explicit_grant": {
+          "type": "boolean",
+          "description": "Whether follow mode requires an explicit grant before taking effect."
+        },
+        "share_requires_explicit_user_action": {
+          "type": "boolean",
+          "description": "Whether share-to-audience requires an explicit user action."
+        },
+        "follow_grant_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the follow/presenter grant record when granted."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "accessibility_posture": {
+      "type": "object",
+      "required": [
+        "keyboard_reachable",
+        "screen_reader_narration",
+        "reset_skip_keyboard_accessible",
+        "offline_degradation_accessible",
+        "reduced_motion_honored"
+      ],
+      "properties": {
+        "keyboard_reachable": {
+          "type": "boolean",
+          "description": "Whether keyboard reachability is proved for all surface actions."
+        },
+        "screen_reader_narration": {
+          "type": "boolean",
+          "description": "Whether screen-reader narration is provided."
+        },
+        "reset_skip_keyboard_accessible": {
+          "type": "boolean",
+          "description": "Whether reset/skip actions are keyboard-accessible."
+        },
+        "offline_degradation_accessible": {
+          "type": "boolean",
+          "description": "Whether offline/mirrored-docs degradation is disclosed accessibly."
+        },
+        "reduced_motion_honored": {
+          "type": "boolean",
+          "description": "Whether the reduced-motion preference is honored."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "restore_proof": {
+      "type": "object",
+      "required": [
+        "layout_restored_on_exit",
+        "focus_selection_restored",
+        "panel_visibility_restored",
+        "accessibility_posture_restored",
+        "crash_recovery_restores_prior_state"
+      ],
+      "properties": {
+        "layout_restored_on_exit": {
+          "type": "boolean",
+          "description": "Whether the layout is restored on clean exit."
+        },
+        "focus_selection_restored": {
+          "type": "boolean",
+          "description": "Whether focus and selection state is restored."
+        },
+        "panel_visibility_restored": {
+          "type": "boolean",
+          "description": "Whether panel visibility is restored."
+        },
+        "accessibility_posture_restored": {
+          "type": "boolean",
+          "description": "Whether accessibility posture is restored."
+        },
+        "crash_recovery_restores_prior_state": {
+          "type": "boolean",
+          "description": "Whether the prior state is restored on crash recovery."
+        },
+        "restore_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the restore checkpoint record."
+        },
+        "narrowing_reason": {
+          "$ref": "#/$defs/nullable_opaque_id"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "glossary_pack_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "pack_ref",
+        "lifecycle_label",
+        "citation",
+        "privacy",
+        "offline",
+        "explain_apply_class",
+        "scope",
+        "accessibility",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "glossary_pack_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": {
+          "$ref": "#/$defs/opaque_id_array"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "tour_package_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "package_ref",
+        "lifecycle_label",
+        "citation",
+        "privacy",
+        "offline",
+        "explain_apply_class",
+        "scope",
+        "accessibility",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "tour_package_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "package_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "waypoint_refs": { "$ref": "#/$defs/opaque_id_array" },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": { "$ref": "#/$defs/opaque_id_array" }
+      },
+      "additionalProperties": false
+    },
+
+    "exercise_rail_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "rail_ref",
+        "lifecycle_label",
+        "citation",
+        "privacy",
+        "offline",
+        "explain_apply_class",
+        "scope",
+        "accessibility",
+        "apply_steps_reversible",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "exercise_rail_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "rail_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "apply_steps_reversible": {
+          "type": "boolean",
+          "description": "Whether every Apply step is reversible/sandboxed and routes through the standard command/preview/approval/rollback path."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": { "$ref": "#/$defs/opaque_id_array" }
+      },
+      "additionalProperties": false
+    },
+
+    "learning_mode_profile_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "profile_ref",
+        "lifecycle_label",
+        "citation",
+        "privacy",
+        "offline",
+        "explain_apply_class",
+        "scope",
+        "accessibility",
+        "opt_in_only",
+        "blocks_first_useful_work",
+        "pause_snooze_reset_skip_resume_available",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "learning_mode_profile_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "opt_in_only": {
+          "type": "boolean",
+          "description": "Whether the profile is strictly opt-in (never auto-enrolled). Must be true for Stable."
+        },
+        "blocks_first_useful_work": {
+          "type": "boolean",
+          "description": "Whether enabling the profile blocks first useful work. Must be false for Stable."
+        },
+        "pause_snooze_reset_skip_resume_available": {
+          "type": "boolean",
+          "description": "Whether the user can pause, snooze, reset, skip, and resume at any time."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": { "$ref": "#/$defs/opaque_id_array" }
+      },
+      "additionalProperties": false
+    },
+
+    "progress_snapshot_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "snapshot_ref",
+        "lifecycle_label",
+        "privacy",
+        "offline",
+        "scope",
+        "accessibility",
+        "survives_restart",
+        "safe_for_support_export",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "progress_snapshot_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "survives_restart": {
+          "type": "boolean",
+          "description": "Whether the snapshot survives restart."
+        },
+        "safe_for_support_export": {
+          "type": "boolean",
+          "description": "Whether the snapshot is safe to export in support bundles."
+        },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": { "$ref": "#/$defs/opaque_id_array" }
+      },
+      "additionalProperties": false
+    },
+
+    "teaching_session_qualification_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "generated_at",
+        "session_ref",
+        "lifecycle_label",
+        "citation",
+        "privacy",
+        "offline",
+        "explain_apply_class",
+        "scope",
+        "accessibility",
+        "role_authority_class",
+        "speaker_note_locality",
+        "restore_proof",
+        "verdict"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "teaching_session_qualification_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "citation": { "$ref": "#/$defs/citation_proof" },
+        "privacy": { "$ref": "#/$defs/privacy_posture" },
+        "offline": { "$ref": "#/$defs/offline_posture" },
+        "explain_apply_class": { "$ref": "#/$defs/explain_apply_class" },
+        "scope": { "$ref": "#/$defs/scope_posture" },
+        "accessibility": { "$ref": "#/$defs/accessibility_posture" },
+        "role_authority_class": { "$ref": "#/$defs/role_authority_class" },
+        "speaker_note_locality": { "$ref": "#/$defs/speaker_note_locality_class" },
+        "restore_proof": { "$ref": "#/$defs/restore_proof" },
+        "verdict": { "$ref": "#/$defs/qualification_verdict" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_fixture_refs": { "$ref": "#/$defs/opaque_id_array" }
+      },
+      "additionalProperties": false
+    },
+
+    "guided_learning_qualification_manifest": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "contract_refs",
+        "glossary_packs",
+        "tour_packages",
+        "exercise_rails",
+        "learning_mode_profiles",
+        "progress_snapshots",
+        "teaching_sessions",
+        "overall_verdict"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "guided_learning_qualification_manifest_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "description": "Map of named schema, docs, and contract refs this manifest consumes."
+        },
+        "glossary_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/glossary_pack_qualification_record" }
+        },
+        "tour_packages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tour_package_qualification_record" }
+        },
+        "exercise_rails": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exercise_rail_qualification_record" }
+        },
+        "learning_mode_profiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/learning_mode_profile_qualification_record" }
+        },
+        "progress_snapshots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/progress_snapshot_qualification_record" }
+        },
+        "teaching_sessions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/teaching_session_qualification_record" }
+        },
+        "overall_verdict": {
+          "$ref": "#/$defs/qualification_verdict",
+          "description": "The strictest (narrowest) verdict across all surface records. qualified_stable only when every surface qualifies."
+        },
+        "overall_narrowing_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Aggregated narrowing reasons from all surface records."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
