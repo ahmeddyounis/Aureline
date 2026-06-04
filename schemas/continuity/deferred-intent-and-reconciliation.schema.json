@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aureline.dev/continuity/deferred-intent-and-reconciliation.schema.json",
+  "title": "Connectivity state, deferred intent, and reconciliation page",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "contract_refs",
+    "local_safe_promises",
+    "command_declarations",
+    "deferred_intents",
+    "reconciliation_reviews",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "connectivity_continuity_page_record" },
+    "schema_version": { "const": 1 },
+    "contract_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+    "local_safe_promises": { "type": "array", "items": { "$ref": "#/$defs/local_safe_promise" }, "minItems": 6 },
+    "command_declarations": { "type": "array", "items": { "$ref": "#/$defs/network_command_declaration" }, "minItems": 1 },
+    "deferred_intents": { "type": "array", "items": { "$ref": "#/$defs/deferred_intent" } },
+    "reconciliation_reviews": { "type": "array", "items": { "$ref": "#/$defs/reconciliation_review_sheet" } },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "connectivity_state": {
+      "type": "string",
+      "enum": ["Connected", "Constrained", "OfflineLocalSafe", "ReauthRequired", "ReconciliationPending", "ServiceUnavailable"]
+    },
+    "service_family": {
+      "type": "string",
+      "enum": ["provider", "managed_workspace", "request_workspace", "remote", "collaboration", "service_health", "ai", "support"]
+    },
+    "local_safe_promise": {
+      "type": "object",
+      "required": ["state", "service_family", "local_editing_available", "local_search_available", "local_git_available", "local_tasks_available", "cached_inspection_available", "stale_label_semantics"],
+      "properties": {
+        "state": { "$ref": "#/$defs/connectivity_state" },
+        "service_family": { "$ref": "#/$defs/service_family" },
+        "local_editing_available": { "type": "boolean" },
+        "local_search_available": { "type": "boolean" },
+        "local_git_available": { "type": "boolean" },
+        "local_tasks_available": { "type": "boolean" },
+        "cached_inspection_available": { "type": "boolean" },
+        "stale_label_semantics": { "type": "string", "enum": ["current", "last_known_good_timestamp", "cached_inspect_only", "auth_or_policy_stale", "service_family_unavailable"] },
+        "deployment_policy_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "network_command_declaration": {
+      "type": "object",
+      "required": ["record_kind", "schema_version", "command_id", "service_family", "action_family", "queueability", "missing_metadata_block_reason"],
+      "properties": {
+        "record_kind": { "const": "network_command_declaration_record" },
+        "schema_version": { "const": 1 },
+        "command_id": { "type": "string", "minLength": 1 },
+        "service_family": { "$ref": "#/$defs/service_family" },
+        "action_family": { "type": "string", "minLength": 1 },
+        "queueability": { "$ref": "#/$defs/queueability_declaration" },
+        "missing_metadata_block_reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "queueability_declaration": {
+      "type": "object",
+      "required": ["offline_read_class", "queueability", "replay_safety", "stale_label_semantics"],
+      "properties": {
+        "offline_read_class": { "type": "string", "enum": ["pure_local_core", "cached_read_inspect", "live_required"] },
+        "queueability": { "type": "string", "enum": ["not_needed_local", "explicit_idempotent_reviewable", "read_only_refresh", "policy_bound_background", "never_queue"] },
+        "replay_safety": { "type": "string", "enum": ["idempotent_bounded", "read_only_refresh", "local_only", "manual_rerun_required"] },
+        "idempotency_key_shape": { "$ref": "#/$defs/idempotency_key_shape" },
+        "expiry_policy": { "$ref": "#/$defs/expiry_policy" },
+        "stale_label_semantics": { "type": "string", "enum": ["current", "last_known_good_timestamp", "cached_inspect_only", "auth_or_policy_stale", "service_family_unavailable"] },
+        "reconciliation_owner": { "type": "string", "enum": ["provider", "managed_workspace", "request_workspace", "remote", "service_health", "support"] }
+      }
+    },
+    "idempotency_key_shape": {
+      "type": "object",
+      "required": ["includes_command_id", "includes_target_identity", "includes_actor_identity", "includes_policy_epoch", "includes_context_hash", "support_summary"],
+      "properties": {
+        "includes_command_id": { "type": "boolean" },
+        "includes_target_identity": { "type": "boolean" },
+        "includes_actor_identity": { "type": "boolean" },
+        "includes_policy_epoch": { "type": "boolean" },
+        "includes_context_hash": { "type": "boolean" },
+        "support_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "expiry_policy": {
+      "type": "object",
+      "required": ["expires_after", "blocks_replay_after_expiry", "rationale_summary"],
+      "properties": {
+        "expires_after": { "type": "string", "minLength": 1 },
+        "blocks_replay_after_expiry": { "type": "boolean" },
+        "rationale_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "array"] }
+    },
+    "deferred_intent": {
+      "type": "object",
+      "required": ["record_kind", "schema_version", "intent_id", "command_id", "service_family", "target_identity", "actor", "queued_at", "expires_at", "policy_epoch", "auth_scope", "context_hash", "previewed_effect_summary", "state", "available_actions", "sensitive_payload_posture"],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_record" },
+        "schema_version": { "const": 1 },
+        "intent_id": { "type": "string", "minLength": 1 },
+        "command_id": { "type": "string", "minLength": 1 },
+        "service_family": { "$ref": "#/$defs/service_family" },
+        "target_identity": { "$ref": "#/$defs/identity" },
+        "actor": { "$ref": "#/$defs/identity" },
+        "queued_at": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "minLength": 1 },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "auth_scope": { "$ref": "#/$defs/identity" },
+        "context_hash": { "type": "string", "minLength": 1 },
+        "previewed_effect_summary": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "enum": ["queued", "replayed", "cancelled", "expired", "dropped", "conflict_review"] },
+        "available_actions": { "type": "array", "items": { "type": "string", "enum": ["replay", "cancel", "export", "open_review"] }, "minItems": 1 },
+        "sensitive_payload_posture": { "type": "string", "enum": ["no_raw_payload", "raw_payload_withheld_by_default", "redacted_preview_only"] }
+      }
+    },
+    "reconciliation_review_sheet": {
+      "type": "object",
+      "required": ["record_kind", "schema_version", "review_id", "intent_id", "connectivity_state", "drift_dimensions", "previewed_effect_summary", "available_actions", "replay_blocked_until_review"],
+      "properties": {
+        "record_kind": { "const": "reconciliation_review_sheet_record" },
+        "schema_version": { "const": 1 },
+        "review_id": { "type": "string", "minLength": 1 },
+        "intent_id": { "type": "string", "minLength": 1 },
+        "connectivity_state": { "$ref": "#/$defs/connectivity_state" },
+        "drift_dimensions": { "type": "array", "items": { "type": "string", "enum": ["route", "policy", "auth", "tenant", "region", "endpoint", "target", "version", "entitlement", "context", "command_metadata", "expiry"] }, "minItems": 1 },
+        "previewed_effect_summary": { "type": "string", "minLength": 1 },
+        "available_actions": { "type": "array", "items": { "type": "string", "enum": ["replay", "cancel", "export", "open_review"] }, "minItems": 1 },
+        "replay_blocked_until_review": { "const": true }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "required": ["record_kind", "schema_version", "state_vocabulary", "deferred_intent_refs", "reconciliation_review_refs", "raw_sensitive_payloads_excluded"],
+      "properties": {
+        "record_kind": { "const": "connectivity_support_export_packet_record" },
+        "schema_version": { "const": 1 },
+        "state_vocabulary": { "type": "array", "items": { "$ref": "#/$defs/connectivity_state" }, "minItems": 6 },
+        "deferred_intent_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "reconciliation_review_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "raw_sensitive_payloads_excluded": { "const": true }
+      }
+    }
+  }
+}

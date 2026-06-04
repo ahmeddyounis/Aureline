@@ -28,6 +28,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use aureline_continuity::ConnectivityState;
 use aureline_provider::{
     reconciliation::{ProviderDriftClass, ReconciliationNextActionClass},
     registry::{FreshnessLabel, FreshnessTruth, RedactionClass},
@@ -113,6 +114,19 @@ pub enum MaintenanceWindowState {
     Reconciling,
     /// Window has resolved and normal operation resumed.
     Resolved,
+}
+
+impl MaintenanceWindowState {
+    /// Returns the shared connectivity state shown by service-health cards.
+    pub fn connectivity_state(self) -> ConnectivityState {
+        match self {
+            Self::Scheduled | Self::Resolved => ConnectivityState::Connected,
+            Self::ReadOnly | Self::DrainInProgress | Self::Migration | Self::Failover => {
+                ConnectivityState::ServiceUnavailable
+            }
+            Self::Reconciling => ConnectivityState::ReconciliationPending,
+        }
+    }
 }
 
 /// Classification of a write operation that is blocked during a window.
@@ -669,6 +683,20 @@ pub struct ServiceHealthContinuitySupportExport {
     pub reconciliation_summaries: Vec<PostWindowReconciliationSummary>,
     /// Redaction posture.
     pub redaction_class: RedactionClass,
+}
+
+impl ServiceHealthContinuitySupportExport {
+    /// Returns the shared connectivity vocabulary used by service-health exports.
+    pub fn connectivity_state_vocabulary(&self) -> Vec<ConnectivityState> {
+        vec![
+            ConnectivityState::Connected,
+            ConnectivityState::Constrained,
+            ConnectivityState::OfflineLocalSafe,
+            ConnectivityState::ReauthRequired,
+            ConnectivityState::ReconciliationPending,
+            ConnectivityState::ServiceUnavailable,
+        ]
+    }
 }
 
 /// Redaction-safe scheduled maintenance notice summary.

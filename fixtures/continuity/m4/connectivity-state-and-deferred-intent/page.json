@@ -1,0 +1,117 @@
+{
+  "record_kind": "connectivity_continuity_page_record",
+  "schema_version": 1,
+  "contract_refs": [
+    "continuity:connectivity-state-deferred-intent:v1",
+    "schemas/continuity/deferred-intent-and-reconciliation.schema.json",
+    "docs/continuity/m4/connectivity-state-and-deferred-intent.md"
+  ],
+  "local_safe_promises": [
+    { "state": "Connected", "service_family": "managed_workspace", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "current" },
+    { "state": "Constrained", "service_family": "managed_workspace", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "last_known_good_timestamp" },
+    { "state": "OfflineLocalSafe", "service_family": "managed_workspace", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "cached_inspect_only" },
+    { "state": "ReauthRequired", "service_family": "provider", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "auth_or_policy_stale" },
+    { "state": "ReconciliationPending", "service_family": "provider", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "last_known_good_timestamp" },
+    { "state": "ServiceUnavailable", "service_family": "provider", "local_editing_available": true, "local_search_available": true, "local_git_available": true, "local_tasks_available": true, "cached_inspection_available": true, "stale_label_semantics": "service_family_unavailable" }
+  ],
+  "command_declarations": [
+    {
+      "record_kind": "network_command_declaration_record",
+      "schema_version": 1,
+      "command_id": "cmd:provider.review_comment.save_draft",
+      "service_family": "provider",
+      "action_family": "explicit_idempotent_managed_write",
+      "queueability": {
+        "offline_read_class": "live_required",
+        "queueability": "explicit_idempotent_reviewable",
+        "replay_safety": "idempotent_bounded",
+        "idempotency_key_shape": {
+          "includes_command_id": true,
+          "includes_target_identity": true,
+          "includes_actor_identity": true,
+          "includes_policy_epoch": true,
+          "includes_context_hash": true,
+          "support_summary": "command+target+actor+policy+context"
+        },
+        "expiry_policy": {
+          "expires_after": "PT72H",
+          "blocks_replay_after_expiry": true,
+          "rationale_summary": "Provider review drafts expire after three days unless refreshed."
+        },
+        "stale_label_semantics": "cached_inspect_only",
+        "reconciliation_owner": "provider"
+      },
+      "missing_metadata_block_reason": "Deferred provider writes require idempotency, expiry, stale-label, and reconciliation owner metadata."
+    },
+    {
+      "record_kind": "network_command_declaration_record",
+      "schema_version": 1,
+      "command_id": "cmd:git.push",
+      "service_family": "provider",
+      "action_family": "git_push",
+      "queueability": {
+        "offline_read_class": "live_required",
+        "queueability": "never_queue",
+        "replay_safety": "manual_rerun_required",
+        "stale_label_semantics": "service_family_unavailable"
+      },
+      "missing_metadata_block_reason": "Git push requires live target context and fresh auth; rerun manually after reconnect."
+    }
+  ],
+  "deferred_intents": [
+    {
+      "record_kind": "deferred_intent_record",
+      "schema_version": 1,
+      "intent_id": "intent:provider-review-comment-1",
+      "command_id": "cmd:provider.review_comment.save_draft",
+      "service_family": "provider",
+      "target_identity": {
+        "target_ref": "provider:github:pr:42:comment-thread:7",
+        "target_class": "pull_request_comment_thread",
+        "tenant_ref": "org:acme",
+        "region_ref": "region:us",
+        "endpoint_ref": "endpoint:github.com",
+        "version_ref": "head:abc123"
+      },
+      "actor": {
+        "actor_ref": "actor:user:alice",
+        "actor_class": "human_account",
+        "display_label": "Alice"
+      },
+      "queued_at": "2026-06-04T18:00:00Z",
+      "expires_at": "2026-06-07T18:00:00Z",
+      "policy_epoch": "policy-epoch-42",
+      "auth_scope": {
+        "subject_ref": "subject:alice",
+        "scope_refs": ["pull_request:write"],
+        "auth_epoch": "auth-epoch-17"
+      },
+      "context_hash": "sha256:queued-context",
+      "previewed_effect_summary": "Would save a provider review comment draft on PR 42.",
+      "state": "queued",
+      "available_actions": ["replay", "cancel", "export"],
+      "sensitive_payload_posture": "redacted_preview_only"
+    }
+  ],
+  "reconciliation_reviews": [
+    {
+      "record_kind": "reconciliation_review_sheet_record",
+      "schema_version": 1,
+      "review_id": "review:provider-review-comment-1",
+      "intent_id": "intent:provider-review-comment-1",
+      "connectivity_state": "ReconciliationPending",
+      "drift_dimensions": ["route", "policy", "auth", "tenant", "region", "endpoint", "target"],
+      "previewed_effect_summary": "Would save a provider review comment draft on PR 42.",
+      "available_actions": ["open_review", "cancel", "export"],
+      "replay_blocked_until_review": true
+    }
+  ],
+  "support_export": {
+    "record_kind": "connectivity_support_export_packet_record",
+    "schema_version": 1,
+    "state_vocabulary": ["Connected", "Constrained", "OfflineLocalSafe", "ReauthRequired", "ReconciliationPending", "ServiceUnavailable"],
+    "deferred_intent_refs": ["intent:provider-review-comment-1"],
+    "reconciliation_review_refs": ["review:provider-review-comment-1"],
+    "raw_sensitive_payloads_excluded": true
+  }
+}
