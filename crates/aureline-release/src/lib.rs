@@ -204,6 +204,11 @@
 //! accessibility, support-export, and downgrade-label evidence; and prevents notebook,
 //! database/result-grid, or profiler-style language from widening unless that family row has
 //! its own current proof.
+//! The voice-and-dictation-surface-qualification module is the family-specific release
+//! guard for speech input. It requires explicit command-vs-dictation mode truth,
+//! push-to-talk or explicit activation defaults, provider/privacy disclosure, bounded
+//! transcript handling, unavailable-state fallbacks, accessibility evidence, and command
+//! graph parity before any voice or dictation row can render as Stable.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -242,6 +247,7 @@ pub mod stable_publication_pack;
 pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
 pub mod support_class_ledger;
+pub mod voice_and_dictation_surface_qualification;
 
 pub use correction_train::{
     BackportDecision, BackportMatrixRow, CorrectionEvidence, CorrectionItem, CorrectionRisk,
@@ -456,6 +462,16 @@ pub use optional_surface_qualification::{
     SurfacePublicationRecord, SurfaceState, SurfaceStopRule, OPTIONAL_SURFACE_QUALIFICATION_JSON,
     OPTIONAL_SURFACE_QUALIFICATION_PATH, OPTIONAL_SURFACE_QUALIFICATION_RECORD_KIND,
     OPTIONAL_SURFACE_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use voice_and_dictation_surface_qualification::{
+    current_voice_and_dictation_surface_qualification, ActivationDefault, CommandParityContract,
+    ProcessingClass, TranscriptPrivacyControls, TranscriptRetention,
+    VoiceAndDictationSurfaceQualification, VoiceFallbackState, VoiceMode, VoiceProjection,
+    VoiceQualificationSummary, VoiceQualificationViolation, VoiceSurfaceKind, VoiceSurfaceRow,
+    VoiceUiPrimitives, VOICE_DICTATION_SURFACE_QUALIFICATION_JSON,
+    VOICE_DICTATION_SURFACE_QUALIFICATION_PATH, VOICE_DICTATION_SURFACE_QUALIFICATION_RECORD_KIND,
+    VOICE_DICTATION_SURFACE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use release_center_model::{
