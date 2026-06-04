@@ -9,7 +9,22 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-navigation/0.0.0")]
 
+pub mod bookmark_history_and_drift_continuity;
 pub mod target_model;
+
+pub use bookmark_history_and_drift_continuity::{
+    validate_navigation_continuity_packet, BreadcrumbTrail, DurableNavigationAnchor,
+    NavigationConsumerProjection, NavigationContinuityArtifact, NavigationContinuityArtifactKind,
+    NavigationContinuityError, NavigationContinuityFinding, NavigationContinuityFindingKind,
+    NavigationContinuityFindingSeverity, NavigationContinuityPacket, NavigationContinuitySurface,
+    NavigationDriftState, NavigationHistoryEntry, NavigationMark, NavigationScopeRef,
+    NavigationSourceRef, OutlineSnapshot, PeekContext, RestoreNavigationArtifact,
+    RestoreNavigationPacket, StableAnchorRemap, BOOKMARK_HISTORY_CONTINUITY_ARTIFACT_REF,
+    BOOKMARK_HISTORY_CONTINUITY_DOC_REF, BOOKMARK_HISTORY_CONTINUITY_FIXTURE_DIR,
+    BOOKMARK_HISTORY_CONTINUITY_PACKET_RECORD_KIND, BOOKMARK_HISTORY_CONTINUITY_SCHEMA_REF,
+    BOOKMARK_HISTORY_CONTINUITY_SCHEMA_VERSION, REQUIRED_CONTINUITY_SURFACES,
+    REQUIRED_DRIFT_STATES,
+};
 
 pub use target_model::{
     current_navigation_target_fidelity_corpus, current_navigation_target_fidelity_fixture_refs,

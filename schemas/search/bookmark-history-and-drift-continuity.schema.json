@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/bookmark-history-and-drift-continuity.schema.json",
+  "title": "Aureline bookmark/history drift continuity packet",
+  "description": "Stable boundary schema for breadcrumb, outline, bookmark, history, recent-location, and peek continuity across editor, diff, notebook, docs, search, and topology surfaces. Packets preserve durable anchors, provider/source refs, freshness, partiality, scope, drift states, remap evidence, restore reasons, and support/export projections without silently retargeting to nearby symbols, lines, or docs sections.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "schema_ref",
+    "doc_ref",
+    "anchors",
+    "remaps",
+    "artifacts",
+    "restore_packet",
+    "consumer_projections",
+    "covered_drift_states"
+  ],
+  "properties": {
+    "record_kind": { "const": "bookmark_history_and_drift_continuity_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "schema_ref": { "const": "schemas/search/bookmark-history-and-drift-continuity.schema.json" },
+    "doc_ref": { "const": "docs/m4/bookmark-history-and-drift-continuity.md" },
+    "anchors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/durable_anchor" }
+    },
+    "remaps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stable_remap" }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "restore_packet": { "$ref": "#/$defs/restore_packet" },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "covered_drift_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/drift_state" },
+      "allOf": [
+        { "contains": { "const": "bound" } },
+        { "contains": { "const": "remapped" } },
+        { "contains": { "const": "drifted" } },
+        { "contains": { "const": "missing_target" } },
+        { "contains": { "const": "scope_unavailable" } },
+        { "contains": { "const": "archived" } }
+      ]
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "drift_state": {
+      "enum": [
+        "bound",
+        "remapped",
+        "drifted",
+        "missing_target",
+        "scope_unavailable",
+        "archived"
+      ]
+    },
+    "surface": {
+      "enum": ["editor", "diff", "notebook", "docs", "search", "topology"]
+    },
+    "artifact_kind": {
+      "enum": [
+        "breadcrumb_trail",
+        "outline_snapshot",
+        "navigation_mark",
+        "navigation_history_entry",
+        "peek_context"
+      ]
+    },
+    "source_ref": {
+      "type": "object",
+      "required": ["provider_class", "provider_ref", "freshness_class", "partial"],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/non_empty_string" },
+        "provider_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_class": { "$ref": "#/$defs/non_empty_string" },
+        "partial": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "scope_ref": {
+      "type": "object",
+      "required": ["workspace_ref", "scope_ref", "trust_contract_ref", "scope_class"],
+      "properties": {
+        "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_class": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "durable_anchor": {
+      "type": "object",
+      "required": [
+        "anchor_id",
+        "canonical_target_ref",
+        "source_refs",
+        "scope",
+        "drift_state"
+      ],
+      "properties": {
+        "anchor_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "resolved_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_ref" }
+        },
+        "scope": { "$ref": "#/$defs/scope_ref" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "drift_reason": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_choices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "drift_state": { "enum": ["bound", "remapped"] } },
+            "required": ["drift_state"]
+          },
+          "then": { "required": ["resolved_target_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "drift_state": {
+                "enum": ["drifted", "missing_target", "scope_unavailable", "archived"]
+              }
+            },
+            "required": ["drift_state"]
+          },
+          "then": { "required": ["drift_reason", "recovery_choices"] }
+        }
+      ]
+    },
+    "stable_remap": {
+      "type": "object",
+      "required": [
+        "remap_id",
+        "anchor_id_ref",
+        "from_target_ref",
+        "to_target_ref",
+        "stable_evidence_refs",
+        "used_nearby_fallback"
+      ],
+      "properties": {
+        "remap_id": { "$ref": "#/$defs/non_empty_string" },
+        "anchor_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "from_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "to_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stable_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "used_nearby_fallback": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": false
+    },
+    "breadcrumb_trail": {
+      "type": "object",
+      "required": ["trail_id", "segment_anchor_refs", "drift_state"],
+      "properties": {
+        "trail_id": { "$ref": "#/$defs/non_empty_string" },
+        "segment_anchor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "drift_state": { "$ref": "#/$defs/drift_state" }
+      },
+      "additionalProperties": false
+    },
+    "outline_snapshot": {
+      "type": "object",
+      "required": ["outline_id", "snapshot_ref", "node_anchor_refs", "freshness_class", "partial", "drift_state"],
+      "properties": {
+        "outline_id": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "node_anchor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "freshness_class": { "$ref": "#/$defs/non_empty_string" },
+        "partial": { "type": "boolean" },
+        "drift_state": { "$ref": "#/$defs/drift_state" }
+      },
+      "additionalProperties": false
+    },
+    "navigation_mark": {
+      "type": "object",
+      "required": ["mark_id", "anchor_ref", "drift_state"],
+      "properties": {
+        "mark_id": { "$ref": "#/$defs/non_empty_string" },
+        "anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "drift_state": { "$ref": "#/$defs/drift_state" }
+      },
+      "additionalProperties": false
+    },
+    "history_entry": {
+      "type": "object",
+      "required": [
+        "history_entry_id",
+        "origin_surface",
+        "origin_anchor_ref",
+        "destination_anchor_ref",
+        "back_stack",
+        "forward_stack",
+        "recent_location",
+        "drift_state"
+      ],
+      "properties": {
+        "history_entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "origin_surface": { "$ref": "#/$defs/surface" },
+        "origin_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destination_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "back_stack": { "type": "boolean" },
+        "forward_stack": { "type": "boolean" },
+        "recent_location": { "type": "boolean" },
+        "drift_state": { "$ref": "#/$defs/drift_state" }
+      },
+      "additionalProperties": false
+    },
+    "peek_context": {
+      "type": "object",
+      "required": ["peek_context_id", "invocation_anchor_ref", "return_anchor_ref", "surface", "drift_state"],
+      "properties": {
+        "peek_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "invocation_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "drift_state": { "$ref": "#/$defs/drift_state" }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_id", "artifact_kind", "anchor_refs", "drift_state"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "anchor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "breadcrumb_trail": { "$ref": "#/$defs/breadcrumb_trail" },
+        "outline_snapshot": { "$ref": "#/$defs/outline_snapshot" },
+        "navigation_mark": { "$ref": "#/$defs/navigation_mark" },
+        "history_entry": { "$ref": "#/$defs/history_entry" },
+        "peek_context": { "$ref": "#/$defs/peek_context" }
+      },
+      "additionalProperties": false
+    },
+    "restore_artifact": {
+      "type": "object",
+      "required": [
+        "artifact_id_ref",
+        "drift_state",
+        "target_resolves_under_current_scope",
+        "artifact_preserved",
+        "recovery_choices"
+      ],
+      "properties": {
+        "artifact_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "target_resolves_under_current_scope": { "type": "boolean" },
+        "artifact_preserved": { "type": "boolean" },
+        "restore_reason": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_choices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "restore_packet": {
+      "type": "object",
+      "required": ["restore_packet_id", "restore_source_ref", "artifacts"],
+      "properties": {
+        "restore_packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "restore_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_artifact" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_export_safe_ids",
+        "preserves_full_drift_vocabulary",
+        "preserves_provider_source_refs",
+        "preserves_restore_reasons",
+        "preserves_origin_destination_scope"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_export_safe_ids": { "type": "boolean", "const": true },
+        "preserves_full_drift_vocabulary": { "type": "boolean", "const": true },
+        "preserves_provider_source_refs": { "type": "boolean", "const": true },
+        "preserves_restore_reasons": { "type": "boolean", "const": true },
+        "preserves_origin_destination_scope": { "type": "boolean", "const": true }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "subject_ref", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "enum": ["info", "warning", "blocker"] },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
