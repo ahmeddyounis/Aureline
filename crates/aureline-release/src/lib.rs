@@ -231,6 +231,7 @@ pub mod maintenance_control_packet;
 pub mod notebook_and_data_rich_surface_qualification;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
+pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
@@ -473,6 +474,20 @@ pub use voice_and_dictation_surface_qualification::{
     VoiceUiPrimitives, VOICE_DICTATION_SURFACE_QUALIFICATION_JSON,
     VOICE_DICTATION_SURFACE_QUALIFICATION_PATH, VOICE_DICTATION_SURFACE_QUALIFICATION_RECORD_KIND,
     VOICE_DICTATION_SURFACE_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use preview_designer_publish_surface_qualification::{
+    current_preview_designer_publish_surface_qualification, ActionSafetyLineage,
+    BrowserInspectionBoundary, ExportedArtifactTruth, FallbackPaths, GeneratedSourceTruth,
+    PreviewDesignerPublishExportProjection, PreviewDesignerPublishExportRow,
+    PreviewDesignerPublishQualificationSummary, PreviewDesignerPublishQualificationViolation,
+    PreviewDesignerPublishSurfaceKind, PreviewDesignerPublishSurfaceQualification,
+    PreviewDesignerPublishSurfaceRow, QualificationProjection as PreviewDesignerPublishProjection,
+    SafePreviewPosture, SourceMappingQuality, SourceSyncState,
+    PREVIEW_DESIGNER_PUBLISH_SURFACE_QUALIFICATION_JSON,
+    PREVIEW_DESIGNER_PUBLISH_SURFACE_QUALIFICATION_PATH,
+    PREVIEW_DESIGNER_PUBLISH_SURFACE_QUALIFICATION_RECORD_KIND,
+    PREVIEW_DESIGNER_PUBLISH_SURFACE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use release_center_model::{
