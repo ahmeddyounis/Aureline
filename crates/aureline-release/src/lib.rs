@@ -212,6 +212,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
+pub mod browser_mobile_companion_surface_qualification;
 pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
@@ -572,6 +573,17 @@ pub use support_class_ledger::{
     SupportClassLedgerSummary, SupportClassLedgerViolation, SupportEvidence,
     SUPPORT_CLASS_LEDGER_JSON, SUPPORT_CLASS_LEDGER_PATH, SUPPORT_CLASS_LEDGER_RECORD_KIND,
     SUPPORT_CLASS_LEDGER_SCHEMA_VERSION,
+};
+
+pub use browser_mobile_companion_surface_qualification::{
+    current_browser_mobile_companion_surface_qualification,
+    BrowserMobileCompanionSurfaceQualification, CompanionAuthority, CompanionClientKind,
+    CompanionFreshness, CompanionProjection, CompanionQualificationSummary,
+    CompanionQualificationViolation, CompanionScope, CompanionSurfaceRow, CompanionVisibleLabel,
+    DesktopHandoffTruth, BROWSER_MOBILE_COMPANION_SURFACE_QUALIFICATION_JSON,
+    BROWSER_MOBILE_COMPANION_SURFACE_QUALIFICATION_PATH,
+    BROWSER_MOBILE_COMPANION_SURFACE_QUALIFICATION_RECORD_KIND,
+    BROWSER_MOBILE_COMPANION_SURFACE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery::{
