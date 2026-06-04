@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/structured-config-manifest-environment-editor-qualification.schema.json",
+  "title": "Structured config, manifest, environment editor qualification",
+  "description": "Boundary schema for records that qualify structured config, manifest, lockfile, environment-file, and live-state surfaces against the source/effective/live truth and round-trip-risk contract.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "record_id",
+    "shared_contract_ref",
+    "notice",
+    "artifact_class",
+    "primary_truth_layer",
+    "available_truth_layers",
+    "target_context",
+    "round_trip_risk",
+    "write_posture",
+    "apply_timing",
+    "preservation",
+    "parameter_sources",
+    "secret_chips",
+    "validations",
+    "surface_parity",
+    "risk_drills",
+    "support_export_ref",
+    "docs_ref",
+    "qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "structured_config_manifest_environment_editor_qualification" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "const": "config:structured_editor_source_effective_live:v1" },
+    "notice": { "type": "string", "minLength": 1 },
+    "artifact_class": {
+      "enum": ["structured_config", "manifest", "lockfile", "environment_file", "live_state_projection"]
+    },
+    "primary_truth_layer": {
+      "enum": ["source", "rendered_projection", "effective_value", "planned_preview", "live_observed", "provider_overlay"]
+    },
+    "available_truth_layers": {
+      "type": "array",
+      "items": { "enum": ["source", "rendered_projection", "effective_value", "planned_preview", "live_observed", "provider_overlay"] },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "target_context": {
+      "enum": ["local", "remote", "container", "managed_policy", "browser_companion"]
+    },
+    "round_trip_risk": {
+      "enum": ["preserving", "declared_canonicalization", "high_risk_review_required", "compare_only", "raw_source_only"]
+    },
+    "write_posture": {
+      "enum": ["structured_write_allowed", "compare_before_save_required", "source_only_edit", "inspect_only", "blocked"]
+    },
+    "apply_timing": {
+      "enum": ["immediate", "staged", "preview_first", "policy_locked"]
+    },
+    "preservation": { "$ref": "#/$defs/preservation" },
+    "parameter_sources": { "type": "array", "items": { "$ref": "#/$defs/parameter_source" }, "minItems": 1 },
+    "secret_chips": { "type": "array", "items": { "$ref": "#/$defs/secret_chip" } },
+    "validations": { "type": "array", "items": { "$ref": "#/$defs/validation" }, "minItems": 6 },
+    "surface_parity": { "type": "array", "items": { "$ref": "#/$defs/surface_parity" }, "minItems": 5 },
+    "risk_drills": { "type": "array", "items": { "$ref": "#/$defs/risk_drill" }, "minItems": 1 },
+    "support_export_ref": { "type": "string", "minLength": 1 },
+    "docs_ref": { "type": "string", "minLength": 1 },
+    "qualification": { "$ref": "#/$defs/qualification" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "preservation": {
+      "type": "object",
+      "required": ["preserves_comments", "preserves_unknown_fields", "preserves_ordering", "preserves_extension_namespaces", "fixture_refs", "fallback_posture"],
+      "properties": {
+        "preserves_comments": { "type": "boolean" },
+        "preserves_unknown_fields": { "type": "boolean" },
+        "preserves_ordering": { "type": "boolean" },
+        "preserves_extension_namespaces": { "type": "boolean" },
+        "fixture_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "fallback_posture": { "enum": ["structured_write_allowed", "compare_before_save_required", "source_only_edit", "inspect_only", "blocked"] }
+      },
+      "additionalProperties": false
+    },
+    "parameter_source": {
+      "type": "object",
+      "required": ["key_path", "source_class", "layer_label", "wins_effective_value", "storage_mode", "visible_value_summary", "layer_specific_reset"],
+      "properties": {
+        "key_path": { "type": "string", "minLength": 1 },
+        "source_class": { "enum": ["default", "workspace_value", "user_override", "runtime_prompt", "secret_reference", "policy_injected", "runtime_discovered"] },
+        "layer_label": { "type": "string", "minLength": 1 },
+        "wins_effective_value": { "type": "boolean" },
+        "storage_mode": { "enum": ["literal", "reference_handle", "redacted_placeholder", "key_path_only", "local_only"] },
+        "visible_value_summary": { "type": "string", "minLength": 1 },
+        "layer_specific_reset": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "secret_chip": {
+      "type": "object",
+      "required": ["key_path", "source_class", "handle_label", "copy_export_mode", "raw_secret_export_blocked_by_default"],
+      "properties": {
+        "key_path": { "type": "string", "minLength": 1 },
+        "source_class": { "enum": ["default", "workspace_value", "user_override", "runtime_prompt", "secret_reference", "policy_injected", "runtime_discovered"] },
+        "handle_label": { "type": "string", "minLength": 1 },
+        "copy_export_mode": { "enum": ["literal_value", "reference_handle", "redacted_placeholder", "key_path_only"] },
+        "raw_secret_export_blocked_by_default": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "required": ["validation_class", "status", "reason", "invalidates_on_target_change", "invalidates_on_dirty_change"],
+      "properties": {
+        "validation_class": { "enum": ["local_syntax", "schema", "environment_probe", "remote_auth", "policy", "dry_run"] },
+        "status": { "enum": ["passed", "stale_invalidated", "timed_out", "blocked", "not_applicable"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "invalidates_on_target_change": { "type": "boolean" },
+        "invalidates_on_dirty_change": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "surface_parity": {
+      "type": "object",
+      "required": ["surface_class", "consumes_shared_contract", "vocabulary_terms", "redaction_safe", "exposes_preview_apply_revert_lineage"],
+      "properties": {
+        "surface_class": { "enum": ["editor_ui", "cli_headless_inspect", "help_docs", "support_export", "routed_action_review"] },
+        "consumes_shared_contract": { "type": "boolean" },
+        "vocabulary_terms": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "redaction_safe": { "type": "boolean" },
+        "exposes_preview_apply_revert_lineage": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "risk_drill": {
+      "type": "object",
+      "required": ["drill_id", "drill_class", "blocks_before_mutation", "visible_reason", "repair_route"],
+      "properties": {
+        "drill_id": { "type": "string", "minLength": 1 },
+        "drill_class": { "type": "string", "minLength": 1 },
+        "blocks_before_mutation": { "type": "boolean" },
+        "visible_reason": { "type": "string", "minLength": 1 },
+        "repair_route": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "qualification": {
+      "type": "object",
+      "required": ["claim_class", "qualifies_stable", "narrowing_reasons"],
+      "properties": {
+        "claim_class": { "enum": ["stable", "beta", "preview", "not_claimed"] },
+        "qualifies_stable": { "type": "boolean" },
+        "narrowing_reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    }
+  }
+}
