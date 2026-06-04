@@ -58,6 +58,7 @@ pub mod preview_drift;
 pub mod provenance;
 pub mod publish_execution_plane_certification_packets_for_local_remote;
 pub mod quality;
+pub mod queue_governor_and_admission_control;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
@@ -533,6 +534,16 @@ pub use quality::{
     EFFECTIVE_QUALITY_PROFILE_RECORD_KIND, QUALITY_ACTION_PROPOSAL_RECORD_KIND,
     QUALITY_GOVERNANCE_SCHEMA_VERSION, QUALITY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
     QUALITY_RELEASE_DEBT_PACKET_RECORD_KIND, QUALITY_SESSION_RECORD_KIND, SUPPRESSION_RECORD_KIND,
+};
+pub use queue_governor_and_admission_control::{
+    current_stable_queue_governor_packet, BackgroundJobKind, CancellationContract,
+    CheckpointPolicy, CollapsePolicy, InitiatingSource, QueueGovernorConsumerProjection,
+    QueueGovernorLab, QueueGovernorStablePacket, QueueGovernorSupportExport, QueueJobScope,
+    QueueLaneRule, QueueLaneSummary, RuntimeHealthProjection, StableBackgroundJob, StalenessInputs,
+    StalenessPolicy, QUEUE_GOVERNOR_ARTIFACT_DOC_REF, QUEUE_GOVERNOR_DOC_REF,
+    QUEUE_GOVERNOR_FIXTURE_DIR, QUEUE_GOVERNOR_PACKET_ARTIFACT_REF, QUEUE_GOVERNOR_SCHEMA_REF,
+    QUEUE_GOVERNOR_SCHEMA_VERSION, QUEUE_GOVERNOR_STABLE_PACKET_RECORD_KIND,
+    QUEUE_GOVERNOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use recipes::{
     RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,
