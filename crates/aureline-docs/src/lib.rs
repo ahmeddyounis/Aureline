@@ -11,6 +11,7 @@
 
 pub mod citations;
 pub mod docs_browser_truth_packet;
+pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod index;
@@ -46,6 +47,23 @@ pub use docs_browser_truth_packet::{
     DOCS_BROWSER_TRUTH_PACKET_MILESTONE_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_RECORD_KIND,
     DOCS_BROWSER_TRUTH_PACKET_SCHEMA_REF, DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
     DOCS_BROWSER_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use docs_maintenance_and_stale_example_governance::{
+    current_docs_maintenance_and_stale_example_governance_packet,
+    seeded_docs_maintenance_and_stale_example_governance_input, DocsActiveContentState,
+    DocsMaintenanceArtifactClass, DocsMaintenanceGovernanceArtifactError,
+    DocsMaintenanceGovernanceFinding, DocsMaintenanceGovernanceFindingKind,
+    DocsMaintenanceGovernancePacket, DocsMaintenanceGovernancePacketInput,
+    DocsMaintenanceGovernanceProjection, DocsMaintenanceGovernancePromotionState,
+    DocsMaintenanceGovernanceSupportExport, DocsMaintenanceGovernanceSurface,
+    DocsMaintenancePacket, DocsMirrorBrowserHandoffPosture, DocsRenderConfig,
+    DocsRenderSecurityProfile, DocsShareExportPosture, DocsSuggestionObject, DocsValidationOutcome,
+    DocsValidationResult, StaleExampleGovernanceFinding,
+    DOCS_MAINTENANCE_GOVERNANCE_ARTIFACT_DOC_REF, DOCS_MAINTENANCE_GOVERNANCE_ARTIFACT_REF,
+    DOCS_MAINTENANCE_GOVERNANCE_DOC_REF, DOCS_MAINTENANCE_GOVERNANCE_FIXTURE_DIR,
+    DOCS_MAINTENANCE_GOVERNANCE_RECORD_KIND, DOCS_MAINTENANCE_GOVERNANCE_SCHEMA_REF,
+    DOCS_MAINTENANCE_GOVERNANCE_SCHEMA_VERSION,
+    DOCS_MAINTENANCE_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use docs_pack_truth_packet::{
     current_stable_docs_pack_truth_packet, seeded_stable_docs_pack_truth_packet_input,
