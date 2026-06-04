@@ -5,7 +5,10 @@
 //! notebook-bridge debug lanes. It exposes one canonical
 //! [`qualify_chronology_capture_and_replay_support_classes`] module that pins
 //! the replay support class truth every debugger UI, support export, and
-//! release reviewer reads.
+//! release reviewer reads. It also exposes
+//! [`canonical_test_discovery_session_and_watch_truth`] for stable test
+//! discovery/session/watch/quarantine/imported-CI packets shared by runtime,
+//! support, and release evidence surfaces.
 //!
 //! The reviewer-facing contract is at
 //! [`/docs/m4/qualify-chronology-capture-and-replay-support-classes.md`](../../../docs/m4/qualify-chronology-capture-and-replay-support-classes.md).
@@ -16,4 +19,5 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-debug/0.0.0")]
 
+pub mod canonical_test_discovery_session_and_watch_truth;
 pub mod qualify_chronology_capture_and_replay_support_classes;
