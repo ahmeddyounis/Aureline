@@ -4,13 +4,15 @@ use aureline_runtime::{
     BaselineCompatibilityStateClass, BaselineRecord, BaselineRecordRequest,
     EffectiveQualityProfile, QualityActionClass, QualityActionDisclosureClass,
     QualityActionProposal, QualityActionProposalRequest, QualityActorClass,
-    QualityApplyPostureClass, QualityGovernanceError, QualityGovernanceSupportExport,
-    QualityLockReasonClass, QualityLockStateClass, QualityMutationScopeClass, QualityOwnerClass,
-    QualityPolicyLockStateClass, QualityPreviewRequirementClass, QualityProfileResolutionRequest,
-    QualityProfileResolver, QualityProfileSourceCandidate, QualityProfileSourceLayer,
-    QualityReopenRuleClass, QualitySafetyClass, QualitySession, QualitySessionOutcomeClass,
-    QualitySessionRequest, QualitySessionTriggerClass, QualitySurfaceClass,
-    QualityTargetScopeClass, QualityToolFamilyClass, QualityTruthMutationClass, SuppressionRecord,
+    QualityApplyPostureClass, QualityFixSafetyClass, QualityGovernanceError,
+    QualityGovernanceSupportExport, QualityLockReasonClass, QualityLockStateClass,
+    QualityMutationScopeClass, QualityOwnerClass, QualityPolicyLockStateClass,
+    QualityPreviewRequirementClass, QualityProfileResolutionRequest, QualityProfileResolver,
+    QualityProfileSourceCandidate, QualityProfileSourceLayer, QualityReleaseDebtPacket,
+    QualityReleaseDebtStateClass, QualityReopenRuleClass, QualitySafetyClass, QualitySession,
+    QualitySessionOutcomeClass, QualitySessionRequest, QualitySessionTriggerClass,
+    QualitySurfaceClass, QualityTargetScopeClass, QualityToolFamilyClass,
+    QualityTruthMutationClass, SaveParticipantPhaseClass, SuppressionRecord,
     SuppressionRecordRequest,
 };
 use serde::Deserialize;
@@ -186,9 +188,71 @@ fn fixture_matches_runtime_quality_governance_records() {
 }
 
 #[test]
+fn release_debt_packet_reconstructs_profile_save_order_and_debt_state() {
+    let packet = governed_release_packet();
+
+    assert_eq!(
+        packet.effective_profile_ref,
+        "quality.profile.effective.rust.governed"
+    );
+    assert_eq!(packet.winning_source_ref, "policy:quality:regulated");
+    assert!(packet.reconstructable_without_local_editor_state);
+    assert!(packet.reviewable_mutation_required);
+    assert!(packet.any_preview_first_required);
+    assert!(packet.any_apply_blocked);
+
+    let format = &packet.save_participants[0];
+    assert_eq!(format.phase_class, SaveParticipantPhaseClass::FormatFix);
+    assert_eq!(
+        format.fix_safety_class,
+        QualityFixSafetyClass::SafeLocalTextEdit
+    );
+    assert!(format.auto_apply_allowed);
+
+    let fix_all = &packet.save_participants[1];
+    assert_eq!(
+        fix_all.fix_safety_class,
+        QualityFixSafetyClass::WorkspaceWidePreviewRequired
+    );
+    assert!(fix_all.preview_first_required);
+    assert!(!fix_all.auto_apply_allowed);
+
+    let suppression = &packet.save_participants[2];
+    assert_eq!(
+        suppression.fix_safety_class,
+        QualityFixSafetyClass::PolicyBlocked
+    );
+    assert!(suppression.apply_blocked);
+
+    assert_eq!(packet.debt_counts.suppressed_count, 1);
+    assert_eq!(packet.debt_counts.baselined_count, 1);
+    assert_eq!(packet.debt_counts.waived_count, 0);
+    assert_eq!(
+        packet.debt_rows[0].debt_state_class,
+        QualityReleaseDebtStateClass::Suppressed
+    );
+    assert_eq!(
+        packet.debt_rows[1].debt_state_class,
+        QualityReleaseDebtStateClass::Baselined
+    );
+}
+
+#[test]
+fn release_packet_fixture_matches_runtime_projection() {
+    let path = fixture_root().join("release_debt_packet.yaml");
+    let payload =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+    let fixture: QualityReleaseDebtPacket =
+        serde_yaml::from_str(&payload).expect("fixture parses as release debt packet");
+
+    assert_eq!(fixture, governed_release_packet());
+}
+
+#[test]
 fn quality_schemas_parse() {
     for rel in [
         "../../schemas/quality/effective_quality_profile.schema.json",
+        "../../schemas/quality/effective-profile-and-save-participant-governance.schema.json",
         "../../schemas/quality/quality_action_proposal.schema.json",
         "../../schemas/quality/quality_session.schema.json",
         "../../schemas/quality/suppression_record.schema.json",
@@ -469,6 +533,22 @@ fn governed_support_export(
         vec![baseline],
         "Support export preserves effective profile, action, session, suppression, and baseline truth.",
     )
+}
+
+fn governed_release_packet() -> QualityReleaseDebtPacket {
+    QualityReleaseDebtPacket::from_records(
+        "quality.release.debt.packet.governed",
+        "release:stable:quality",
+        "2026-05-18T16:05:00Z",
+        governed_profile(),
+        governed_session(governed_proposals()),
+        vec![governed_suppression()],
+        vec![governed_baseline()],
+        vec!["support:quality:governed".into()],
+        vec!["release:evidence:quality:governed".into()],
+        "Release packet preserves effective profile, save participant ordering, preview thresholds, and release-visible debt state.",
+    )
+    .expect("release packet is governed")
 }
 
 #[derive(Debug, Deserialize)]

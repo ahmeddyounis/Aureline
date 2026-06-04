@@ -38,6 +38,9 @@ pub const BASELINE_RECORD_KIND: &str = "baseline_record";
 pub const QUALITY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND: &str =
     "quality_governance_support_export_record";
 
+/// Stable record-kind tag for release-visible quality debt packets.
+pub const QUALITY_RELEASE_DEBT_PACKET_RECORD_KIND: &str = "quality_release_debt_packet_record";
+
 /// Error returned when a governed quality record would violate the contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QualityGovernanceError {
@@ -57,6 +60,10 @@ pub enum QualityGovernanceError {
     HiddenPermanentSuppressionDenied,
     /// A baseline was requested without accepted finding refs.
     EmptyBaseline,
+    /// A release debt packet was requested without an effective profile.
+    MissingEffectiveProfile,
+    /// A release debt packet was requested without a quality session.
+    MissingQualitySession,
 }
 
 impl fmt::Display for QualityGovernanceError {
@@ -79,6 +86,12 @@ impl fmt::Display for QualityGovernanceError {
                 "suppression without expiry or policy-managed review would be a hidden permanent toggle"
             ),
             Self::EmptyBaseline => write!(formatter, "baseline record requires accepted findings"),
+            Self::MissingEffectiveProfile => {
+                write!(formatter, "release debt packet requires an effective profile")
+            }
+            Self::MissingQualitySession => {
+                write!(formatter, "release debt packet requires a quality session")
+            }
         }
     }
 }
@@ -1897,6 +1910,438 @@ impl BaselineRecord {
     }
 }
 
+/// Ordered save-participant phase used by stable quality lanes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SaveParticipantPhaseClass {
+    /// Bind staged buffer, target identity, profile, trust state, and participant list.
+    Preflight,
+    /// Run admitted formatters, organize-imports, and local fixes against staged content.
+    FormatFix,
+    /// Refresh declared generated companions downstream of canonical source.
+    GeneratedArtifactUpdate,
+    /// Verify staged output after mutation.
+    Validation,
+    /// Revalidate save-target identity immediately before durable write.
+    CompareBeforeWrite,
+    /// Commit only targets admitted by earlier phases.
+    DurableWrite,
+    /// Refresh diagnostics, indexes, and projections after write.
+    PostSaveIndexingRefresh,
+}
+
+impl SaveParticipantPhaseClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Preflight => "preflight",
+            Self::FormatFix => "format_fix",
+            Self::GeneratedArtifactUpdate => "generated_artifact_update",
+            Self::Validation => "validation",
+            Self::CompareBeforeWrite => "compare_before_write",
+            Self::DurableWrite => "durable_write",
+            Self::PostSaveIndexingRefresh => "post_save_indexing_refresh",
+        }
+    }
+}
+
+/// Fix-safety class exported for save participants and release packets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QualityFixSafetyClass {
+    /// Deterministic local edit bounded to the visible file or declared range.
+    SafeLocalTextEdit,
+    /// The participant rewrites the whole file and must disclose that posture.
+    WholeFileRewriteDisclosed,
+    /// Generated output changes downstream of a canonical source.
+    GeneratedCompanionUpdate,
+    /// Workspace-wide or multi-file edits require batch preview.
+    WorkspaceWidePreviewRequired,
+    /// On-disk target changed or write authority is uncertain.
+    ExternalChangeConflictRequiresReview,
+    /// Policy, trust, read-only, or profile lock blocks mutation.
+    PolicyBlocked,
+    /// Safety cannot be proven, so review is required.
+    FixSafetyUnknownRequiresReview,
+}
+
+impl QualityFixSafetyClass {
+    /// Returns true when the class can auto-apply during hot save.
+    pub const fn allows_auto_apply(self) -> bool {
+        matches!(self, Self::SafeLocalTextEdit)
+    }
+
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SafeLocalTextEdit => "safe_local_text_edit",
+            Self::WholeFileRewriteDisclosed => "whole_file_rewrite_disclosed",
+            Self::GeneratedCompanionUpdate => "generated_companion_update",
+            Self::WorkspaceWidePreviewRequired => "workspace_wide_preview_required",
+            Self::ExternalChangeConflictRequiresReview => {
+                "external_change_conflict_requires_review"
+            }
+            Self::PolicyBlocked => "policy_blocked",
+            Self::FixSafetyUnknownRequiresReview => "fix_safety_unknown_requires_review",
+        }
+    }
+}
+
+/// Ordered save participant row derived from a governed quality proposal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QualitySaveParticipantRow {
+    /// Participant id visible to save UI, CLI, review, support, and release exports.
+    pub participant_id: String,
+    /// Stable record ref for the source proposal.
+    pub proposal_ref: String,
+    /// Phase where the participant may run.
+    pub phase_class: SaveParticipantPhaseClass,
+    /// Stable phase token.
+    pub phase_token: String,
+    /// Order within the phase.
+    pub phase_order: u16,
+    /// Action class represented by this participant.
+    pub action_class: QualityActionClass,
+    /// Stable action token.
+    pub action_token: String,
+    /// Fix-safety class for this participant.
+    pub fix_safety_class: QualityFixSafetyClass,
+    /// Stable fix-safety token.
+    pub fix_safety_token: String,
+    /// Preview requirement inherited from the proposal.
+    pub preview_requirement_class: QualityPreviewRequirementClass,
+    /// Stable preview token.
+    pub preview_requirement_token: String,
+    /// Apply posture inherited from the proposal.
+    pub apply_posture_class: QualityApplyPostureClass,
+    /// Stable apply-posture token.
+    pub apply_posture_token: String,
+    /// Mutation scope inherited from the proposal.
+    pub mutation_scope_class: QualityMutationScopeClass,
+    /// Stable mutation-scope token.
+    pub mutation_scope_token: String,
+    /// Effective profile used by this participant.
+    pub effective_profile_ref: String,
+    /// Checkpoint ref, when one exists.
+    pub checkpoint_ref: Option<String>,
+    /// Preview ref, when one exists.
+    pub preview_ref: Option<String>,
+    /// Revert plan ref, when one exists.
+    pub revert_plan_ref: Option<String>,
+    /// True when participant can run as hot-save auto-apply.
+    pub auto_apply_allowed: bool,
+    /// True when preview or review is required before mutation.
+    pub preview_first_required: bool,
+    /// True when apply is blocked.
+    pub apply_blocked: bool,
+    /// Export-safe participant summary.
+    pub summary: String,
+}
+
+impl QualitySaveParticipantRow {
+    /// Builds an ordered save-participant row from a governed action proposal.
+    pub fn from_proposal(proposal: &QualityActionProposal, phase_order: u16) -> Self {
+        let phase_class = phase_for_proposal(proposal);
+        let fix_safety_class = fix_safety_for_proposal(proposal);
+        Self {
+            participant_id: format!("quality.participant.{}", proposal.proposal_id),
+            proposal_ref: proposal.proposal_id.clone(),
+            phase_class,
+            phase_token: phase_class.as_str().to_owned(),
+            phase_order,
+            action_class: proposal.action_class,
+            action_token: proposal.action_class.as_str().to_owned(),
+            fix_safety_class,
+            fix_safety_token: fix_safety_class.as_str().to_owned(),
+            preview_requirement_class: proposal.preview_requirement_class,
+            preview_requirement_token: proposal.preview_requirement_class.as_str().to_owned(),
+            apply_posture_class: proposal.apply_posture_class,
+            apply_posture_token: proposal.apply_posture_class.as_str().to_owned(),
+            mutation_scope_class: proposal.mutation_scope_class,
+            mutation_scope_token: proposal.mutation_scope_class.as_str().to_owned(),
+            effective_profile_ref: proposal.effective_profile_ref.clone(),
+            checkpoint_ref: proposal.checkpoint_ref.clone(),
+            preview_ref: proposal.preview_ref.clone(),
+            revert_plan_ref: proposal.revert_plan_ref.clone(),
+            auto_apply_allowed: fix_safety_class.allows_auto_apply()
+                && !proposal.preview_first_required
+                && !proposal.apply_blocked,
+            preview_first_required: proposal.preview_first_required,
+            apply_blocked: proposal.apply_blocked,
+            summary: proposal.summary.clone(),
+        }
+    }
+}
+
+/// Release-visible quality debt state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QualityReleaseDebtStateClass {
+    /// Finding is hidden only by a governed suppression record.
+    Suppressed,
+    /// Finding is accepted into a compatible governed baseline.
+    Baselined,
+    /// Finding is waived but remains release-visible.
+    Waived,
+    /// Finding is newly introduced relative to the compatible baseline.
+    New,
+    /// Finding was present in a prior baseline and is now resolved.
+    Resolved,
+    /// Finding could not be mapped to source or baseline identity.
+    Unmapped,
+}
+
+impl QualityReleaseDebtStateClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Suppressed => "suppressed",
+            Self::Baselined => "baselined",
+            Self::Waived => "waived",
+            Self::New => "new",
+            Self::Resolved => "resolved",
+            Self::Unmapped => "unmapped",
+        }
+    }
+}
+
+/// One release-visible debt row with governed lineage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QualityReleaseDebtRow {
+    /// Debt row id.
+    pub debt_row_id: String,
+    /// Debt state class.
+    pub debt_state_class: QualityReleaseDebtStateClass,
+    /// Stable debt-state token.
+    pub debt_state_token: String,
+    /// Finding refs represented by this row.
+    pub finding_refs: Vec<String>,
+    /// Rule refs represented by this row.
+    pub rule_refs: Vec<String>,
+    /// Suppression ref, when one governs this row.
+    pub suppression_ref: Option<String>,
+    /// Baseline ref, when one governs this row.
+    pub baseline_ref: Option<String>,
+    /// Waiver refs, when waiver governance applies.
+    pub waiver_refs: Vec<String>,
+    /// Owner ref responsible for the debt row.
+    pub owner_ref: String,
+    /// Reason or decision summary safe for release packets.
+    pub reason: String,
+    /// True when this row is visible in release and support export packets.
+    pub release_visible: bool,
+    /// Export-safe lineage refs.
+    pub lineage_refs: Vec<String>,
+    /// Export-safe summary.
+    pub summary: String,
+}
+
+impl QualityReleaseDebtRow {
+    /// Builds a release debt row from a suppression record.
+    pub fn from_suppression(suppression: &SuppressionRecord) -> Self {
+        let debt_state_class = if suppression.suppression_id.starts_with("waiver:") {
+            QualityReleaseDebtStateClass::Waived
+        } else {
+            QualityReleaseDebtStateClass::Suppressed
+        };
+        Self {
+            debt_row_id: format!("quality.debt.{}", suppression.suppression_id),
+            debt_state_class,
+            debt_state_token: debt_state_class.as_str().to_owned(),
+            finding_refs: suppression.finding_refs.clone(),
+            rule_refs: suppression.rule_refs.clone(),
+            suppression_ref: Some(suppression.suppression_id.clone()),
+            baseline_ref: None,
+            waiver_refs: if debt_state_class == QualityReleaseDebtStateClass::Waived {
+                vec![suppression.suppression_id.clone()]
+            } else {
+                Vec::new()
+            },
+            owner_ref: suppression.owner_ref.clone(),
+            reason: suppression.reason.clone(),
+            release_visible: suppression.release_visible,
+            lineage_refs: suppression.evidence_refs.clone(),
+            summary: suppression.summary.clone(),
+        }
+    }
+
+    /// Builds a release debt row from a baseline record.
+    pub fn from_baseline(baseline: &BaselineRecord) -> Self {
+        Self {
+            debt_row_id: format!("quality.debt.{}", baseline.baseline_id),
+            debt_state_class: QualityReleaseDebtStateClass::Baselined,
+            debt_state_token: QualityReleaseDebtStateClass::Baselined.as_str().to_owned(),
+            finding_refs: baseline.accepted_finding_refs.clone(),
+            rule_refs: Vec::new(),
+            suppression_ref: None,
+            baseline_ref: Some(baseline.baseline_id.clone()),
+            waiver_refs: Vec::new(),
+            owner_ref: baseline.owner_ref.clone(),
+            reason: baseline.summary.clone(),
+            release_visible: baseline.release_visible,
+            lineage_refs: baseline
+                .evidence_refs
+                .iter()
+                .chain(baseline.review_refs.iter())
+                .cloned()
+                .collect(),
+            summary: baseline.summary.clone(),
+        }
+    }
+}
+
+/// Counts of release-visible quality debt states.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct QualityReleaseDebtCounts {
+    /// Suppressed debt row count.
+    pub suppressed_count: usize,
+    /// Baselined debt row count.
+    pub baselined_count: usize,
+    /// Waived debt row count.
+    pub waived_count: usize,
+    /// New debt row count.
+    pub new_count: usize,
+    /// Resolved debt row count.
+    pub resolved_count: usize,
+    /// Unmapped debt row count.
+    pub unmapped_count: usize,
+}
+
+impl QualityReleaseDebtCounts {
+    /// Builds counts from release debt rows.
+    pub fn from_rows(rows: &[QualityReleaseDebtRow]) -> Self {
+        let mut counts = Self::default();
+        for row in rows {
+            match row.debt_state_class {
+                QualityReleaseDebtStateClass::Suppressed => counts.suppressed_count += 1,
+                QualityReleaseDebtStateClass::Baselined => counts.baselined_count += 1,
+                QualityReleaseDebtStateClass::Waived => counts.waived_count += 1,
+                QualityReleaseDebtStateClass::New => counts.new_count += 1,
+                QualityReleaseDebtStateClass::Resolved => counts.resolved_count += 1,
+                QualityReleaseDebtStateClass::Unmapped => counts.unmapped_count += 1,
+            }
+        }
+        counts
+    }
+}
+
+/// Release packet proving stable quality-profile, save, and debt governance.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QualityReleaseDebtPacket {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Packet id.
+    pub packet_id: String,
+    /// Release branch or candidate ref.
+    pub release_ref: String,
+    /// Generation timestamp.
+    pub generated_at: String,
+    /// Effective profile ref used for the release quality result.
+    pub effective_profile_ref: String,
+    /// Winning profile source ref.
+    pub winning_source_ref: String,
+    /// Quality session ref used for the release result.
+    pub quality_session_ref: String,
+    /// Ordered participant rows for the stable quality lane.
+    pub save_participants: Vec<QualitySaveParticipantRow>,
+    /// Release-visible debt rows.
+    pub debt_rows: Vec<QualityReleaseDebtRow>,
+    /// Counts by debt state.
+    pub debt_counts: QualityReleaseDebtCounts,
+    /// True when any participant requires preview before apply.
+    pub any_preview_first_required: bool,
+    /// True when any participant blocks apply.
+    pub any_apply_blocked: bool,
+    /// True when profile source chain, participant ordering, and debt lineage are export safe.
+    pub reconstructable_without_local_editor_state: bool,
+    /// True when style profile, rule-pack, suppression, or baseline mutation requires review.
+    pub reviewable_mutation_required: bool,
+    /// Support export refs that can reconstruct this packet.
+    pub support_export_refs: Vec<String>,
+    /// Release evidence refs that cite this packet.
+    pub release_evidence_refs: Vec<String>,
+    /// Export-safe summary.
+    pub summary: String,
+}
+
+impl QualityReleaseDebtPacket {
+    /// Builds a release-visible quality debt packet from governed records.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QualityGovernanceError::MissingEffectiveProfile`] or
+    /// [`QualityGovernanceError::MissingQualitySession`] when the packet cannot
+    /// cite the profile/session truth source required for reconstruction.
+    pub fn from_records(
+        packet_id: impl Into<String>,
+        release_ref: impl Into<String>,
+        generated_at: impl Into<String>,
+        profile: EffectiveQualityProfile,
+        session: QualitySession,
+        suppressions: Vec<SuppressionRecord>,
+        baselines: Vec<BaselineRecord>,
+        support_export_refs: Vec<String>,
+        release_evidence_refs: Vec<String>,
+        summary: impl Into<String>,
+    ) -> Result<Self, QualityGovernanceError> {
+        validate_non_empty_ref(
+            &profile.effective_profile_id,
+            QualityGovernanceError::MissingEffectiveProfile,
+        )?;
+        validate_non_empty_ref(
+            &session.session_id,
+            QualityGovernanceError::MissingQualitySession,
+        )?;
+
+        let mut save_participants = session
+            .proposals
+            .iter()
+            .enumerate()
+            .map(|(index, proposal)| {
+                QualitySaveParticipantRow::from_proposal(proposal, index as u16)
+            })
+            .collect::<Vec<_>>();
+        save_participants.sort_by_key(|row| (row.phase_class, row.phase_order));
+
+        let debt_rows = suppressions
+            .iter()
+            .map(QualityReleaseDebtRow::from_suppression)
+            .chain(baselines.iter().map(QualityReleaseDebtRow::from_baseline))
+            .collect::<Vec<_>>();
+        let debt_counts = QualityReleaseDebtCounts::from_rows(&debt_rows);
+
+        Ok(Self {
+            record_kind: QUALITY_RELEASE_DEBT_PACKET_RECORD_KIND.to_owned(),
+            schema_version: QUALITY_GOVERNANCE_SCHEMA_VERSION,
+            packet_id: packet_id.into(),
+            release_ref: release_ref.into(),
+            generated_at: generated_at.into(),
+            effective_profile_ref: profile.effective_profile_id,
+            winning_source_ref: profile.winning_source_ref,
+            quality_session_ref: session.session_id,
+            any_preview_first_required: save_participants
+                .iter()
+                .any(|participant| participant.preview_first_required),
+            any_apply_blocked: save_participants
+                .iter()
+                .any(|participant| participant.apply_blocked),
+            reviewable_mutation_required: save_participants
+                .iter()
+                .any(|participant| participant.preview_first_required || participant.apply_blocked)
+                || debt_rows.iter().any(|row| row.release_visible),
+            save_participants,
+            debt_rows,
+            debt_counts,
+            reconstructable_without_local_editor_state: true,
+            support_export_refs,
+            release_evidence_refs,
+            summary: summary.into(),
+        })
+    }
+}
+
 /// Support-export packet for quality governance records.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QualityGovernanceSupportExport {
@@ -1975,6 +2420,52 @@ impl QualityGovernanceSupportExport {
             summary: summary.into(),
         }
     }
+}
+
+fn phase_for_proposal(proposal: &QualityActionProposal) -> SaveParticipantPhaseClass {
+    match proposal.action_class {
+        QualityActionClass::ScannerReadOnly | QualityActionClass::ValidationRecheck => {
+            SaveParticipantPhaseClass::Validation
+        }
+        QualityActionClass::SuppressionProposal | QualityActionClass::BaselineUpdate => {
+            SaveParticipantPhaseClass::PostSaveIndexingRefresh
+        }
+        _ if proposal.mutation_scope_class == QualityMutationScopeClass::GeneratedFamily => {
+            SaveParticipantPhaseClass::GeneratedArtifactUpdate
+        }
+        _ => SaveParticipantPhaseClass::FormatFix,
+    }
+}
+
+fn fix_safety_for_proposal(proposal: &QualityActionProposal) -> QualityFixSafetyClass {
+    if proposal.apply_posture_class == QualityApplyPostureClass::BlockedPendingPolicyOrTrust
+        || proposal.mutation_scope_class == QualityMutationScopeClass::ProtectedOrPolicyScoped
+    {
+        return QualityFixSafetyClass::PolicyBlocked;
+    }
+    if proposal.apply_blocked
+        || proposal.safety_class == QualitySafetyClass::UnknownOrUnstable
+        || proposal.disclosure_class == QualityActionDisclosureClass::Blocked
+    {
+        return QualityFixSafetyClass::FixSafetyUnknownRequiresReview;
+    }
+    if proposal.mutation_scope_class == QualityMutationScopeClass::GeneratedFamily
+        || proposal.safety_class == QualitySafetyClass::GeneratedOrProtected
+        || proposal.generated_path_count > 0
+    {
+        return QualityFixSafetyClass::GeneratedCompanionUpdate;
+    }
+    if proposal.mutation_scope_class == QualityMutationScopeClass::SingleFileWholeDocument {
+        return QualityFixSafetyClass::WholeFileRewriteDisclosed;
+    }
+    if proposal.affected_file_count > 1
+        || proposal.mutation_scope_class == QualityMutationScopeClass::MultiFileSameModule
+        || proposal.mutation_scope_class == QualityMutationScopeClass::MultiFileWorkspace
+        || proposal.preview_requirement_class == QualityPreviewRequirementClass::BatchScopePreview
+    {
+        return QualityFixSafetyClass::WorkspaceWidePreviewRequired;
+    }
+    QualityFixSafetyClass::SafeLocalTextEdit
 }
 
 fn derive_disclosure_class(request: &QualityActionProposalRequest) -> QualityActionDisclosureClass {

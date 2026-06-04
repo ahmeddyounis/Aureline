@@ -13,6 +13,9 @@ The examples cover:
 - one quality session that uses the same proposal vocabulary as UI, CLI,
   review, and support surfaces;
 - governed suppression and baseline records with owner, actor, expiry or
-  review behavior, evidence refs, release visibility, and reopen rules.
+  review behavior, evidence refs, release visibility, and reopen rules;
+- release-visible debt packets that preserve effective profile refs, save
+  participant ordering, fix-safety classes, preview thresholds, support-export
+  refs, and separate suppressed versus baselined debt counts.
 
 IDs are opaque examples and are not planning identifiers.
