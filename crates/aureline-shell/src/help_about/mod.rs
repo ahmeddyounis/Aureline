@@ -105,6 +105,7 @@ pub enum HelpAboutSectionId {
     ServiceHealth,
     Provenance,
     CommunityHandoff,
+    HandoffPackets,
 }
 
 impl HelpAboutSectionId {
@@ -118,6 +119,7 @@ impl HelpAboutSectionId {
             Self::ServiceHealth => "service_health",
             Self::Provenance => "provenance",
             Self::CommunityHandoff => "community_handoff",
+            Self::HandoffPackets => "handoff_packets",
         }
     }
 
@@ -131,6 +133,7 @@ impl HelpAboutSectionId {
             Self::ServiceHealth => "Service health",
             Self::Provenance => "Provenance",
             Self::CommunityHandoff => "Community handoff",
+            Self::HandoffPackets => "Handoff packets",
         }
     }
 }
@@ -260,7 +263,8 @@ pub enum HelpAboutActionClass {
     /// Open the advisory history index for the running build. Reserved.
     OpenAdvisoryHistory,
     /// Hand the user off to the matching community-handoff route based on
-    /// the issue class. Live once release-truth routing is attached.
+    /// the issue class. Live because handoff packets carry their own
+    /// destination boundary, redaction preview, and blocked/offline fallback.
     ReportIssueViaCommunityHandoff,
 }
 
@@ -294,12 +298,218 @@ impl HelpAboutActionClass {
             Self::OpenExecutionContextInspector | Self::CopyContextForSupportExport => {
                 HelpAboutActionAvailability::Live
             }
-            Self::OpenReleasePacket
-            | Self::ViewProvenanceDetails
-            | Self::OpenAdvisoryHistory
-            | Self::ReportIssueViaCommunityHandoff => {
+            Self::OpenReleasePacket | Self::ViewProvenanceDetails | Self::OpenAdvisoryHistory => {
                 HelpAboutActionAvailability::ReservedForLaterMilestone
             }
+            Self::ReportIssueViaCommunityHandoff => HelpAboutActionAvailability::Live,
+        }
+    }
+}
+
+/// Destination trust classes disclosed before Help/About opens a browser or
+/// exports a packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommunityDestinationClass {
+    /// Public open-project infrastructure visible without product sign-in.
+    Public,
+    /// Official destination that requires an authenticated Aureline or project
+    /// identity before data leaves the product.
+    OfficialAuthenticated,
+    /// Community-run or public discussion venue that is not guaranteed support.
+    Community,
+    /// Provider, extension, or vendor-managed destination outside Aureline
+    /// governance.
+    VendorManaged,
+    /// Local preview, saved packet, or copy action that does not leave the
+    /// machine.
+    LocalOnly,
+}
+
+impl CommunityDestinationClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Public => "public",
+            Self::OfficialAuthenticated => "official_authenticated",
+            Self::Community => "community",
+            Self::VendorManaged => "vendor_managed",
+            Self::LocalOnly => "local_only",
+        }
+    }
+
+    /// Human-readable label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Public => "Public",
+            Self::OfficialAuthenticated => "Official authenticated",
+            Self::Community => "Community",
+            Self::VendorManaged => "Vendor managed",
+            Self::LocalOnly => "Local only",
+        }
+    }
+}
+
+/// Typed Help/About handoff packet lanes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommunityHandoffPacketClass {
+    /// Public issue filing lane.
+    PublicIssueFiling,
+    /// Private security disclosure lane.
+    SecurityDisclosure,
+    /// Docs-feedback lane with exact page and anchor identity.
+    DocsFeedback,
+    /// RFC or design discussion lane.
+    RfcDiscussion,
+    /// Community-support lane.
+    CommunitySupport,
+    /// Vendor or private support lane.
+    VendorPrivateSupport,
+}
+
+impl CommunityHandoffPacketClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling => "public_issue_filing",
+            Self::SecurityDisclosure => "security_disclosure",
+            Self::DocsFeedback => "docs_feedback",
+            Self::RfcDiscussion => "rfc_discussion",
+            Self::CommunitySupport => "community_support",
+            Self::VendorPrivateSupport => "vendor_private_support",
+        }
+    }
+
+    /// Human-readable label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling => "Public issue filing",
+            Self::SecurityDisclosure => "Security disclosure",
+            Self::DocsFeedback => "Docs feedback",
+            Self::RfcDiscussion => "RFC discussion",
+            Self::CommunitySupport => "Community support",
+            Self::VendorPrivateSupport => "Vendor/private support",
+        }
+    }
+
+    const fn destination_class(self) -> CommunityDestinationClass {
+        match self {
+            Self::PublicIssueFiling | Self::DocsFeedback => CommunityDestinationClass::Public,
+            Self::SecurityDisclosure => CommunityDestinationClass::OfficialAuthenticated,
+            Self::RfcDiscussion | Self::CommunitySupport => CommunityDestinationClass::Community,
+            Self::VendorPrivateSupport => CommunityDestinationClass::VendorManaged,
+        }
+    }
+
+    const fn visibility_boundary(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling => "public_issue_visible_to_the_open_project",
+            Self::SecurityDisclosure => "private_security_disclosure",
+            Self::DocsFeedback => "public_docs_feedback",
+            Self::RfcDiscussion => "public_feedback_not_commitment",
+            Self::CommunitySupport => "community_public_best_effort",
+            Self::VendorPrivateSupport => "vendor_or_private_support_boundary",
+        }
+    }
+
+    const fn auth_expectation(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling | Self::DocsFeedback => {
+                "viewable without product sign-in; host sign-in may be needed to submit"
+            }
+            Self::SecurityDisclosure => "security identity or encrypted intake required",
+            Self::RfcDiscussion => "community account may be required",
+            Self::CommunitySupport => "community account may be required; not guaranteed support",
+            Self::VendorPrivateSupport => "vendor or support identity may be required",
+        }
+    }
+
+    const fn data_exit_boundary(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling | Self::DocsFeedback => {
+                "redacted build facts and exact object refs only after preview"
+            }
+            Self::SecurityDisclosure => {
+                "security evidence leaves only through the private disclosure lane"
+            }
+            Self::RfcDiscussion => "proposal context only; diagnostics stay local",
+            Self::CommunitySupport => "community-safe summary only; no raw diagnostics",
+            Self::VendorPrivateSupport => "redacted support packet exits to the selected provider",
+        }
+    }
+
+    const fn route_ref(self) -> &'static str {
+        match self {
+            Self::PublicIssueFiling => "handoff-route:public-issue",
+            Self::SecurityDisclosure => "handoff-route:security-disclosure",
+            Self::DocsFeedback => "handoff-route:docs-feedback",
+            Self::RfcDiscussion => "handoff-route:rfc-discussion",
+            Self::CommunitySupport => "handoff-route:community-support",
+            Self::VendorPrivateSupport => "handoff-route:vendor-private-support",
+        }
+    }
+}
+
+/// Redaction rule classes applied to repro packets before any non-local handoff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReproPacketRedactionRuleClass {
+    LocalPaths,
+    Usernames,
+    Hostnames,
+    Tokens,
+    ExtensionInventory,
+    DeploymentProfile,
+    SelectedDiagnostics,
+}
+
+impl ReproPacketRedactionRuleClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalPaths => "local_paths",
+            Self::Usernames => "usernames",
+            Self::Hostnames => "hostnames",
+            Self::Tokens => "tokens",
+            Self::ExtensionInventory => "extension_inventory",
+            Self::DeploymentProfile => "deployment_profile",
+            Self::SelectedDiagnostics => "selected_diagnostics",
+        }
+    }
+
+    /// Human-readable label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::LocalPaths => "Local paths",
+            Self::Usernames => "Usernames",
+            Self::Hostnames => "Hostnames",
+            Self::Tokens => "Tokens",
+            Self::ExtensionInventory => "Extension inventory",
+            Self::DeploymentProfile => "Deployment profile",
+            Self::SelectedDiagnostics => "Selected diagnostics",
+        }
+    }
+}
+
+/// Continuity state for browser-blocked, failed-launch, and offline handoffs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HandoffContinuityState {
+    ReadyToLaunch,
+    BrowserLaunchFailed,
+    BrowserBlocked,
+    OfflineSavedLocal,
+}
+
+impl HandoffContinuityState {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadyToLaunch => "ready_to_launch",
+            Self::BrowserLaunchFailed => "browser_launch_failed",
+            Self::BrowserBlocked => "browser_blocked",
+            Self::OfflineSavedLocal => "offline_saved_local",
         }
     }
 }
@@ -555,9 +765,20 @@ impl CommunityHandoffRouteClass {
     /// Destination trust class token disclosed before navigation.
     pub const fn destination_trust_class_token(self) -> &'static str {
         match self {
-            Self::PublicIssueTracker => "official_public",
+            Self::PublicIssueTracker => "public",
             Self::PublicRfcForum => "community",
             Self::PrivateSecurityChannel | Self::PrivateSupportChannel => "official_authenticated",
+        }
+    }
+
+    /// Destination class disclosed before browser handoff.
+    pub const fn destination_class(self) -> CommunityDestinationClass {
+        match self {
+            Self::PublicIssueTracker => CommunityDestinationClass::Public,
+            Self::PublicRfcForum => CommunityDestinationClass::Community,
+            Self::PrivateSecurityChannel | Self::PrivateSupportChannel => {
+                CommunityDestinationClass::OfficialAuthenticated
+            }
         }
     }
 
@@ -587,6 +808,21 @@ impl CommunityHandoffRouteClass {
             }
             Self::PrivateSupportChannel => {
                 "redacted support packet leaves only after local preview"
+            }
+        }
+    }
+
+    /// Browser-blocked/offline fallback disclosed before navigation.
+    pub const fn browser_blocked_offline_fallback(self) -> &'static str {
+        match self {
+            Self::PublicIssueTracker | Self::PublicRfcForum => {
+                "Keep draft locally, retry browser, export packet, or open later."
+            }
+            Self::PrivateSecurityChannel => {
+                "Keep encrypted disclosure draft locally, export bundle, or open later."
+            }
+            Self::PrivateSupportChannel => {
+                "Keep private support draft locally, retry browser, export packet, or open later."
             }
         }
     }
@@ -760,8 +996,12 @@ pub struct HelpAboutCommunityHandoffRow {
     pub label: String,
     pub disclosure: String,
     pub destination_trust_class_token: String,
+    pub destination_class: CommunityDestinationClass,
+    pub destination_class_token: String,
+    pub destination_class_label: String,
     pub auth_expectation: String,
     pub data_exit_boundary: String,
+    pub browser_blocked_offline_fallback: String,
     pub issue_template_ref: String,
 }
 
@@ -769,6 +1009,81 @@ pub struct HelpAboutCommunityHandoffRow {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HelpAboutCommunityHandoffSection {
     pub rows: Vec<HelpAboutCommunityHandoffRow>,
+}
+
+/// One redaction rule applied during repro-packet preview.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReproPacketRedactionRule {
+    pub rule_class: ReproPacketRedactionRuleClass,
+    pub rule_class_token: String,
+    pub label: String,
+    pub preview_before_share_required: bool,
+    pub raw_material_excluded_by_default: bool,
+    pub disclosure: String,
+}
+
+/// Redaction summary shared by Help/About, repro packets, and handoff packets.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReproPacketRedactionPreview {
+    pub profile_ref: String,
+    pub preview_before_share_required: bool,
+    pub local_first: bool,
+    pub raw_sensitive_material_leaves_implicitly: bool,
+    pub rules: Vec<ReproPacketRedactionRule>,
+}
+
+/// Originating product object retained through a handoff packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HandoffOriginAnchor {
+    pub origin_surface_class: String,
+    pub originating_object_ref: String,
+    pub anchor_ref: String,
+    pub return_path_ref: String,
+}
+
+/// Durable draft and retry state for blocked/offline browser pivots.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HandoffContinuity {
+    pub state: HandoffContinuityState,
+    pub state_token: String,
+    pub drafted_text_retained: bool,
+    pub selected_attachments_retained: bool,
+    pub redaction_settings_retained: bool,
+    pub target_class_retained: bool,
+    pub retry_action_ref: String,
+    pub export_action_ref: String,
+    pub open_later_action_ref: String,
+}
+
+/// One typed packet prepared before the user leaves Help/About.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommunityHandoffPacket {
+    pub packet_id: String,
+    pub packet_class: CommunityHandoffPacketClass,
+    pub packet_class_token: String,
+    pub label: String,
+    pub destination_class: CommunityDestinationClass,
+    pub destination_class_token: String,
+    pub fallback_destination_class: CommunityDestinationClass,
+    pub fallback_destination_class_token: String,
+    pub visibility_boundary: String,
+    pub auth_expectation: String,
+    pub data_exit_boundary: String,
+    pub destination_route_ref: String,
+    pub build_identity_ref: String,
+    pub service_health_ref: String,
+    pub provenance_ref: String,
+    pub origin_anchor: HandoffOriginAnchor,
+    pub redaction_preview: ReproPacketRedactionPreview,
+    pub continuity: HandoffContinuity,
+}
+
+/// Packet section rendered below community handoff tiles.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HelpAboutHandoffPacketSection {
+    pub packets: Vec<CommunityHandoffPacket>,
+    pub all_packets_local_first: bool,
+    pub all_packets_preview_before_share: bool,
 }
 
 /// One action row on the seed surface.
@@ -814,6 +1129,7 @@ pub struct HelpAboutSurface {
     pub service_health: HelpAboutServiceHealthSection,
     pub provenance: HelpAboutProvenanceSection,
     pub community_handoff: HelpAboutCommunityHandoffSection,
+    pub handoff_packets: HelpAboutHandoffPacketSection,
     pub actions: Vec<HelpAboutAction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_truth_card: Option<HelpAboutReleaseTruthCard>,
@@ -839,6 +1155,11 @@ impl HelpAboutSurface {
         let service_health_section = project_service_health();
         let provenance_section = project_provenance();
         let community_handoff_section = project_community_handoff();
+        let handoff_packet_section = project_handoff_packets(
+            &build_identity_section,
+            &service_health_section,
+            &provenance_section,
+        );
 
         let trust_pending = execution_context
             .map(|context| {
@@ -877,6 +1198,7 @@ impl HelpAboutSurface {
             service_health: service_health_section,
             provenance: provenance_section,
             community_handoff: community_handoff_section,
+            handoff_packets: handoff_packet_section,
             actions,
             release_truth_card: None,
             seed_scope_notice: HELP_ABOUT_SEED_SCOPE_NOTICE.to_owned(),
@@ -1035,15 +1357,60 @@ impl HelpAboutSurface {
         ));
         for row in &self.community_handoff.rows {
             out.push_str(&format!(
-                "  - {}: {}\n      {}\n      trust={} auth={} boundary={} template={}\n",
+                "  - {}: {}\n      {}\n      trust={} destination={} auth={} boundary={} fallback={} template={}\n",
                 row.route_class_token,
                 row.label,
                 row.disclosure,
                 row.destination_trust_class_token,
+                row.destination_class_token,
                 row.auth_expectation,
                 row.data_exit_boundary,
+                row.browser_blocked_offline_fallback,
                 row.issue_template_ref,
             ));
+        }
+        out.push('\n');
+
+        out.push_str(&format!(
+            "[{}]\n",
+            HelpAboutSectionId::HandoffPackets.heading()
+        ));
+        for packet in &self.handoff_packets.packets {
+            out.push_str(&format!(
+                "  - {}: {} [{}]\n      destination={} fallback_destination={} visibility={} auth={} boundary={} route={}\n      origin={} anchor={} return={}\n      redaction_profile={} preview_before_share={} local_first={}\n      continuity={} draft={} attachments={} redaction={} target={} retry={} export={} open_later={}\n",
+                packet.packet_class_token,
+                packet.label,
+                packet.packet_id,
+                packet.destination_class_token,
+                packet.fallback_destination_class_token,
+                packet.visibility_boundary,
+                packet.auth_expectation,
+                packet.data_exit_boundary,
+                packet.destination_route_ref,
+                packet.origin_anchor.originating_object_ref,
+                packet.origin_anchor.anchor_ref,
+                packet.origin_anchor.return_path_ref,
+                packet.redaction_preview.profile_ref,
+                packet.redaction_preview.preview_before_share_required,
+                packet.redaction_preview.local_first,
+                packet.continuity.state_token,
+                packet.continuity.drafted_text_retained,
+                packet.continuity.selected_attachments_retained,
+                packet.continuity.redaction_settings_retained,
+                packet.continuity.target_class_retained,
+                packet.continuity.retry_action_ref,
+                packet.continuity.export_action_ref,
+                packet.continuity.open_later_action_ref,
+            ));
+            for rule in &packet.redaction_preview.rules {
+                out.push_str(&format!(
+                    "        redaction_rule={} preview={} raw_excluded={} disclosure={}\n",
+                    rule.rule_class_token,
+                    rule.preview_before_share_required,
+                    rule.raw_material_excluded_by_default,
+                    rule.disclosure,
+                ));
+            }
         }
         out.push('\n');
 
@@ -1291,12 +1658,217 @@ fn project_community_handoff() -> HelpAboutCommunityHandoffSection {
             label: class.label().to_owned(),
             disclosure: class.disclosure().to_owned(),
             destination_trust_class_token: class.destination_trust_class_token().to_owned(),
+            destination_class: class.destination_class(),
+            destination_class_token: class.destination_class().as_str().to_owned(),
+            destination_class_label: class.destination_class().label().to_owned(),
             auth_expectation: class.auth_expectation().to_owned(),
             data_exit_boundary: class.data_exit_boundary().to_owned(),
+            browser_blocked_offline_fallback: class.browser_blocked_offline_fallback().to_owned(),
             issue_template_ref: class.issue_template_ref().to_owned(),
         })
         .collect();
     HelpAboutCommunityHandoffSection { rows }
+}
+
+fn project_handoff_packets(
+    build_identity: &HelpAboutBuildIdentitySection,
+    service_health: &HelpAboutServiceHealthSection,
+    provenance: &HelpAboutProvenanceSection,
+) -> HelpAboutHandoffPacketSection {
+    let classes = [
+        CommunityHandoffPacketClass::PublicIssueFiling,
+        CommunityHandoffPacketClass::SecurityDisclosure,
+        CommunityHandoffPacketClass::DocsFeedback,
+        CommunityHandoffPacketClass::RfcDiscussion,
+        CommunityHandoffPacketClass::CommunitySupport,
+        CommunityHandoffPacketClass::VendorPrivateSupport,
+    ];
+    let packets = classes
+        .into_iter()
+        .map(|class| build_handoff_packet(class, build_identity, service_health, provenance))
+        .collect::<Vec<_>>();
+    let all_packets_local_first = packets
+        .iter()
+        .all(|packet| packet.redaction_preview.local_first);
+    let all_packets_preview_before_share = packets
+        .iter()
+        .all(|packet| packet.redaction_preview.preview_before_share_required);
+    HelpAboutHandoffPacketSection {
+        packets,
+        all_packets_local_first,
+        all_packets_preview_before_share,
+    }
+}
+
+fn build_handoff_packet(
+    class: CommunityHandoffPacketClass,
+    build_identity: &HelpAboutBuildIdentitySection,
+    service_health: &HelpAboutServiceHealthSection,
+    provenance: &HelpAboutProvenanceSection,
+) -> CommunityHandoffPacket {
+    let destination_class = class.destination_class();
+    let class_token = class.as_str();
+    CommunityHandoffPacket {
+        packet_id: format!("community_handoff_packet:{class_token}"),
+        packet_class: class,
+        packet_class_token: class_token.to_owned(),
+        label: class.label().to_owned(),
+        destination_class,
+        destination_class_token: destination_class.as_str().to_owned(),
+        fallback_destination_class: CommunityDestinationClass::LocalOnly,
+        fallback_destination_class_token: CommunityDestinationClass::LocalOnly.as_str().to_owned(),
+        visibility_boundary: class.visibility_boundary().to_owned(),
+        auth_expectation: class.auth_expectation().to_owned(),
+        data_exit_boundary: class.data_exit_boundary().to_owned(),
+        destination_route_ref: class.route_ref().to_owned(),
+        build_identity_ref: build_identity.exact_build_identity_ref.clone(),
+        service_health_ref: service_health_ref(service_health),
+        provenance_ref: provenance_ref(provenance),
+        origin_anchor: origin_anchor_for(class),
+        redaction_preview: default_redaction_preview(class),
+        continuity: continuity_for(class, HandoffContinuityState::ReadyToLaunch),
+    }
+}
+
+fn service_health_ref(service_health: &HelpAboutServiceHealthSection) -> String {
+    let row_count = service_health.rows.len();
+    format!("service-health:help-about-shared-descriptor:{row_count}")
+}
+
+fn provenance_ref(provenance: &HelpAboutProvenanceSection) -> String {
+    let row_count = provenance.rows.len();
+    format!("provenance:help-about-shared-descriptor:{row_count}")
+}
+
+fn origin_anchor_for(class: CommunityHandoffPacketClass) -> HandoffOriginAnchor {
+    match class {
+        CommunityHandoffPacketClass::PublicIssueFiling => HandoffOriginAnchor {
+            origin_surface_class: "update_screen".to_owned(),
+            originating_object_ref: "object:update-channel:current-build".to_owned(),
+            anchor_ref: "anchor:update-channel:release-row".to_owned(),
+            return_path_ref: "return:help-about:updates".to_owned(),
+        },
+        CommunityHandoffPacketClass::SecurityDisclosure => HandoffOriginAnchor {
+            origin_surface_class: "trust_warning".to_owned(),
+            originating_object_ref: "object:trust-warning:diagnostics-secret-risk".to_owned(),
+            anchor_ref: "anchor:trust-warning:redaction-review".to_owned(),
+            return_path_ref: "return:help-about:security".to_owned(),
+        },
+        CommunityHandoffPacketClass::DocsFeedback => HandoffOriginAnchor {
+            origin_surface_class: "docs_pane".to_owned(),
+            originating_object_ref: "object:docs:remote-attach-guide".to_owned(),
+            anchor_ref: "anchor:docs:ssh-known-hosts".to_owned(),
+            return_path_ref: "return:docs-pane:remote-attach-guide#ssh-known-hosts".to_owned(),
+        },
+        CommunityHandoffPacketClass::RfcDiscussion => HandoffOriginAnchor {
+            origin_surface_class: "workflow_bundle".to_owned(),
+            originating_object_ref: "object:workflow-bundle:drift-ui".to_owned(),
+            anchor_ref: "anchor:workflow-bundle:proposal-context".to_owned(),
+            return_path_ref: "return:help-about:rfc".to_owned(),
+        },
+        CommunityHandoffPacketClass::CommunitySupport => HandoffOriginAnchor {
+            origin_surface_class: "extension_page".to_owned(),
+            originating_object_ref: "object:extension-page:runtime-boundary".to_owned(),
+            anchor_ref: "anchor:extension-page:support-boundary".to_owned(),
+            return_path_ref: "return:extension-page:runtime-boundary".to_owned(),
+        },
+        CommunityHandoffPacketClass::VendorPrivateSupport => HandoffOriginAnchor {
+            origin_surface_class: "extension_page".to_owned(),
+            originating_object_ref: "object:extension-page:vendor-managed-runtime".to_owned(),
+            anchor_ref: "anchor:extension-page:vendor-support".to_owned(),
+            return_path_ref: "return:extension-page:vendor-managed-runtime".to_owned(),
+        },
+    }
+}
+
+fn default_redaction_preview(class: CommunityHandoffPacketClass) -> ReproPacketRedactionPreview {
+    let profile_ref = match class.destination_class() {
+        CommunityDestinationClass::Public | CommunityDestinationClass::Community => {
+            "redaction-profile:community-public-default"
+        }
+        CommunityDestinationClass::OfficialAuthenticated => {
+            "redaction-profile:official-authenticated-default"
+        }
+        CommunityDestinationClass::VendorManaged => "redaction-profile:vendor-managed-default",
+        CommunityDestinationClass::LocalOnly => "redaction-profile:local-only-preview",
+    };
+    ReproPacketRedactionPreview {
+        profile_ref: profile_ref.to_owned(),
+        preview_before_share_required: true,
+        local_first: true,
+        raw_sensitive_material_leaves_implicitly: false,
+        rules: default_redaction_rules(),
+    }
+}
+
+fn default_redaction_rules() -> Vec<ReproPacketRedactionRule> {
+    [
+        (
+            ReproPacketRedactionRuleClass::LocalPaths,
+            "Absolute paths are replaced with stable path-class labels and basename hints only.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::Usernames,
+            "Usernames are replaced with local-subject class labels.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::Hostnames,
+            "Hostnames are replaced with host-class labels and hashed refs.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::Tokens,
+            "Tokens, cookies, keys, and bearer material are excluded before preview.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::ExtensionInventory,
+            "Extension inventory is reduced to ids, trust class, and version where allowed.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::DeploymentProfile,
+            "Deployment profile keeps boundary class and mirror/local state, not private endpoints.",
+        ),
+        (
+            ReproPacketRedactionRuleClass::SelectedDiagnostics,
+            "Selected diagnostics are included only after local preview and per-item selection.",
+        ),
+    ]
+    .into_iter()
+    .map(|(class, disclosure)| ReproPacketRedactionRule {
+        rule_class: class,
+        rule_class_token: class.as_str().to_owned(),
+        label: class.label().to_owned(),
+        preview_before_share_required: true,
+        raw_material_excluded_by_default: true,
+        disclosure: disclosure.to_owned(),
+    })
+    .collect()
+}
+
+/// Return a packet with continuity set to a blocked/offline recovery state.
+pub fn packet_with_continuity(
+    packet: &CommunityHandoffPacket,
+    state: HandoffContinuityState,
+) -> CommunityHandoffPacket {
+    let mut packet = packet.clone();
+    packet.continuity = continuity_for(packet.packet_class, state);
+    packet
+}
+
+fn continuity_for(
+    class: CommunityHandoffPacketClass,
+    state: HandoffContinuityState,
+) -> HandoffContinuity {
+    HandoffContinuity {
+        state,
+        state_token: state.as_str().to_owned(),
+        drafted_text_retained: true,
+        selected_attachments_retained: true,
+        redaction_settings_retained: true,
+        target_class_retained: true,
+        retry_action_ref: format!("action:{}:retry-browser", class.as_str()),
+        export_action_ref: format!("action:{}:export-local-packet", class.as_str()),
+        open_later_action_ref: format!("action:{}:open-later", class.as_str()),
+    }
 }
 
 fn build_actions(trust_pending: bool, context_degraded: bool) -> Vec<HelpAboutAction> {

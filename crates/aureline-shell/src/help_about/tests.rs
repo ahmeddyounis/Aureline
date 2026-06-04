@@ -168,9 +168,53 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     );
     for row in &surface.community_handoff.rows {
         assert!(!row.destination_trust_class_token.is_empty());
+        assert!(!row.destination_class_token.is_empty());
         assert!(!row.auth_expectation.is_empty());
         assert!(!row.data_exit_boundary.is_empty());
+        assert!(!row.browser_blocked_offline_fallback.is_empty());
         assert!(!row.issue_template_ref.is_empty());
+    }
+
+    assert_eq!(surface.handoff_packets.packets.len(), 6);
+    assert!(surface.handoff_packets.all_packets_local_first);
+    assert!(surface.handoff_packets.all_packets_preview_before_share);
+    let packet_tokens: Vec<_> = surface
+        .handoff_packets
+        .packets
+        .iter()
+        .map(|packet| packet.packet_class_token.as_str())
+        .collect();
+    assert_eq!(
+        packet_tokens,
+        vec![
+            "public_issue_filing",
+            "security_disclosure",
+            "docs_feedback",
+            "rfc_discussion",
+            "community_support",
+            "vendor_private_support",
+        ]
+    );
+    for packet in &surface.handoff_packets.packets {
+        assert!(packet.redaction_preview.preview_before_share_required);
+        assert_eq!(
+            packet.fallback_destination_class,
+            CommunityDestinationClass::LocalOnly
+        );
+        assert!(packet.redaction_preview.local_first);
+        assert!(
+            !packet
+                .redaction_preview
+                .raw_sensitive_material_leaves_implicitly
+        );
+        assert_eq!(packet.redaction_preview.rules.len(), 7);
+        assert!(packet.continuity.drafted_text_retained);
+        assert!(packet.continuity.selected_attachments_retained);
+        assert!(packet.continuity.redaction_settings_retained);
+        assert!(packet.continuity.target_class_retained);
+        assert!(!packet.origin_anchor.originating_object_ref.is_empty());
+        assert!(!packet.origin_anchor.anchor_ref.is_empty());
+        assert!(!packet.origin_anchor.return_path_ref.is_empty());
     }
 
     // Live actions stay live; reserved actions stay reserved.
@@ -198,13 +242,21 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
         HelpAboutActionClass::OpenReleasePacket,
         HelpAboutActionClass::ViewProvenanceDetails,
         HelpAboutActionClass::OpenAdvisoryHistory,
-        HelpAboutActionClass::ReportIssueViaCommunityHandoff,
     ] {
         assert!(
             reserved_actions.contains(&class),
             "reserved should contain {class:?}"
         );
     }
+    let handoff_action = surface
+        .actions
+        .iter()
+        .find(|a| a.action_class == HelpAboutActionClass::ReportIssueViaCommunityHandoff)
+        .expect("handoff action present");
+    assert_eq!(
+        handoff_action.availability,
+        HelpAboutActionAvailability::Live
+    );
 
     // Plaintext renders the headings the chrome will quote verbatim.
     let plaintext = surface.render_plaintext();
@@ -216,6 +268,7 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert!(plaintext.contains("[Service health]"));
     assert!(plaintext.contains("[Provenance]"));
     assert!(plaintext.contains("[Community handoff]"));
+    assert!(plaintext.contains("[Handoff packets]"));
     assert!(plaintext.contains("Honesty marker: none"));
 }
 
@@ -250,6 +303,112 @@ fn release_truth_card_activates_community_handoff_action() {
     let plaintext = surface.render_plaintext();
     assert!(plaintext.contains("[Release truth]"));
     assert!(plaintext.contains("compatibility rows:"));
+}
+
+#[test]
+fn handoff_packets_preserve_exact_origin_identity_and_visibility_boundaries() {
+    let identity = fixture_build_identity();
+    let surface = HelpAboutSurface::project(HelpAboutInputs {
+        build_identity: &identity,
+        release_channel_class_token: "stable",
+        execution_context: None,
+        docs_source_truth: None,
+    });
+
+    let docs_packet = surface
+        .handoff_packets
+        .packets
+        .iter()
+        .find(|packet| packet.packet_class == CommunityHandoffPacketClass::DocsFeedback)
+        .expect("docs packet present");
+    assert_eq!(
+        docs_packet.destination_class,
+        CommunityDestinationClass::Public
+    );
+    assert_eq!(docs_packet.origin_anchor.origin_surface_class, "docs_pane");
+    assert_eq!(
+        docs_packet.origin_anchor.anchor_ref,
+        "anchor:docs:ssh-known-hosts"
+    );
+    assert_eq!(
+        docs_packet.origin_anchor.return_path_ref,
+        "return:docs-pane:remote-attach-guide#ssh-known-hosts"
+    );
+
+    let security_packet = surface
+        .handoff_packets
+        .packets
+        .iter()
+        .find(|packet| packet.packet_class == CommunityHandoffPacketClass::SecurityDisclosure)
+        .expect("security packet present");
+    assert_eq!(
+        security_packet.destination_class,
+        CommunityDestinationClass::OfficialAuthenticated
+    );
+    assert_eq!(
+        security_packet.visibility_boundary,
+        "private_security_disclosure"
+    );
+    assert!(security_packet
+        .data_exit_boundary
+        .contains("private disclosure lane"));
+
+    let vendor_packet = surface
+        .handoff_packets
+        .packets
+        .iter()
+        .find(|packet| packet.packet_class == CommunityHandoffPacketClass::VendorPrivateSupport)
+        .expect("vendor packet present");
+    assert_eq!(
+        vendor_packet.destination_class,
+        CommunityDestinationClass::VendorManaged
+    );
+    assert_eq!(
+        vendor_packet.origin_anchor.originating_object_ref,
+        "object:extension-page:vendor-managed-runtime"
+    );
+}
+
+#[test]
+fn blocked_and_offline_handoffs_keep_draft_redaction_and_target_state() {
+    let identity = fixture_build_identity();
+    let surface = HelpAboutSurface::project(HelpAboutInputs {
+        build_identity: &identity,
+        release_channel_class_token: "stable",
+        execution_context: None,
+        docs_source_truth: None,
+    });
+    let public_packet = surface
+        .handoff_packets
+        .packets
+        .iter()
+        .find(|packet| packet.packet_class == CommunityHandoffPacketClass::PublicIssueFiling)
+        .expect("public issue packet present");
+
+    for state in [
+        HandoffContinuityState::BrowserLaunchFailed,
+        HandoffContinuityState::BrowserBlocked,
+        HandoffContinuityState::OfflineSavedLocal,
+    ] {
+        let recovered = packet_with_continuity(public_packet, state);
+        assert_eq!(recovered.continuity.state, state);
+        assert!(recovered.continuity.drafted_text_retained);
+        assert!(recovered.continuity.selected_attachments_retained);
+        assert!(recovered.continuity.redaction_settings_retained);
+        assert!(recovered.continuity.target_class_retained);
+        assert!(recovered
+            .continuity
+            .retry_action_ref
+            .contains("retry-browser"));
+        assert!(recovered
+            .continuity
+            .export_action_ref
+            .contains("export-local-packet"));
+        assert!(recovered
+            .continuity
+            .open_later_action_ref
+            .contains("open-later"));
+    }
 }
 
 #[test]
