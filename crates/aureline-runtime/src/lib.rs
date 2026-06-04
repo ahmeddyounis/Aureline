@@ -29,6 +29,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod browser_runtime_inspection_qualification;
 pub mod build_intelligence;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
@@ -85,6 +86,30 @@ pub mod tests;
 pub mod topology_inspector;
 pub mod trace_replay_alpha;
 
+pub use browser_runtime_inspection_qualification::{
+    current_stable_browser_runtime_inspection_qualification_input,
+    current_stable_browser_runtime_inspection_qualification_packet,
+    AttachProtocolState as BrowserRuntimeAttachProtocolState, BrowserRuntimeDowngradeRuleClass,
+    BrowserRuntimeEvidenceClass, BrowserRuntimeFindingKind, BrowserRuntimeFindingSeverity,
+    BrowserRuntimeInspectionQualificationArtifactError,
+    BrowserRuntimeInspectionQualificationFinding, BrowserRuntimeInspectionQualificationPacket,
+    BrowserRuntimeInspectionQualificationPacketInput, BrowserRuntimeInspectionQualificationRow,
+    BrowserRuntimeInspectionQualificationSupportExport, BrowserRuntimePromotionState,
+    BrowserRuntimeQualificationRowClass, BrowserRuntimeSupportClass, BrowserRuntimeTargetKind,
+    InspectionDataState as BrowserRuntimeInspectionDataState,
+    RuntimeInspectionConsumerSurface as BrowserRuntimeInspectionConsumerSurface,
+    RuntimeMutationActionClass as BrowserRuntimeMutationActionClass,
+    RuntimeObjectClass as BrowserRuntimeObjectClass,
+    SessionFreshnessState as BrowserRuntimeSessionFreshnessState,
+    SourceMapQualityState as BrowserRuntimeSourceMapQualityState,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_ARTIFACT_DOC_REF,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_DOC_REF,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_FIXTURE_DIR,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_RECORD_KIND,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_SCHEMA_REF,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_SCHEMA_VERSION,
+    BROWSER_RUNTIME_INSPECTION_QUALIFICATION_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use build_intelligence::{
     AdapterHealthReason, AdapterHealthState, AdapterHealthStrip, AdapterIdentity,
     ArtifactSourceClass, BuildIntelligenceAction, BuildIntelligenceActionClass,
