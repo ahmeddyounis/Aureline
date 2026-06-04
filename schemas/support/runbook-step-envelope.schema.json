@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/runbook-step-envelope.schema.json",
+  "title": "Aureline stable runbook source, executable step envelope, deviation note, and handoff truth packet",
+  "description": "Boundary schema for stable runbook guidance. It keeps source authority, freshness, executable step envelopes, shared action-envelope refs, deviation notes, step results, external browser or vendor-console handoffs, and local checklist ownership truth in one export-safe chronology. Raw secrets, raw provider URLs, raw console sessions, raw approval bodies, and provider payloads never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/runbook_handoff_truth_packet",
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "runbook_source_class": {
+      "type": "string",
+      "enum": [
+        "repo_local_workspace_local",
+        "mirrored_docs_pack",
+        "managed_catalog",
+        "browser_only_vendor_documentation"
+      ]
+    },
+    "authoritative_posture": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "reference_only",
+        "managed_delegated",
+        "unverified_downgraded"
+      ]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "within_grace",
+        "stale_requires_review",
+        "browser_only_reference"
+      ]
+    },
+    "export_right_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "redacted_source_allowed",
+        "reference_only",
+        "export_forbidden"
+      ]
+    },
+    "step_class": {
+      "type": "string",
+      "enum": ["observe", "verify", "mitigate", "rollback", "communicate"]
+    },
+    "target_selector_scope": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "runtime_target",
+        "provider_object",
+        "browser_vendor_console"
+      ]
+    },
+    "approval_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "runtime_approval_ticket",
+        "managed_policy_approval",
+        "approval_forbidden"
+      ]
+    },
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "in_product",
+        "browser_documentation",
+        "vendor_console",
+        "provider_control_plane"
+      ]
+    },
+    "step_result_state": {
+      "type": "string",
+      "enum": [
+        "preview_only",
+        "approved",
+        "executed",
+        "handoff_required",
+        "deviated"
+      ]
+    },
+    "provider_object_ownership_class": {
+      "type": "string",
+      "enum": ["aureline_local", "provider_owned", "mirrored_reference"]
+    },
+    "local_completion_state": {
+      "type": "string",
+      "enum": [
+        "local_checklist_only",
+        "reviewed_command_executed",
+        "external_provider_mutation_reported"
+      ]
+    },
+    "source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_id",
+        "source_class",
+        "authoritative_posture",
+        "signer_or_source_ref",
+        "freshness_state",
+        "approver_policy_ref",
+        "export_right"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_source_descriptor" },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/runbook_source_class" },
+        "authoritative_posture": { "$ref": "#/$defs/authoritative_posture" },
+        "signer_or_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "approver_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "export_right": { "$ref": "#/$defs/export_right_class" }
+      }
+    },
+    "expected_evidence_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "evidence_class", "export_ref"],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_class": { "$ref": "#/$defs/non_empty_string" },
+        "export_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "shared_action_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_envelope_ref",
+        "preview_hash_ref",
+        "approval_ref",
+        "audit_ref"
+      ],
+      "properties": {
+        "action_envelope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preview_hash_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ref": { "$ref": "#/$defs/non_empty_string" },
+        "audit_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "external_handoff_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_ref",
+        "destination_class",
+        "reason",
+        "return_anchor_ref"
+      ],
+      "properties": {
+        "handoff_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "reason": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "step_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "step_id",
+        "step_class",
+        "target_selector_scope",
+        "approval_requirement",
+        "destination_class",
+        "expected_evidence_outputs",
+        "shared_action_envelope",
+        "external_handoff"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_step_envelope" },
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "step_class": { "$ref": "#/$defs/step_class" },
+        "target_selector_scope": { "$ref": "#/$defs/target_selector_scope" },
+        "approval_requirement": { "$ref": "#/$defs/approval_requirement_class" },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "expected_evidence_outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/expected_evidence_output" }
+        },
+        "shared_action_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/shared_action_envelope" }
+          ]
+        },
+        "external_handoff": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/external_handoff_ref" }
+          ]
+        }
+      }
+    },
+    "execution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_id",
+        "step_id",
+        "incident_timeline_id",
+        "actor_ref",
+        "result_state",
+        "approval_refs",
+        "deviation_note_refs",
+        "external_console_handoff_refs",
+        "evidence_export_links"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_step_execution_record" },
+        "execution_id": { "$ref": "#/$defs/non_empty_string" },
+        "step_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_timeline_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "result_state": { "$ref": "#/$defs/step_result_state" },
+        "approval_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "deviation_note_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "external_console_handoff_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "evidence_export_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "deviation_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deviation_note_id",
+        "departed_step_id",
+        "actor_ref",
+        "incident_timeline_id",
+        "reason",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_deviation_note" },
+        "deviation_note_id": { "$ref": "#/$defs/non_empty_string" },
+        "departed_step_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "incident_timeline_id": { "$ref": "#/$defs/non_empty_string" },
+        "reason": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "handoff_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "handoff_bundle_id",
+        "destination_class",
+        "reason",
+        "return_anchor_ref",
+        "raw_provider_payload_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_external_handoff_bundle" },
+        "handoff_bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "reason": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/nullable_string" },
+        "raw_provider_payload_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "local_follow_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "follow_up_id",
+        "provider_object_ownership",
+        "local_completion_state",
+        "provider_mutation_claimed",
+        "reviewed_command_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_local_follow_up" },
+        "follow_up_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_object_ownership": {
+          "$ref": "#/$defs/provider_object_ownership_class"
+        },
+        "local_completion_state": { "$ref": "#/$defs/local_completion_state" },
+        "provider_mutation_claimed": { "type": "boolean" },
+        "reviewed_command_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "runbook_handoff_truth_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "schema_ref",
+        "source_descriptors",
+        "step_envelopes",
+        "execution_records",
+        "deviation_notes",
+        "handoff_bundles",
+        "local_follow_ups"
+      ],
+      "properties": {
+        "record_kind": { "const": "runbook_handoff_truth_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "const": "schemas/support/runbook-step-envelope.schema.json" },
+        "source_descriptors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_descriptor" }
+        },
+        "step_envelopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_envelope" }
+        },
+        "execution_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_record" }
+        },
+        "deviation_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deviation_note" }
+        },
+        "handoff_bundles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_bundle" }
+        },
+        "local_follow_ups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_follow_up" }
+        }
+      }
+    }
+  }
+}
