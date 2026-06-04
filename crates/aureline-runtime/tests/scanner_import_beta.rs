@@ -7,10 +7,37 @@ use std::path::{Path, PathBuf};
 use aureline_language::DiagnosticAnchorRemapStateClass;
 use aureline_runtime::scanner_import::{
     materialize_sarif_import_session, materialize_structured_scanner_import_session,
-    ScannerBaselineFamilyStateClass, ScannerDeltaCompatibilityClass, ScannerFindingDeltaState,
-    ScannerFindingFidelityClass, ScannerFindingTruthClass, ScannerImportFreshnessClass,
-    ScannerImportRequest, ScannerRawPayloadBacklinkPolicy, ScannerSourceFormatClass,
+    ScannerBaselineFamilyStateClass, ScannerDeltaCompatibilityClass, ScannerDeltaCounts,
+    ScannerFindingDeltaState, ScannerFindingFidelityClass, ScannerFindingTruthClass,
+    ScannerImportDeploymentProfileClass, ScannerImportFreshnessClass, ScannerImportRequest,
+    ScannerImportSourceClass, ScannerParityComparisonStateClass, ScannerRawPayloadBacklinkPolicy,
+    ScannerSourceFormatClass,
 };
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct StableScannerParityFixture {
+    record_kind: String,
+    schema_version: u32,
+    case_name: String,
+    scenario: String,
+    request: ScannerImportRequest,
+    expect: StableScannerParityExpect,
+}
+
+#[derive(Debug, Deserialize)]
+struct StableScannerParityExpect {
+    source_class: String,
+    deployment_profile_class: String,
+    signer_verified: bool,
+    public_fallback_blocked: bool,
+    raw_payload_ref: String,
+    unsupported_field_ref: String,
+    delta_counts: ScannerDeltaCounts,
+    parity_source_tokens: Vec<String>,
+    parity_comparison_tokens: Vec<String>,
+    silent_fix_all_blocked: bool,
+}
 
 fn repo_fixture_dir(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -38,6 +65,18 @@ fn load_structured_request() -> ScannerImportRequest {
         "structured_import_request.json",
     ))
     .expect("parse structured import request")
+}
+
+fn load_stable_parity_fixture() -> StableScannerParityFixture {
+    serde_json::from_str(&load_fixture(
+        "m4/sarif-and-scanner-parity",
+        "stable_signed_mirror_import_request.json",
+    ))
+    .expect("parse stable scanner parity fixture")
+}
+
+fn token_set(values: impl IntoIterator<Item = String>) -> BTreeSet<String> {
+    values.into_iter().collect()
 }
 
 #[test]
@@ -179,4 +218,93 @@ fn stale_redacted_and_mismatched_imports_fail_safely() {
             .release_packet("release:candidate:quality:scanner")
             .exact_delta_claim_blocked
     );
+}
+
+#[test]
+fn signed_mirror_import_builds_distinct_ci_local_parity_view() {
+    let fixture = load_stable_parity_fixture();
+    assert_eq!(fixture.record_kind, "sarif_and_scanner_parity_stable_case");
+    assert_eq!(fixture.schema_version, 1);
+    assert!(!fixture.case_name.trim().is_empty());
+    assert!(!fixture.scenario.trim().is_empty());
+
+    let session = materialize_structured_scanner_import_session(
+        fixture.request,
+        &load_fixture("scanner_import_beta", "structured_scanner_output.json"),
+    )
+    .expect("stable signed mirror import materializes");
+
+    assert_eq!(session.source_class.as_str(), fixture.expect.source_class);
+    assert_eq!(
+        session.deployment_profile_class.as_str(),
+        fixture.expect.deployment_profile_class
+    );
+    assert_eq!(
+        session.signer.as_ref().map(|signer| signer.verified),
+        Some(fixture.expect.signer_verified)
+    );
+    assert_eq!(
+        session.raw_payload_refs,
+        vec![fixture.expect.raw_payload_ref]
+    );
+    assert_eq!(
+        session.unsupported_field_refs,
+        vec![fixture.expect.unsupported_field_ref]
+    );
+    assert_eq!(
+        session.delta_packet.delta_counts,
+        fixture.expect.delta_counts
+    );
+
+    let release = session.release_packet("release:candidate:quality:scanner");
+    assert_eq!(
+        release.source_class,
+        ScannerImportSourceClass::ManagedPipeline
+    );
+    assert_eq!(
+        release.deployment_profile_class,
+        ScannerImportDeploymentProfileClass::MirrorOnly
+    );
+    assert_eq!(
+        release.public_fallback_blocked,
+        fixture.expect.public_fallback_blocked
+    );
+    assert!(release.imported_findings_read_only);
+    assert!(release.exact_delta_claim_blocked);
+
+    let parity = session.ci_local_parity_view();
+    assert_eq!(
+        parity.compatibility_class,
+        ScannerDeltaCompatibilityClass::BlockedAnchorMappingUncertain
+    );
+    assert_eq!(
+        parity.silent_fix_all_blocked,
+        fixture.expect.silent_fix_all_blocked
+    );
+    assert!(parity.local_confirmation_required_before_mutation);
+    assert_eq!(
+        token_set(
+            parity
+                .source_rows
+                .iter()
+                .map(|row| row.source_kind.as_str().to_owned())
+        ),
+        token_set(fixture.expect.parity_source_tokens)
+    );
+    assert_eq!(
+        token_set(
+            parity
+                .comparisons
+                .iter()
+                .map(|row| row.comparison_state_class.as_str().to_owned())
+        ),
+        token_set(fixture.expect.parity_comparison_tokens)
+    );
+    assert!(parity.comparisons.iter().any(|row| {
+        row.comparison_state_class == ScannerParityComparisonStateClass::Comparable
+            && row.local_confirmation_ref.is_some()
+    }));
+    assert!(parity.comparisons.iter().any(|row| {
+        row.comparison_state_class == ScannerParityComparisonStateClass::ParityGapAnchorMapping
+    }));
 }

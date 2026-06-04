@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/sarif-and-scanner-parity.schema.json",
+  "title": "Aureline SARIF and scanner parity packet",
+  "description": "Stable scanner-import and CI/local parity contract. Imported scanner evidence keeps source kind, signer, mirror/offline route, freshness, baseline compatibility, raw-payload refs, unsupported-field refs, and local-confirmation state explicit. Raw payload bodies, raw source, command lines, provider payloads, URLs, logs, and secrets are excluded.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/stable_fixture" },
+    { "$ref": "#/$defs/scanner_ci_local_parity_view" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "local_analysis",
+        "remote_target_analysis",
+        "managed_pipeline",
+        "imported_provider",
+        "unknown_requires_review"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "connected_default",
+        "mirror_only",
+        "air_gapped_offline",
+        "unknown_requires_review"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "imported_snapshot",
+        "stale_imported_snapshot",
+        "superseded_imported_snapshot",
+        "unverified_imported_snapshot"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_exact",
+        "compatible_with_local_confirmation",
+        "blocked_profile_or_tool_mismatch",
+        "blocked_rule_pack_mismatch",
+        "blocked_anchor_mapping_uncertain",
+        "not_comparable_unknown_requires_review"
+      ]
+    },
+    "delta_state_class": {
+      "type": "string",
+      "enum": ["new", "resolved", "persisting", "suppressed", "waived", "unmapped"]
+    },
+    "truth_class": {
+      "type": "string",
+      "enum": ["imported_only", "locally_confirmed"]
+    },
+    "fidelity_class": {
+      "type": "string",
+      "enum": [
+        "imported_static",
+        "locally_confirmed",
+        "stale_imported",
+        "remapped_contextual",
+        "unmapped_anchor",
+        "baseline_mismatch",
+        "redacted_payload"
+      ]
+    },
+    "parity_comparison_state_class": {
+      "type": "string",
+      "enum": [
+        "comparable",
+        "comparable_requires_local_confirmation",
+        "parity_gap_stale_imported",
+        "parity_gap_rule_pack_mismatch",
+        "parity_gap_profile_mismatch",
+        "parity_gap_anchor_mapping",
+        "distinct_source_not_comparable"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "delta_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_count",
+        "resolved_count",
+        "persisting_count",
+        "suppressed_count",
+        "waived_count",
+        "unmapped_count"
+      ],
+      "properties": {
+        "new_count": { "type": "integer", "minimum": 0 },
+        "resolved_count": { "type": "integer", "minimum": 0 },
+        "persisting_count": { "type": "integer", "minimum": 0 },
+        "suppressed_count": { "type": "integer", "minimum": 0 },
+        "waived_count": { "type": "integer", "minimum": 0 },
+        "unmapped_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_ref",
+        "signature_ref",
+        "trust_root_ref",
+        "verified",
+        "summary"
+      ],
+      "properties": {
+        "signer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "signature_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_root_ref": { "$ref": "#/$defs/opaque_ref" },
+        "verified": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "scanner_import_request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "import_id",
+        "workspace_id",
+        "collection_id",
+        "source_artifact_ref",
+        "raw_payload_ref",
+        "media_type",
+        "imported_at",
+        "import_freshness_class",
+        "source_class",
+        "raw_payload_backlink_policy",
+        "deployment_profile_class",
+        "artifact_root_refs",
+        "unsupported_field_refs",
+        "target_scope",
+        "revision_binding",
+        "rule_pack"
+      ],
+      "properties": {
+        "import_id": { "$ref": "#/$defs/opaque_ref" },
+        "workspace_id": { "$ref": "#/$defs/opaque_ref" },
+        "collection_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "media_type": { "$ref": "#/$defs/opaque_ref" },
+        "imported_at": { "type": "string", "format": "date-time" },
+        "import_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "signer": { "$ref": "#/$defs/signer" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "artifact_root_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "unsupported_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "stable_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_name",
+        "scenario",
+        "request",
+        "expect"
+      ],
+      "properties": {
+        "record_kind": { "const": "sarif_and_scanner_parity_stable_case" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "case_name": { "$ref": "#/$defs/opaque_ref" },
+        "scenario": { "$ref": "#/$defs/short_text" },
+        "request": { "$ref": "#/$defs/scanner_import_request" },
+        "expect": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "source_class",
+            "deployment_profile_class",
+            "signer_verified",
+            "public_fallback_blocked",
+            "delta_counts",
+            "parity_source_tokens",
+            "parity_comparison_tokens",
+            "silent_fix_all_blocked"
+          ],
+          "properties": {
+            "source_class": { "$ref": "#/$defs/source_class" },
+            "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+            "signer_verified": { "type": "boolean", "const": true },
+            "public_fallback_blocked": { "type": "boolean" },
+            "delta_counts": { "$ref": "#/$defs/delta_counts" },
+            "parity_source_tokens": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/source_class" },
+              "uniqueItems": true
+            },
+            "parity_comparison_tokens": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/parity_comparison_state_class" },
+              "uniqueItems": true
+            },
+            "silent_fix_all_blocked": { "type": "boolean", "const": true }
+          }
+        }
+      }
+    },
+    "scanner_ci_local_parity_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "parity_view_id",
+        "import_session_ref",
+        "diagnostic_delta_packet_ref",
+        "baseline_family_ref",
+        "compatibility_class",
+        "source_rows",
+        "comparisons",
+        "silent_fix_all_blocked",
+        "local_confirmation_required_before_mutation",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "scanner_ci_local_parity_view" },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "parity_view_id": { "$ref": "#/$defs/opaque_ref" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_delta_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "source_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_row" }
+        },
+        "comparisons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/comparison_row" }
+        },
+        "silent_fix_all_blocked": { "type": "boolean", "const": true },
+        "local_confirmation_required_before_mutation": { "type": "boolean", "const": true },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "source_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_row_id",
+        "source_kind",
+        "source_ref",
+        "tool_ref",
+        "rule_pack_ref",
+        "revision_ref",
+        "freshness_class",
+        "comparable",
+        "read_only",
+        "summary"
+      ],
+      "properties": {
+        "source_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_kind": { "$ref": "#/$defs/source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tool_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_pack_ref": { "$ref": "#/$defs/opaque_ref" },
+        "revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "comparable": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "comparison_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "rule_id_ref",
+        "imported_source_ref",
+        "local_confirmation_ref",
+        "comparison_state_class",
+        "delta_state_class",
+        "truth_class",
+        "fidelity_state_class",
+        "local_confirmation_action_ref",
+        "summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "imported_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_confirmation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "comparison_state_class": { "$ref": "#/$defs/parity_comparison_state_class" },
+        "delta_state_class": { "$ref": "#/$defs/delta_state_class" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "fidelity_state_class": { "$ref": "#/$defs/fidelity_class" },
+        "local_confirmation_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    }
+  }
+}

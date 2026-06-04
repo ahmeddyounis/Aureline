@@ -53,6 +53,9 @@ pub const CLI_PROJECTION_RECORD_KIND: &str = "scanner_import_cli_projection";
 /// Stable record-kind tag for scanner import release packets.
 pub const RELEASE_PACKET_RECORD_KIND: &str = "scanner_import_release_packet";
 
+/// Stable record-kind tag for scanner CI/local parity views.
+pub const CI_LOCAL_PARITY_VIEW_RECORD_KIND: &str = "scanner_ci_local_parity_view";
+
 /// Error returned while normalizing a scanner import.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScannerImportError {
@@ -108,9 +111,24 @@ pub struct ScannerImportRequest {
     /// Freshness state of the imported payload relative to the current target.
     #[serde(default)]
     pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Source class for the imported scanner run.
+    #[serde(default)]
+    pub source_class: ScannerImportSourceClass,
     /// Policy for retaining or omitting raw scanner payload backlinks.
     #[serde(default)]
     pub raw_payload_backlink_policy: ScannerRawPayloadBacklinkPolicy,
+    /// Signing/provenance posture for the imported scanner run.
+    #[serde(default)]
+    pub signer: Option<ScannerImportSigner>,
+    /// Deployment route used to import the scanner run.
+    #[serde(default)]
+    pub deployment_profile_class: ScannerImportDeploymentProfileClass,
+    /// Opaque artifact roots covered by the imported payload.
+    #[serde(default)]
+    pub artifact_root_refs: Vec<String>,
+    /// Opaque refs that retain unsupported source fields outside normalized rows.
+    #[serde(default)]
+    pub unsupported_field_refs: Vec<String>,
     /// Target scope declared for every run in this alpha import.
     pub target_scope: ScannerTargetScopeBinding,
     /// Revision binding used to prevent current-truth overclaiming.
@@ -132,6 +150,93 @@ pub struct ScannerImportRequest {
     /// Current local confirmations for mapped rule families.
     #[serde(default)]
     pub local_confirmations: Vec<ScannerLocalConfirmation>,
+}
+
+/// Source class for scanner import evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScannerImportSourceClass {
+    /// Scanner run was produced by a local analyzer.
+    LocalAnalysis,
+    /// Scanner run targeted a remote workspace or remote execution context.
+    RemoteTargetAnalysis,
+    /// Scanner run came from a managed pipeline.
+    ManagedPipeline,
+    /// Scanner run was imported from an external provider.
+    ImportedProvider,
+    /// Scanner source is unknown and cannot support compatibility claims.
+    UnknownRequiresReview,
+}
+
+impl Default for ScannerImportSourceClass {
+    fn default() -> Self {
+        Self::ImportedProvider
+    }
+}
+
+impl ScannerImportSourceClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalAnalysis => "local_analysis",
+            Self::RemoteTargetAnalysis => "remote_target_analysis",
+            Self::ManagedPipeline => "managed_pipeline",
+            Self::ImportedProvider => "imported_provider",
+            Self::UnknownRequiresReview => "unknown_requires_review",
+        }
+    }
+}
+
+/// Signing/provenance posture for an imported scanner run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerImportSigner {
+    /// Signer identity ref that verified the payload or baseline.
+    pub signer_ref: String,
+    /// Signature or attestation ref retained as opaque evidence.
+    pub signature_ref: String,
+    /// Trust-root ref used to verify the signature.
+    pub trust_root_ref: String,
+    /// True when the signature was verified before import.
+    pub verified: bool,
+    /// Export-safe signer summary.
+    pub summary: String,
+}
+
+/// Deployment route used to import scanner evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScannerImportDeploymentProfileClass {
+    /// Import happened on a connected default route.
+    ConnectedDefault,
+    /// Import came through a mirror-only route.
+    MirrorOnly,
+    /// Import came through a fully air-gapped/offline route.
+    AirGappedOffline,
+    /// Import route is unknown and requires review.
+    UnknownRequiresReview,
+}
+
+impl Default for ScannerImportDeploymentProfileClass {
+    fn default() -> Self {
+        Self::ConnectedDefault
+    }
+}
+
+impl ScannerImportDeploymentProfileClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ConnectedDefault => "connected_default",
+            Self::MirrorOnly => "mirror_only",
+            Self::AirGappedOffline => "air_gapped_offline",
+            Self::UnknownRequiresReview => "unknown_requires_review",
+        }
+    }
+
+    /// Returns true when public fallback must stay blocked.
+    pub const fn blocks_public_fallback(self) -> bool {
+        matches!(self, Self::MirrorOnly | Self::AirGappedOffline)
+    }
 }
 
 /// Declared freshness state for an imported scanner session.
@@ -463,8 +568,18 @@ pub struct ScannerImportSessionAlpha {
     pub raw_payload_refs: Vec<String>,
     /// Freshness state of the imported payload relative to the current target.
     pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Source class for the imported scanner run.
+    pub source_class: ScannerImportSourceClass,
     /// Policy for retaining or omitting raw scanner payload backlinks.
     pub raw_payload_backlink_policy: ScannerRawPayloadBacklinkPolicy,
+    /// Signing/provenance posture for the imported scanner run.
+    pub signer: Option<ScannerImportSigner>,
+    /// Deployment route used to import the scanner run.
+    pub deployment_profile_class: ScannerImportDeploymentProfileClass,
+    /// Opaque artifact roots covered by the imported payload.
+    pub artifact_root_refs: Vec<String>,
+    /// Opaque refs that retain unsupported source fields outside normalized rows.
+    pub unsupported_field_refs: Vec<String>,
     /// Target scope declared for the import.
     pub target_scope: ScannerTargetScopeBinding,
     /// Revision binding for the import.
@@ -634,6 +749,11 @@ impl ScannerImportSessionAlpha {
         ScannerImportReleasePacket::from_session(self, release_scope_ref)
     }
 
+    /// Builds a CI/local parity view that keeps evidence source kinds distinct.
+    pub fn ci_local_parity_view(&self) -> ScannerCiLocalParityView {
+        ScannerCiLocalParityView::from_session(self)
+    }
+
     /// Returns true when the packet blocks exact delta or local-analysis claims.
     pub fn blocks_exact_delta_claims(&self) -> bool {
         self.delta_packet.compatibility_class.blocks_exact_delta()
@@ -762,8 +882,14 @@ pub struct ScannerRunDescriptor {
     pub source_format_class: ScannerSourceFormatClass,
     /// Freshness state for the imported run.
     pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Source class for this scanner run.
+    pub source_class: ScannerImportSourceClass,
     /// Raw-payload backlink policy for this run.
     pub raw_payload_backlink_policy: ScannerRawPayloadBacklinkPolicy,
+    /// Deployment route used to import this scanner run.
+    pub deployment_profile_class: ScannerImportDeploymentProfileClass,
+    /// Opaque artifact roots covered by this run.
+    pub artifact_root_refs: Vec<String>,
     /// Run-level mapping quality.
     pub mapping_quality_class: ScannerMappingQualityClass,
     /// Baseline family ref used for delta comparison.
@@ -1379,6 +1505,8 @@ pub struct ScannerImportCliProjection {
     pub import_session_ref: String,
     /// Source format class used by the import.
     pub source_format_class: ScannerSourceFormatClass,
+    /// Source class for the imported scanner run.
+    pub source_class: ScannerImportSourceClass,
     /// Imported payload freshness state.
     pub import_freshness_class: ScannerImportFreshnessClass,
     /// Delta compatibility class.
@@ -1433,6 +1561,7 @@ impl ScannerImportCliProjection {
             projection_id: format!("cli:scanner_import:{}", sanitize_ref(&session.import_id)),
             import_session_ref: session.import_id.clone(),
             source_format_class,
+            source_class: session.source_class,
             import_freshness_class: session.import_freshness_class,
             compatibility_class: session.delta_packet.compatibility_class,
             delta_counts: session.delta_packet.delta_counts.clone(),
@@ -1508,8 +1637,16 @@ pub struct ScannerImportReleasePacket {
     pub review_packet_ref: String,
     /// Source format class used by the import.
     pub source_format_class: ScannerSourceFormatClass,
+    /// Source class for the imported scanner run.
+    pub source_class: ScannerImportSourceClass,
     /// Imported payload freshness state.
     pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Deployment route used to import the scanner run.
+    pub deployment_profile_class: ScannerImportDeploymentProfileClass,
+    /// Signing/provenance posture for the imported scanner run.
+    pub signer: Option<ScannerImportSigner>,
+    /// True when mirror/offline profiles block public fallback.
+    pub public_fallback_blocked: bool,
     /// Delta compatibility class.
     pub compatibility_class: ScannerDeltaCompatibilityClass,
     /// Baseline family ref used for delta comparison.
@@ -1571,7 +1708,11 @@ impl ScannerImportReleasePacket {
                 .clone(),
             review_packet_ref: session.review_packet.packet_id.clone(),
             source_format_class: ScannerSourceFormatClass::from_media_type(&session.media_type),
+            source_class: session.source_class,
             import_freshness_class: session.import_freshness_class,
+            deployment_profile_class: session.deployment_profile_class,
+            signer: session.signer.clone(),
+            public_fallback_blocked: session.deployment_profile_class.blocks_public_fallback(),
             compatibility_class: session.delta_packet.compatibility_class,
             baseline_family_ref: session.delta_packet.baseline_family_ref.clone(),
             delta_counts: session.delta_packet.delta_counts.clone(),
@@ -1595,6 +1736,253 @@ impl ScannerImportReleasePacket {
             export_safe_summary:
                 "Release packet preserves scanner tool/version, baseline delta state, active debt, imported labels, and raw-payload backlink policy."
                     .into(),
+        }
+    }
+}
+
+/// CI/local parity view for scanner evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerCiLocalParityView {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version.
+    pub scanner_import_schema_version: u32,
+    /// Stable parity view id.
+    pub parity_view_id: String,
+    /// Source import session ref.
+    pub import_session_ref: String,
+    /// Delta packet ref used by the view.
+    pub diagnostic_delta_packet_ref: String,
+    /// Baseline family ref used for comparison.
+    pub baseline_family_ref: String,
+    /// Overall compatibility class.
+    pub compatibility_class: ScannerDeltaCompatibilityClass,
+    /// Evidence lanes kept distinct while still comparable.
+    pub source_rows: Vec<ScannerParitySourceRow>,
+    /// Per-source comparison rows.
+    pub comparisons: Vec<ScannerParityComparisonRow>,
+    /// True when untrusted imported metadata cannot unlock silent fix-all.
+    pub silent_fix_all_blocked: bool,
+    /// True when local confirmation is required before mutation claims.
+    pub local_confirmation_required_before_mutation: bool,
+    /// Redaction posture for the view.
+    pub redaction_class: RedactionClass,
+    /// Export-safe parity summary.
+    pub export_safe_summary: String,
+}
+
+impl ScannerCiLocalParityView {
+    /// Builds a parity view from a normalized scanner import session.
+    pub fn from_session(session: &ScannerImportSessionAlpha) -> Self {
+        let mut source_rows = vec![ScannerParitySourceRow {
+            source_row_id: format!(
+                "parity_source:imported:{}",
+                sanitize_ref(&session.import_id)
+            ),
+            source_kind: ScannerImportSourceClass::ImportedProvider,
+            source_ref: session.import_id.clone(),
+            tool_ref: session
+                .run_descriptors
+                .first()
+                .map(|run| run.tool_id.clone())
+                .unwrap_or_else(|| "tool:scanner:unknown".into()),
+            rule_pack_ref: session.delta_packet.baseline_family_ref.clone(),
+            revision_ref: session.revision_binding.target_revision_ref.clone(),
+            freshness_class: session.import_freshness_class,
+            comparable: !session
+                .delta_packet
+                .compatibility_class
+                .blocks_exact_delta(),
+            read_only: true,
+            summary: "Imported provider findings remain snapshot evidence and read-only.".into(),
+        }];
+
+        if session
+            .findings
+            .iter()
+            .any(|finding| finding.local_confirmation_ref.is_some())
+        {
+            source_rows.push(ScannerParitySourceRow {
+                source_row_id: format!("parity_source:local:{}", sanitize_ref(&session.import_id)),
+                source_kind: ScannerImportSourceClass::LocalAnalysis,
+                source_ref: "source:local_confirmation".into(),
+                tool_ref: "provider:local_confirmation".into(),
+                rule_pack_ref: session.delta_packet.baseline_family_ref.clone(),
+                revision_ref: session
+                    .revision_binding
+                    .current_revision_ref
+                    .clone()
+                    .unwrap_or_else(|| session.revision_binding.target_revision_ref.clone()),
+                freshness_class: ScannerImportFreshnessClass::ImportedSnapshot,
+                comparable: true,
+                read_only: false,
+                summary: "Local analysis is cited only through explicit confirmation refs.".into(),
+            });
+        }
+
+        if session.run_descriptors.iter().any(|run| {
+            run.provider_ref.is_some()
+                || run.source_class == ScannerImportSourceClass::ManagedPipeline
+        }) {
+            source_rows.push(ScannerParitySourceRow {
+                source_row_id: format!("parity_source:managed:{}", sanitize_ref(&session.import_id)),
+                source_kind: ScannerImportSourceClass::ManagedPipeline,
+                source_ref: "source:managed_pipeline".into(),
+                tool_ref: "provider:managed_pipeline".into(),
+                rule_pack_ref: session.delta_packet.baseline_family_ref.clone(),
+                revision_ref: session.revision_binding.target_revision_ref.clone(),
+                freshness_class: session.import_freshness_class,
+                comparable: session.source_class == ScannerImportSourceClass::ManagedPipeline
+                    && !session.delta_packet.compatibility_class.blocks_exact_delta(),
+                read_only: true,
+                summary: "Managed pipeline findings are comparable only through declared packet compatibility.".into(),
+            });
+        }
+
+        if session
+            .target_scope
+            .environment_ref
+            .as_deref()
+            .is_some_and(|environment| environment.contains("remote"))
+            || session.source_class == ScannerImportSourceClass::RemoteTargetAnalysis
+        {
+            source_rows.push(ScannerParitySourceRow {
+                source_row_id: format!("parity_source:remote:{}", sanitize_ref(&session.import_id)),
+                source_kind: ScannerImportSourceClass::RemoteTargetAnalysis,
+                source_ref: "source:remote_target".into(),
+                tool_ref: "provider:remote_target".into(),
+                rule_pack_ref: session.delta_packet.baseline_family_ref.clone(),
+                revision_ref: session.revision_binding.target_revision_ref.clone(),
+                freshness_class: session.import_freshness_class,
+                comparable: session.source_class == ScannerImportSourceClass::RemoteTargetAnalysis
+                    && !session
+                        .delta_packet
+                        .compatibility_class
+                        .blocks_exact_delta(),
+                read_only: true,
+                summary: "Remote-target analysis stays distinct from local and provider evidence."
+                    .into(),
+            });
+        }
+
+        let comparisons = session
+            .findings
+            .iter()
+            .map(|finding| ScannerParityComparisonRow {
+                finding_id: finding.finding_id.clone(),
+                rule_id_ref: finding.rule_id_ref.clone(),
+                imported_source_ref: session.import_id.clone(),
+                local_confirmation_ref: finding.local_confirmation_ref.clone(),
+                comparison_state_class: parity_state_for(session, finding),
+                delta_state_class: finding.delta_state_class,
+                truth_class: finding.truth_class,
+                fidelity_state_class: finding.fidelity_state_class,
+                local_confirmation_action_ref: finding.local_confirmation_action_ref.clone(),
+                summary: finding.export_safe_summary.clone(),
+            })
+            .collect();
+
+        Self {
+            record_kind: CI_LOCAL_PARITY_VIEW_RECORD_KIND.into(),
+            scanner_import_schema_version: SCANNER_IMPORT_ALPHA_SCHEMA_VERSION,
+            parity_view_id: format!("parity:scanner_import:{}", sanitize_ref(&session.import_id)),
+            import_session_ref: session.import_id.clone(),
+            diagnostic_delta_packet_ref: session.delta_packet.delta_packet_id.clone(),
+            baseline_family_ref: session.delta_packet.baseline_family_ref.clone(),
+            compatibility_class: session.delta_packet.compatibility_class,
+            source_rows,
+            comparisons,
+            silent_fix_all_blocked: true,
+            local_confirmation_required_before_mutation: true,
+            redaction_class: session.redaction_class,
+            export_safe_summary:
+                "CI/local parity view separates local, remote-target, managed pipeline, and imported provider evidence while preserving compatibility gaps."
+                    .into(),
+        }
+    }
+}
+
+/// One evidence source row in the CI/local parity view.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerParitySourceRow {
+    /// Stable source row id.
+    pub source_row_id: String,
+    /// Evidence source kind.
+    pub source_kind: ScannerImportSourceClass,
+    /// Opaque source ref.
+    pub source_ref: String,
+    /// Opaque tool/provider ref.
+    pub tool_ref: String,
+    /// Rule-pack or baseline-family ref.
+    pub rule_pack_ref: String,
+    /// Revision ref this source targeted.
+    pub revision_ref: String,
+    /// Freshness state of this source.
+    pub freshness_class: ScannerImportFreshnessClass,
+    /// True when this source is comparable under the packet compatibility rules.
+    pub comparable: bool,
+    /// True when this source is inspect-only.
+    pub read_only: bool,
+    /// Export-safe source summary.
+    pub summary: String,
+}
+
+/// Per-finding CI/local parity comparison row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerParityComparisonRow {
+    /// Imported finding id.
+    pub finding_id: String,
+    /// Rule id ref.
+    pub rule_id_ref: String,
+    /// Imported source ref.
+    pub imported_source_ref: String,
+    /// Local confirmation ref, when present.
+    pub local_confirmation_ref: Option<String>,
+    /// Comparison state for this finding.
+    pub comparison_state_class: ScannerParityComparisonStateClass,
+    /// Delta state for this finding.
+    pub delta_state_class: ScannerFindingDeltaState,
+    /// Imported-vs-live truth class.
+    pub truth_class: ScannerFindingTruthClass,
+    /// Finding fidelity state.
+    pub fidelity_state_class: ScannerFindingFidelityClass,
+    /// Confirmation action ref, when available.
+    pub local_confirmation_action_ref: Option<String>,
+    /// Export-safe comparison summary.
+    pub summary: String,
+}
+
+/// Comparison state for a scanner CI/local parity row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScannerParityComparisonStateClass {
+    /// Imported and local evidence are comparable.
+    Comparable,
+    /// Imported evidence is comparable only after local confirmation.
+    ComparableRequiresLocalConfirmation,
+    /// Imported evidence is stale.
+    ParityGapStaleImported,
+    /// Rule-pack or baseline mismatch blocks comparison.
+    ParityGapRulePackMismatch,
+    /// Profile or tool mismatch blocks comparison.
+    ParityGapProfileMismatch,
+    /// Anchor mapping uncertainty blocks comparison.
+    ParityGapAnchorMapping,
+    /// Source kind remains distinct and not comparable.
+    DistinctSourceNotComparable,
+}
+
+impl ScannerParityComparisonStateClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Comparable => "comparable",
+            Self::ComparableRequiresLocalConfirmation => "comparable_requires_local_confirmation",
+            Self::ParityGapStaleImported => "parity_gap_stale_imported",
+            Self::ParityGapRulePackMismatch => "parity_gap_rule_pack_mismatch",
+            Self::ParityGapProfileMismatch => "parity_gap_profile_mismatch",
+            Self::ParityGapAnchorMapping => "parity_gap_anchor_mapping",
+            Self::DistinctSourceNotComparable => "distinct_source_not_comparable",
         }
     }
 }
@@ -1877,7 +2265,10 @@ pub fn materialize_sarif_import_session(
             media_type: request.media_type.clone(),
             source_format_class: ScannerSourceFormatClass::from_media_type(&request.media_type),
             import_freshness_class: request.import_freshness_class,
+            source_class: request.source_class,
             raw_payload_backlink_policy: request.raw_payload_backlink_policy,
+            deployment_profile_class: request.deployment_profile_class,
+            artifact_root_refs: request.artifact_root_refs.clone(),
             mapping_quality_class: run_mapping_quality,
             baseline_family_ref: request.rule_pack.baseline_family_ref.clone(),
             raw_payload_refs: vec![request.raw_payload_ref.clone()],
@@ -1992,7 +2383,12 @@ pub fn materialize_sarif_import_session(
         source_artifact_ref: request.source_artifact_ref,
         raw_payload_refs: vec![request.raw_payload_ref],
         import_freshness_class: request.import_freshness_class,
+        source_class: request.source_class,
         raw_payload_backlink_policy: request.raw_payload_backlink_policy,
+        signer: request.signer,
+        deployment_profile_class: request.deployment_profile_class,
+        artifact_root_refs: request.artifact_root_refs,
+        unsupported_field_refs: request.unsupported_field_refs,
         target_scope: request.target_scope,
         revision_binding: request.revision_binding,
         run_descriptors,
@@ -2496,6 +2892,50 @@ fn release_parity_note(session: &ScannerImportSessionAlpha) -> String {
     } else {
         "Imported scanner evidence is comparable for the declared baseline but remains read-only imported evidence."
             .into()
+    }
+}
+
+fn parity_state_for(
+    session: &ScannerImportSessionAlpha,
+    finding: &ImportedScannerFinding,
+) -> ScannerParityComparisonStateClass {
+    match session.delta_packet.compatibility_class {
+        ScannerDeltaCompatibilityClass::BlockedRulePackMismatch => {
+            return ScannerParityComparisonStateClass::ParityGapRulePackMismatch;
+        }
+        ScannerDeltaCompatibilityClass::BlockedProfileOrToolMismatch => {
+            return ScannerParityComparisonStateClass::ParityGapProfileMismatch;
+        }
+        ScannerDeltaCompatibilityClass::NotComparableUnknownRequiresReview => {
+            return ScannerParityComparisonStateClass::DistinctSourceNotComparable;
+        }
+        ScannerDeltaCompatibilityClass::BlockedAnchorMappingUncertain
+        | ScannerDeltaCompatibilityClass::CompatibleExact
+        | ScannerDeltaCompatibilityClass::CompatibleWithLocalConfirmation => {}
+    }
+    if session.import_freshness_class.needs_confirmation()
+        || finding.fidelity_state_class == ScannerFindingFidelityClass::StaleImported
+    {
+        return ScannerParityComparisonStateClass::ParityGapStaleImported;
+    }
+    if finding.local_confirmation_ref.is_some() {
+        return ScannerParityComparisonStateClass::Comparable;
+    }
+    if finding.fidelity_state_class == ScannerFindingFidelityClass::UnmappedAnchor
+        || finding.anchor.remap_state_class == DiagnosticAnchorRemapStateClass::Unmapped
+    {
+        return ScannerParityComparisonStateClass::ParityGapAnchorMapping;
+    }
+    if finding.local_confirmation_action_ref.is_some()
+        || session.delta_packet.compatibility_class
+            == ScannerDeltaCompatibilityClass::CompatibleWithLocalConfirmation
+    {
+        return ScannerParityComparisonStateClass::ComparableRequiresLocalConfirmation;
+    }
+    if finding.fidelity_state_class.blocks_exact_delta() {
+        ScannerParityComparisonStateClass::DistinctSourceNotComparable
+    } else {
+        ScannerParityComparisonStateClass::ComparableRequiresLocalConfirmation
     }
 }
 
