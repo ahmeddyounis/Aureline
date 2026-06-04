@@ -196,6 +196,14 @@
 //! exact-build symbol linkage still support the published claim or have already narrowed below
 //! it — while mirror/offline publication coherence stays explicitly governed instead of being
 //! inferred from the primary package rows alone.
+//! The notebook-and-data-rich-surface-qualification module is the family-specific release
+//! guard for notebook and data-heavy promoted surfaces. It keeps document trust,
+//! kernel/runtime trust, and output trust as separate packet truths; binds notebook headers,
+//! kernel bars, cells, output panes, variable explorers, data tables, result grids, chart
+//! summaries, and experiment handoff cards to replay/export, snapshot/golden review,
+//! accessibility, support-export, and downgrade-label evidence; and prevents notebook,
+//! database/result-grid, or profiler-style language from widening unless that family row has
+//! its own current proof.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -214,6 +222,7 @@ pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
 pub mod maintenance_control_packet;
+pub mod notebook_and_data_rich_surface_qualification;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
