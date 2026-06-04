@@ -29,9 +29,7 @@
 use std::path::PathBuf;
 
 use aureline_release::finalize_experiments_labs_inventory::{
-    audit_finalize_experiments_labs_inventory_page,
-    project_cli_inventory,
-    project_support_export,
+    audit_finalize_experiments_labs_inventory_page, project_cli_inventory, project_support_export,
     seeded_finalize_experiments_labs_inventory_page,
     validate_finalize_experiments_labs_inventory_page,
 };
@@ -59,7 +57,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("support-export") => {
             let page = seeded_finalize_experiments_labs_inventory_page();
-            let export = project_support_export("fixture:support-export:experiments-labs-inventory", &page);
+            let export =
+                project_support_export("fixture:support-export:experiments-labs-inventory", &page);
             println!("{}", serde_json::to_string_pretty(&export)?);
             Ok(())
         }
@@ -76,10 +75,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             if extra_defects.is_empty() {
                 println!("audit: clean (no defects)");
             } else {
-                println!(
-                    "audit: {} extra defect(s)",
-                    extra_defects.len()
-                );
+                println!("audit: {} extra defect(s)", extra_defects.len());
                 for defect in &extra_defects {
                     println!("- {}: {}", defect.defect_kind, defect.description);
                 }

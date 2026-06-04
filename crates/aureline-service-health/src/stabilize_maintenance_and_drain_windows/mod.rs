@@ -41,28 +41,23 @@ use aureline_provider::{
 pub const SERVICE_HEALTH_CONTINUITY_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by service-health continuity records.
-pub const SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF: &str =
-    "service_health:continuity:v1";
+pub const SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF: &str = "service_health:continuity:v1";
 
 /// Stable record-kind tag for [`ServiceHealthContinuityPage`].
 pub const SERVICE_HEALTH_CONTINUITY_PAGE_RECORD_KIND: &str =
     "service_health_continuity_page_record";
 
 /// Stable record-kind tag for [`ScheduledMaintenanceNotice`].
-pub const SCHEDULED_MAINTENANCE_NOTICE_RECORD_KIND: &str =
-    "scheduled_maintenance_notice_record";
+pub const SCHEDULED_MAINTENANCE_NOTICE_RECORD_KIND: &str = "scheduled_maintenance_notice_record";
 
 /// Stable record-kind tag for [`MaintenanceWindowStateRecord`].
-pub const MAINTENANCE_WINDOW_STATE_RECORD_KIND: &str =
-    "maintenance_window_state_record";
+pub const MAINTENANCE_WINDOW_STATE_RECORD_KIND: &str = "maintenance_window_state_record";
 
 /// Stable record-kind tag for [`BlockedWriteDisclosure`].
-pub const BLOCKED_WRITE_DISCLOSURE_RECORD_KIND: &str =
-    "blocked_write_disclosure_record";
+pub const BLOCKED_WRITE_DISCLOSURE_RECORD_KIND: &str = "blocked_write_disclosure_record";
 
 /// Stable record-kind tag for [`StaleNoticeDowngradeRule`].
-pub const STALE_NOTICE_DOWNGRADE_RULE_RECORD_KIND: &str =
-    "stale_notice_downgrade_rule_record";
+pub const STALE_NOTICE_DOWNGRADE_RULE_RECORD_KIND: &str = "stale_notice_downgrade_rule_record";
 
 /// Stable record-kind tag for [`PostWindowReconciliationResult`].
 pub const POST_WINDOW_RECONCILIATION_RESULT_RECORD_KIND: &str =
@@ -987,7 +982,9 @@ impl<'a> Validator<'a> {
     }
 
     fn validate_blocked_write_disclosure(&mut self, disclosure: &BlockedWriteDisclosure) {
-        self.coverage.blocked_write_classes.insert(disclosure.write_class);
+        self.coverage
+            .blocked_write_classes
+            .insert(disclosure.write_class);
         self.expect(
             disclosure.record_kind == BLOCKED_WRITE_DISCLOSURE_RECORD_KIND,
             "service_health_continuity.disclosure_record_kind",
@@ -1026,7 +1023,9 @@ impl<'a> Validator<'a> {
     }
 
     fn validate_local_safe_action(&mut self, action: &LocalSafeAction) {
-        self.coverage.local_safe_action_classes.insert(action.action_class);
+        self.coverage
+            .local_safe_action_classes
+            .insert(action.action_class);
         self.expect(
             action.record_kind == SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF,
             "service_health_continuity.action_record_kind",
@@ -1117,7 +1116,9 @@ impl<'a> Validator<'a> {
 
     fn validate_stale_rules(&mut self) {
         for rule in &self.page.stale_notice_rules {
-            self.coverage.stale_downgrade_classes.insert(rule.downgrade_class);
+            self.coverage
+                .stale_downgrade_classes
+                .insert(rule.downgrade_class);
             self.expect(
                 rule.record_kind == STALE_NOTICE_DOWNGRADE_RULE_RECORD_KIND,
                 "service_health_continuity.rule_record_kind",
@@ -1218,7 +1219,8 @@ impl<'a> Validator<'a> {
             );
             if result.replay_requires_review {
                 self.expect(
-                    result.reconciliation_state == PostWindowReconciliationState::NeedsExplicitReview,
+                    result.reconciliation_state
+                        == PostWindowReconciliationState::NeedsExplicitReview,
                     "service_health_continuity.result_review_state_mismatch",
                     "replay_requires_review=true must pair with NeedsExplicitReview state",
                 );
@@ -1345,9 +1347,14 @@ mod tests {
             shared_contract_ref: SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF.to_string(),
             disclosure_id: "bw-1".to_string(),
             write_class: BlockedWriteClass::ProviderMutation,
-            rationale: "Provider mutations are blocked during the scheduled maintenance window.".to_string(),
-            prevents_action_summary: "Prevents publishing reviews, creating issues, or requesting CI reruns.".to_string(),
-            affected_surfaces: vec![AffectedSurfaceClass::ProviderSync, AffectedSurfaceClass::Review],
+            rationale: "Provider mutations are blocked during the scheduled maintenance window."
+                .to_string(),
+            prevents_action_summary:
+                "Prevents publishing reviews, creating issues, or requesting CI reruns.".to_string(),
+            affected_surfaces: vec![
+                AffectedSurfaceClass::ProviderSync,
+                AffectedSurfaceClass::Review,
+            ],
             local_draft_alternative_offered: true,
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
@@ -1360,8 +1367,10 @@ mod tests {
             shared_contract_ref: SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF.to_string(),
             disclosure_id: "bw-2".to_string(),
             write_class: BlockedWriteClass::ReviewPublish,
-            rationale: "Review publish is blocked while provider sync is paused during the window.".to_string(),
-            prevents_action_summary: "Prevents submitting review comments or approvals to the provider.".to_string(),
+            rationale: "Review publish is blocked while provider sync is paused during the window."
+                .to_string(),
+            prevents_action_summary:
+                "Prevents submitting review comments or approvals to the provider.".to_string(),
             affected_surfaces: vec![AffectedSurfaceClass::Review],
             local_draft_alternative_offered: true,
             redaction_class: RedactionClass::MetadataSafeDefault,
@@ -1375,8 +1384,12 @@ mod tests {
             shared_contract_ref: SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF.to_string(),
             action_id: "lsa-1".to_string(),
             action_class: LocalSafeActionClass::LocalDraftAuthoring,
-            rationale: "Local drafts remain editable and are preserved for post-window publish.".to_string(),
-            available_on_surfaces: vec![AffectedSurfaceClass::Desktop, AffectedSurfaceClass::Review],
+            rationale: "Local drafts remain editable and are preserved for post-window publish."
+                .to_string(),
+            available_on_surfaces: vec![
+                AffectedSurfaceClass::Desktop,
+                AffectedSurfaceClass::Review,
+            ],
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
     }
@@ -1388,8 +1401,14 @@ mod tests {
             shared_contract_ref: SERVICE_HEALTH_CONTINUITY_SHARED_CONTRACT_REF.to_string(),
             action_id: "lsa-2".to_string(),
             action_class: LocalSafeActionClass::QueuePublishLater,
-            rationale: "Queue provider-backed mutations for automatic drain after the window closes.".to_string(),
-            available_on_surfaces: vec![AffectedSurfaceClass::Desktop, AffectedSurfaceClass::Review, AffectedSurfaceClass::ProviderSync],
+            rationale:
+                "Queue provider-backed mutations for automatic drain after the window closes."
+                    .to_string(),
+            available_on_surfaces: vec![
+                AffectedSurfaceClass::Desktop,
+                AffectedSurfaceClass::Review,
+                AffectedSurfaceClass::ProviderSync,
+            ],
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
     }
@@ -1407,9 +1426,15 @@ mod tests {
                 AffectedSurfaceClass::ProviderSync,
                 AffectedSurfaceClass::Review,
             ],
-            blocked_writes: vec![sample_blocked_write(), sample_blocked_write_review_publish()],
+            blocked_writes: vec![
+                sample_blocked_write(),
+                sample_blocked_write_review_publish(),
+            ],
             local_safe_actions: vec![sample_local_safe_action(), sample_local_safe_action_queue()],
-            defer_options: vec![DeferOptionClass::RemindAt, DeferOptionClass::ExportToCalendar],
+            defer_options: vec![
+                DeferOptionClass::RemindAt,
+                DeferOptionClass::ExportToCalendar,
+            ],
             export_option_offered: true,
             freshness: sample_freshness(),
             stale_downgrade_class: StaleNoticeDowngradeClass::Current,
@@ -1433,14 +1458,18 @@ mod tests {
                 timezone: "UTC".to_string(),
                 latest_refresh_time: "2026-06-03T04:08:10Z".to_string(),
             },
-            affected_surfaces: vec![AffectedSurfaceClass::Collab, AffectedSurfaceClass::ProviderSync],
+            affected_surfaces: vec![
+                AffectedSurfaceClass::Collab,
+                AffectedSurfaceClass::ProviderSync,
+            ],
             blocked_writes: vec![sample_blocked_write()],
             local_safe_actions: vec![sample_local_safe_action()],
             defer_options: vec![DeferOptionClass::SilenceUntilStart],
             export_option_offered: false,
             freshness: sample_freshness(),
             stale_downgrade_class: StaleNoticeDowngradeClass::Current,
-            support_export_summary: "Read-only window from 01:00 to 01:30 UTC on 2026-06-15.".to_string(),
+            support_export_summary: "Read-only window from 01:00 to 01:30 UTC on 2026-06-15."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
             no_vague_copy: true,
             local_safe_action_named: true,
@@ -1460,14 +1489,18 @@ mod tests {
                 timezone: "UTC".to_string(),
                 latest_refresh_time: "2026-06-03T04:08:10Z".to_string(),
             },
-            affected_surfaces: vec![AffectedSurfaceClass::ProviderSync, AffectedSurfaceClass::UpdateCenter],
+            affected_surfaces: vec![
+                AffectedSurfaceClass::ProviderSync,
+                AffectedSurfaceClass::UpdateCenter,
+            ],
             blocked_writes: vec![sample_blocked_write()],
             local_safe_actions: vec![sample_local_safe_action()],
             defer_options: vec![DeferOptionClass::RemindAt],
             export_option_offered: false,
             freshness: sample_freshness(),
             stale_downgrade_class: StaleNoticeDowngradeClass::Current,
-            support_export_summary: "Drain-in-progress window from 03:00 to 03:15 UTC on 2026-06-20.".to_string(),
+            support_export_summary:
+                "Drain-in-progress window from 03:00 to 03:15 UTC on 2026-06-20.".to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
             no_vague_copy: true,
             local_safe_action_named: true,
@@ -1537,7 +1570,8 @@ mod tests {
             local_safe_actions: vec![sample_local_safe_action()],
             next_expected_transition: Some(MaintenanceWindowState::DrainInProgress),
             next_transition_time: Some("2026-06-10T03:00:00Z".to_string()),
-            support_export_summary: "Managed surfaces are read-only; new writes are blocked.".to_string(),
+            support_export_summary: "Managed surfaces are read-only; new writes are blocked."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
     }
@@ -1555,7 +1589,8 @@ mod tests {
             local_safe_actions: vec![sample_local_safe_action()],
             next_expected_transition: Some(MaintenanceWindowState::Reconciling),
             next_transition_time: Some("2026-06-10T03:30:00Z".to_string()),
-            support_export_summary: "Drain in progress; new high-risk writes are blocked.".to_string(),
+            support_export_summary: "Drain in progress; new high-risk writes are blocked."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
     }
@@ -1573,7 +1608,8 @@ mod tests {
             local_safe_actions: vec![sample_local_safe_action()],
             next_expected_transition: None,
             next_transition_time: None,
-            support_export_summary: "Maintenance window resolved; normal operation resumed.".to_string(),
+            support_export_summary: "Maintenance window resolved; normal operation resumed."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
         }
     }
@@ -1608,7 +1644,8 @@ mod tests {
             replay_requires_review: true,
             provider_drift_class: ProviderDriftClass::TargetIdentityChanged,
             next_safe_action: ReconciliationNextActionClass::CompareRebaseReview,
-            support_export_summary: "Endpoint drifted during window; explicit review required.".to_string(),
+            support_export_summary: "Endpoint drifted during window; explicit review required."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
             no_invisible_replay: true,
         }
@@ -1635,7 +1672,8 @@ mod tests {
             replay_requires_review: false,
             provider_drift_class: ProviderDriftClass::NoMaterialDrift,
             next_safe_action: ReconciliationNextActionClass::MutateProviderNow,
-            support_export_summary: "No drift observed; queued intent may proceed after window.".to_string(),
+            support_export_summary: "No drift observed; queued intent may proceed after window."
+                .to_string(),
             redaction_class: RedactionClass::MetadataSafeDefault,
             no_invisible_replay: true,
         }
@@ -1672,7 +1710,8 @@ mod tests {
                 sample_reconciliation_result(),
                 sample_reconciliation_queued(),
             ],
-            support_export_summary: "Service-health continuity page for M4 stable line.".to_string(),
+            support_export_summary: "Service-health continuity page for M4 stable line."
+                .to_string(),
         }
     }
 
@@ -1748,7 +1787,10 @@ mod tests {
         let page = sample_page();
         let export = page.support_export_projection();
         assert_eq!(export.page_id, page.page_id);
-        assert_eq!(export.notice_summaries.len(), page.maintenance_notices.len());
+        assert_eq!(
+            export.notice_summaries.len(),
+            page.maintenance_notices.len()
+        );
         assert_eq!(
             export.window_state_summaries.len(),
             page.window_state_records.len()

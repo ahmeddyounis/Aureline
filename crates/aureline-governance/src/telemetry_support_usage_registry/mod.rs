@@ -359,8 +359,7 @@ impl TelemetrySupportUsageRegistry {
                     && !row.retention_note.is_empty()
                     && !row.redaction_profile_ref.is_empty()
                     && !row.offboarding_compatibility_note.is_empty()
-                    && row.endpoint_policy_truth_by_context.len()
-                        >= REQUIRED_CONTEXT_CLASSES.len()
+                    && row.endpoint_policy_truth_by_context.len() >= REQUIRED_CONTEXT_CLASSES.len()
             })
             .count();
 
@@ -395,9 +394,9 @@ impl TelemetrySupportUsageRegistry {
             .rows
             .iter()
             .filter(|row| {
-                row.endpoint_policy_truth_by_context
-                    .iter()
-                    .any(|ctx| ctx.endpoint_policy_truth == EndpointPolicyTruth::QueuedForManualExport)
+                row.endpoint_policy_truth_by_context.iter().any(|ctx| {
+                    ctx.endpoint_policy_truth == EndpointPolicyTruth::QueuedForManualExport
+                })
             })
             .count();
 
@@ -478,7 +477,10 @@ impl fmt::Display for RegistryViolation {
             Self::DuplicateEntryId { entry_id } => {
                 write!(f, "duplicate entry_id {entry_id:?}")
             }
-            Self::EmptyField { entry_id, field_name } => {
+            Self::EmptyField {
+                entry_id,
+                field_name,
+            } => {
                 write!(f, "row {entry_id:?} has empty required field {field_name}")
             }
             Self::TelemetryOssDefaultNotOptIn { entry_id, posture } => {
@@ -487,7 +489,10 @@ impl fmt::Display for RegistryViolation {
                     "telemetry row {entry_id:?} has non-opt-in OSS default {posture:?}; a signed exception packet is required"
                 )
             }
-            Self::MissingContextEndpointPolicy { entry_id, context_class } => {
+            Self::MissingContextEndpointPolicy {
+                entry_id,
+                context_class,
+            } => {
                 write!(
                     f,
                     "row {entry_id:?} is missing endpoint policy truth for context {context_class:?}"
@@ -523,10 +528,8 @@ impl Error for RegistryLoadError {}
 
 /// Loads the embedded registry.
 pub fn load_registry() -> Result<TelemetrySupportUsageRegistry, RegistryLoadError> {
-    serde_json::from_str(TELEMETRY_SUPPORT_USAGE_REGISTRY_JSON).map_err(|err| {
-        RegistryLoadError {
-            message: err.to_string(),
-        }
+    serde_json::from_str(TELEMETRY_SUPPORT_USAGE_REGISTRY_JSON).map_err(|err| RegistryLoadError {
+        message: err.to_string(),
     })
 }
 
@@ -603,7 +606,10 @@ pub fn validate_registry(registry: &TelemetrySupportUsageRegistry) -> Vec<Regist
             ("endpoint_class", row.endpoint_class.as_str()),
             ("retention_note", row.retention_note.as_str()),
             ("redaction_profile_ref", row.redaction_profile_ref.as_str()),
-            ("open_source_default_posture", row.open_source_default_posture.as_str()),
+            (
+                "open_source_default_posture",
+                row.open_source_default_posture.as_str(),
+            ),
             (
                 "offboarding_compatibility_note",
                 row.offboarding_compatibility_note.as_str(),
@@ -676,8 +682,16 @@ mod tests {
     fn all_rows_have_required_governance_dimensions() {
         let registry = current_registry();
         for row in &registry.rows {
-            assert!(!row.owner_ref.is_empty(), "row {} missing owner_ref", row.entry_id);
-            assert!(row.schema_version > 0, "row {} has zero schema_version", row.entry_id);
+            assert!(
+                !row.owner_ref.is_empty(),
+                "row {} missing owner_ref",
+                row.entry_id
+            );
+            assert!(
+                row.schema_version > 0,
+                "row {} has zero schema_version",
+                row.entry_id
+            );
             assert!(
                 !row.consent_class.is_empty(),
                 "row {} missing consent_class",
@@ -724,7 +738,11 @@ mod tests {
     #[test]
     fn telemetry_rows_stay_opt_in_on_oss() {
         let registry = current_registry();
-        for row in registry.rows.iter().filter(|r| r.family_class == "telemetry_payload") {
+        for row in registry
+            .rows
+            .iter()
+            .filter(|r| r.family_class == "telemetry_payload")
+        {
             assert!(
                 row.has_valid_oss_telemetry_posture(),
                 "telemetry row {} does not maintain opt-in OSS posture",
@@ -746,7 +764,9 @@ mod tests {
     #[test]
     fn telemetry_oss_local_is_local_only() {
         let registry = current_registry();
-        let row = registry.row("telemetry.ux_product_event").expect("telemetry row missing");
+        let row = registry
+            .row("telemetry.ux_product_event")
+            .expect("telemetry row missing");
         assert_eq!(
             row.endpoint_policy_for(ContextClass::OssLocal),
             Some(EndpointPolicyTruth::LocalOnly),
@@ -775,7 +795,9 @@ mod tests {
     #[test]
     fn support_bundle_is_queued_for_manual_export_in_all_contexts() {
         let registry = current_registry();
-        let row = registry.row("support.bundle_manifest").expect("support row missing");
+        let row = registry
+            .row("support.bundle_manifest")
+            .expect("support row missing");
         for context in ContextClass::ALL {
             assert_eq!(
                 row.endpoint_policy_for(context),

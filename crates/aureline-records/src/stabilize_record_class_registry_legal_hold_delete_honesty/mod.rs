@@ -542,8 +542,7 @@ mod tests {
             collab_metadata: None,
         };
         let yaml = serde_yaml::to_string(&receipt).expect("receipt serializes");
-        let reparsed: DestructionReceipt =
-            serde_yaml::from_str(&yaml).expect("receipt reparses");
+        let reparsed: DestructionReceipt = serde_yaml::from_str(&yaml).expect("receipt reparses");
         assert_eq!(reparsed, receipt);
     }
 }

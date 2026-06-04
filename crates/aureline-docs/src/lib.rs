@@ -18,6 +18,7 @@ pub mod locale_overlay;
 pub mod maintenance;
 pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
+pub mod stable_docs_contract;
 
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
@@ -140,4 +141,18 @@ pub use semantic_recall_boundary_truth_packet::{
     SEMANTIC_RECALL_BOUNDARY_TRUTH_PACKET_RECORD_KIND, SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_REF,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_VERSION,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stable_docs_contract::{
+    current_stable_docs_source_result_pack_and_citation_packet,
+    seeded_stable_docs_source_result_pack_and_citation_input, StableCitationDrawerParity,
+    StableDerivedCitationSet, StableDocsConsumerProjection, StableDocsConsumerSurface,
+    StableDocsContractArtifactError, StableDocsFindingKind, StableDocsFindingSeverity,
+    StableDocsPackDetailSheet, StableDocsPackDetailSheetKind, StableDocsPromotionState,
+    StableDocsResultObject, StableDocsSourceDescriptor, StableDocsSourceResultPackCitationInput,
+    StableDocsSourceResultPackCitationPacket, StableDocsSupportExport, StableDocsSupportTrustClass,
+    StableDocsValidationFinding, StableExportPosture, StablePackActionSet,
+    STABLE_DOCS_CONTRACT_ARTIFACT_DOC_REF, STABLE_DOCS_CONTRACT_ARTIFACT_REF,
+    STABLE_DOCS_CONTRACT_DOC_REF, STABLE_DOCS_CONTRACT_FIXTURE_DIR,
+    STABLE_DOCS_CONTRACT_RECORD_KIND, STABLE_DOCS_CONTRACT_SCHEMA_REF,
+    STABLE_DOCS_CONTRACT_SCHEMA_VERSION, STABLE_DOCS_CONTRACT_SUPPORT_EXPORT_RECORD_KIND,
 };

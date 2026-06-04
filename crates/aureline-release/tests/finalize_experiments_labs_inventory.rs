@@ -1,21 +1,17 @@
 //! Fixture replay for the finalized experiments/Labs inventory.
 
 use aureline_release::finalize_experiments_labs_inventory::{
-    audit_finalize_experiments_labs_inventory_page,
-    project_cli_inventory,
-    project_support_export,
+    audit_finalize_experiments_labs_inventory_page, project_cli_inventory, project_support_export,
     seeded_finalize_experiments_labs_inventory_page,
-    validate_finalize_experiments_labs_inventory_page,
-    FinalizeExperimentsLabsInventoryPage, InventoryQualificationClass,
-    FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION,
+    validate_finalize_experiments_labs_inventory_page, FinalizeExperimentsLabsInventoryPage,
+    InventoryQualificationClass, FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION,
     FINALIZE_EXPERIMENTS_LABS_INVENTORY_SHARED_CONTRACT_REF,
 };
 
 #[test]
 fn seeded_page_validates_cleanly() {
     let page = seeded_finalize_experiments_labs_inventory_page();
-    validate_finalize_experiments_labs_inventory_page(&page)
-        .expect("seeded page should validate");
+    validate_finalize_experiments_labs_inventory_page(&page).expect("seeded page should validate");
 }
 
 #[test]
@@ -27,12 +23,10 @@ fn seeded_page_audit_is_clean() {
 
 #[test]
 fn fixture_round_trips() {
-    let page: FinalizeExperimentsLabsInventoryPage = serde_json::from_str(include_str!(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/release/m4/finalize-experiments-labs-inventory/certification_page.json"
-        )
-    ))
+    let page: FinalizeExperimentsLabsInventoryPage = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/release/m4/finalize-experiments-labs-inventory/certification_page.json"
+    )))
     .expect("fixture parses");
 
     assert_eq!(
@@ -43,8 +37,7 @@ fn fixture_round_trips() {
         page.shared_contract_ref,
         FINALIZE_EXPERIMENTS_LABS_INVENTORY_SHARED_CONTRACT_REF
     );
-    validate_finalize_experiments_labs_inventory_page(&page)
-        .expect("fixture page validates");
+    validate_finalize_experiments_labs_inventory_page(&page).expect("fixture page validates");
 }
 
 #[test]
@@ -126,7 +119,8 @@ fn stable_rows_have_no_non_stable_dependencies() {
         if row.qualification == InventoryQualificationClass::FinalizedStable {
             for marker in &row.dependency_markers {
                 assert_eq!(
-                    marker.required_lifecycle_state, "Stable",
+                    marker.required_lifecycle_state,
+                    "Stable",
                     "stable row {} depends on non-stable capability {} ({})",
                     row.capability_id,
                     marker.required_capability_id,

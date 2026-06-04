@@ -507,7 +507,10 @@ fn build_row(
             record_kind: FINALIZE_EXPERIMENTS_LABS_INVENTORY_DEFECT_RECORD_KIND.to_owned(),
             capability_id: Some(inv_row.capability_id.clone()),
             defect_kind: "owner_missing".to_owned(),
-            description: format!("Capability {} is missing an owner ref.", inv_row.capability_id),
+            description: format!(
+                "Capability {} is missing an owner ref.",
+                inv_row.capability_id
+            ),
             blocks_stable_claim: true,
         });
     }
@@ -543,16 +546,18 @@ fn build_row(
     }
 
     // Map kill-switch visibility.
-    let kill_switch_visibility = inv_row.winning_disable_source.as_ref().map(|source| {
-        KillSwitchVisibilityRow {
-            source_class: source.source_class.clone(),
-            source_ref: source.source_ref.clone(),
-            reason: source.reason.clone(),
-            preserve_user_data: source.preserve_user_data,
-            preserved_data_scope: source.preserved_data_scope.clone(),
-            fallback_path: source.fallback_path.clone(),
-        }
-    });
+    let kill_switch_visibility =
+        inv_row
+            .winning_disable_source
+            .as_ref()
+            .map(|source| KillSwitchVisibilityRow {
+                source_class: source.source_class.clone(),
+                source_ref: source.source_ref.clone(),
+                reason: source.reason.clone(),
+                preserve_user_data: source.preserve_user_data,
+                preserved_data_scope: source.preserved_data_scope.clone(),
+                fallback_path: source.fallback_path.clone(),
+            });
 
     // If there is a winning disable source but recovery metadata is incomplete,
     // flag a defect.
@@ -650,7 +655,10 @@ fn build_summary(
         .iter()
         .filter(|r| !r.qualification.holds_stable())
         .count();
-    let kill_switch_visible_count = rows.iter().filter(|r| r.kill_switch_visibility.is_some()).count();
+    let kill_switch_visible_count = rows
+        .iter()
+        .filter(|r| r.kill_switch_visibility.is_some())
+        .count();
     let dependency_marker_count = rows.iter().map(|r| r.dependency_markers.len()).sum();
 
     FinalizeExperimentsLabsInventorySummary {
@@ -675,7 +683,10 @@ pub enum FinalizeExperimentsLabsInventoryError {
     /// Schema version mismatch.
     SchemaVersionMismatch { expected: u32, actual: u32 },
     /// A row has an unrecognized qualification class.
-    UnrecognizedQualification { capability_id: String, token: String },
+    UnrecognizedQualification {
+        capability_id: String,
+        token: String,
+    },
     /// A claimed-stable row has hidden experiment dependencies.
     HiddenDependencyOnStableClaim { capability_id: String },
     /// Lifecycle vocabulary contains an unrecognized token.
@@ -688,9 +699,15 @@ impl std::fmt::Display for FinalizeExperimentsLabsInventoryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SchemaVersionMismatch { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
-            Self::UnrecognizedQualification { capability_id, token } => {
+            Self::UnrecognizedQualification {
+                capability_id,
+                token,
+            } => {
                 write!(
                     f,
                     "unrecognized qualification {token:?} for capability {capability_id:?}"
@@ -706,7 +723,10 @@ impl std::fmt::Display for FinalizeExperimentsLabsInventoryError {
                 write!(f, "unrecognized lifecycle token {token:?}")
             }
             Self::DefectCountMismatch => {
-                write!(f, "summary defect count does not match actual defect list length")
+                write!(
+                    f,
+                    "summary defect count does not match actual defect list length"
+                )
             }
         }
     }
@@ -719,10 +739,12 @@ pub fn validate_finalize_experiments_labs_inventory_page(
     page: &FinalizeExperimentsLabsInventoryPage,
 ) -> Result<(), FinalizeExperimentsLabsInventoryError> {
     if page.schema_version != FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION {
-        return Err(FinalizeExperimentsLabsInventoryError::SchemaVersionMismatch {
-            expected: FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION,
-            actual: page.schema_version,
-        });
+        return Err(
+            FinalizeExperimentsLabsInventoryError::SchemaVersionMismatch {
+                expected: FINALIZE_EXPERIMENTS_LABS_INVENTORY_SCHEMA_VERSION,
+                actual: page.schema_version,
+            },
+        );
     }
 
     let valid_lifecycle: Vec<&str> = vec![
@@ -804,7 +826,9 @@ pub fn audit_finalize_experiments_labs_inventory_page(
         }
 
         // Every disabled row must expose kill-switch visibility.
-        if row.effective_lifecycle_state == "DisabledByPolicy" && row.kill_switch_visibility.is_none() {
+        if row.effective_lifecycle_state == "DisabledByPolicy"
+            && row.kill_switch_visibility.is_none()
+        {
             out.push(FinalizeExperimentsLabsInventoryDefect {
                 record_kind: FINALIZE_EXPERIMENTS_LABS_INVENTORY_DEFECT_RECORD_KIND.to_owned(),
                 capability_id: Some(row.capability_id.clone()),
@@ -862,8 +886,14 @@ pub fn project_cli_inventory(
         "visible_bounded_count".to_owned(),
         page.summary.visible_bounded_count.to_string(),
     );
-    fields.insert("narrowed_count".to_owned(), page.summary.narrowed_count.to_string());
-    fields.insert("defect_count".to_owned(), page.summary.defect_count.to_string());
+    fields.insert(
+        "narrowed_count".to_owned(),
+        page.summary.narrowed_count.to_string(),
+    );
+    fields.insert(
+        "defect_count".to_owned(),
+        page.summary.defect_count.to_string(),
+    );
 
     let rows = page
         .rows
@@ -944,7 +974,15 @@ mod tests {
     #[test]
     fn lifecycle_vocabulary_is_exactly_controlled_set() {
         let page = seeded_finalize_experiments_labs_inventory_page();
-        let valid = ["Labs", "Preview", "Beta", "Stable", "Deprecated", "DisabledByPolicy", "Retired"];
+        let valid = [
+            "Labs",
+            "Preview",
+            "Beta",
+            "Stable",
+            "Deprecated",
+            "DisabledByPolicy",
+            "Retired",
+        ];
         for row in &page.rows {
             assert!(
                 valid.contains(&row.effective_lifecycle_state.as_str()),

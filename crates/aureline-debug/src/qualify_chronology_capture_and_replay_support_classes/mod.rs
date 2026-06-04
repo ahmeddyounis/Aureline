@@ -1085,11 +1085,8 @@ impl ChronologyReplaySupportTruthPacket {
         };
 
         for &lane in &DebugLaneClass::REQUIRED {
-            let lane_rows: Vec<&ChronologyReplaySupportRow> = input
-                .rows
-                .iter()
-                .filter(|r| r.lane_class == lane)
-                .collect();
+            let lane_rows: Vec<&ChronologyReplaySupportRow> =
+                input.rows.iter().filter(|r| r.lane_class == lane).collect();
 
             // Quality row must have bound evidence and confidence.
             for row in lane_rows
@@ -1356,8 +1353,7 @@ impl ChronologyReplaySupportTruthPacket {
 
             // Narrowed rows must have disclosure refs.
             for row in &lane_rows {
-                if row.support_class.requires_explicit_disclosure()
-                    && row.disclosure_ref.is_none()
+                if row.support_class.requires_explicit_disclosure() && row.disclosure_ref.is_none()
                 {
                     findings.push(ValidationFinding {
                         row_id: row.row_id.clone(),
@@ -1588,7 +1584,9 @@ pub struct ChronologyReplaySupportExport {
 impl ChronologyReplaySupportExport {
     /// Returns `true` when the export is safe to include in a support bundle.
     pub fn is_export_safe(&self) -> bool {
-        self.raw_source_material_excluded && self.secrets_excluded && self.ambient_authority_excluded
+        self.raw_source_material_excluded
+            && self.secrets_excluded
+            && self.ambient_authority_excluded
     }
 }
 
@@ -1610,17 +1608,18 @@ impl fmt::Display for ChronologyReplaySupportArtifactError {
         match self {
             Self::ParseError(msg) => write!(f, "parse error: {msg}"),
             Self::RecordKindMismatch { expected, found } => {
-                write!(f, "record_kind mismatch: expected {expected}, found {found}")
+                write!(
+                    f,
+                    "record_kind mismatch: expected {expected}, found {found}"
+                )
             }
             Self::SchemaVersionMismatch { expected, found } => write!(
                 f,
                 "schema_version mismatch: expected {expected}, found {found}"
             ),
-            Self::BlocksStable(findings) => write!(
-                f,
-                "packet blocks stable with {} finding(s)",
-                findings.len()
-            ),
+            Self::BlocksStable(findings) => {
+                write!(f, "packet blocks stable with {} finding(s)", findings.len())
+            }
         }
     }
 }
@@ -1652,10 +1651,12 @@ pub fn current_stable_chronology_replay_support_truth_packet(
         });
     }
     if packet.schema_version != CHRONOLOGY_REPLAY_SUPPORT_SCHEMA_VERSION {
-        return Err(ChronologyReplaySupportArtifactError::SchemaVersionMismatch {
-            expected: CHRONOLOGY_REPLAY_SUPPORT_SCHEMA_VERSION,
-            found: packet.schema_version,
-        });
+        return Err(
+            ChronologyReplaySupportArtifactError::SchemaVersionMismatch {
+                expected: CHRONOLOGY_REPLAY_SUPPORT_SCHEMA_VERSION,
+                found: packet.schema_version,
+            },
+        );
     }
     if !packet.is_stable() {
         return Err(ChronologyReplaySupportArtifactError::BlocksStable(
@@ -1710,13 +1711,11 @@ mod tests {
             execution_context_id_binding: exec_ctx.map(str::to_owned),
             attests_inspector_state_preserved: requires_inspector,
             attests_mapping_quality_preserved: requires_mapping,
-            attests_replay_read_only: matches!(
-                row_class,
-                ChronologyRowClass::ReplaySurfaceBinding
-            ) && !matches!(
-                replay_surface,
-                Some(ReplaySurfaceClass::SupportExportSurface)
-            ),
+            attests_replay_read_only: matches!(row_class, ChronologyRowClass::ReplaySurfaceBinding)
+                && !matches!(
+                    replay_surface,
+                    Some(ReplaySurfaceClass::SupportExportSurface)
+                ),
             raw_source_material_excluded: true,
             secrets_excluded: true,
             ambient_authority_excluded: true,
@@ -1769,7 +1768,13 @@ mod tests {
                 lane,
                 ChronologyRowClass::SupportClassAdmission,
                 Some(sc),
-                None, None, None, None, None, None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
             ));
         }
         // Capture state admissions.
@@ -1780,7 +1785,12 @@ mod tests {
                 ChronologyRowClass::CaptureStateAdmission,
                 None,
                 Some(cs),
-                None, None, None, None, None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
             ));
         }
         // Mapping quality admissions.
@@ -1789,9 +1799,14 @@ mod tests {
                 &format!("row:{lane_str}:mapping:{}", mq.as_str()),
                 lane,
                 ChronologyRowClass::MappingQualityBadgeAdmission,
-                None, None,
+                None,
+                None,
                 Some(mq),
-                None, None, None, None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
             ));
         }
         // Replay scope admissions.
@@ -1800,9 +1815,14 @@ mod tests {
                 &format!("row:{lane_str}:scope:{}", rs.as_str()),
                 lane,
                 ChronologyRowClass::ReplayScopeAdmission,
-                None, None, None,
+                None,
+                None,
+                None,
                 Some(rs),
-                None, None, None, None,
+                None,
+                None,
+                None,
+                None,
             ));
         }
         // Inspector state admissions.
@@ -1811,9 +1831,14 @@ mod tests {
                 &format!("row:{lane_str}:inspector:{}", is.as_str()),
                 lane,
                 ChronologyRowClass::InspectorStateAdmission,
-                None, None, None, None,
+                None,
+                None,
+                None,
+                None,
                 Some(is),
-                None, None, None,
+                None,
+                None,
+                None,
             ));
         }
         // Restart posture admissions.
@@ -1822,9 +1847,14 @@ mod tests {
                 &format!("row:{lane_str}:restart:{}", rp.as_str()),
                 lane,
                 ChronologyRowClass::RestartPostureAdmission,
-                None, None, None, None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
                 Some(rp),
-                None, None,
+                None,
+                None,
             ));
         }
         // Replay surface bindings.
@@ -1833,7 +1863,12 @@ mod tests {
                 &format!("row:{lane_str}:surface:{}", surface.as_str()),
                 lane,
                 ChronologyRowClass::ReplaySurfaceBinding,
-                None, None, None, None, None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
                 Some(surface),
                 None,
             ));
@@ -1843,8 +1878,16 @@ mod tests {
             &format!("row:{lane_str}:lineage"),
             lane,
             ChronologyRowClass::LineageAdmission,
-            None, None, None, None, None, None, None,
-            Some(&format!("exec:m4:{lane_str}:chronology_replay_support_lineage")),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(&format!(
+                "exec:m4:{lane_str}:chronology_replay_support_lineage"
+            )),
         ));
 
         rows
@@ -1885,7 +1928,10 @@ mod tests {
     #[test]
     fn all_as_str_are_stable_tokens() {
         assert_eq!(DebugLaneClass::LocalLane.as_str(), "local_lane");
-        assert_eq!(DebugLaneClass::NotebookBridgeLane.as_str(), "notebook_bridge_lane");
+        assert_eq!(
+            DebugLaneClass::NotebookBridgeLane.as_str(),
+            "notebook_bridge_lane"
+        );
         assert_eq!(ReplaySupportClass::Supported.as_str(), "supported");
         assert_eq!(ReplaySupportClass::PolicyBlocked.as_str(), "policy_blocked");
         assert_eq!(ChronologyCaptureStateClass::Recorded.as_str(), "recorded");
@@ -1895,14 +1941,20 @@ mod tests {
         );
         assert_eq!(MappingQualityBadgeClass::Exact.as_str(), "exact");
         assert_eq!(MappingQualityBadgeClass::Mismatched.as_str(), "mismatched");
-        assert_eq!(ReplayScopeClass::NotebookBridgeScope.as_str(), "notebook_bridge_scope");
+        assert_eq!(
+            ReplayScopeClass::NotebookBridgeScope.as_str(),
+            "notebook_bridge_scope"
+        );
         assert_eq!(InspectorStateClass::Snapshot.as_str(), "snapshot");
         assert_eq!(RestartWithRecordingClass::Available.as_str(), "available");
         assert_eq!(
             RestartWithRecordingClass::UnavailableUnsupportedBackend.as_str(),
             "unavailable_unsupported_backend"
         );
-        assert_eq!(FindingKind::MissingEvidenceClass.as_str(), "missing_evidence_class");
+        assert_eq!(
+            FindingKind::MissingEvidenceClass.as_str(),
+            "missing_evidence_class"
+        );
         assert_eq!(
             FindingKind::ReplaySurfaceMissingReadOnlyAttestation.as_str(),
             "replay_surface_missing_read_only_attestation"
@@ -1935,12 +1987,10 @@ mod tests {
     #[test]
     fn unbound_evidence_blocks_stable() {
         let mut input = sample_input();
-        if let Some(row) = input
-            .rows
-            .iter_mut()
-            .find(|r| matches!(r.row_class, ChronologyRowClass::ChronologyQuality)
-                && r.lane_class == DebugLaneClass::LocalLane)
-        {
+        if let Some(row) = input.rows.iter_mut().find(|r| {
+            matches!(r.row_class, ChronologyRowClass::ChronologyQuality)
+                && r.lane_class == DebugLaneClass::LocalLane
+        }) {
             row.evidence_class = EvidenceClass::EvidenceUnbound;
         }
         let packet = ChronologyReplaySupportTruthPacket::materialize(input);
@@ -1988,8 +2038,10 @@ mod tests {
     fn missing_mapping_quality_badge_blocks_stable() {
         let mut input = sample_input();
         input.rows.retain(|r| {
-            !(matches!(r.row_class, ChronologyRowClass::MappingQualityBadgeAdmission)
-                && r.mapping_quality_badge_class == Some(MappingQualityBadgeClass::Mismatched)
+            !(matches!(
+                r.row_class,
+                ChronologyRowClass::MappingQualityBadgeAdmission
+            ) && r.mapping_quality_badge_class == Some(MappingQualityBadgeClass::Mismatched)
                 && r.lane_class == DebugLaneClass::LocalLane)
         });
         let packet = ChronologyReplaySupportTruthPacket::materialize(input);
@@ -2085,20 +2137,19 @@ mod tests {
         }
         let packet = ChronologyReplaySupportTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet.validation_findings.iter().any(|f| {
-            f.finding_kind == FindingKind::ReplaySurfaceMissingReadOnlyAttestation
-        }));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|f| { f.finding_kind == FindingKind::ReplaySurfaceMissingReadOnlyAttestation }));
     }
 
     #[test]
     fn narrowed_row_without_disclosure_ref_blocks() {
         let mut input = sample_input();
-        if let Some(row) = input
-            .rows
-            .iter_mut()
-            .find(|r| matches!(r.row_class, ChronologyRowClass::ChronologyQuality)
-                && r.lane_class == DebugLaneClass::LocalLane)
-        {
+        if let Some(row) = input.rows.iter_mut().find(|r| {
+            matches!(r.row_class, ChronologyRowClass::ChronologyQuality)
+                && r.lane_class == DebugLaneClass::LocalLane
+        }) {
             row.support_class = SupportClass::LaunchStableBelow;
             row.disclosure_ref = None;
         }
@@ -2113,19 +2164,18 @@ mod tests {
     #[test]
     fn lineage_admission_without_execution_context_id_blocks() {
         let mut input = sample_input();
-        if let Some(row) = input
-            .rows
-            .iter_mut()
-            .find(|r| matches!(r.row_class, ChronologyRowClass::LineageAdmission)
-                && r.lane_class == DebugLaneClass::LocalLane)
-        {
+        if let Some(row) = input.rows.iter_mut().find(|r| {
+            matches!(r.row_class, ChronologyRowClass::LineageAdmission)
+                && r.lane_class == DebugLaneClass::LocalLane
+        }) {
             row.execution_context_id_binding = None;
         }
         let packet = ChronologyReplaySupportTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet.validation_findings.iter().any(|f| {
-            f.finding_kind == FindingKind::LineageAdmissionMissingExecutionContextId
-        }));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|f| { f.finding_kind == FindingKind::LineageAdmissionMissingExecutionContextId }));
     }
 
     #[test]

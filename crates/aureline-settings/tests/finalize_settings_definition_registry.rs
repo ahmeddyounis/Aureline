@@ -1,13 +1,10 @@
 //! Fixture replay for the finalized settings-definition registry.
 
 use aureline_settings::finalize_settings_definition_registry::{
-    audit_finalize_settings_definition_registry_page,
-    project_cli_inventory,
-    project_support_export,
-    seeded_finalize_settings_definition_registry_page,
-    validate_finalize_settings_definition_registry_page,
-    FinalizeSettingsDefinitionRegistryPage, InspectSurfaceClass,
-    RegistryQualificationClass,
+    audit_finalize_settings_definition_registry_page, project_cli_inventory,
+    project_support_export, seeded_finalize_settings_definition_registry_page,
+    validate_finalize_settings_definition_registry_page, FinalizeSettingsDefinitionRegistryPage,
+    InspectSurfaceClass, RegistryQualificationClass,
     FINALIZE_SETTINGS_DEFINITION_REGISTRY_SCHEMA_VERSION,
     FINALIZE_SETTINGS_DEFINITION_REGISTRY_SHARED_CONTRACT_REF,
 };
@@ -15,7 +12,8 @@ use aureline_settings::finalize_settings_definition_registry::{
 #[test]
 fn seeded_page_validates_cleanly() {
     let page = seeded_finalize_settings_definition_registry_page();
-    validate_finalize_settings_definition_registry_page(&page).expect("seeded page should validate");
+    validate_finalize_settings_definition_registry_page(&page)
+        .expect("seeded page should validate");
 }
 
 #[test]
@@ -27,12 +25,10 @@ fn seeded_page_audit_is_clean() {
 
 #[test]
 fn fixture_round_trips() {
-    let page: FinalizeSettingsDefinitionRegistryPage = serde_json::from_str(include_str!(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/settings/m4/finalize-settings-definition-registry/certification_page.json"
-        )
-    ))
+    let page: FinalizeSettingsDefinitionRegistryPage = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/settings/m4/finalize-settings-definition-registry/certification_page.json"
+    )))
     .expect("fixture parses");
 
     assert_eq!(
@@ -43,8 +39,7 @@ fn fixture_round_trips() {
         page.shared_contract_ref,
         FINALIZE_SETTINGS_DEFINITION_REGISTRY_SHARED_CONTRACT_REF
     );
-    validate_finalize_settings_definition_registry_page(&page)
-        .expect("fixture page validates");
+    validate_finalize_settings_definition_registry_page(&page).expect("fixture page validates");
 }
 
 #[test]

@@ -387,9 +387,7 @@ impl RoleAuthorityClass {
     /// Stable string token for records and fixtures.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::ParticipationOnlyNoAuthorityGrant => {
-                "participation_only_no_authority_grant"
-            }
+            Self::ParticipationOnlyNoAuthorityGrant => "participation_only_no_authority_grant",
             Self::WorkspaceAuthorityOnly => "workspace_authority_only",
             Self::AuthorityOverstated => "authority_overstated",
         }
@@ -430,9 +428,7 @@ impl SpeakerNoteLocality {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::FacilitatorOnlyLocal => "facilitator_only_local",
-            Self::CoPresentersAfterExplicitPromotion => {
-                "co_presenters_after_explicit_promotion"
-            }
+            Self::CoPresentersAfterExplicitPromotion => "co_presenters_after_explicit_promotion",
             Self::NotApplicable => "not_applicable",
             Self::AudienceVisible => "audience_visible",
         }
@@ -991,9 +987,7 @@ pub fn seeded_guided_learning_qualification_corpus() -> GuidedLearningQualificat
         let citation = CitationProof {
             has_citation: true,
             command_id_refs: vec!["cmd:docs.open_in_browser".to_string()],
-            docs_citation_anchor_refs: vec![
-                "docs:anchor:tour:getting_started_step_1".to_string(),
-            ],
+            docs_citation_anchor_refs: vec!["docs:anchor:tour:getting_started_step_1".to_string()],
             symbol_linked_refs: vec![],
             // Not live-authoritative — using cached pack revision.
             all_anchors_live_authoritative: false,
@@ -1069,9 +1063,7 @@ pub fn seeded_guided_learning_qualification_corpus() -> GuidedLearningQualificat
                 "cmd:workspace.open_folder".to_string(),
                 "cmd:editor.save_file".to_string(),
             ],
-            docs_citation_anchor_refs: vec![
-                "docs:anchor:exercise:open_and_save_file".to_string(),
-            ],
+            docs_citation_anchor_refs: vec!["docs:anchor:exercise:open_and_save_file".to_string()],
             symbol_linked_refs: vec![],
             all_anchors_live_authoritative: true,
             narrowing_reason: None,
@@ -1275,9 +1267,7 @@ pub fn seeded_guided_learning_qualification_corpus() -> GuidedLearningQualificat
                 "cmd:docs.open_in_browser".to_string(),
                 "cmd:workspace.open_folder".to_string(),
             ],
-            docs_citation_anchor_refs: vec![
-                "docs:anchor:teaching:session_waypoints".to_string(),
-            ],
+            docs_citation_anchor_refs: vec!["docs:anchor:teaching:session_waypoints".to_string()],
             symbol_linked_refs: vec![],
             all_anchors_live_authoritative: true,
             narrowing_reason: None,
@@ -1611,17 +1601,17 @@ mod tests {
         let corpus = seeded_guided_learning_qualification_corpus();
         let tour = &corpus.tour_packages[0];
         assert_eq!(tour.verdict, QualificationVerdict::NarrowedBeta);
-        assert!(tour
-            .narrowing_reasons
-            .iter()
-            .any(|r| r.contains("cached")));
+        assert!(tour.narrowing_reasons.iter().any(|r| r.contains("cached")));
     }
 
     #[test]
     fn exercise_rail_explain_apply_separated() {
         let corpus = seeded_guided_learning_qualification_corpus();
         let rail = &corpus.exercise_rails[0];
-        assert_eq!(rail.explain_apply_class, ExplainApplyClass::ApplyRequiresApproval);
+        assert_eq!(
+            rail.explain_apply_class,
+            ExplainApplyClass::ApplyRequiresApproval
+        );
         assert!(rail.apply_steps_reversible);
         assert_eq!(rail.verdict, QualificationVerdict::QualifiedStable);
     }

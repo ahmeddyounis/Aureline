@@ -38,9 +38,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::experiments::{
-    inspect_default_inventory, ExperimentsInventoryInspectionRecord,
-};
+use crate::experiments::{inspect_default_inventory, ExperimentsInventoryInspectionRecord};
 use crate::resolver::EffectiveSettingRecord;
 use crate::schema::{LifecycleLabel, SchemaRegistry, SettingDefinition};
 
@@ -185,7 +183,10 @@ impl RegistryQualificationClass {
 
     /// Whether the class lets a row carry a Stable claim.
     pub const fn holds_stable(self) -> bool {
-        matches!(self, Self::FinalizedStable | Self::FinalizedWithDependencyMarker)
+        matches!(
+            self,
+            Self::FinalizedStable | Self::FinalizedWithDependencyMarker
+        )
     }
 }
 
@@ -472,7 +473,8 @@ pub struct FinalizeSettingsDefinitionRegistryPage {
 ///
 /// The seeded page is deterministic: every run with the same seed catalog
 /// produces the same row order and qualification classes.
-pub fn seeded_finalize_settings_definition_registry_page() -> FinalizeSettingsDefinitionRegistryPage {
+pub fn seeded_finalize_settings_definition_registry_page() -> FinalizeSettingsDefinitionRegistryPage
+{
     let registry = SchemaRegistry::with_seed_catalog();
     let inventory = inspect_default_inventory().expect("default inventory should inspect");
 
@@ -515,12 +517,16 @@ fn build_row_for_definition(
         if req_ref.is_empty() {
             continue;
         }
-        let inv_row = inventory.rows.iter().find(|r| r.capability_id == req_ref).or_else(|| {
-            // Flexible fallback for seed catalog: partial match in either direction.
-            inventory.rows.iter().find(|r| {
-                r.capability_id.contains(req_ref) || req_ref.contains(&r.capability_id)
-            })
-        });
+        let inv_row = inventory
+            .rows
+            .iter()
+            .find(|r| r.capability_id == req_ref)
+            .or_else(|| {
+                // Flexible fallback for seed catalog: partial match in either direction.
+                inventory.rows.iter().find(|r| {
+                    r.capability_id.contains(req_ref) || req_ref.contains(&r.capability_id)
+                })
+            });
         if let Some(inv_row) = inv_row {
             let req_state = inv_row.effective_lifecycle_state.clone();
             if req_state != "Stable" {
@@ -618,7 +624,10 @@ fn build_surface_parity(
                 InspectSurfaceClass::CliHeadlessInspect => None,
                 InspectSurfaceClass::HelpAboutPanel => {
                     if !markers.is_empty() {
-                        Some("Help/About must list dependency markers for non-stable capabilities.".to_owned())
+                        Some(
+                            "Help/About must list dependency markers for non-stable capabilities."
+                                .to_owned(),
+                        )
                     } else {
                         None
                     }
@@ -710,7 +719,10 @@ impl std::fmt::Display for FinalizeSettingsDefinitionRegistryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SchemaVersionMismatch { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::UnrecognizedQualification { setting_id, token } => {
                 write!(
@@ -737,7 +749,10 @@ impl std::fmt::Display for FinalizeSettingsDefinitionRegistryError {
                 )
             }
             Self::DefectCountMismatch => {
-                write!(f, "summary defect count does not match actual defect list length")
+                write!(
+                    f,
+                    "summary defect count does not match actual defect list length"
+                )
             }
         }
     }
@@ -750,10 +765,12 @@ pub fn validate_finalize_settings_definition_registry_page(
     page: &FinalizeSettingsDefinitionRegistryPage,
 ) -> Result<(), FinalizeSettingsDefinitionRegistryError> {
     if page.schema_version != FINALIZE_SETTINGS_DEFINITION_REGISTRY_SCHEMA_VERSION {
-        return Err(FinalizeSettingsDefinitionRegistryError::SchemaVersionMismatch {
-            expected: FINALIZE_SETTINGS_DEFINITION_REGISTRY_SCHEMA_VERSION,
-            actual: page.schema_version,
-        });
+        return Err(
+            FinalizeSettingsDefinitionRegistryError::SchemaVersionMismatch {
+                expected: FINALIZE_SETTINGS_DEFINITION_REGISTRY_SCHEMA_VERSION,
+                actual: page.schema_version,
+            },
+        );
     }
 
     for row in &page.rows {
@@ -857,7 +874,10 @@ pub fn project_cli_inventory(
     page: &FinalizeSettingsDefinitionRegistryPage,
 ) -> FinalizeSettingsDefinitionRegistryCliProjection {
     let mut fields = BTreeMap::new();
-    fields.insert("total_setting_count".to_owned(), page.rows.len().to_string());
+    fields.insert(
+        "total_setting_count".to_owned(),
+        page.rows.len().to_string(),
+    );
     fields.insert(
         "finalized_stable_count".to_owned(),
         page.summary.finalized_stable_count.to_string(),
@@ -866,8 +886,14 @@ pub fn project_cli_inventory(
         "finalized_with_marker_count".to_owned(),
         page.summary.finalized_with_marker_count.to_string(),
     );
-    fields.insert("narrowed_count".to_owned(), page.summary.narrowed_count.to_string());
-    fields.insert("defect_count".to_owned(), page.summary.defect_count.to_string());
+    fields.insert(
+        "narrowed_count".to_owned(),
+        page.summary.narrowed_count.to_string(),
+    );
+    fields.insert(
+        "defect_count".to_owned(),
+        page.summary.defect_count.to_string(),
+    );
 
     let rows = page
         .rows
@@ -1003,7 +1029,9 @@ mod tests {
             }
         }
         let defects = audit_finalize_settings_definition_registry_page(&page);
-        assert!(defects.iter().any(|d| d.defect_kind == "lifecycle_qualification_mismatch"));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind == "lifecycle_qualification_mismatch"));
     }
 
     #[test]

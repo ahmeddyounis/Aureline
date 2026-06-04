@@ -30,10 +30,8 @@
 use std::path::PathBuf;
 
 use aureline_settings::finalize_settings_definition_registry::{
-    audit_finalize_settings_definition_registry_page,
-    project_cli_inventory,
-    project_support_export,
-    seeded_finalize_settings_definition_registry_page,
+    audit_finalize_settings_definition_registry_page, project_cli_inventory,
+    project_support_export, seeded_finalize_settings_definition_registry_page,
     validate_finalize_settings_definition_registry_page,
 };
 
@@ -60,7 +58,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("support-export") => {
             let page = seeded_finalize_settings_definition_registry_page();
-            let export = project_support_export("fixture:support-export:settings-definition-registry", &page);
+            let export = project_support_export(
+                "fixture:support-export:settings-definition-registry",
+                &page,
+            );
             println!("{}", serde_json::to_string_pretty(&export)?);
             Ok(())
         }
@@ -77,10 +78,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             if extra_defects.is_empty() {
                 println!("audit: clean (no defects)");
             } else {
-                println!(
-                    "audit: {} extra defect(s)",
-                    extra_defects.len()
-                );
+                println!("audit: {} extra defect(s)", extra_defects.len());
                 for defect in &extra_defects {
                     println!("- {}: {}", defect.defect_kind, defect.description);
                 }
@@ -109,7 +107,8 @@ fn emit_fixtures(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_string_pretty(&cli)?,
     )?;
 
-    let export = project_support_export("fixture:support-export:settings-definition-registry", &page);
+    let export =
+        project_support_export("fixture:support-export:settings-definition-registry", &page);
     std::fs::write(
         base.join("support_export_projection.json"),
         serde_json::to_string_pretty(&export)?,

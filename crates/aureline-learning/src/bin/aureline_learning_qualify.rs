@@ -80,10 +80,7 @@ fn print_summary(manifest: &GuidedLearningQualificationManifest) {
         manifest.manifest_id
     );
     println!("Generated: {}", manifest.generated_at);
-    println!(
-        "Overall verdict: {}",
-        manifest.overall_verdict.as_str()
-    );
+    println!("Overall verdict: {}", manifest.overall_verdict.as_str());
     if !manifest.overall_narrowing_reasons.is_empty() {
         println!("Narrowing reasons:");
         for r in &manifest.overall_narrowing_reasons {
@@ -93,7 +90,12 @@ fn print_summary(manifest: &GuidedLearningQualificationManifest) {
 
     println!("\nGlossary packs ({}):", manifest.glossary_packs.len());
     for p in &manifest.glossary_packs {
-        println!("  {} → {} [{}]", p.record_id, p.verdict.as_str(), p.lifecycle_label);
+        println!(
+            "  {} → {} [{}]",
+            p.record_id,
+            p.verdict.as_str(),
+            p.lifecycle_label
+        );
     }
 
     println!("\nTour packages ({}):", manifest.tour_packages.len());
@@ -103,12 +105,7 @@ fn print_summary(manifest: &GuidedLearningQualificationManifest) {
         } else {
             format!(" ({})", p.narrowing_reasons.join("; "))
         };
-        println!(
-            "  {} → {}{}",
-            p.record_id,
-            p.verdict.as_str(),
-            reasons
-        );
+        println!("  {} → {}{}", p.record_id, p.verdict.as_str(), reasons);
     }
 
     println!("\nExercise rails ({}):", manifest.exercise_rails.len());
@@ -135,7 +132,10 @@ fn print_summary(manifest: &GuidedLearningQualificationManifest) {
         );
     }
 
-    println!("\nProgress snapshots ({}):", manifest.progress_snapshots.len());
+    println!(
+        "\nProgress snapshots ({}):",
+        manifest.progress_snapshots.len()
+    );
     for s in &manifest.progress_snapshots {
         println!(
             "  {} → {} local_by_default={}",
@@ -145,7 +145,10 @@ fn print_summary(manifest: &GuidedLearningQualificationManifest) {
         );
     }
 
-    println!("\nTeaching sessions ({}):", manifest.teaching_sessions.len());
+    println!(
+        "\nTeaching sessions ({}):",
+        manifest.teaching_sessions.len()
+    );
     for s in &manifest.teaching_sessions {
         println!(
             "  {} → {} speaker_notes={} restore={}",

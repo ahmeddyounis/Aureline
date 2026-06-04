@@ -19,12 +19,10 @@ fn main() {
         })
     } else {
         let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .unwrap_or_else(|e| {
-                eprintln!("failed to read stdin: {}", e);
-                process::exit(1);
-            });
+        io::stdin().read_to_string(&mut buf).unwrap_or_else(|e| {
+            eprintln!("failed to read stdin: {}", e);
+            process::exit(1);
+        });
         buf
     };
 
@@ -37,7 +35,10 @@ fn main() {
     if !report.passed {
         eprintln!("validation failed:");
         for finding in &report.findings {
-            eprintln!("  [{}] {:?}: {}", finding.check_id, finding.severity, finding.message);
+            eprintln!(
+                "  [{}] {:?}: {}",
+                finding.check_id, finding.severity, finding.message
+            );
         }
         process::exit(1);
     }
