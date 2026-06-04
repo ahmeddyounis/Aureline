@@ -17,7 +17,7 @@ use crate::query_session::{QueryTextMode, SearchQuerySession, SearchSurface};
 use crate::session_ledger::{
     SavedQueryPrivacyClass, SavedQueryRecord, SavedQueryRecordInputs, SavedQuerySharePolicy,
     SavedQuerySourceClass, SearchExportDestination, SearchExportError, SearchExportPacket,
-    SearchExportPacketInputs, SearchPacketCountSummary,
+    SearchExportPacketInputs, SearchExportSnapshotTruth, SearchPacketCountSummary,
 };
 
 /// Integer schema version for saved-query artifact records.
@@ -934,6 +934,15 @@ pub struct SearchCollectionSnapshot {
     pub partiality_reasons: Vec<String>,
     /// Count summary preserving visible, selected, hidden, and omitted rows.
     pub count_summary: SearchPacketCountSummary,
+    /// Live-versus-captured truth copied from the export packet.
+    #[serde(default = "default_export_snapshot_truth")]
+    pub snapshot_truth: SearchExportSnapshotTruth,
+    /// Export-safe flags for omitted or truncated content/classes.
+    #[serde(default)]
+    pub omitted_or_truncated_flags: Vec<String>,
+    /// Evidence refs shared with support, docs, AI, CLI, and replay consumers.
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
     /// Live-vs-captured semantics shown by export review.
     pub result_semantics: SearchResultSemantics,
     /// Scope honesty state shown by export review.
@@ -985,6 +994,9 @@ impl SearchCollectionSnapshot {
             result_source_labels: packet.result_source_labels,
             partiality_reasons,
             count_summary: packet.count_summary,
+            snapshot_truth: packet.snapshot_truth,
+            omitted_or_truncated_flags: packet.omitted_or_truncated_flags,
+            evidence_refs: packet.evidence_refs,
             result_semantics: SearchResultSemantics::CapturedSnapshot,
             scope_honesty_state: SearchScopeHonestyState::CapturedScopeStillCurrent,
             current_truth_requires_rerun: true,
@@ -1325,6 +1337,10 @@ fn partiality_reasons_for_packet(packet: &SearchExportPacket) -> Vec<String> {
         reasons.insert("partial_or_hidden_counts_disclosed".to_string());
     }
     reasons.into_iter().collect()
+}
+
+fn default_export_snapshot_truth() -> SearchExportSnapshotTruth {
+    SearchExportSnapshotTruth::CapturedSnapshot
 }
 
 #[cfg(test)]

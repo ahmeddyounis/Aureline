@@ -65,6 +65,13 @@ policy-hidden rows MUST set `fallback_mode = policy_narrowed` and
 `dedupe_dropped_fallback_mode` and `captured_vs_live_dropped` blockers when
 either invariant is violated.
 
+The saved-query export wrapper also carries `snapshot_truth` as
+`live_rerun`, `captured_snapshot`, or `scope_changed_since_capture`.
+Support/docs exports use this field with `omitted_or_truncated_flags` and
+`evidence_refs` so an export can explain whether it is a live rerun, a
+captured result set, or a scope-changed reopen without exposing raw query
+text or result bodies.
+
 ## Scope counters
 
 The `scope_counters` field carries `visible_rows`, `loaded_rows`,
@@ -105,6 +112,10 @@ findings; the validator emits `promotion_state_mismatch` otherwise.
 
 - Schema: `schemas/search/search_result_truth_packet.schema.json`
 - Rust implementation: `crates/aureline-search/src/result_truth_packet/mod.rs`
+- Query/session and saved export implementation:
+  `crates/aureline-search/src/query_session.rs`,
+  `crates/aureline-search/src/session_ledger/mod.rs`, and
+  `crates/aureline-search/src/query_artifacts/mod.rs`
 - Reviewer artifact: `artifacts/search/m4/result-identity-ranking-reasons-and-export-packets.md`
 - Checked-in packet: `artifacts/search/m4/search_result_truth_packet.json`
 - Fixture corpus: `fixtures/search/m4/result_truth_packet/`

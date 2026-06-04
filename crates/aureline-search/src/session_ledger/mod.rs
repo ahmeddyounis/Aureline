@@ -204,6 +204,29 @@ impl SearchPacketRedactionState {
     }
 }
 
+/// Live-versus-captured truth carried by a search export packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchExportSnapshotTruth {
+    /// Packet represents a live rerun against the current scope.
+    LiveRerun,
+    /// Packet represents a captured snapshot of a prior result set.
+    CapturedSnapshot,
+    /// Packet was reopened after the captured scope changed.
+    ScopeChangedSinceCapture,
+}
+
+impl SearchExportSnapshotTruth {
+    /// Stable token used in records, fixtures, schemas, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LiveRerun => "live_rerun",
+            Self::CapturedSnapshot => "captured_snapshot",
+            Self::ScopeChangedSinceCapture => "scope_changed_since_capture",
+        }
+    }
+}
+
 /// Validation finding emitted by privacy and export checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -220,6 +243,8 @@ pub enum SavedQueryValidationFindingKind {
     SessionResultSetMismatch,
     /// Export packet contains raw text for a non-local destination.
     UnsafeRawTextInExportPacket,
+    /// Export packet lost omitted/truncated count disclosure.
+    MissingOmittedOrTruncatedDisclosure,
 }
 
 impl SavedQueryValidationFindingKind {
@@ -232,6 +257,7 @@ impl SavedQueryValidationFindingKind {
             Self::MissingScopeIdentity => "missing_scope_identity",
             Self::SessionResultSetMismatch => "session_result_set_mismatch",
             Self::UnsafeRawTextInExportPacket => "unsafe_raw_text_in_export_packet",
+            Self::MissingOmittedOrTruncatedDisclosure => "missing_omitted_or_truncated_disclosure",
         }
     }
 }
@@ -961,6 +987,9 @@ pub struct SearchExportPacket {
     pub privacy_class: SavedQueryPrivacyClass,
     /// Packet redaction state.
     pub redaction_state: SearchPacketRedactionState,
+    /// Live-versus-captured truth for this packet.
+    #[serde(default = "default_export_snapshot_truth")]
+    pub snapshot_truth: SearchExportSnapshotTruth,
     /// Query-text retention mode after export projection.
     pub query_text_mode: QueryTextMode,
     /// Raw query text when local replay permits it.
@@ -979,6 +1008,12 @@ pub struct SearchExportPacket {
     pub partial_truth_causes: Vec<String>,
     /// Count summary preserving loaded, hidden, and omitted rows.
     pub count_summary: SearchPacketCountSummary,
+    /// Export-safe flags for omitted or truncated content/classes.
+    #[serde(default)]
+    pub omitted_or_truncated_flags: Vec<String>,
+    /// Evidence refs this packet can hand to support, docs, AI, or CLI consumers.
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
     /// Timestamp for packet creation.
     pub exported_at: String,
 }
@@ -1073,6 +1108,12 @@ impl SearchExportPacket {
             query_session.query_text.is_some(),
             query_session.query_hash.is_some(),
         );
+        let omitted_or_truncated_flags = omitted_or_truncated_flags(&count_summary);
+        let evidence_refs = evidence_refs_for_export(
+            &query_session.query_session_id,
+            &inputs.result_set.result_set_id,
+            &inputs.result_set.planner_pass_id_ref,
+        );
 
         Ok(Self {
             record_kind: Self::RECORD_KIND.to_string(),
@@ -1091,6 +1132,7 @@ impl SearchExportPacket {
             graph_epoch: query_session.graph_epoch,
             privacy_class,
             redaction_state,
+            snapshot_truth: SearchExportSnapshotTruth::CapturedSnapshot,
             query_text_mode: query_session.query_text_mode,
             query_text: query_session.query_text,
             query_hash: query_session.query_hash,
@@ -1099,6 +1141,8 @@ impl SearchExportPacket {
             result_source_labels,
             partial_truth_causes,
             count_summary,
+            omitted_or_truncated_flags,
+            evidence_refs,
             exported_at: inputs.exported_at,
         })
     }
@@ -1128,8 +1172,49 @@ impl SearchExportPacket {
                 "policy-withheld export packets must not carry query hashes",
             ));
         }
+        if (self.count_summary.omitted_result_count > 0 || self.count_summary.count_is_partial)
+            && self.omitted_or_truncated_flags.is_empty()
+        {
+            findings.push(SavedQueryValidationFinding::new(
+                SavedQueryValidationFindingKind::MissingOmittedOrTruncatedDisclosure,
+                "omitted_or_truncated_flags",
+                "partial or omitted export packets must preserve omitted/truncated flags",
+            ));
+        }
         findings
     }
+}
+
+fn omitted_or_truncated_flags(count_summary: &SearchPacketCountSummary) -> Vec<String> {
+    let mut flags = BTreeSet::new();
+    if count_summary.omitted_result_count > 0 {
+        flags.insert("omitted_unselected_results".to_string());
+    }
+    if count_summary.hidden_by_current_scope_rows > 0 {
+        flags.insert("hidden_by_current_scope".to_string());
+    }
+    if count_summary.hidden_by_policy_rows > 0 {
+        flags.insert("hidden_by_policy".to_string());
+    }
+    if count_summary.hidden_by_remote_cache_rows > 0 {
+        flags.insert("hidden_by_remote_cache".to_string());
+    }
+    if count_summary.count_is_partial {
+        flags.insert("partial_counts".to_string());
+    }
+    flags.into_iter().collect()
+}
+
+fn evidence_refs_for_export(
+    query_session_id: &str,
+    result_set_id: &str,
+    planner_pass_id: &str,
+) -> Vec<String> {
+    vec![
+        format!("query_session:{query_session_id}"),
+        format!("result_set:{result_set_id}"),
+        format!("planner_pass:{planner_pass_id}"),
+    ]
 }
 
 fn sanitize_session_for_privacy(
@@ -1191,6 +1276,10 @@ fn packet_redaction_state(
     } else {
         SearchPacketRedactionState::QueryMaterialOmittedByPolicy
     }
+}
+
+fn default_export_snapshot_truth() -> SearchExportSnapshotTruth {
+    SearchExportSnapshotTruth::CapturedSnapshot
 }
 
 fn scope_rank(scope_class: ScopeClass) -> u8 {
@@ -1293,5 +1382,34 @@ mod tests {
             err,
             SearchExportError::ResultSetSessionMismatch { .. }
         ));
+    }
+
+    #[test]
+    fn export_packets_preserve_snapshot_truth_flags_and_evidence_refs() {
+        let output = SearchPlannerAlpha::plan(planner_input());
+        let packet = SearchExportPacket::from_planned_result_set(SearchExportPacketInputs {
+            packet_id: "search:packet:evidence".to_string(),
+            destination: SearchExportDestination::SupportBundle,
+            privacy_class: SavedQueryPrivacyClass::SupportExportRedacted,
+            query_session: output.query_session,
+            result_set: output.result_set,
+            selected_result_ids: Vec::new(),
+            scope_counts: None,
+            exported_at: "2026-05-13T10:00:00Z".to_string(),
+        })
+        .expect("packet materializes");
+
+        assert_eq!(
+            packet.snapshot_truth,
+            SearchExportSnapshotTruth::CapturedSnapshot
+        );
+        assert!(packet
+            .omitted_or_truncated_flags
+            .contains(&"partial_counts".to_string()));
+        assert!(packet
+            .evidence_refs
+            .iter()
+            .any(|reference| reference.starts_with("query_session:")));
+        assert!(packet.validate_export_safe().is_empty());
     }
 }

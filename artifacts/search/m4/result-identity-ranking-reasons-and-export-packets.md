@@ -86,11 +86,30 @@ the counters. Export and share flows preserve every counter so support
 and automation can tell whether the user saw a snapshot, a rerun, or a
 narrowed scope.
 
+## How saved-query and export packets preserve query/session truth
+
+The query-session record now carries redaction-safe parser evidence
+(`parsed_query` with parser version, AST summary, and normalized filters),
+policy posture, and start/end timestamps. Raw text remains controlled by
+`query_text_mode`: local-only records may retain literals, while support,
+docs, and shared records retain hashes or omit query material by policy.
+
+The saved-query export wrapper carries `snapshot_truth`,
+`omitted_or_truncated_flags`, and `evidence_refs` alongside selected and
+included result refs. This keeps support export, docs handoff, CLI replay,
+and AI evidence on the same packet without reconstructing hidden candidate
+lists or copying raw result bodies.
+
 ## Source contract refs
 
 - Schema: `schemas/search/search_result_truth_packet.schema.json`
+- Snapshot schema: `schemas/search/search_export_snapshot.schema.json`
 - Reviewer doc: `docs/search/m4/result-identity-ranking-reasons-and-export-packets.md`
 - Rust implementation: `crates/aureline-search/src/result_truth_packet/mod.rs`
+- Query/session and saved export implementation:
+  `crates/aureline-search/src/query_session.rs`,
+  `crates/aureline-search/src/session_ledger/mod.rs`, and
+  `crates/aureline-search/src/query_artifacts/mod.rs`
 - Fixture corpus: `fixtures/search/m4/result_truth_packet/`
 - Certified-archetype scorecards (latency budgets for `withheld_latency`):
   `artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml`

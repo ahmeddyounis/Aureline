@@ -200,7 +200,7 @@ pub use planner::{
 };
 
 pub use query_session::{
-    stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
+    stable_query_hash, QueryParseRecord, QueryTextMode, SearchQuerySession, SearchSurface,
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
 };
 
@@ -308,8 +308,8 @@ pub use session_ledger::{
     SavedQueryReopenContext, SavedQueryReopenProjection, SavedQueryReopenState,
     SavedQuerySharePolicy, SavedQuerySourceClass, SavedQueryValidationFinding,
     SavedQueryValidationFindingKind, SearchExportDestination, SearchExportError,
-    SearchExportPacket, SearchExportPacketInputs, SearchPacketCountSummary,
-    SearchPacketRedactionState, SAVED_QUERY_ALPHA_SCHEMA_VERSION,
+    SearchExportPacket, SearchExportPacketInputs, SearchExportSnapshotTruth,
+    SearchPacketCountSummary, SearchPacketRedactionState, SAVED_QUERY_ALPHA_SCHEMA_VERSION,
 };
 
 pub use aureline_navigation::target_model as navigation_target_model;
