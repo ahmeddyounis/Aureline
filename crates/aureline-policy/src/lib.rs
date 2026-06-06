@@ -25,6 +25,7 @@ pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
 pub mod stabilize_deployment_and_residency_truth;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
+pub mod stabilize_transport_policy_proxy_resolution_trust_store_and_mirror_route;
 
 pub use authority::{
     audit_authority_ticket_page, seeded_authority_ticket_page, validate_authority_ticket_page,
@@ -260,6 +261,22 @@ pub use finalize_managed_workspace_lifecycle_truth::{
     FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SCHEMA_VERSION,
     FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SHARED_CONTRACT_REF,
     FINALIZE_MANAGED_WORKSPACE_LIFECYCLE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_transport_policy_proxy_resolution_trust_store_and_mirror_route::{
+    audit_transport_policy_inspector_page, seeded_transport_policy_inspector_page,
+    validate_transport_policy_inspector_page, EgressDecisionClass, EndpointClass,
+    HandshakeOutcomeClass, MirrorRouteState, NetworkEventRecord, PlaneStatusClass,
+    ProxyResolutionStep, RouteSourceClass, TransportPolicyInspectorDefect,
+    TransportPolicyInspectorNarrowReasonClass, TransportPolicyInspectorPage,
+    TransportPolicyInspectorQualificationClass, TransportPolicyInspectorSummary,
+    TransportPolicyInspectorSupportExport, TransportPolicyRecord, TransportTrustLayerClass,
+    TrustLayerSnapshot, NETWORK_EVENT_RECORD_KIND, TRANSPORT_POLICY_INSPECTOR_ARTIFACT_REF,
+    TRANSPORT_POLICY_INSPECTOR_DEFECT_RECORD_KIND, TRANSPORT_POLICY_INSPECTOR_DOC_REF,
+    TRANSPORT_POLICY_INSPECTOR_PAGE_RECORD_KIND, TRANSPORT_POLICY_INSPECTOR_SCHEMA_VERSION,
+    TRANSPORT_POLICY_INSPECTOR_SHARED_CONTRACT_REF,
+    TRANSPORT_POLICY_INSPECTOR_STABLE_PROOF_INDEX_REF,
+    TRANSPORT_POLICY_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND, TRANSPORT_POLICY_RECORD_KIND,
 };
 
 pub use finalize_open_vs_paid_boundary_and_offboarding::{
