@@ -32,6 +32,10 @@
 //! voice, browser companion, preview/designer, and background branch
 //! automation — carries its own current qualification proof or is visibly
 //! labeled below Stable instead of inheriting Stable from core AI graduation.
+//! The memory-state lane exposes one [`memory::AiMemoryStatePacket`] object
+//! binding AI state classes, cache-key invalidation, visible thread/inspector
+//! disclosures, delete/export drills, and support-safe manifests on claimed
+//! stable AI thread and memory surfaces.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -62,6 +66,7 @@ pub mod finalize_tainted_context_fences;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
+pub mod memory;
 pub mod prompt_composer;
 pub mod publish_stable_ai_graduation_packets;
 pub mod registry;
@@ -179,6 +184,17 @@ pub use harden_repo_ai_instructions::{
     HARDEN_REPO_AI_INSTRUCTIONS_KILL_SWITCH_CONTRACT_REF, HARDEN_REPO_AI_INSTRUCTIONS_RECORD_KIND,
     HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_REF, HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_VERSION,
     HARDEN_REPO_AI_INSTRUCTIONS_SUMMARY_REF, HARDEN_REPO_AI_INSTRUCTIONS_TAINT_CONTRACT_REF,
+};
+pub use memory::{
+    current_stable_ai_memory_state_export, AiMemoryStateArtifactError, AiMemoryStatePacket,
+    AiMemoryStatePacketInput, AiMemoryStateViolation, AiStateClass, CacheKeyComponentClass,
+    DeleteExportDrillRow, DeletePostureClass, DurabilityClass, DurableCacheKeyContract,
+    ExportPostureClass, InvalidationReasonCode, MemoryScopeClass, MemoryStateClassRow,
+    MemorySurfaceClass, MemorySurfaceProjectionRow, OwnerPolicyClass, RetentionModeClass,
+    ReusableMemoryFence, SensitivityTierClass, SupportSafeMemoryManifest,
+    AI_MEMORY_OBJECT_SCHEMA_REF, AI_MEMORY_RECONCILIATION_CONTRACT_REF, AI_MEMORY_STATE_AI_DOC_REF,
+    AI_MEMORY_STATE_ARTIFACT_REF, AI_MEMORY_STATE_MATRIX_REF, AI_MEMORY_STATE_RECORD_KIND,
+    AI_MEMORY_STATE_SCHEMA_REF, AI_MEMORY_STATE_SCHEMA_VERSION,
 };
 pub use prompt_composer::{
     current_beta_prompt_composer_conformance_export, DraftRetentionScopeClass,
