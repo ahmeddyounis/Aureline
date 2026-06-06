@@ -237,6 +237,15 @@
 //!   catalog-asserted basis can never ride a stable SDK-policy claim. It cross-checks
 //!   the manifest-window bounds and the migration / shim consistency, and projects a
 //!   [`publish_stable_sdk_deprecation_policy_manifest_version_windows::StableSdkDeprecationPolicySupportExport`].
+//! - one [`stabilize_extension_dependency_resolution_and_publisher_continuity::ExtensionDependencyResolutionPacket`]
+//!   that stabilizes dependency resolution, effective-permission inheritance,
+//!   publisher-continuity workflows, revocation / last-known-good pinning, and
+//!   SDK/API deprecation propagation across public, mirrored, and enterprise-curated
+//!   installs. It derives the effective tier and narrows stale or incomplete proof
+//!   automatically so dependency trees cannot widen authority silently and
+//!   high-trust auto-update cannot resume after continuity changes without delay,
+//!   audit, and notification. It projects a metadata-safe
+//!   [`stabilize_extension_dependency_resolution_and_publisher_continuity::ExtensionDependencyResolutionSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -276,6 +285,7 @@ pub mod review_alpha;
 pub mod revocation;
 pub mod runtime;
 pub mod sdk_v1;
+pub mod stabilize_extension_dependency_resolution_and_publisher_continuity;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
 pub mod stabilize_marketplace_discovery_ranking_and_anti_abuse;
@@ -766,6 +776,38 @@ pub use sdk_v1::{
     SAMPLE_PACK_EXTENSION_RECORD_KIND, SDK_V1_API_SURFACE_RECORD_KIND,
     SDK_V1_MANIFEST_AUTHORING_GUIDE_RECORD_KIND, SDK_V1_STARTER_PACK_RECORD_KIND,
     SDK_V1_STARTER_PACK_SCHEMA_VERSION, SDK_V1_STARTER_PACK_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_extension_dependency_resolution_and_publisher_continuity::{
+    project_extension_dependency_resolution,
+    project_extension_dependency_resolution_support_export, DependencyEdge, DependencyEdgeInput,
+    DependencyResolution, DependencyResolutionClaimInput, DependencyResolutionInput,
+    DependencyResolutionInspection, DependencyResolutionQualificationClaim,
+    DeprecationPropagationInput as ExtensionDeprecationPropagationInput,
+    EffectivePermissionResolution as DependencyEffectivePermissionResolution,
+    EffectivePermissionReviewInput, ExtensionDependencyResolutionError,
+    ExtensionDependencyResolutionInput, ExtensionDependencyResolutionPacket,
+    ExtensionDependencyResolutionProjection, ExtensionDependencyResolutionSupportExport,
+    ExtensionDependencyResolutionValidationError, PublisherContinuityInput,
+    ResolutionIdentityInput, RevocationPinInput,
+    API_DEPRECATION_STATE_CLASSES as DEPENDENCY_RESOLUTION_API_DEPRECATION_STATE_CLASSES,
+    AUTHORITY_MOVING_CONTINUITY_WORKFLOWS,
+    CLAIM_BASIS_CLASSES as DEPENDENCY_RESOLUTION_CLAIM_BASIS_CLASSES,
+    CONTINUITY_STATE_CLASSES as DEPENDENCY_RESOLUTION_CONTINUITY_STATE_CLASSES,
+    CONTINUITY_WORKFLOW_CLASSES, DEPENDENCY_EDGE_CLASSES as DEPENDENCY_RESOLUTION_EDGE_CLASSES,
+    DEPENDENCY_RESOLUTION_DOWNGRADE_REASONS,
+    DEPENDENCY_RESOLUTION_STATE_CLASSES as DEPENDENCY_RESOLUTION_EDGE_STATE_CLASSES,
+    DOWNGRADE_HOLD_BEHAVIOR_CLASSES, EXTENSION_DEPENDENCY_RESOLUTION_CONSUMER_SURFACES,
+    EXTENSION_DEPENDENCY_RESOLUTION_PACKET_RECORD_KIND,
+    EXTENSION_DEPENDENCY_RESOLUTION_PUBLISHED_VERSION, EXTENSION_DEPENDENCY_RESOLUTION_SCHEMA_REF,
+    EXTENSION_DEPENDENCY_RESOLUTION_SCHEMA_VERSION,
+    EXTENSION_DEPENDENCY_RESOLUTION_SUPPORT_EXPORT_RECORD_KIND, INSTALL_FLOW_CLASSES,
+    RECONSENT_STATE_CLASSES as DEPENDENCY_RESOLUTION_RECONSENT_STATE_CLASSES,
+    RESOLVER_DETERMINISM_CLASSES as DEPENDENCY_RESOLUTION_RESOLVER_DETERMINISM_CLASSES,
+    REVOCATION_PROPAGATION_CLASSES as DEPENDENCY_RESOLUTION_REVOCATION_PROPAGATION_CLASSES,
+    SOURCE_CLASSES as DEPENDENCY_RESOLUTION_SOURCE_CLASSES,
+    STABILITY_TIERS as DEPENDENCY_RESOLUTION_STABILITY_TIERS,
+    SUPPORT_CLAIM_CLASSES as DEPENDENCY_RESOLUTION_SUPPORT_CLAIM_CLASSES,
+    YANK_REVOCATION_STATE_CLASSES,
 };
 pub use stabilize_extension_runtime_v1_abi_capability_envelopes_and::{
     project_stable_runtime_abi, project_stable_runtime_abi_support_export,
