@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub const TRUST_CLASS_SCHEMA_VERSION: u32 = 1;
 
 /// Closed safe-preview trust-class vocabulary (architecture spellings verbatim).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum TrustClass {
     RawText,
     SanitizedRich,

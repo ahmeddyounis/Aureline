@@ -39,6 +39,7 @@ pub mod detector;
 pub mod records;
 pub mod representation_copy_export;
 pub mod representation_labels;
+pub mod stable_safe_preview_trust;
 pub mod suspicious_content;
 pub mod suspicious_text;
 pub mod transfer;
@@ -84,6 +85,19 @@ pub use representation_labels::{
     REPRESENTATION_LABELS_BETA_VALIDATION_REPORT_RECORD_KIND,
     REPRESENTATION_LABELS_REQUIRED_ACTIONS, REPRESENTATION_LABELS_REQUIRED_CONTENT_CLASSES,
     REPRESENTATION_LABELS_REQUIRED_REPRESENTATIONS, REPRESENTATION_LABELS_REQUIRED_SURFACES,
+};
+pub use stable_safe_preview_trust::{
+    stable_safe_preview_trust_packet, OriginBoundaryClass, SafePreviewAllowedBehavior,
+    SafePreviewConsumerSurface, SafePreviewDowngradeState, SafePreviewDowngradeTrigger,
+    SafePreviewSurfaceMatrixRow, SafePreviewTransferCase, SafePreviewTransferCaseKind,
+    SafePreviewTrustClassContract, StableSafePreviewTrustGateStatus, StableSafePreviewTrustPacket,
+    StableSafePreviewTrustValidationReport, StableSafePreviewTrustViolation, SurfaceQualification,
+    TrustEvidenceCarrier, VisibleTrustCue, REQUIRED_STABLE_CONSUMER_SURFACES,
+    REQUIRED_TRANSFER_CASE_KINDS, REQUIRED_TRUST_EVIDENCE_CARRIERS,
+    STABLE_SAFE_PREVIEW_SHARED_CONTRACT_REF, STABLE_SAFE_PREVIEW_TRUST_DOC_REF,
+    STABLE_SAFE_PREVIEW_TRUST_FIXTURE_DIR, STABLE_SAFE_PREVIEW_TRUST_PACKET_RECORD_KIND,
+    STABLE_SAFE_PREVIEW_TRUST_SCHEMA_REF, STABLE_SAFE_PREVIEW_TRUST_SCHEMA_VERSION,
+    STABLE_SAFE_PREVIEW_TRUST_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use suspicious_content::{
     current_content_integrity_beta_packet, ContentIntegrityBetaArtifactError,
