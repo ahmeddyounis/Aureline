@@ -1090,7 +1090,10 @@ fn readiness_from_retrieval(readiness: RetrievalReadinessClass) -> PlannerPathRe
 fn truth_class_from_retrieval_lane(lane: RetrievalLaneClass) -> PlannerResultTruthClass {
     match lane {
         RetrievalLaneClass::Lexical => PlannerResultTruthClass::Exact,
-        RetrievalLaneClass::Vector | RetrievalLaneClass::Fused => PlannerResultTruthClass::Hybrid,
+        RetrievalLaneClass::Structural => PlannerResultTruthClass::Heuristic,
+        RetrievalLaneClass::Vector | RetrievalLaneClass::Embedding | RetrievalLaneClass::Fused => {
+            PlannerResultTruthClass::Hybrid
+        }
         RetrievalLaneClass::Graph => PlannerResultTruthClass::GraphBacked,
     }
 }

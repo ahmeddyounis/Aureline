@@ -8,6 +8,8 @@
 //! payloads, secrets, or private numeric rank weights.
 
 use std::collections::BTreeSet;
+use std::error::Error;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -29,15 +31,96 @@ pub const RETRIEVAL_INSPECTOR_SCHEMA_VERSION: u32 = 1;
 /// Repo-relative path of the retrieval-inspector boundary schema.
 pub const RETRIEVAL_INSPECTOR_SCHEMA_REF: &str = "schemas/search/retrieval_inspector.schema.json";
 
+/// Repo-relative path of the stable hybrid-retrieval inspector schema.
+pub const HYBRID_RETRIEVAL_STABLE_SCHEMA_REF: &str =
+    "schemas/search/hybrid-retrieval-inspector.schema.json";
+
 /// Repo-relative path of the hybrid-retrieval reviewer doc.
 pub const HYBRID_RETRIEVAL_BETA_DOC_REF: &str = "docs/search/m3/hybrid_retrieval_beta.md";
+
+/// Repo-relative path of the stable hybrid-retrieval reviewer doc.
+pub const HYBRID_RETRIEVAL_STABLE_DOC_REF: &str =
+    "docs/search/m4/stabilize-hybrid-retrieval-epochs-and-locality.md";
+
+/// Repo-relative path of the human-readable stable reviewer artifact.
+pub const HYBRID_RETRIEVAL_STABLE_ARTIFACT_DOC_REF: &str =
+    "artifacts/search/m4/stabilize-hybrid-retrieval-epochs-and-locality.md";
 
 /// Repo-relative path of the canonical checked-in beta packet artifact.
 pub const HYBRID_RETRIEVAL_BETA_PACKET_REF: &str =
     "artifacts/search/m3/hybrid_retrieval_beta_packet.json";
 
+/// Repo-relative path of the canonical checked-in stable packet artifact.
+pub const HYBRID_RETRIEVAL_STABLE_PACKET_REF: &str =
+    "artifacts/search/m4/hybrid_retrieval_inspector_packet.json";
+
 /// Repo-relative path of the protected fixture corpus directory.
 pub const HYBRID_RETRIEVAL_BETA_FIXTURE_DIR: &str = "fixtures/search/hybrid_retrieval_beta";
+
+/// Repo-relative path of the protected stable fixture corpus directory.
+pub const HYBRID_RETRIEVAL_STABLE_FIXTURE_DIR: &str =
+    "fixtures/search/m4/stabilize-hybrid-retrieval-epochs-and-locality";
+
+/// Stability profile for retrieval-inspector validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetrievalGovernanceTrack {
+    /// Beta compatibility profile used by existing M3 retrieval packets.
+    Beta,
+    /// Stable profile that enforces M4 semantic-recall invariants.
+    Stable,
+}
+
+impl RetrievalGovernanceTrack {
+    /// Stable token used in fixtures, schemas, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Beta => "beta",
+            Self::Stable => "stable",
+        }
+    }
+}
+
+impl Default for RetrievalGovernanceTrack {
+    fn default() -> Self {
+        Self::Beta
+    }
+}
+
+/// Query class used to select latency and retrieval-lane posture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetrievalQueryClass {
+    /// Query was not classified by the producer.
+    Unclassified,
+    /// Exact path, filename, text, or command lookup.
+    Exact,
+    /// Symbol, outline, type, dependency, or graph-structure lookup.
+    Structural,
+    /// Conceptual lookup where embedding recall may add candidates.
+    Conceptual,
+    /// Mixed query that intentionally combines exact, structural, and semantic lanes.
+    Mixed,
+}
+
+impl RetrievalQueryClass {
+    /// Stable token used in fixtures, schemas, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unclassified => "unclassified",
+            Self::Exact => "exact",
+            Self::Structural => "structural",
+            Self::Conceptual => "conceptual",
+            Self::Mixed => "mixed",
+        }
+    }
+}
+
+impl Default for RetrievalQueryClass {
+    fn default() -> Self {
+        Self::Unclassified
+    }
+}
 
 /// Search, AI, review, docs, or support surface that consumes a retrieval packet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -74,8 +157,12 @@ impl RetrievalConsumerSurface {
 pub enum RetrievalLaneClass {
     /// Exact text, path, filename, or regex recall.
     Lexical,
+    /// Structural recall from symbols, outlines, anchors, or syntax indexes.
+    Structural,
     /// Embedding or vector recall with an embedder identity and retrieval epoch.
     Vector,
+    /// Embedding recall with an embedder identity and retrieval epoch.
+    Embedding,
     /// Semantic graph recall or graph-neighborhood expansion.
     Graph,
     /// Fused row assembled from more than one lane.
@@ -87,7 +174,9 @@ impl RetrievalLaneClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Lexical => "lexical",
+            Self::Structural => "structural",
             Self::Vector => "vector",
+            Self::Embedding => "embedding",
             Self::Graph => "graph",
             Self::Fused => "fused",
         }
@@ -97,9 +186,8 @@ impl RetrievalLaneClass {
         match path {
             PlannerDataPath::Lexical => Self::Lexical,
             PlannerDataPath::GraphBacked => Self::Graph,
-            PlannerDataPath::Structural | PlannerDataPath::Cached | PlannerDataPath::Docs => {
-                Self::Fused
-            }
+            PlannerDataPath::Structural | PlannerDataPath::Docs => Self::Structural,
+            PlannerDataPath::Cached => Self::Fused,
         }
     }
 }
@@ -558,6 +646,20 @@ pub enum RetrievalInspectorFindingKind {
     MissingExportProjection,
     /// Packet would allow mutation without live target re-resolution.
     MutatingActionWithoutLiveResolution,
+    /// Stable packet is missing a required lane or lane snapshot.
+    MissingStableLane,
+    /// Stable packet did not classify the query.
+    MissingQueryClassification,
+    /// Embedding index or contribution uses an invalidated epoch.
+    EmbeddingEpochInvalidated,
+    /// One visible row mixes embedding generations.
+    MixedGenerationRecall,
+    /// Managed or remote embedding recall omitted tenant, region, or policy boundary.
+    TenantBoundaryUndisclosed,
+    /// Policy-hidden omissions were collapsed or lacked a disclosure ref.
+    PolicyHiddenOmissionUndisclosed,
+    /// Mirrored or signed-pack embeddings lack signature or compatibility disclosure.
+    SignedPackCompatibilityUndisclosed,
     /// Stored promotion state disagrees with derived findings.
     PromotionStateMismatch,
 }
@@ -575,6 +677,13 @@ impl RetrievalInspectorFindingKind {
             Self::UnlabelledPartialIndex => "unlabelled_partial_index",
             Self::MissingExportProjection => "missing_export_projection",
             Self::MutatingActionWithoutLiveResolution => "mutating_action_without_live_resolution",
+            Self::MissingStableLane => "missing_stable_lane",
+            Self::MissingQueryClassification => "missing_query_classification",
+            Self::EmbeddingEpochInvalidated => "embedding_epoch_invalidated",
+            Self::MixedGenerationRecall => "mixed_generation_recall",
+            Self::TenantBoundaryUndisclosed => "tenant_boundary_undisclosed",
+            Self::PolicyHiddenOmissionUndisclosed => "policy_hidden_omission_undisclosed",
+            Self::SignedPackCompatibilityUndisclosed => "signed_pack_compatibility_undisclosed",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
         }
     }
@@ -632,6 +741,18 @@ pub struct EmbeddingIndexManifest {
     pub state: EmbeddingIndexStateClass,
     /// Policy scope that admitted or denied this index.
     pub policy_scope_ref: String,
+    /// Tenant scope for managed or remote embedding indexes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_scope_ref: Option<String>,
+    /// Region or residency ref for managed or remote embedding indexes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region_ref: Option<String>,
+    /// Retention policy used when deriving and caching embeddings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retention_policy_id: Option<String>,
+    /// Compatibility or downgrade disclosure for precomputed embedding packs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatibility_ref: Option<String>,
     /// Signed pack ref when the index came from a mirrored pack.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signed_pack_ref: Option<String>,
@@ -647,6 +768,83 @@ impl EmbeddingIndexManifest {
                 .embedder_model_id
                 .as_deref()
                 .map_or(false, |model| model == self.embedder_model_id)
+            && contribution
+                .embedder_model_version
+                .as_deref()
+                .map_or(true, |version| version == self.embedder_model_version)
+            && contribution
+                .tokenizer_id
+                .as_deref()
+                .map_or(true, |tokenizer| tokenizer == self.tokenizer_id)
+            && contribution
+                .chunker_id
+                .as_deref()
+                .map_or(true, |chunker| chunker == self.chunker_id)
+            && contribution
+                .trust_boundary_ref
+                .as_deref()
+                .map_or(true, |boundary| boundary == self.trust_boundary_ref)
+            && contribution
+                .retention_policy_id
+                .as_deref()
+                .map_or(true, |retention| {
+                    self.retention_policy_id
+                        .as_deref()
+                        .map_or(false, |manifest_retention| retention == manifest_retention)
+                })
+    }
+
+    fn epoch_key(&self) -> String {
+        format!(
+            "{}|{}|{}|{}|{}|{}",
+            self.retrieval_epoch,
+            self.embedder_model_id,
+            self.embedder_model_version,
+            self.tokenizer_id,
+            self.chunker_id,
+            self.retention_policy_id.as_deref().unwrap_or("")
+        )
+    }
+
+    fn is_invalidated_for_stable(&self) -> bool {
+        matches!(
+            self.state,
+            EmbeddingIndexStateClass::Stale
+                | EmbeddingIndexStateClass::IncompatibleEpoch
+                | EmbeddingIndexStateClass::Unavailable
+        )
+    }
+
+    fn requires_tenant_boundary(&self) -> bool {
+        matches!(
+            self.locality,
+            RetrievalLocalityClass::ManagedTenantScoped | RetrievalLocalityClass::ProviderRemote
+        )
+    }
+
+    fn has_tenant_boundary(&self) -> bool {
+        self.tenant_scope_ref
+            .as_deref()
+            .map_or(false, |value| !value.trim().is_empty())
+            && self
+                .region_ref
+                .as_deref()
+                .map_or(false, |value| !value.trim().is_empty())
+            && !self.policy_scope_ref.trim().is_empty()
+    }
+
+    fn requires_pack_compatibility(&self) -> bool {
+        matches!(self.locality, RetrievalLocalityClass::MirroredPack)
+    }
+
+    fn has_pack_compatibility(&self) -> bool {
+        self.signed_pack_ref
+            .as_deref()
+            .map_or(false, |value| !value.trim().is_empty())
+            && self
+                .compatibility_ref
+                .as_deref()
+                .map_or(false, |value| !value.trim().is_empty())
     }
 }
 
@@ -788,12 +986,52 @@ pub struct RetrievalContribution {
     /// Embedder model id when vector recall contributed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub embedder_model_id: Option<String>,
+    /// Embedder model version or digest when embedding recall contributed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedder_model_version: Option<String>,
+    /// Tokenizer id when embedding recall contributed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokenizer_id: Option<String>,
+    /// Chunking strategy id when embedding recall contributed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chunker_id: Option<String>,
+    /// Trust boundary ref when embedding recall contributed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trust_boundary_ref: Option<String>,
+    /// Retention policy id when embedding recall contributed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retention_policy_id: Option<String>,
     /// Graph epoch when graph recall contributed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub graph_epoch: Option<String>,
     /// Partial-truth causes specific to this contribution.
     #[serde(default)]
     pub partial_truth_causes: Vec<String>,
+}
+
+impl RetrievalContribution {
+    fn uses_embedding_recall(&self) -> bool {
+        matches!(
+            self.lane_class,
+            RetrievalLaneClass::Vector | RetrievalLaneClass::Embedding
+        )
+    }
+}
+
+/// One lane or candidate class omitted from the visible retrieval packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetrievalLaneOmission {
+    /// Stable omission id.
+    pub omission_id: String,
+    /// Omitted lane class.
+    pub omitted_lane_class: RetrievalLaneClass,
+    /// Support-safe reason the lane was omitted.
+    pub omission_reason: String,
+    /// True when policy hid the omitted candidates.
+    pub policy_hidden: bool,
+    /// Disclosure ref shown to consumers when policy hides candidates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disclosure_ref: Option<String>,
 }
 
 /// One fused row visible in the retrieval inspector.
@@ -875,6 +1113,12 @@ pub struct RetrievalConsumerProjection {
 /// Constructor input for [`RetrievalInspectorPacket::materialize`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RetrievalInspectorPacketInput {
+    /// Validation profile requested by the producer.
+    #[serde(default)]
+    pub governance_track: RetrievalGovernanceTrack,
+    /// Query class that selected the retrieval lane mix.
+    #[serde(default)]
+    pub query_class: RetrievalQueryClass,
     /// Stable packet id.
     pub packet_id: String,
     /// Query session id that produced the rows.
@@ -895,6 +1139,9 @@ pub struct RetrievalInspectorPacketInput {
     /// Lane snapshots considered by the retrieval inspector.
     #[serde(default)]
     pub lane_snapshots: Vec<RetrievalLaneSnapshot>,
+    /// Omitted lanes, withheld candidate classes, and policy-hidden classes.
+    #[serde(default)]
+    pub omissions: Vec<RetrievalLaneOmission>,
     /// Fused inspector rows.
     #[serde(default)]
     pub rows: Vec<RetrievalInspectorRow>,
@@ -910,6 +1157,12 @@ pub struct RetrievalInspectorPacket {
     pub record_kind: String,
     /// Schema version.
     pub schema_version: u32,
+    /// Validation profile requested by the producer.
+    #[serde(default)]
+    pub governance_track: RetrievalGovernanceTrack,
+    /// Query class that selected the retrieval lane mix.
+    #[serde(default)]
+    pub query_class: RetrievalQueryClass,
     /// Stable packet id.
     pub packet_id: String,
     /// Query session id that produced the rows.
@@ -930,6 +1183,9 @@ pub struct RetrievalInspectorPacket {
     /// Lane snapshots considered by the retrieval inspector.
     #[serde(default)]
     pub lane_snapshots: Vec<RetrievalLaneSnapshot>,
+    /// Omitted lanes, withheld candidate classes, and policy-hidden classes.
+    #[serde(default)]
+    pub omissions: Vec<RetrievalLaneOmission>,
     /// Fused inspector rows.
     #[serde(default)]
     pub rows: Vec<RetrievalInspectorRow>,
@@ -949,6 +1205,8 @@ impl RetrievalInspectorPacket {
         let mut packet = Self {
             record_kind: RETRIEVAL_INSPECTOR_RECORD_KIND.to_owned(),
             schema_version: RETRIEVAL_INSPECTOR_SCHEMA_VERSION,
+            governance_track: input.governance_track,
+            query_class: input.query_class,
             packet_id: input.packet_id,
             query_session_id_ref: input.query_session_id_ref,
             planner_pass_id_ref: input.planner_pass_id_ref,
@@ -958,6 +1216,7 @@ impl RetrievalInspectorPacket {
             local_first_policy: input.local_first_policy,
             embedding_indexes: input.embedding_indexes,
             lane_snapshots: input.lane_snapshots,
+            omissions: input.omissions,
             rows: input.rows,
             consumer_projections: input.consumer_projections,
             promotion_state: RetrievalPromotionState::Promotable,
@@ -984,6 +1243,8 @@ impl RetrievalInspectorPacket {
         default_locality: RetrievalLocalityClass,
     ) -> RetrievalInspectorPacketInput {
         RetrievalInspectorPacketInput {
+            governance_track: RetrievalGovernanceTrack::Beta,
+            query_class: RetrievalQueryClass::Unclassified,
             packet_id: packet_id.into(),
             query_session_id_ref: planner_output.query_session.query_session_id.clone(),
             planner_pass_id_ref: planner_output.planner_pass.planner_pass_id.clone(),
@@ -993,6 +1254,7 @@ impl RetrievalInspectorPacket {
             local_first_policy,
             embedding_indexes: Vec::new(),
             lane_snapshots: Vec::new(),
+            omissions: Vec::new(),
             rows: planner_output
                 .result_set
                 .rows
@@ -1061,6 +1323,18 @@ impl RetrievalInspectorPacket {
         lanes.into_iter().map(RetrievalLaneClass::as_str).collect()
     }
 
+    /// Returns lane-class tokens declared by stable lane snapshots and selected rows.
+    pub fn declared_lane_tokens(&self) -> Vec<&'static str> {
+        let mut lanes = BTreeSet::new();
+        for lane in &self.lane_snapshots {
+            lanes.insert(lane.lane_class);
+        }
+        for row in &self.rows {
+            lanes.insert(row.selected_lane_class);
+        }
+        lanes.into_iter().map(RetrievalLaneClass::as_str).collect()
+    }
+
     /// Builds a support export that embeds the exact product packet.
     pub fn support_export(
         &self,
@@ -1113,11 +1387,15 @@ impl RetrievalInspectorPacket {
             RetrievalLaneClass::Vector,
             RetrievalLaneClass::Graph,
         ] {
-            if !self.rows.iter().any(|row| {
+            let lane_present = self.rows.iter().any(|row| {
                 row.contributions
                     .iter()
-                    .any(|contribution| contribution.lane_class == required_lane)
-            }) {
+                    .any(|contribution| match required_lane {
+                        RetrievalLaneClass::Vector => contribution.uses_embedding_recall(),
+                        _ => contribution.lane_class == required_lane,
+                    })
+            });
+            if !lane_present {
                 findings.push(RetrievalInspectorFinding::new(
                     RetrievalInspectorFindingKind::MissingHybridLane,
                     RetrievalInspectorFindingSeverity::Blocker,
@@ -1127,6 +1405,10 @@ impl RetrievalInspectorPacket {
                     ),
                 ));
             }
+        }
+
+        if self.governance_track == RetrievalGovernanceTrack::Stable {
+            self.push_stable_findings(&mut findings);
         }
 
         if self.local_first_policy.provider_write_allowed {
@@ -1201,11 +1483,8 @@ impl RetrievalInspectorPacket {
                         ),
                     ));
                 }
-                if contribution.lane_class == RetrievalLaneClass::Vector
-                    && !self
-                        .embedding_indexes
-                        .iter()
-                        .any(|manifest| manifest.matches_contribution(contribution))
+                if contribution.uses_embedding_recall()
+                    && self.matching_embedding_manifest(contribution).is_none()
                 {
                     findings.push(RetrievalInspectorFinding::new(
                         RetrievalInspectorFindingKind::MissingEmbeddingManifest,
@@ -1252,6 +1531,144 @@ impl RetrievalInspectorPacket {
         }
 
         findings
+    }
+
+    fn push_stable_findings(&self, findings: &mut Vec<RetrievalInspectorFinding>) {
+        if self.query_class == RetrievalQueryClass::Unclassified {
+            findings.push(RetrievalInspectorFinding::new(
+                RetrievalInspectorFindingKind::MissingQueryClassification,
+                RetrievalInspectorFindingSeverity::Blocker,
+                "stable retrieval packets must classify queries as exact, structural, conceptual, or mixed",
+            ));
+        }
+
+        let declared_lanes: BTreeSet<RetrievalLaneClass> = self
+            .lane_snapshots
+            .iter()
+            .map(|lane| lane.lane_class)
+            .chain(self.rows.iter().map(|row| row.selected_lane_class))
+            .chain(self.rows.iter().flat_map(|row| {
+                row.contributions
+                    .iter()
+                    .map(|contribution| contribution.lane_class)
+            }))
+            .collect();
+        for required_lane in [
+            RetrievalLaneClass::Lexical,
+            RetrievalLaneClass::Structural,
+            RetrievalLaneClass::Graph,
+            RetrievalLaneClass::Embedding,
+            RetrievalLaneClass::Fused,
+        ] {
+            if !declared_lanes.contains(&required_lane) {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::MissingStableLane,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "stable retrieval packet is missing the {} lane",
+                        required_lane.as_str()
+                    ),
+                ));
+            }
+        }
+
+        for manifest in &self.embedding_indexes {
+            if manifest.is_invalidated_for_stable() {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::EmbeddingEpochInvalidated,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "embedding manifest {} cannot publish as current stable recall",
+                        manifest.manifest_id
+                    ),
+                ));
+            }
+            if manifest.requires_tenant_boundary() && !manifest.has_tenant_boundary() {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::TenantBoundaryUndisclosed,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "managed embedding manifest {} must disclose tenant, region, and policy boundary",
+                        manifest.manifest_id
+                    ),
+                ));
+            }
+            if manifest.requires_pack_compatibility() && !manifest.has_pack_compatibility() {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::SignedPackCompatibilityUndisclosed,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "mirrored embedding manifest {} must disclose signature and compatibility refs",
+                        manifest.manifest_id
+                    ),
+                ));
+            }
+        }
+
+        for omission in &self.omissions {
+            if omission.policy_hidden
+                && omission
+                    .disclosure_ref
+                    .as_deref()
+                    .map_or(true, |value| value.trim().is_empty())
+            {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::PolicyHiddenOmissionUndisclosed,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "policy-hidden omission {} lacks a disclosure ref",
+                        omission.omission_id
+                    ),
+                ));
+            }
+        }
+
+        for row in &self.rows {
+            let mut embedding_epoch_keys = BTreeSet::new();
+            for contribution in &row.contributions {
+                if contribution.uses_embedding_recall() {
+                    if let Some(manifest) = self.matching_embedding_manifest(contribution) {
+                        embedding_epoch_keys.insert(manifest.epoch_key());
+                    }
+                }
+            }
+            if embedding_epoch_keys.len() > 1 {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::MixedGenerationRecall,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!("row {} mixes embedding generations", row.row_id),
+                ));
+            }
+        }
+
+        for required_surface in [
+            RetrievalConsumerSurface::SearchResults,
+            RetrievalConsumerSurface::AiContext,
+            RetrievalConsumerSurface::ReviewWorkspace,
+            RetrievalConsumerSurface::DocsHelp,
+            RetrievalConsumerSurface::SupportExport,
+        ] {
+            if !self.has_projection_for(required_surface) {
+                findings.push(RetrievalInspectorFinding::new(
+                    RetrievalInspectorFindingKind::MissingExportProjection,
+                    RetrievalInspectorFindingSeverity::Blocker,
+                    format!(
+                        "stable packet {} is missing a preserved {} projection",
+                        self.packet_id,
+                        required_surface.as_str()
+                    ),
+                ));
+            }
+        }
+    }
+
+    fn matching_embedding_manifest(
+        &self,
+        contribution: &RetrievalContribution,
+    ) -> Option<&EmbeddingIndexManifest> {
+        self.embedding_indexes
+            .iter()
+            .find(|manifest| manifest.matches_contribution(contribution))
     }
 }
 
@@ -1315,6 +1732,11 @@ fn contribution_from_planner_result(
             .collect(),
         retrieval_epoch: None,
         embedder_model_id: None,
+        embedder_model_version: None,
+        tokenizer_id: None,
+        chunker_id: None,
+        trust_boundary_ref: None,
+        retention_policy_id: None,
         graph_epoch: None,
         partial_truth_causes: contribution.partial_truth_causes.clone(),
     }
@@ -1354,5 +1776,57 @@ fn promotion_state_for_findings(findings: &[RetrievalInspectorFinding]) -> Retri
         RetrievalPromotionState::NeedsReview
     } else {
         RetrievalPromotionState::Promotable
+    }
+}
+
+/// Errors emitted when reading the checked-in stable hybrid-retrieval packet.
+#[derive(Debug)]
+pub enum HybridRetrievalStableArtifactError {
+    /// Packet failed to parse.
+    Packet(serde_json::Error),
+    /// Packet failed validation.
+    Validation(Vec<RetrievalInspectorFinding>),
+}
+
+impl fmt::Display for HybridRetrievalStableArtifactError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Packet(error) => {
+                write!(formatter, "hybrid retrieval packet parse failed: {error}")
+            }
+            Self::Validation(findings) => {
+                let tokens = findings
+                    .iter()
+                    .map(|finding| finding.finding_kind.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                write!(
+                    formatter,
+                    "hybrid retrieval packet failed validation: {tokens}"
+                )
+            }
+        }
+    }
+}
+
+impl Error for HybridRetrievalStableArtifactError {}
+
+/// Returns the checked-in stable hybrid-retrieval inspector packet.
+///
+/// # Errors
+///
+/// Returns an artifact error if the checked-in packet does not parse or validate.
+pub fn current_stable_hybrid_retrieval_inspector_packet(
+) -> Result<RetrievalInspectorPacket, HybridRetrievalStableArtifactError> {
+    let packet: RetrievalInspectorPacket = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/search/m4/hybrid_retrieval_inspector_packet.json"
+    )))
+    .map_err(HybridRetrievalStableArtifactError::Packet)?;
+    let findings = packet.validate();
+    if findings.is_empty() {
+        Ok(packet)
+    } else {
+        Err(HybridRetrievalStableArtifactError::Validation(findings))
     }
 }
