@@ -43,6 +43,7 @@ pub mod repair_review;
 pub mod resolver;
 pub mod schema;
 pub mod settings_ui_stable;
+pub mod stabilize_profile_sync_snapshot_backup_restore;
 pub mod sync;
 pub mod sync_device_registry_stable;
 pub mod ui;
@@ -131,6 +132,18 @@ pub use schema::{
     MigrationTransformClass, PreviewClass, RedactionClass, RestartPosture, SchemaRegistry,
     SchemaRegistryError, SensitivityClass, SettingAlias, SettingDefinition, SettingScope,
     SettingValue, SettingValueType, ValueValidationError,
+};
+pub use stabilize_profile_sync_snapshot_backup_restore::{
+    profile_sync_restore_corpus, ConflictClass as ProfileSyncConflictClass,
+    MergeRuleClass as ProfileSyncMergeRuleClass, MergeRuleRow as ProfileSyncMergeRuleRow,
+    MergeSubjectClass as ProfileSyncMergeSubjectClass,
+    NarrowingReason as ProfileSyncNarrowingReason, OffboardingRetentionSummary,
+    ProfileSyncRestoreCertification, ProfileSyncRestoreInput, ProfileSyncRestorePillars,
+    ProfileSyncRestoreQualification, ProfileSyncRestoreScenario, RestorePreviewRow,
+    SecretBoundaryAuditRow, SnapshotClass as ProfileSyncSnapshotClass, SnapshotManifestRow,
+    StableClaimClass as ProfileSyncStableClaimClass, StateClass as ProfileSyncStateClass,
+    SurfaceClass as ProfileSyncSurfaceClass, SurfaceTruthRow, PROFILE_SYNC_RESTORE_SCHEMA_VERSION,
+    PROFILE_SYNC_RESTORE_SHARED_CONTRACT_REF,
 };
 pub use sync::{
     build_review_row as build_sync_review_row, project_review_page as project_sync_review_page,
