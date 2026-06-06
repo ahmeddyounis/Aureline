@@ -23,6 +23,7 @@ pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
+pub mod review_pack_evaluator_and_local_ci_parity;
 pub mod review_pack_parity_harness;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
 pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
@@ -195,6 +196,25 @@ pub use review_pack_dsl::{
     REVIEW_PACK_CHECK_KINDS, REVIEW_PACK_CONSUMER_SURFACES, REVIEW_PACK_EXECUTION_CLASSES,
     REVIEW_PACK_OWNERSHIP_SCOPE_KINDS, REVIEW_PACK_PARITY_CLASSES, REVIEW_PACK_SEVERITY_CLASSES,
     REVIEW_PACK_UNSUPPORTED_FIELD_CLASSES,
+};
+pub use review_pack_evaluator_and_local_ci_parity::{
+    project_review_pack_stable_evaluation, ReviewPackAiFindingRecord,
+    ReviewPackEvaluationInspectionRecord, ReviewPackEvaluationSupportExport,
+    ReviewPackEvaluatorError, ReviewPackEvaluatorValidationError, ReviewPackOwnershipSignalRecord,
+    ReviewPackPublishPreviewRecord, ReviewPackReplayExportPacket, ReviewPackRequiredCheckResult,
+    ReviewPackStableEvaluationInput, ReviewPackStableEvaluationPacket,
+    ReviewPackStableEvaluationRecord, ReviewPackSurfaceObservation, ReviewScopeSelectorRecord,
+    REVIEW_PACK_EVALUATION_INSPECTION_RECORD_KIND, REVIEW_PACK_EVALUATION_RECORD_KIND,
+    REVIEW_PACK_EVALUATOR_AI_DIFF_FRESHNESS_CLASSES, REVIEW_PACK_EVALUATOR_AI_FINDING_STATES,
+    REVIEW_PACK_EVALUATOR_CAPABILITY_CLASSES, REVIEW_PACK_EVALUATOR_CHECK_ENFORCEMENT_CLASSES,
+    REVIEW_PACK_EVALUATOR_CHECK_RESULT_CLASSES, REVIEW_PACK_EVALUATOR_DIVERGENCE_LABELS,
+    REVIEW_PACK_EVALUATOR_OUTBOUND_INTENT_CLASSES, REVIEW_PACK_EVALUATOR_OWNERSHIP_SIGNAL_CLASSES,
+    REVIEW_PACK_EVALUATOR_OWNERSHIP_SOURCE_CLASSES, REVIEW_PACK_EVALUATOR_PACKET_RECORD_KIND,
+    REVIEW_PACK_EVALUATOR_PROVIDER_WRITE_ACCESS_CLASSES,
+    REVIEW_PACK_EVALUATOR_REQUIRED_CHECK_CLASSES, REVIEW_PACK_EVALUATOR_SCHEMA_VERSION,
+    REVIEW_PACK_EVALUATOR_SCOPE_SELECTOR_CLASSES, REVIEW_PACK_EVALUATOR_SCOPE_TRUTH_CLASSES,
+    REVIEW_PACK_EVALUATOR_SURFACE_CLASSES, REVIEW_PACK_EVALUATOR_SURFACE_STATE_CLASSES,
+    REVIEW_PACK_EVALUATOR_VERDICT_CLASSES, REVIEW_PACK_REPLAY_EXPORT_PACKET_RECORD_KIND,
 };
 pub use review_pack_parity_harness::{
     project_review_pack_parity_harness, ReviewPackParityHarnessCheckFinding,

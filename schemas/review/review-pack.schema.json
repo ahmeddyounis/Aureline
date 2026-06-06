@@ -1,0 +1,458 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/review-pack.schema.json",
+  "title": "Aureline stable review-pack evaluator input",
+  "description": "Stable boundary schema for declarative review-pack evaluation inputs. The corresponding Rust model materializes a normalized evaluation record plus a replay export packet. Inputs carry pack digest, base/head identity, surface observations, scope selectors, required-check vocabulary, advisory/enforced ownership signals, AI finding resolution states, publish previews, and export posture. Raw paths, raw glob bodies, raw command lines, raw check outputs, credentials, and provider payloads are not allowed across this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "packet_id",
+    "evaluation_id",
+    "replay_packet_id",
+    "generated_at",
+    "review_pack_id",
+    "review_pack_version",
+    "review_pack_digest_ref",
+    "base_identity_ref",
+    "head_identity_ref",
+    "repo_anchor_ref",
+    "evaluator_capability_class",
+    "overall_verdict_class",
+    "divergence_labels",
+    "surface_observations",
+    "scope_selectors",
+    "required_checks",
+    "ownership_signals",
+    "ai_findings",
+    "publish_previews",
+    "support_export",
+    "consumer_surfaces"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "evaluation_id": { "$ref": "#/$defs/opaque_id" },
+    "replay_packet_id": { "$ref": "#/$defs/opaque_id" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "review_pack_id": { "$ref": "#/$defs/opaque_id" },
+    "review_pack_version": { "$ref": "#/$defs/non_empty_string" },
+    "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+    "base_identity_ref": { "$ref": "#/$defs/opaque_id" },
+    "head_identity_ref": { "$ref": "#/$defs/opaque_id" },
+    "repo_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+    "evaluator_capability_class": { "$ref": "#/$defs/evaluator_capability_class" },
+    "overall_verdict_class": { "$ref": "#/$defs/overall_verdict_class" },
+    "divergence_labels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/divergence_label" }
+    },
+    "surface_observations": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/surface_observation" }
+    },
+    "scope_selectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/scope_selector" }
+    },
+    "required_checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/required_check" }
+    },
+    "ownership_signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ownership_signal" }
+    },
+    "ai_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ai_finding" }
+    },
+    "publish_previews": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publish_preview" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "review_workspace",
+          "hosted_provider_overlay",
+          "local_ci",
+          "ai_review",
+          "browser_companion",
+          "cli_headless",
+          "support_export"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log and include in support exports."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "divergence_label": {
+      "type": "string",
+      "enum": [
+        "no_divergence",
+        "partial_scope",
+        "slice_omitted",
+        "stale_pack",
+        "not_evaluated_here",
+        "ci_only",
+        "provider_unavailable",
+        "advisory_owner",
+        "enforced_owner",
+        "provider_authoritative",
+        "policy_downgraded",
+        "experimental_analyzer",
+        "review_pack_digest_mismatch",
+        "unsupported_evaluator_capability",
+        "local_ci_disagree",
+        "ai_review_outdated",
+        "browser_companion_partial",
+        "missing_provider_write_access"
+      ]
+    },
+    "evaluator_capability_class": {
+      "type": "string",
+      "enum": [
+        "evaluator_supported",
+        "unsupported_evaluator_capability",
+        "capability_policy_downgraded"
+      ]
+    },
+    "overall_verdict_class": {
+      "type": "string",
+      "enum": [
+        "full_parity",
+        "degraded_requires_review",
+        "stale_pack_invalidated",
+        "unsupported_capability_downgraded"
+      ]
+    },
+    "surface_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "surface_state_class",
+        "review_pack_digest_ref",
+        "base_identity_ref",
+        "head_identity_ref",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "surface_class": {
+          "type": "string",
+          "enum": [
+            "local_review_workspace",
+            "local_ci_run",
+            "hosted_provider_overlay",
+            "ai_review",
+            "browser_companion_follow_up",
+            "cli_headless_support"
+          ]
+        },
+        "surface_state_class": {
+          "type": "string",
+          "enum": [
+            "surface_current_full",
+            "surface_partial_scope",
+            "surface_stale_pack",
+            "surface_digest_mismatch",
+            "surface_capability_unsupported",
+            "surface_provider_unavailable",
+            "surface_not_evaluated_here"
+          ]
+        },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "scope_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_id",
+        "selector_class",
+        "selector_ref",
+        "scope_truth_class",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "selector_id": { "$ref": "#/$defs/opaque_id" },
+        "selector_class": {
+          "type": "string",
+          "enum": [
+            "path_selector",
+            "language_selector",
+            "service_selector",
+            "risk_selector",
+            "workset_selector"
+          ]
+        },
+        "selector_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_truth_class": {
+          "type": "string",
+          "enum": [
+            "full_scope",
+            "partial_scope",
+            "slice_omitted",
+            "stale_pack"
+          ]
+        },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "required_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "required_check_name",
+        "required_check_class",
+        "enforcement_class",
+        "local_result_class",
+        "ci_result_class",
+        "ai_review_result_class",
+        "provider_result_class",
+        "browser_result_class",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "check_id": { "$ref": "#/$defs/opaque_id" },
+        "required_check_name": { "$ref": "#/$defs/non_empty_string" },
+        "required_check_class": {
+          "type": "string",
+          "enum": [
+            "format_check",
+            "lint_check",
+            "type_check",
+            "unit_test",
+            "security_scan",
+            "docs_review",
+            "migration_review",
+            "ai_review_check",
+            "browser_follow_up_check"
+          ]
+        },
+        "enforcement_class": {
+          "type": "string",
+          "enum": [
+            "enforced_blocking",
+            "enforced_blocking_unless_waived",
+            "advisory_non_blocking",
+            "provider_authoritative"
+          ]
+        },
+        "local_result_class": { "$ref": "#/$defs/check_result_class" },
+        "ci_result_class": { "$ref": "#/$defs/check_result_class" },
+        "ai_review_result_class": { "$ref": "#/$defs/check_result_class" },
+        "provider_result_class": { "$ref": "#/$defs/check_result_class" },
+        "browser_result_class": { "$ref": "#/$defs/check_result_class" },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "check_result_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed_blocking",
+        "failed_advisory",
+        "not_evaluated_here",
+        "ci_only",
+        "provider_unavailable",
+        "policy_downgraded",
+        "experimental_analyzer",
+        "stale_result"
+      ]
+    },
+    "ownership_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_id",
+        "scope_selector_ref",
+        "owner_ref",
+        "ownership_signal_class",
+        "source_class",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "signal_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_selector_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "ownership_signal_class": {
+          "type": "string",
+          "enum": [
+            "advisory_owner",
+            "enforced_owner",
+            "provider_authoritative_owner"
+          ]
+        },
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "graph_ownership",
+            "codeowners",
+            "provider_branch_rule",
+            "release_policy_bundle",
+            "manual_reviewer_suggestion"
+          ]
+        },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "ai_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "scope_selector_ref",
+        "check_ref",
+        "title",
+        "severity_class",
+        "confidence_class",
+        "evidence_refs",
+        "resolution_state",
+        "diff_freshness_class",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_selector_ref": { "$ref": "#/$defs/opaque_id" },
+        "check_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "severity_class": { "$ref": "#/$defs/non_empty_string" },
+        "confidence_class": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "resolution_state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "dismissed",
+            "published",
+            "outdated",
+            "suppressed",
+            "rerun_recommended"
+          ]
+        },
+        "diff_freshness_class": {
+          "type": "string",
+          "enum": [
+            "diff_unchanged",
+            "diff_changed_materially",
+            "diff_freshness_unknown"
+          ]
+        },
+        "publish_preview_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "publish_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "destination_ref",
+        "provider_write_access_class",
+        "outbound_intent_class",
+        "local_copy_export_fallback_available",
+        "outbound_payload_preview",
+        "divergence_label",
+        "summary"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "destination_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_write_access_class": {
+          "type": "string",
+          "enum": [
+            "provider_write_available",
+            "missing_provider_write_access",
+            "provider_write_blocked_by_policy"
+          ]
+        },
+        "outbound_intent_class": {
+          "type": "string",
+          "enum": [
+            "publish_to_review",
+            "copy_only",
+            "export_only",
+            "blocked"
+          ]
+        },
+        "local_copy_export_fallback_available": { "type": "boolean" },
+        "outbound_payload_preview": { "$ref": "#/$defs/reviewable_sentence" },
+        "divergence_label": { "$ref": "#/$defs/divergence_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "raw_path_export_allowed",
+        "raw_glob_body_export_allowed",
+        "raw_command_export_allowed",
+        "raw_check_output_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_path_export_allowed": { "const": false },
+        "raw_glob_body_export_allowed": { "const": false },
+        "raw_command_export_allowed": { "const": false },
+        "raw_check_output_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
