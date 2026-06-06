@@ -5,10 +5,12 @@ This document freezes **what may localize** (human prose) and **what must remain
 This is the human-readable companion to:
 
 - `artifacts/i18n/locale_surface_matrix.yaml` — machine-readable surface rows and parity-check vocabulary.
+- `fixtures/i18n/m4/stabilize-locale-pack-lifecycle-and-translated-surface-parity/manifest.json` — stable locale-pack lifecycle, fallback-chain, and translated-surface parity packet for claimed localized rows.
 
 It composes with (non-exhaustive):
 
 - `docs/ux/localization_and_locale_pack_contract.md` — locale-pack, message ids, surface families, and fallback governance.
+- `docs/i18n/m4/stabilize-locale-pack-lifecycle-and-translated-surface-parity.md` — stable claim gate for signed pack windows, fallback truth, and docs/tour/auth/help/CLI parity.
 - `docs/copy/translation_safe_content_ops_contract.md` — placeholder fidelity and the “localized prose never binds machine identity” rule.
 - `docs/docs_integrity/citation_and_reference_contract.md` — citation anchors, locale pins, and “raw URL” avoidance.
 - `docs/commands/command_descriptor_contract.md` — canonical command identity and routing.
@@ -102,4 +104,3 @@ See `fixtures/i18n/locale_surface_examples/` for cross-surface examples that dem
 - localized prose with stable command/schema/citation identity,
 - explicit fallback to source language/base locale, and
 - extension overlay compatibility and host-id protection.
-

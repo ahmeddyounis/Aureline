@@ -10,6 +10,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub mod stable_locale_lifecycle;
+
+pub use stable_locale_lifecycle::{
+    seeded_stable_locale_lifecycle_parity_packet, ClaimGateState, FallbackChainTruthRow,
+    LocaleLifecycleState, LocalePackLifecycleWindow, LocalePackParitySummary,
+    LocalizationClaimClass, ReleaseGateProofRow, StableLocaleLifecycleParityPacket,
+    StableMessageIdProofRow, TranslatedSurfaceKind, TranslatedSurfaceParityResult,
+    TranslatedSurfaceParityRow, STABLE_LOCALE_LIFECYCLE_PARITY_FIXTURE_REF,
+    STABLE_LOCALE_LIFECYCLE_PARITY_PACKET_ID, STABLE_LOCALE_LIFECYCLE_PARITY_RECORD_KIND,
+    STABLE_LOCALE_LIFECYCLE_PARITY_SCHEMA_VERSION,
+};
+
 /// Schema version shared by beta locale-pack records and projections.
 pub const LOCALE_PACK_BETA_SCHEMA_VERSION: u32 = 1;
 

@@ -13,6 +13,9 @@ companion to:
   — beta dense-surface conformance corpus and review export covering
   pseudoloc, RTL, bidi, IME, text expansion, fallback, CJK/font fallback,
   translated-surface parity, and localized date/number formatting.
+- [`/fixtures/i18n/m4/stabilize-locale-pack-lifecycle-and-translated-surface-parity/manifest.json`](../../fixtures/i18n/m4/stabilize-locale-pack-lifecycle-and-translated-surface-parity/manifest.json)
+  — stable claim packet for signed locale-pack lifecycle, fallback-chain
+  truth, stable message ids, and translated docs/tour/auth/help/CLI parity.
 - [`/docs/i18n/locale_surface_matrix.md`](./locale_surface_matrix.md)
   — cross-surface matrix for what localizes vs. what stays machine-stable
   on UI/CLI/docs/extension surfaces.
