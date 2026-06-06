@@ -1,4 +1,5 @@
 use aureline_commands::alpha::alpha_command_registry;
+use aureline_commands::automation::current_safe_automation_qualification_export;
 use aureline_commands::finalize_command_parity::current_finalize_command_parity_export;
 use aureline_commands::harden_high_risk_command::current_high_risk_command_hardening_export;
 use aureline_commands::registry::seeded_registry;
@@ -189,6 +190,45 @@ fn main() {
     });
     out.push_str(",\n    \"evidence_id\": ");
     push_json_string(&mut out, &hardening.evidence_export.evidence_id);
+    out.push_str("\n  },\n");
+
+    // Project the safe automation qualification lane so command discovery,
+    // diagnostics, help, and support exports all read the same label vocabulary
+    // and narrowing rules before exposing macro, recipe, or headless affordances.
+    let automation = current_safe_automation_qualification_export()
+        .expect("checked safe automation qualification export validates");
+    out.push_str("  \"safe_automation_qualification\": {\n");
+    out.push_str("    \"packet_id\": ");
+    push_json_string(&mut out, &automation.packet_id);
+    out.push_str(",\n    \"claimed_stable_label_truth\": ");
+    out.push_str(if automation.claimed_stable_label_truth {
+        "true"
+    } else {
+        "false"
+    });
+    out.push_str(",\n    \"controlled_labels\": ");
+    let controlled_labels = automation
+        .controlled_labels
+        .iter()
+        .map(|label| label.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &controlled_labels);
+    out.push_str(",\n    \"automation_classes\": ");
+    let automation_classes = automation
+        .automation_classes
+        .iter()
+        .map(|row| row.object_class.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &automation_classes);
+    out.push_str(",\n    \"surface_actions\": ");
+    let surface_actions = automation
+        .surface_contracts
+        .iter()
+        .map(|row| row.action_class.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &surface_actions);
+    out.push_str(",\n    \"evidence_id\": ");
+    push_json_string(&mut out, &automation.evidence_export.evidence_id);
     out.push_str("\n  }\n}\n");
     print!("{out}");
 }

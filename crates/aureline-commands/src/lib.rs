@@ -15,6 +15,7 @@
 
 pub mod alpha;
 pub mod authority;
+pub mod automation;
 pub mod descriptor;
 pub mod enablement;
 pub mod finalize_command_parity;
@@ -34,6 +35,21 @@ pub use alpha::{
 pub use authority::{
     CommandAuthorityProjection, CommandAuthorityScenarioRecord, InvocationLineageRecord,
     SurfaceInvocationRecord,
+};
+pub use automation::{
+    automation_display_labels, current_safe_automation_qualification_export, labels_include,
+    why_not_automatable_reason, AutomationArtifactAuthorityClass, AutomationCapabilityClass,
+    AutomationClassManifestRow, AutomationIdempotencyHintClass, AutomationLifecycleLabelClass,
+    AutomationManifestExportImportContract, AutomationObjectClass, AutomationPreviewPolicyClass,
+    AutomationProvenanceClass, AutomationStorageFormClass, AutomationSurfaceActionClass,
+    AutomationTrustRequirementClass, CommandAutomationSurfaceContract, ControlledAutomationLabel,
+    SafeAutomationEvidenceExport, SafeAutomationQualificationArtifactError,
+    SafeAutomationQualificationPacket, SafeAutomationQualificationPacketInput,
+    SafeAutomationQualificationViolation, SAFE_AUTOMATION_MANIFEST_SCHEMA_REF,
+    SAFE_AUTOMATION_MATRIX_REF, SAFE_AUTOMATION_PREVIEW_LIFECYCLE_DOC_REF,
+    SAFE_AUTOMATION_QUALIFICATION_RECORD_KIND, SAFE_AUTOMATION_QUALIFICATION_SCHEMA_VERSION,
+    SAFE_AUTOMATION_RECIPE_MACRO_CONTRACT_REF, SAFE_AUTOMATION_SHAREABILITY_CONTRACT_REF,
+    SAFE_AUTOMATION_SUPPORT_EXPORT_REF,
 };
 pub use descriptor::{
     CommandDescriptorRecord, CommandId, CommandOriginMetadata, CommandRevisionRef, OpaqueId,

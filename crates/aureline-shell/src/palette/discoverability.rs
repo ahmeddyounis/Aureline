@@ -16,8 +16,9 @@ use aureline_commands::invocation::{
     PreviewPostureBlock,
 };
 use aureline_commands::{
-    CommandEnablementContext, CommandRegistry, CommandRegistryEntryRecord, PreflightDecision,
-    PreflightDecisionClass,
+    automation_display_labels, labels_include, why_not_automatable_reason,
+    CommandEnablementContext, CommandRegistry, CommandRegistryEntryRecord,
+    ControlledAutomationLabel, PreflightDecision, PreflightDecisionClass,
 };
 use serde::{Deserialize, Serialize};
 
@@ -736,11 +737,14 @@ fn command_action_footer(
         PreflightDecisionClass::PreviewRequired | PreflightDecisionClass::ApprovalRequired
     );
     let cli_skeleton = cli_skeleton_for(entry);
-    let recipe_safe = entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "recipe_safe");
-    let why_not_automatable = why_not_automatable_reason(entry);
+    let recipe_safe = labels_include(
+        &entry.automation_labels,
+        ControlledAutomationLabel::RecipeSafe,
+    );
+    let why_not_automatable = why_not_automatable_reason(
+        &entry.automation_labels,
+        &entry.descriptor.approval_posture_class,
+    );
 
     AlphaPaletteActionFooter {
         default_action: AlphaPaletteFooterAction {
@@ -787,7 +791,11 @@ fn command_action_footer(
             action_class: "add_to_recipe".to_string(),
             enabled: recipe_safe,
             unavailable_reason: (!recipe_safe).then(|| {
-                why_not_automatable_reason(entry).unwrap_or_else(|| "not_recipe_safe".to_string())
+                why_not_automatable_reason(
+                    &entry.automation_labels,
+                    &entry.descriptor.approval_posture_class,
+                )
+                .unwrap_or_else(|| "not_recipe_safe".to_string())
             }),
             copy_payload: None,
         },
@@ -1098,68 +1106,8 @@ fn supports_alternate_open(entry: &CommandRegistryEntryRecord) -> bool {
     )
 }
 
-fn why_not_automatable_reason(entry: &CommandRegistryEntryRecord) -> Option<String> {
-    if entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "unknown_automation_support")
-    {
-        Some("unknown_automation_support".to_string())
-    } else if entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "ui_only")
-    {
-        Some("ui_only".to_string())
-    } else if entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "approval_required")
-        || entry.descriptor.approval_posture_class != "no_approval_required"
-    {
-        Some("approval_required".to_string())
-    } else if !entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "recipe_safe")
-    {
-        Some("not_recipe_safe".to_string())
-    } else if !entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "headless_safe")
-    {
-        Some("not_headless_safe".to_string())
-    } else if !entry
-        .automation_labels
-        .iter()
-        .any(|label| label == "macro_safe")
-    {
-        Some("not_macro_safe".to_string())
-    } else {
-        None
-    }
-}
-
 fn automation_cues(entry: &CommandRegistryEntryRecord) -> Vec<String> {
-    if entry.automation_labels.is_empty() {
-        return vec!["Unknown automation support".to_string()];
-    }
-
-    entry
-        .automation_labels
-        .iter()
-        .map(|label| match label.as_str() {
-            "macro_safe" => "Macro-safe",
-            "recipe_safe" => "Recipe-safe",
-            "headless_safe" => "Headless-safe",
-            "ui_only" => "UI-only",
-            "approval_required" => "Approval required",
-            "unknown_automation_support" => "Unknown automation support",
-            other => other,
-        })
-        .map(str::to_string)
-        .collect()
+    automation_display_labels(&entry.automation_labels)
 }
 
 fn normalize_query(query: &str) -> String {
