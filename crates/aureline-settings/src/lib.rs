@@ -43,6 +43,7 @@ pub mod repair_review;
 pub mod resolver;
 pub mod schema;
 pub mod settings_ui_stable;
+pub mod stabilize_profile_switch_review_and_temporary_profile_lifecycle;
 pub mod stabilize_profile_sync_snapshot_backup_restore;
 pub mod sync;
 pub mod sync_device_registry_stable;
@@ -132,6 +133,29 @@ pub use schema::{
     MigrationTransformClass, PreviewClass, RedactionClass, RestartPosture, SchemaRegistry,
     SchemaRegistryError, SensitivityClass, SettingAlias, SettingDefinition, SettingScope,
     SettingValue, SettingValueType, ValueValidationError,
+};
+pub use stabilize_profile_switch_review_and_temporary_profile_lifecycle::{
+    profile_switch_lifecycle_corpus, validate_profile_switch_lifecycle_record,
+    ApplyAuditRow as ProfileSwitchApplyAuditRow, ApplyTimingClass as ProfileSwitchApplyTimingClass,
+    ArtifactExclusionClass as ProfileSwitchArtifactExclusionClass,
+    ConflictSourceClass as ProfileSwitchConflictSourceClass,
+    ExcludedMachineStateRow as ProfileSwitchExcludedMachineStateRow,
+    ImportConflictReviewRow as ProfileSwitchImportConflictReviewRow,
+    LocalAuthoritativeReason as ProfileSwitchLocalAuthoritativeReason,
+    NarrowingEffectRow as ProfileSwitchNarrowingEffectRow,
+    ProfileArtifactBoundaryRow as ProfileSwitchArtifactBoundaryRow,
+    ProfileCardRow as ProfileSwitchCardRow, ProfileDurabilityClass as ProfileSwitchDurabilityClass,
+    ProfileScopeClass as ProfileSwitchScopeClass, ProfileSourceClass as ProfileSwitchSourceClass,
+    ProfileSwitchDeltaRow, ProfileSwitchLifecycleCertification, ProfileSwitchLifecyclePillars,
+    ProfileSwitchLifecycleQualification, ProfileSwitchLifecycleScenario,
+    ProfileSwitchLifecycleValidationError, ProfileSwitchNarrowingReason, ProfileSwitchReviewSheet,
+    StableClaimClass as ProfileSwitchStableClaimClass, SurfaceClass as ProfileSwitchSurfaceClass,
+    SurfaceTruthRow as ProfileSwitchSurfaceTruthRow,
+    SyncFallbackRow as ProfileSwitchSyncFallbackRow,
+    TemporaryProfileActionClass as ProfileSwitchTemporaryProfileActionClass,
+    TemporaryProfileActionRow as ProfileSwitchTemporaryProfileActionRow, TemporaryProfileLifecycle,
+    PROFILE_SWITCH_REVIEW_RECORD_KIND, PROFILE_SWITCH_REVIEW_SCHEMA_VERSION,
+    PROFILE_SWITCH_REVIEW_SHARED_CONTRACT_REF,
 };
 pub use stabilize_profile_sync_snapshot_backup_restore::{
     profile_sync_restore_corpus, ConflictClass as ProfileSyncConflictClass,
