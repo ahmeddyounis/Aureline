@@ -16,8 +16,22 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-service-health/0.0.0")]
 
+pub mod finalize_service_health_destination_truth;
 pub mod stabilize_maintenance_and_drain_windows;
 
+pub use finalize_service_health_destination_truth::{
+    canonical_service_health_destination_truth_descriptor, BuildIdentityDescriptor,
+    ContinuityDrill, ContinuityDrillScenario, DescriptorFreshnessState, DestinationDescriptor,
+    DestinationTrustClass, DestinationTrustClassManifest, FreshnessDescriptor, PublicProofSurface,
+    ServiceContractState, ServiceHealthDestinationCoverage, ServiceHealthDestinationFinding,
+    ServiceHealthDestinationFindingSeverity, ServiceHealthDestinationSupportExport,
+    ServiceHealthDestinationTruthDescriptor, ServiceHealthDestinationValidationReport,
+    ServiceHealthTruthCard, SupportSaveLaterContract,
+    SERVICE_HEALTH_DESTINATION_CANONICAL_DESCRIPTOR_REF, SERVICE_HEALTH_DESTINATION_RECORD_KIND,
+    SERVICE_HEALTH_DESTINATION_SCHEMA_REF, SERVICE_HEALTH_DESTINATION_SCHEMA_VERSION,
+    SERVICE_HEALTH_DESTINATION_SHARED_CONTRACT_REF,
+    SERVICE_HEALTH_DESTINATION_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use stabilize_maintenance_and_drain_windows::{
     AffectedSurfaceClass, BlockedWriteClass, BlockedWriteDisclosure, DeferOptionClass,
     ExactTimeWindow, LocalSafeAction, LocalSafeActionClass, MaintenanceNoticeKind,
