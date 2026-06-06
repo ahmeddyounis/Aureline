@@ -487,6 +487,7 @@ fn descriptor_from_registry_entry_inherits_identity_and_denies_secrets() {
         record_kind: PROVIDER_MODEL_REGISTRY_EXTERNAL_TOOL_ENTRY_RECORD_KIND.to_owned(),
         schema_version: PROVIDER_MODEL_REGISTRY_SCHEMA_VERSION,
         tool_entry_id: "tool-entry:remote_mcp:user_registered:fs_snapshot:0001".to_owned(),
+        rollout_object_id: "rollout:external-tool:fs-snapshot:0001".to_owned(),
         display_label: "User-registered MCP filesystem snapshot tool".to_owned(),
         tool_family_label: "Filesystem snapshot MCP server".to_owned(),
         tool_capability_version: "fs_snapshot_mcp.v1".to_owned(),
@@ -506,6 +507,7 @@ fn descriptor_from_registry_entry_inherits_identity_and_denies_secrets() {
         policy_allowed_route_choices: vec![
             crate::registry::RegistryRoutingPolicyClass::CheapestQualifying,
         ],
+        compatible_tool_schema_pack_refs: vec!["tool-schema-pack:fs-snapshot:0001".to_owned()],
         lifecycle_state_class: RegistryLifecycleStateClass::GenerallyAdmitted,
         approval_posture_class: RegistryApprovalPostureClass::AllowedWithPerInvocationPrompt,
         required_approval_ticket_ref: Some(

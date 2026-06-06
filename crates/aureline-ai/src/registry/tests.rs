@@ -156,3 +156,18 @@ fn mutating_external_tools_require_approval_posture() {
         .validate()
         .contains(&ProviderModelRegistryViolation::ExternalToolMutatingWithoutApproval));
 }
+
+#[test]
+#[ignore = "run manually to regenerate the checked registry support artifact"]
+fn emit_support_artifact() {
+    let registry = fixture_registry();
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    std::fs::write(
+        format!("{root}/artifacts/ai/m3/provider_model_registry_beta_support_export.json"),
+        format!(
+            "{}\n",
+            registry.support_export_projection().export_safe_json()
+        ),
+    )
+    .unwrap();
+}

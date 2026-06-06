@@ -208,3 +208,14 @@ fn checked_in_cost_routing_artifact_matches_projection() {
 
     assert_eq!(generated, checked_in);
 }
+
+#[test]
+#[ignore = "run manually to regenerate the checked cost-routing artifact"]
+fn emit_artifact() {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    std::fs::write(
+        format!("{root}/artifacts/ai/m3/cost_routing_beta_support_export.json"),
+        format!("{}\n", fixture_cost_routing_packet().export_safe_json()),
+    )
+    .unwrap();
+}

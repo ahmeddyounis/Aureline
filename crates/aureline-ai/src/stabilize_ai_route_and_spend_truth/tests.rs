@@ -10,6 +10,10 @@ fn registry_resolution() -> RouteRegistryResolution {
         model_id: "model:hosted-review".to_owned(),
         model_version: "2026.05".to_owned(),
         model_label: "Hosted review model".to_owned(),
+        routing_policy_version_ref: "routing-policy:stable-review:v4".to_owned(),
+        prompt_pack_version_ref: "prompt-pack:review-stable:v7".to_owned(),
+        tool_schema_pack_version_ref: Some("tool-schema-pack:docs-connector:v3".to_owned()),
+        compatible_tool_schema_range_ref: Some("tool-schema-range:docs-connector:v3".to_owned()),
         transport_class: RegistryTransportClass::RemoteHttps,
         auth_mode: RegistryAuthModeClass::VendorHostedFirstPartyManagedCredential,
         retention_posture: RetentionStanceClass::NoRetentionPromisedBodyDiscarded,
@@ -18,6 +22,12 @@ fn registry_resolution() -> RouteRegistryResolution {
         execution_locus: ExecutionLocusClass::VendorHostedFirstPartyManaged,
         local_model_pack_provenance_ref: None,
         external_tool_locus_refs: vec!["tool-locus:docs-connector".to_owned()],
+        fallback_chain_refs: vec![
+            "fallback:managed-review".to_owned(),
+            "fallback:manual-review-checklist".to_owned(),
+        ],
+        rollback_or_deny_lever_ref: "deny-lever:route-policy:stable-review:v4".to_owned(),
+        decision_cause_class: RouteDecisionCauseClass::PolicyAdmitted,
     }
 }
 
@@ -202,6 +212,39 @@ fn registry_must_resolve() {
     assert!(packet
         .validate()
         .contains(&AiRouteSpendTruthViolation::RegistryResolutionIncomplete));
+}
+
+#[test]
+fn stable_receipt_requires_policy_prompt_and_tool_pack_versions() {
+    let mut packet = packet();
+    packet.registry_resolution.prompt_pack_version_ref = String::new();
+
+    assert!(packet
+        .validate()
+        .contains(&AiRouteSpendTruthViolation::RegistryResolutionIncomplete));
+    assert!(packet
+        .validate()
+        .contains(&AiRouteSpendTruthViolation::RouteReconstructionIncomplete));
+}
+
+#[test]
+fn tool_hop_requires_compatible_schema_range() {
+    let mut packet = packet();
+    packet.registry_resolution.compatible_tool_schema_range_ref = None;
+
+    assert!(packet
+        .validate()
+        .contains(&AiRouteSpendTruthViolation::ToolSchemaRangeMissing));
+}
+
+#[test]
+fn stable_run_requires_independent_rollback_or_deny_lever() {
+    let mut packet = packet();
+    packet.registry_resolution.rollback_or_deny_lever_ref = String::new();
+
+    assert!(packet
+        .validate()
+        .contains(&AiRouteSpendTruthViolation::RollbackOrDenyLeverMissing));
 }
 
 #[test]
@@ -420,6 +463,8 @@ fn local_packet() -> AiRouteSpendTruthPacket {
     input.registry_resolution.local_model_pack_provenance_ref =
         Some("model-pack:provenance:local-small:0001".to_owned());
     input.registry_resolution.external_tool_locus_refs = vec![];
+    input.registry_resolution.tool_schema_pack_version_ref = None;
+    input.registry_resolution.compatible_tool_schema_range_ref = None;
     input.preflight.intended_route_class = RouteClass::Local;
     input.preflight.estimated_cost_band = CostEnvelopeClass::BundledNoIncrementalCost;
     input.preflight.quota_family = QuotaFamilyClass::PerUserLocalNoLimit;
@@ -459,6 +504,14 @@ fn downgraded_packet() -> AiRouteSpendTruthPacket {
     input.registry_resolution.execution_locus = ExecutionLocusClass::ByokRemoteVendorDirect;
     input.registry_resolution.auth_mode = RegistryAuthModeClass::ByokApiKey;
     input.registry_resolution.quota_family = QuotaFamilyClass::PerUserByokVendorQuota;
+    input.registry_resolution.decision_cause_class = RouteDecisionCauseClass::QuotaOrBudgetBlocked;
+    input.registry_resolution.rollback_or_deny_lever_ref =
+        "deny-lever:byok-quota:review:v1".to_owned();
+    input.registry_resolution.fallback_chain_refs = vec![
+        "fallback:byok-review".to_owned(),
+        "fallback:managed-review".to_owned(),
+        "fallback:manual-review-checklist".to_owned(),
+    ];
     input.preflight.quota_family = QuotaFamilyClass::PerUserByokVendorQuota;
     // The BYOK quota exhausted, so Aureline fell back to the managed route.
     input.receipt.outcome = RunOutcomeClass::CompletedWithDowngrade;

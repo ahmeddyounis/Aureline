@@ -104,6 +104,24 @@ fn checked_in_support_export_reads_graduation_state() {
 }
 
 #[test]
+#[ignore = "run manually to regenerate the checked graduation support projection"]
+fn emit_support_artifact() {
+    let registry = fixture_registry();
+    let graduation_state = fixture_graduation_state();
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    std::fs::write(
+        format!("{root}/artifacts/ai/m3/graduation_packets/support_export_projection.json"),
+        format!(
+            "{}\n",
+            registry
+                .support_export_projection_with_graduation(&graduation_state)
+                .export_safe_json()
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
 fn standalone_packets_and_thresholds_match_graduation_state() {
     let graduation_state = fixture_graduation_state();
     let packet_artifacts =

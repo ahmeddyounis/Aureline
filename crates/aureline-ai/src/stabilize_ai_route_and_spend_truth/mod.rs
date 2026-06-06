@@ -370,6 +370,48 @@ impl StableQualificationClass {
     }
 }
 
+/// Cause class that explains a block, downgrade, or admitted route decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RouteDecisionCauseClass {
+    /// The route was admitted by the current policy and pack lifecycle.
+    PolicyAdmitted,
+    /// A prompt pack or tool-schema pack lifecycle state blocked or downgraded the route.
+    PackLifecycleBlocked,
+    /// Policy denied the requested provider, model, region, retention, or tool path.
+    PolicyBlocked,
+    /// No compatible tool-schema range exists for the requested tool hop.
+    MissingCompatibleToolSchemaRange,
+    /// Required evidence or graduation proof expired.
+    ExpiredEvidence,
+    /// A local-model pack was withdrawn.
+    LocalModelPackWithdrawn,
+    /// Quota or budget blocked the requested route.
+    QuotaOrBudgetBlocked,
+    /// Provider or model lifecycle changed after preflight.
+    ProviderLifecycleChanged,
+}
+
+impl RouteDecisionCauseClass {
+    /// Stable token used in exports and fixtures.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PolicyAdmitted => "policy_admitted",
+            Self::PackLifecycleBlocked => "pack_lifecycle_blocked",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::MissingCompatibleToolSchemaRange => "missing_compatible_tool_schema_range",
+            Self::ExpiredEvidence => "expired_evidence",
+            Self::LocalModelPackWithdrawn => "local_model_pack_withdrawn",
+            Self::QuotaOrBudgetBlocked => "quota_or_budget_blocked",
+            Self::ProviderLifecycleChanged => "provider_lifecycle_changed",
+        }
+    }
+
+    const fn is_block_or_downgrade_cause(self) -> bool {
+        !matches!(self, Self::PolicyAdmitted)
+    }
+}
+
 /// Typed provider/model/external-tool registry resolution for the action.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteRegistryResolution {
@@ -385,6 +427,16 @@ pub struct RouteRegistryResolution {
     pub model_version: String,
     /// Model review-safe label.
     pub model_label: String,
+    /// Routing-policy version that shaped this invocation.
+    pub routing_policy_version_ref: String,
+    /// Prompt-pack version that shaped user-visible behavior.
+    pub prompt_pack_version_ref: String,
+    /// Tool-schema-pack version used by tool-compatible routes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_schema_pack_version_ref: Option<String>,
+    /// Compatible tool-schema range accepted at dispatch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatible_tool_schema_range_ref: Option<String>,
     /// Transport class for this route.
     pub transport_class: RegistryTransportClass,
     /// Auth mode for this route.
@@ -402,6 +454,13 @@ pub struct RouteRegistryResolution {
     pub local_model_pack_provenance_ref: Option<String>,
     /// External-tool / MCP gateway hop locus refs disclosed for this action.
     pub external_tool_locus_refs: Vec<String>,
+    /// Fallback chain considered for this invocation.
+    #[serde(default)]
+    pub fallback_chain_refs: Vec<String>,
+    /// Independent rollback or deny lever used by this invocation.
+    pub rollback_or_deny_lever_ref: String,
+    /// Typed cause shared by route blocks, downgrades, admin, and support views.
+    pub decision_cause_class: RouteDecisionCauseClass,
 }
 
 /// Preflight estimate card shown before send.
@@ -768,11 +827,30 @@ impl AiRouteSpendTruthPacket {
             self.registry_resolution.model_label
         ));
         out.push_str(&format!(
+            "- Policy and packs: `{}` / `{}` / `{}` (range `{}`)\n",
+            self.registry_resolution.routing_policy_version_ref,
+            self.registry_resolution.prompt_pack_version_ref,
+            self.registry_resolution
+                .tool_schema_pack_version_ref
+                .as_deref()
+                .unwrap_or("none"),
+            self.registry_resolution
+                .compatible_tool_schema_range_ref
+                .as_deref()
+                .unwrap_or("none")
+        ));
+        out.push_str(&format!(
             "- Actual route: `{}` (outcome `{}`, cost `{}` / `{}`)\n",
             self.receipt.actual_route_class.as_str(),
             self.receipt.outcome.as_str(),
             self.receipt.actual_cost_band.as_str(),
             self.receipt.cost_measurement.as_str()
+        ));
+        out.push_str(&format!(
+            "- Decision cause: `{}`; lever `{}`; fallback chain `{}`\n",
+            self.registry_resolution.decision_cause_class.as_str(),
+            self.registry_resolution.rollback_or_deny_lever_ref,
+            self.registry_resolution.fallback_chain_refs.join("|")
         ));
         out.push_str(&format!(
             "- Downgrade: {} (cause `{}`, both routes preserved: {})\n",
@@ -849,6 +927,14 @@ pub enum AiRouteSpendTruthViolation {
     MissingSourceContracts,
     /// The registry resolution is incomplete.
     RegistryResolutionIncomplete,
+    /// Stable run cannot reconstruct the routing policy, prompt pack, or tool pack.
+    RouteReconstructionIncomplete,
+    /// Tool-assisted route lacks a compatible tool-schema range.
+    ToolSchemaRangeMissing,
+    /// Fallback chain or independent rollback/deny lever is missing.
+    RollbackOrDenyLeverMissing,
+    /// Block or downgrade cause is missing or inconsistent.
+    BlockOrDowngradeCauseMissing,
     /// The route class is inconsistent with the resolved execution locus.
     RouteLocusInconsistent,
     /// A local route did not disclose local-model-pack provenance.
@@ -888,6 +974,10 @@ impl AiRouteSpendTruthViolation {
             Self::MissingIdentity => "missing_identity",
             Self::MissingSourceContracts => "missing_source_contracts",
             Self::RegistryResolutionIncomplete => "registry_resolution_incomplete",
+            Self::RouteReconstructionIncomplete => "route_reconstruction_incomplete",
+            Self::ToolSchemaRangeMissing => "tool_schema_range_missing",
+            Self::RollbackOrDenyLeverMissing => "rollback_or_deny_lever_missing",
+            Self::BlockOrDowngradeCauseMissing => "block_or_downgrade_cause_missing",
             Self::RouteLocusInconsistent => "route_locus_inconsistent",
             Self::LocalModelPackProvenanceMissing => "local_model_pack_provenance_missing",
             Self::EstimateNotShownBeforeSend => "estimate_not_shown_before_send",
@@ -960,8 +1050,37 @@ fn validate_registry_resolution(
         || registry.model_id.trim().is_empty()
         || registry.model_version.trim().is_empty()
         || registry.model_label.trim().is_empty()
+        || registry.routing_policy_version_ref.trim().is_empty()
+        || registry.prompt_pack_version_ref.trim().is_empty()
     {
         violations.push(AiRouteSpendTruthViolation::RegistryResolutionIncomplete);
+    }
+    if packet.claimed_stable
+        && (registry.routing_policy_version_ref.trim().is_empty()
+            || registry.prompt_pack_version_ref.trim().is_empty())
+    {
+        violations.push(AiRouteSpendTruthViolation::RouteReconstructionIncomplete);
+    }
+    if !registry.external_tool_locus_refs.is_empty()
+        && (!registry
+            .tool_schema_pack_version_ref
+            .as_deref()
+            .is_some_and(|reference| !reference.trim().is_empty())
+            || !registry
+                .compatible_tool_schema_range_ref
+                .as_deref()
+                .is_some_and(|reference| !reference.trim().is_empty()))
+    {
+        violations.push(AiRouteSpendTruthViolation::ToolSchemaRangeMissing);
+    }
+    if registry.rollback_or_deny_lever_ref.trim().is_empty()
+        || registry.fallback_chain_refs.is_empty()
+        || registry
+            .fallback_chain_refs
+            .iter()
+            .any(|reference| reference.trim().is_empty())
+    {
+        violations.push(AiRouteSpendTruthViolation::RollbackOrDenyLeverMissing);
     }
     if registry
         .external_tool_locus_refs
@@ -987,6 +1106,18 @@ fn validate_registry_resolution(
             .is_some_and(|reference| !reference.trim().is_empty())
     {
         violations.push(AiRouteSpendTruthViolation::LocalModelPackProvenanceMissing);
+    }
+
+    let blocked = matches!(
+        packet.receipt.outcome,
+        RunOutcomeClass::BlockedBeforeDispatch
+    );
+    let downgraded = packet.downgrade.downgraded || packet.receipt.outcome.is_downgrade_outcome();
+    if (blocked || downgraded) && !registry.decision_cause_class.is_block_or_downgrade_cause() {
+        violations.push(AiRouteSpendTruthViolation::BlockOrDowngradeCauseMissing);
+    }
+    if !blocked && !downgraded && registry.decision_cause_class.is_block_or_downgrade_cause() {
+        violations.push(AiRouteSpendTruthViolation::BlockOrDowngradeCauseMissing);
     }
 }
 

@@ -1,4 +1,4 @@
-//! Provider/model registry beta with execution-location labels and route controls.
+//! Provider/model registry with execution-location labels and route controls.
 //!
 //! This module owns the first executable registry contract that joins AI
 //! providers, models, local model packs, and external tool rows into one
@@ -36,6 +36,18 @@ pub const PROVIDER_MODEL_REGISTRY_MODEL_ENTRY_RECORD_KIND: &str =
 /// Stable record-kind tag for [`ExternalToolRegistryEntry`].
 pub const PROVIDER_MODEL_REGISTRY_EXTERNAL_TOOL_ENTRY_RECORD_KIND: &str =
     "provider_model_registry_external_tool_entry_record";
+
+/// Stable record-kind tag for [`PromptPackRegistryEntry`].
+pub const PROVIDER_MODEL_REGISTRY_PROMPT_PACK_ENTRY_RECORD_KIND: &str =
+    "provider_model_registry_prompt_pack_entry_record";
+
+/// Stable record-kind tag for [`ToolSchemaPackRegistryEntry`].
+pub const PROVIDER_MODEL_REGISTRY_TOOL_SCHEMA_PACK_ENTRY_RECORD_KIND: &str =
+    "provider_model_registry_tool_schema_pack_entry_record";
+
+/// Stable record-kind tag for [`LocalModelPackRegistryEntry`].
+pub const PROVIDER_MODEL_REGISTRY_LOCAL_MODEL_PACK_ENTRY_RECORD_KIND: &str =
+    "provider_model_registry_local_model_pack_entry_record";
 
 /// Stable record-kind tag for [`ClaimedAiSurface`].
 pub const PROVIDER_MODEL_REGISTRY_CLAIMED_SURFACE_RECORD_KIND: &str =
@@ -426,6 +438,12 @@ pub enum RegistryDisclosureKind {
     ToolExecutionLocationChip,
     /// External-tool side-effect readout.
     ToolSideEffectReadout,
+    /// Prompt-pack version chip.
+    PromptPackVersionChip,
+    /// Tool-schema-pack version chip.
+    ToolSchemaPackVersionChip,
+    /// Local-model-pack provenance chip.
+    LocalModelPackProvenanceChip,
 }
 
 impl RegistryDisclosureKind {
@@ -442,6 +460,35 @@ impl RegistryDisclosureKind {
             Self::ToolIdentityChip => "tool_identity_chip",
             Self::ToolExecutionLocationChip => "tool_execution_location_chip",
             Self::ToolSideEffectReadout => "tool_side_effect_readout",
+            Self::PromptPackVersionChip => "prompt_pack_version_chip",
+            Self::ToolSchemaPackVersionChip => "tool_schema_pack_version_chip",
+            Self::LocalModelPackProvenanceChip => "local_model_pack_provenance_chip",
+        }
+    }
+}
+
+/// Storage class for a governed local-model pack artifact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalModelPackStorageClass {
+    /// Pack is installed only on the current device.
+    LocalDeviceInstall,
+    /// Pack is available from an enterprise mirror.
+    EnterpriseMirrorCache,
+    /// Pack is available from a signed first-party bundle.
+    SignedFirstPartyBundle,
+    /// Pack has been withdrawn and cannot be used for new dispatch.
+    WithdrawnNoStorage,
+}
+
+impl LocalModelPackStorageClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalDeviceInstall => "local_device_install",
+            Self::EnterpriseMirrorCache => "enterprise_mirror_cache",
+            Self::SignedFirstPartyBundle => "signed_first_party_bundle",
+            Self::WithdrawnNoStorage => "withdrawn_no_storage",
         }
     }
 }
@@ -613,6 +660,9 @@ pub struct ProviderRegistryEntry {
     pub schema_version: u32,
     /// Stable provider entry id.
     pub provider_entry_id: String,
+    /// Rollout-object id that enables or revokes this provider row.
+    #[serde(default)]
+    pub rollout_object_id: String,
     /// Display label safe for UI/docs/support.
     pub display_label: String,
     /// Provider/model family label shown in route disclosures.
@@ -721,6 +771,9 @@ pub struct ModelRegistryEntry {
     pub schema_version: u32,
     /// Stable model entry id.
     pub model_entry_id: String,
+    /// Rollout-object id that enables or revokes this model row.
+    #[serde(default)]
+    pub rollout_object_id: String,
     /// Display label safe for UI/docs/support.
     pub display_label: String,
     /// Stable family label shared across loci when parity permits.
@@ -729,6 +782,21 @@ pub struct ModelRegistryEntry {
     pub model_variant_label: String,
     /// Model capability version.
     pub model_capability_version: String,
+    /// Vendor or source label.
+    #[serde(default)]
+    pub vendor_label: String,
+    /// Tokenizer family label used for cache and replay compatibility.
+    #[serde(default)]
+    pub tokenizer_family_label: String,
+    /// Graduation-state ref governing stable use of this model row.
+    #[serde(default)]
+    pub graduation_state_ref: String,
+    /// Whether the model supports structured output.
+    #[serde(default)]
+    pub structured_output_supported: bool,
+    /// Whether the model supports governed tool calls.
+    #[serde(default)]
+    pub tool_call_supported: bool,
     /// Lifecycle state.
     pub lifecycle_state_class: RegistryLifecycleStateClass,
     /// Feature classes supported by this model row.
@@ -743,6 +811,105 @@ pub struct ModelRegistryEntry {
     pub cost_envelope_class: CostEnvelopeClass,
     /// Latency envelope.
     pub latency_envelope_class: LatencyEnvelopeClass,
+}
+
+/// Prompt-pack registry row governed alongside provider and model rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptPackRegistryEntry {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable prompt-pack id.
+    pub prompt_pack_id: String,
+    /// Version ref used by receipts and replay.
+    pub prompt_pack_version_ref: String,
+    /// Rollout-object id that enables or revokes this prompt pack.
+    pub rollout_object_id: String,
+    /// Owner label safe for UI/docs/support.
+    pub owner_label: String,
+    /// Export-safe changelog summary.
+    pub changelog_label: String,
+    /// Feature classes this prompt pack may serve.
+    #[serde(default)]
+    pub target_feature_classes: Vec<AiFeatureClass>,
+    /// Compatible provider refs.
+    #[serde(default)]
+    pub compatible_provider_entry_refs: Vec<String>,
+    /// Compatible model refs.
+    #[serde(default)]
+    pub compatible_model_entry_refs: Vec<String>,
+    /// Independent rollback lever for this pack.
+    pub rollback_ref: String,
+    /// Lifecycle state.
+    pub lifecycle_state_class: RegistryLifecycleStateClass,
+}
+
+/// Tool-schema-pack registry row used to keep tool shape replayable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolSchemaPackRegistryEntry {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable tool-schema-pack id.
+    pub tool_schema_pack_id: String,
+    /// Version ref used by receipts and replay.
+    pub tool_schema_pack_version_ref: String,
+    /// Compatible semantic range advertised to route receipts.
+    pub compatible_range_ref: String,
+    /// Rollout-object id that enables or revokes this tool-schema pack.
+    pub rollout_object_id: String,
+    /// Tool refs this schema pack admits.
+    #[serde(default)]
+    pub compatible_external_tool_entry_refs: Vec<String>,
+    /// Side-effect class covered by the pack.
+    pub side_effect_class: ExternalToolSideEffectClass,
+    /// Execution locus the pack was evaluated against.
+    pub execution_locus_class: ExternalToolExecutionLocusClass,
+    /// Approval posture required by the pack.
+    pub approval_posture_class: RegistryApprovalPostureClass,
+    /// Export-safe evidence expectation label.
+    pub evidence_requirement_label: String,
+    /// Independent rollback lever for this pack.
+    pub rollback_ref: String,
+    /// Lifecycle state.
+    pub lifecycle_state_class: RegistryLifecycleStateClass,
+}
+
+/// Governed local-model-pack artifact row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LocalModelPackRegistryEntry {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable local-model-pack id.
+    pub local_model_pack_id: String,
+    /// Version ref used by receipts and replay.
+    pub local_model_pack_version_ref: String,
+    /// Rollout-object id that enables or revokes this local model pack.
+    pub rollout_object_id: String,
+    /// Digest of the pack artifact.
+    pub artifact_digest: String,
+    /// Hash of the model payload.
+    pub model_hash: String,
+    /// Runtime ABI required to load the pack.
+    pub runtime_abi: String,
+    /// Accelerator and memory requirements.
+    pub accelerator_requirements_label: String,
+    /// Storage class for this pack.
+    pub storage_class: LocalModelPackStorageClass,
+    /// License/provenance note safe for support export.
+    pub license_provenance_label: String,
+    /// Provider row that serves this pack.
+    pub served_by_provider_entry_ref: String,
+    /// Model row represented by this pack.
+    pub model_entry_ref: String,
+    /// Independent withdrawal or rollback lever for this pack.
+    pub withdrawal_ref: String,
+    /// Lifecycle state.
+    pub lifecycle_state_class: RegistryLifecycleStateClass,
 }
 
 impl ModelRegistryEntry {
@@ -761,6 +928,9 @@ pub struct ExternalToolRegistryEntry {
     pub schema_version: u32,
     /// Stable tool entry id.
     pub tool_entry_id: String,
+    /// Rollout-object id that enables or revokes this tool row.
+    #[serde(default)]
+    pub rollout_object_id: String,
     /// Display label safe for UI/docs/support.
     pub display_label: String,
     /// Tool family label.
@@ -787,6 +957,9 @@ pub struct ExternalToolRegistryEntry {
     /// Route choices policy allows for this tool row.
     #[serde(default)]
     pub policy_allowed_route_choices: Vec<RegistryRoutingPolicyClass>,
+    /// Compatible tool-schema-pack refs.
+    #[serde(default)]
+    pub compatible_tool_schema_pack_refs: Vec<String>,
     /// Lifecycle state.
     pub lifecycle_state_class: RegistryLifecycleStateClass,
     /// Approval posture.
@@ -822,6 +995,12 @@ pub struct ClaimedAiSurface {
     pub required_feature_class: AiFeatureClass,
     /// Route policy ref used by this surface.
     pub routing_policy_id_ref: String,
+    /// Prompt pack version ref used by this surface.
+    #[serde(default)]
+    pub prompt_pack_version_ref: String,
+    /// Tool schema pack version refs this surface may invoke.
+    #[serde(default)]
+    pub tool_schema_pack_version_refs: Vec<String>,
     /// Provider rows this surface may use.
     #[serde(default)]
     pub allowed_provider_entry_refs: Vec<String>,
@@ -877,6 +1056,15 @@ pub struct ProviderModelRegistryPacket {
     /// Model rows.
     #[serde(default)]
     pub model_entries: Vec<ModelRegistryEntry>,
+    /// Prompt-pack rows.
+    #[serde(default)]
+    pub prompt_pack_entries: Vec<PromptPackRegistryEntry>,
+    /// Tool-schema-pack rows.
+    #[serde(default)]
+    pub tool_schema_pack_entries: Vec<ToolSchemaPackRegistryEntry>,
+    /// Local-model-pack rows.
+    #[serde(default)]
+    pub local_model_pack_entries: Vec<LocalModelPackRegistryEntry>,
     /// External-tool rows.
     #[serde(default)]
     pub external_tool_entries: Vec<ExternalToolRegistryEntry>,
@@ -923,6 +1111,9 @@ impl ProviderModelRegistryPacket {
         let provider_by_id = self.provider_by_id();
         let model_by_id = self.model_by_id();
         let policy_by_id = self.policy_by_id();
+        let prompt_pack_by_version = self.prompt_pack_by_version_ref();
+        let tool_schema_pack_by_version = self.tool_schema_pack_by_version_ref();
+        let local_model_pack_by_id = self.local_model_pack_by_id();
 
         for provider in &self.provider_entries {
             if provider.record_kind != PROVIDER_MODEL_REGISTRY_PROVIDER_ENTRY_RECORD_KIND
@@ -933,6 +1124,7 @@ impl ProviderModelRegistryPacket {
             if provider.provider_entry_id.trim().is_empty()
                 || provider.display_label.trim().is_empty()
                 || provider.provider_family_label.trim().is_empty()
+                || provider.rollout_object_id.trim().is_empty()
             {
                 violations.push(ProviderModelRegistryViolation::ProviderMissingIdentity);
             }
@@ -943,6 +1135,18 @@ impl ProviderModelRegistryPacket {
             }
             if provider.model_entry_refs.is_empty() {
                 violations.push(ProviderModelRegistryViolation::ProviderMissingModelRefs);
+            }
+            for model_ref in &provider.model_entry_refs {
+                if !model_by_id.contains_key(model_ref.as_str()) {
+                    violations.push(ProviderModelRegistryViolation::ProviderReferencesMissingModel);
+                }
+            }
+            for pack_ref in &provider.local_model_pack_refs {
+                if !local_model_pack_by_id.contains_key(pack_ref.as_str()) {
+                    violations.push(
+                        ProviderModelRegistryViolation::ProviderReferencesMissingLocalModelPack,
+                    );
+                }
             }
             if provider.policy_allowed_route_choices.is_empty() {
                 violations.push(ProviderModelRegistryViolation::ProviderMissingRouteChoices);
@@ -962,6 +1166,10 @@ impl ProviderModelRegistryPacket {
                 || model.display_label.trim().is_empty()
                 || model.model_family_label.trim().is_empty()
                 || model.model_capability_version.trim().is_empty()
+                || model.rollout_object_id.trim().is_empty()
+                || model.vendor_label.trim().is_empty()
+                || model.tokenizer_family_label.trim().is_empty()
+                || model.graduation_state_ref.trim().is_empty()
             {
                 violations.push(ProviderModelRegistryViolation::ModelMissingIdentity);
             }
@@ -969,6 +1177,79 @@ impl ProviderModelRegistryPacket {
                 if !provider_by_id.contains_key(provider_ref.as_str()) {
                     violations.push(ProviderModelRegistryViolation::ModelReferencesMissingProvider);
                 }
+            }
+        }
+
+        for prompt_pack in &self.prompt_pack_entries {
+            if prompt_pack.record_kind != PROVIDER_MODEL_REGISTRY_PROMPT_PACK_ENTRY_RECORD_KIND
+                || prompt_pack.schema_version != PROVIDER_MODEL_REGISTRY_SCHEMA_VERSION
+            {
+                violations.push(ProviderModelRegistryViolation::PromptPackRowWrongEnvelope);
+            }
+            if prompt_pack.prompt_pack_id.trim().is_empty()
+                || prompt_pack.prompt_pack_version_ref.trim().is_empty()
+                || prompt_pack.rollout_object_id.trim().is_empty()
+                || prompt_pack.owner_label.trim().is_empty()
+                || prompt_pack.rollback_ref.trim().is_empty()
+            {
+                violations.push(ProviderModelRegistryViolation::PromptPackMissingIdentity);
+            }
+            for provider_ref in &prompt_pack.compatible_provider_entry_refs {
+                if !provider_by_id.contains_key(provider_ref.as_str()) {
+                    violations
+                        .push(ProviderModelRegistryViolation::PromptPackReferencesMissingProvider);
+                }
+            }
+            for model_ref in &prompt_pack.compatible_model_entry_refs {
+                if !model_by_id.contains_key(model_ref.as_str()) {
+                    violations
+                        .push(ProviderModelRegistryViolation::PromptPackReferencesMissingModel);
+                }
+            }
+        }
+
+        for schema_pack in &self.tool_schema_pack_entries {
+            if schema_pack.record_kind != PROVIDER_MODEL_REGISTRY_TOOL_SCHEMA_PACK_ENTRY_RECORD_KIND
+                || schema_pack.schema_version != PROVIDER_MODEL_REGISTRY_SCHEMA_VERSION
+            {
+                violations.push(ProviderModelRegistryViolation::ToolSchemaPackRowWrongEnvelope);
+            }
+            if schema_pack.tool_schema_pack_id.trim().is_empty()
+                || schema_pack.tool_schema_pack_version_ref.trim().is_empty()
+                || schema_pack.compatible_range_ref.trim().is_empty()
+                || schema_pack.rollout_object_id.trim().is_empty()
+                || schema_pack.evidence_requirement_label.trim().is_empty()
+                || schema_pack.rollback_ref.trim().is_empty()
+            {
+                violations.push(ProviderModelRegistryViolation::ToolSchemaPackMissingIdentity);
+            }
+        }
+
+        for local_pack in &self.local_model_pack_entries {
+            if local_pack.record_kind != PROVIDER_MODEL_REGISTRY_LOCAL_MODEL_PACK_ENTRY_RECORD_KIND
+                || local_pack.schema_version != PROVIDER_MODEL_REGISTRY_SCHEMA_VERSION
+            {
+                violations.push(ProviderModelRegistryViolation::LocalModelPackRowWrongEnvelope);
+            }
+            if local_pack.local_model_pack_id.trim().is_empty()
+                || local_pack.local_model_pack_version_ref.trim().is_empty()
+                || local_pack.rollout_object_id.trim().is_empty()
+                || local_pack.artifact_digest.trim().is_empty()
+                || local_pack.model_hash.trim().is_empty()
+                || local_pack.runtime_abi.trim().is_empty()
+                || local_pack.accelerator_requirements_label.trim().is_empty()
+                || local_pack.license_provenance_label.trim().is_empty()
+                || local_pack.withdrawal_ref.trim().is_empty()
+            {
+                violations.push(ProviderModelRegistryViolation::LocalModelPackMissingProvenance);
+            }
+            if !provider_by_id.contains_key(local_pack.served_by_provider_entry_ref.as_str()) {
+                violations
+                    .push(ProviderModelRegistryViolation::LocalModelPackReferencesMissingProvider);
+            }
+            if !model_by_id.contains_key(local_pack.model_entry_ref.as_str()) {
+                violations
+                    .push(ProviderModelRegistryViolation::LocalModelPackReferencesMissingModel);
             }
         }
 
@@ -981,6 +1262,7 @@ impl ProviderModelRegistryPacket {
             if tool.tool_entry_id.trim().is_empty()
                 || tool.display_label.trim().is_empty()
                 || tool.tool_family_label.trim().is_empty()
+                || tool.rollout_object_id.trim().is_empty()
             {
                 violations.push(ProviderModelRegistryViolation::ExternalToolMissingIdentity);
             }
@@ -992,6 +1274,17 @@ impl ProviderModelRegistryPacket {
             {
                 violations
                     .push(ProviderModelRegistryViolation::ExternalToolMutatingWithoutApproval);
+            }
+            for schema_pack_ref in &tool.compatible_tool_schema_pack_refs {
+                if !self
+                    .tool_schema_pack_entries
+                    .iter()
+                    .any(|pack| pack.tool_schema_pack_id == *schema_pack_ref)
+                {
+                    violations.push(
+                        ProviderModelRegistryViolation::ExternalToolReferencesMissingToolSchemaPack,
+                    );
+                }
             }
         }
 
@@ -1060,6 +1353,23 @@ impl ProviderModelRegistryPacket {
             if surface.allowed_model_entry_refs.is_empty() {
                 violations.push(ProviderModelRegistryViolation::ClaimedSurfaceMissingModelChoice);
             }
+            if surface.prompt_pack_version_ref.trim().is_empty()
+                || !prompt_pack_by_version.contains_key(surface.prompt_pack_version_ref.as_str())
+            {
+                violations.push(ProviderModelRegistryViolation::ClaimedSurfaceMissingPromptPack);
+            }
+            if !surface.allowed_external_tool_entry_refs.is_empty()
+                && surface.tool_schema_pack_version_refs.is_empty()
+            {
+                violations
+                    .push(ProviderModelRegistryViolation::ClaimedSurfaceMissingToolSchemaPack);
+            }
+            for tool_schema_ref in &surface.tool_schema_pack_version_refs {
+                if !tool_schema_pack_by_version.contains_key(tool_schema_ref.as_str()) {
+                    violations
+                        .push(ProviderModelRegistryViolation::ClaimedSurfaceMissingToolSchemaPack);
+                }
+            }
             for required in REQUIRED_PROVIDER_DISCLOSURES {
                 if !surface.required_disclosure_kinds.contains(required) {
                     violations
@@ -1107,6 +1417,16 @@ impl ProviderModelRegistryPacket {
                 if !model_by_id.contains_key(model_ref.as_str()) {
                     violations
                         .push(ProviderModelRegistryViolation::ClaimedSurfaceReferencesMissingModel);
+                }
+            }
+            for tool_ref in &surface.allowed_external_tool_entry_refs {
+                if !self
+                    .external_tool_entries
+                    .iter()
+                    .any(|tool| tool.tool_entry_id == *tool_ref)
+                {
+                    violations
+                        .push(ProviderModelRegistryViolation::ClaimedSurfaceReferencesMissingTool);
                 }
             }
         }
@@ -1216,6 +1536,7 @@ impl ProviderModelRegistryPacket {
     /// Projects one set of rows for UI, docs/help, CLI, or support surfaces.
     pub fn surface_rows_for(&self, surface_id: &str) -> Vec<ProviderModelRegistrySurfaceRow> {
         let resolution = self.resolve_route_for_surface(surface_id);
+        let provider_by_id = self.provider_by_id();
         let surface = self
             .claimed_surfaces
             .iter()
@@ -1237,6 +1558,23 @@ impl ProviderModelRegistryPacket {
                 surface.retrieval_truth_state_class.as_str(),
                 &self.registry_id,
             ));
+            rows.push(ProviderModelRegistrySurfaceRow::new(
+                "prompt_pack_version",
+                "Prompt pack version",
+                &surface.prompt_pack_version_ref,
+                &surface.prompt_pack_version_ref,
+                &self.registry_id,
+            ));
+            if !surface.tool_schema_pack_version_refs.is_empty() {
+                let versions = surface.tool_schema_pack_version_refs.join("|");
+                rows.push(ProviderModelRegistrySurfaceRow::new(
+                    "tool_schema_pack_versions",
+                    "Tool-schema pack versions",
+                    &versions,
+                    &versions,
+                    &self.registry_id,
+                ));
+            }
         }
 
         rows.push(ProviderModelRegistrySurfaceRow::new(
@@ -1283,6 +1621,18 @@ impl ProviderModelRegistryPacket {
                 &join_route_choices(&selected.policy_allowed_route_choices),
                 &self.registry_id,
             ));
+            if let Some(provider) = provider_by_id.get(selected.provider_entry_ref.as_str()) {
+                if !provider.local_model_pack_refs.is_empty() {
+                    let pack_refs = provider.local_model_pack_refs.join("|");
+                    rows.push(ProviderModelRegistrySurfaceRow::new(
+                        "local_model_packs",
+                        "Local model packs",
+                        &pack_refs,
+                        &pack_refs,
+                        &self.registry_id,
+                    ));
+                }
+            }
         }
 
         rows
@@ -1300,6 +1650,8 @@ impl ProviderModelRegistryPacket {
                     display_label: surface.display_label.clone(),
                     registry_state_ref: self.registry_id.clone(),
                     route_policy_id_ref: surface.routing_policy_id_ref.clone(),
+                    prompt_pack_version_ref: surface.prompt_pack_version_ref.clone(),
+                    tool_schema_pack_version_refs: surface.tool_schema_pack_version_refs.clone(),
                     policy_class_token: resolution.policy_class.as_str().to_owned(),
                     route_reason_token: resolution.route_reason_class.as_str().to_owned(),
                     selected_provider_entry_ref: resolution
@@ -1349,6 +1701,21 @@ impl ProviderModelRegistryPacket {
                 .external_tool_entries
                 .iter()
                 .map(ExternalToolRegistrySupportSummary::from)
+                .collect(),
+            prompt_pack_summaries: self
+                .prompt_pack_entries
+                .iter()
+                .map(PromptPackRegistrySupportSummary::from)
+                .collect(),
+            tool_schema_pack_summaries: self
+                .tool_schema_pack_entries
+                .iter()
+                .map(ToolSchemaPackRegistrySupportSummary::from)
+                .collect(),
+            local_model_pack_summaries: self
+                .local_model_pack_entries
+                .iter()
+                .map(LocalModelPackRegistrySupportSummary::from)
                 .collect(),
             surface_summaries,
             graduation_summaries: Vec::new(),
@@ -1626,6 +1993,27 @@ impl ProviderModelRegistryPacket {
             .collect()
     }
 
+    fn prompt_pack_by_version_ref(&self) -> BTreeMap<&str, &PromptPackRegistryEntry> {
+        self.prompt_pack_entries
+            .iter()
+            .map(|pack| (pack.prompt_pack_version_ref.as_str(), pack))
+            .collect()
+    }
+
+    fn tool_schema_pack_by_version_ref(&self) -> BTreeMap<&str, &ToolSchemaPackRegistryEntry> {
+        self.tool_schema_pack_entries
+            .iter()
+            .map(|pack| (pack.tool_schema_pack_version_ref.as_str(), pack))
+            .collect()
+    }
+
+    fn local_model_pack_by_id(&self) -> BTreeMap<&str, &LocalModelPackRegistryEntry> {
+        self.local_model_pack_entries
+            .iter()
+            .map(|pack| (pack.local_model_pack_id.as_str(), pack))
+            .collect()
+    }
+
     fn contains_forbidden_boundary_material(&self) -> bool {
         serde_json::to_value(self)
             .ok()
@@ -1796,6 +2184,8 @@ impl ProviderModelRegistrySurfaceRow {
 pub struct ProviderRegistrySupportSummary {
     /// Provider entry ref.
     pub provider_entry_ref: String,
+    /// Rollout-object ref governing this provider row.
+    pub rollout_object_ref: String,
     /// Provider label.
     pub display_label: String,
     /// Provider family label.
@@ -1817,6 +2207,7 @@ impl From<&ProviderRegistryEntry> for ProviderRegistrySupportSummary {
     fn from(provider: &ProviderRegistryEntry) -> Self {
         Self {
             provider_entry_ref: provider.provider_entry_id.clone(),
+            rollout_object_ref: provider.rollout_object_id.clone(),
             display_label: provider.display_label.clone(),
             provider_family_label: provider.provider_family_label.clone(),
             provider_class_token: provider.provider_class.as_str().to_owned(),
@@ -1837,12 +2228,18 @@ impl From<&ProviderRegistryEntry> for ProviderRegistrySupportSummary {
 pub struct ModelRegistrySupportSummary {
     /// Model entry ref.
     pub model_entry_ref: String,
+    /// Rollout-object ref governing this model row.
+    pub rollout_object_ref: String,
     /// Model label.
     pub display_label: String,
     /// Model family label.
     pub model_family_label: String,
     /// Model capability version.
     pub model_capability_version: String,
+    /// Tokenizer family label.
+    pub tokenizer_family_label: String,
+    /// Graduation-state ref.
+    pub graduation_state_ref: String,
     /// Lifecycle token.
     pub lifecycle_token: String,
 }
@@ -1851,9 +2248,12 @@ impl From<&ModelRegistryEntry> for ModelRegistrySupportSummary {
     fn from(model: &ModelRegistryEntry) -> Self {
         Self {
             model_entry_ref: model.model_entry_id.clone(),
+            rollout_object_ref: model.rollout_object_id.clone(),
             display_label: model.display_label.clone(),
             model_family_label: model.model_family_label.clone(),
             model_capability_version: model.model_capability_version.clone(),
+            tokenizer_family_label: model.tokenizer_family_label.clone(),
+            graduation_state_ref: model.graduation_state_ref.clone(),
             lifecycle_token: model.lifecycle_state_class.as_str().to_owned(),
         }
     }
@@ -1864,6 +2264,8 @@ impl From<&ModelRegistryEntry> for ModelRegistrySupportSummary {
 pub struct ExternalToolRegistrySupportSummary {
     /// Tool entry ref.
     pub tool_entry_ref: String,
+    /// Rollout-object ref governing this tool row.
+    pub rollout_object_ref: String,
     /// Tool label.
     pub display_label: String,
     /// Tool family label.
@@ -1877,12 +2279,16 @@ pub struct ExternalToolRegistrySupportSummary {
     /// Side-effect tokens.
     #[serde(default)]
     pub allowed_side_effect_tokens: Vec<String>,
+    /// Compatible tool-schema-pack refs.
+    #[serde(default)]
+    pub compatible_tool_schema_pack_refs: Vec<String>,
 }
 
 impl From<&ExternalToolRegistryEntry> for ExternalToolRegistrySupportSummary {
     fn from(tool: &ExternalToolRegistryEntry) -> Self {
         Self {
             tool_entry_ref: tool.tool_entry_id.clone(),
+            rollout_object_ref: tool.rollout_object_id.clone(),
             display_label: tool.display_label.clone(),
             tool_family_label: tool.tool_family_label.clone(),
             tool_transport_token: tool.tool_transport_class.as_str().to_owned(),
@@ -1893,6 +2299,100 @@ impl From<&ExternalToolRegistryEntry> for ExternalToolRegistrySupportSummary {
                 .iter()
                 .map(|side_effect| side_effect.as_str().to_owned())
                 .collect(),
+            compatible_tool_schema_pack_refs: tool.compatible_tool_schema_pack_refs.clone(),
+        }
+    }
+}
+
+/// Export-safe prompt-pack summary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptPackRegistrySupportSummary {
+    /// Prompt-pack id.
+    pub prompt_pack_id: String,
+    /// Prompt-pack version ref.
+    pub prompt_pack_version_ref: String,
+    /// Rollout-object ref governing this prompt pack.
+    pub rollout_object_ref: String,
+    /// Lifecycle token.
+    pub lifecycle_token: String,
+    /// Independent rollback ref.
+    pub rollback_ref: String,
+}
+
+impl From<&PromptPackRegistryEntry> for PromptPackRegistrySupportSummary {
+    fn from(pack: &PromptPackRegistryEntry) -> Self {
+        Self {
+            prompt_pack_id: pack.prompt_pack_id.clone(),
+            prompt_pack_version_ref: pack.prompt_pack_version_ref.clone(),
+            rollout_object_ref: pack.rollout_object_id.clone(),
+            lifecycle_token: pack.lifecycle_state_class.as_str().to_owned(),
+            rollback_ref: pack.rollback_ref.clone(),
+        }
+    }
+}
+
+/// Export-safe tool-schema-pack summary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolSchemaPackRegistrySupportSummary {
+    /// Tool-schema-pack id.
+    pub tool_schema_pack_id: String,
+    /// Tool-schema-pack version ref.
+    pub tool_schema_pack_version_ref: String,
+    /// Compatible semantic range ref.
+    pub compatible_range_ref: String,
+    /// Rollout-object ref governing this tool-schema pack.
+    pub rollout_object_ref: String,
+    /// Lifecycle token.
+    pub lifecycle_token: String,
+    /// Independent rollback ref.
+    pub rollback_ref: String,
+}
+
+impl From<&ToolSchemaPackRegistryEntry> for ToolSchemaPackRegistrySupportSummary {
+    fn from(pack: &ToolSchemaPackRegistryEntry) -> Self {
+        Self {
+            tool_schema_pack_id: pack.tool_schema_pack_id.clone(),
+            tool_schema_pack_version_ref: pack.tool_schema_pack_version_ref.clone(),
+            compatible_range_ref: pack.compatible_range_ref.clone(),
+            rollout_object_ref: pack.rollout_object_id.clone(),
+            lifecycle_token: pack.lifecycle_state_class.as_str().to_owned(),
+            rollback_ref: pack.rollback_ref.clone(),
+        }
+    }
+}
+
+/// Export-safe local-model-pack summary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LocalModelPackRegistrySupportSummary {
+    /// Local-model-pack id.
+    pub local_model_pack_id: String,
+    /// Local-model-pack version ref.
+    pub local_model_pack_version_ref: String,
+    /// Rollout-object ref governing this local model pack.
+    pub rollout_object_ref: String,
+    /// Artifact digest.
+    pub artifact_digest: String,
+    /// Runtime ABI.
+    pub runtime_abi: String,
+    /// Storage class token.
+    pub storage_class_token: String,
+    /// Lifecycle token.
+    pub lifecycle_token: String,
+    /// Independent withdrawal ref.
+    pub withdrawal_ref: String,
+}
+
+impl From<&LocalModelPackRegistryEntry> for LocalModelPackRegistrySupportSummary {
+    fn from(pack: &LocalModelPackRegistryEntry) -> Self {
+        Self {
+            local_model_pack_id: pack.local_model_pack_id.clone(),
+            local_model_pack_version_ref: pack.local_model_pack_version_ref.clone(),
+            rollout_object_ref: pack.rollout_object_id.clone(),
+            artifact_digest: pack.artifact_digest.clone(),
+            runtime_abi: pack.runtime_abi.clone(),
+            storage_class_token: pack.storage_class.as_str().to_owned(),
+            lifecycle_token: pack.lifecycle_state_class.as_str().to_owned(),
+            withdrawal_ref: pack.withdrawal_ref.clone(),
         }
     }
 }
@@ -1908,6 +2408,11 @@ pub struct RegistrySurfaceSupportSummary {
     pub registry_state_ref: String,
     /// Route policy ref.
     pub route_policy_id_ref: String,
+    /// Prompt-pack version ref selected for this surface.
+    pub prompt_pack_version_ref: String,
+    /// Tool-schema-pack version refs selected for this surface.
+    #[serde(default)]
+    pub tool_schema_pack_version_refs: Vec<String>,
     /// Policy class token.
     pub policy_class_token: String,
     /// Route reason token.
@@ -1954,6 +2459,15 @@ pub struct ProviderModelRegistrySupportExport {
     /// External-tool summaries.
     #[serde(default)]
     pub external_tool_summaries: Vec<ExternalToolRegistrySupportSummary>,
+    /// Prompt-pack summaries.
+    #[serde(default)]
+    pub prompt_pack_summaries: Vec<PromptPackRegistrySupportSummary>,
+    /// Tool-schema-pack summaries.
+    #[serde(default)]
+    pub tool_schema_pack_summaries: Vec<ToolSchemaPackRegistrySupportSummary>,
+    /// Local-model-pack summaries.
+    #[serde(default)]
+    pub local_model_pack_summaries: Vec<LocalModelPackRegistrySupportSummary>,
     /// Surface summaries.
     #[serde(default)]
     pub surface_summaries: Vec<RegistrySurfaceSupportSummary>,
@@ -2006,6 +2520,10 @@ pub enum ProviderModelRegistryViolation {
     ProviderMissingExecutionLocation,
     /// Provider model refs are missing.
     ProviderMissingModelRefs,
+    /// Provider references a missing model row.
+    ProviderReferencesMissingModel,
+    /// Provider references a missing local-model-pack row.
+    ProviderReferencesMissingLocalModelPack,
     /// Provider route choices are missing.
     ProviderMissingRouteChoices,
     /// Provider route disclosure ref is missing.
@@ -2016,6 +2534,26 @@ pub enum ProviderModelRegistryViolation {
     ModelMissingIdentity,
     /// Model references a missing provider.
     ModelReferencesMissingProvider,
+    /// Prompt-pack row envelope is wrong.
+    PromptPackRowWrongEnvelope,
+    /// Prompt-pack identity is incomplete.
+    PromptPackMissingIdentity,
+    /// Prompt-pack references a missing provider.
+    PromptPackReferencesMissingProvider,
+    /// Prompt-pack references a missing model.
+    PromptPackReferencesMissingModel,
+    /// Tool-schema-pack row envelope is wrong.
+    ToolSchemaPackRowWrongEnvelope,
+    /// Tool-schema-pack identity is incomplete.
+    ToolSchemaPackMissingIdentity,
+    /// Local-model-pack row envelope is wrong.
+    LocalModelPackRowWrongEnvelope,
+    /// Local-model-pack provenance is incomplete.
+    LocalModelPackMissingProvenance,
+    /// Local-model-pack references a missing provider.
+    LocalModelPackReferencesMissingProvider,
+    /// Local-model-pack references a missing model.
+    LocalModelPackReferencesMissingModel,
     /// External-tool row envelope is wrong.
     ExternalToolRowWrongEnvelope,
     /// External-tool identity fields are missing.
@@ -2024,6 +2562,8 @@ pub enum ProviderModelRegistryViolation {
     ExternalToolMissingRouteChoices,
     /// External-tool mutating side effect lacks an approval posture.
     ExternalToolMutatingWithoutApproval,
+    /// External-tool references a missing tool-schema pack.
+    ExternalToolReferencesMissingToolSchemaPack,
     /// Route policy identity is missing.
     RoutePolicyMissingIdentity,
     /// Route policy references a missing provider.
@@ -2042,6 +2582,10 @@ pub enum ProviderModelRegistryViolation {
     ClaimedSurfaceMissingProviderChoice,
     /// Claimed surface has no model choice.
     ClaimedSurfaceMissingModelChoice,
+    /// Claimed surface has no prompt-pack version.
+    ClaimedSurfaceMissingPromptPack,
+    /// Claimed surface has no compatible tool-schema-pack version.
+    ClaimedSurfaceMissingToolSchemaPack,
     /// Claimed surface lacks required disclosure kinds.
     ClaimedSurfaceMissingDisclosure,
     /// Claimed surface exposes unlabelled partial retrieval/index state.
@@ -2054,6 +2598,8 @@ pub enum ProviderModelRegistryViolation {
     ClaimedSurfaceReferencesMissingProvider,
     /// Claimed surface references a missing model row.
     ClaimedSurfaceReferencesMissingModel,
+    /// Claimed surface references a missing tool row.
+    ClaimedSurfaceReferencesMissingTool,
     /// No eligible route exists for the requested surface.
     NoEligibleRouteForSurface,
     /// Exportable registry fields contain raw boundary material.
@@ -2075,15 +2621,36 @@ impl ProviderModelRegistryViolation {
             Self::ProviderMissingIdentity => "provider_missing_identity",
             Self::ProviderMissingExecutionLocation => "provider_missing_execution_location",
             Self::ProviderMissingModelRefs => "provider_missing_model_refs",
+            Self::ProviderReferencesMissingModel => "provider_references_missing_model",
+            Self::ProviderReferencesMissingLocalModelPack => {
+                "provider_references_missing_local_model_pack"
+            }
             Self::ProviderMissingRouteChoices => "provider_missing_route_choices",
             Self::ProviderMissingRouteDisclosure => "provider_missing_route_disclosure",
             Self::ModelRowWrongEnvelope => "model_row_wrong_envelope",
             Self::ModelMissingIdentity => "model_missing_identity",
             Self::ModelReferencesMissingProvider => "model_references_missing_provider",
+            Self::PromptPackRowWrongEnvelope => "prompt_pack_row_wrong_envelope",
+            Self::PromptPackMissingIdentity => "prompt_pack_missing_identity",
+            Self::PromptPackReferencesMissingProvider => "prompt_pack_references_missing_provider",
+            Self::PromptPackReferencesMissingModel => "prompt_pack_references_missing_model",
+            Self::ToolSchemaPackRowWrongEnvelope => "tool_schema_pack_row_wrong_envelope",
+            Self::ToolSchemaPackMissingIdentity => "tool_schema_pack_missing_identity",
+            Self::LocalModelPackRowWrongEnvelope => "local_model_pack_row_wrong_envelope",
+            Self::LocalModelPackMissingProvenance => "local_model_pack_missing_provenance",
+            Self::LocalModelPackReferencesMissingProvider => {
+                "local_model_pack_references_missing_provider"
+            }
+            Self::LocalModelPackReferencesMissingModel => {
+                "local_model_pack_references_missing_model"
+            }
             Self::ExternalToolRowWrongEnvelope => "external_tool_row_wrong_envelope",
             Self::ExternalToolMissingIdentity => "external_tool_missing_identity",
             Self::ExternalToolMissingRouteChoices => "external_tool_missing_route_choices",
             Self::ExternalToolMutatingWithoutApproval => "external_tool_mutating_without_approval",
+            Self::ExternalToolReferencesMissingToolSchemaPack => {
+                "external_tool_references_missing_tool_schema_pack"
+            }
             Self::RoutePolicyMissingIdentity => "route_policy_missing_identity",
             Self::RoutePolicyReferencesMissingProvider => {
                 "route_policy_references_missing_provider"
@@ -2095,6 +2662,8 @@ impl ProviderModelRegistryViolation {
             Self::ClaimedSurfaceMissingRoutePolicy => "claimed_surface_missing_route_policy",
             Self::ClaimedSurfaceMissingProviderChoice => "claimed_surface_missing_provider_choice",
             Self::ClaimedSurfaceMissingModelChoice => "claimed_surface_missing_model_choice",
+            Self::ClaimedSurfaceMissingPromptPack => "claimed_surface_missing_prompt_pack",
+            Self::ClaimedSurfaceMissingToolSchemaPack => "claimed_surface_missing_tool_schema_pack",
             Self::ClaimedSurfaceMissingDisclosure => "claimed_surface_missing_disclosure",
             Self::UnlabelledRetrievalState => "unlabelled_retrieval_state",
             Self::MissingUiDocsSupportProjection => "missing_ui_docs_support_projection",
@@ -2105,6 +2674,7 @@ impl ProviderModelRegistryViolation {
             Self::ClaimedSurfaceReferencesMissingModel => {
                 "claimed_surface_references_missing_model"
             }
+            Self::ClaimedSurfaceReferencesMissingTool => "claimed_surface_references_missing_tool",
             Self::NoEligibleRouteForSurface => "no_eligible_route_for_surface",
             Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
         }
