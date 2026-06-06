@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/log-metric-slice-and-incident-timeline-contract.schema.json",
+  "title": "Aureline log/metric slice, incident timeline, and runbook execution evidence contract",
+  "description": "Boundary schema for stable observability and incident evidence packets. The packet keeps log, metric, and trace slice identity; timezone-aware incident chronology; freshness state; sampling/truncation posture; export/redaction posture; and runbook execution provenance joined across UI, CLI/headless, support export, and incident export surfaces.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "generated_at",
+    "signal_slices",
+    "incident_timeline",
+    "runbook_packets",
+    "runbook_step_executions",
+    "evidence_bundles",
+    "consumer_projections",
+    "source_contract_refs",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_kind": {
+      "const": "log_metric_slice_and_incident_timeline_contract_packet"
+    },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "signal_slices": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/signal_slice" }
+    },
+    "incident_timeline": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/incident_timeline_entry" }
+    },
+    "runbook_packets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/runbook_packet" }
+    },
+    "runbook_step_executions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/runbook_step_execution" }
+    },
+    "evidence_bundles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/operational_evidence_bundle" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": { "$ref": "#/$defs/ref_array" },
+    "promotion_state": { "$ref": "#/$defs/promotion_state" },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "signal_kind": {
+      "enum": ["log", "metric", "trace"]
+    },
+    "freshness_state": {
+      "enum": [
+        "live",
+        "buffering",
+        "cached",
+        "imported",
+        "stale",
+        "partial",
+        "offline",
+        "truncated",
+        "exported_copy"
+      ]
+    },
+    "sample_posture": {
+      "enum": ["complete", "sampled", "downsampled", "partial", "truncated"]
+    },
+    "export_redaction_class": {
+      "enum": [
+        "metadata_embedded",
+        "by_reference_only",
+        "redacted_payload",
+        "omitted_with_reason",
+        "exported_copy"
+      ]
+    },
+    "promotion_state": {
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "support_class": {
+      "enum": ["stable", "inspect_only", "handoff_only", "narrowed"]
+    },
+    "consumer_surface": {
+      "enum": [
+        "observability_ui",
+        "incident_workspace",
+        "runbook_execution",
+        "cli_headless",
+        "support_export",
+        "incident_export"
+      ]
+    },
+    "runbook_action_class": {
+      "enum": ["observe", "verify", "mitigate", "rollback", "communicate"]
+    },
+    "runbook_step_status": {
+      "enum": [
+        "planned",
+        "waiting_approval",
+        "verified",
+        "executed",
+        "deviated",
+        "handoff_required",
+        "failed_closed",
+        "rolled_back"
+      ]
+    },
+    "timeline_link_class": {
+      "enum": [
+        "signal_slice",
+        "run",
+        "artifact",
+        "provider_event",
+        "repair",
+        "runbook_step",
+        "approval"
+      ]
+    },
+    "finding_severity": {
+      "enum": ["info", "warning", "blocker"]
+    },
+    "finding_kind": {
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "slice_identity_incomplete",
+        "slice_timeline_link_missing",
+        "timeline_chronology_incomplete",
+        "duplicate_timeline_event",
+        "timeline_provenance_missing",
+        "timeline_out_of_order",
+        "runbook_execution_provenance_missing",
+        "runbook_mutating_step_approval_missing",
+        "runbook_deviation_note_missing",
+        "runbook_handoff_ref_missing",
+        "freshness_vocabulary_collapsed",
+        "consumer_projection_continuity_missing",
+        "export_continuity_missing"
+      ]
+    },
+    "signal_source_identity": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "source_class",
+        "backend_ref",
+        "provider_scope_ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/non_empty_string" },
+        "backend_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provider_scope_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "target_scope": {
+      "type": "object",
+      "required": ["target_context_ref", "scope_label", "code_or_run_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "target_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "code_or_run_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "time_window": {
+      "type": "object",
+      "required": ["started_at", "ended_at", "timezone"],
+      "additionalProperties": false,
+      "properties": {
+        "started_at": { "$ref": "#/$defs/non_empty_string" },
+        "ended_at": { "$ref": "#/$defs/non_empty_string" },
+        "timezone": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "signal_slice": {
+      "type": "object",
+      "required": [
+        "slice_id",
+        "signal_kind",
+        "source_identity",
+        "target_scope",
+        "query_or_filter_hash",
+        "time_window",
+        "freshness_state",
+        "sample_posture",
+        "export_redaction_class",
+        "collected_at",
+        "linked_incident_timeline_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "slice_id": { "$ref": "#/$defs/non_empty_string" },
+        "signal_kind": { "$ref": "#/$defs/signal_kind" },
+        "source_identity": { "$ref": "#/$defs/signal_source_identity" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "query_or_filter_hash": { "$ref": "#/$defs/non_empty_string" },
+        "time_window": { "$ref": "#/$defs/time_window" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "sample_posture": { "$ref": "#/$defs/sample_posture" },
+        "export_redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "collected_at": { "$ref": "#/$defs/non_empty_string" },
+        "linked_incident_timeline_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "actor_lineage": {
+      "type": "object",
+      "required": ["actor_ref", "actor_role", "delegated_from_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "actor_role": { "$ref": "#/$defs/non_empty_string" },
+        "delegated_from_ref": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "timeline_link": {
+      "type": "object",
+      "required": ["link_class", "target_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "link_class": { "$ref": "#/$defs/timeline_link_class" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "incident_timeline_entry": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "incident_ref",
+        "event_time",
+        "timezone",
+        "sequence_number",
+        "actor_lineage",
+        "action_class",
+        "affected_scope",
+        "outcome",
+        "links"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_ref": { "$ref": "#/$defs/non_empty_string" },
+        "event_time": { "$ref": "#/$defs/non_empty_string" },
+        "timezone": { "$ref": "#/$defs/non_empty_string" },
+        "sequence_number": { "type": "integer", "minimum": 0 },
+        "actor_lineage": { "$ref": "#/$defs/actor_lineage" },
+        "action_class": { "$ref": "#/$defs/non_empty_string" },
+        "affected_scope": { "$ref": "#/$defs/target_scope" },
+        "outcome": { "$ref": "#/$defs/non_empty_string" },
+        "links": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_link" }
+        }
+      }
+    },
+    "runbook_packet": {
+      "type": "object",
+      "required": [
+        "runbook_id",
+        "version",
+        "source_class",
+        "step_ids",
+        "required_approvals",
+        "expected_evidence_outputs",
+        "target_selector_rules",
+        "deviation_policy_ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "runbook_id": { "$ref": "#/$defs/non_empty_string" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/non_empty_string" },
+        "step_ids": { "$ref": "#/$defs/ref_array" },
+        "required_approvals": { "$ref": "#/$defs/ref_array" },
+        "expected_evidence_outputs": { "$ref": "#/$defs/ref_array" },
+        "target_selector_rules": { "$ref": "#/$defs/ref_array" },
+        "deviation_policy_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "runbook_step_execution": {
+      "type": "object",
+      "required": [
+        "step_execution_id",
+        "runbook_ref",
+        "runbook_version_ref",
+        "step_ref",
+        "incident_ref",
+        "target_scope",
+        "actor_lineage",
+        "action_class",
+        "status",
+        "approval_ref",
+        "started_at",
+        "ended_at",
+        "deviation_note_ref",
+        "external_console_handoff_refs",
+        "rollback_refs",
+        "evidence_refs",
+        "export_continuity_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "step_execution_id": { "$ref": "#/$defs/non_empty_string" },
+        "runbook_ref": { "$ref": "#/$defs/non_empty_string" },
+        "runbook_version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "step_ref": { "$ref": "#/$defs/non_empty_string" },
+        "incident_ref": { "$ref": "#/$defs/nullable_string" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "actor_lineage": { "$ref": "#/$defs/actor_lineage" },
+        "action_class": { "$ref": "#/$defs/runbook_action_class" },
+        "status": { "$ref": "#/$defs/runbook_step_status" },
+        "approval_ref": { "$ref": "#/$defs/nullable_string" },
+        "started_at": { "$ref": "#/$defs/non_empty_string" },
+        "ended_at": { "$ref": "#/$defs/nullable_string" },
+        "deviation_note_ref": { "$ref": "#/$defs/nullable_string" },
+        "external_console_handoff_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "export_continuity_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "operational_evidence_bundle": {
+      "type": "object",
+      "required": [
+        "bundle_id",
+        "incident_ref",
+        "redaction_profile",
+        "embedded_evidence_refs",
+        "by_reference_evidence_refs",
+        "omission_summary",
+        "created_at",
+        "destination_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_ref": { "$ref": "#/$defs/nullable_string" },
+        "redaction_profile": { "$ref": "#/$defs/non_empty_string" },
+        "embedded_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "by_reference_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "omission_summary": { "$ref": "#/$defs/ref_array" },
+        "created_at": { "$ref": "#/$defs/non_empty_string" },
+        "destination_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "surface",
+        "support_class",
+        "exposed_freshness_states",
+        "preserves_slice_identity",
+        "preserves_timezone_chronology",
+        "preserves_runbook_execution_provenance",
+        "preserves_export_continuity",
+        "projection_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "exposed_freshness_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/freshness_state" },
+          "uniqueItems": true
+        },
+        "preserves_slice_identity": { "type": "boolean" },
+        "preserves_timezone_chronology": { "type": "boolean" },
+        "preserves_runbook_execution_provenance": { "type": "boolean" },
+        "preserves_export_continuity": { "type": "boolean" },
+        "projection_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["severity", "finding_kind", "subject_ref", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "message": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

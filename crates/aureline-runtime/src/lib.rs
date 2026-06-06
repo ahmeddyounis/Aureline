@@ -51,6 +51,7 @@ pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
+pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
@@ -426,6 +427,23 @@ pub use launch_profiles::{
     LAUNCH_PROFILE_PREVIEW_RECORD_KIND, LAUNCH_PROFILE_RECORD_KIND,
     LAUNCH_PROFILE_REVISION_RECORD_KIND, LAUNCH_PROFILE_SCHEMA_VERSION,
     LAUNCH_PROFILE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use log_metric_slice_and_incident_timeline_contract::{
+    current_stable_operational_evidence_contract_input,
+    current_stable_operational_evidence_contract_json,
+    current_stable_operational_evidence_contract_packet, ActorLineage, EvidenceFreshnessState,
+    EvidenceTimeWindow, ExportRedactionClass, IncidentTimelineEntry, OperationalEvidenceBundle,
+    OperationalEvidenceConsumerProjection, OperationalEvidenceConsumerSurface,
+    OperationalEvidenceContractArtifactError, OperationalEvidenceContractPacket,
+    OperationalEvidenceContractPacketInput, OperationalEvidenceFindingKind,
+    OperationalEvidenceFindingSeverity, OperationalEvidencePromotionState,
+    OperationalEvidenceSupportClass, OperationalEvidenceSupportExport,
+    OperationalEvidenceValidationFinding, RunbookActionClass, RunbookPacket, RunbookStepExecution,
+    RunbookStepStatus, SamplePosture, SignalKind, SignalSlice, SignalSourceIdentity, TargetScope,
+    TimelineLink, TimelineLinkClass, OPERATIONAL_EVIDENCE_CONTRACT_ARTIFACT_DOC_REF,
+    OPERATIONAL_EVIDENCE_CONTRACT_DOC_REF, OPERATIONAL_EVIDENCE_CONTRACT_FIXTURE_DIR,
+    OPERATIONAL_EVIDENCE_CONTRACT_RECORD_KIND, OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_REF,
+    OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_VERSION, OPERATIONAL_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,
