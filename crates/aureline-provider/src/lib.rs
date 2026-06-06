@@ -21,6 +21,7 @@ pub mod browser_handoff;
 pub mod infrastructure_intelligence;
 pub mod object_model;
 pub mod project_mapping;
+pub mod provider_event_ingestion_and_provenance;
 pub mod publish_later;
 pub mod reconciliation;
 pub mod registry;
@@ -138,6 +139,26 @@ pub use project_mapping::{
     TARGET_MAPPING_BETA_SCHEMA_REF, TARGET_MAPPING_BETA_SCHEMA_VERSION,
     TARGET_MAPPING_BETA_SHARED_CONTRACT_REF, TARGET_MAPPING_BETA_SOURCE_MATRIX_REF,
     TARGET_MAPPING_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use provider_event_ingestion_and_provenance::{
+    seeded_provider_event_ingestion_provenance_packet,
+    validate_provider_event_ingestion_provenance_packet, BrowserHandoffOriginRef,
+    CanonicalProviderObjectRef, ImportedEventSurfaceState, ImportedProviderEventClass,
+    ImportedProviderEventEnvelope, ProviderEventAuthoritySourceClass, ProviderEventDedupeEnvelope,
+    ProviderEventIngestionCoverage, ProviderEventIngestionProvenancePacket,
+    ProviderEventIngestionValidationFinding, ProviderEventIngestionValidationReport,
+    ProviderEventIngressClass, ProviderEventLocalObjectOutcome, ProviderEventOverlapClass,
+    ProviderEventPolicyVerdict, ProviderEventPolicyVerdictClass, ProviderEventReplayDecisionClass,
+    ProviderEventResultingStateClass, ProviderEventSupportExportPacket,
+    ProviderEventSupportSummary, ProviderEventSurfaceProjection,
+    IMPORTED_PROVIDER_EVENT_ENVELOPE_RECORD_KIND,
+    PROVIDER_EVENT_INGESTION_PROVENANCE_PACKET_RECORD_KIND,
+    PROVIDER_EVENT_INGESTION_PROVENANCE_SCHEMA_VERSION,
+    PROVIDER_EVENT_INGESTION_PROVENANCE_SHARED_CONTRACT_REF,
+    PROVIDER_EVENT_INGESTION_VALIDATION_FINDING_RECORD_KIND,
+    PROVIDER_EVENT_INGESTION_VALIDATION_REPORT_RECORD_KIND,
+    PROVIDER_EVENT_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    PROVIDER_EVENT_SURFACE_PROJECTION_RECORD_KIND,
 };
 pub use publish_later::{
     DependencyClass, DependencyState, ExportSafetyClass, PublishLaterQueueAlphaItem,

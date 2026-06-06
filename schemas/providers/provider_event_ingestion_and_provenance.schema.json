@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_event_ingestion_and_provenance.schema.json",
+  "title": "Provider event ingestion and provenance packet",
+  "description": "Stable imported-provider event packet for callback, webhook, mirror, browser-handoff, import-session, and publish-later ingress. Envelopes preserve provider descriptor, acting authority source, canonical object identity, freshness, replay/dedupe keys, browser-handoff origin, policy verdict, resulting local object refs, and visible imported-event label.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "packet_id",
+    "generated_at",
+    "event_envelopes",
+    "surface_projections",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "provider_event_ingestion_provenance_packet"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "providers:provider_event_ingestion_and_provenance:v1"
+    },
+    "packet_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_envelopes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/imported_provider_event_envelope"
+      }
+    },
+    "surface_projections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/surface_projection"
+      }
+    },
+    "support_export": {
+      "$ref": "#/$defs/support_export"
+    }
+  },
+  "$defs": {
+    "provider_family": {
+      "type": "string",
+      "enum": ["code_host", "issue_tracker", "ci_checks"]
+    },
+    "provider_object_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "branch",
+        "issue_or_work_item",
+        "check_run",
+        "pipeline_run",
+        "pipeline_log",
+        "pipeline_artifact",
+        "pipeline_annotation"
+      ]
+    },
+    "authority_source": {
+      "type": "string",
+      "enum": [
+        "connected_account",
+        "installation_grant",
+        "delegated_credential",
+        "policy_injected_service"
+      ]
+    },
+    "ingress_class": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "browser_return_callback",
+        "polling_refresh",
+        "mirror_ingress",
+        "provider_import_session",
+        "publish_later_drain"
+      ]
+    },
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "object_mutation",
+        "comment_mutation",
+        "review_mutation",
+        "work_item_mutation",
+        "check_state_mutation",
+        "scope_mutation",
+        "callback_denied"
+      ]
+    },
+    "surface_state": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "buffered",
+        "replayed",
+        "denied",
+        "stale",
+        "conflict_review_required"
+      ]
+    },
+    "policy_verdict": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "accepted_narrowed",
+        "denied",
+        "audit_only",
+        "conflict_review_required"
+      ]
+    },
+    "replay_decision": {
+      "type": "string",
+      "enum": [
+        "first_delivery",
+        "duplicate_dedupe_noop",
+        "replay_freshness_only",
+        "buffered_pending_sequence",
+        "replay_requires_review"
+      ]
+    },
+    "overlap_class": {
+      "type": "string",
+      "enum": [
+        "no_overlap",
+        "local_draft",
+        "publish_later_queue",
+        "browser_handoff_session",
+        "multiple_local_continuity_lanes"
+      ]
+    },
+    "resulting_state": {
+      "type": "string",
+      "enum": [
+        "imported_provider_state",
+        "local_draft_preserved",
+        "publish_later_preserved",
+        "provider_committed_observed",
+        "buffered_no_mutation",
+        "denied_no_mutation",
+        "stale_no_mutation",
+        "conflict_review_queued"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window",
+        "never_observed",
+        "revoked_or_disconnected"
+      ]
+    },
+    "canonical_object_ref": {
+      "type": "object",
+      "required": [
+        "object_kind",
+        "canonical_provider_object_id",
+        "canonical_local_object_ref",
+        "target_ref"
+      ],
+      "properties": {
+        "object_kind": {
+          "$ref": "#/$defs/provider_object_kind"
+        },
+        "canonical_provider_object_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_local_object_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "required": ["freshness_class", "freshness_floor_ref"],
+      "properties": {
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness_floor_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stale_after": {
+          "type": "string"
+        },
+        "degraded_reason": {
+          "type": "string"
+        },
+        "import_session_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "dedupe": {
+      "type": "object",
+      "required": [
+        "external_delivery_id",
+        "scoped_object_ref",
+        "provider_host_ref",
+        "tenant_or_org_scope_ref",
+        "dedupe_key",
+        "replay_key",
+        "replay_decision",
+        "replay_count"
+      ],
+      "properties": {
+        "external_delivery_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scoped_object_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_host_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant_or_org_scope_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replay_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replay_decision": {
+          "$ref": "#/$defs/replay_decision"
+        },
+        "replay_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "browser_handoff_origin": {
+      "type": "object",
+      "required": [
+        "handoff_packet_ref",
+        "origin_class",
+        "return_anchor_ref",
+        "unreconciled_session"
+      ],
+      "properties": {
+        "handoff_packet_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin_class": {
+          "type": "string"
+        },
+        "return_anchor_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unreconciled_session": {
+          "type": "boolean"
+        }
+      }
+    },
+    "policy_verdict_object": {
+      "type": "object",
+      "required": [
+        "verdict_class",
+        "policy_epoch_ref",
+        "effective_scope_ref",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "verdict_class": {
+          "$ref": "#/$defs/policy_verdict"
+        },
+        "policy_epoch_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effective_scope_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "local_object_outcome": {
+      "type": "object",
+      "required": ["local_object_ref", "resulting_state", "summary_label"],
+      "properties": {
+        "local_object_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resulting_state": {
+          "$ref": "#/$defs/resulting_state"
+        },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "imported_provider_event_envelope": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "event_id",
+        "provider_descriptor_ref",
+        "provider_family",
+        "authority_source_class",
+        "authority_source_ref",
+        "ingress_class",
+        "event_class",
+        "canonical_object_refs",
+        "freshness",
+        "dedupe",
+        "policy_verdict",
+        "overlap_class",
+        "resulting_local_objects",
+        "surface_state",
+        "support_summary",
+        "raw_provider_payload_refs_present",
+        "raw_callback_url_refs_present"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "imported_provider_event_envelope"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "providers:provider_event_ingestion_and_provenance:v1"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_descriptor_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_family": {
+          "$ref": "#/$defs/provider_family"
+        },
+        "authority_source_class": {
+          "$ref": "#/$defs/authority_source"
+        },
+        "authority_source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ingress_class": {
+          "$ref": "#/$defs/ingress_class"
+        },
+        "event_class": {
+          "$ref": "#/$defs/event_class"
+        },
+        "canonical_object_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/canonical_object_ref"
+          }
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "dedupe": {
+          "$ref": "#/$defs/dedupe"
+        },
+        "browser_handoff_origin": {
+          "$ref": "#/$defs/browser_handoff_origin"
+        },
+        "policy_verdict": {
+          "$ref": "#/$defs/policy_verdict_object"
+        },
+        "overlap_class": {
+          "$ref": "#/$defs/overlap_class"
+        },
+        "conflict_review_ref": {
+          "type": "string"
+        },
+        "resulting_local_objects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/local_object_outcome"
+          }
+        },
+        "surface_state": {
+          "$ref": "#/$defs/surface_state"
+        },
+        "support_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_provider_payload_refs_present": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_callback_url_refs_present": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "event_ref",
+        "surface",
+        "surface_state",
+        "canonical_local_object_ref",
+        "freshness_class",
+        "conflict_review_required",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "provider_event_surface_projection"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "providers:provider_event_ingestion_and_provenance:v1"
+        },
+        "row_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "surface": {
+          "type": "string",
+          "enum": ["work_item", "review", "activity_center", "support_export"]
+        },
+        "surface_state": {
+          "$ref": "#/$defs/surface_state"
+        },
+        "canonical_local_object_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "conflict_review_required": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "support_summary": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "provider_descriptor_ref",
+        "authority_source_class",
+        "external_delivery_id",
+        "dedupe_key",
+        "surface_state",
+        "policy_verdict",
+        "resulting_local_object_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_descriptor_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authority_source_class": {
+          "$ref": "#/$defs/authority_source"
+        },
+        "external_delivery_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "surface_state": {
+          "$ref": "#/$defs/surface_state"
+        },
+        "policy_verdict": {
+          "$ref": "#/$defs/policy_verdict"
+        },
+        "resulting_local_object_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "support_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "event_summaries",
+        "raw_provider_payload_export_allowed",
+        "raw_callback_url_export_allowed",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "provider_event_support_export_packet"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "providers:provider_event_ingestion_and_provenance:v1"
+        },
+        "support_export_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_summaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/support_summary"
+          }
+        },
+        "raw_provider_payload_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_callback_url_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
