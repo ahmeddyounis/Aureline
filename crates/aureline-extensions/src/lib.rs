@@ -171,6 +171,21 @@
 //!   runtime-class truth into a
 //!   [`finalize_marketplace_catalog_truth_provenance_compatibility_labels_activation::StableMarketplaceCatalogTruthSupportExport`]
 //!   for support, mirror, and partner consumers.
+//! - one [`stabilize_marketplace_discovery_ranking_and_anti_abuse::MarketplaceDiscoveryPacket`]
+//!   that stabilizes marketplace discovery ranking and anti-abuse truth for the
+//!   stable line: it binds typed ranking signals (query relevance, category fit,
+//!   compatibility, runtime health, maintenance, publisher status, rollback /
+//!   uninstall quality, and documentation / security posture), required abuse
+//!   controls (publisher verification, namespace reservation, typosquat and
+//!   look-alike detection, review / install fraud review, quarantine, scanner
+//!   posture, and rapid revocation), verified-publisher / official-pack /
+//!   enterprise-approved tiers, quarantine and revocation state, enterprise curation
+//!   paths, transparency events, and cross-surface visibility into one derived
+//!   discovery posture. It automatically narrows or withdraws stable discovery when
+//!   ranking depends on vanity metrics, abuse state is hidden, a package is under
+//!   review / quarantined / revoked, or mirrored and private lanes lose identity or
+//!   provenance, and projects a
+//!   [`stabilize_marketplace_discovery_ranking_and_anti_abuse::MarketplaceDiscoverySupportExport`].
 //! - one [`harden_extension_performance_inspection_budget_enforcement_and_user::StablePerformanceBudgetPacket`]
 //!   that hardens extension performance inspection, budget enforcement, and the
 //!   user-visible cost explanation for the stable line: it binds the inspected
@@ -263,6 +278,7 @@ pub mod runtime;
 pub mod sdk_v1;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
+pub mod stabilize_marketplace_discovery_ranking_and_anti_abuse;
 pub mod stabilize_mirror_manual_import_offline_catalog_and_publisher;
 pub mod stabilize_policy_pack_diff_explain_export_and_admin;
 pub mod stabilize_sdk_schemas_samples_templates_and_conformance_kits;
@@ -814,6 +830,32 @@ pub use stabilize_external_host_contracts_for_language_tools_debuggers::{
     STABLE_EXTERNAL_HOST_SCHEMA_VERSION, STABLE_TIERS as EXTERNAL_HOST_STABLE_TIERS,
     SUPPORT_CLAIM_CLASSES as EXTERNAL_HOST_SUPPORT_CLAIM_CLASSES,
     TRUST_TIER_CLASSES as EXTERNAL_HOST_TRUST_TIER_CLASSES, WRITE_POSTURE_CLASSES,
+};
+pub use stabilize_marketplace_discovery_ranking_and_anti_abuse::{
+    project_marketplace_discovery, project_marketplace_discovery_support_export, AntiAbuseControl,
+    EnterpriseCurationPath, MarketplaceDiscoveryClaim, MarketplaceDiscoveryError,
+    MarketplaceDiscoveryInput, MarketplaceDiscoveryInspection, MarketplaceDiscoveryPacket,
+    MarketplaceDiscoverySupportExport, MarketplaceDiscoveryValidationError,
+    MarketplacePackageIdentity, PublisherStatus, QuarantineRevocationStatus, RankingSignal,
+    SurfaceTruth, TransparencyEvent,
+    ABUSE_CONTROL_CLASSES as MARKETPLACE_DISCOVERY_ABUSE_CONTROL_CLASSES,
+    ABUSE_STATE_CLASSES as MARKETPLACE_DISCOVERY_ABUSE_STATE_CLASSES,
+    BETA_REASONS as MARKETPLACE_DISCOVERY_BETA_REASONS,
+    DISCOVERY_NARROWING_REASONS as MARKETPLACE_DISCOVERY_NARROWING_REASONS,
+    DISCOVERY_POSTURE_CLASSES as MARKETPLACE_DISCOVERY_POSTURE_CLASSES,
+    MARKETPLACE_DISCOVERY_PACKET_RECORD_KIND, MARKETPLACE_DISCOVERY_PUBLISHED_VERSION,
+    MARKETPLACE_DISCOVERY_SCHEMA_REF, MARKETPLACE_DISCOVERY_SCHEMA_VERSION,
+    MARKETPLACE_DISCOVERY_SUPPORT_EXPORT_RECORD_KIND,
+    PREVIEW_REASONS as MARKETPLACE_DISCOVERY_PREVIEW_REASONS,
+    PUBLISHER_TIER_CLASSES as MARKETPLACE_DISCOVERY_PUBLISHER_TIER_CLASSES,
+    QUARANTINE_REVOCATION_CLASSES as MARKETPLACE_DISCOVERY_QUARANTINE_REVOCATION_CLASSES,
+    RANKING_SIGNAL_CLASSES as MARKETPLACE_DISCOVERY_RANKING_SIGNAL_CLASSES,
+    REGISTRY_LANE_CLASSES as MARKETPLACE_DISCOVERY_REGISTRY_LANE_CLASSES,
+    REQUIRED_ABUSE_CONTROL_CLASSES as MARKETPLACE_DISCOVERY_REQUIRED_ABUSE_CONTROL_CLASSES,
+    REQUIRED_RANKING_SIGNAL_CLASSES as MARKETPLACE_DISCOVERY_REQUIRED_RANKING_SIGNAL_CLASSES,
+    STABILITY_TIERS as MARKETPLACE_DISCOVERY_STABILITY_TIERS,
+    TRANSPARENCY_EVENT_CLASSES as MARKETPLACE_DISCOVERY_TRANSPARENCY_EVENT_CLASSES,
+    WITHDRAWN_REASONS as MARKETPLACE_DISCOVERY_WITHDRAWN_REASONS,
 };
 pub use stabilize_mirror_manual_import_offline_catalog_and_publisher::{
     project_stable_mirror_import_truth, project_stable_mirror_import_truth_support_export,
