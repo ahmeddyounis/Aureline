@@ -17,3 +17,4 @@ pub mod crash_journal;
 pub mod failover_alpha;
 pub mod portable_state;
 pub mod session_restore;
+pub mod stabilize_session_scoped_restore_fidelity;
