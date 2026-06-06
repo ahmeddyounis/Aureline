@@ -1,0 +1,508 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/sequence-edit-conflict-session-stash-entry-ref-update.schema.json",
+  "title": "Aureline stable risky-VCS truth packet",
+  "description": "Canonical stable packet for risky VCS lanes. Conflict sessions, sequence-edit sessions, stash entries, recovery checkpoints, and ref-update proposals carry stable IDs, timestamps, repo/worktree provenance, checkpoint or reflog-only posture, and support-export lineage. Raw paths, branch names, patch bodies, reflog bodies, and stash bodies are forbidden at the support boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "repo_ref",
+    "worktree_ref",
+    "conflict_sessions",
+    "sequence_edit_sessions",
+    "stash_entries",
+    "recovery_checkpoints",
+    "ref_update_proposals",
+    "command_bindings",
+    "support_export",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "review_sequence_edit_conflict_session_stash_entry_ref_update_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+    "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+    "conflict_sessions": { "type": "array", "items": { "$ref": "#/$defs/conflict_session" } },
+    "sequence_edit_sessions": { "type": "array", "items": { "$ref": "#/$defs/sequence_edit_session" } },
+    "stash_entries": { "type": "array", "items": { "$ref": "#/$defs/stash_entry" } },
+    "recovery_checkpoints": { "type": "array", "items": { "$ref": "#/$defs/recovery_checkpoint" } },
+    "ref_update_proposals": { "type": "array", "items": { "$ref": "#/$defs/ref_update_proposal" } },
+    "command_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command_binding" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" },
+    "inspection": { "$ref": "#/$defs/inspection" }
+  },
+  "anyOf": [
+    { "required": ["conflict_sessions"], "properties": { "conflict_sessions": { "minItems": 1 } } },
+    { "required": ["sequence_edit_sessions"], "properties": { "sequence_edit_sessions": { "minItems": 1 } } },
+    { "required": ["stash_entries"], "properties": { "stash_entries": { "minItems": 1 } } },
+    { "required": ["recovery_checkpoints"], "properties": { "recovery_checkpoints": { "minItems": 1 } } },
+    { "required": ["ref_update_proposals"], "properties": { "ref_update_proposals": { "minItems": 1 } } }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "operation_kind": {
+      "type": "string",
+      "enum": [
+        "merge",
+        "rebase",
+        "interactive_rebase",
+        "cherry_pick",
+        "revert",
+        "reset",
+        "stash_apply",
+        "stash_pop",
+        "stash_drop",
+        "branch_from_stash",
+        "publish"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_ui",
+        "review_panel",
+        "cli_headless",
+        "provider_handoff",
+        "restart_restore",
+        "support_export",
+        "audit_lane"
+      ]
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/consumer_surface" },
+      "allOf": [
+        { "contains": { "const": "support_export" } },
+        { "contains": { "const": "audit_lane" } }
+      ]
+    },
+    "protected_branch_posture": {
+      "type": "string",
+      "enum": [
+        "no_protected_refs",
+        "protected_branch_readonly",
+        "protected_branch_blocked",
+        "policy_lock_active"
+      ]
+    },
+    "conflict_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "session_id",
+        "operation_kind",
+        "lifecycle_state",
+        "repo_ref",
+        "worktree_ref",
+        "base_ref",
+        "ours_ref",
+        "theirs_ref",
+        "affected_path_tokens",
+        "unresolved_count",
+        "resolution_mode",
+        "started_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_conflict_session_object" },
+        "schema_version": { "const": 1 },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": [
+            "active_awaiting_resolution",
+            "paused_awaiting_user_input",
+            "paused_awaiting_external_tool",
+            "continuing_after_resolution",
+            "aborted_rolled_back",
+            "completed_committed",
+            "completed_handed_off",
+            "downgraded_structured_to_raw",
+            "failed_no_changes_made"
+          ]
+        },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "base_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ours_ref": { "$ref": "#/$defs/non_empty_string" },
+        "theirs_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_path_tokens": { "$ref": "#/$defs/string_list" },
+        "unresolved_count": { "type": "integer", "minimum": 0 },
+        "resolution_mode": {
+          "type": "string",
+          "enum": ["structured", "raw", "structured_downgraded_to_raw"]
+        },
+        "previous_session_ref": { "type": ["string", "null"] },
+        "recovery_checkpoint_ref": { "type": ["string", "null"] },
+        "started_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sequence_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "verb", "target_ref", "display_label", "current_step", "completed"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "verb": {
+          "type": "string",
+          "enum": ["pick", "reword", "edit", "squash", "fixup", "drop", "exec", "label", "reset", "merge", "break_point", "skip"]
+        },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "current_step": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "conflict_session_ref": { "type": ["string", "null"] }
+      }
+    },
+    "sequence_edit_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "session_id",
+        "operation_kind",
+        "lifecycle_state",
+        "repo_ref",
+        "worktree_ref",
+        "target_ref",
+        "ordered_operations",
+        "todo_version_state",
+        "raw_todo_text_ref",
+        "structured_cards_ref",
+        "protected_branch_posture",
+        "unresolved_blocker_refs",
+        "checkpoint_ref",
+        "started_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_sequence_edit_session_object" },
+        "schema_version": { "const": 1 },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "operation_kind": { "enum": ["rebase", "interactive_rebase", "cherry_pick"] },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["draft_unsaved", "saved_ready_to_run", "running", "paused_for_conflict", "paused_for_user_edit", "completed_admitted", "aborted_rolled_back", "failed_no_changes_made"]
+        },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ordered_operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sequence_operation" }
+        },
+        "todo_version_state": {
+          "type": "string",
+          "enum": ["current", "modified_since_review", "stale_base", "conflict_session_bound"]
+        },
+        "raw_todo_text_ref": { "$ref": "#/$defs/non_empty_string" },
+        "structured_cards_ref": { "$ref": "#/$defs/non_empty_string" },
+        "protected_branch_posture": { "$ref": "#/$defs/protected_branch_posture" },
+        "unresolved_blocker_refs": { "$ref": "#/$defs/string_list" },
+        "checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "stash_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "entry_id",
+        "lifecycle_state",
+        "creator_actor_ref",
+        "message_label",
+        "included_path_tokens",
+        "includes_untracked",
+        "untracked_state_posture",
+        "source_repo_ref",
+        "source_worktree_ref",
+        "checkpoint_refs",
+        "available_command_classes",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_stash_entry_object" },
+        "schema_version": { "const": 1 },
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["captured_unapplied", "applied_kept", "applied_popped", "dropped", "promoted_to_branch", "applied_with_conflict"]
+        },
+        "creator_actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "message_label": { "$ref": "#/$defs/non_empty_string" },
+        "included_path_tokens": { "$ref": "#/$defs/string_list" },
+        "includes_untracked": { "type": "boolean" },
+        "untracked_state_posture": {
+          "type": "string",
+          "enum": ["tracked_only", "untracked_included", "untracked_excluded", "untracked_unknown_blocks_apply"]
+        },
+        "source_repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "checkpoint_refs": { "$ref": "#/$defs/string_list" },
+        "available_command_classes": { "$ref": "#/$defs/string_list" },
+        "conflict_session_ref": { "type": ["string", "null"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "recovery_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "checkpoint_id",
+        "lifecycle_state",
+        "trigger_kind",
+        "source_refs",
+        "resulting_root_state_hash",
+        "expires_at",
+        "restore_options",
+        "checkpoint_possible",
+        "reflog_only_disclosure_required",
+        "reflog_only_disclosure_acknowledged",
+        "created_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_recovery_checkpoint_object" },
+        "schema_version": { "const": 1 },
+        "checkpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["captured_ready_to_restore", "captured_pending_admit", "restored", "expired_pending_prune", "missing_reflog_only_disclosed", "missing_blocks_apply"]
+        },
+        "trigger_kind": {
+          "type": "string",
+          "enum": ["before_rebase", "before_reset", "before_revert", "before_cherry_pick", "before_merge", "before_stash_apply", "before_stash_pop", "before_stash_drop", "before_publish"]
+        },
+        "source_refs": { "$ref": "#/$defs/string_list" },
+        "resulting_root_state_hash": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "restore_options": { "$ref": "#/$defs/string_list" },
+        "checkpoint_possible": { "type": "boolean" },
+        "reflog_only_disclosure_required": { "type": "boolean" },
+        "reflog_only_disclosure_acknowledged": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "ref_position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "position_ref", "display_label"],
+      "properties": {
+        "ref_id": { "$ref": "#/$defs/non_empty_string" },
+        "position_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "ref_update_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "proposal_id",
+        "lifecycle_state",
+        "repo_ref",
+        "worktree_ref",
+        "local_ref_set",
+        "remote_ref_set",
+        "divergence_summary",
+        "approval_state",
+        "check_invalidation_state",
+        "publish_mode",
+        "target_selection_state",
+        "protected_branch_posture",
+        "rollback_hint",
+        "created_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_ref_update_proposal_object" },
+        "schema_version": { "const": 1 },
+        "proposal_id": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["drafted_pending_review", "blocked_ambiguous_target", "blocked_protected_branch", "blocked_policy", "blocked_invalidated_approval", "ready_to_publish", "applied", "withdrawn"]
+        },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "local_ref_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ref_position" }
+        },
+        "remote_ref_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ref_position" }
+        },
+        "divergence_summary": {
+          "type": "string",
+          "enum": ["no_divergence", "local_ahead", "remote_ahead", "diverged_requires_rebase", "diverged_requires_merge", "unknown_requires_refresh"]
+        },
+        "approval_state": {
+          "type": "string",
+          "enum": ["approval_not_required", "approval_required_outstanding", "approved_current", "approval_invalidated_by_changes"]
+        },
+        "check_invalidation_state": {
+          "type": "string",
+          "enum": ["checks_current", "checks_stale_within_grace", "checks_invalidated_blocks_publish"]
+        },
+        "publish_mode": {
+          "type": "string",
+          "enum": ["local_only", "push_branch", "force_with_lease", "provider_publish", "browser_handoff_publish"]
+        },
+        "target_selection_state": {
+          "type": "string",
+          "enum": ["explicit_target_selected", "ambiguous_target_blocks_apply"]
+        },
+        "protected_branch_posture": { "$ref": "#/$defs/protected_branch_posture" },
+        "rollback_checkpoint_ref": { "type": ["string", "null"] },
+        "rollback_hint": { "$ref": "#/$defs/non_empty_string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "command_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "consumer_surfaces",
+        "actionable",
+        "blocked_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_command_binding_record" },
+        "schema_version": { "const": 1 },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_class": {
+          "type": "string",
+          "enum": ["open_conflict_session", "open_sequence_editor", "preview_diff", "capture_checkpoint", "restore_checkpoint", "apply_stash", "pop_stash", "drop_stash", "branch_from_stash", "review_ref_update_proposal", "apply_ref_update", "request_provider_handoff", "export_support_packet"]
+        },
+        "target_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_object_kind": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+        "diff_preview_ref": { "type": ["string", "null"] },
+        "checkpoint_ref": { "type": ["string", "null"] },
+        "actionable": { "type": "boolean" },
+        "blocked_reasons": { "$ref": "#/$defs/string_list" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "source_schema_ref",
+        "reopen_context_ref",
+        "consumer_surfaces",
+        "lineage_object_refs",
+        "redaction_class",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "raw_reflog_body_export_allowed",
+        "raw_stash_body_export_allowed",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_support_export_packet" },
+        "schema_version": { "const": 1 },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "const": "schemas/review/sequence-edit-conflict-session-stash-entry-ref-update.schema.json" },
+        "reopen_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surfaces": { "$ref": "#/$defs/consumer_surfaces" },
+        "lineage_object_refs": { "$ref": "#/$defs/string_list" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "raw_reflog_body_export_allowed": { "const": false },
+        "raw_stash_body_export_allowed": { "const": false },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "restartable",
+        "conflict_provenance_preserved",
+        "sequence_todo_bound",
+        "stash_scope_preserved",
+        "recovery_truth_explicit",
+        "ref_update_reviewable",
+        "support_export_lineage_complete",
+        "conflict_session_count",
+        "sequence_edit_count",
+        "stash_entry_count",
+        "recovery_checkpoint_count",
+        "ref_update_proposal_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_risky_vcs_inspection_record" },
+        "schema_version": { "const": 1 },
+        "restartable": { "type": "boolean" },
+        "conflict_provenance_preserved": { "type": "boolean" },
+        "sequence_todo_bound": { "type": "boolean" },
+        "stash_scope_preserved": { "type": "boolean" },
+        "recovery_truth_explicit": { "type": "boolean" },
+        "ref_update_reviewable": { "type": "boolean" },
+        "support_export_lineage_complete": { "type": "boolean" },
+        "conflict_session_count": { "type": "integer", "minimum": 0 },
+        "sequence_edit_count": { "type": "integer", "minimum": 0 },
+        "stash_entry_count": { "type": "integer", "minimum": 0 },
+        "recovery_checkpoint_count": { "type": "integer", "minimum": 0 },
+        "ref_update_proposal_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

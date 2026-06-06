@@ -12,6 +12,7 @@ pub mod branches;
 pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
+pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth;
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod mutations;
@@ -62,6 +63,26 @@ pub use conflicts::{
     GitConflictSurfaceRecord, GitConflictSurfaceState, GitExternalChangeHandoffInput,
     GIT_CONFLICT_HANDOFF_PACKET_RECORD_KIND, GIT_CONFLICT_SUPPORT_EXPORT_RECORD_KIND,
     GIT_CONFLICT_SURFACE_RECORD_KIND,
+};
+pub use finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth::{
+    parse_risky_vcs_truth_packet, project_risky_vcs_truth_packet, RiskyVcsCommandBinding,
+    RiskyVcsConflictSession, RiskyVcsInspectionRecord, RiskyVcsRecoveryCheckpoint,
+    RiskyVcsRefPosition, RiskyVcsRefUpdateProposal, RiskyVcsSequenceEditSession,
+    RiskyVcsSequenceOperation, RiskyVcsStashEntry, RiskyVcsSupportExport, RiskyVcsTruthError,
+    RiskyVcsTruthPacket, RiskyVcsTruthProjection, RiskyVcsTruthValidationError,
+    RISKY_VCS_APPROVAL_STATES, RISKY_VCS_CHECKPOINT_STATES, RISKY_VCS_CHECKPOINT_TRIGGER_KINDS,
+    RISKY_VCS_CHECK_INVALIDATION_STATES, RISKY_VCS_COMMAND_BINDING_RECORD_KIND,
+    RISKY_VCS_COMMAND_CLASSES, RISKY_VCS_CONFLICT_RESOLUTION_MODES,
+    RISKY_VCS_CONFLICT_SESSION_RECORD_KIND, RISKY_VCS_CONFLICT_STATES, RISKY_VCS_CONSUMER_SURFACES,
+    RISKY_VCS_DIVERGENCE_CLASSES, RISKY_VCS_INSPECTION_RECORD_KIND, RISKY_VCS_OPERATION_KINDS,
+    RISKY_VCS_PROTECTED_BRANCH_POSTURES, RISKY_VCS_PUBLISH_MODES,
+    RISKY_VCS_RECOVERY_CHECKPOINT_RECORD_KIND, RISKY_VCS_REF_UPDATE_PROPOSAL_RECORD_KIND,
+    RISKY_VCS_REF_UPDATE_STATES, RISKY_VCS_RESTORE_OPTION_CLASSES,
+    RISKY_VCS_SEQUENCE_EDIT_SESSION_RECORD_KIND, RISKY_VCS_SEQUENCE_STATES,
+    RISKY_VCS_SEQUENCE_VERBS, RISKY_VCS_STASH_ENTRY_RECORD_KIND, RISKY_VCS_STASH_STATES,
+    RISKY_VCS_SUPPORT_EXPORT_RECORD_KIND, RISKY_VCS_TARGET_SELECTION_STATES,
+    RISKY_VCS_TODO_VERSION_STATES, RISKY_VCS_TRUTH_PACKET_RECORD_KIND,
+    RISKY_VCS_TRUTH_SCHEMA_VERSION, RISKY_VCS_UNTRACKED_STATE_POSTURES,
 };
 pub use harden_conflict_resolution_external_change_reconciliation_and_merge::{
     build_stable_conflict_session_packet, parse_stable_conflict_session_record,
