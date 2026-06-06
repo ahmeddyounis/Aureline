@@ -47,6 +47,7 @@ pub mod schema_migration_and_repair_lineage;
 pub mod scope_propagation;
 pub mod serialization;
 pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
+pub mod stabilize_source_locator_checkout_plan_bootstrap_result_and_queue;
 pub mod stabilize_workspace_archetype_detection_readiness_preflight;
 pub mod state_packages;
 pub mod state_root_certification_lineage;
@@ -80,6 +81,17 @@ pub use acquisition::{
     BOOTSTRAP_QUEUE_ITEM_SCHEMA_VERSION, CHECKOUT_PLAN_RECORD_KIND, CHECKOUT_PLAN_SCHEMA_VERSION,
     REPOSITORY_ACQUISITION_RECORD_KIND, REPOSITORY_ACQUISITION_SCHEMA_VERSION,
     SOURCE_LOCATOR_RECORD_KIND, SOURCE_LOCATOR_SCHEMA_VERSION,
+};
+
+pub use stabilize_source_locator_checkout_plan_bootstrap_result_and_queue::{
+    stabilize_source_locator_checkout_plan_bootstrap_result_and_queue, AcquisitionOutcomeClass,
+    BootstrapCompletionState, BootstrapCredentialDescriptor, CloneDepthFilterClass,
+    ForgeOrMirrorClass, HostKeyOrTlsPosture, OfflineFallbackRule, QueueApprovalState,
+    ResultingRootAuthorityClass, ResultingRootDescriptor, StableBootstrapQueueItem,
+    StableBootstrapResult, StableCheckoutPlan, StableProjectEntryTruthError,
+    StableProjectEntryTruthInput, StableProjectEntryTruthRecord, StableSourceLocator,
+    SOURCE_LOCATOR_CHECKOUT_BOOTSTRAP_RECORD_KIND, SOURCE_LOCATOR_CHECKOUT_BOOTSTRAP_SCHEMA_REF,
+    SOURCE_LOCATOR_CHECKOUT_BOOTSTRAP_SCHEMA_VERSION,
 };
 
 pub use recent_work::{
