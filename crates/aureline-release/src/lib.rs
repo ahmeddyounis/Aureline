@@ -139,6 +139,11 @@
 //! claim is itself below the cutline — while the known-limit/benchmark/compatibility/
 //! migration publication kinds and the release-line publication set both stay fully
 //! covered, so shiproom and release tooling can fail publication directly from the pack.
+//! The claim-publication-manifest module is the joined publication source consumed by docs,
+//! Help/About, service-health, CLI inspection, release notes, public proof, support export,
+//! and enterprise evaluation surfaces: it links every rendered claim to current
+//! reference-workspace, compatibility, and evaluation report refs, then narrows every
+//! destination automatically when backing evidence is stale, missing, dropped, or unsigned.
 //! The open-paid-boundary-audit module is the governance-fact layer beside those gates:
 //! where the manifest, proof index, and version windows speak for product capabilities and
 //! interface surfaces, this audit governs the governance facts the stable launch rests on —
@@ -213,6 +218,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod browser_mobile_companion_surface_qualification;
+pub mod claim_publication_manifest;
 pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
 pub mod finalize_compatibility_reports_deprecation_packets_schema_version_windows;
@@ -252,6 +258,16 @@ pub mod stable_version_windows;
 pub mod support_class_ledger;
 pub mod voice_and_dictation_surface_qualification;
 
+pub use claim_publication_manifest::{
+    current_claim_publication_manifest, ClaimDowngradeRule, ClaimNarrowingReason,
+    ClaimPublicationDecision, ClaimPublicationEntry, ClaimPublicationManifest,
+    ClaimPublicationRecord, ClaimPublicationSummary, ClaimPublicationSurfaceEntry,
+    ClaimPublicationSurfaceExport, ClaimPublicationViolation, ClaimReportRef, ClaimSurface,
+    ClaimValidityWindow, EffectiveClaim, EvaluationFilter, EvidenceState,
+    PublicationAction as ClaimPublicationAction, ReportFamily, SupportClass as ClaimSupportClass,
+    SurfaceProjection, CLAIM_PUBLICATION_MANIFEST_JSON, CLAIM_PUBLICATION_MANIFEST_PATH,
+    CLAIM_PUBLICATION_MANIFEST_RECORD_KIND, CLAIM_PUBLICATION_MANIFEST_SCHEMA_VERSION,
+};
 pub use correction_train::{
     BackportDecision, BackportMatrixRow, CorrectionEvidence, CorrectionItem, CorrectionRisk,
     CorrectionScope, CorrectionTrainPacket, CorrectionTrainViolation, CorrectionTriage,
