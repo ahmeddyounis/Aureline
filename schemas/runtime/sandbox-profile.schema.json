@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/sandbox-profile.schema.json",
+  "title": "Aureline runtime sandbox profile and backend truth packet",
+  "description": "Boundary schema for the stable runtime sandbox-profile packet consumed by installers, runtime inspectors, extension detail, quarantine screens, command diagnostics, docs/help, and support bundles. The packet defines stable sandbox profile IDs, binds approval tickets to capability envelopes, publishes platform/backend enforcement and fallback truth, and preserves approval-history / expiry-banner lineage without exposing raw secrets, raw command bodies, raw paths, or ambient authority.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "generated_at",
+    "profiles",
+    "backend_rows",
+    "approval_bindings",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": { "const": "runtime_sandbox_profile_backend_truth_stable_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "profiles": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "backend_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/backend_row" }
+    },
+    "approval_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/approval_binding" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 7,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "promotion_state": { "$ref": "#/$defs/promotion_state" },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "sandbox_profile_id": {
+      "enum": [
+        "read_only_analyzer_v1",
+        "repo_task_v1",
+        "interactive_terminal_v1",
+        "debug_attach_v1",
+        "notebook_kernel_v1",
+        "bootstrap_scaffold_v1",
+        "ai_tool_mutator_v1",
+        "data_connector_v1"
+      ]
+    },
+    "filesystem_posture": {
+      "enum": [
+        "workspace_read_only",
+        "workspace_read_declared_outputs",
+        "user_selected_runtime_paths",
+        "target_scoped_stores",
+        "notebook_data_and_export_sinks",
+        "side_worktree_before_apply",
+        "reviewed_target_and_export_sinks",
+        "connector_cache_and_export_path"
+      ]
+    },
+    "network_posture": {
+      "enum": [
+        "none_by_default",
+        "declared_network_class_only",
+        "pty_boundary_policy_aware",
+        "target_contract_only",
+        "declared_endpoint_class_only",
+        "bootstrap_mirror_only",
+        "approved_tool_endpoint_set",
+        "declared_endpoint_or_tunnel_only"
+      ]
+    },
+    "secret_posture": {
+      "enum": [
+        "none",
+        "brokered_handle_projection_only",
+        "selected_projection_visible",
+        "target_needed_projection_only",
+        "session_scoped_projection_only",
+        "explicit_projection_only",
+        "ticket_named_projection_set",
+        "connection_scoped_handle"
+      ]
+    },
+    "child_process_posture": {
+      "enum": [
+        "denied",
+        "derived_envelope_only",
+        "user_driven_pty_boundary",
+        "privileged_claimed_platform_only",
+        "kernel_contract_declared_only",
+        "no_daemons_derived_envelope_only",
+        "nested_tool_derived_envelope_only",
+        "adapter_contract_declared_only"
+      ]
+    },
+    "trust_requirement": {
+      "enum": [
+        "untrusted_or_trusted",
+        "trusted_workspace_or_explicit_override",
+        "trusted_workspace_for_repo_shell_mutation",
+        "trusted_workspace_and_explicit_approval",
+        "trusted_notebook_workspace_and_trust_class",
+        "trusted_template_and_preview_apply_approval",
+        "reviewed_plan_and_approval_ticket",
+        "trusted_connector_and_endpoint_approval"
+      ]
+    },
+    "backend_platform_class": {
+      "enum": [
+        "macos_desktop",
+        "windows_desktop",
+        "linux_desktop",
+        "remote_managed",
+        "browser_companion"
+      ]
+    },
+    "backend_enforcement_class": {
+      "enum": [
+        "native_full",
+        "native_partial",
+        "remote_broker",
+        "managed_broker",
+        "browser_no_local_execution",
+        "unsupported"
+      ]
+    },
+    "enforcement_posture": {
+      "enum": ["enforced", "stricter_downgrade", "unsupported", "fail_closed"]
+    },
+    "approval_action_class": {
+      "enum": [
+        "read_only",
+        "local_write",
+        "external_side_effect",
+        "privileged_debug",
+        "secret_use",
+        "trust_change",
+        "remote_execution"
+      ]
+    },
+    "approval_revocation_state": {
+      "enum": ["active", "expired", "revoked", "drift_invalidated"]
+    },
+    "revalidation_trigger": {
+      "enum": [
+        "target_drift",
+        "policy_drift",
+        "version_drift",
+        "authority_drift",
+        "sandbox_or_capability_drift",
+        "expiry",
+        "revocation"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "installer",
+        "runtime_inspector",
+        "extension_detail",
+        "quarantine_screen",
+        "command_diagnostic",
+        "support_bundle",
+        "docs_help"
+      ]
+    },
+    "promotion_state": { "enum": ["stable", "needs_review", "blocks_stable"] },
+    "finding_severity": { "enum": ["info", "warning", "blocker"] },
+    "finding_kind": {
+      "enum": [
+        "missing_identity",
+        "missing_profile",
+        "missing_backend_platform",
+        "claimed_stable_backend_unsafe",
+        "ambient_fallback_admitted",
+        "browser_companion_local_execution_allowed",
+        "approval_lineage_incomplete",
+        "remembered_approval_bypasses_fresh_ticket",
+        "revalidation_trigger_missing",
+        "approval_history_projection_missing",
+        "missing_consumer_projection",
+        "consumer_projection_drift",
+        "raw_or_ambient_material_present"
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "profile_id",
+        "display_label",
+        "filesystem_posture",
+        "network_posture",
+        "secret_posture",
+        "child_process_posture",
+        "trust_requirement"
+      ],
+      "properties": {
+        "profile_id": { "$ref": "#/$defs/sandbox_profile_id" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "filesystem_posture": { "$ref": "#/$defs/filesystem_posture" },
+        "network_posture": { "$ref": "#/$defs/network_posture" },
+        "secret_posture": { "$ref": "#/$defs/secret_posture" },
+        "child_process_posture": { "$ref": "#/$defs/child_process_posture" },
+        "trust_requirement": { "$ref": "#/$defs/trust_requirement" }
+      },
+      "additionalProperties": false
+    },
+    "backend_row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "platform_class",
+        "profile_id",
+        "backend_class",
+        "enforcement_posture",
+        "claimed_stable",
+        "ambient_fallback_denied",
+        "hidden_local_execution_denied",
+        "disclosure_ref"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "platform_class": { "$ref": "#/$defs/backend_platform_class" },
+        "profile_id": { "$ref": "#/$defs/sandbox_profile_id" },
+        "backend_class": { "$ref": "#/$defs/backend_enforcement_class" },
+        "enforcement_posture": { "$ref": "#/$defs/enforcement_posture" },
+        "claimed_stable": { "type": "boolean" },
+        "fallback_profile_id": { "$ref": "#/$defs/sandbox_profile_id" },
+        "ambient_fallback_denied": { "const": true },
+        "hidden_local_execution_denied": { "type": "boolean" },
+        "disclosure_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "approval_binding": {
+      "type": "object",
+      "required": [
+        "ticket_id",
+        "actor_ref",
+        "issuing_surface_ref",
+        "action_class",
+        "workspace_scope_ref",
+        "target_identity_ref",
+        "sandbox_profile_id",
+        "capability_envelope_ref",
+        "capability_hash_ref",
+        "policy_epoch_ref",
+        "expires_at",
+        "revocation_state",
+        "audit_lineage_refs",
+        "revalidation_triggers",
+        "remembered_approval_mints_fresh_ticket",
+        "approval_history_row_visible",
+        "expiry_banner_visible"
+      ],
+      "properties": {
+        "ticket_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "issuing_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "action_class": { "$ref": "#/$defs/approval_action_class" },
+        "workspace_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "sandbox_profile_id": { "$ref": "#/$defs/sandbox_profile_id" },
+        "capability_envelope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "capability_hash_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch_ref": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": { "$ref": "#/$defs/non_empty_string" },
+        "revocation_state": { "$ref": "#/$defs/approval_revocation_state" },
+        "audit_lineage_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "revalidation_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revalidation_trigger" },
+          "uniqueItems": true
+        },
+        "remembered_approval_mints_fresh_ticket": { "type": "boolean" },
+        "approval_history_row_visible": { "type": "boolean" },
+        "expiry_banner_visible": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "preserves_profile_id",
+        "preserves_backend_class",
+        "preserves_fallback_truth",
+        "preserves_approval_lineage",
+        "raw_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_profile_id": { "const": true },
+        "preserves_backend_class": { "const": true },
+        "preserves_fallback_truth": { "const": true },
+        "preserves_approval_lineage": { "const": true },
+        "raw_material_excluded": { "const": true },
+        "ambient_authority_excluded": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

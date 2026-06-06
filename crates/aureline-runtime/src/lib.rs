@@ -67,6 +67,7 @@ pub mod request_workspace_contracts;
 pub mod rerun;
 pub mod resource_governor;
 pub mod run_lineage;
+pub mod sandbox;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
@@ -635,6 +636,24 @@ pub use run_lineage::{
     RERUN_REVIEW_SHEET_RECORD_KIND, RUN_ARTIFACT_DETAIL_SHEET_RECORD_KIND,
     RUN_HISTORY_SUPPORT_EXPORT_RECORD_KIND, RUN_LINEAGE_SCHEMA_VERSION,
     RUN_SUMMARY_CARD_RECORD_KIND,
+};
+pub use sandbox::{
+    current_stable_sandbox_profile_packet, current_stable_sandbox_profile_packet_input,
+    ApprovalActionClass as SandboxApprovalActionClass,
+    ApprovalEnvelopeBinding as SandboxApprovalEnvelopeBinding,
+    ApprovalRevocationState as SandboxApprovalRevocationState,
+    BackendEnforcementClass as SandboxBackendEnforcementClass,
+    BackendPlatformClass as SandboxBackendPlatformClass, ChildProcessPosture,
+    EnforcementPosture as SandboxEnforcementPosture, FilesystemPosture,
+    NetworkPosture as SandboxNetworkPosture, RevalidationTrigger as SandboxRevalidationTrigger,
+    SandboxBackendRow, SandboxConsumerProjection, SandboxConsumerSurface, SandboxFindingKind,
+    SandboxFindingSeverity, SandboxProfile, SandboxProfileId, SandboxProfilePacket,
+    SandboxProfilePacketInput, SandboxProfileSupportExport, SandboxPromotionState,
+    SandboxValidationFinding, SecretPosture as SandboxSecretPosture, TrustRequirement,
+    SANDBOX_BACKEND_CROSSWALK_REF, SANDBOX_PROFILE_DOC_REF, SANDBOX_PROFILE_HELP_DOC_REF,
+    SANDBOX_PROFILE_PACKET_ARTIFACT_REF, SANDBOX_PROFILE_PACKET_RECORD_KIND,
+    SANDBOX_PROFILE_SCHEMA_REF, SANDBOX_PROFILE_SCHEMA_VERSION,
+    SANDBOX_PROFILE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use shared_debug_alpha::{
     LocalDebugContinuityClass, LocalDebugContinuityObservation,
