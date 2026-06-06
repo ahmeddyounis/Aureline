@@ -17,6 +17,7 @@ pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod mutations;
 pub mod publish;
+pub mod stabilize_repository_topology_truth;
 pub mod stabilize_the_daily_git_loop_status_diff_stage;
 pub mod status;
 
@@ -137,6 +138,15 @@ pub use publish::{
     GIT_PUBLISH_FAILURE_RECOVERY_RECORD_KIND, GIT_PUBLISH_JOURNAL_RECORD_KIND,
     GIT_PUBLISH_PREVIEW_RECORD_KIND, GIT_PUBLISH_RESULT_RECORD_KIND,
     GIT_PUBLISH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_repository_topology_truth::{
+    CoverageClaimPosture, RepositoryTopologyClass, RepositoryTopologyDescriptor,
+    RepositoryTopologyPacketError, RepositoryTopologySupportExport, RepositoryTopologyTruthPacket,
+    RepositoryTopologyValidationError, SurfaceResultTruth, SurfaceTopologyTruthRow, TopologyAction,
+    TopologyActionApproval, TopologyActionClass, TopologyHonestyLabel, TopologyOperationScope,
+    TopologySurface, REPOSITORY_TOPOLOGY_DESCRIPTOR_RECORD_KIND,
+    REPOSITORY_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND, REPOSITORY_TOPOLOGY_TRUTH_PACKET_RECORD_KIND,
+    REPOSITORY_TOPOLOGY_TRUTH_SCHEMA_VERSION, SURFACE_TOPOLOGY_TRUTH_ROW_RECORD_KIND,
 };
 pub use stabilize_the_daily_git_loop_status_diff_stage::{
     BlameLineRecord, DailyLoopActivityRecord, DailyLoopBackendError, DailyLoopBackendErrorClass,

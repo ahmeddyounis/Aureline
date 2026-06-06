@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/repository-topology.schema.json",
+  "title": "Aureline repository-topology truth packet",
+  "description": "Stable review-lane schema for repository-topology truth across search, Git graph, review, blame, code actions, AI context, run/debug, and support export rows. It distinguishes sparse/workset omissions, promisor or partial-clone missing objects, shallow history, uninitialized submodules, nested independent repositories, Git LFS pointer-only versus hydrated states, generated/vendor exclusions, and wrong-root targeting. Network-bearing repair actions require explicit approval or policy posture.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "descriptors",
+    "surface_rows",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "repository_topology_truth_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "descriptors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/topology_descriptor" }
+    },
+    "surface_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface_row" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "nullable_opaque_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+    },
+    "topology_class": {
+      "type": "string",
+      "enum": [
+        "current_repo_root",
+        "workset_root",
+        "sparse_checkout_root",
+        "worktree_root",
+        "partial_clone_promisor_root",
+        "shallow_history_root",
+        "submodule_root",
+        "nested_independent_repo_root",
+        "lfs_hydration_boundary",
+        "generated_vendor_root"
+      ]
+    },
+    "honesty_label": {
+      "type": "string",
+      "enum": [
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "submodule_not_initialized",
+        "nested_repo_boundary",
+        "pointer_only",
+        "wrong_target_root",
+        "dirty_state_unknown",
+        "unavailable",
+        "policy_excluded",
+        "generated_or_excluded"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "initialize_submodule",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_child_repo_root",
+        "inspect_generated_lineage",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "action_approval": {
+      "type": "string",
+      "enum": [
+        "not_network_bearing",
+        "approval_required",
+        "approved",
+        "policy_blocked",
+        "no_command_available"
+      ]
+    },
+    "operation_scope": {
+      "type": "string",
+      "enum": [
+        "active_root_only",
+        "child_root_only",
+        "explicit_multi_root_preview_required",
+        "metadata_only",
+        "mutation_denied"
+      ]
+    },
+    "coverage_claim": {
+      "type": "string",
+      "enum": [
+        "full_coverage_allowed",
+        "narrowed_by_topology",
+        "denied_wrong_root"
+      ]
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "search",
+        "git_graph",
+        "review",
+        "blame",
+        "code_actions",
+        "ai_context",
+        "run_debug",
+        "support_export"
+      ]
+    },
+    "result_truth": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "uninitialized",
+        "nested_root",
+        "pointer_only",
+        "generated_or_excluded",
+        "wrong_target_root",
+        "unavailable"
+      ]
+    },
+    "topology_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "command_ref", "approval", "evidence_ref"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approval": { "$ref": "#/$defs/action_approval" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "topology_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "descriptor_id",
+        "repo_root_ref",
+        "worktree_ref",
+        "parent_repo_root_ref",
+        "child_repo_root_ref",
+        "topology_classes",
+        "omitted_scope_ref",
+        "unfetched_scope_ref",
+        "shallow_boundary_ref",
+        "submodule_pin_ref",
+        "lfs_pointer_scope_ref",
+        "generated_vendor_scope_ref",
+        "safe_operation_scope",
+        "honesty_labels",
+        "allowed_actions"
+      ],
+      "properties": {
+        "record_kind": { "const": "repository_topology_descriptor" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "repo_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "parent_repo_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "child_repo_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "topology_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/topology_class" }
+        },
+        "omitted_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "unfetched_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "shallow_boundary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "submodule_pin_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "lfs_pointer_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "generated_vendor_scope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "safe_operation_scope": { "$ref": "#/$defs/operation_scope" },
+        "honesty_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/honesty_label" }
+        },
+        "allowed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/topology_action" }
+        }
+      }
+    },
+    "surface_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "surface",
+        "descriptor_ref",
+        "active_root_ref",
+        "authoritative_root_ref",
+        "result_truth",
+        "coverage_claim",
+        "safe_operation_scope",
+        "honesty_labels",
+        "offered_actions",
+        "mutation_allowed",
+        "body_export_allowed"
+      ],
+      "properties": {
+        "record_kind": { "const": "surface_topology_truth_row" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "authoritative_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_truth": { "$ref": "#/$defs/result_truth" },
+        "coverage_claim": { "$ref": "#/$defs/coverage_claim" },
+        "safe_operation_scope": { "$ref": "#/$defs/operation_scope" },
+        "honesty_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/honesty_label" }
+        },
+        "offered_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_action" }
+        },
+        "mutation_allowed": { "type": "boolean" },
+        "body_export_allowed": { "type": "boolean" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "descriptor_refs",
+        "surface_row_refs",
+        "reconstruction_fields",
+        "chosen_actions",
+        "raw_paths_redacted",
+        "raw_object_bytes_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "repository_topology_support_export" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "descriptor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "surface_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reconstruction_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "chosen_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_class" }
+        },
+        "raw_paths_redacted": { "const": true },
+        "raw_object_bytes_redacted": { "const": true }
+      }
+    }
+  }
+}
