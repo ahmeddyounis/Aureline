@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai-rollout-packet.schema.json",
+  "title": "Aureline AI rollout publication packet",
+  "$comment": "Rust owner: aureline_ai::ai_pack_rollout::AiRolloutPublicationPacket.",
+  "description": "Boundary schema for the metadata-only AI rollout publication packet. The packet binds independently promotable provider/model enablement, prompt packs, tool-schema packs, local-model packs, and feature-level AI rollout objects to stable route rows, downgrade receipts, and mirror/offline publication truth. It carries refs, class tokens, support-safe labels, coarse compatibility ranges, and publication manifests only. It never carries raw prompts, raw tool schemas, raw provider payloads, endpoint URLs, credentials, signing-key material, raw model weights, raw token counts, exact costs, or billing-account ids. Adding enum values or optional fields is additive-minor; repurposing existing values is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "policy_epoch_ref",
+    "routing_policy_version_ref",
+    "stable_ring_ref",
+    "rollout_objects",
+    "stable_routes",
+    "downgrade_receipts",
+    "mirror_publication",
+    "support_export_refs",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_rollout_publication_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "policy_epoch_ref": { "$ref": "#/$defs/non_empty_string" },
+    "routing_policy_version_ref": { "$ref": "#/$defs/non_empty_string" },
+    "stable_ring_ref": { "$ref": "#/$defs/non_empty_string" },
+    "rollout_objects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rollout_object" }
+    },
+    "stable_routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/stable_route" }
+    },
+    "downgrade_receipts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_receipt" }
+    },
+    "mirror_publication": { "$ref": "#/$defs/mirror_publication" },
+    "support_export_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer |BEGIN PRIVATE KEY" }
+    },
+    "rollout_ring_class": {
+      "type": "string",
+      "enum": ["canary", "pilot", "broad", "lts"]
+    },
+    "rollout_object_kind": {
+      "type": "string",
+      "enum": [
+        "provider_model_enablement",
+        "prompt_pack",
+        "tool_schema_pack",
+        "local_model_pack",
+        "feature_ai_rollout"
+      ]
+    },
+    "rollout_state_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "canary",
+        "pilot",
+        "broad",
+        "stable",
+        "deprecated",
+        "withdrawn",
+        "disabled"
+      ]
+    },
+    "fallback_route_class": {
+      "type": "string",
+      "enum": ["local_model", "byok_provider", "manual_workflow"]
+    },
+    "route_origin_class": {
+      "type": "string",
+      "enum": ["local_model", "byok_provider", "managed_provider", "enterprise_gateway"]
+    },
+    "pack_revocation_state_class": {
+      "type": "string",
+      "enum": ["approved", "revoked", "denied_by_policy"]
+    },
+    "fallback_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_contract_ref",
+        "fallback_route_class",
+        "fallback_surface_ref",
+        "user_visible_reason",
+        "keeps_core_available"
+      ],
+      "properties": {
+        "fallback_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fallback_route_class": { "$ref": "#/$defs/fallback_route_class" },
+        "fallback_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "user_visible_reason": { "$ref": "#/$defs/non_empty_string" },
+        "keeps_core_available": { "type": "boolean", "const": true }
+      }
+    },
+    "rollout_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollout_object_id",
+        "object_kind",
+        "owner_ref",
+        "promotion_artifact_ref",
+        "current_version_ref",
+        "compatibility_range_ref",
+        "graduation_packet_ref",
+        "evidence_ref",
+        "rollback_or_deny_lever_ref",
+        "rollout_state",
+        "rings_completed",
+        "mirrorable",
+        "revocation_state",
+        "fallback_contract"
+      ],
+      "properties": {
+        "rollout_object_id": { "$ref": "#/$defs/non_empty_string" },
+        "object_kind": { "$ref": "#/$defs/rollout_object_kind" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "promotion_artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "current_version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_range_ref": { "$ref": "#/$defs/non_empty_string" },
+        "graduation_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_or_deny_lever_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollout_state": { "$ref": "#/$defs/rollout_state_class" },
+        "rings_completed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollout_ring_class" }
+        },
+        "mirrorable": { "type": "boolean" },
+        "revocation_state": { "$ref": "#/$defs/pack_revocation_state_class" },
+        "fallback_contract": { "$ref": "#/$defs/fallback_contract" }
+      }
+    },
+    "stable_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_id",
+        "surface_id",
+        "route_origin_class",
+        "provider_entry_ref",
+        "provider_label",
+        "model_entry_ref",
+        "model_label",
+        "prompt_pack_version_ref",
+        "tool_schema_pack_range_ref",
+        "routing_policy_version_ref",
+        "rollout_object_refs",
+        "independent_rollback_refs",
+        "graduation_packet_ref",
+        "fallback_contract",
+        "mirror_publication_ref",
+        "support_export_ref"
+      ],
+      "properties": {
+        "route_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "route_origin_class": { "$ref": "#/$defs/route_origin_class" },
+        "provider_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provider_label": { "$ref": "#/$defs/non_empty_string" },
+        "model_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "model_label": { "$ref": "#/$defs/non_empty_string" },
+        "prompt_pack_version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tool_schema_pack_range_ref": { "$ref": "#/$defs/non_empty_string" },
+        "local_model_pack_provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "routing_policy_version_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollout_object_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "independent_rollback_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "graduation_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fallback_contract": { "$ref": "#/$defs/fallback_contract" },
+        "mirror_publication_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "route_origin_class": { "const": "local_model" } },
+            "required": ["route_origin_class"]
+          },
+          "then": {
+            "required": ["local_model_pack_provenance_ref"]
+          }
+        }
+      ]
+    },
+    "downgrade_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "withdrawn_object_ref",
+        "affected_route_refs",
+        "cause",
+        "fallback_route_class",
+        "fallback_contract_ref",
+        "general_product_outage",
+        "user_visible_label"
+      ],
+      "properties": {
+        "receipt_id": { "$ref": "#/$defs/non_empty_string" },
+        "withdrawn_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_route_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "cause": { "$ref": "#/$defs/non_empty_string" },
+        "fallback_route_class": { "$ref": "#/$defs/fallback_route_class" },
+        "fallback_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "general_product_outage": { "type": "boolean", "const": false },
+        "user_visible_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "mirror_publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_ref",
+        "approved_prompt_pack_refs",
+        "approved_tool_schema_pack_refs",
+        "approved_local_model_pack_refs",
+        "provenance_manifest_ref",
+        "compatibility_manifest_ref",
+        "revocation_manifest_ref",
+        "downgrade_manifest_ref",
+        "vendor_network_required",
+        "offline_drill_refs",
+        "air_gapped_profile_refs"
+      ],
+      "properties": {
+        "publication_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approved_prompt_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "approved_tool_schema_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "approved_local_model_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "provenance_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "revocation_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "vendor_network_required": { "type": "boolean", "const": false },
+        "offline_drill_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "air_gapped_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}

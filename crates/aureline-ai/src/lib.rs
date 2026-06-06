@@ -36,6 +36,11 @@
 //! binding AI state classes, cache-key invalidation, visible thread/inspector
 //! disclosures, delete/export drills, and support-safe manifests on claimed
 //! stable AI thread and memory surfaces.
+//! The AI-pack rollout lane exposes one
+//! [`ai_pack_rollout::AiRolloutPublicationPacket`] object binding provider/model
+//! enablement, prompt packs, tool-schema packs, local-model packs, feature-level
+//! AI rollout objects, independent downgrade receipts, and mirror/offline
+//! publication truth for claimed stable AI routes.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -57,6 +62,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
+pub mod ai_pack_rollout;
 pub mod audit_optional_ai_adjacent_surfaces;
 pub mod composer;
 pub mod context_inspector;
@@ -78,6 +84,15 @@ pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
 
+pub use ai_pack_rollout::{
+    AiDowngradeReceipt, AiFallbackContract, AiFallbackRouteClass, AiMirrorPublication,
+    AiPackRevocationStateClass, AiRolloutObject, AiRolloutObjectKind, AiRolloutPacketViolation,
+    AiRolloutPublicationPacket, AiRolloutRingClass, AiRolloutStateClass, AiRouteOriginClass,
+    StableAiRouteRow, AI_ROLLOUT_GOVERNANCE_DOC_REF, AI_ROLLOUT_PACKET_RECORD_KIND,
+    AI_ROLLOUT_PACKET_SCHEMA_REF, AI_ROLLOUT_PACKET_SCHEMA_VERSION,
+    AI_ROLLOUT_PUBLICATION_ARTIFACT_REF, AI_ROLLOUT_SUMMARY_REF, AI_ROLLOUT_SUPPORT_EXPORT_REF,
+    LOCAL_MODEL_PACK_PUBLICATION_MANIFEST_REF,
+};
 pub use aureline_navigation::target_model as navigation_target_model;
 pub use composer::beta::{
     current_beta_composer_context_evidence_support_export,
