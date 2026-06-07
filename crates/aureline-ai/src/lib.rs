@@ -51,6 +51,11 @@
 //! proposal triggers, assumption-review sheets, generated-test diff risk
 //! classes, sandbox-validation lineage, and measured-versus-estimated coverage
 //! impact without letting generated tests count as trusted coverage proof.
+//! The AI review-assist truth lane exposes one
+//! [`ai_review_assist::AiReviewAssistTruthPacket`] object binding durable
+//! finding rows, scope selectors, publish-to-review sheets, and resolution
+//! memory to the same review-pack digest and evidence packet lineage across
+//! desktop, CLI/headless, browser/companion, and support/export lanes.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -73,6 +78,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod ai_pack_rollout;
+pub mod ai_review_assist;
 pub mod ai_test_generation;
 pub mod audit_optional_ai_adjacent_surfaces;
 pub mod composer;
@@ -104,6 +110,20 @@ pub use ai_pack_rollout::{
     AI_ROLLOUT_PACKET_SCHEMA_REF, AI_ROLLOUT_PACKET_SCHEMA_VERSION,
     AI_ROLLOUT_PUBLICATION_ARTIFACT_REF, AI_ROLLOUT_SUMMARY_REF, AI_ROLLOUT_SUPPORT_EXPORT_REF,
     LOCAL_MODEL_PACK_PUBLICATION_MANIFEST_REF,
+};
+pub use ai_review_assist::{
+    current_stable_ai_review_assist_truth_export, AffectedReviewHunk,
+    AiReviewAssistTruthArtifactError, AiReviewAssistTruthPacket, AiReviewAssistTruthPacketInput,
+    AiReviewAssistTruthViolation, AiReviewConfidenceClass, AiReviewConsumerProjection,
+    AiReviewConsumerSurface, AiReviewFindingClass, AiReviewFindingRow, AiReviewObjectLineage,
+    AiReviewResolutionState, AiReviewSeverityClass, AttributionStateClass,
+    ProviderWriteAccessClass, PublishActionClass, PublishDestinationClass, PublishToReviewSheet,
+    RedactionNoteClass, RepoInstructionCheckSourceClass, ResolutionMemoryRow, ReviewScopeClass,
+    ReviewScopeFreshnessClass, ReviewScopeRerunActionClass, ReviewScopeSelector,
+    AI_REVIEW_ASSIST_REVIEW_PACK_CONTRACT_REF, AI_REVIEW_ASSIST_TRUTH_AI_DOC_REF,
+    AI_REVIEW_ASSIST_TRUTH_ARTIFACT_REF, AI_REVIEW_ASSIST_TRUTH_FIXTURE_DIR,
+    AI_REVIEW_ASSIST_TRUTH_RECORD_KIND, AI_REVIEW_ASSIST_TRUTH_SCHEMA_REF,
+    AI_REVIEW_ASSIST_TRUTH_SCHEMA_VERSION, AI_REVIEW_ASSIST_TRUTH_SUMMARY_REF,
 };
 pub use ai_test_generation::{
     current_stable_ai_test_generation_truth_export, AiTestCandidateRow,
