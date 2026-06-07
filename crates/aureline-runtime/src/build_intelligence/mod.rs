@@ -39,6 +39,18 @@ pub const BUILD_INTELLIGENCE_COVERAGE_MANIFEST_RECORD_KIND: &str =
     "build_intelligence_coverage_manifest_record";
 /// Stable record-kind tag for discovery-diff reviews.
 pub const DISCOVERY_DIFF_REVIEW_RECORD_KIND: &str = "discovery_diff_review_record";
+/// Repo-relative path of the stable tooling adapter-confidence schema.
+pub const ADAPTER_CONFIDENCE_TOOLING_SCHEMA_REF: &str =
+    "schemas/tooling/adapter-confidence.schema.json";
+/// Repo-relative path of the stable adapter-confidence fixture corpus.
+pub const ADAPTER_CONFIDENCE_TOOLING_FIXTURE_DIR: &str =
+    "fixtures/tooling/m4/stabilize-build-intelligence-and-adapter-confidence";
+/// Repo-relative path of the reviewer-facing adapter-confidence artifact.
+pub const ADAPTER_CONFIDENCE_TOOLING_ARTIFACT_DOC_REF: &str =
+    "artifacts/tooling/m4/stabilize-build-intelligence-and-adapter-confidence.md";
+/// Repo-relative path of the stable adapter-confidence contract doc.
+pub const ADAPTER_CONFIDENCE_TOOLING_DOC_REF: &str =
+    "docs/m4/stabilize-build-intelligence-and-adapter-confidence.md";
 
 /// Lane class that produced target or receipt truth.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -1523,6 +1535,376 @@ impl BuildIntelligenceSupportExport {
         }
         out
     }
+}
+
+/// Builds the stable adapter-confidence fixture export used by tooling,
+/// runtime, shell, and support surfaces.
+pub fn current_stable_adapter_confidence_support_export() -> BuildIntelligenceSupportExport {
+    fn action(class: BuildIntelligenceActionClass, suffix: &str) -> BuildIntelligenceAction {
+        BuildIntelligenceAction::enabled(class, format!("action:adapter-confidence:{suffix}"))
+    }
+
+    fn lineage(
+        refresh: &str,
+        previous: Option<&str>,
+        live_ref: Option<&str>,
+        import_ref: Option<&str>,
+    ) -> RefreshLineage {
+        RefreshLineage::new(
+            refresh.to_owned(),
+            previous.map(str::to_owned),
+            "2026-05-18T15:00:00Z",
+            Some("2026-05-18T15:00:05Z".to_owned()),
+        )
+        .with_refs(
+            Some(format!("snapshot:{refresh}")),
+            Some(format!("raw:{refresh}")),
+            live_ref.map(str::to_owned),
+            import_ref.map(str::to_owned),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn strip(
+        id: &str,
+        label: &str,
+        lane: BuildIntelligenceLaneType,
+        state: AdapterHealthState,
+        reason: Option<AdapterHealthReason>,
+        provenance: ImportedLiveState,
+        live_ref: Option<&str>,
+        import_ref: Option<&str>,
+    ) -> AdapterHealthStrip {
+        let protocol_id = match lane {
+            BuildIntelligenceLaneType::StructuredProtocol => Some("bsp".to_owned()),
+            BuildIntelligenceLaneType::BuildEventStream => Some("bep".to_owned()),
+            _ => None,
+        };
+        AdapterHealthStrip::new(
+            format!("strip:{id}"),
+            "workspace:stable-build-intelligence",
+            lane,
+            AdapterIdentity::new(
+                format!("adapter:{id}"),
+                label.to_owned(),
+                Some("1.0".to_owned()),
+                protocol_id,
+                Some("1".to_owned()),
+            ),
+            state,
+            reason,
+            Some("2026-05-18T15:00:05Z".to_owned()),
+            provenance,
+            lineage(
+                "refresh:current",
+                Some("refresh:previous"),
+                live_ref,
+                import_ref,
+            ),
+            action(
+                BuildIntelligenceActionClass::RefreshDiscovery,
+                &format!("{id}:refresh"),
+            ),
+            action(
+                BuildIntelligenceActionClass::OpenDetails,
+                &format!("{id}:details"),
+            ),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn target(
+        refresh: &str,
+        id: &str,
+        name: &str,
+        lane: BuildIntelligenceLaneType,
+        exactness: TargetExactnessStatus,
+        strip_ref: &str,
+        provenance: ImportedLiveState,
+        note: &str,
+    ) -> BuildIntelligenceTargetRow {
+        let live_ref = matches!(
+            provenance,
+            ImportedLiveState::LiveWorkspaceInspection | ImportedLiveState::MixedLiveAndImported
+        )
+        .then_some("inspection:current");
+        let import_ref = matches!(
+            provenance,
+            ImportedLiveState::ImportedArtifact
+                | ImportedLiveState::ReplayedReceipt
+                | ImportedLiveState::MixedLiveAndImported
+        )
+        .then_some("artifact:imported");
+        BuildIntelligenceTargetRow::new(
+            format!("row:{id}:{refresh}"),
+            id,
+            name,
+            lane,
+            strip_ref,
+            exactness,
+            provenance,
+            note,
+            lineage(refresh, Some("refresh:previous"), live_ref, import_ref),
+        )
+        .with_bindings(
+            Some("typescript_web_app".to_owned()),
+            Some("vite".to_owned()),
+        )
+        .with_actions(
+            Some(action(
+                BuildIntelligenceActionClass::OpenSource,
+                &format!("{id}:source"),
+            )),
+            Some(action(
+                BuildIntelligenceActionClass::OpenConfig,
+                &format!("{id}:config"),
+            )),
+        )
+    }
+
+    let native_strip = strip(
+        "native",
+        "Native Cargo adapter",
+        BuildIntelligenceLaneType::NativeAdapter,
+        AdapterHealthState::Healthy,
+        None,
+        ImportedLiveState::LiveWorkspaceInspection,
+        Some("inspection:native"),
+        None,
+    );
+    let protocol_strip = strip(
+        "protocol",
+        "Build server protocol adapter",
+        BuildIntelligenceLaneType::StructuredProtocol,
+        AdapterHealthState::Partial,
+        Some(AdapterHealthReason::VersionSkew),
+        ImportedLiveState::MixedLiveAndImported,
+        Some("inspection:protocol"),
+        Some("artifact:protocol:previous"),
+    )
+    .with_continuation_actions(
+        Some(action(
+            BuildIntelligenceActionClass::ContinueLocal,
+            "protocol:continue-local",
+        )),
+        Some(action(
+            BuildIntelligenceActionClass::InspectOnly,
+            "protocol:inspect-only",
+        )),
+    );
+    let event_strip = strip(
+        "event",
+        "Build-event stream adapter",
+        BuildIntelligenceLaneType::BuildEventStream,
+        AdapterHealthState::ImportedOnly,
+        Some(AdapterHealthReason::ControlPlaneOutage),
+        ImportedLiveState::ReplayedReceipt,
+        None,
+        Some("receipt:bep:51"),
+    );
+    let import_strip = strip(
+        "import",
+        "Structured output importer",
+        BuildIntelligenceLaneType::StructuredOutputImport,
+        AdapterHealthState::ImportedOnly,
+        Some(AdapterHealthReason::StaleArtifact),
+        ImportedLiveState::ImportedArtifact,
+        None,
+        Some("artifact:junit:51"),
+    );
+    let heuristic_strip = strip(
+        "heuristic",
+        "Heuristic target fallback",
+        BuildIntelligenceLaneType::HeuristicFallback,
+        AdapterHealthState::Degraded,
+        Some(AdapterHealthReason::ParseAmbiguity),
+        ImportedLiveState::HeuristicInference,
+        Some("inspection:heuristic"),
+        None,
+    );
+
+    let previous_rows = vec![
+        target(
+            "refresh:previous",
+            "target:web",
+            "web",
+            BuildIntelligenceLaneType::NativeAdapter,
+            TargetExactnessStatus::Exact,
+            &native_strip.strip_id,
+            ImportedLiveState::LiveWorkspaceInspection,
+            "live native adapter target",
+        ),
+        target(
+            "refresh:previous",
+            "target:api",
+            "api",
+            BuildIntelligenceLaneType::StructuredProtocol,
+            TargetExactnessStatus::ProtocolBacked,
+            &protocol_strip.strip_id,
+            ImportedLiveState::LiveWorkspaceInspection,
+            "protocol-backed target",
+        ),
+        target(
+            "refresh:previous",
+            "target:legacy",
+            "legacy",
+            BuildIntelligenceLaneType::HeuristicFallback,
+            TargetExactnessStatus::Heuristic,
+            &heuristic_strip.strip_id,
+            ImportedLiveState::HeuristicInference,
+            "heuristic target before adapter support landed",
+        ),
+        target(
+            "refresh:previous",
+            "target:removed",
+            "removed",
+            BuildIntelligenceLaneType::StructuredProtocol,
+            TargetExactnessStatus::ProtocolBacked,
+            &protocol_strip.strip_id,
+            ImportedLiveState::LiveWorkspaceInspection,
+            "removed after refresh",
+        ),
+    ];
+    let current_rows = vec![
+        target(
+            "refresh:current",
+            "target:web",
+            "web-test",
+            BuildIntelligenceLaneType::HeuristicFallback,
+            TargetExactnessStatus::Heuristic,
+            &heuristic_strip.strip_id,
+            ImportedLiveState::HeuristicInference,
+            "heuristic fallback; review before rerun",
+        ),
+        target(
+            "refresh:current",
+            "target:api",
+            "api",
+            BuildIntelligenceLaneType::StructuredProtocol,
+            TargetExactnessStatus::Unresolved,
+            &protocol_strip.strip_id,
+            ImportedLiveState::MixedLiveAndImported,
+            "protocol target unresolved after version skew",
+        )
+        .with_unresolved_reason(AdapterHealthReason::VersionSkew),
+        target(
+            "refresh:current",
+            "target:legacy",
+            "legacy",
+            BuildIntelligenceLaneType::NativeAdapter,
+            TargetExactnessStatus::Exact,
+            &native_strip.strip_id,
+            ImportedLiveState::LiveWorkspaceInspection,
+            "now exact through native adapter",
+        ),
+        target(
+            "refresh:current",
+            "target:bep",
+            "bep imported test",
+            BuildIntelligenceLaneType::BuildEventStream,
+            TargetExactnessStatus::Imported,
+            &event_strip.strip_id,
+            ImportedLiveState::ReplayedReceipt,
+            "replayed build-event stream; inspect only until live refresh",
+        ),
+        target(
+            "refresh:current",
+            "target:junit",
+            "junit import",
+            BuildIntelligenceLaneType::StructuredOutputImport,
+            TargetExactnessStatus::Imported,
+            &import_strip.strip_id,
+            ImportedLiveState::ImportedArtifact,
+            "structured output import; refresh before rerun",
+        ),
+    ];
+    let cards = current_rows
+        .iter()
+        .map(|row| {
+            let posture = match row.imported_live_state {
+                ImportedLiveState::LiveWorkspaceInspection => {
+                    HighTrustActionPosture::LiveActionsAllowed
+                }
+                ImportedLiveState::MixedLiveAndImported => {
+                    HighTrustActionPosture::ContinueLocalAvailable
+                }
+                ImportedLiveState::ImportedArtifact => HighTrustActionPosture::RefreshRequired,
+                ImportedLiveState::ReplayedReceipt => HighTrustActionPosture::InspectOnly,
+                ImportedLiveState::HeuristicInference => {
+                    HighTrustActionPosture::ReviewBeforeDispatch
+                }
+            };
+            BuildIntelligenceRunConfigCard::from_target_row(
+                format!("card:{}", row.stable_target_id),
+                "task.run",
+                row,
+                posture,
+            )
+        })
+        .collect::<Vec<_>>();
+    let receipts = vec![
+        BuildIntelligenceReceipt::from_target_row(
+            "receipt:legacy",
+            "task.run",
+            "run:legacy:1",
+            &current_rows[2],
+            &native_strip,
+            "local/macos",
+            ArtifactSourceClass::LiveAdapter,
+            Some("artifact:legacy:1".to_owned()),
+            "live native adapter result",
+            HighTrustActionPosture::LiveActionsAllowed,
+        ),
+        BuildIntelligenceReceipt::from_target_row(
+            "receipt:bep",
+            "test.run",
+            "run:bep:51",
+            &current_rows[3],
+            &event_strip,
+            "ci/linux",
+            ArtifactSourceClass::ReplayedReceipt,
+            Some("artifact:bep:51".to_owned()),
+            "replayed build-event stream; not current live discovery",
+            HighTrustActionPosture::InspectOnly,
+        ),
+        BuildIntelligenceReceipt::from_target_row(
+            "receipt:junit",
+            "test.run",
+            "run:junit:51",
+            &current_rows[4],
+            &import_strip,
+            "ci/linux",
+            ArtifactSourceClass::StructuredImport,
+            Some("artifact:junit:51".to_owned()),
+            "imported structured output; refresh required before rerun",
+            HighTrustActionPosture::RefreshRequired,
+        ),
+    ];
+    let diff = DiscoveryDiffReview::between(
+        "diff:all-lanes",
+        "workspace:stable-build-intelligence",
+        "refresh:previous",
+        "refresh:current",
+        "2026-05-18T15:01:00Z",
+        &previous_rows,
+        &current_rows,
+    );
+    BuildIntelligenceSupportExport::new(
+        "support:stable-build-intelligence",
+        "workspace:stable-build-intelligence",
+        "2026-05-18T15:02:00Z",
+        vec![
+            native_strip,
+            protocol_strip,
+            event_strip,
+            import_strip,
+            heuristic_strip,
+        ],
+        current_rows,
+        cards,
+        receipts,
+        vec![diff],
+    )
 }
 
 fn rows_by_target_id(

@@ -117,16 +117,18 @@ pub use browser_runtime_inspection_qualification::{
     BROWSER_RUNTIME_INSPECTION_QUALIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use build_intelligence::{
-    AdapterHealthReason, AdapterHealthState, AdapterHealthStrip, AdapterIdentity,
-    ArtifactSourceClass, BuildIntelligenceAction, BuildIntelligenceActionClass,
-    BuildIntelligenceCoverageManifest, BuildIntelligenceLaneType, BuildIntelligenceReceipt,
-    BuildIntelligenceRunConfigCard, BuildIntelligenceSupportExport, BuildIntelligenceTargetRow,
-    DiscoveryDiffChangeClass, DiscoveryDiffItem, DiscoveryDiffReview, HighTrustActionPosture,
-    ImportedLiveState, RefreshLineage, TargetExactnessStatus, ADAPTER_HEALTH_STRIP_RECORD_KIND,
-    BUILD_INTELLIGENCE_COVERAGE_MANIFEST_RECORD_KIND, BUILD_INTELLIGENCE_RECEIPT_RECORD_KIND,
-    BUILD_INTELLIGENCE_RUN_CONFIG_CARD_RECORD_KIND, BUILD_INTELLIGENCE_SCHEMA_VERSION,
-    BUILD_INTELLIGENCE_SUPPORT_EXPORT_RECORD_KIND, BUILD_INTELLIGENCE_TARGET_ROW_RECORD_KIND,
-    DISCOVERY_DIFF_REVIEW_RECORD_KIND,
+    current_stable_adapter_confidence_support_export, AdapterHealthReason, AdapterHealthState,
+    AdapterHealthStrip, AdapterIdentity, ArtifactSourceClass, BuildIntelligenceAction,
+    BuildIntelligenceActionClass, BuildIntelligenceCoverageManifest, BuildIntelligenceLaneType,
+    BuildIntelligenceReceipt, BuildIntelligenceRunConfigCard, BuildIntelligenceSupportExport,
+    BuildIntelligenceTargetRow, DiscoveryDiffChangeClass, DiscoveryDiffItem, DiscoveryDiffReview,
+    HighTrustActionPosture, ImportedLiveState, RefreshLineage, TargetExactnessStatus,
+    ADAPTER_CONFIDENCE_TOOLING_ARTIFACT_DOC_REF, ADAPTER_CONFIDENCE_TOOLING_DOC_REF,
+    ADAPTER_CONFIDENCE_TOOLING_FIXTURE_DIR, ADAPTER_CONFIDENCE_TOOLING_SCHEMA_REF,
+    ADAPTER_HEALTH_STRIP_RECORD_KIND, BUILD_INTELLIGENCE_COVERAGE_MANIFEST_RECORD_KIND,
+    BUILD_INTELLIGENCE_RECEIPT_RECORD_KIND, BUILD_INTELLIGENCE_RUN_CONFIG_CARD_RECORD_KIND,
+    BUILD_INTELLIGENCE_SCHEMA_VERSION, BUILD_INTELLIGENCE_SUPPORT_EXPORT_RECORD_KIND,
+    BUILD_INTELLIGENCE_TARGET_ROW_RECORD_KIND, DISCOVERY_DIFF_REVIEW_RECORD_KIND,
 };
 pub use build_test_event_interoperability::{
     current_stable_build_test_event_interoperability_input,

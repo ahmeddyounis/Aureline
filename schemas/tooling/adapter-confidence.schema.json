@@ -1,0 +1,816 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/adapter-confidence.schema.json",
+  "title": "Aureline stable adapter-confidence and build-intelligence contract",
+  "description": "Tooling-facing boundary for adapter health strips, target-row provenance, run-configuration cards, build/test receipts, and discovery refresh diffs. The contract keeps native-adapter, structured-protocol, build-event-stream, structured-output-import, and heuristic-fallback lanes distinct; preserves imported-versus-live provenance; and requires reduced-certainty rows to carry review, refresh, continue-local, or inspect-only posture instead of masquerading as live exact target truth.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "support_export_id",
+    "workspace_id",
+    "generated_at",
+    "coverage_manifest",
+    "adapter_health_strips",
+    "target_rows",
+    "run_config_cards",
+    "receipts",
+    "discovery_diffs",
+    "redaction_safe"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "build_intelligence_support_export_record"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "support_export_id": {
+      "$ref": "#/$defs/opaque_ref"
+    },
+    "workspace_id": {
+      "$ref": "#/$defs/opaque_ref"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "coverage_manifest": {
+      "$ref": "#/$defs/coverage_manifest"
+    },
+    "adapter_health_strips": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/adapter_health_strip"
+      }
+    },
+    "target_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/target_row"
+      }
+    },
+    "run_config_cards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run_config_card"
+      }
+    },
+    "receipts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/receipt"
+      }
+    },
+    "discovery_diffs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/discovery_diff"
+      }
+    },
+    "redaction_safe": {
+      "type": "boolean",
+      "const": true
+    }
+  },
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._-]*$"
+    },
+    "lane_type": {
+      "type": "string",
+      "enum": [
+        "native_adapter",
+        "structured_protocol",
+        "build_event_stream",
+        "structured_output_import",
+        "heuristic_fallback"
+      ]
+    },
+    "lane_label": {
+      "type": "string",
+      "enum": [
+        "Native adapter",
+        "Structured protocol",
+        "Build-event stream",
+        "Structured output import",
+        "Heuristic fallback"
+      ]
+    },
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "partial",
+        "degraded",
+        "unavailable",
+        "imported_only"
+      ]
+    },
+    "health_reason": {
+      "type": "string",
+      "enum": [
+        "transport_failure",
+        "auth_failure",
+        "workspace_mismatch",
+        "version_skew",
+        "unsupported_features",
+        "parse_ambiguity",
+        "stale_artifact",
+        "control_plane_outage",
+        "managed_workspace_lifecycle_change"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "refresh_discovery",
+        "repair_adapter",
+        "reauthenticate",
+        "open_details",
+        "open_source",
+        "open_config",
+        "inspect_raw_artifact",
+        "continue_local",
+        "inspect_only"
+      ]
+    },
+    "imported_live_state": {
+      "type": "string",
+      "enum": [
+        "live_workspace_inspection",
+        "imported_artifact",
+        "replayed_receipt",
+        "heuristic_inference",
+        "mixed_live_and_imported"
+      ]
+    },
+    "exactness": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "protocol_backed",
+        "imported",
+        "heuristic",
+        "unresolved"
+      ]
+    },
+    "artifact_source": {
+      "type": "string",
+      "enum": [
+        "live_adapter",
+        "build_event_stream",
+        "structured_import",
+        "replayed_receipt",
+        "heuristic_inference",
+        "none"
+      ]
+    },
+    "high_trust_posture": {
+      "type": "string",
+      "enum": [
+        "live_actions_allowed",
+        "review_before_dispatch",
+        "refresh_required",
+        "inspect_only",
+        "continue_local_available",
+        "blocked_until_repair"
+      ]
+    },
+    "diff_change": {
+      "type": "string",
+      "enum": [
+        "added",
+        "removed",
+        "renamed",
+        "downgraded_confidence",
+        "newly_heuristic",
+        "newly_exact",
+        "now_unresolved"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "action_class",
+        "action_token",
+        "action_ref",
+        "label",
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/action_class"
+        },
+        "action_token": {
+          "$ref": "#/$defs/action_class"
+        },
+        "action_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "label": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "adapter_identity": {
+      "type": "object",
+      "required": [
+        "adapter_id",
+        "adapter_label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "adapter_label": {
+          "type": "string"
+        },
+        "adapter_version": {
+          "type": "string"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "type": "string"
+        }
+      }
+    },
+    "refresh_lineage": {
+      "type": "object",
+      "required": [
+        "refresh_id",
+        "requested_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "refresh_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "previous_refresh_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_snapshot_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "raw_payload_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "current_workspace_inspection_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "imported_history_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      }
+    },
+    "coverage_manifest": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "lane_type_tokens",
+        "adapter_health_state_tokens",
+        "adapter_health_reason_tokens",
+        "action_class_tokens",
+        "imported_live_state_tokens",
+        "target_exactness_status_tokens",
+        "artifact_source_tokens",
+        "high_trust_action_posture_tokens",
+        "discovery_diff_change_tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "build_intelligence_coverage_manifest_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "manifest_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lane_type_tokens": {
+          "type": "array",
+          "contains": {
+            "const": "heuristic_fallback"
+          },
+          "items": {
+            "$ref": "#/$defs/lane_type"
+          }
+        },
+        "adapter_health_state_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/health_state"
+          }
+        },
+        "adapter_health_reason_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/health_reason"
+          }
+        },
+        "action_class_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action_class"
+          }
+        },
+        "imported_live_state_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/imported_live_state"
+          }
+        },
+        "target_exactness_status_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exactness"
+          }
+        },
+        "artifact_source_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_source"
+          }
+        },
+        "high_trust_action_posture_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/high_trust_posture"
+          }
+        },
+        "discovery_diff_change_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_change"
+          }
+        }
+      }
+    },
+    "adapter_health_strip": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "strip_id",
+        "workspace_id",
+        "lane_type",
+        "lane_type_token",
+        "lane_type_label",
+        "adapter_identity",
+        "state",
+        "state_token",
+        "imported_live_state",
+        "imported_live_state_token",
+        "refresh_lineage",
+        "repair_action",
+        "details_action",
+        "summary",
+        "redaction_safe"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "adapter_health_strip_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "strip_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "workspace_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "lane_type": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "lane_type_token": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "lane_type_label": {
+          "$ref": "#/$defs/lane_label"
+        },
+        "adapter_identity": {
+          "$ref": "#/$defs/adapter_identity"
+        },
+        "state": {
+          "$ref": "#/$defs/health_state"
+        },
+        "state_token": {
+          "$ref": "#/$defs/health_state"
+        },
+        "health_reason": {
+          "$ref": "#/$defs/health_reason"
+        },
+        "health_reason_token": {
+          "$ref": "#/$defs/health_reason"
+        },
+        "imported_live_state": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "imported_live_state_token": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "refresh_lineage": {
+          "$ref": "#/$defs/refresh_lineage"
+        },
+        "repair_action": {
+          "$ref": "#/$defs/action"
+        },
+        "details_action": {
+          "$ref": "#/$defs/action"
+        },
+        "continue_local_action": {
+          "$ref": "#/$defs/action"
+        },
+        "inspect_only_action": {
+          "$ref": "#/$defs/action"
+        },
+        "redaction_safe": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "target_row": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "stable_target_id",
+        "display_name",
+        "lane_type",
+        "lane_type_token",
+        "adapter_health_strip_ref",
+        "exactness_status",
+        "exactness_status_token",
+        "imported_live_state",
+        "imported_live_state_token",
+        "imported_vs_live_note",
+        "refresh_lineage",
+        "source_confidence_rank",
+        "stable_identity_supported",
+        "redaction_safe"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "build_intelligence_target_row_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "lane_type": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "lane_type_token": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "exactness_status": {
+          "$ref": "#/$defs/exactness"
+        },
+        "exactness_status_token": {
+          "$ref": "#/$defs/exactness"
+        },
+        "imported_live_state": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "imported_live_state_token": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "refresh_lineage": {
+          "$ref": "#/$defs/refresh_lineage"
+        },
+        "redaction_safe": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "lane_type_token": {
+                "enum": [
+                  "structured_output_import",
+                  "heuristic_fallback"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stable_identity_supported": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "run_config_card": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "command_id",
+        "target_row_ref",
+        "stable_target_id",
+        "display_name",
+        "lane_type_token",
+        "exactness_status_token",
+        "imported_live_state_token",
+        "imported_vs_live_note",
+        "high_trust_action_posture",
+        "high_trust_action_posture_token",
+        "redaction_safe"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "build_intelligence_run_config_card_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "lane_type_token": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "exactness_status_token": {
+          "$ref": "#/$defs/exactness"
+        },
+        "imported_live_state_token": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "high_trust_action_posture": {
+          "$ref": "#/$defs/high_trust_posture"
+        },
+        "high_trust_action_posture_token": {
+          "$ref": "#/$defs/high_trust_posture"
+        },
+        "redaction_safe": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "imported_live_state_token": {
+                "enum": [
+                  "imported_artifact",
+                  "replayed_receipt",
+                  "heuristic_inference"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "high_trust_action_posture_token": {
+                "enum": [
+                  "review_before_dispatch",
+                  "refresh_required",
+                  "inspect_only",
+                  "blocked_until_repair"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "receipt_id",
+        "command_id",
+        "run_id",
+        "target_row_ref",
+        "adapter_health_strip_ref",
+        "stable_target_id",
+        "target_display_name",
+        "lane_type",
+        "lane_type_token",
+        "environment_or_host",
+        "artifact_source",
+        "artifact_source_token",
+        "imported_or_replayed_note",
+        "imported_live_state",
+        "imported_live_state_token",
+        "refresh_lineage",
+        "high_trust_action_posture",
+        "high_trust_action_posture_token",
+        "support_replay_safe",
+        "redaction_safe"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "build_intelligence_receipt_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "lane_type": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "lane_type_token": {
+          "$ref": "#/$defs/lane_type"
+        },
+        "artifact_source": {
+          "$ref": "#/$defs/artifact_source"
+        },
+        "artifact_source_token": {
+          "$ref": "#/$defs/artifact_source"
+        },
+        "imported_live_state": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "imported_live_state_token": {
+          "$ref": "#/$defs/imported_live_state"
+        },
+        "refresh_lineage": {
+          "$ref": "#/$defs/refresh_lineage"
+        },
+        "high_trust_action_posture": {
+          "$ref": "#/$defs/high_trust_posture"
+        },
+        "high_trust_action_posture_token": {
+          "$ref": "#/$defs/high_trust_posture"
+        },
+        "support_replay_safe": {
+          "type": "boolean",
+          "const": true
+        },
+        "redaction_safe": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "diff_item": {
+      "type": "object",
+      "required": [
+        "change_class",
+        "change_token",
+        "action_ref",
+        "summary"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "change_class": {
+          "$ref": "#/$defs/diff_change"
+        },
+        "change_token": {
+          "$ref": "#/$defs/diff_change"
+        }
+      }
+    },
+    "discovery_diff": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "diff_id",
+        "workspace_id",
+        "previous_refresh_id",
+        "current_refresh_id",
+        "reviewed_at",
+        "added",
+        "removed",
+        "renamed",
+        "downgraded_confidence",
+        "newly_heuristic",
+        "newly_exact",
+        "now_unresolved",
+        "summary",
+        "redaction_safe"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "discovery_diff_review_record"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "diff_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "workspace_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "previous_refresh_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "current_refresh_id": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "added": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "removed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "renamed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "downgraded_confidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "newly_heuristic": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "newly_exact": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "now_unresolved": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diff_item"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "redaction_safe": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    }
+  }
+}
