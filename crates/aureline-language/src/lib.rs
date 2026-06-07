@@ -24,6 +24,7 @@ pub mod invalidation;
 pub mod java_and_kotlin_daily_driver_quality_truth_packet;
 pub mod launch_language_tooling_truth_packet;
 pub mod lsp_router;
+pub mod navigation_target_and_hierarchy_contract;
 pub mod next_js_expert_workflow_pack_truth_packet;
 pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
@@ -312,6 +313,34 @@ pub use lsp_router::{
     ScopeClaimClass as RouterScopeClaimClass, ScopeLimitClass, SupportClass as RouterSupportClass,
     SurfaceClass as RouterSurfaceClass, SurfaceReport as RouterSurfaceReport, SurfaceSupportClass,
     SurfaceSupportClassRow, WorkspaceLocalRouterRequest, ROUTER_DECISION_SCHEMA_VERSION,
+};
+pub use navigation_target_and_hierarchy_contract::{
+    current_navigation_target_contract_case, current_navigation_target_contract_packet,
+    load_navigation_target_contract_case, AccessKind as NavigationContractAccessKind,
+    AmbiguityClass as NavigationContractAmbiguityClass,
+    ConfidenceClass as NavigationContractConfidenceClass,
+    ConsumerProjection as NavigationContractConsumerProjection,
+    ConsumerSurface as NavigationContractConsumerSurface,
+    FallbackMode as NavigationContractFallbackMode,
+    FreshnessClass as NavigationContractFreshnessClass,
+    HierarchyEdge as NavigationContractHierarchyEdge,
+    HierarchyEdgeKind as NavigationContractHierarchyEdgeKind, NavigationContractFinding,
+    NavigationContractFindingKind, NavigationContractFindingSeverity,
+    NavigationDisambiguationSet as NavigationContractDisambiguationSet,
+    NavigationTarget as StableNavigationTarget, NavigationTargetAndHierarchyContractCase,
+    NavigationTargetAndHierarchyContractPacket, NavigationTargetContractError,
+    ProofClass as NavigationContractProofClass,
+    ProviderSourceClass as NavigationContractProviderSourceClass,
+    ReferenceOccurrence as NavigationContractReferenceOccurrence,
+    RelationKind as NavigationContractRelationKind,
+    RenameCandidateDisposition as NavigationContractRenameCandidateDisposition,
+    RenameCandidateRef as NavigationContractRenameCandidateRef,
+    RenamePreviewSet as NavigationContractRenamePreviewSet,
+    ScopeCompleteness as NavigationContractScopeCompleteness,
+    NAVIGATION_TARGET_CONTRACT_ARTIFACT_REF, NAVIGATION_TARGET_CONTRACT_BASELINE_FIXTURE_REF,
+    NAVIGATION_TARGET_CONTRACT_CASE_RECORD_KIND, NAVIGATION_TARGET_CONTRACT_DOC_REF,
+    NAVIGATION_TARGET_CONTRACT_FIXTURE_DIR, NAVIGATION_TARGET_CONTRACT_PACKET_RECORD_KIND,
+    NAVIGATION_TARGET_CONTRACT_SCHEMA_REF, NAVIGATION_TARGET_CONTRACT_SCHEMA_VERSION,
 };
 pub use next_js_expert_workflow_pack_truth_packet::{
     current_stable_next_js_expert_workflow_pack_truth_packet,
