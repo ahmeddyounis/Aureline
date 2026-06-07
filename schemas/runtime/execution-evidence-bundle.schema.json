@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/execution-evidence-bundle.schema.json",
+  "title": "Aureline execution evidence bundle",
+  "description": "Stable export schema for task-event envelopes, problem records, output channels, output chunks, execution evidence objects, and support/review-safe evidence bundles.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "bundle_id",
+    "generated_at",
+    "execution_context_ref",
+    "run_session_ref",
+    "task_events",
+    "problems",
+    "output_channels",
+    "evidence_objects",
+    "redaction_profile_ref",
+    "reopen_lineage_refs",
+    "consumer_projections",
+    "raw_private_material_excluded",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": { "const": "execution_evidence_bundle" },
+    "schema_version": { "const": 1 },
+    "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+    "run_session_ref": { "$ref": "#/$defs/non_empty_string" },
+    "task_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task_event" }
+    },
+    "problems": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/problem" }
+    },
+    "output_channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/output_channel" }
+    },
+    "evidence_objects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence_object" }
+    },
+    "artifact_refs": { "$ref": "#/$defs/ref_array" },
+    "mapping_refs": { "$ref": "#/$defs/ref_array" },
+    "redaction_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+    "reopen_lineage_refs": { "$ref": "#/$defs/ref_array" },
+    "source_contract_refs": { "$ref": "#/$defs/ref_array" },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "raw_private_material_excluded": { "type": "boolean" },
+    "promotion_state": {
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "source_kind": {
+      "enum": [
+        "native",
+        "bsp",
+        "bazel_bep",
+        "structured_output",
+        "heuristic_parser",
+        "imported_provider"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium_high",
+        "medium",
+        "low",
+        "heuristic_best_effort",
+        "unknown"
+      ]
+    },
+    "freshness": {
+      "enum": [
+        "current_local",
+        "current_remote",
+        "imported_provider",
+        "stale",
+        "replayed",
+        "unknown"
+      ]
+    },
+    "trust_state": {
+      "enum": [
+        "local_runtime_truth",
+        "remote_runtime_truth",
+        "imported_provider_truth",
+        "heuristic_fallback",
+        "stale_projection",
+        "unknown"
+      ]
+    },
+    "task_event_kind": {
+      "enum": [
+        "task_queued",
+        "task_started",
+        "progress_updated",
+        "output_appended",
+        "diagnostic_emitted",
+        "test_case_started",
+        "test_case_finished",
+        "artifact_published",
+        "task_finished",
+        "debug_event"
+      ]
+    },
+    "output_channel_name": {
+      "enum": [
+        "task",
+        "test",
+        "debug",
+        "notebook",
+        "provider_imported",
+        "ai_tool",
+        "extension"
+      ]
+    },
+    "task_event": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "event_kind",
+        "execution_context_ref",
+        "run_session_ref",
+        "source_kind",
+        "adapter_ref",
+        "occurred_at_or_sequence",
+        "confidence_class",
+        "fallback_active"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/task_event_kind" },
+        "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "adapter_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provider_ref": { "$ref": "#/$defs/non_empty_string" },
+        "occurred_at_or_sequence": { "$ref": "#/$defs/non_empty_string" },
+        "parent_event_refs": { "$ref": "#/$defs/ref_array" },
+        "correlation_refs": { "$ref": "#/$defs/ref_array" },
+        "confidence_class": { "$ref": "#/$defs/confidence" },
+        "fallback_active": { "type": "boolean" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "problem": {
+      "type": "object",
+      "required": [
+        "problem_id",
+        "severity",
+        "message",
+        "location",
+        "source_tool_ref",
+        "source_kind",
+        "confidence_class",
+        "quick_fix_refs",
+        "freshness_state",
+        "editor_decoration_ref",
+        "timeline_entry_ref"
+      ],
+      "properties": {
+        "problem_id": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "enum": ["info", "warning", "error", "fatal"] },
+        "message": { "$ref": "#/$defs/non_empty_string" },
+        "location": { "type": "object" },
+        "source_tool_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "task_event_ref": { "$ref": "#/$defs/non_empty_string" },
+        "static_analysis_ref": { "$ref": "#/$defs/non_empty_string" },
+        "confidence_class": { "$ref": "#/$defs/confidence" },
+        "quick_fix_refs": { "$ref": "#/$defs/ref_array" },
+        "raw_output_backlink": { "$ref": "#/$defs/non_empty_string" },
+        "provider_evidence_backlink": { "$ref": "#/$defs/non_empty_string" },
+        "output_channel_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_state": { "$ref": "#/$defs/freshness" },
+        "qualifiers": { "$ref": "#/$defs/ref_array" },
+        "editor_decoration_ref": { "$ref": "#/$defs/non_empty_string" },
+        "timeline_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rerun_action_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "output_channel": {
+      "type": "object",
+      "required": [
+        "channel_id",
+        "canonical_name",
+        "source_subsystem",
+        "execution_context_ref",
+        "run_session_ref",
+        "source_kind",
+        "trust_state",
+        "retention_class",
+        "freshness_state",
+        "virtualization_safe",
+        "heuristic_parser_active",
+        "chunks"
+      ],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_name": { "$ref": "#/$defs/output_channel_name" },
+        "source_subsystem": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "retention_class": {
+          "enum": ["run_scoped", "pinned_for_support", "metadata_only", "redacted", "unknown"]
+        },
+        "freshness_state": { "$ref": "#/$defs/freshness" },
+        "virtualization_safe": { "type": "boolean" },
+        "heuristic_parser_active": { "type": "boolean" },
+        "parser_confidence": { "$ref": "#/$defs/confidence" },
+        "raw_output_backlink": { "$ref": "#/$defs/non_empty_string" },
+        "imported_provider_ref": { "$ref": "#/$defs/non_empty_string" },
+        "chunks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/output_chunk" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "output_chunk": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "sequence_start",
+        "sequence_end",
+        "timestamp_or_sequence",
+        "render_class",
+        "repeat_count",
+        "redaction_profile_ref",
+        "append_safe",
+        "searchable"
+      ],
+      "properties": {
+        "chunk_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence_start": { "type": "integer", "minimum": 0 },
+        "sequence_end": { "type": "integer", "minimum": 0 },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_end": { "type": "integer", "minimum": 0 },
+        "timestamp_or_sequence": { "$ref": "#/$defs/non_empty_string" },
+        "render_class": {
+          "enum": ["plain_text", "json", "diagnostic", "test_report", "redacted"]
+        },
+        "repeat_count": { "type": "integer", "minimum": 1 },
+        "link_refs": { "$ref": "#/$defs/ref_array" },
+        "redaction_profile_ref": { "$ref": "#/$defs/non_empty_string" },
+        "append_safe": { "type": "boolean" },
+        "searchable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "evidence_object": {
+      "type": "object",
+      "required": [
+        "evidence_id",
+        "evidence_kind",
+        "run_or_provider_ref",
+        "source_kind",
+        "freshness_state",
+        "reopen_refs",
+        "trust_state"
+      ],
+      "properties": {
+        "evidence_id": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_kind": {
+          "enum": ["problem", "output", "artifact", "review_annotation", "coverage", "test_result"]
+        },
+        "run_or_provider_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "mapping_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_state": { "$ref": "#/$defs/freshness" },
+        "baseline_or_comparison_ref": { "$ref": "#/$defs/non_empty_string" },
+        "problem_refs": { "$ref": "#/$defs/ref_array" },
+        "output_chunk_refs": { "$ref": "#/$defs/ref_array" },
+        "task_event_refs": { "$ref": "#/$defs/ref_array" },
+        "qualifiers": { "$ref": "#/$defs/ref_array" },
+        "reopen_refs": { "$ref": "#/$defs/ref_array" },
+        "trust_state": { "$ref": "#/$defs/trust_state" }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "bundle_id_ref",
+        "preserves_object_refs",
+        "preserves_source_kind",
+        "preserves_confidence",
+        "preserves_freshness",
+        "preserves_reopen_lineage",
+        "supports_json_export",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": {
+          "enum": [
+            "problems_panel",
+            "editor_decorations",
+            "output_tabs",
+            "timeline",
+            "cli_headless",
+            "review",
+            "ai_explanation",
+            "support_export",
+            "release_packet"
+          ]
+        },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bundle_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_object_refs": { "type": "boolean" },
+        "preserves_source_kind": { "type": "boolean" },
+        "preserves_confidence": { "type": "boolean" },
+        "preserves_freshness": { "type": "boolean" },
+        "preserves_reopen_lineage": { "type": "boolean" },
+        "supports_json_export": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "type": "string" },
+        "severity": { "enum": ["info", "warning", "blocker"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

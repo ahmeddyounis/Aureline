@@ -73,6 +73,7 @@ pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod stabilize_debugger_host_and_adapter_negotiation;
 pub mod stabilize_execution_context_resolver;
+pub mod stabilize_problem_records_output_channels_and_execution_evidence;
 pub mod stabilize_task_discovery_launch_profiles_rerun_last_behavior;
 pub mod stabilize_the_artifact_manager_preview_runtime_inspectors_and;
 pub mod stabilize_the_test_explorer_inline_results_watch_mode;
@@ -740,6 +741,29 @@ pub use stabilize_execution_context_resolver::{
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_REF,
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_VERSION,
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_problem_records_output_channels_and_execution_evidence::{
+    current_stable_execution_evidence_bundle, current_stable_execution_evidence_bundle_input,
+    CanonicalOutputChannelName as ExecutionEvidenceOutputChannelName,
+    EvidenceConfidenceClass as ExecutionEvidenceConfidenceClass,
+    EvidenceConsumerProjection as ExecutionEvidenceConsumerProjection,
+    EvidenceConsumerSurface as ExecutionEvidenceConsumerSurface,
+    EvidenceFindingKind as ExecutionEvidenceFindingKind,
+    EvidenceFindingSeverity as ExecutionEvidenceFindingSeverity,
+    EvidenceFreshnessState as ExecutionEvidenceFreshnessState,
+    EvidencePromotionState as ExecutionEvidencePromotionState, EvidenceQualifier,
+    EvidenceTaskEventKind as ExecutionEvidenceTaskEventKind,
+    EvidenceValidationFinding as ExecutionEvidenceValidationFinding, ExecutionEvidenceBundle,
+    ExecutionEvidenceBundleInput, ExecutionEvidenceKind, ExecutionEvidenceSupportExport,
+    ExecutionSourceKind, OutputChunkRenderClass as ExecutionEvidenceOutputChunkRenderClass,
+    OutputRetentionClass as ExecutionEvidenceOutputRetentionClass,
+    OutputTrustState as ExecutionEvidenceOutputTrustState, ProblemLocation, ProblemSeverity,
+    StableExecutionEvidenceObject, StableOutputChannelDescriptor, StableOutputChunk,
+    StableProblemRecord, StableTaskEventEnvelope, EXECUTION_EVIDENCE_BUNDLE_ARTIFACT_DOC_REF,
+    EXECUTION_EVIDENCE_BUNDLE_DOC_REF, EXECUTION_EVIDENCE_BUNDLE_FIXTURE_DIR,
+    EXECUTION_EVIDENCE_BUNDLE_PACKET_ARTIFACT_REF, EXECUTION_EVIDENCE_BUNDLE_RECORD_KIND,
+    EXECUTION_EVIDENCE_BUNDLE_SCHEMA_REF, EXECUTION_EVIDENCE_BUNDLE_SCHEMA_VERSION,
+    EXECUTION_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stabilize_task_discovery_launch_profiles_rerun_last_behavior::{
     current_stable_task_event_truth_packet, ConsumerSurface as TaskEventTruthConsumerSurface,
