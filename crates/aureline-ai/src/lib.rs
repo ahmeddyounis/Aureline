@@ -41,6 +41,11 @@
 //! enablement, prompt packs, tool-schema packs, local-model packs, feature-level
 //! AI rollout objects, independent downgrade receipts, and mirror/offline
 //! publication truth for claimed stable AI routes.
+//! The background branch-agent lifecycle lane exposes one
+//! [`qualify_background_branch_agent_lifecycle::BackgroundBranchAgentLifecyclePacket`]
+//! object binding launch review, active rows, checkpoints, re-review drift,
+//! operator takeover, completion review, cleanup posture, and support/export
+//! attribution to one stable run id on any claimed stable branch-agent lane.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -75,6 +80,7 @@ pub mod harden_repo_ai_instructions;
 pub mod memory;
 pub mod prompt_composer;
 pub mod publish_stable_ai_graduation_packets;
+pub mod qualify_background_branch_agent_lifecycle;
 pub mod registry;
 pub mod routing;
 pub mod routing_policy;
@@ -225,6 +231,20 @@ pub use prompt_composer::{
     PROMPT_COMPOSER_CONFORMANCE_SCHEMA_VERSION, PROMPT_COMPOSER_CONFORMANCE_SUMMARY_REF,
     PROMPT_COMPOSER_DRAFT_SCHEMA_REF, PROMPT_COMPOSER_DRILL_FIXTURE_DIR,
     PROMPT_CONTEXT_ATTACHMENT_SCHEMA_REF,
+};
+pub use qualify_background_branch_agent_lifecycle::{
+    current_stable_background_branch_agent_lifecycle_export,
+    BackgroundBranchAgentLifecycleArtifactError, BackgroundBranchAgentLifecyclePacket,
+    BackgroundBranchAgentLifecycleViolation, BranchAgentActiveRunRow,
+    BranchAgentCancellationPosture, BranchAgentCheckpointRow, BranchAgentCleanupDisposition,
+    BranchAgentCleanupRow, BranchAgentCompletionReview, BranchAgentConsumerProjection,
+    BranchAgentDriftDrillRow, BranchAgentDriftTrigger, BranchAgentExecutionLocus,
+    BranchAgentLaunchReviewSheet, BranchAgentOperatorAction, BranchAgentRunState,
+    BranchAgentSecurityReview, BranchAgentTakeoverRow, BACKGROUND_BRANCH_AGENT_BASE_CONTRACT_REF,
+    BACKGROUND_BRANCH_AGENT_LIFECYCLE_AI_DOC_REF, BACKGROUND_BRANCH_AGENT_LIFECYCLE_ARTIFACT_REF,
+    BACKGROUND_BRANCH_AGENT_LIFECYCLE_FIXTURE_DIR, BACKGROUND_BRANCH_AGENT_LIFECYCLE_RECORD_KIND,
+    BACKGROUND_BRANCH_AGENT_LIFECYCLE_SCHEMA_REF, BACKGROUND_BRANCH_AGENT_LIFECYCLE_SCHEMA_VERSION,
+    BACKGROUND_BRANCH_AGENT_LIFECYCLE_SUMMARY_REF,
 };
 pub use registry::{
     AiFeatureClass, ClaimedAiSurface, ExternalToolExecutionLocusClass, ExternalToolRegistryEntry,
