@@ -246,6 +246,13 @@
 //!   high-trust auto-update cannot resume after continuity changes without delay,
 //!   audit, and notification. It projects a metadata-safe
 //!   [`stabilize_extension_dependency_resolution_and_publisher_continuity::ExtensionDependencyResolutionSupportExport`].
+//! - one [`stabilize_extension_runtime_class_and_hosted_surface_truth::RuntimeClassTruthPacket`]
+//!   that stabilizes runtime-class disclosure, active-contribution inspectors,
+//!   downgraded-host banners, hosted-surface boundary chrome, local-dev /
+//!   sideload / publish-preview vocabulary parity, diagnostics, and support
+//!   exports. It derives the effective tier so unverified runtime class, missing
+//!   inspector controls, hidden hosted boundaries, undisclosed downgrades,
+//!   authoring-vocabulary drift, or catalog-only truth narrows below Stable.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -286,6 +293,7 @@ pub mod revocation;
 pub mod runtime;
 pub mod sdk_v1;
 pub mod stabilize_extension_dependency_resolution_and_publisher_continuity;
+pub mod stabilize_extension_runtime_class_and_hosted_surface_truth;
 pub mod stabilize_extension_runtime_v1_abi_capability_envelopes_and;
 pub mod stabilize_external_host_contracts_for_language_tools_debuggers;
 pub mod stabilize_marketplace_discovery_ranking_and_anti_abuse;
@@ -808,6 +816,47 @@ pub use stabilize_extension_dependency_resolution_and_publisher_continuity::{
     STABILITY_TIERS as DEPENDENCY_RESOLUTION_STABILITY_TIERS,
     SUPPORT_CLAIM_CLASSES as DEPENDENCY_RESOLUTION_SUPPORT_CLAIM_CLASSES,
     YANK_REVOCATION_STATE_CLASSES,
+};
+pub use stabilize_extension_runtime_class_and_hosted_surface_truth::{
+    project_runtime_class_truth, project_runtime_class_truth_support_export, runtime_class_label,
+    ActiveContributionInspector as RuntimeTruthActiveContributionInspector,
+    ActiveContributionInspectorInput as RuntimeTruthActiveContributionInspectorInput,
+    AuthoringFlowDisclosure, AuthoringFlowDisclosureInput,
+    DowngradedHostBanner as RuntimeTruthDowngradedHostBanner, DowngradedHostBannerInput,
+    HostedSurfaceBoundary, HostedSurfaceBoundaryInput, RuntimeClassDisclosure,
+    RuntimeClassDisclosureInput, RuntimeClassTruthClaim, RuntimeClassTruthClaimInput,
+    RuntimeClassTruthError, RuntimeClassTruthInput, RuntimeClassTruthInspection,
+    RuntimeClassTruthPacket, RuntimeClassTruthProjection, RuntimeClassTruthSupportExport,
+    RuntimeClassTruthValidationError, SurfaceTruthCoverage, SurfaceTruthCoverageInput,
+    ACTIVE_CONTRIBUTION_INSPECTOR_RECORD_KIND as RUNTIME_TRUTH_ACTIVE_CONTRIBUTION_INSPECTOR_RECORD_KIND,
+    AUTHORING_FLOW_CLASSES as RUNTIME_TRUTH_AUTHORING_FLOW_CLASSES,
+    AUTHORING_FLOW_DISCLOSURE_RECORD_KIND as RUNTIME_TRUTH_AUTHORING_FLOW_DISCLOSURE_RECORD_KIND,
+    CLAIM_BASIS_CLASSES as RUNTIME_TRUTH_CLAIM_BASIS_CLASSES,
+    CONSUMER_SURFACE_CLASSES as RUNTIME_TRUTH_CONSUMER_SURFACE_CLASSES,
+    DOWNGRADED_HOST_BANNER_RECORD_KIND as RUNTIME_TRUTH_DOWNGRADED_HOST_BANNER_RECORD_KIND,
+    DOWNGRADED_HOST_REASON_CLASSES as RUNTIME_TRUTH_DOWNGRADED_HOST_REASON_CLASSES,
+    EXECUTION_LOCUS_CLASSES as RUNTIME_TRUTH_EXECUTION_LOCUS_CLASSES,
+    FALLBACK_RUNTIME_CLASSES as RUNTIME_TRUTH_FALLBACK_RUNTIME_CLASSES,
+    HOSTED_SURFACE_BOUNDARY_RECORD_KIND as RUNTIME_TRUTH_HOSTED_SURFACE_BOUNDARY_RECORD_KIND,
+    HOSTED_SURFACE_CLASSES as RUNTIME_TRUTH_HOSTED_SURFACE_CLASSES,
+    HOST_HEALTH_CLASSES as RUNTIME_TRUTH_HOST_HEALTH_CLASSES,
+    INSPECTOR_ACTION_CLASSES as RUNTIME_TRUTH_INSPECTOR_ACTION_CLASSES,
+    OPEN_IN_BROWSER_FALLBACK_CLASSES as RUNTIME_TRUTH_OPEN_IN_BROWSER_FALLBACK_CLASSES,
+    REGISTRY_BINDING_CLASSES as RUNTIME_TRUTH_REGISTRY_BINDING_CLASSES,
+    REQUIRED_CONSUMER_SURFACES as RUNTIME_TRUTH_REQUIRED_CONSUMER_SURFACES,
+    REQUIRED_INSPECTOR_ACTIONS as RUNTIME_TRUTH_REQUIRED_INSPECTOR_ACTIONS,
+    RUNTIME_CLASSES as RUNTIME_TRUTH_RUNTIME_CLASSES,
+    RUNTIME_CLASS_DISCLOSURE_RECORD_KIND as RUNTIME_TRUTH_RUNTIME_CLASS_DISCLOSURE_RECORD_KIND,
+    RUNTIME_CLASS_SCHEMA_REF as RUNTIME_TRUTH_SCHEMA_REF,
+    RUNTIME_CLASS_SCHEMA_VERSION as RUNTIME_TRUTH_SCHEMA_VERSION,
+    RUNTIME_CLASS_TRUTH_CLAIM_RECORD_KIND, RUNTIME_CLASS_TRUTH_DOWNGRADE_REASONS,
+    RUNTIME_CLASS_TRUTH_INSPECTION_RECORD_KIND, RUNTIME_CLASS_TRUTH_PACKET_RECORD_KIND,
+    RUNTIME_CLASS_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+    SIGNATURE_STATE_CLASSES as RUNTIME_TRUTH_SIGNATURE_STATE_CLASSES,
+    STABILITY_TIERS as RUNTIME_TRUTH_STABILITY_TIERS,
+    SUPPORT_CLAIM_CLASSES as RUNTIME_TRUTH_SUPPORT_CLAIM_CLASSES,
+    SURFACE_TRUTH_COVERAGE_RECORD_KIND as RUNTIME_TRUTH_SURFACE_TRUTH_COVERAGE_RECORD_KIND,
+    TRUST_TIER_CLASSES as RUNTIME_TRUTH_TRUST_TIER_CLASSES,
 };
 pub use stabilize_extension_runtime_v1_abi_capability_envelopes_and::{
     project_stable_runtime_abi, project_stable_runtime_abi_support_export,
