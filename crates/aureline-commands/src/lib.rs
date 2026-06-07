@@ -25,6 +25,7 @@ pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod publish_capability_route_inspector;
 pub mod registry;
+pub mod stabilize_command_discoverability_records_alias_history;
 pub mod stabilize_client_origin_route_class;
 pub mod stabilize_command_contract;
 
@@ -137,6 +138,24 @@ pub use publish_capability_route_inspector::{
 pub use registry::{
     CommandDescriptorPublicContractRecord, CommandPreviewGateMetadata, CommandRegistry,
     CommandRegistryEntryRecord, CommandRegistrySeedRecord, RegistryError,
+};
+pub use stabilize_command_discoverability_records_alias_history::{
+    current_command_discoverability_export, DiscoverabilityAccessibilityRecord,
+    DiscoverabilityAliasRecord, DiscoverabilityAutomationSupportClass,
+    DiscoverabilityCurrentKeybindingRecord, DiscoverabilityProjectionRefs,
+    DiscoverabilityQuerySessionPolicyRecord, DiscoverabilitySurfaceProjectionRow,
+    DiscoverabilitySupportArtifactError, DiscoverabilitySupportPacket,
+    DiscoverabilitySupportViolation, ProtectedCommandDiscoverabilityRecord,
+    QuerySessionProviderClass, QuerySessionSyncPostureClass,
+    QuerySessionTextMaterialClass, DiscoverabilitySurfaceClass as CommandDiscoverabilitySurfaceClass,
+    STABILIZE_COMMAND_DISCOVERABILITY_ARTIFACT_REF,
+    STABILIZE_COMMAND_DISCOVERABILITY_DOC_REF,
+    STABILIZE_COMMAND_DISCOVERABILITY_FIXTURE_DIR,
+    STABILIZE_COMMAND_DISCOVERABILITY_QUERY_SESSION_SCHEMA_REF,
+    STABILIZE_COMMAND_DISCOVERABILITY_RECORD_KIND,
+    STABILIZE_COMMAND_DISCOVERABILITY_SCHEMA_REF,
+    STABILIZE_COMMAND_DISCOVERABILITY_SCHEMA_VERSION,
+    STABILIZE_COMMAND_DISCOVERABILITY_SUMMARY_REF,
 };
 pub use stabilize_client_origin_route_class::{
     current_client_origin_route_class_export, ActionRouteClass, ApprovalScopeRecord,

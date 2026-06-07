@@ -3,6 +3,7 @@ use aureline_commands::automation::current_safe_automation_qualification_export;
 use aureline_commands::finalize_command_parity::current_finalize_command_parity_export;
 use aureline_commands::harden_high_risk_command::current_high_risk_command_hardening_export;
 use aureline_commands::registry::seeded_registry;
+use aureline_commands::stabilize_command_discoverability_records_alias_history::current_command_discoverability_export;
 
 fn main() {
     let registry = seeded_registry();
@@ -229,6 +230,46 @@ fn main() {
     push_json_array(&mut out, &surface_actions);
     out.push_str(",\n    \"evidence_id\": ");
     push_json_string(&mut out, &automation.evidence_export.evidence_id);
+    out.push_str("\n  },\n");
+
+    // Project the stabilized command-discoverability lane so CLI/help, docs/help,
+    // onboarding, and support surfaces read the same discoverability source the
+    // command registry promotes for protected commands.
+    let discoverability = current_command_discoverability_export()
+        .expect("checked command discoverability export validates");
+    out.push_str("  \"command_discoverability\": {\n");
+    out.push_str("    \"packet_id\": ");
+    push_json_string(&mut out, &discoverability.packet_id);
+    out.push_str(",\n    \"protected_command_count\": ");
+    out.push_str(&discoverability.commands.len().to_string());
+    out.push_str(",\n    \"stable_command_count\": ");
+    out.push_str(
+        &discoverability
+            .commands
+            .iter()
+            .filter(|command| command.stable_line_required)
+            .count()
+            .to_string(),
+    );
+    out.push_str(",\n    \"query_history_policy\": ");
+    push_json_string(
+        &mut out,
+        discoverability
+            .query_session_policy
+            .history_policy_class
+            .as_str(),
+    );
+    out.push_str(",\n    \"query_sync_posture\": ");
+    push_json_string(
+        &mut out,
+        discoverability.query_session_policy.sync_posture.as_str(),
+    );
+    out.push_str(",\n    \"required_surfaces\": ");
+    let required_surfaces = aureline_commands::CommandDiscoverabilitySurfaceClass::required_coverage()
+        .into_iter()
+        .map(|surface| surface.as_str().to_owned())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &required_surfaces);
     out.push_str("\n  }\n}\n");
     print!("{out}");
 }
