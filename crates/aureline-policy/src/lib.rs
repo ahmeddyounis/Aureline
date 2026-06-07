@@ -19,6 +19,7 @@ pub mod finalize_the_secret_broker_handle_only_delegated_and;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
+pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
 pub mod runtime_authority_issuers;
 pub mod simulation;
@@ -94,6 +95,24 @@ pub use stabilize_effective_policy_remembered_decision_waiver_expiry_and::{
     EFFECTIVE_POLICY_STABILIZE_ROW_RECORD_KIND, EFFECTIVE_POLICY_STABILIZE_SCHEMA_VERSION,
     EFFECTIVE_POLICY_STABILIZE_SHARED_CONTRACT_REF,
     EFFECTIVE_POLICY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use policy_simulation_and_expiry::{
+    audit_policy_simulation_and_expiry_page, seeded_policy_simulation_and_expiry_page,
+    validate_policy_simulation_and_expiry_page, ApprovalHistoryRow, ExceptionPreviewSheet,
+    ExpiryBanner, ExpirySubjectClass, PolicyDiffImpactSummary, PolicySimulationAndExpiryDefect,
+    PolicySimulationAndExpiryDefectKind, PolicySimulationAndExpiryPage,
+    PolicySimulationAndExpiryQualificationClass, PolicySimulationAndExpirySummary,
+    PolicySimulationAndExpirySupportExport, PolicySimulationExceptionExpiryReviewPacket,
+    PolicySimulationProjectionSurfaceClass, PolicySimulationView, ReapprovalTriggerClass,
+    APPROVAL_HISTORY_ROW_RECORD_KIND, EXCEPTION_PREVIEW_SHEET_RECORD_KIND,
+    EXPIRY_BANNER_RECORD_KIND, POLICY_DIFF_IMPACT_SUMMARY_RECORD_KIND,
+    POLICY_SIMULATION_AND_EXPIRY_ARTIFACT_REF, POLICY_SIMULATION_AND_EXPIRY_DEFECT_RECORD_KIND,
+    POLICY_SIMULATION_AND_EXPIRY_DOC_REF, POLICY_SIMULATION_AND_EXPIRY_PAGE_RECORD_KIND,
+    POLICY_SIMULATION_AND_EXPIRY_SCHEMA_VERSION, POLICY_SIMULATION_AND_EXPIRY_SHARED_CONTRACT_REF,
+    POLICY_SIMULATION_AND_EXPIRY_SUPPORT_EXPORT_RECORD_KIND,
+    POLICY_SIMULATION_EXCEPTION_EXPIRY_REVIEW_PACKET_RECORD_KIND,
+    POLICY_SIMULATION_VIEW_RECORD_KIND,
 };
 
 pub use harden_enterprise_network_proxy_pac_manual_system_proxy::{
