@@ -48,6 +48,12 @@ API/database response viewers remain Preview unless they carry their own current
 family packet. The packet deliberately keeps database/result-grid and
 experiment-platform depth narrower than notebook runtime truth.
 
+The experiment handoff preview row now ingests the local-first provenance packet
+at `artifacts/data/qualify-experiment-provenance-and-result-comparison.json`.
+That packet qualifies run IDs, dataset provenance, artifact lineage,
+environment fingerprints, comparison guard labels, and export scopes without
+widening the handoff card to Stable.
+
 ## Support Export Projection
 
 Support/export packets cite row ids, rendered labels, proof packet refs,

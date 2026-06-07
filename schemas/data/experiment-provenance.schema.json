@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/experiment-provenance.schema.json",
+  "title": "Aureline experiment provenance and result comparison packet",
+  "description": "Boundary schema for local-first experiment runs, dataset summaries, artifact lineage entries, result comparison rows, environment fingerprints, and export reviews. Raw dataset rows, raw artifact payloads, raw URLs, raw hostnames, and raw secrets do not appear in this packet; payloads require explicit drill-down or export review.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "as_of",
+    "proof_doc_ref",
+    "data_doc_ref",
+    "schema_ref",
+    "environment_fingerprints",
+    "runs",
+    "datasets",
+    "artifacts",
+    "comparisons",
+    "export_reviews",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "experiment_provenance_packet" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "as_of": { "type": "string", "format": "date" },
+    "proof_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "data_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "schema_ref": { "$ref": "#/$defs/path_ref" },
+    "environment_fingerprints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/environment_fingerprint" }
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/experiment_run" }
+    },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/dataset_summary" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_lineage_entry" }
+    },
+    "comparisons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/result_comparison_row" }
+    },
+    "export_reviews": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/export_review" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "reviewable": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": ["local", "managed", "imported", "manual_attach"]
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["notebook", "script", "task", "test", "imported_evidence"]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["success", "failure", "partial", "cancelled", "unknown"]
+    },
+    "reproducibility_label": {
+      "type": "string",
+      "enum": ["reproducible", "likely_reproducible", "needs_rerun", "context_incomplete"]
+    },
+    "dataset_source_class": {
+      "type": "string",
+      "enum": ["local_file", "database_query", "remote_object", "captured_sample", "imported_metadata", "manual_attach"]
+    },
+    "dataset_scope_class": {
+      "type": "string",
+      "enum": ["full", "sample", "estimated", "unknown"]
+    },
+    "sensitivity_state": {
+      "type": "string",
+      "enum": ["public_safe", "internal_metadata_safe", "redacted_sensitive", "raw_preview_blocked"]
+    },
+    "location_class": {
+      "type": "string",
+      "enum": ["local_workspace", "local_external", "managed_region", "remote_service", "imported_packet", "unknown"]
+    },
+    "artifact_kind": {
+      "type": "string",
+      "enum": ["figure", "report", "model", "exported_dataset", "metric_table"]
+    },
+    "lineage_state": {
+      "type": "string",
+      "enum": ["current", "stale", "imported", "manual_attach", "unknown"]
+    },
+    "environment_freshness": {
+      "type": "string",
+      "enum": ["current", "stale", "imported", "incomplete"]
+    },
+    "axis_state": {
+      "type": "string",
+      "enum": ["matching", "different", "missing"]
+    },
+    "guard_label": {
+      "type": "string",
+      "enum": ["comparable", "environment_skewed", "data_skewed", "lineage_missing"]
+    },
+    "payload_scope": {
+      "type": "string",
+      "enum": ["notebook_file", "rendered_report", "metadata_only_summary", "raw_artifact_payload"]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": ["metadata_safe", "redacted_evidence", "raw_payload_requires_review", "blocked_by_policy"]
+    },
+    "environment_fingerprint": {
+      "type": "object",
+      "required": [
+        "environment_fingerprint_id",
+        "identity_summary",
+        "interpreter_or_kernel",
+        "package_or_toolchain_summary",
+        "target_origin",
+        "hardware_class",
+        "policy_epoch_ref",
+        "freshness"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "environment_fingerprint_id": { "$ref": "#/$defs/opaque_id" },
+        "identity_summary": { "$ref": "#/$defs/reviewable" },
+        "interpreter_or_kernel": { "$ref": "#/$defs/reviewable" },
+        "package_or_toolchain_summary": { "$ref": "#/$defs/reviewable" },
+        "target_origin": { "$ref": "#/$defs/origin_class" },
+        "hardware_class": { "$ref": "#/$defs/reviewable" },
+        "policy_epoch_ref": { "$ref": "#/$defs/reviewable" },
+        "freshness": { "$ref": "#/$defs/environment_freshness" }
+      }
+    },
+    "experiment_run": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "title",
+        "source_kind",
+        "source_ref",
+        "started_at",
+        "ended_at",
+        "origin_class",
+        "outcome",
+        "code_revision",
+        "dataset_refs",
+        "environment_fingerprint_ref",
+        "reproducibility_label",
+        "compare_action_available",
+        "open_action_available",
+        "export_action_available"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/reviewable" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "source_ref": { "$ref": "#/$defs/reviewable" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "code_revision": { "$ref": "#/$defs/reviewable" },
+        "dataset_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/opaque_id" } },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "reproducibility_label": { "$ref": "#/$defs/reproducibility_label" },
+        "compare_action_available": { "type": "boolean" },
+        "open_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean" }
+      }
+    },
+    "dataset_summary": {
+      "type": "object",
+      "required": [
+        "dataset_id",
+        "label",
+        "source_class",
+        "version_or_snapshot",
+        "scope",
+        "size_estimate",
+        "sensitivity_state",
+        "location_class",
+        "schema_or_query_summary",
+        "metadata_only_default",
+        "raw_sample_drill_down",
+        "raw_data_default_share"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dataset_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable" },
+        "source_class": { "$ref": "#/$defs/dataset_source_class" },
+        "version_or_snapshot": { "$ref": "#/$defs/reviewable" },
+        "scope": { "$ref": "#/$defs/dataset_scope_class" },
+        "size_estimate": { "$ref": "#/$defs/reviewable" },
+        "sensitivity_state": { "$ref": "#/$defs/sensitivity_state" },
+        "location_class": { "$ref": "#/$defs/location_class" },
+        "schema_or_query_summary": { "$ref": "#/$defs/reviewable" },
+        "metadata_only_default": { "type": "boolean", "const": true },
+        "raw_sample_drill_down": { "type": "boolean", "const": true },
+        "raw_data_default_share": { "type": "boolean", "const": false }
+      }
+    },
+    "artifact_lineage_entry": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "artifact_kind",
+        "producing_run_ref",
+        "generator_step",
+        "environment_or_model_fingerprint_ref",
+        "saved_location_class",
+        "lineage_state",
+        "open_producing_run_action",
+        "copy_action_available",
+        "export_action_available"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "producing_run_ref": { "$ref": "#/$defs/reviewable" },
+        "generator_step": { "$ref": "#/$defs/reviewable" },
+        "environment_or_model_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "saved_location_class": { "$ref": "#/$defs/location_class" },
+        "lineage_state": { "$ref": "#/$defs/lineage_state" },
+        "open_producing_run_action": { "type": "boolean" },
+        "copy_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean" }
+      }
+    },
+    "comparison_basis": {
+      "type": "object",
+      "required": [
+        "code_revision",
+        "data_snapshot",
+        "environment_fingerprint",
+        "hardware_class",
+        "metric_schema",
+        "retained_lineage",
+        "context_note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code_revision": { "$ref": "#/$defs/axis_state" },
+        "data_snapshot": { "$ref": "#/$defs/axis_state" },
+        "environment_fingerprint": { "$ref": "#/$defs/axis_state" },
+        "hardware_class": { "$ref": "#/$defs/axis_state" },
+        "metric_schema": { "$ref": "#/$defs/axis_state" },
+        "retained_lineage": { "type": "boolean" },
+        "context_note": { "$ref": "#/$defs/reviewable" }
+      }
+    },
+    "metric_row": {
+      "type": "object",
+      "required": ["metric", "baseline_value", "candidate_value", "delta", "threshold_note"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": { "$ref": "#/$defs/reviewable" },
+        "baseline_value": { "type": "number" },
+        "candidate_value": { "type": "number" },
+        "delta": { "type": "number" },
+        "threshold_note": { "$ref": "#/$defs/reviewable" }
+      }
+    },
+    "result_comparison_row": {
+      "type": "object",
+      "required": [
+        "comparison_id",
+        "baseline_run_ref",
+        "candidate_run_ref",
+        "metric_schema_version",
+        "comparator_type",
+        "guard_label",
+        "visible_guard_label",
+        "basis",
+        "data_scope_difference",
+        "metrics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "comparison_id": { "$ref": "#/$defs/opaque_id" },
+        "baseline_run_ref": { "$ref": "#/$defs/opaque_id" },
+        "candidate_run_ref": { "$ref": "#/$defs/opaque_id" },
+        "metric_schema_version": { "$ref": "#/$defs/reviewable" },
+        "comparator_type": { "$ref": "#/$defs/reviewable" },
+        "guard_label": { "$ref": "#/$defs/guard_label" },
+        "visible_guard_label": { "$ref": "#/$defs/reviewable" },
+        "basis": { "$ref": "#/$defs/comparison_basis" },
+        "data_scope_difference": { "$ref": "#/$defs/reviewable" },
+        "metrics": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/metric_row" } }
+      }
+    },
+    "export_review": {
+      "type": "object",
+      "required": [
+        "export_id",
+        "subject_ref",
+        "payload_scope",
+        "trust_class",
+        "destination_class",
+        "retention_note",
+        "default_selected",
+        "explicit_review_required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "payload_scope": { "$ref": "#/$defs/payload_scope" },
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "destination_class": { "$ref": "#/$defs/reviewable" },
+        "retention_note": { "$ref": "#/$defs/reviewable" },
+        "default_selected": { "type": "boolean" },
+        "explicit_review_required": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "run_count",
+        "dataset_count",
+        "artifact_count",
+        "comparison_count",
+        "comparable_count",
+        "downgraded_comparison_count",
+        "metadata_export_survives_raw_block"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "run_count": { "type": "integer", "minimum": 0 },
+        "dataset_count": { "type": "integer", "minimum": 0 },
+        "artifact_count": { "type": "integer", "minimum": 0 },
+        "comparison_count": { "type": "integer", "minimum": 0 },
+        "comparable_count": { "type": "integer", "minimum": 0 },
+        "downgraded_comparison_count": { "type": "integer", "minimum": 0 },
+        "metadata_export_survives_raw_block": { "type": "boolean" }
+      }
+    }
+  }
+}
