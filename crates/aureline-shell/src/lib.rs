@@ -156,6 +156,7 @@ pub mod search;
 pub mod secret_broker_beta;
 pub mod service_health;
 pub mod shell_safe_preview_stable;
+pub mod stabilize_shell_zoning_and_responsive_fallback;
 pub mod stabilize_template_starter_prebuild_entry;
 pub mod start_center;
 pub mod start_center_stable;
