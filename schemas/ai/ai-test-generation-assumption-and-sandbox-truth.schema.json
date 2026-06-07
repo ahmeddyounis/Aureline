@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai-test-generation-assumption-and-sandbox-truth.schema.json",
+  "title": "Aureline AI test-generation assumption and sandbox truth packet",
+  "$comment": "Rust owner: aureline_ai::ai_test_generation::AiTestGenerationTruthPacket.",
+  "description": "Boundary schema for the metadata-only stable AI test-generation truth packet. The packet keeps generated tests draft/review-class while preserving concrete proposal triggers, assumption-review sheets, generated-test diff risk classes, sandbox-validation lineage and policies, and coverage-impact truth. It references the testing admission gate rather than replacing selector/protected-path admission. It carries ids, refs, closed vocabulary tokens, counts, short summaries, lineage refs, and policy classes only. It never carries raw generated test source, raw patch bodies, raw diffs, raw runner logs, raw stdout/stderr, raw prompts, provider payloads, credentials, exact endpoint URLs, absolute local paths, or secret values. Adding a new enum member or optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_id",
+    "display_label",
+    "candidates",
+    "briefs",
+    "assumption_sheets",
+    "generated_diffs",
+    "sandbox_validations",
+    "coverage_impact_notes",
+    "consumer_projections",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_test_generation_truth" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_id": { "$ref": "#/$defs/non_empty_string" },
+    "display_label": { "$ref": "#/$defs/non_empty_string" },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/candidate_row" }
+    },
+    "briefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/test_generation_brief" }
+    },
+    "assumption_sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/assumption_review_sheet" }
+    },
+    "generated_diffs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/generated_test_diff_record" }
+    },
+    "sandbox_validations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sandbox_validation_record" }
+    },
+    "coverage_impact_notes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/coverage_impact_note" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": ["inspectable", "pending_review", "blocked"]
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "bug_report",
+        "uncovered_branch",
+        "failing_example",
+        "changed_symbol",
+        "release_regression_gap"
+      ]
+    },
+    "review_state": {
+      "type": "string",
+      "enum": ["draft_only", "review_ready_draft", "blocked_review_only", "trusted_applied"],
+      "description": "Stable packets reject trusted_applied; it exists only as a forbidden state the validator can catch."
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "flaky_risk_class": {
+      "type": "string",
+      "enum": ["none_known", "potentially_flaky", "suspected_flaky"]
+    },
+    "assumption_class": {
+      "type": "string",
+      "enum": [
+        "fixture_creation",
+        "mock_behavior",
+        "clock_or_randomness",
+        "environment_variable",
+        "file_system_expectation",
+        "network_expectation",
+        "runtime_dependency",
+        "unsupported_path"
+      ]
+    },
+    "assumption_risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "diff_class": {
+      "type": "string",
+      "enum": ["logic_assertion", "helper_or_fixture_addition", "snapshot_or_golden_update"]
+    },
+    "sandbox_target_class": {
+      "type": "string",
+      "enum": ["local_sandbox", "remote_helper", "constrained_mode"]
+    },
+    "sandbox_outcome_class": {
+      "type": "string",
+      "enum": ["passed", "failed", "timed_out", "skipped", "blocked_by_trust"]
+    },
+    "coverage_impact_class": {
+      "type": "string",
+      "enum": ["measured", "estimated", "stale", "unsupported", "not_comparable"]
+    },
+    "bulk_apply_posture": {
+      "type": "string",
+      "enum": ["unavailable_until_inspectable", "unavailable_review_required", "available"],
+      "description": "Stable packets reject available; generated tests remain review-first."
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "suggestion_card",
+        "test_explorer_overlay",
+        "coverage_view",
+        "cli_headless",
+        "support_export",
+        "release_packet"
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_id", "evidence_refs", "export_lineage_refs", "validation_status"],
+      "properties": {
+        "object_id": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "export_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "validation_status": { "$ref": "#/$defs/validation_status" }
+      }
+    },
+    "test_generation_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "lineage",
+        "trigger_class",
+        "trigger_ref",
+        "target_refs",
+        "requested_test_type",
+        "framework_target",
+        "confidence_class",
+        "flaky_risk_class",
+        "risk_labels_retained_after_pass"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "trigger_class": { "$ref": "#/$defs/trigger_class" },
+        "trigger_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_refs": { "$ref": "#/$defs/ref_array" },
+        "requested_test_type": { "$ref": "#/$defs/non_empty_string" },
+        "framework_target": { "$ref": "#/$defs/non_empty_string" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "flaky_risk_class": { "$ref": "#/$defs/flaky_risk_class" },
+        "risk_labels_retained_after_pass": { "type": "boolean" }
+      }
+    },
+    "assumption_review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "assumption_class",
+        "source_ref",
+        "risk_class",
+        "inspectable_before_apply"
+      ],
+      "properties": {
+        "assumption_id": { "$ref": "#/$defs/non_empty_string" },
+        "assumption_class": { "$ref": "#/$defs/assumption_class" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "risk_class": { "$ref": "#/$defs/assumption_risk_class" },
+        "inspectable_before_apply": { "type": "boolean" },
+        "unsupported_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "assumption_review_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "lineage", "rows"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/assumption_review_row" }
+        }
+      }
+    },
+    "generated_test_diff_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diff_class_id",
+        "diff_class",
+        "change_refs",
+        "file_count",
+        "separated_from_other_classes"
+      ],
+      "properties": {
+        "diff_class_id": { "$ref": "#/$defs/non_empty_string" },
+        "diff_class": { "$ref": "#/$defs/diff_class" },
+        "change_refs": { "$ref": "#/$defs/ref_array" },
+        "file_count": { "type": "integer", "minimum": 0 },
+        "separated_from_other_classes": { "type": "boolean" },
+        "snapshot_or_golden_baseline_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "generated_test_diff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "lineage", "patch_digest_ref", "write_scope_label", "classes"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "patch_digest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "write_scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/generated_test_diff_class_row" }
+        }
+      }
+    },
+    "sandbox_validation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "lineage",
+        "target_class",
+        "target_environment_refs",
+        "network_policy_ref",
+        "file_policy_ref",
+        "secret_policy_ref",
+        "outcome_class",
+        "executed_run_ref",
+        "logs_ref",
+        "rerun_available",
+        "open_logs_available"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "target_class": { "$ref": "#/$defs/sandbox_target_class" },
+        "target_environment_refs": { "$ref": "#/$defs/ref_array" },
+        "network_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "file_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "secret_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "outcome_class": { "$ref": "#/$defs/sandbox_outcome_class" },
+        "blocked_by_trust_reason": { "$ref": "#/$defs/non_empty_string" },
+        "executed_run_ref": { "$ref": "#/$defs/non_empty_string" },
+        "logs_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rerun_available": { "type": "boolean" },
+        "open_logs_available": { "type": "boolean" }
+      }
+    },
+    "coverage_impact_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "lineage",
+        "target_family",
+        "impact_class",
+        "expected_covered_area_refs",
+        "counts_for_release_or_benchmark_truth"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "target_family": { "$ref": "#/$defs/non_empty_string" },
+        "impact_class": { "$ref": "#/$defs/coverage_impact_class" },
+        "expected_covered_area_refs": { "$ref": "#/$defs/ref_array" },
+        "measured_coverage_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delta_summary": { "$ref": "#/$defs/non_empty_string" },
+        "counts_for_release_or_benchmark_truth": { "type": "boolean" }
+      }
+    },
+    "candidate_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "review_state",
+        "gate_record_ref",
+        "brief_id",
+        "assumption_sheet_id",
+        "diff_record_id",
+        "sandbox_record_id",
+        "coverage_note_id",
+        "assumptions_inspectable",
+        "diff_classes_inspectable",
+        "sandbox_state_inspectable",
+        "bulk_apply_posture"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "review_state": { "$ref": "#/$defs/review_state" },
+        "gate_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "brief_id": { "$ref": "#/$defs/non_empty_string" },
+        "assumption_sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "diff_record_id": { "$ref": "#/$defs/non_empty_string" },
+        "sandbox_record_id": { "$ref": "#/$defs/non_empty_string" },
+        "coverage_note_id": { "$ref": "#/$defs/non_empty_string" },
+        "assumptions_inspectable": { "type": "boolean" },
+        "diff_classes_inspectable": { "type": "boolean" },
+        "sandbox_state_inspectable": { "type": "boolean" },
+        "bulk_apply_posture": { "$ref": "#/$defs/bulk_apply_posture" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "preserves_draft_class",
+        "distinguishes_ai_generated_tests",
+        "separates_diff_classes",
+        "preserves_sandbox_validation",
+        "preserves_coverage_impact_class",
+        "export_ref"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "preserves_draft_class": { "type": "boolean" },
+        "distinguishes_ai_generated_tests": { "type": "boolean" },
+        "separates_diff_classes": { "type": "boolean" },
+        "preserves_sandbox_validation": { "type": "boolean" },
+        "preserves_coverage_impact_class": { "type": "boolean" },
+        "export_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
