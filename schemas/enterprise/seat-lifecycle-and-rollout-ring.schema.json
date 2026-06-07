@@ -1,0 +1,486 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/enterprise/seat-lifecycle-and-rollout-ring.schema.json",
+  "title": "Aureline organization admin, provisioning, seat lifecycle, and rollout truth records",
+  "description": "Boundary schema for enterprise organization admin truth covering tenant overview, provisioning source cards, seat lifecycle rows, lifecycle impact previews, rollout-ring audits, and support/export projections.",
+  "oneOf": [
+    { "$ref": "#/$defs/page" },
+    { "$ref": "#/$defs/overview" },
+    { "$ref": "#/$defs/provider" },
+    { "$ref": "#/$defs/seat" },
+    { "$ref": "#/$defs/impact" },
+    { "$ref": "#/$defs/rollout" },
+    { "$ref": "#/$defs/defect" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "policy:organization_admin_provisioning_seat_lifecycle_truth:v1"
+    },
+    "deployment_mode": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted_control_plane",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "provisioning_class": {
+      "type": "string",
+      "enum": ["oidc", "scim", "signed_file_bundle", "manual"]
+    },
+    "provider_state": {
+      "type": "string",
+      "enum": ["sync_healthy", "cached", "degraded", "blocked", "manual_only"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["live", "cached", "stale", "expired", "missing"]
+    },
+    "failure_kind": {
+      "type": "string",
+      "enum": [
+        "provider_outage",
+        "auth_drift",
+        "scope_mismatch",
+        "seat_loss",
+        "region_policy_blocker",
+        "deprovisioning_impact"
+      ]
+    },
+    "seat_class": {
+      "type": "string",
+      "enum": [
+        "enterprise_managed",
+        "managed_ai",
+        "reviewer",
+        "local_only_continuation"
+      ]
+    },
+    "seat_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending",
+        "suspended",
+        "grace_window",
+        "transferred",
+        "downgraded",
+        "deprovisioned"
+      ]
+    },
+    "flow_class": {
+      "type": "string",
+      "enum": ["seat_transfer", "suspension", "downgrade", "org_switch", "deprovision"]
+    },
+    "impact_class": {
+      "type": "string",
+      "enum": ["unchanged", "narrowed", "disabled", "requires_review", "local_only_available"]
+    },
+    "ring_class": {
+      "type": "string",
+      "enum": ["stable", "pilot", "canary", "beta", "local_mirror"]
+    },
+    "ring_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "pending",
+        "drifted",
+        "stale",
+        "offline_cache_only",
+        "verification_failed",
+        "rollback_eligible"
+      ]
+    },
+    "qualification": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "overview_truth_missing",
+        "missing_provisioning_class_coverage",
+        "provider_card_incomplete",
+        "failure_kind_not_specific",
+        "seat_lifecycle_truth_missing",
+        "missing_impact_preview_coverage",
+        "impact_preview_truth_missing",
+        "rollout_ring_truth_missing",
+        "boundary_visibility_incomplete",
+        "raw_private_material_exposed",
+        "local_safety_guarantee_missing"
+      ]
+    },
+    "visibility": {
+      "type": "object",
+      "required": ["admin", "diagnostics", "about", "help", "support_packet", "export_packet"],
+      "additionalProperties": false,
+      "properties": {
+        "admin": { "type": "boolean" },
+        "diagnostics": { "type": "boolean" },
+        "about": { "type": "boolean" },
+        "help": { "type": "boolean" },
+        "support_packet": { "type": "boolean" },
+        "export_packet": { "type": "boolean" }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "required": [
+        "action_token",
+        "action_label",
+        "result_token",
+        "result_label",
+        "actor_ref",
+        "applied_at",
+        "transaction_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "action_token": { "$ref": "#/$defs/non_empty" },
+        "action_label": { "$ref": "#/$defs/non_empty" },
+        "result_token": { "$ref": "#/$defs/non_empty" },
+        "result_label": { "$ref": "#/$defs/non_empty" },
+        "actor_ref": { "$ref": "#/$defs/non_empty" },
+        "applied_at": { "$ref": "#/$defs/non_empty" },
+        "transaction_id": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "seat_summary": {
+      "type": "object",
+      "required": ["active", "pending", "suspended", "grace_window", "deprovisioned"],
+      "additionalProperties": false,
+      "properties": {
+        "active": { "type": "integer", "minimum": 0 },
+        "pending": { "type": "integer", "minimum": 0 },
+        "suspended": { "type": "integer", "minimum": 0 },
+        "grace_window": { "type": "integer", "minimum": 0 },
+        "deprovisioned": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "overview": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "org_tenant_ref",
+        "deployment_mode_token",
+        "policy_source_label",
+        "seat_summary",
+        "rollout_ring_summary",
+        "last_successful_sync",
+        "export_action_label",
+        "support_action_label",
+        "surface_visibility",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_organization_overview_card_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "org_tenant_ref": { "$ref": "#/$defs/non_empty" },
+        "deployment_mode_token": { "$ref": "#/$defs/deployment_mode" },
+        "policy_source_label": { "$ref": "#/$defs/non_empty" },
+        "seat_summary": { "$ref": "#/$defs/seat_summary" },
+        "rollout_ring_summary": { "$ref": "#/$defs/non_empty" },
+        "last_successful_sync": { "$ref": "#/$defs/non_empty" },
+        "export_action_label": { "$ref": "#/$defs/non_empty" },
+        "support_action_label": { "$ref": "#/$defs/non_empty" },
+        "surface_visibility": { "$ref": "#/$defs/visibility" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "provider_id",
+        "org_tenant_ref",
+        "rollout_ring_ref",
+        "provisioning_class_token",
+        "provider_state_token",
+        "sync_freshness_token",
+        "last_successful_sync",
+        "scope_summary_label",
+        "managed_user_count",
+        "managed_group_count",
+        "fallback_manual_path_label",
+        "failure_kind_token",
+        "surface_visibility",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_directory_provider_card_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "provider_id": { "$ref": "#/$defs/non_empty" },
+        "org_tenant_ref": { "$ref": "#/$defs/non_empty" },
+        "rollout_ring_ref": { "$ref": "#/$defs/non_empty" },
+        "provisioning_class_token": { "$ref": "#/$defs/provisioning_class" },
+        "provider_state_token": { "$ref": "#/$defs/provider_state" },
+        "sync_freshness_token": { "$ref": "#/$defs/freshness" },
+        "last_successful_sync": { "$ref": "#/$defs/non_empty" },
+        "scope_summary_label": { "$ref": "#/$defs/non_empty" },
+        "managed_user_count": { "type": "integer", "minimum": 0 },
+        "managed_group_count": { "type": "integer", "minimum": 0 },
+        "fallback_manual_path_label": { "$ref": "#/$defs/non_empty" },
+        "failure_kind_token": { "type": "string" },
+        "surface_visibility": { "$ref": "#/$defs/visibility" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "seat": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "org_tenant_ref",
+        "rollout_ring_ref",
+        "principal_ref",
+        "source_of_truth_label",
+        "role_label",
+        "seat_class_token",
+        "lifecycle_state_token",
+        "last_seen",
+        "local_artifact_safety_note",
+        "local_editing_preserved",
+        "local_history_preserved",
+        "export_offboarding_available",
+        "action_lineage",
+        "surface_visibility",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_seat_lifecycle_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty" },
+        "org_tenant_ref": { "$ref": "#/$defs/non_empty" },
+        "rollout_ring_ref": { "$ref": "#/$defs/non_empty" },
+        "principal_ref": { "$ref": "#/$defs/non_empty" },
+        "source_of_truth_label": { "$ref": "#/$defs/non_empty" },
+        "role_label": { "$ref": "#/$defs/non_empty" },
+        "seat_class_token": { "$ref": "#/$defs/seat_class" },
+        "lifecycle_state_token": { "$ref": "#/$defs/seat_state" },
+        "last_seen": { "$ref": "#/$defs/non_empty" },
+        "local_artifact_safety_note": { "$ref": "#/$defs/non_empty" },
+        "local_editing_preserved": { "type": "boolean" },
+        "local_history_preserved": { "type": "boolean" },
+        "export_offboarding_available": { "type": "boolean" },
+        "action_lineage": { "$ref": "#/$defs/lineage" },
+        "surface_visibility": { "$ref": "#/$defs/visibility" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "preview_id",
+        "flow_class_token",
+        "principal_ref",
+        "managed_ai_impact_token",
+        "sync_impact_token",
+        "collaboration_impact_token",
+        "review_impact_token",
+        "marketplace_impact_token",
+        "local_only_continuation_label",
+        "export_rights_label",
+        "local_editing_preserved",
+        "local_history_preserved",
+        "unsaved_work_preserved",
+        "failure_kind_token",
+        "action_lineage",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_lifecycle_impact_preview_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "preview_id": { "$ref": "#/$defs/non_empty" },
+        "flow_class_token": { "$ref": "#/$defs/flow_class" },
+        "principal_ref": { "$ref": "#/$defs/non_empty" },
+        "managed_ai_impact_token": { "$ref": "#/$defs/impact_class" },
+        "sync_impact_token": { "$ref": "#/$defs/impact_class" },
+        "collaboration_impact_token": { "$ref": "#/$defs/impact_class" },
+        "review_impact_token": { "$ref": "#/$defs/impact_class" },
+        "marketplace_impact_token": { "$ref": "#/$defs/impact_class" },
+        "local_only_continuation_label": { "$ref": "#/$defs/non_empty" },
+        "export_rights_label": { "$ref": "#/$defs/non_empty" },
+        "local_editing_preserved": { "type": "boolean" },
+        "local_history_preserved": { "type": "boolean" },
+        "unsaved_work_preserved": { "type": "boolean" },
+        "failure_kind_token": { "type": "string" },
+        "action_lineage": { "$ref": "#/$defs/lineage" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "ring_id",
+        "org_tenant_ref",
+        "ring_class_token",
+        "ring_state_token",
+        "policy_source_label",
+        "build_channel_summary",
+        "enrolled_device_count",
+        "drifted_device_count",
+        "last_audited",
+        "local_safety_note",
+        "rollback_action_label",
+        "surface_visibility",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_rollout_ring_audit_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "ring_id": { "$ref": "#/$defs/non_empty" },
+        "org_tenant_ref": { "$ref": "#/$defs/non_empty" },
+        "ring_class_token": { "$ref": "#/$defs/ring_class" },
+        "ring_state_token": { "$ref": "#/$defs/ring_state" },
+        "policy_source_label": { "$ref": "#/$defs/non_empty" },
+        "build_channel_summary": { "$ref": "#/$defs/non_empty" },
+        "enrolled_device_count": { "type": "integer", "minimum": 0 },
+        "drifted_device_count": { "type": "integer", "minimum": 0 },
+        "last_audited": { "$ref": "#/$defs/non_empty" },
+        "local_safety_note": { "$ref": "#/$defs/non_empty" },
+        "rollback_action_label": { "$ref": "#/$defs/non_empty" },
+        "surface_visibility": { "$ref": "#/$defs/visibility" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "provider_card_count",
+        "seat_lifecycle_row_count",
+        "impact_preview_count",
+        "rollout_ring_count",
+        "overall_qualification_token",
+        "overall_narrow_reason_token"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "provider_card_count": { "type": "integer", "minimum": 0 },
+        "seat_lifecycle_row_count": { "type": "integer", "minimum": 0 },
+        "impact_preview_count": { "type": "integer", "minimum": 0 },
+        "rollout_ring_count": { "type": "integer", "minimum": 0 },
+        "overall_qualification_token": { "$ref": "#/$defs/qualification" },
+        "overall_narrow_reason_token": { "$ref": "#/$defs/narrow_reason" }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_organization_admin_truth_defect_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_id": { "$ref": "#/$defs/non_empty" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason" },
+        "source": { "$ref": "#/$defs/non_empty" },
+        "note": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "page": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "page_label",
+        "generated_at",
+        "overview",
+        "provider_cards",
+        "seat_lifecycle_rows",
+        "impact_previews",
+        "rollout_rings",
+        "summary",
+        "defects"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_organization_admin_truth_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/non_empty" },
+        "page_label": { "$ref": "#/$defs/non_empty" },
+        "generated_at": { "$ref": "#/$defs/non_empty" },
+        "overview": { "$ref": "#/$defs/overview" },
+        "provider_cards": { "type": "array", "items": { "$ref": "#/$defs/provider" } },
+        "seat_lifecycle_rows": { "type": "array", "items": { "$ref": "#/$defs/seat" } },
+        "impact_previews": { "type": "array", "items": { "$ref": "#/$defs/impact" } },
+        "rollout_rings": { "type": "array", "items": { "$ref": "#/$defs/rollout" } },
+        "summary": { "$ref": "#/$defs/summary" },
+        "defects": { "type": "array", "items": { "$ref": "#/$defs/defect" } }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "org_tenant_ref",
+        "rollout_ring_refs",
+        "provisioning_source_tokens",
+        "seat_lifecycle_refs",
+        "local_safety_guarantees",
+        "page",
+        "raw_private_material_excluded"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "record_kind": { "type": "string", "const": "policy_organization_admin_truth_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/non_empty" },
+        "generated_at": { "$ref": "#/$defs/non_empty" },
+        "org_tenant_ref": { "$ref": "#/$defs/non_empty" },
+        "rollout_ring_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty" } },
+        "provisioning_source_tokens": { "type": "array", "items": { "$ref": "#/$defs/provisioning_class" } },
+        "seat_lifecycle_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty" } },
+        "local_safety_guarantees": { "type": "array", "items": { "$ref": "#/$defs/non_empty" } },
+        "page": { "$ref": "#/$defs/page" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

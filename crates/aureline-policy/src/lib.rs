@@ -25,6 +25,7 @@ pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
 pub mod stabilize_deployment_and_residency_truth;
 pub mod stabilize_effective_policy_remembered_decision_waiver_expiry_and;
+pub mod stabilize_organization_admin_provisioning_and_seat_lifecycle_truth;
 pub mod stabilize_transport_policy_proxy_resolution_trust_store_and_mirror_route;
 
 pub use authority::{
@@ -209,6 +210,24 @@ pub use stabilize_deployment_and_residency_truth::{
     DEPLOYMENT_RESIDENCY_STABILIZE_ROW_RECORD_KIND, DEPLOYMENT_RESIDENCY_STABILIZE_SCHEMA_VERSION,
     DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF,
     DEPLOYMENT_RESIDENCY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use stabilize_organization_admin_provisioning_and_seat_lifecycle_truth::{
+    audit_organization_admin_truth_page, seeded_organization_admin_truth_page,
+    validate_organization_admin_truth_page, AdminFailureKind, AdminLifecycleActionLineage,
+    AdminSyncFreshnessClass, DirectoryProviderCard, EntitlementImpactClass, LifecycleFlowClass,
+    LifecycleImpactPreview, OrganizationAdminTruthDefect, OrganizationAdminTruthNarrowReasonClass,
+    OrganizationAdminTruthPage, OrganizationAdminTruthQualificationClass,
+    OrganizationAdminTruthSummary, OrganizationAdminTruthSupportExport, OrganizationDeploymentMode,
+    OrganizationOverviewCard, OrganizationProvisioningClass, ProviderStateClass,
+    RolloutRingAuditRow, RolloutRingClass, RolloutRingStateClass, SeatClass, SeatLifecycleRow,
+    SeatLifecycleStateClass, SeatSummary, SurfaceVisibility, DIRECTORY_PROVIDER_CARD_RECORD_KIND,
+    LIFECYCLE_IMPACT_PREVIEW_RECORD_KIND, ORGANIZATION_ADMIN_TRUTH_ARTIFACT_REF,
+    ORGANIZATION_ADMIN_TRUTH_DEFECT_RECORD_KIND, ORGANIZATION_ADMIN_TRUTH_DOC_REF,
+    ORGANIZATION_ADMIN_TRUTH_PAGE_RECORD_KIND, ORGANIZATION_ADMIN_TRUTH_SCHEMA_VERSION,
+    ORGANIZATION_ADMIN_TRUTH_SHARED_CONTRACT_REF,
+    ORGANIZATION_ADMIN_TRUTH_SUPPORT_EXPORT_RECORD_KIND, ORGANIZATION_OVERVIEW_CARD_RECORD_KIND,
+    ROLLOUT_RING_AUDIT_ROW_RECORD_KIND, SEAT_LIFECYCLE_ROW_RECORD_KIND,
 };
 
 pub use finalize_backup_restore_failover_and_local_core_continuity::{
