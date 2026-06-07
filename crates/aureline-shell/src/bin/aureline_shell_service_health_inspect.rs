@@ -12,6 +12,8 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- card <card_id>
 //! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- summary
 //! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- plaintext
+//! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- shared-feed
+//! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- shared-support-export
 //! cargo run -q -p aureline-shell --bin aureline_shell_service_health_inspect -- vocabulary
 //! ```
 
@@ -48,6 +50,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("summary") => print_json(&aggregator.summary)?,
         Some("plaintext") => print!("{}", aggregator.render_plaintext()),
+        Some("shared-feed") => print_json(&aggregator.shared_service_health_feed())?,
+        Some("shared-support-export") => {
+            print_json(&aggregator.shared_service_health_feed().support_export_projection())?
+        }
         Some("vocabulary") => print_vocabulary(),
         Some(other) => return Err(format!("unknown subcommand: {other}").into()),
     }

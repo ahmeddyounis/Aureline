@@ -8,6 +8,7 @@ use aureline_shell::service_health::aggregator::{
     LocalContinuityClass, ServiceContractStateClass, ServiceHealthAggregator,
 };
 use aureline_shell::service_health::seed::seeded_aggregator;
+use aureline_service_health_feed::ServiceHealthSurface;
 
 const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -75,4 +76,16 @@ fn sync_outage_downgrades_overall_continuity_to_read_only() {
         LocalContinuityClass::LocalSafeReadOnly
     );
     assert!(agg.honesty_marker_present);
+}
+
+#[test]
+fn aggregator_projects_the_shared_feed_contract() {
+    let feed = seeded_aggregator().shared_service_health_feed();
+    let report = feed.validate();
+    assert!(
+        report.passed,
+        "shared feed projection must validate cleanly: {:#?}",
+        report.findings
+    );
+    assert_eq!(feed.surface_bindings.len(), ServiceHealthSurface::REQUIRED.len());
 }

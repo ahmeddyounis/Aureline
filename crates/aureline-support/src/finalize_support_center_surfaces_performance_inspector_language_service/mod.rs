@@ -35,6 +35,13 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_service_health_feed::{
+    ServiceHealthContractState, ServiceHealthFeed, ServiceHealthFeedItem, ServiceHealthFreshness,
+    ServiceHealthOutageScope, ServiceHealthSourceClass, ServiceHealthSurface,
+    ServiceHealthSurfaceBinding, SERVICE_HEALTH_FEED_ITEM_RECORD_KIND,
+    SERVICE_HEALTH_FEED_RECORD_KIND, SERVICE_HEALTH_FEED_SCHEMA_REF,
+    SERVICE_HEALTH_FEED_SCHEMA_VERSION, SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag for the diagnostics center record.
@@ -630,6 +637,144 @@ impl DiagnosticsExportPacket {
         self.raw_private_material_excluded
             && self.ambient_authority_excluded
             && self.all_rows_export_safe
+    }
+}
+
+impl DiagnosticsCenterRecord {
+    /// Projects the diagnostics-center record into the shared service-health
+    /// feed contract consumed across desktop, CLI/headless, Help/About,
+    /// diagnostics summaries, and support/export surfaces.
+    pub fn shared_service_health_feed(&self) -> ServiceHealthFeed {
+        let items = self
+            .health_feed_items
+            .iter()
+            .map(|item| item.to_shared_feed_item(self.outage_scope))
+            .collect::<Vec<_>>();
+        let item_refs = items
+            .iter()
+            .map(ServiceHealthFeedItem::item_ref)
+            .collect::<Vec<_>>();
+
+        ServiceHealthFeed {
+            record_kind: SERVICE_HEALTH_FEED_RECORD_KIND.to_owned(),
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            feed_id: format!("{}:shared_feed", self.record_id),
+            shared_contract_ref: SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF.to_owned(),
+            schema_ref: SERVICE_HEALTH_FEED_SCHEMA_REF.to_owned(),
+            items,
+            surface_bindings: vec![
+                ServiceHealthSurfaceBinding {
+                    surface: ServiceHealthSurface::Diagnostics,
+                    feed_ref: self.record_id.clone(),
+                    item_refs: item_refs.clone(),
+                    consumes_shared_feed: true,
+                    last_checked_visible: true,
+                    freshness_visible: true,
+                    local_only_continuity_visible: true,
+                    may_overclaim_live_reachability: false,
+                    copyable_exportable: true,
+                },
+                ServiceHealthSurfaceBinding {
+                    surface: ServiceHealthSurface::SupportExport,
+                    feed_ref: self.record_id.clone(),
+                    item_refs,
+                    consumes_shared_feed: true,
+                    last_checked_visible: true,
+                    freshness_visible: true,
+                    local_only_continuity_visible: true,
+                    may_overclaim_live_reachability: false,
+                    copyable_exportable: true,
+                },
+            ],
+        }
+    }
+}
+
+impl HealthFeedItem {
+    fn to_shared_feed_item(&self, overall_outage_scope: OutageScopeClass) -> ServiceHealthFeedItem {
+        let contract_state = match self.health_state {
+            HealthStateClass::Healthy => {
+                if self.freshness_state == FreshnessStateClass::Stale {
+                    ServiceHealthContractState::Stale
+                } else {
+                    ServiceHealthContractState::Ready
+                }
+            }
+            HealthStateClass::Degraded => ServiceHealthContractState::Degraded,
+            HealthStateClass::Unavailable => ServiceHealthContractState::Unavailable,
+            HealthStateClass::Quarantined => ServiceHealthContractState::Degraded,
+        };
+
+        let source_class = match self.freshness_state {
+            FreshnessStateClass::Fresh => ServiceHealthSourceClass::LivePolling,
+            FreshnessStateClass::Stale | FreshnessStateClass::Partial | FreshnessStateClass::Unknown => {
+                ServiceHealthSourceClass::CachedData
+            }
+        };
+
+        let outage_scope = match overall_outage_scope {
+            OutageScopeClass::None => ServiceHealthOutageScope::None,
+            OutageScopeClass::SingleSubsystem => {
+                if contract_state == ServiceHealthContractState::Ready {
+                    ServiceHealthOutageScope::None
+                } else {
+                    ServiceHealthOutageScope::SingleService
+                }
+            }
+            OutageScopeClass::PartialService => {
+                if contract_state == ServiceHealthContractState::Ready {
+                    ServiceHealthOutageScope::None
+                } else {
+                    ServiceHealthOutageScope::PartialService
+                }
+            }
+            OutageScopeClass::FullUnavailable => ServiceHealthOutageScope::FullProduct,
+        };
+
+        let unaffected_workflows = if matches!(
+            outage_scope,
+            ServiceHealthOutageScope::PartialService | ServiceHealthOutageScope::SingleService
+        ) && contract_state != ServiceHealthContractState::Ready
+        {
+            vec!["local_diagnostics".to_owned(), "support_export".to_owned()]
+        } else {
+            Vec::new()
+        };
+
+        ServiceHealthFeedItem {
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            record_kind: SERVICE_HEALTH_FEED_ITEM_RECORD_KIND.to_owned(),
+            item_id: self.item_id.clone(),
+            service_family: self.service_family.as_str().to_owned(),
+            boundary_class: self.boundary_class.as_str().to_owned(),
+            contract_state,
+            outage_scope,
+            affected_workflows: if contract_state == ServiceHealthContractState::Ready {
+                Vec::new()
+            } else {
+                vec![self.affected_workflows_summary.clone()]
+            },
+            unaffected_workflows,
+            summary: self.summary.clone(),
+            freshness: ServiceHealthFreshness {
+                freshness_ref: format!("freshness:{}", self.item_id),
+                source_class,
+                last_checked_at: self.last_checked_at.clone(),
+                stale_after: self.last_checked_at.clone(),
+                visible_freshness_label: self.freshness_state.as_str().to_owned(),
+                live_reachability_claim_allowed: !source_class.forbids_live_reachability(),
+            },
+            diagnostics_actions: self
+                .diagnostics_actions
+                .iter()
+                .map(|action| action.as_str().to_owned())
+                .collect(),
+            local_only_continuity_note: self
+                .local_only_continuity_note
+                .clone()
+                .unwrap_or_else(|| "Local diagnostics and support export remain available.".to_owned()),
+            surfaced_on: vec![ServiceHealthSurface::Diagnostics, ServiceHealthSurface::SupportExport],
+        }
     }
 }
 

@@ -17,6 +17,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-service-health/0.0.0")]
 
 pub mod finalize_service_health_destination_truth;
+pub mod service_health_feed;
 pub mod stabilize_maintenance_and_drain_windows;
 
 pub use finalize_service_health_destination_truth::{
@@ -31,6 +32,16 @@ pub use finalize_service_health_destination_truth::{
     SERVICE_HEALTH_DESTINATION_SCHEMA_REF, SERVICE_HEALTH_DESTINATION_SCHEMA_VERSION,
     SERVICE_HEALTH_DESTINATION_SHARED_CONTRACT_REF,
     SERVICE_HEALTH_DESTINATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use service_health_feed::{
+    canonical_service_health_feed, ServiceHealthContractState, ServiceHealthFeed,
+    ServiceHealthFeedCoverage, ServiceHealthFeedFinding, ServiceHealthFeedFindingSeverity,
+    ServiceHealthFeedItem, ServiceHealthFeedSupportExport, ServiceHealthFeedValidationReport,
+    ServiceHealthFreshness, ServiceHealthOutageScope, ServiceHealthSourceClass,
+    ServiceHealthSurface, ServiceHealthSurfaceBinding, SERVICE_HEALTH_FEED_CANONICAL_FIXTURE_REF,
+    SERVICE_HEALTH_FEED_ITEM_RECORD_KIND, SERVICE_HEALTH_FEED_RECORD_KIND,
+    SERVICE_HEALTH_FEED_SCHEMA_REF, SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+    SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF, SERVICE_HEALTH_FEED_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stabilize_maintenance_and_drain_windows::{
     AffectedSurfaceClass, BlockedWriteClass, BlockedWriteDisclosure, DeferOptionClass,

@@ -21,6 +21,14 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::service_health_feed::{
+    ServiceHealthContractState as SharedContractState, ServiceHealthFeed,
+    ServiceHealthFeedItem, ServiceHealthFreshness, ServiceHealthOutageScope, ServiceHealthSourceClass,
+    ServiceHealthSurface, ServiceHealthSurfaceBinding, SERVICE_HEALTH_FEED_ITEM_RECORD_KIND,
+    SERVICE_HEALTH_FEED_RECORD_KIND, SERVICE_HEALTH_FEED_SCHEMA_REF,
+    SERVICE_HEALTH_FEED_SCHEMA_VERSION, SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF,
+};
+
 /// Schema version for finalized service-health and destination truth descriptors.
 pub const SERVICE_HEALTH_DESTINATION_SCHEMA_VERSION: u32 = 1;
 
@@ -497,6 +505,183 @@ impl ServiceHealthDestinationTruthDescriptor {
             drill_count: self.continuity_drills.len(),
         }
     }
+
+    /// Projects the destination descriptor into the shared service-health feed
+    /// contract consumed across desktop, CLI/headless, Help/About, diagnostics,
+    /// and support/export surfaces.
+    pub fn shared_service_health_feed(&self) -> ServiceHealthFeed {
+        let items = self
+            .service_health_cards
+            .iter()
+            .map(|card| card.to_shared_feed_item(self))
+            .collect::<Vec<_>>();
+
+        ServiceHealthFeed {
+            record_kind: SERVICE_HEALTH_FEED_RECORD_KIND.to_owned(),
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            feed_id: format!("{}:shared_feed", self.descriptor_id),
+            shared_contract_ref: SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF.to_owned(),
+            schema_ref: SERVICE_HEALTH_FEED_SCHEMA_REF.to_owned(),
+            items,
+            surface_bindings: self
+                .surface_bindings
+                .iter()
+                .map(|binding| ServiceHealthSurfaceBinding {
+                    surface: binding.surface.into(),
+                    feed_ref: self.descriptor_id.clone(),
+                    item_refs: binding.service_health_card_refs.clone(),
+                    consumes_shared_feed: binding.consumes_shared_descriptor,
+                    last_checked_visible: true,
+                    freshness_visible: binding.cached_or_offline_label_visible,
+                    local_only_continuity_visible: binding.local_only_continuity_visible,
+                    may_overclaim_live_reachability: binding.may_overclaim_live_reachability,
+                    copyable_exportable: true,
+                })
+                .collect(),
+        }
+    }
+}
+
+impl ServiceHealthTruthCard {
+    fn to_shared_feed_item(
+        &self,
+        descriptor: &ServiceHealthDestinationTruthDescriptor,
+    ) -> ServiceHealthFeedItem {
+        let freshness = descriptor
+            .freshness
+            .iter()
+            .find(|row| row.freshness_ref == self.freshness_ref)
+            .map(FreshnessDescriptor::to_shared_freshness)
+            .unwrap_or_else(|| ServiceHealthFreshness {
+                freshness_ref: self.freshness_ref.clone(),
+                source_class: ServiceHealthSourceClass::CachedData,
+                last_checked_at: self.last_checked_at.clone(),
+                stale_after: self.last_checked_at.clone(),
+                visible_freshness_label: self.visible_freshness_label.clone(),
+                live_reachability_claim_allowed: false,
+            });
+
+        ServiceHealthFeedItem {
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            record_kind: SERVICE_HEALTH_FEED_ITEM_RECORD_KIND.to_owned(),
+            item_id: self.card_id.clone(),
+            service_family: self.service_family.clone(),
+            boundary_class: self.boundary_class.clone(),
+            contract_state: self.service_contract_state.into(),
+            outage_scope: self.shared_outage_scope(),
+            affected_workflows: self.affected_workflows.clone(),
+            unaffected_workflows: unaffected_workflows_from_scope(&self.outage_scope),
+            summary: self.outage_scope.clone(),
+            freshness,
+            diagnostics_actions: vec![self.diagnostics_action_ref.clone()],
+            local_only_continuity_note: self.local_only_continuity_note.clone(),
+            surfaced_on: self.surfaced_on.iter().copied().map(Into::into).collect(),
+        }
+    }
+
+    fn shared_outage_scope(&self) -> ServiceHealthOutageScope {
+        let scope = self.outage_scope.to_ascii_lowercase();
+        if scope.contains("scheduled")
+            || scope.contains("read-only")
+            || scope.contains("read only")
+            || scope.contains("drain")
+            || scope.contains("migration")
+            || scope.contains("failover")
+            || scope.contains("reconcil")
+            || scope.contains("resolved")
+        {
+            ServiceHealthOutageScope::MaintenanceWindow
+        } else if self.service_contract_state == ServiceContractState::Ready {
+            ServiceHealthOutageScope::None
+        } else if scope.contains("unaffected")
+            || scope.contains("remain available")
+            || scope.contains("remain usable")
+        {
+            ServiceHealthOutageScope::PartialService
+        } else {
+            ServiceHealthOutageScope::SingleService
+        }
+    }
+}
+
+impl FreshnessDescriptor {
+    fn to_shared_freshness(&self) -> ServiceHealthFreshness {
+        ServiceHealthFreshness {
+            freshness_ref: self.freshness_ref.clone(),
+            source_class: match self.state {
+                DescriptorFreshnessState::Live => ServiceHealthSourceClass::LivePolling,
+                DescriptorFreshnessState::Cached | DescriptorFreshnessState::StaleCache => {
+                    ServiceHealthSourceClass::CachedData
+                }
+                DescriptorFreshnessState::Mirrored => ServiceHealthSourceClass::MirroredNotice,
+                DescriptorFreshnessState::OfflinePack => ServiceHealthSourceClass::OfflineBundle,
+                DescriptorFreshnessState::PolicyLimited => ServiceHealthSourceClass::CachedData,
+            },
+            last_checked_at: self.last_checked_at.clone(),
+            stale_after: self.stale_after.clone(),
+            visible_freshness_label: self.visible_freshness_label.clone(),
+            live_reachability_claim_allowed: self.live_reachability_claim_allowed,
+        }
+    }
+}
+
+impl From<ServiceContractState> for SharedContractState {
+    fn from(value: ServiceContractState) -> Self {
+        match value {
+            ServiceContractState::Ready => Self::Ready,
+            ServiceContractState::Degraded => Self::Degraded,
+            ServiceContractState::LocalOnly => Self::LocalOnly,
+            ServiceContractState::Stale => Self::Stale,
+            ServiceContractState::ContractMismatch => Self::ContractMismatch,
+            ServiceContractState::PolicyBlocked => Self::PolicyBlocked,
+            ServiceContractState::Unavailable => Self::Unavailable,
+        }
+    }
+}
+
+impl From<PublicProofSurface> for ServiceHealthSurface {
+    fn from(value: PublicProofSurface) -> Self {
+        match value {
+            PublicProofSurface::DesktopUi => Self::DesktopUi,
+            PublicProofSurface::CliHeadless => Self::CliHeadless,
+            PublicProofSurface::About => Self::About,
+            PublicProofSurface::Help => Self::Help,
+            PublicProofSurface::ServiceHealth => Self::ServiceHealth,
+            PublicProofSurface::Diagnostics => Self::Diagnostics,
+            PublicProofSurface::SupportExport => Self::SupportExport,
+            PublicProofSurface::ReleaseNotes => Self::ReleaseNotes,
+            PublicProofSurface::MigrationNotice => Self::MigrationNotice,
+            PublicProofSurface::IssueReportTemplate => Self::IssueReportTemplate,
+            PublicProofSurface::CommunityHandoff => Self::CommunityHandoff,
+        }
+    }
+}
+
+fn unaffected_workflows_from_scope(scope: &str) -> Vec<String> {
+    let lower = scope.to_ascii_lowercase();
+    let mut values = Vec::new();
+    if lower.contains("local editing") || lower.contains("local edits") {
+        values.push("editing".to_owned());
+    }
+    if lower.contains("installed docs") || lower.contains("local docs search") {
+        values.push("installed_help".to_owned());
+        values.push("local_docs_search".to_owned());
+    }
+    if lower.contains("search") {
+        values.push("search".to_owned());
+    }
+    if lower.contains("git") {
+        values.push("git".to_owned());
+    }
+    if lower.contains("diagnostics") {
+        values.push("diagnostics".to_owned());
+    }
+    if lower.contains("installed extensions") {
+        values.push("installed_extensions".to_owned());
+    }
+    values.sort();
+    values.dedup();
+    values
 }
 
 /// Validation report emitted for service-health destination truth descriptors.

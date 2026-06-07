@@ -127,6 +127,19 @@ fn support_export_is_local_first_save_later_only_until_explicit_submit() {
 }
 
 #[test]
+fn descriptor_projects_the_shared_feed_contract() {
+    let descriptor = canonical_service_health_destination_truth_descriptor();
+    let feed = descriptor.shared_service_health_feed();
+    let report = feed.validate();
+    assert!(
+        report.passed,
+        "shared feed projection must validate cleanly: {:#?}",
+        report.findings
+    );
+    assert_eq!(feed.items.len(), descriptor.service_health_cards.len());
+}
+
+#[test]
 fn schema_artifact_exists_at_declared_path() {
     let path = repo_root().join("schemas/help/service-health-destination.schema.json");
     assert!(path.exists(), "{} must exist", path.display());

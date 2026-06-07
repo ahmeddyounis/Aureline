@@ -350,6 +350,28 @@ fn support_center_cards_derive_from_health_feed_identically() {
 }
 
 #[test]
+fn diagnostics_center_projects_the_shared_feed_contract() {
+    let scenarios = load_scenarios();
+
+    for scenario in &scenarios {
+        let feed = scenario.record.shared_service_health_feed();
+        let report = feed.validate();
+        assert!(
+            report.passed,
+            "{}: shared feed projection failed: {:?}",
+            scenario.scenario_id,
+            report.findings
+        );
+        assert_eq!(
+            feed.items.len(),
+            scenario.record.health_feed_items.len(),
+            "{}: shared feed item count drift",
+            scenario.scenario_id
+        );
+    }
+}
+
+#[test]
 fn diagnostics_export_packet_is_export_safe_and_preserves_exact_build_identity() {
     let evaluator = DiagnosticsCenterEvaluator::new();
     let scenarios = load_scenarios();

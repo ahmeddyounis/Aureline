@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/service-health-feed.schema.json",
+  "title": "Aureline shared service-health feed",
+  "description": "Canonical shared service-health feed consumed by desktop UI, CLI/headless, About, Help, diagnostics, support export, release notes, migration notices, and handoff surfaces. The feed carries stable contract-state vocabulary, outage scope, freshness/source provenance, affected and unaffected workflows, diagnostics actions, and local-only continuity notes without raw logs, credentials, endpoints, or user-authored bodies.",
+  "$ref": "#/$defs/feed",
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "service_health_contract_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "degraded",
+        "local_only",
+        "stale",
+        "contract_mismatch",
+        "policy_blocked",
+        "unavailable",
+        "scheduled",
+        "read_only",
+        "drain",
+        "migration",
+        "failover",
+        "reconciling",
+        "resolved"
+      ]
+    },
+    "service_health_source_class": {
+      "type": "string",
+      "enum": [
+        "live_polling",
+        "cached_data",
+        "mirrored_notice",
+        "offline_bundle"
+      ]
+    },
+    "service_health_outage_scope": {
+      "type": "string",
+      "enum": [
+        "none",
+        "single_service",
+        "partial_service",
+        "full_product",
+        "maintenance_window"
+      ]
+    },
+    "service_health_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_ui",
+        "cli_headless",
+        "about",
+        "help",
+        "service_health",
+        "diagnostics",
+        "support_export",
+        "release_notes",
+        "migration_notice",
+        "issue_report_template",
+        "community_handoff"
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_ref",
+        "source_class",
+        "last_checked_at",
+        "stale_after",
+        "visible_freshness_label",
+        "live_reachability_claim_allowed"
+      ],
+      "properties": {
+        "freshness_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/service_health_source_class" },
+        "last_checked_at": { "$ref": "#/$defs/non_empty_string" },
+        "stale_after": { "$ref": "#/$defs/non_empty_string" },
+        "visible_freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "live_reachability_claim_allowed": { "type": "boolean" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "item_id",
+        "service_family",
+        "boundary_class",
+        "contract_state",
+        "outage_scope",
+        "affected_workflows",
+        "unaffected_workflows",
+        "summary",
+        "freshness",
+        "diagnostics_actions",
+        "local_only_continuity_note",
+        "surfaced_on"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "record_kind": { "type": "string", "const": "service_health_feed_item_record" },
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "service_family": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_class": { "$ref": "#/$defs/non_empty_string" },
+        "contract_state": { "$ref": "#/$defs/service_health_contract_state" },
+        "outage_scope": { "$ref": "#/$defs/service_health_outage_scope" },
+        "affected_workflows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "unaffected_workflows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "diagnostics_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "local_only_continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "surfaced_on": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/service_health_surface" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "feed_ref",
+        "item_refs",
+        "consumes_shared_feed",
+        "last_checked_visible",
+        "freshness_visible",
+        "local_only_continuity_visible",
+        "may_overclaim_live_reachability",
+        "copyable_exportable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/service_health_surface" },
+        "feed_ref": { "$ref": "#/$defs/non_empty_string" },
+        "item_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "consumes_shared_feed": { "const": true },
+        "last_checked_visible": { "const": true },
+        "freshness_visible": { "const": true },
+        "local_only_continuity_visible": { "const": true },
+        "may_overclaim_live_reachability": { "const": false },
+        "copyable_exportable": { "const": true }
+      }
+    },
+    "feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "feed_id",
+        "shared_contract_ref",
+        "schema_ref",
+        "items",
+        "surface_bindings"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "service_health_feed_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "feed_id": { "$ref": "#/$defs/non_empty_string" },
+        "shared_contract_ref": { "type": "string", "const": "service_health_feed:v1" },
+        "schema_ref": { "type": "string", "const": "schemas/help/service-health-feed.schema.json" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/item" }
+        },
+        "surface_bindings": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/surface_binding" }
+        }
+      }
+    }
+  }
+}

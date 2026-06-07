@@ -83,6 +83,13 @@
 
 use std::cmp::Ordering;
 
+use aureline_service_health_feed::{
+    ServiceHealthContractState, ServiceHealthFeed, ServiceHealthFeedItem, ServiceHealthFreshness,
+    ServiceHealthOutageScope, ServiceHealthSourceClass, ServiceHealthSurface,
+    ServiceHealthSurfaceBinding, SERVICE_HEALTH_FEED_ITEM_RECORD_KIND,
+    SERVICE_HEALTH_FEED_RECORD_KIND, SERVICE_HEALTH_FEED_SCHEMA_REF,
+    SERVICE_HEALTH_FEED_SCHEMA_VERSION, SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag carried in serialized aggregator payloads.
@@ -809,6 +816,120 @@ impl ServiceHealthAggregator {
         }
 
         out
+    }
+
+    /// Projects the aggregator into the shared service-health feed contract.
+    pub fn shared_service_health_feed(&self) -> ServiceHealthFeed {
+        let items = self
+            .cards
+            .iter()
+            .map(ServiceHealthCard::to_shared_feed_item)
+            .collect::<Vec<_>>();
+        let item_refs = items
+            .iter()
+            .map(ServiceHealthFeedItem::item_ref)
+            .collect::<Vec<_>>();
+
+        ServiceHealthFeed {
+            record_kind: SERVICE_HEALTH_FEED_RECORD_KIND.to_owned(),
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            feed_id: format!("{}:shared_feed", self.aggregator_id),
+            shared_contract_ref: SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF.to_owned(),
+            schema_ref: SERVICE_HEALTH_FEED_SCHEMA_REF.to_owned(),
+            items,
+            surface_bindings: ServiceHealthSurface::REQUIRED
+                .iter()
+                .copied()
+                .map(|surface| ServiceHealthSurfaceBinding {
+                    surface,
+                    feed_ref: self.aggregator_id.clone(),
+                    item_refs: item_refs.clone(),
+                    consumes_shared_feed: true,
+                    last_checked_visible: true,
+                    freshness_visible: true,
+                    local_only_continuity_visible: true,
+                    may_overclaim_live_reachability: false,
+                    copyable_exportable: true,
+                })
+                .collect(),
+        }
+    }
+}
+
+impl ServiceHealthCard {
+    fn to_shared_feed_item(&self) -> ServiceHealthFeedItem {
+        let source_class = if self
+            .detail_tokens
+            .iter()
+            .any(|token| token == "fallback_mode:mirror_only")
+        {
+            ServiceHealthSourceClass::MirroredNotice
+        } else if matches!(
+            self.last_checked_age,
+            LastCheckedAgeClass::Stale | LastCheckedAgeClass::VeryStale | LastCheckedAgeClass::NeverChecked
+        ) {
+            ServiceHealthSourceClass::CachedData
+        } else {
+            ServiceHealthSourceClass::LivePolling
+        };
+
+        let outage_scope = if self.contract_state == ServiceContractStateClass::Ready {
+            ServiceHealthOutageScope::None
+        } else if self.contributes_to_local_continuity {
+            ServiceHealthOutageScope::PartialService
+        } else {
+            ServiceHealthOutageScope::SingleService
+        };
+
+        let unaffected_workflows = if outage_scope == ServiceHealthOutageScope::PartialService {
+            vec!["editing".to_owned(), "search".to_owned(), "git".to_owned()]
+        } else {
+            Vec::new()
+        };
+
+        ServiceHealthFeedItem {
+            schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
+            record_kind: SERVICE_HEALTH_FEED_ITEM_RECORD_KIND.to_owned(),
+            item_id: self.card_id.clone(),
+            service_family: self.service_family_token.clone(),
+            boundary_class: self.boundary_token.clone(),
+            contract_state: self.contract_state.into(),
+            outage_scope,
+            affected_workflows: self.affected_workflow_tokens.clone(),
+            unaffected_workflows,
+            summary: self.state_explanation.clone(),
+            freshness: ServiceHealthFreshness {
+                freshness_ref: format!("freshness:{}", self.card_id),
+                source_class,
+                last_checked_at: self
+                    .last_checked
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_owned()),
+                stale_after: self
+                    .last_checked
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_owned()),
+                visible_freshness_label: self.last_checked_age_label.clone(),
+                live_reachability_claim_allowed: !source_class.forbids_live_reachability(),
+            },
+            diagnostics_actions: vec![self.diagnostics_action.clone()],
+            local_only_continuity_note: self.local_continuity_label.clone(),
+            surfaced_on: ServiceHealthSurface::REQUIRED.to_vec(),
+        }
+    }
+}
+
+impl From<ServiceContractStateClass> for ServiceHealthContractState {
+    fn from(value: ServiceContractStateClass) -> Self {
+        match value {
+            ServiceContractStateClass::Ready => Self::Ready,
+            ServiceContractStateClass::Degraded => Self::Degraded,
+            ServiceContractStateClass::LocalOnly => Self::LocalOnly,
+            ServiceContractStateClass::Stale => Self::Stale,
+            ServiceContractStateClass::ContractMismatch => Self::ContractMismatch,
+            ServiceContractStateClass::PolicyBlocked => Self::PolicyBlocked,
+            ServiceContractStateClass::Unavailable => Self::Unavailable,
+        }
     }
 }
 
