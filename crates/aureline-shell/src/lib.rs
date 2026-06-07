@@ -82,6 +82,7 @@ pub mod experiments_governance;
 pub mod explorer;
 pub mod extensions;
 pub mod first_run_onboarding;
+pub mod forms_parameter_source_and_staged_apply;
 pub mod git_changes;
 pub mod graph_state_card;
 pub mod handoff_review;
