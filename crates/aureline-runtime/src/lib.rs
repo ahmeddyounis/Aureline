@@ -57,6 +57,7 @@ pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
 pub mod preview_drift;
+pub mod profiler_trace_replay_regression_qualification;
 pub mod provenance;
 pub mod publish_execution_plane_certification_packets_for_local_remote;
 pub mod quality;
@@ -516,6 +517,32 @@ pub use preview_drift::{
     PREVIEW_COMMIT_GUARD_AUDIT_EVENT_RECORD_KIND, PREVIEW_COMMIT_GUARD_EVALUATION_RECORD_KIND,
     PREVIEW_COMMIT_GUARD_RECORD_KIND, PREVIEW_COMMIT_GUARD_SCHEMA_VERSION,
     PREVIEW_COMMIT_GUARD_SUPPORT_EXPORT_RECORD_KIND, PREVIEW_COMMIT_SURFACE_PROJECTION_RECORD_KIND,
+};
+pub use profiler_trace_replay_regression_qualification::{
+    performance_qualification_packet_from_json,
+    BuildRuntimeIdentity as PerformanceBuildRuntimeIdentity, CaptureMode as PerformanceCaptureMode,
+    CaptureSourceClass as PerformanceCaptureSourceClass, CaptureWindow as PerformanceCaptureWindow,
+    EvidenceState as PerformanceEvidenceState,
+    ExportReviewPosture as PerformanceExportReviewPosture, FindingKind as PerformanceFindingKind,
+    FindingSeverity as PerformanceFindingSeverity,
+    MappingQualityState as PerformanceMappingQualityState,
+    MappingReferenceSet as PerformanceMappingReferenceSet, MetricFamily as PerformanceMetricFamily,
+    PerformanceClaimLabel, PerformanceQualificationArtifactError, PerformanceQualificationFinding,
+    PerformanceQualificationPacket, PerformanceQualificationPacketInput,
+    PerformanceQualificationRow, PerformanceQualificationSupportExport, PerformanceSurfaceKind,
+    ProfileSessionDescriptor, ProjectionSurface as PerformanceProjectionSurface,
+    RedactionMode as PerformanceRedactionMode, RegressionComparisonPacket, RegressionConfounder,
+    RegressionConfounderKind, ReplayCapabilityDescriptor as PerformanceReplayCapabilityDescriptor,
+    ReplayDegradationState as PerformanceReplayDegradationState,
+    ReplayFeatureState as PerformanceReplayFeatureState,
+    ReplaySupportMatrix as PerformanceReplaySupportMatrix,
+    RetentionClass as PerformanceRetentionClass, ReverseReplayChrome,
+    SessionStrip as PerformanceSessionStrip, TargetIdentity as PerformanceTargetIdentity,
+    ThresholdWaiverState as PerformanceThresholdWaiverState, TraceBundleManifest,
+    PERFORMANCE_QUALIFICATION_ARTIFACT_DOC_REF, PERFORMANCE_QUALIFICATION_DOC_REF,
+    PERFORMANCE_QUALIFICATION_FIXTURE_DIR, PERFORMANCE_QUALIFICATION_HELP_DOC_REF,
+    PERFORMANCE_QUALIFICATION_RECORD_KIND, PERFORMANCE_QUALIFICATION_SCHEMA_REF,
+    PERFORMANCE_QUALIFICATION_SCHEMA_VERSION, PERFORMANCE_QUALIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use provenance::evidence_packet::{
     seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,
