@@ -109,6 +109,8 @@ impl TaskStateClass {
 pub enum TaskEventKind {
     /// A task was accepted by the scheduler.
     TaskQueued,
+    /// A target graph became available for a build, test, task, or debug run.
+    TargetGraphReady,
     /// A task process, adapter session, or remote run started.
     TaskStarted,
     /// A task became blocked on a dependency or boundary.
@@ -121,10 +123,16 @@ pub enum TaskEventKind {
     OutputAppended,
     /// A diagnostic was emitted.
     DiagnosticEmitted,
+    /// A test case started.
+    TestCaseStarted,
+    /// A test case finished.
+    TestCaseFinished,
     /// A build, coverage, debug, or log artifact was published.
     ArtifactPublished,
     /// A task entered or refreshed a typed degraded posture.
     DegradedStateReported,
+    /// A task finished, independent of success, failure, or cancellation class.
+    TaskFinished,
     /// A task completed successfully.
     TaskCompleted,
     /// A task failed.
@@ -138,14 +146,18 @@ impl TaskEventKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::TaskQueued => "task_queued",
+            Self::TargetGraphReady => "target_graph_ready",
             Self::TaskStarted => "task_started",
             Self::TaskBlocked => "task_blocked",
             Self::InputRequested => "input_requested",
             Self::ProgressUpdated => "progress_updated",
             Self::OutputAppended => "output_appended",
             Self::DiagnosticEmitted => "diagnostic_emitted",
+            Self::TestCaseStarted => "test_case_started",
+            Self::TestCaseFinished => "test_case_finished",
             Self::ArtifactPublished => "artifact_published",
             Self::DegradedStateReported => "degraded_state_reported",
+            Self::TaskFinished => "task_finished",
             Self::TaskCompleted => "task_completed",
             Self::TaskFailed => "task_failed",
             Self::TaskCancelled => "task_cancelled",

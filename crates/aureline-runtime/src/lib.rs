@@ -31,6 +31,7 @@
 
 pub mod browser_runtime_inspection_qualification;
 pub mod build_intelligence;
+pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod debug;
@@ -125,6 +126,25 @@ pub use build_intelligence::{
     BUILD_INTELLIGENCE_RUN_CONFIG_CARD_RECORD_KIND, BUILD_INTELLIGENCE_SCHEMA_VERSION,
     BUILD_INTELLIGENCE_SUPPORT_EXPORT_RECORD_KIND, BUILD_INTELLIGENCE_TARGET_ROW_RECORD_KIND,
     DISCOVERY_DIFF_REVIEW_RECORD_KIND,
+};
+pub use build_test_event_interoperability::{
+    current_stable_build_test_event_interoperability_input,
+    current_stable_build_test_event_interoperability_packet, AdapterCapabilityNegotiation,
+    AdapterCapabilityState as BuildTestAdapterCapabilityState, BuildTestConsumerProjection,
+    BuildTestConsumerSurface, BuildTestEventConfidence as BuildTestInteropConfidence,
+    BuildTestEventEnvelope, BuildTestEventInteroperabilityPacket,
+    BuildTestEventInteroperabilityPacketInput, BuildTestEventInteroperabilitySupportExport,
+    BuildTestEventKind as BuildTestInteropEventKind, BuildTestEventProvenance,
+    BuildTestEventSourceKind as BuildTestInteropSourceKind, BuildTestInteropFindingKind,
+    BuildTestInteropFindingSeverity, BuildTestInteropLane, BuildTestInteropPromotionState,
+    BuildTestInteropValidationFinding, BuildTestPayloadKind as BuildTestInteropPayloadKind,
+    RawPayloadReference, RawPayloadRetentionClass, ReplayExportParity,
+    BUILD_TEST_EVENT_INTEROPERABILITY_ARTIFACT_DOC_REF, BUILD_TEST_EVENT_INTEROPERABILITY_DOC_REF,
+    BUILD_TEST_EVENT_INTEROPERABILITY_FIXTURE_DIR,
+    BUILD_TEST_EVENT_INTEROPERABILITY_PACKET_ARTIFACT_REF,
+    BUILD_TEST_EVENT_INTEROPERABILITY_RECORD_KIND, BUILD_TEST_EVENT_INTEROPERABILITY_SCHEMA_REF,
+    BUILD_TEST_EVENT_INTEROPERABILITY_SCHEMA_VERSION,
+    BUILD_TEST_EVENT_INTEROPERABILITY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use capability_negotiation::{
     CapabilityEffectClass, CapabilityNegotiationParseError, CapabilityRequirementClass,

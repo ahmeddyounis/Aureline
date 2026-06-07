@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/build-test-event-envelope.schema.json",
+  "title": "Aureline build/test event interoperability envelope",
+  "description": "Boundary schema for canonical build/test/task/debug event envelopes across native, BSP, Bazel BEP/BES, structured output, and heuristic parser sources. Stable packets preserve source_kind, confidence, raw_payload_ref, provenance, capability negotiation, replay parity, and consumer projection truth.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/build_test_event_interoperability_packet" },
+    { "$ref": "#/$defs/build_test_event_envelope" },
+    { "$ref": "#/$defs/raw_payload_reference" },
+    { "$ref": "#/$defs/adapter_capability_negotiation" },
+    { "$ref": "#/$defs/build_test_event_interoperability_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "native",
+        "bsp",
+        "bazel-bep",
+        "structured-output",
+        "heuristic-parser"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "TaskQueued",
+        "TargetGraphReady",
+        "TaskStarted",
+        "ProgressUpdated",
+        "DiagnosticEmitted",
+        "TestCaseStarted",
+        "TestCaseFinished",
+        "ArtifactPublished",
+        "TaskFinished"
+      ]
+    },
+    "payload_kind": {
+      "type": "string",
+      "enum": ["lifecycle", "progress", "diagnostic", "test", "artifact", "debug"]
+    },
+    "lane": {
+      "type": "string",
+      "enum": ["local_runtime", "remote_helper", "imported_provider"]
+    },
+    "adapter_capability_state": {
+      "type": "string",
+      "enum": ["negotiated", "degraded", "unsupported"]
+    },
+    "raw_payload_retention_class": {
+      "type": "string",
+      "enum": [
+        "metadata_digest_only",
+        "redacted_reference",
+        "support_approval_required"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "problems",
+        "output",
+        "task_timeline",
+        "test_explorer",
+        "debug",
+        "ai_explanation",
+        "review_packet",
+        "release_packet",
+        "support_export"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocker"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "missing_source_kind",
+        "missing_lifecycle_event",
+        "missing_capability_negotiation",
+        "raw_payload_ref_missing",
+        "raw_payload_not_replay_safe",
+        "heuristic_overclaims_confidence",
+        "heuristic_not_downgraded",
+        "consumer_projection_drift",
+        "missing_consumer_projection",
+        "export_redaction_unsafe",
+        "promotion_state_mismatch"
+      ]
+    },
+    "build_test_event_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build_tool_name", "adapter_id", "adapter_version"],
+      "properties": {
+        "build_tool_name": { "$ref": "#/$defs/non_empty_string" },
+        "build_tool_version": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_revision": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "build_test_event_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "workspace_id",
+        "target_id",
+        "source_kind",
+        "confidence",
+        "timestamp",
+        "execution_context_id",
+        "payload_kind",
+        "raw_payload_ref",
+        "provenance",
+        "event_kind",
+        "downgraded",
+        "lane"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provenance": { "$ref": "#/$defs/build_test_event_provenance" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "downgraded": { "type": "boolean" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "parent_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "correlation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "raw_payload_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_payload_ref",
+        "source_kind",
+        "retention_class",
+        "payload_digest",
+        "replay_safe",
+        "support_export_safe",
+        "release_corpus_safe",
+        "ai_evidence_safe",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "payload_digest": { "$ref": "#/$defs/non_empty_string" },
+        "replay_safe": { "type": "boolean" },
+        "support_export_safe": { "type": "boolean" },
+        "release_corpus_safe": { "type": "boolean" },
+        "ai_evidence_safe": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "adapter_capability_negotiation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "source_kind",
+        "adapter_id",
+        "capability",
+        "state",
+        "capability_packet_ref"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/lane" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "capability": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/adapter_capability_state" },
+        "capability_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_reason_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "packet_id_ref",
+        "preserves_event_id",
+        "preserves_source_kind",
+        "preserves_confidence",
+        "preserves_raw_payload_ref",
+        "preserves_provenance",
+        "preserves_downgrade_disclosure",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_event_id": { "type": "boolean" },
+        "preserves_source_kind": { "type": "boolean" },
+        "preserves_confidence": { "type": "boolean" },
+        "preserves_raw_payload_ref": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" },
+        "preserves_downgrade_disclosure": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "replay_export_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_packet_ref",
+        "support_export_ref",
+        "release_corpus_ref",
+        "ai_evidence_packet_ref",
+        "replay_uses_canonical_envelopes",
+        "support_export_retains_raw_payload_refs",
+        "release_corpus_validates_drift",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "replay_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_corpus_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ai_evidence_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_uses_canonical_envelopes": { "type": "boolean" },
+        "support_export_retains_raw_payload_refs": { "type": "boolean" },
+        "release_corpus_validates_drift": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "build_test_event_interoperability_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "events",
+        "raw_payload_refs",
+        "capability_negotiations",
+        "consumer_projections",
+        "replay_export_parity",
+        "promotion_state",
+        "validation_findings"
+      ],
+      "properties": {
+        "record_kind": { "const": "build_test_event_interoperability_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/build_test_event_envelope" }
+        },
+        "raw_payload_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/raw_payload_reference" }
+        },
+        "capability_negotiations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/adapter_capability_negotiation" }
+        },
+        "consumer_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_projection" }
+        },
+        "replay_export_parity": { "$ref": "#/$defs/replay_export_parity" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "build_test_event_interoperability_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id_ref",
+        "raw_private_material_excluded",
+        "packet"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "build_test_event_interoperability_support_export"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "type": "string", "format": "date-time" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "packet": { "$ref": "#/$defs/build_test_event_interoperability_packet" }
+      }
+    }
+  }
+}

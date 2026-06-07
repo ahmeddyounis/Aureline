@@ -128,6 +128,8 @@ impl EvidenceConfidenceClass {
 pub enum EvidenceTaskEventKind {
     /// Task or run was queued.
     TaskQueued,
+    /// Target graph for the task or run became available.
+    TargetGraphReady,
     /// Task or run started.
     TaskStarted,
     /// Progress update was emitted.
@@ -153,6 +155,7 @@ impl EvidenceTaskEventKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::TaskQueued => "task_queued",
+            Self::TargetGraphReady => "target_graph_ready",
             Self::TaskStarted => "task_started",
             Self::ProgressUpdated => "progress_updated",
             Self::OutputAppended => "output_appended",

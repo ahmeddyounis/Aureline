@@ -124,14 +124,18 @@ impl TaskEventBetaLane {
 fn canonical_event_kinds() -> Vec<TaskEventKind> {
     vec![
         TaskEventKind::TaskQueued,
+        TaskEventKind::TargetGraphReady,
         TaskEventKind::TaskStarted,
         TaskEventKind::TaskBlocked,
         TaskEventKind::InputRequested,
         TaskEventKind::ProgressUpdated,
         TaskEventKind::OutputAppended,
         TaskEventKind::DiagnosticEmitted,
+        TaskEventKind::TestCaseStarted,
+        TaskEventKind::TestCaseFinished,
         TaskEventKind::ArtifactPublished,
         TaskEventKind::DegradedStateReported,
+        TaskEventKind::TaskFinished,
         TaskEventKind::TaskCompleted,
         TaskEventKind::TaskFailed,
         TaskEventKind::TaskCancelled,
