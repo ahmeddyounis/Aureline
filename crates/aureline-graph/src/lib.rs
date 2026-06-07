@@ -19,6 +19,7 @@ pub mod public_proof_publication_truth_packet;
 mod query;
 pub mod readiness;
 pub mod scope_provenance_truth_packet;
+pub mod semantic_graph_object_model_and_query_contract;
 mod store;
 pub mod support_export_parity_truth_packet;
 
@@ -177,6 +178,24 @@ pub use scope_provenance_truth_packet::{
     SCOPE_PROVENANCE_TRUTH_PACKET_ARTIFACT_REF, SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND,
     SCOPE_PROVENANCE_TRUTH_SCHEMA_REF, SCOPE_PROVENANCE_TRUTH_SCHEMA_VERSION,
     SCOPE_PROVENANCE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use semantic_graph_object_model_and_query_contract::{
+    current_stable_semantic_graph_contract_packet, seeded_semantic_graph_contract_input,
+    GraphConfidenceTier as SemanticGraphConfidenceTier, GraphConsumerActionBinding,
+    GraphConsumerSurface, GraphFreshnessState as SemanticGraphFreshnessState,
+    GraphInvalidationClass, GraphInvalidationEvent, GraphProducerIdentity,
+    GraphRetentionClass as SemanticGraphRetentionClass,
+    GraphStableClaimLevel as SemanticGraphStableClaimLevel, GraphSupportReconstructionProjection,
+    GraphTopologyReuseProof, GraphVisibilityScope as SemanticGraphVisibilityScope,
+    SemanticGraphContractArtifactError, SemanticGraphContractFindingKind,
+    SemanticGraphContractFindingSeverity, SemanticGraphContractPacket,
+    SemanticGraphContractPacketInput, SemanticGraphContractPromotionState,
+    SemanticGraphContractSupportExport, SemanticGraphContractValidationFinding, StableGraphObject,
+    StableGraphObjectKind, StableGraphQueryHandle, StableQueryFamily,
+    SEMANTIC_GRAPH_CONTRACT_ARTIFACT_DOC_REF, SEMANTIC_GRAPH_CONTRACT_DOC_REF,
+    SEMANTIC_GRAPH_CONTRACT_FIXTURE_DIR, SEMANTIC_GRAPH_CONTRACT_PACKET_ARTIFACT_REF,
+    SEMANTIC_GRAPH_CONTRACT_PACKET_RECORD_KIND, SEMANTIC_GRAPH_CONTRACT_SCHEMA_REF,
+    SEMANTIC_GRAPH_CONTRACT_SCHEMA_VERSION, SEMANTIC_GRAPH_CONTRACT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use store::{GraphStore, GraphStoreError};
 pub use support_export_parity_truth_packet::{
