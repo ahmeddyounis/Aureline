@@ -1,0 +1,593 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/followup-bundle.schema.json",
+  "title": "Dashboard, queue, and follow-up bundle truth packet",
+  "description": "Support/export boundary schema for stable dashboard freshness cards, explainable follow-up queues, provider-linked follow-up bundles, and export parity packets. Local checklist completion is non-mutating; provider-owned mutation requires a separately reviewed command with target, actor, and mode.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/truth_packet"
+    },
+    {
+      "$ref": "#/$defs/followup_bundle"
+    },
+    {
+      "$ref": "#/$defs/support_export"
+    }
+  ],
+  "$defs": {
+    "non_empty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://(?!home/|dashboard/|overview/|index/|start/|root/)[a-z0-9_:-]+/[A-Za-z0-9_.:-]+$"
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "cached",
+        "stale",
+        "imported_snapshot",
+        "truncated",
+        "blocked"
+      ]
+    },
+    "effective_card_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "downgraded",
+        "attention",
+        "blocked"
+      ]
+    },
+    "ownership": {
+      "type": "string",
+      "enum": [
+        "local_owned",
+        "provider_owned",
+        "mixed"
+      ]
+    },
+    "completion_semantics": {
+      "type": "string",
+      "enum": [
+        "local_reminder_only",
+        "local_evidence_only",
+        "provider_action_tracked_separately"
+      ]
+    },
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "publish-later",
+        "publish-now",
+        "handoff-only"
+      ]
+    },
+    "filter_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_label",
+        "active_filters",
+        "hidden_count",
+        "narrowing_reason_tokens"
+      ],
+      "properties": {
+        "scope_label": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "active_filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty"
+          }
+        },
+        "hidden_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "narrowing_reason_tokens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "scope_filter",
+              "policy_filter",
+              "provider_scope",
+              "freshness_floor",
+              "search_filter"
+            ]
+          }
+        }
+      }
+    },
+    "provider_command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "target_ref",
+        "actor_ref",
+        "mode",
+        "mode_token",
+        "reviewed_separately"
+      ],
+      "properties": {
+        "command_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "target_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "mode": {
+          "$ref": "#/$defs/mutation_mode"
+        },
+        "mode_token": {
+          "$ref": "#/$defs/mutation_mode"
+        },
+        "reviewed_separately": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "dashboard_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "card_id",
+        "title",
+        "scope",
+        "source_ref",
+        "source_freshness",
+        "source_freshness_token",
+        "declared_green",
+        "effective_state",
+        "effective_state_token",
+        "visibly_downgraded",
+        "downgrade_reasons",
+        "downgrade_reason_tokens",
+        "open_evidence_ref",
+        "explanation"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "dashboard_followup_freshness_card"
+        },
+        "card_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "scope": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "source_freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "source_freshness_token": {
+          "$ref": "#/$defs/freshness"
+        },
+        "declared_green": {
+          "type": "boolean"
+        },
+        "effective_state": {
+          "$ref": "#/$defs/effective_card_state"
+        },
+        "effective_state_token": {
+          "$ref": "#/$defs/effective_card_state"
+        },
+        "visibly_downgraded": {
+          "type": "boolean"
+        },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "cached_data",
+              "stale_data",
+              "imported_snapshot",
+              "truncated_data",
+              "source_blocked"
+            ]
+          }
+        },
+        "downgrade_reason_tokens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "open_evidence_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "explanation": {
+          "$ref": "#/$defs/non_empty"
+        }
+      }
+    },
+    "queue_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "queue_id",
+        "queue_label",
+        "filter_state",
+        "rows",
+        "hidden_scope"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "followup_queue_order_truth"
+        },
+        "queue_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "queue_label": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "filter_state": {
+          "$ref": "#/$defs/filter_state"
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "row_id",
+              "order_rank",
+              "order_reason",
+              "order_reason_token",
+              "order_explanation",
+              "grouping_reason",
+              "open_ref"
+            ],
+            "properties": {
+              "row_id": {
+                "$ref": "#/$defs/non_empty"
+              },
+              "order_rank": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "order_reason": {
+                "type": "string",
+                "enum": [
+                  "severity",
+                  "due_time",
+                  "provider_priority",
+                  "manual_pin",
+                  "blocking_dependency",
+                  "default_recency"
+                ]
+              },
+              "order_reason_token": {
+                "type": "string"
+              },
+              "order_explanation": {
+                "$ref": "#/$defs/non_empty"
+              },
+              "grouping_reason": {
+                "$ref": "#/$defs/non_empty"
+              },
+              "open_ref": {
+                "$ref": "#/$defs/canonical_ref"
+              },
+              "provider_blocker": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/$defs/non_empty"
+                  }
+                ]
+              },
+              "policy_blocker": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/$defs/non_empty"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "hidden_scope": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reason",
+              "reason_token",
+              "hidden_count",
+              "explanation"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "reason_token": {
+                "type": "string"
+              },
+              "hidden_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "explanation": {
+                "$ref": "#/$defs/non_empty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "linked_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_ref",
+        "ownership",
+        "ownership_token",
+        "freshness",
+        "freshness_token"
+      ],
+      "properties": {
+        "object_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "ownership": {
+          "$ref": "#/$defs/ownership"
+        },
+        "ownership_token": {
+          "$ref": "#/$defs/ownership"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "freshness_token": {
+          "$ref": "#/$defs/freshness"
+        }
+      }
+    },
+    "checklist_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "title",
+        "linked_object_ref",
+        "completion_semantics",
+        "completion_semantics_token",
+        "local_completion_mutates_provider"
+      ],
+      "properties": {
+        "item_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "linked_object_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "completion_semantics": {
+          "$ref": "#/$defs/completion_semantics"
+        },
+        "completion_semantics_token": {
+          "$ref": "#/$defs/completion_semantics"
+        },
+        "local_completion_mutates_provider": {
+          "type": "boolean",
+          "const": false
+        },
+        "provider_mutation_command": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/provider_command"
+            }
+          ]
+        }
+      }
+    },
+    "followup_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "bundle_id",
+        "owner_ref",
+        "scope",
+        "filter_state",
+        "freshness",
+        "freshness_token",
+        "linked_objects",
+        "checklist_items"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "provider_linked_followup_bundle"
+        },
+        "bundle_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "scope": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "filter_state": {
+          "$ref": "#/$defs/filter_state"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "freshness_token": {
+          "$ref": "#/$defs/freshness"
+        },
+        "linked_objects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/linked_object"
+          }
+        },
+        "checklist_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/checklist_item"
+          }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "source_bundle_id",
+        "exported_scope",
+        "exported_owner_ref",
+        "exported_filter_state",
+        "exported_freshness_token",
+        "linked_object_refs",
+        "ownership_tokens",
+        "checklist_semantics_tokens",
+        "provider_mutation_commands",
+        "meaning_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "followup_bundle_support_export_packet"
+        },
+        "export_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "source_bundle_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "exported_scope": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "exported_owner_ref": {
+          "$ref": "#/$defs/canonical_ref"
+        },
+        "exported_filter_state": {
+          "$ref": "#/$defs/filter_state"
+        },
+        "exported_freshness_token": {
+          "$ref": "#/$defs/freshness"
+        },
+        "linked_object_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/canonical_ref"
+          }
+        },
+        "ownership_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ownership"
+          }
+        },
+        "checklist_semantics_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/completion_semantics"
+          }
+        },
+        "provider_mutation_commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/provider_command"
+          }
+        },
+        "meaning_preserved": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "truth_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "schema_ref",
+        "artifact_ref",
+        "doc_ref",
+        "dashboard_cards",
+        "queue_order",
+        "followup_bundle",
+        "support_export"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "dashboard_queue_followup_truth_packet"
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "packet_id": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "schema_ref": {
+          "const": "/schemas/support/followup-bundle.schema.json"
+        },
+        "artifact_ref": {
+          "const": "/artifacts/support/stabilize-dashboard-queue-and-followup-bundle-truth.md"
+        },
+        "doc_ref": {
+          "const": "/docs/support/stabilize-dashboard-queue-and-followup-bundle-truth.md"
+        },
+        "dashboard_cards": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/dashboard_card"
+          }
+        },
+        "queue_order": {
+          "$ref": "#/$defs/queue_order"
+        },
+        "followup_bundle": {
+          "$ref": "#/$defs/followup_bundle"
+        },
+        "support_export": {
+          "$ref": "#/$defs/support_export"
+        }
+      }
+    }
+  }
+}
