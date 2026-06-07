@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/chronology-history-row.schema.json",
+  "title": "Aureline chronology history row",
+  "description": "Canonical actor/action/object/outcome chronology row for activity center, task/test/debug history, provider events, AI runs, policy/admin notices, recovery timelines, companion delivery, and support exports. Rows preserve absolute timestamp, deterministic relative-age hint, provenance badges, local follow-up state, and exact reopen target. Local follow-up transitions do not mutate provider-owned objects unless a separately reviewed provider command is present.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/chronology_history_packet" },
+    { "$ref": "#/$defs/chronology_history_row" },
+    { "$ref": "#/$defs/chronology_export_packet" },
+    { "$ref": "#/$defs/accessibility_chronology_fixture" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360,
+      "not": { "pattern": "api_key|oauth_token|Bearer |://[^ ]+\\?.*=|BEGIN (RSA|OPENSSH|PRIVATE)" }
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "activity_center",
+        "durable_job",
+        "debug_history",
+        "provider_event",
+        "ai_run",
+        "policy_admin_notice",
+        "recovery_timeline",
+        "support_export",
+        "companion_delivery"
+      ]
+    },
+    "actor_kind": {
+      "type": "string",
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "ai_agent_actor",
+        "remote_service_actor",
+        "admin_policy_actor",
+        "extension_actor",
+        "unknown_actor"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "started",
+        "progressed",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "unblocked",
+        "held",
+        "released",
+        "granted",
+        "narrowed",
+        "widened",
+        "revoked",
+        "presented",
+        "superseded",
+        "proposed",
+        "accepted",
+        "rejected",
+        "restored",
+        "recovered",
+        "published",
+        "unpublished",
+        "exported",
+        "imported",
+        "acknowledged",
+        "resolved",
+        "dismissed",
+        "snoozed",
+        "muted"
+      ]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_row",
+        "task_run_row",
+        "policy_decision_row",
+        "provider_event_row",
+        "recovery_snapshot_row",
+        "support_bundle_row",
+        "workspace_object_row",
+        "extension_lifecycle_row"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "denied",
+        "held",
+        "superseded",
+        "recovered",
+        "observed_only",
+        "awaiting_approval"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "first_party_direct_observation",
+        "first_party_synthesized_summary",
+        "provider_imported",
+        "provider_cached",
+        "provider_stale_cached",
+        "ai_assisted",
+        "ai_generated_summary",
+        "policy_authored",
+        "recovery_reconstructed",
+        "companion_delivered",
+        "imported_external_audit_trail"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["current", "fresh", "cached", "stale", "expired", "unknown"]
+    },
+    "imported_class": {
+      "type": "string",
+      "enum": ["live", "imported", "cached", "stale_cached", "reconstructed"]
+    },
+    "follow_up_state": {
+      "type": "string",
+      "enum": ["none", "open", "acknowledged", "resolved", "dismissed", "snoozed", "muted"]
+    },
+    "follow_up_transition": {
+      "type": "string",
+      "enum": ["acknowledge", "resolve", "dismiss", "snooze", "mute", "reopen"]
+    },
+    "authority_effect": {
+      "type": "string",
+      "enum": ["local_only", "requires_reviewed_provider_command"]
+    },
+    "provenance_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "badge_label", "export_marker_label"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "badge_label": { "$ref": "#/$defs/safe_label" },
+        "export_marker_label": { "$ref": "#/$defs/safe_label" }
+      }
+    },
+    "relative_age": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rendered_at",
+        "relative_label",
+        "freshness_class",
+        "visible_reason_label",
+        "stale_reason_label"
+      ],
+      "properties": {
+        "rendered_at": { "$ref": "#/$defs/timestamp" },
+        "relative_label": { "$ref": "#/$defs/safe_label" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "visible_reason_label": { "$ref": "#/$defs/safe_label" },
+        "stale_reason_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/safe_label" }]
+        }
+      }
+    },
+    "time_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absolute_timestamp",
+        "timezone_iana",
+        "utc_offset",
+        "local_time_label",
+        "imported_class",
+        "relative_age"
+      ],
+      "properties": {
+        "absolute_timestamp": { "$ref": "#/$defs/timestamp" },
+        "timezone_iana": { "$ref": "#/$defs/safe_label" },
+        "utc_offset": { "type": "string", "pattern": "^(Z|[+-][0-9]{2}:[0-9]{2})$" },
+        "local_time_label": { "$ref": "#/$defs/safe_label" },
+        "imported_class": { "$ref": "#/$defs/imported_class" },
+        "relative_age": { "$ref": "#/$defs/relative_age" }
+      }
+    },
+    "reopen_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref", "target_kind", "command_ref", "label"],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/stable_ref" },
+        "target_kind": { "$ref": "#/$defs/safe_label" },
+        "command_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/stable_ref" },
+            { "not": { "enum": ["home", "search"] } }
+          ]
+        },
+        "label": { "$ref": "#/$defs/safe_label" }
+      }
+    },
+    "allowed_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transition",
+        "label",
+        "local_authority_effect",
+        "reviewed_provider_command_ref"
+      ],
+      "properties": {
+        "transition": { "$ref": "#/$defs/follow_up_transition" },
+        "label": { "$ref": "#/$defs/safe_label" },
+        "local_authority_effect": { "$ref": "#/$defs/authority_effect" },
+        "reviewed_provider_command_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_ref" }]
+        }
+      }
+    },
+    "chronology_history_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "item_id",
+        "canonical_event_id",
+        "surface_class",
+        "actor_kind",
+        "actor_ref",
+        "actor_label",
+        "action",
+        "object_label",
+        "object_kind",
+        "outcome",
+        "outcome_label",
+        "grammar_sentence",
+        "provenance_badges",
+        "time_posture",
+        "follow_up_state",
+        "allowed_transitions",
+        "reopen_target",
+        "provider_owned_object"
+      ],
+      "properties": {
+        "record_kind": { "const": "chronology_history_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "item_id": { "$ref": "#/$defs/stable_ref" },
+        "canonical_event_id": { "$ref": "#/$defs/stable_ref" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_ref": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_ref" }] },
+        "actor_label": { "$ref": "#/$defs/safe_label" },
+        "action": { "$ref": "#/$defs/action" },
+        "object_label": { "$ref": "#/$defs/safe_label" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "outcome_label": { "$ref": "#/$defs/safe_label" },
+        "grammar_sentence": { "$ref": "#/$defs/safe_label" },
+        "provenance_badges": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance_badge" }
+        },
+        "time_posture": { "$ref": "#/$defs/time_posture" },
+        "follow_up_state": { "$ref": "#/$defs/follow_up_state" },
+        "allowed_transitions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/allowed_transition" }
+        },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "provider_owned_object": { "type": "boolean" }
+      }
+    },
+    "chronology_history_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "schema_ref", "rows"],
+      "properties": {
+        "record_kind": { "const": "chronology_history_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "schema_ref": { "const": "schemas/ux/chronology-history-row.schema.json" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/chronology_history_row" }
+        }
+      }
+    },
+    "chronology_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "item_id_ref",
+        "canonical_event_id",
+        "grammar_sentence",
+        "provenance_marker_labels",
+        "absolute_timestamp",
+        "relative_age_label",
+        "visible_reason_label",
+        "follow_up_state",
+        "reopen_target"
+      ],
+      "properties": {
+        "record_kind": { "const": "chronology_export_row" },
+        "item_id_ref": { "$ref": "#/$defs/stable_ref" },
+        "canonical_event_id": { "$ref": "#/$defs/stable_ref" },
+        "grammar_sentence": { "$ref": "#/$defs/safe_label" },
+        "provenance_marker_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_label" }
+        },
+        "absolute_timestamp": { "$ref": "#/$defs/timestamp" },
+        "relative_age_label": { "$ref": "#/$defs/safe_label" },
+        "visible_reason_label": { "$ref": "#/$defs/safe_label" },
+        "follow_up_state": { "$ref": "#/$defs/follow_up_state" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" }
+      }
+    },
+    "chronology_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "destination_class", "source_item_ids", "rows"],
+      "properties": {
+        "record_kind": { "const": "chronology_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "destination_class": { "$ref": "#/$defs/safe_label" },
+        "source_item_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_ref" },
+          "uniqueItems": true
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/chronology_export_row" }
+        }
+      }
+    },
+    "accessibility_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id_ref",
+        "screen_reader_label",
+        "keyboard_command_refs",
+        "reduced_motion_behavior",
+        "distinguishes_without_color",
+        "distinguishes_without_hover"
+      ],
+      "properties": {
+        "item_id_ref": { "$ref": "#/$defs/stable_ref" },
+        "screen_reader_label": { "$ref": "#/$defs/safe_label" },
+        "keyboard_command_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "reduced_motion_behavior": { "$ref": "#/$defs/safe_label" },
+        "distinguishes_without_color": { "type": "boolean", "const": true },
+        "distinguishes_without_hover": { "type": "boolean", "const": true }
+      }
+    },
+    "accessibility_chronology_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "rows"],
+      "properties": {
+        "record_kind": { "const": "accessibility_chronology_fixture" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/accessibility_projection" }
+        }
+      }
+    }
+  }
+}
