@@ -59,6 +59,10 @@ Companion artifacts:
   literal-redaction contract.
 - [`/schemas/data/query_replay_mode.schema.json`](../../schemas/data/query_replay_mode.schema.json)
   — machine-readable boundary for `query_replay_mode_record`.
+- [`/artifacts/release/m4/database-statement-safety-and-result-grid-qualification.json`](../../artifacts/release/m4/database-statement-safety-and-result-grid-qualification.json)
+  — promoted-build qualification packet that decides which database,
+  SQL, explain-plan, query-history, result-grid, and handoff rows may
+  display stable language and which must narrow below stable.
 - [`/fixtures/data/database_cases/`](../../fixtures/data/database_cases/)
   — worked YAML fixtures covering local SQLite read-only,
   Postgres broker-handle staging read-only, production-blast

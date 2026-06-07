@@ -3,7 +3,10 @@
 //! This crate owns the typed records that keep notebook-adjacent experiment
 //! runs, dataset provenance, generated artifacts, environment fingerprints,
 //! comparisons, and exports attributable without depending on a hosted tracker.
-//! The boundary schema is
+//! It also owns the promoted-build database qualification packet that keeps
+//! connection truth, statement safety, query history, result-grid/export truth,
+//! explain-plan freshness, and data handoffs from inheriting generic table or
+//! notebook credibility. The experiment-provenance boundary schema is
 //! [`/schemas/data/experiment-provenance.schema.json`](../../../schemas/data/experiment-provenance.schema.json)
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/qualify-experiment-provenance-and-result-comparison.json`](../../../artifacts/data/qualify-experiment-provenance-and-result-comparison.json).
@@ -15,8 +18,21 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-data/0.0.0")]
 
+pub mod database_qualification;
 pub mod experiment_provenance;
 
+pub use database_qualification::{
+    current_database_qualification, DataToolingSurfaceKind, DatabaseAuthSourceMode,
+    DatabaseConnectionClass, DatabaseConnectionCorpusRow, DatabaseExecutionOrigin,
+    DatabaseExplainPlanLabRow, DatabaseExplainPlanMode, DatabaseHandoffLabRow,
+    DatabaseQualificationLabel, DatabaseQualificationPacket, DatabaseQualificationProof,
+    DatabaseQualificationSummary, DatabaseQualificationViolation,
+    DatabaseQualificationViolationKind, DatabaseRedactionMode, DatabaseResultGridLabRow,
+    DatabaseResultScope, DatabaseStatementSafetyClass, DatabaseStatementSafetyLabRow,
+    DatabaseSurfaceGuardSet, DatabaseSurfaceQualificationRow, DatabaseTransactionPosture,
+    DatabaseWritePosture, DATABASE_QUALIFICATION_PACKET_JSON, DATABASE_QUALIFICATION_PACKET_PATH,
+    DATABASE_QUALIFICATION_RECORD_KIND, DATABASE_QUALIFICATION_SCHEMA_VERSION,
+};
 pub use experiment_provenance::{
     current_experiment_provenance_qualification, ArtifactKind, ArtifactLineageEntry,
     ArtifactLineageState, ComparisonAxisState, ComparisonBasis, ComparisonGuardBanner,
