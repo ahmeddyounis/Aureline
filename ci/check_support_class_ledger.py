@@ -793,6 +793,7 @@ def run_negative_drills(ledger: dict[str, Any], repo_root: Path) -> tuple[list[d
         None,
     )
     if target is not None:
+        mutated["claim_matrix_ref"] = "fixtures/release/support_class_ledger/narrowed_claim_matrix.json"
         target["backing_stable_claim_ref"] = "stable_claim:export_and_offboarding_support"
         record("holds_on_narrowed_backing_rejected", "backing.holds_on_narrowed_backing", "backing.holds_on_narrowed_backing" in check_ids(mutated))
 

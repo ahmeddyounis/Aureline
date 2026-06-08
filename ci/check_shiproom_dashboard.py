@@ -1012,6 +1012,7 @@ def run_negative_drills(dashboard: dict[str, Any], repo_root: Path) -> tuple[lis
     mutated = copy.deepcopy(dashboard)
     target = next((p for p in mutated["panels"] if p.get("panel_state") == "green" and isinstance(p.get("qualification_row_refs"), list)), None)
     if target is not None:
+        mutated["qualification_matrix_ref"] = "fixtures/release/shiproom_dashboard/regressed_qualification_matrix.json"
         target["qualification_row_refs"] = list(target["qualification_row_refs"]) + ["qual_row:state_schema_readers_writers"]
         record("qualification_regressed_without_reason_rejected", "qualification.regressed_without_reason", "qualification.regressed_without_reason" in check_ids(mutated))
 
