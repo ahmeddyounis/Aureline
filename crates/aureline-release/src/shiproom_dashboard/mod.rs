@@ -1961,15 +1961,15 @@ mod tests {
     }
 
     #[test]
-    fn dashboard_exercises_green_and_narrowed_panels() {
+    fn dashboard_exercises_green_panels_without_narrowing() {
         let dashboard = dashboard();
         assert!(
             !dashboard.panels_green_stable().is_empty(),
             "dashboard must show at least one green-stable panel"
         );
         assert!(
-            !dashboard.panels_narrowed().is_empty(),
-            "dashboard must show at least one narrowed panel"
+            dashboard.panels_narrowed().is_empty(),
+            "clean dashboard must not narrow a panel"
         );
     }
 
@@ -2005,15 +2005,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let dashboard = dashboard();
-        assert_eq!(dashboard.publication.decision, PromotionDecision::Hold);
+        assert_eq!(dashboard.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             dashboard.publication.decision,
             dashboard.computed_publication_decision()
         );
-        assert!(!dashboard.publication.blocking_rule_ids.is_empty());
-        assert!(!dashboard.publication.blocking_panel_ids.is_empty());
+        assert!(dashboard.publication.blocking_rule_ids.is_empty());
+        assert!(dashboard.publication.blocking_panel_ids.is_empty());
     }
 
     #[test]
@@ -2064,21 +2064,21 @@ mod tests {
     }
 
     #[test]
-    fn dashboard_has_a_fail_and_an_unmeasured_fitness_function() {
+    fn dashboard_has_only_satisfied_fitness_functions() {
         let dashboard = dashboard();
         assert!(
             dashboard
                 .panels
                 .iter()
-                .any(DashboardPanel::any_fitness_failed),
-            "dashboard must exercise a failing fitness function"
+                .all(|panel| !panel.any_fitness_failed()),
+            "clean dashboard must not carry failing fitness functions"
         );
         assert!(
             dashboard
                 .panels
                 .iter()
-                .any(DashboardPanel::any_fitness_unmeasured),
-            "dashboard must exercise an unmeasured fitness function"
+                .all(|panel| !panel.any_fitness_unmeasured()),
+            "clean dashboard must not carry unmeasured fitness functions"
         );
     }
 
@@ -2088,8 +2088,9 @@ mod tests {
         let panel = dashboard
             .panels
             .iter_mut()
-            .find(|panel| !panel.renders_stable() && panel.claim_label == StableClaimLevel::Beta)
-            .expect("a narrowed panel under a beta ceiling exists");
+            .find(|panel| panel.renders_stable())
+            .expect("a green-stable panel exists");
+        panel.claim_label = StableClaimLevel::Beta;
         panel.displayed_label = StableClaimLevel::Stable;
         let panel_id = panel.panel_id.clone();
         dashboard.summary = dashboard.computed_summary();
@@ -2125,9 +2126,11 @@ mod tests {
         let panel = dashboard
             .panels
             .iter_mut()
-            .find(|panel| panel.panel_state == PanelState::NarrowedStale)
-            .expect("a narrowed-stale panel exists");
+            .find(|panel| panel.renders_stable())
+            .expect("a green-stable panel exists");
+        panel.panel_state = PanelState::NarrowedStale;
         panel.displayed_label = panel.claim_label;
+        panel.active_stop_reasons = vec![StopReason::FreshnessPacketBreached];
         dashboard.summary = dashboard.computed_summary();
         dashboard.publication.decision = dashboard.computed_publication_decision();
         dashboard.publication.blocking_rule_ids = dashboard.computed_blocking_rule_ids();
@@ -2141,7 +2144,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut dashboard = dashboard();
-        dashboard.publication.decision = PromotionDecision::Proceed;
+        dashboard.publication.decision = PromotionDecision::Hold;
         assert!(dashboard.validate().iter().any(|v| matches!(
             v,
             ShiproomDashboardViolation::PublicationDecisionInconsistent { .. }

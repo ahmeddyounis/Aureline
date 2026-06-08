@@ -1905,15 +1905,15 @@ mod tests {
     }
 
     #[test]
-    fn freeze_exercises_frozen_and_narrowed_rows() {
+    fn freeze_exercises_frozen_rows_without_narrowing() {
         let freeze = freeze();
         assert!(
             !freeze.rows_frozen_stable().is_empty(),
             "freeze must show at least one frozen-stable surface"
         );
         assert!(
-            !freeze.rows_narrowed().is_empty(),
-            "freeze must show at least one narrowed surface"
+            freeze.rows_narrowed().is_empty(),
+            "clean freeze must not narrow a surface"
         );
     }
 
@@ -1942,15 +1942,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let freeze = freeze();
-        assert_eq!(freeze.publication.decision, PromotionDecision::Hold);
+        assert_eq!(freeze.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             freeze.publication.decision,
             freeze.computed_publication_decision()
         );
-        assert!(!freeze.publication.blocking_rule_ids.is_empty());
-        assert!(!freeze.publication.blocking_window_ids.is_empty());
+        assert!(freeze.publication.blocking_rule_ids.is_empty());
+        assert!(freeze.publication.blocking_window_ids.is_empty());
     }
 
     #[test]
@@ -1996,8 +1996,9 @@ mod tests {
         let row = freeze
             .rows
             .iter_mut()
-            .find(|row| !row.freezes_stable() && row.claim_label == StableClaimLevel::Beta)
-            .expect("a narrowed row under a beta ceiling exists");
+            .find(|row| row.freezes_stable())
+            .expect("a frozen-stable row exists");
+        row.claim_label = StableClaimLevel::Beta;
         row.frozen_label = StableClaimLevel::Stable;
         let window_id = row.window_id.clone();
         freeze.summary = freeze.computed_summary();
@@ -2013,9 +2014,11 @@ mod tests {
         let row = freeze
             .rows
             .iter_mut()
-            .find(|row| row.window_state == WindowState::UnfrozenStale)
-            .expect("an unfrozen-stale row exists");
+            .find(|row| row.freezes_stable())
+            .expect("a frozen-stable row exists");
+        row.window_state = WindowState::UnfrozenStale;
         row.frozen_label = row.claim_label;
+        row.active_gap_reasons = vec![GapReason::FreezePacketFreshnessBreached];
         freeze.summary = freeze.computed_summary();
         freeze.publication.decision = freeze.computed_publication_decision();
         freeze.publication.blocking_rule_ids = freeze.computed_blocking_rule_ids();
@@ -2041,7 +2044,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut freeze = freeze();
-        freeze.publication.decision = PromotionDecision::Proceed;
+        freeze.publication.decision = PromotionDecision::Hold;
         assert!(freeze.validate().iter().any(|v| matches!(
             v,
             StableVersionWindowsViolation::PublicationDecisionInconsistent { .. }

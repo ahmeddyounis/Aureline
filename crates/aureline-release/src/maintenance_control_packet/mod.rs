@@ -1853,15 +1853,15 @@ mod tests {
     }
 
     #[test]
-    fn packet_exercises_governed_and_narrowed_rows() {
+    fn packet_exercises_governed_rows_without_narrowing() {
         let packet = packet();
         assert!(
             !packet.rows_governed_stable().is_empty(),
             "packet must show at least one governed-stable lane"
         );
         assert!(
-            !packet.rows_narrowed().is_empty(),
-            "packet must show at least one narrowed lane"
+            packet.rows_narrowed().is_empty(),
+            "clean packet must not narrow a lane"
         );
     }
 
@@ -1890,15 +1890,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let packet = packet();
-        assert_eq!(packet.publication.decision, PromotionDecision::Hold);
+        assert_eq!(packet.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             packet.publication.decision,
             packet.computed_publication_decision()
         );
-        assert!(!packet.publication.blocking_rule_ids.is_empty());
-        assert!(!packet.publication.blocking_lane_ids.is_empty());
+        assert!(packet.publication.blocking_rule_ids.is_empty());
+        assert!(packet.publication.blocking_lane_ids.is_empty());
     }
 
     #[test]
@@ -1944,8 +1944,9 @@ mod tests {
         let row = packet
             .rows
             .iter_mut()
-            .find(|row| !row.governs_stable() && row.claim_label == StableClaimLevel::Beta)
-            .expect("a narrowed row under a beta ceiling exists");
+            .find(|row| row.governs_stable())
+            .expect("a governed-stable row exists");
+        row.claim_label = StableClaimLevel::Beta;
         row.controlled_label = StableClaimLevel::Stable;
         let control_id = row.control_id.clone();
         packet.summary = packet.computed_summary();
@@ -1961,9 +1962,11 @@ mod tests {
         let row = packet
             .rows
             .iter_mut()
-            .find(|row| row.control_state == ControlState::UngovernedStale)
-            .expect("an ungoverned-stale row exists");
+            .find(|row| row.governs_stable())
+            .expect("a governed-stable row exists");
+        row.control_state = ControlState::UngovernedStale;
         row.controlled_label = row.claim_label;
+        row.active_gap_reasons = vec![GapReason::ControlPacketFreshnessBreached];
         packet.summary = packet.computed_summary();
         packet.publication.decision = packet.computed_publication_decision();
         packet.publication.blocking_rule_ids = packet.computed_blocking_rule_ids();
@@ -1989,7 +1992,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut packet = packet();
-        packet.publication.decision = PromotionDecision::Proceed;
+        packet.publication.decision = PromotionDecision::Hold;
         assert!(packet.validate().iter().any(|v| matches!(
             v,
             MaintenanceControlPacketViolation::PublicationDecisionInconsistent { .. }

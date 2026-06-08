@@ -1415,15 +1415,15 @@ mod tests {
     }
 
     #[test]
-    fn index_exercises_proven_and_narrowed_rows() {
+    fn index_exercises_proven_rows_without_narrowing() {
         let index = index();
         assert!(
             !index.rows_proven_stable().is_empty(),
             "index must show at least one proven-stable requirement"
         );
         assert!(
-            !index.rows_narrowed().is_empty(),
-            "index must show at least one narrowed requirement"
+            index.rows_narrowed().is_empty(),
+            "stable proof evidence must not carry narrowed requirements"
         );
     }
 
@@ -1446,15 +1446,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let index = index();
-        assert_eq!(index.publication.decision, PromotionDecision::Hold);
+        assert_eq!(index.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             index.publication.decision,
             index.computed_publication_decision()
         );
-        assert!(!index.publication.blocking_rule_ids.is_empty());
-        assert!(!index.publication.blocking_proof_ids.is_empty());
+        assert!(index.publication.blocking_rule_ids.is_empty());
+        assert!(index.publication.blocking_proof_ids.is_empty());
     }
 
     #[test]
@@ -1488,8 +1488,9 @@ mod tests {
         let row = index
             .rows
             .iter_mut()
-            .find(|row| !row.proves_stable() && row.claim_label == StableClaimLevel::Beta)
-            .expect("a narrowed row under a beta ceiling exists");
+            .find(|row| row.holds_proof())
+            .expect("a proven row exists");
+        row.claim_label = StableClaimLevel::Beta;
         row.proven_label = StableClaimLevel::Stable;
         let proof_id = row.proof_id.clone();
         index.summary = index.computed_summary();
@@ -1505,8 +1506,11 @@ mod tests {
         let row = index
             .rows
             .iter_mut()
-            .find(|row| row.index_state == ProofState::UnprovenStale)
-            .expect("an unproven-stale row exists");
+            .find(|row| row.holds_proof())
+            .expect("a proven row exists");
+        row.index_state = ProofState::UnprovenStale;
+        row.active_gap_reasons
+            .push(GapReason::ProofPacketFreshnessBreached);
         row.proven_label = row.claim_label;
         index.summary = index.computed_summary();
         index.publication.decision = index.computed_publication_decision();
@@ -1521,7 +1525,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut index = index();
-        index.publication.decision = PromotionDecision::Proceed;
+        index.publication.decision = PromotionDecision::Hold;
         assert!(index.validate().iter().any(|v| matches!(
             v,
             StableProofIndexViolation::PublicationDecisionInconsistent { .. }

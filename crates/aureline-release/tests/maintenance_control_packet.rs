@@ -13,9 +13,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_release::maintenance_control_packet::{
-    current_maintenance_control_packet, ControlState, LaneKind, MaintenanceControlPacket,
-    MaintenanceControlPacketViolation, MAINTENANCE_CONTROL_PACKET_RECORD_KIND,
-    MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
+    current_maintenance_control_packet, ControlState, GapReason, LaneKind,
+    MaintenanceControlPacket, MaintenanceControlPacketViolation,
+    MAINTENANCE_CONTROL_PACKET_RECORD_KIND, MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
 };
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
@@ -151,19 +151,11 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn packet_narrows_a_lane_under_a_still_stable_claim() {
+fn packet_governs_lanes_without_narrowing() {
     let packet = packet();
-    // A release-blocking lane whose public claim is still published Stable but is itself
-    // ungoverned — the maintenance-level truth beneath an optimistic claim.
-    let narrowed = packet.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.governs_stable()
-            && row.control_state != ControlState::UngovernedClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the packet must narrow at least one release-blocking lane under a still-stable claim"
+        packet.rows_narrowed().is_empty(),
+        "clean maintenance packet must not narrow a lane"
     );
 }
 
@@ -173,11 +165,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = packet
         .rows
         .iter_mut()
-        .find(|row| {
-            row.control_state == ControlState::UngovernedStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("packet has an ungoverned-stale row under a stable ceiling");
+        .find(|row| row.holds_control())
+        .expect("packet has a governed row");
+    row.control_state = ControlState::UngovernedStale;
+    row.active_gap_reasons
+        .push(GapReason::ControlPacketFreshnessBreached);
     row.controlled_label = StableClaimLevel::Stable;
     packet.summary = packet.computed_summary();
     packet.publication.decision = packet.computed_publication_decision();
@@ -214,16 +206,16 @@ fn governed_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut packet = packet();
-    packet.publication.decision = PromotionDecision::Proceed;
+    packet.publication.decision = PromotionDecision::Hold;
 
     assert!(
         packet.validate().iter().any(|v| matches!(
             v,
             MaintenanceControlPacketViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

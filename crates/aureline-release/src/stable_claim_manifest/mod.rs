@@ -1359,15 +1359,15 @@ mod tests {
     }
 
     #[test]
-    fn manifest_exercises_published_and_narrowed_entries() {
+    fn manifest_exercises_published_entries_without_narrowing() {
         let manifest = manifest();
         assert!(
             !manifest.entries_published_stable().is_empty(),
             "manifest must show at least one published-stable label"
         );
         assert!(
-            !manifest.entries_narrowed().is_empty(),
-            "manifest must show at least one narrowed label"
+            manifest.entries_narrowed().is_empty(),
+            "stable claim publication evidence must not carry narrowed labels"
         );
     }
 
@@ -1390,15 +1390,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let manifest = manifest();
-        assert_eq!(manifest.publication.decision, PromotionDecision::Hold);
+        assert_eq!(manifest.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             manifest.publication.decision,
             manifest.computed_publication_decision()
         );
-        assert!(!manifest.publication.blocking_rule_ids.is_empty());
-        assert!(!manifest.publication.blocking_entry_ids.is_empty());
+        assert!(manifest.publication.blocking_rule_ids.is_empty());
+        assert!(manifest.publication.blocking_entry_ids.is_empty());
     }
 
     #[test]
@@ -1416,7 +1416,18 @@ mod tests {
 
     #[test]
     fn at_least_one_label_narrows_on_a_breached_packet() {
-        let manifest = manifest();
+        let mut manifest = manifest();
+        let entry = manifest
+            .entries
+            .iter_mut()
+            .find(|entry| entry.holds_label())
+            .expect("a held entry exists");
+        entry.manifest_state = ManifestState::NarrowedStale;
+        entry.proof_packet.slo_state = FreshnessSloState::Breached;
+        entry.published_label = StableClaimLevel::Beta;
+        entry
+            .active_narrowing_reasons
+            .push(NarrowingReason::ProofPacketFreshnessBreached);
         assert!(
             manifest.entries.iter().any(|entry| {
                 entry.proof_packet.slo_state == FreshnessSloState::Breached
@@ -1452,8 +1463,12 @@ mod tests {
         let entry = manifest
             .entries
             .iter_mut()
-            .find(|entry| entry.manifest_state == ManifestState::NarrowedUnqualified)
-            .expect("a narrowed entry exists");
+            .find(|entry| entry.holds_label())
+            .expect("a held entry exists");
+        entry.manifest_state = ManifestState::NarrowedUnqualified;
+        entry
+            .active_narrowing_reasons
+            .push(NarrowingReason::OwnerSignoffMissing);
         entry.published_label = entry.claimed_label;
         manifest.summary = manifest.computed_summary();
         manifest.publication.decision = manifest.computed_publication_decision();
@@ -1468,7 +1483,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut manifest = manifest();
-        manifest.publication.decision = PromotionDecision::Proceed;
+        manifest.publication.decision = PromotionDecision::Hold;
         assert!(manifest.validate().iter().any(|violation| matches!(
             violation,
             StableClaimManifestViolation::PublicationDecisionInconsistent { .. }

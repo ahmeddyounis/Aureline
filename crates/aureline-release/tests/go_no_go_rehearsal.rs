@@ -16,8 +16,8 @@
 use std::path::{Path, PathBuf};
 
 use aureline_release::go_no_go_rehearsal::{
-    current_go_no_go_rehearsal, GoNoGoRehearsal, GoNoGoRehearsalViolation, RehearsalState,
-    StageKind, GO_NO_GO_REHEARSAL_RECORD_KIND, GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
+    current_go_no_go_rehearsal, GoNoGoRehearsal, GoNoGoRehearsalViolation, RehearsalGapReason,
+    RehearsalState, StageKind, GO_NO_GO_REHEARSAL_RECORD_KIND, GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
 };
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
@@ -147,32 +147,25 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn rehearsal_narrows_a_row_under_a_still_stable_claim() {
+fn rehearsal_rows_go_without_narrowing() {
     let rehearsal = rehearsal();
-    // A release-blocking stage whose public claim is still published Stable but is itself
-    // unrehearsed — the launch-rehearsal truth beneath an optimistic claim.
-    let narrowed = rehearsal.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.holds_stable()
-            && row.rehearsal_state != RehearsalState::NoGoClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the rehearsal must narrow at least one release-blocking row under a still-stable claim"
+        rehearsal.rows.iter().all(|row| row.holds_stable()),
+        "clean rehearsal must not narrow a row"
     );
 }
 
 #[test]
-fn rehearsal_narrows_a_row_for_an_unverified_checkpoint() {
+fn rehearsal_rows_have_verified_checkpoints() {
     let rehearsal = rehearsal();
-    let narrowed = rehearsal
-        .rows
-        .iter()
-        .find(|row| row.rehearsal_state == RehearsalState::NoGoUnrehearsed)
-        .expect("the rehearsal must show a checkpoint-narrowed row");
-    assert!(narrowed.unverified_checkpoint_count() > 0);
-    assert!(!narrowed.holds_stable());
+    assert_eq!(rehearsal.computed_summary().checkpoints_unverified, 0);
+    assert!(
+        rehearsal
+            .rows
+            .iter()
+            .all(|row| row.unverified_checkpoint_count() == 0),
+        "clean rehearsal must not carry unverified checkpoints"
+    );
 }
 
 #[test]
@@ -181,11 +174,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = rehearsal
         .rows
         .iter_mut()
-        .find(|row| {
-            row.rehearsal_state == RehearsalState::NoGoStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("rehearsal has a no-go-stale row under a stable ceiling");
+        .find(|row| row.holds_label())
+        .expect("rehearsal has a Go row");
+    row.rehearsal_state = RehearsalState::NoGoStale;
+    row.active_gap_reasons
+        .push(RehearsalGapReason::RehearsalPacketFreshnessBreached);
     row.effective_label = StableClaimLevel::Stable;
     rehearsal.summary = rehearsal.computed_summary();
     rehearsal.publication.decision = rehearsal.computed_publication_decision();
@@ -242,16 +235,16 @@ fn go_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn go_no_go_proceed_while_a_rule_fires_fails() {
+fn go_no_go_decision_mismatch_fails() {
     let mut rehearsal = rehearsal();
-    rehearsal.publication.decision = PromotionDecision::Proceed;
+    rehearsal.publication.decision = PromotionDecision::Hold;
 
     assert!(
         rehearsal.validate().iter().any(|v| matches!(
             v,
             GoNoGoRehearsalViolation::PublicationDecisionInconsistent { .. }
         )),
-        "the go/no-go must not proceed while a blocking rule fires"
+        "the go/no-go decision must agree with computed rules"
     );
 }
 

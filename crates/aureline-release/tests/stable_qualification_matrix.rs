@@ -9,11 +9,14 @@
 //! inherits a Stable mixed-version claim, and a promotion verdict that disagrees
 //! with the firing rules all fail validation.
 
-use aureline_release::stable_claim_matrix::PromotionDecision;
+use aureline_release::stable_claim_matrix::{
+    PromotionDecision, QualificationState, StableClaimLevel,
+};
 use aureline_release::stable_qualification_matrix::{
-    current_stable_qualification_matrix, BoundaryFamily, MixedVersionPosture, MixedVersionSection,
-    QualificationRowScope, StableQualificationMatrix, StableQualificationMatrixViolation,
-    STABLE_QUALIFICATION_MATRIX_RECORD_KIND, STABLE_QUALIFICATION_MATRIX_SCHEMA_VERSION,
+    current_stable_qualification_matrix, BoundaryFamily, DowngradeReason, MixedVersionPosture,
+    MixedVersionSection, QualificationRowScope, StableQualificationMatrix,
+    StableQualificationMatrixViolation, STABLE_QUALIFICATION_MATRIX_RECORD_KIND,
+    STABLE_QUALIFICATION_MATRIX_SCHEMA_VERSION,
 };
 
 const CAPTURE_JSON: &str = include_str!(concat!(
@@ -122,14 +125,10 @@ fn incomplete_mixed_version_that_does_not_narrow_fails() {
     let row = matrix
         .rows
         .iter_mut()
-        .find(|row| {
-            row.mixed_version
-                .as_ref()
-                .is_some_and(|mv| !mv.publishes_complete_negotiation_data())
-        })
-        .expect("matrix has an incomplete mixed-version row");
-    // Pretend the boundary holds a Stable mixed-version posture on incomplete data.
+        .find(|row| row.mixed_version.as_ref().is_some())
+        .expect("matrix has a mixed-version row");
     if let Some(mv) = row.mixed_version.as_mut() {
+        mv.supported_skew_window = None;
         mv.effective_posture = MixedVersionPosture::RollingSkewSupported;
     }
 
@@ -168,13 +167,15 @@ fn narrowed_lane_inheriting_a_stable_mixed_version_claim_fails() {
         .rows
         .iter_mut()
         .find(|row| {
-            !row.holds_stable()
-                && row
-                    .mixed_version
-                    .as_ref()
-                    .is_some_and(MixedVersionSection::publishes_complete_negotiation_data)
+            row.mixed_version
+                .as_ref()
+                .is_some_and(MixedVersionSection::publishes_complete_negotiation_data)
         })
-        .expect("matrix has a narrowed lane with a complete mixed-version section");
+        .expect("matrix has a lane with a complete mixed-version section");
+    row.qualification_state = QualificationState::NotQualified;
+    row.effective_level = StableClaimLevel::Beta;
+    row.active_downgrade_reasons
+        .push(DowngradeReason::QualificationEvidenceMissing);
     if let Some(mv) = row.mixed_version.as_mut() {
         mv.claimed_posture = MixedVersionPosture::BoundedSkewSupported;
         mv.effective_posture = MixedVersionPosture::BoundedSkewSupported;
@@ -190,15 +191,15 @@ fn narrowed_lane_inheriting_a_stable_mixed_version_claim_fails() {
 }
 
 #[test]
-fn promotion_proceed_while_a_rule_fires_fails() {
+fn promotion_decision_mismatch_fails() {
     let mut matrix = matrix();
-    matrix.promotion.decision = PromotionDecision::Proceed;
+    matrix.promotion.decision = PromotionDecision::Hold;
 
     assert!(
         matrix.validate().iter().any(|violation| matches!(
             violation,
             StableQualificationMatrixViolation::PromotionDecisionInconsistent { .. }
         )),
-        "promotion must not proceed while a blocking downgrade rule fires"
+        "promotion decision must agree with computed rules"
     );
 }

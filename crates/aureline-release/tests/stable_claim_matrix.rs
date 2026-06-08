@@ -9,8 +9,8 @@
 
 use aureline_release::stable_claim_matrix::{
     current_stable_claim_matrix, DowngradeReason, PromotionDecision, QualificationState,
-    StableClaimMatrix, StableClaimMatrixViolation, STABLE_CLAIM_MATRIX_RECORD_KIND,
-    STABLE_CLAIM_MATRIX_SCHEMA_VERSION,
+    StableClaimLevel, StableClaimMatrix, StableClaimMatrixViolation,
+    STABLE_CLAIM_MATRIX_RECORD_KIND, STABLE_CLAIM_MATRIX_SCHEMA_VERSION,
 };
 
 const CAPTURE_JSON: &str = include_str!(concat!(
@@ -92,9 +92,11 @@ fn unqualified_row_that_does_not_narrow_fails() {
     let row = matrix
         .rows
         .iter_mut()
-        .find(|row| row.qualification_state == QualificationState::NotQualified)
-        .expect("matrix has a not-qualified row");
-    // Pretend the unqualified surface still holds its claimed stable level.
+        .find(|row| row.holds_stable())
+        .expect("matrix has a held stable row");
+    row.qualification_state = QualificationState::NotQualified;
+    row.active_downgrade_reasons
+        .push(DowngradeReason::QualificationEvidenceMissing);
     row.effective_level = row.claimed_level;
     matrix.summary = matrix.computed_summary();
     matrix.promotion.decision = matrix.computed_promotion_decision();
@@ -111,27 +113,34 @@ fn unqualified_row_that_does_not_narrow_fails() {
 }
 
 #[test]
-fn promotion_proceed_while_a_stop_rule_fires_fails() {
+fn promotion_decision_mismatch_fails() {
     let mut matrix = matrix();
-    matrix.promotion.decision = PromotionDecision::Proceed;
+    matrix.promotion.decision = PromotionDecision::Hold;
 
     assert!(
         matrix.validate().iter().any(|violation| matches!(
             violation,
             StableClaimMatrixViolation::PromotionDecisionInconsistent { .. }
         )),
-        "promotion must not proceed while a blocking stop rule fires"
+        "promotion decision must agree with computed stop rules"
     );
 }
 
 #[test]
 fn stripping_a_stop_rule_for_an_active_reason_fails() {
     let mut matrix = matrix();
-    // Drop the stop rule that watches for waiver expiry; the waiver-expired row
-    // now has an active reason no stop rule covers.
+    let row = matrix
+        .rows
+        .iter_mut()
+        .find(|row| row.holds_stable())
+        .expect("matrix has a held stable row");
+    row.qualification_state = QualificationState::NotQualified;
+    row.effective_level = StableClaimLevel::Beta;
+    row.active_downgrade_reasons
+        .push(DowngradeReason::QualificationEvidenceMissing);
     matrix
         .stop_rules
-        .retain(|rule| rule.trigger_reason != DowngradeReason::WaiverExpired);
+        .retain(|rule| rule.trigger_reason != DowngradeReason::QualificationEvidenceMissing);
     matrix.summary = matrix.computed_summary();
     matrix.promotion.decision = matrix.computed_promotion_decision();
     matrix.promotion.blocking_rule_ids = matrix.computed_blocking_rule_ids();
@@ -140,7 +149,7 @@ fn stripping_a_stop_rule_for_an_active_reason_fails() {
     assert!(
         matrix.validate().contains(
             &StableClaimMatrixViolation::DowngradeReasonWithoutStopRule {
-                reason: DowngradeReason::WaiverExpired,
+                reason: DowngradeReason::QualificationEvidenceMissing,
             }
         ),
         "every downgrade reason must keep a stop rule watching for it"

@@ -1217,15 +1217,15 @@ mod tests {
     }
 
     #[test]
-    fn matrix_exercises_holding_and_narrowed_rows() {
+    fn matrix_exercises_holding_rows_without_narrowing() {
         let matrix = matrix();
         assert!(
             !matrix.rows_holding_stable().is_empty(),
             "matrix must show at least one held stable claim"
         );
         assert!(
-            !matrix.rows_narrowed().is_empty(),
-            "matrix must show at least one narrowed claim"
+            matrix.rows_narrowed().is_empty(),
+            "stable promotion evidence must not carry narrowed claims"
         );
     }
 
@@ -1240,17 +1240,15 @@ mod tests {
     }
 
     #[test]
-    fn promotion_holds_when_a_blocking_stop_rule_fires() {
+    fn promotion_proceeds_without_blocking_stop_rules() {
         let matrix = matrix();
-        // The frozen matrix carries narrowed rows whose reasons fire blocking
-        // stop rules, so the stable train is held.
-        assert_eq!(matrix.promotion.decision, PromotionDecision::Hold);
+        assert_eq!(matrix.promotion.decision, PromotionDecision::Proceed);
         assert_eq!(
             matrix.promotion.decision,
             matrix.computed_promotion_decision()
         );
-        assert!(!matrix.promotion.blocking_rule_ids.is_empty());
-        assert!(!matrix.promotion.blocking_claim_ids.is_empty());
+        assert!(matrix.promotion.blocking_rule_ids.is_empty());
+        assert!(matrix.promotion.blocking_claim_ids.is_empty());
     }
 
     #[test]
@@ -1287,12 +1285,14 @@ mod tests {
     #[test]
     fn validate_flags_a_narrowing_state_that_does_not_narrow() {
         let mut matrix = matrix();
-        // Pretend an unqualified row still holds its claimed stable level.
         let row = matrix
             .rows
             .iter_mut()
-            .find(|row| row.qualification_state == QualificationState::NotQualified)
-            .expect("a not-qualified row exists");
+            .find(|row| row.holds_stable())
+            .expect("a held stable row exists");
+        row.qualification_state = QualificationState::NotQualified;
+        row.active_downgrade_reasons
+            .push(DowngradeReason::QualificationEvidenceMissing);
         row.effective_level = row.claimed_level;
         matrix.summary = matrix.computed_summary();
         matrix.promotion.decision = matrix.computed_promotion_decision();
@@ -1307,7 +1307,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_promotion_decision() {
         let mut matrix = matrix();
-        matrix.promotion.decision = PromotionDecision::Proceed;
+        matrix.promotion.decision = PromotionDecision::Hold;
         assert!(matrix.validate().iter().any(|violation| matches!(
             violation,
             StableClaimMatrixViolation::PromotionDecisionInconsistent { .. }

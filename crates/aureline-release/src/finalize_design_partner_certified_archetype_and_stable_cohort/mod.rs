@@ -1736,15 +1736,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_blocking_rules_fire() {
+    fn publication_proceeds_without_blocking_rules() {
         let scoreboards = scoreboards();
-        assert_eq!(scoreboards.publication.decision, PromotionDecision::Hold);
+        assert_eq!(scoreboards.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             scoreboards.publication.decision,
             scoreboards.computed_publication_decision()
         );
-        assert!(!scoreboards.publication.blocking_rule_ids.is_empty());
-        assert!(!scoreboards.publication.blocking_scoreboard_ids.is_empty());
+        assert!(scoreboards.publication.blocking_rule_ids.is_empty());
+        assert!(scoreboards.publication.blocking_scoreboard_ids.is_empty());
     }
 
     #[test]

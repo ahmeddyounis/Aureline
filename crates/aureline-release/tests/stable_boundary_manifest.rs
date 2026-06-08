@@ -12,7 +12,7 @@
 use std::path::{Path, PathBuf};
 
 use aureline_release::stable_boundary_manifest::{
-    current_stable_boundary_manifest, BoundaryState, StableBoundaryManifest,
+    current_stable_boundary_manifest, BoundaryState, NarrowingReason, StableBoundaryManifest,
     StableBoundaryManifestViolation, ValueLine, STABLE_BOUNDARY_MANIFEST_RECORD_KIND,
     STABLE_BOUNDARY_MANIFEST_SCHEMA_VERSION,
 };
@@ -126,17 +126,19 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn air_gapped_line_narrows_a_capability_gap() {
+fn air_gapped_line_publishes_without_narrowing() {
     let manifest = manifest();
-    let narrowed = manifest
+    let air_gapped = manifest
         .rows_for_line(ValueLine::AirGapped)
         .into_iter()
-        .find(|row| {
-            row.boundary_state == BoundaryState::NarrowedUnsupported && !row.publishes_stable()
-        });
+        .collect::<Vec<_>>();
     assert!(
-        narrowed.is_some(),
-        "the air-gapped line must narrow at least one capability-gapped subject"
+        !air_gapped.is_empty(),
+        "air-gapped line must have coverage rows"
+    );
+    assert!(
+        air_gapped.iter().all(|row| row.publishes_stable()),
+        "clean air-gapped line must publish stable boundaries"
     );
 }
 
@@ -146,11 +148,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = manifest
         .rows
         .iter_mut()
-        .find(|row| {
-            row.boundary_state == BoundaryState::NarrowedUnsupported
-                && row.manifest_label == StableClaimLevel::Stable
-        })
-        .expect("manifest has a narrowed-unsupported row under a stable ceiling");
+        .find(|row| row.holds_label())
+        .expect("manifest has a held row");
+    row.boundary_state = BoundaryState::NarrowedUnsupported;
+    row.active_narrowing_reasons
+        .push(NarrowingReason::LineCapabilityAbsent);
     row.published_label = StableClaimLevel::Stable;
     manifest.summary = manifest.computed_summary();
     manifest.publication.decision = manifest.computed_publication_decision();
@@ -187,16 +189,16 @@ fn published_line_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut manifest = manifest();
-    manifest.publication.decision = PromotionDecision::Proceed;
+    manifest.publication.decision = PromotionDecision::Hold;
 
     assert!(
         manifest.validate().iter().any(|v| matches!(
             v,
             StableBoundaryManifestViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

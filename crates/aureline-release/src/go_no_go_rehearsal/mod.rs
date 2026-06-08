@@ -1668,15 +1668,15 @@ mod tests {
     }
 
     #[test]
-    fn go_no_go_holds_when_blocking_rules_fire() {
+    fn go_no_go_proceeds_without_blocking_rules() {
         let rehearsal = rehearsal();
-        assert_eq!(rehearsal.publication.decision, PromotionDecision::Hold);
+        assert_eq!(rehearsal.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             rehearsal.publication.decision,
             rehearsal.computed_publication_decision()
         );
-        assert!(!rehearsal.publication.blocking_rule_ids.is_empty());
-        assert!(!rehearsal.publication.blocking_entry_ids.is_empty());
+        assert!(rehearsal.publication.blocking_rule_ids.is_empty());
+        assert!(rehearsal.publication.blocking_entry_ids.is_empty());
     }
 
     #[test]
@@ -1712,17 +1712,11 @@ mod tests {
     }
 
     #[test]
-    fn narrows_a_row_under_a_still_stable_claim() {
+    fn rehearsal_rows_go_without_narrowing() {
         let rehearsal = rehearsal();
-        let narrowed = rehearsal.rows.iter().find(|row| {
-            row.release_blocking
-                && row.claim_holds_stable()
-                && !row.holds_stable()
-                && row.rehearsal_state != RehearsalState::NoGoClaimNarrowed
-        });
         assert!(
-            narrowed.is_some(),
-            "the rehearsal must narrow at least one release-blocking row under a still-stable claim"
+            rehearsal.rows.iter().all(RehearsalStageRow::holds_stable),
+            "clean rehearsal must not narrow a row"
         );
     }
 

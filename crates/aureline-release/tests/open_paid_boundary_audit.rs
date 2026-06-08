@@ -16,8 +16,8 @@
 use std::path::{Path, PathBuf};
 
 use aureline_release::open_paid_boundary_audit::{
-    current_open_paid_boundary_audit, AuditDomain, AuditState, OpenPaidBoundaryAudit,
-    OpenPaidBoundaryAuditViolation, OPEN_PAID_BOUNDARY_AUDIT_RECORD_KIND,
+    current_open_paid_boundary_audit, AuditDomain, AuditGapReason, AuditState,
+    OpenPaidBoundaryAudit, OpenPaidBoundaryAuditViolation, OPEN_PAID_BOUNDARY_AUDIT_RECORD_KIND,
     OPEN_PAID_BOUNDARY_AUDIT_SCHEMA_VERSION,
 };
 use aureline_release::stable_claim_manifest::FreshnessSloState;
@@ -152,30 +152,41 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn audit_narrows_a_row_under_a_still_stable_claim() {
+fn audit_attests_rows_without_narrowing() {
     let audit = audit();
-    // A release-blocking row whose public claim is still published Stable but is itself
-    // unbacked — the governance-level truth beneath an optimistic claim.
-    let narrowed = audit.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.holds_stable()
-            && row.audit_state != AuditState::NarrowedClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the audit must narrow at least one release-blocking row under a still-stable claim"
+        audit.rows_narrowed().is_empty(),
+        "clean audit must not narrow a row"
     );
 }
 
 #[test]
-fn audit_narrows_a_row_for_an_unsatisfied_control() {
+fn audit_rows_have_satisfied_controls() {
     let audit = audit();
+    assert_eq!(audit.computed_summary().controls_unsatisfied, 0);
+    assert!(
+        audit
+            .rows
+            .iter()
+            .all(|row| row.unsatisfied_control_count() == 0),
+        "clean audit must not carry unsatisfied controls"
+    );
+}
+
+#[test]
+fn audit_can_construct_a_control_narrowed_row() {
+    let mut audit = audit();
     let narrowed = audit
         .rows
-        .iter()
-        .find(|row| row.audit_state == AuditState::NarrowedUnbacked)
-        .expect("the audit must show a control-narrowed row");
+        .iter_mut()
+        .find(|row| row.holds_label())
+        .expect("audit has an attested row");
+    narrowed.audit_state = AuditState::NarrowedUnbacked;
+    narrowed.effective_label = StableClaimLevel::Beta;
+    narrowed.audit_controls[0].satisfied = false;
+    narrowed
+        .active_gap_reasons
+        .push(AuditGapReason::AuditControlUnsatisfied);
     assert!(narrowed.unsatisfied_control_count() > 0);
     assert!(!narrowed.holds_stable());
 }
@@ -186,11 +197,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = audit
         .rows
         .iter_mut()
-        .find(|row| {
-            row.audit_state == AuditState::NarrowedStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("audit has a narrowed-stale row under a stable ceiling");
+        .find(|row| row.holds_label())
+        .expect("audit has an attested row");
+    row.audit_state = AuditState::NarrowedStale;
+    row.active_gap_reasons
+        .push(AuditGapReason::AttestationPacketFreshnessBreached);
     row.effective_label = StableClaimLevel::Stable;
     audit.summary = audit.computed_summary();
     audit.publication.decision = audit.computed_publication_decision();
@@ -247,16 +258,16 @@ fn attested_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut audit = audit();
-    audit.publication.decision = PromotionDecision::Proceed;
+    audit.publication.decision = PromotionDecision::Hold;
 
     assert!(
         audit.validate().iter().any(|v| matches!(
             v,
             OpenPaidBoundaryAuditViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

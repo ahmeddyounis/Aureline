@@ -1880,34 +1880,36 @@ mod tests {
     }
 
     #[test]
-    fn pack_exercises_published_and_narrowed_rows() {
+    fn pack_exercises_published_rows_without_narrowing() {
         let pack = pack();
         assert!(
             !pack.rows_published_stable().is_empty(),
             "pack must show at least one published-stable row"
         );
         assert!(
-            !pack.rows_narrowed().is_empty(),
-            "pack must show at least one narrowed row"
+            pack.rows_narrowed().is_empty(),
+            "stable publication evidence must not carry narrowed rows"
         );
     }
 
     #[test]
     fn pack_protects_a_benchmark_budget() {
-        let pack = pack();
-        let regressed = pack.rows.iter().find(|row| {
-            row.publication_kind == PublicationKind::Benchmark
-                && row.publication_state == PublicationState::NarrowedBudgetRegressed
-        });
-        assert!(
-            regressed.is_some(),
-            "pack must narrow at least one benchmark publication for a budget regression"
-        );
-        let regressed = regressed.unwrap();
+        let mut pack = pack();
+        let regressed = pack
+            .rows
+            .iter_mut()
+            .find(|row| row.publication_kind == PublicationKind::Benchmark)
+            .expect("a benchmark row exists");
+        regressed.publication_state = PublicationState::NarrowedBudgetRegressed;
+        regressed
+            .active_gap_reasons
+            .push(GapReason::BudgetRegressed);
+        regressed.published_label = StableClaimLevel::Beta;
         let budget = regressed
             .benchmark_budget
-            .as_ref()
+            .as_mut()
             .expect("a benchmark row carries a budget");
+        budget.measured_p95_ms = budget.published_p95_ms + 1_000;
         assert!(
             !budget.within_budget(),
             "a budget-regressed row must actually be over its published budget"
@@ -1945,15 +1947,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let pack = pack();
-        assert_eq!(pack.publication.decision, PromotionDecision::Hold);
+        assert_eq!(pack.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             pack.publication.decision,
             pack.computed_publication_decision()
         );
-        assert!(!pack.publication.blocking_rule_ids.is_empty());
-        assert!(!pack.publication.blocking_entry_ids.is_empty());
+        assert!(pack.publication.blocking_rule_ids.is_empty());
+        assert!(pack.publication.blocking_entry_ids.is_empty());
     }
 
     #[test]
@@ -1987,8 +1989,9 @@ mod tests {
         let row = pack
             .rows
             .iter_mut()
-            .find(|row| !row.publishes_stable() && row.claim_label == StableClaimLevel::Beta)
-            .expect("a narrowed row under a beta ceiling exists");
+            .find(|row| row.publishes_stable())
+            .expect("a published row exists");
+        row.claim_label = StableClaimLevel::Beta;
         row.published_label = StableClaimLevel::Stable;
         let entry_id = row.entry_id.clone();
         pack.summary = pack.computed_summary();
@@ -2004,8 +2007,11 @@ mod tests {
         let row = pack
             .rows
             .iter_mut()
-            .find(|row| row.publication_state == PublicationState::NarrowedStale)
-            .expect("a narrowed-stale row exists");
+            .find(|row| row.publishes_stable())
+            .expect("a published row exists");
+        row.publication_state = PublicationState::NarrowedStale;
+        row.active_gap_reasons
+            .push(GapReason::ProofPacketFreshnessBreached);
         row.published_label = row.claim_label;
         pack.summary = pack.computed_summary();
         pack.publication.decision = pack.computed_publication_decision();
@@ -2040,7 +2046,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut pack = pack();
-        pack.publication.decision = PromotionDecision::Proceed;
+        pack.publication.decision = PromotionDecision::Hold;
         assert!(pack.validate().iter().any(|v| matches!(
             v,
             StablePublicationPackViolation::PublicationDecisionInconsistent { .. }

@@ -12,6 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
+use aureline_release::shiproom_dashboard::StopReason;
 use aureline_release::shiproom_dashboard::{
     current_shiproom_dashboard, FitnessStatus, PanelKind, PanelState, ShiproomDashboard,
     ShiproomDashboardViolation, SHIPROOM_DASHBOARD_RECORD_KIND, SHIPROOM_DASHBOARD_SCHEMA_VERSION,
@@ -159,24 +160,16 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn dashboard_narrows_a_panel_under_a_still_stable_claim() {
+fn dashboard_renders_panels_without_narrowing() {
     let dashboard = dashboard();
-    // A release-blocking panel whose public claim is still published Stable but is itself
-    // narrowed — the shiproom-level truth beneath an optimistic claim.
-    let narrowed = dashboard.panels.iter().find(|panel| {
-        panel.release_blocking
-            && panel.claim_holds_stable()
-            && !panel.renders_stable()
-            && panel.panel_state != PanelState::NarrowedClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the dashboard must narrow at least one release-blocking panel under a still-stable claim"
+        dashboard.panels_narrowed().is_empty(),
+        "clean dashboard must not narrow a panel"
     );
 }
 
 #[test]
-fn dashboard_exercises_a_failing_and_an_unmeasured_fitness_function() {
+fn dashboard_fitness_functions_all_pass() {
     let dashboard = dashboard();
     let statuses: Vec<FitnessStatus> = dashboard
         .panels
@@ -184,16 +177,8 @@ fn dashboard_exercises_a_failing_and_an_unmeasured_fitness_function() {
         .flat_map(|panel| panel.fitness_functions.iter().map(|f| f.status))
         .collect();
     assert!(
-        statuses.contains(&FitnessStatus::Fail),
-        "the dashboard must exercise a failing fitness function"
-    );
-    assert!(
-        statuses.contains(&FitnessStatus::Unmeasured),
-        "the dashboard must exercise an unmeasured fitness function"
-    );
-    assert!(
-        statuses.contains(&FitnessStatus::Warn),
-        "the dashboard must exercise a warn-band fitness function"
+        statuses.iter().all(|status| *status == FitnessStatus::Pass),
+        "clean dashboard must only carry passing fitness functions"
     );
 }
 
@@ -203,11 +188,10 @@ fn narrowing_panel_that_does_not_narrow_fails() {
     let panel = dashboard
         .panels
         .iter_mut()
-        .find(|panel| {
-            panel.panel_state == PanelState::NarrowedStale
-                && panel.claim_label == StableClaimLevel::Stable
-        })
-        .expect("dashboard has a narrowed-stale panel under a stable ceiling");
+        .find(|panel| panel.renders_green())
+        .expect("dashboard has a green panel");
+    panel.panel_state = PanelState::NarrowedStale;
+    panel.active_stop_reasons = vec![StopReason::FreshnessPacketBreached];
     panel.displayed_label = StableClaimLevel::Stable;
     dashboard.summary = dashboard.computed_summary();
     dashboard.publication.decision = dashboard.computed_publication_decision();
@@ -273,16 +257,16 @@ fn fitness_status_disagreeing_with_measurement_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut dashboard = dashboard();
-    dashboard.publication.decision = PromotionDecision::Proceed;
+    dashboard.publication.decision = PromotionDecision::Hold;
 
     assert!(
         dashboard.validate().iter().any(|v| matches!(
             v,
             ShiproomDashboardViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

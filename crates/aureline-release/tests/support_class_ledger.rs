@@ -111,8 +111,12 @@ fn unqualified_entry_that_does_not_narrow_fails() {
     let entry = ledger
         .entries
         .iter_mut()
-        .find(|e| e.ledger_state == LedgerState::NarrowedUnqualified)
-        .expect("ledger has a narrowed-unqualified entry");
+        .find(|e| e.holds_claim())
+        .expect("ledger has a held entry");
+    entry.ledger_state = LedgerState::NarrowedUnqualified;
+    entry
+        .active_downgrade_reasons
+        .push(DowngradeReason::SupportEvidenceMissing);
     entry.effective_class = entry.claimed_class;
     ledger.summary = ledger.computed_summary();
     ledger.publication.decision = ledger.computed_publication_decision();
@@ -148,25 +152,35 @@ fn certified_claim_without_a_manifest_entry_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut ledger = ledger();
-    ledger.publication.decision = PublicationDecision::Proceed;
+    ledger.publication.decision = PublicationDecision::Hold;
 
     assert!(
         ledger.validate().iter().any(|v| matches!(
             v,
             SupportClassLedgerViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking downgrade rule fires"
+        "publication decision must agree with computed downgrade rules"
     );
 }
 
 #[test]
 fn stripping_a_rule_for_an_active_reason_fails() {
     let mut ledger = ledger();
+    let entry = ledger
+        .entries
+        .iter_mut()
+        .find(|e| e.holds_claim())
+        .expect("ledger has a held entry");
+    entry.ledger_state = LedgerState::NarrowedUnqualified;
+    entry.effective_class = SupportClass::NotSupported;
+    entry
+        .active_downgrade_reasons
+        .push(DowngradeReason::SupportEvidenceMissing);
     ledger
         .downgrade_rules
-        .retain(|rule| rule.trigger_reason != DowngradeReason::WaiverExpired);
+        .retain(|rule| rule.trigger_reason != DowngradeReason::SupportEvidenceMissing);
     ledger.summary = ledger.computed_summary();
     ledger.publication.decision = ledger.computed_publication_decision();
     ledger.publication.blocking_rule_ids = ledger.computed_blocking_rule_ids();
@@ -176,7 +190,7 @@ fn stripping_a_rule_for_an_active_reason_fails() {
         ledger
             .validate()
             .contains(&SupportClassLedgerViolation::DowngradeReasonWithoutRule {
-                reason: DowngradeReason::WaiverExpired,
+                reason: DowngradeReason::SupportEvidenceMissing,
             }),
         "every downgrade reason must keep a rule watching for it"
     );

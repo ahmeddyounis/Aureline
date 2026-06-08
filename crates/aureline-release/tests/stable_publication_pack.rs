@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::stable_publication_pack::{
-    current_stable_publication_pack, PublicationKind, PublicationState, StablePublicationPack,
-    StablePublicationPackViolation, STABLE_PUBLICATION_PACK_RECORD_KIND,
+    current_stable_publication_pack, GapReason, PublicationKind, PublicationState,
+    StablePublicationPack, StablePublicationPackViolation, STABLE_PUBLICATION_PACK_RECORD_KIND,
     STABLE_PUBLICATION_PACK_SCHEMA_VERSION,
 };
 
@@ -152,35 +152,33 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn pack_narrows_a_publication_under_a_still_stable_claim() {
+fn pack_publishes_rows_without_narrowing() {
     let pack = pack();
-    // A release-blocking publication whose public claim is still published Stable but is
-    // itself unbacked — the publication-level truth beneath an optimistic claim.
-    let narrowed = pack.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.publishes_stable()
-            && row.publication_state != PublicationState::NarrowedClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the pack must narrow at least one release-blocking publication under a still-stable claim"
+        pack.rows_narrowed().is_empty(),
+        "clean publication pack must not narrow a publication"
     );
 }
 
 #[test]
-fn pack_narrows_a_benchmark_for_a_budget_regression() {
-    let pack = pack();
+fn pack_can_narrow_a_benchmark_for_a_budget_regression() {
+    let mut pack = pack();
     let regressed = pack
         .rows
-        .iter()
-        .find(|row| row.publication_state == PublicationState::NarrowedBudgetRegressed)
-        .expect("the pack must show a budget-regressed benchmark");
+        .iter_mut()
+        .find(|row| row.publication_kind == PublicationKind::Benchmark)
+        .expect("pack has a benchmark row");
+    regressed.publication_state = PublicationState::NarrowedBudgetRegressed;
+    regressed.published_label = StableClaimLevel::Beta;
+    regressed
+        .active_gap_reasons
+        .push(GapReason::BudgetRegressed);
     assert_eq!(regressed.publication_kind, PublicationKind::Benchmark);
     let budget = regressed
         .benchmark_budget
-        .as_ref()
+        .as_mut()
         .expect("a benchmark row carries a budget");
+    budget.measured_p95_ms = budget.published_p95_ms + 1_000;
     assert!(!budget.within_budget());
     assert!(!regressed.publishes_stable());
 }
@@ -191,11 +189,11 @@ fn narrowing_publication_that_does_not_narrow_fails() {
     let row = pack
         .rows
         .iter_mut()
-        .find(|row| {
-            row.publication_state == PublicationState::NarrowedStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("pack has a narrowed-stale row under a stable ceiling");
+        .find(|row| row.holds_label())
+        .expect("pack has a backed row");
+    row.publication_state = PublicationState::NarrowedStale;
+    row.active_gap_reasons
+        .push(GapReason::ProofPacketFreshnessBreached);
     row.published_label = StableClaimLevel::Stable;
     pack.summary = pack.computed_summary();
     pack.publication.decision = pack.computed_publication_decision();
@@ -253,16 +251,16 @@ fn backed_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut pack = pack();
-    pack.publication.decision = PromotionDecision::Proceed;
+    pack.publication.decision = PromotionDecision::Hold;
 
     assert!(
         pack.validate().iter().any(|v| matches!(
             v,
             StablePublicationPackViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

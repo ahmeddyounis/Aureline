@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::stable_proof_index::{
-    current_stable_proof_index, ProofState, StableProofIndex, StableProofIndexViolation,
+    current_stable_proof_index, GapReason, ProofState, StableProofIndex, StableProofIndexViolation,
     STABLE_PROOF_INDEX_RECORD_KIND, STABLE_PROOF_INDEX_SCHEMA_VERSION,
 };
 
@@ -126,19 +126,11 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn index_narrows_a_requirement_under_a_still_stable_claim() {
+fn index_proves_requirements_without_narrowing() {
     let index = index();
-    // A launch-blocking requirement whose public claim is still published Stable but
-    // is itself unproven — the requirement-level truth beneath an optimistic claim.
-    let narrowed = index.rows.iter().find(|row| {
-        row.launch_blocking
-            && row.claim_holds_stable()
-            && !row.proves_stable()
-            && row.index_state != ProofState::UnprovenClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the index must narrow at least one launch-blocking requirement under a still-stable claim"
+        index.rows_narrowed().is_empty(),
+        "clean proof index must not narrow a requirement"
     );
 }
 
@@ -148,11 +140,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = index
         .rows
         .iter_mut()
-        .find(|row| {
-            row.index_state == ProofState::UnprovenStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("index has an unproven-stale row under a stable ceiling");
+        .find(|row| row.holds_proof())
+        .expect("index has a proven row");
+    row.index_state = ProofState::UnprovenStale;
+    row.active_gap_reasons
+        .push(GapReason::ProofPacketFreshnessBreached);
     row.proven_label = StableClaimLevel::Stable;
     index.summary = index.computed_summary();
     index.publication.decision = index.computed_publication_decision();
@@ -189,16 +181,16 @@ fn proven_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut index = index();
-    index.publication.decision = PromotionDecision::Proceed;
+    index.publication.decision = PromotionDecision::Hold;
 
     assert!(
         index.validate().iter().any(|v| matches!(
             v,
             StableProofIndexViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 

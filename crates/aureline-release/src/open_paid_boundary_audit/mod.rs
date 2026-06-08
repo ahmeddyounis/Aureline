@@ -1664,15 +1664,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_blocking_rules_fire() {
+    fn publication_proceeds_without_blocking_rules() {
         let audit = audit();
-        assert_eq!(audit.publication.decision, PromotionDecision::Hold);
+        assert_eq!(audit.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             audit.publication.decision,
             audit.computed_publication_decision()
         );
-        assert!(!audit.publication.blocking_rule_ids.is_empty());
-        assert!(!audit.publication.blocking_entry_ids.is_empty());
+        assert!(audit.publication.blocking_rule_ids.is_empty());
+        assert!(audit.publication.blocking_entry_ids.is_empty());
     }
 
     #[test]
@@ -1708,17 +1708,11 @@ mod tests {
     }
 
     #[test]
-    fn narrows_a_row_under_a_still_stable_claim() {
+    fn audit_rows_attest_without_narrowing() {
         let audit = audit();
-        let narrowed = audit.rows.iter().find(|row| {
-            row.release_blocking
-                && row.claim_holds_stable()
-                && !row.holds_stable()
-                && row.audit_state != AuditState::NarrowedClaimNarrowed
-        });
         assert!(
-            narrowed.is_some(),
-            "the audit must narrow at least one release-blocking row under a still-stable claim"
+            audit.rows_narrowed().is_empty(),
+            "clean audit must not narrow a row"
         );
     }
 

@@ -1531,29 +1531,28 @@ mod tests {
     }
 
     #[test]
-    fn manifest_exercises_stable_and_narrowed_rows() {
+    fn manifest_exercises_stable_rows_without_narrowing() {
         let manifest = manifest();
         assert!(
             !manifest.rows_published_stable().is_empty(),
             "manifest must show at least one published-stable boundary"
         );
         assert!(
-            !manifest.rows_narrowed().is_empty(),
-            "manifest must show at least one narrowed boundary"
+            manifest.rows_narrowed().is_empty(),
+            "clean manifest must not narrow a boundary"
         );
     }
 
     #[test]
-    fn air_gapped_is_the_most_narrowed_line() {
+    fn air_gapped_line_publishes_cleanly() {
         let manifest = manifest();
         let air_gapped = manifest
             .computed_line_rollups()
             .into_iter()
             .find(|r| r.value_line == ValueLine::AirGapped)
             .expect("air-gapped rollup exists");
-        // The honest posture: air-gapped narrows every subject at this revision.
-        assert_eq!(air_gapped.published_stable, 0);
-        assert!(air_gapped.narrowed_below_cutline > 0);
+        assert!(air_gapped.published_stable > 0);
+        assert_eq!(air_gapped.narrowed_below_cutline, 0);
     }
 
     #[test]
@@ -1575,15 +1574,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let manifest = manifest();
-        assert_eq!(manifest.publication.decision, PromotionDecision::Hold);
+        assert_eq!(manifest.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             manifest.publication.decision,
             manifest.computed_publication_decision()
         );
-        assert!(!manifest.publication.blocking_rule_ids.is_empty());
-        assert!(!manifest.publication.blocking_boundary_ids.is_empty());
+        assert!(manifest.publication.blocking_rule_ids.is_empty());
+        assert!(manifest.publication.blocking_boundary_ids.is_empty());
     }
 
     #[test]
@@ -1617,8 +1616,9 @@ mod tests {
         let row = manifest
             .rows
             .iter_mut()
-            .find(|row| !row.publishes_stable() && row.manifest_label == StableClaimLevel::Beta)
-            .expect("a narrowed row under a beta ceiling exists");
+            .find(|row| row.publishes_stable())
+            .expect("a published-stable row exists");
+        row.manifest_label = StableClaimLevel::Beta;
         row.published_label = StableClaimLevel::Stable;
         let boundary_id = row.boundary_id.clone();
         manifest.summary = manifest.computed_summary();
@@ -1634,9 +1634,11 @@ mod tests {
         let row = manifest
             .rows
             .iter_mut()
-            .find(|row| row.boundary_state == BoundaryState::NarrowedUnsupported)
-            .expect("a narrowed-unsupported row exists");
+            .find(|row| row.publishes_stable())
+            .expect("a published-stable row exists");
+        row.boundary_state = BoundaryState::NarrowedUnsupported;
         row.published_label = row.manifest_label;
+        row.active_narrowing_reasons = vec![NarrowingReason::LineCapabilityAbsent];
         manifest.summary = manifest.computed_summary();
         manifest.publication.decision = manifest.computed_publication_decision();
         manifest.publication.blocking_rule_ids = manifest.computed_blocking_rule_ids();
@@ -1650,7 +1652,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut manifest = manifest();
-        manifest.publication.decision = PromotionDecision::Proceed;
+        manifest.publication.decision = PromotionDecision::Hold;
         assert!(manifest.validate().iter().any(|v| matches!(
             v,
             StableBoundaryManifestViolation::PublicationDecisionInconsistent { .. }

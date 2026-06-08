@@ -1764,26 +1764,40 @@ mod tests {
     }
 
     #[test]
-    fn register_exercises_qualified_and_narrowed_surfaces() {
+    fn register_exercises_qualified_surfaces_without_narrowing() {
         let register = register();
         assert!(
             !register.surfaces_qualified_stable().is_empty(),
             "register must show at least one qualified-stable surface"
         );
         assert!(
-            !register.surfaces_narrowed().is_empty(),
-            "register must show at least one narrowed surface"
+            register.surfaces_narrowed().is_empty(),
+            "clean register must not narrow a surface"
         );
     }
 
     #[test]
-    fn register_exercises_a_surface_lacking_a_packet() {
+    fn register_exercises_only_packet_backed_surfaces() {
         let register = register();
+        assert!(
+            register.surfaces.iter().all(OptionalSurface::has_packet),
+            "clean register must packet-back every surface"
+        );
+        assert_eq!(register.summary.surfaces_without_packet, 0);
+    }
+
+    #[test]
+    fn absent_packet_can_be_constructed_for_negative_checks() {
+        let mut register = register();
         let absent = register
             .surfaces
-            .iter()
-            .find(|surface| !surface.has_packet())
-            .expect("register must exercise a surface lacking a qualification packet");
+            .iter_mut()
+            .find(|surface| surface.renders_qualified())
+            .expect("a qualified surface exists");
+        absent.qualification_packet = None;
+        absent.surface_state = SurfaceState::NarrowedNoPacket;
+        absent.displayed_label = StableClaimLevel::Beta;
+        absent.active_narrow_reasons = vec![NarrowReason::QualificationPacketAbsent];
         assert_eq!(absent.surface_state, SurfaceState::NarrowedNoPacket);
         assert!(!absent.renders_stable());
         assert!(absent.has_active_reason(NarrowReason::QualificationPacketAbsent));
@@ -1832,15 +1846,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let register = register();
-        assert_eq!(register.publication.decision, PromotionDecision::Hold);
+        assert_eq!(register.publication.decision, PromotionDecision::Proceed);
         assert_eq!(
             register.publication.decision,
             register.computed_publication_decision()
         );
-        assert!(!register.publication.blocking_rule_ids.is_empty());
-        assert!(!register.publication.blocking_surface_ids.is_empty());
+        assert!(register.publication.blocking_rule_ids.is_empty());
+        assert!(register.publication.blocking_surface_ids.is_empty());
     }
 
     #[test]
@@ -1874,10 +1888,9 @@ mod tests {
         let surface = register
             .surfaces
             .iter_mut()
-            .find(|surface| {
-                !surface.renders_stable() && surface.claim_label == StableClaimLevel::Beta
-            })
-            .expect("a narrowed surface under a beta ceiling exists");
+            .find(|surface| surface.renders_stable())
+            .expect("a qualified-stable surface exists");
+        surface.claim_label = StableClaimLevel::Beta;
         surface.displayed_label = StableClaimLevel::Stable;
         let surface_id = surface.surface_id.clone();
         register.summary = register.computed_summary();
@@ -1893,8 +1906,9 @@ mod tests {
         let surface = register
             .surfaces
             .iter_mut()
-            .find(|surface| !surface.has_packet())
-            .expect("a surface lacking a packet exists");
+            .find(|surface| surface.renders_qualified())
+            .expect("a qualified surface exists");
+        surface.qualification_packet = None;
         surface.surface_state = SurfaceState::QualifiedStable;
         surface.displayed_label = surface.claim_label;
         surface.active_narrow_reasons.clear();
@@ -1914,9 +1928,11 @@ mod tests {
         let surface = register
             .surfaces
             .iter_mut()
-            .find(|surface| surface.surface_state == SurfaceState::NarrowedStale)
-            .expect("a narrowed-stale surface exists");
+            .find(|surface| surface.renders_stable())
+            .expect("a qualified-stable surface exists");
+        surface.surface_state = SurfaceState::NarrowedStale;
         surface.displayed_label = surface.claim_label;
+        surface.active_narrow_reasons = vec![NarrowReason::QualificationPacketBreached];
         register.summary = register.computed_summary();
         register.publication.decision = register.computed_publication_decision();
         register.publication.blocking_rule_ids = register.computed_blocking_rule_ids();
@@ -1930,7 +1946,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut register = register();
-        register.publication.decision = PromotionDecision::Proceed;
+        register.publication.decision = PromotionDecision::Hold;
         assert!(register.validate().iter().any(|v| matches!(
             v,
             OptionalSurfaceQualificationViolation::PublicationDecisionInconsistent { .. }

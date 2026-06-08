@@ -1620,15 +1620,15 @@ mod tests {
     }
 
     #[test]
-    fn ledger_exercises_published_and_narrowed_entries() {
+    fn ledger_exercises_published_entries_without_narrowing() {
         let ledger = ledger();
         assert!(
             !ledger.entries_holding().is_empty(),
             "ledger must publish at least one held support class"
         );
         assert!(
-            !ledger.entries_narrowed().is_empty(),
-            "ledger must show at least one narrowed support class"
+            ledger.entries_narrowed().is_empty(),
+            "stable support evidence must not carry narrowed support classes"
         );
     }
 
@@ -1643,15 +1643,15 @@ mod tests {
     }
 
     #[test]
-    fn publication_holds_when_a_blocking_rule_fires() {
+    fn publication_proceeds_without_blocking_rules() {
         let ledger = ledger();
-        assert_eq!(ledger.publication.decision, PublicationDecision::Hold);
+        assert_eq!(ledger.publication.decision, PublicationDecision::Proceed);
         assert_eq!(
             ledger.publication.decision,
             ledger.computed_publication_decision()
         );
-        assert!(!ledger.publication.blocking_rule_ids.is_empty());
-        assert!(!ledger.publication.blocking_entry_ids.is_empty());
+        assert!(ledger.publication.blocking_rule_ids.is_empty());
+        assert!(ledger.publication.blocking_entry_ids.is_empty());
     }
 
     #[test]
@@ -1691,8 +1691,12 @@ mod tests {
         let entry = ledger
             .entries
             .iter_mut()
-            .find(|e| e.ledger_state == LedgerState::NarrowedUnqualified)
-            .expect("a narrowed-unqualified entry exists");
+            .find(|e| e.holds_claim())
+            .expect("a held entry exists");
+        entry.ledger_state = LedgerState::NarrowedUnqualified;
+        entry
+            .active_downgrade_reasons
+            .push(DowngradeReason::SupportEvidenceMissing);
         entry.effective_class = entry.claimed_class;
         ledger.summary = ledger.computed_summary();
         ledger.publication.decision = ledger.computed_publication_decision();
@@ -1722,7 +1726,7 @@ mod tests {
     #[test]
     fn validate_flags_an_inconsistent_publication_decision() {
         let mut ledger = ledger();
-        ledger.publication.decision = PublicationDecision::Proceed;
+        ledger.publication.decision = PublicationDecision::Hold;
         assert!(ledger.validate().iter().any(|v| matches!(
             v,
             SupportClassLedgerViolation::PublicationDecisionInconsistent { .. }

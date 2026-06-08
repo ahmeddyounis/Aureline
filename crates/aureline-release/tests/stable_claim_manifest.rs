@@ -107,7 +107,18 @@ fn model_matches_frozen_validation_capture() {
 
 #[test]
 fn freshness_automation_narrows_a_breached_packet() {
-    let manifest = manifest();
+    let mut manifest = manifest();
+    let entry = manifest
+        .entries
+        .iter_mut()
+        .find(|entry| entry.holds_label())
+        .expect("manifest has a held entry");
+    entry.manifest_state = ManifestState::NarrowedStale;
+    entry.proof_packet.slo_state = FreshnessSloState::Breached;
+    entry.published_label = aureline_release::stable_claim_matrix::StableClaimLevel::Beta;
+    entry
+        .active_narrowing_reasons
+        .push(NarrowingReason::ProofPacketFreshnessBreached);
     let narrowed_on_breach = manifest.entries.iter().find(|entry| {
         entry.proof_packet.slo_state == FreshnessSloState::Breached
             && !entry.publishes_stable()
@@ -125,8 +136,12 @@ fn narrowing_entry_that_does_not_narrow_fails() {
     let entry = manifest
         .entries
         .iter_mut()
-        .find(|entry| entry.manifest_state == ManifestState::NarrowedUnqualified)
-        .expect("manifest has a narrowed-unqualified entry");
+        .find(|entry| entry.holds_label())
+        .expect("manifest has a held entry");
+    entry.manifest_state = ManifestState::NarrowedUnqualified;
+    entry
+        .active_narrowing_reasons
+        .push(NarrowingReason::OwnerSignoffMissing);
     entry.published_label = entry.claimed_label;
     manifest.summary = manifest.computed_summary();
     manifest.publication.decision = manifest.computed_publication_decision();
@@ -163,22 +178,32 @@ fn published_label_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut manifest = manifest();
-    manifest.publication.decision = PromotionDecision::Proceed;
+    manifest.publication.decision = PromotionDecision::Hold;
 
     assert!(
         manifest.validate().iter().any(|v| matches!(
             v,
             StableClaimManifestViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 
 #[test]
 fn stripping_a_rule_for_an_active_reason_fails() {
     let mut manifest = manifest();
+    let entry = manifest
+        .entries
+        .iter_mut()
+        .find(|entry| entry.holds_label())
+        .expect("manifest has a held entry");
+    entry.manifest_state = ManifestState::NarrowedStale;
+    entry.published_label = aureline_release::stable_claim_matrix::StableClaimLevel::Beta;
+    entry
+        .active_narrowing_reasons
+        .push(NarrowingReason::ProofPacketFreshnessBreached);
     manifest
         .publication_rules
         .retain(|rule| rule.trigger_reason != NarrowingReason::ProofPacketFreshnessBreached);

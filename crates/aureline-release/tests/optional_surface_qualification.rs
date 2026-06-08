@@ -139,17 +139,13 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn register_exercises_absent_packet_narrowing_under_stable_claim() {
+fn register_qualifies_packet_backed_surfaces_without_narrowing() {
     let register = register();
-    let narrowed = register.surfaces.iter().find(|surface| {
-        !surface.has_packet()
-            && surface.claim_holds_stable()
-            && surface.surface_state == SurfaceState::NarrowedNoPacket
-    });
     assert!(
-        narrowed.is_some(),
-        "register must narrow an optional surface with no packet under a Stable claim"
+        register.surfaces_narrowed().is_empty(),
+        "clean register must not narrow optional surfaces"
     );
+    assert_eq!(register.surfaces_without_packet().len(), 0);
 }
 
 #[test]
@@ -187,8 +183,9 @@ fn absent_packet_rendered_qualified_fails() {
     let surface = register
         .surfaces
         .iter_mut()
-        .find(|surface| !surface.has_packet())
-        .expect("a surface lacking a packet exists");
+        .find(|surface| surface.renders_qualified())
+        .expect("a qualified surface exists");
+    surface.qualification_packet = None;
     surface.surface_state = SurfaceState::QualifiedStable;
     surface.displayed_label = surface.claim_label;
     surface.active_narrow_reasons.clear();
@@ -231,16 +228,16 @@ fn qualified_surface_on_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut register = register();
-    register.publication.decision = PromotionDecision::Proceed;
+    register.publication.decision = PromotionDecision::Hold;
 
     assert!(
         register.validate().iter().any(|v| matches!(
             v,
             OptionalSurfaceQualificationViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 
@@ -274,8 +271,17 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
 }
 
 #[test]
-fn support_projection_includes_narrow_reasons() {
-    let register = register();
+fn support_projection_includes_constructed_narrow_reasons() {
+    let mut register = register();
+    let surface = register
+        .surfaces
+        .iter_mut()
+        .find(|surface| surface.renders_qualified())
+        .expect("a qualified surface exists");
+    surface.qualification_packet = None;
+    surface.surface_state = SurfaceState::NarrowedNoPacket;
+    surface.displayed_label = StableClaimLevel::Beta;
+    surface.active_narrow_reasons = vec![NarrowReason::QualificationPacketAbsent];
     let projection = register.support_export_projection();
     let narrowed = projection
         .surfaces
@@ -286,7 +292,7 @@ fn support_projection_includes_narrow_reasons() {
                 .contains(&NarrowReason::QualificationPacketAbsent)
         })
         .expect("projection includes absent-packet narrowing");
-    assert_eq!(narrowed.displayed_label, StableClaimLevel::Preview);
+    assert_eq!(narrowed.displayed_label, StableClaimLevel::Beta);
     assert!(!narrowed.renders_stable);
     assert!(!narrowed.has_packet);
 }

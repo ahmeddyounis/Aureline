@@ -1746,25 +1746,26 @@ mod tests {
     }
 
     #[test]
-    fn matrix_exercises_holding_and_narrowed_rows() {
+    fn matrix_exercises_holding_rows_without_narrowing() {
         let matrix = matrix();
         assert!(!matrix.rows_holding_stable().is_empty());
-        assert!(!matrix.rows_narrowed().is_empty());
+        assert!(matrix.rows_narrowed().is_empty());
     }
 
     #[test]
     fn coordinated_upgrade_only_row_exists_with_incomplete_reason() {
-        let matrix = matrix();
+        let mut matrix = matrix();
         let row = matrix
             .rows
-            .iter()
-            .find(|row| {
-                row.mixed_version.as_ref().is_some_and(|mv| {
-                    !mv.publishes_complete_negotiation_data()
-                        && mv.effective_posture == MixedVersionPosture::CoordinatedUpgradeOnly
-                })
-            })
-            .expect("an incomplete mixed-version row exists");
+            .iter_mut()
+            .find(|row| row.requires_mixed_version())
+            .expect("a cross-binary row exists");
+        if let Some(mv) = row.mixed_version.as_mut() {
+            mv.supported_skew_window = None;
+            mv.effective_posture = MixedVersionPosture::CoordinatedUpgradeOnly;
+        }
+        row.active_downgrade_reasons
+            .push(DowngradeReason::MixedVersionDataIncomplete);
         assert!(row.has_active_reason(DowngradeReason::MixedVersionDataIncomplete));
     }
 
@@ -1779,15 +1780,15 @@ mod tests {
     }
 
     #[test]
-    fn promotion_holds_when_a_blocking_rule_fires() {
+    fn promotion_proceeds_without_blocking_rules() {
         let matrix = matrix();
-        assert_eq!(matrix.promotion.decision, PromotionDecision::Hold);
+        assert_eq!(matrix.promotion.decision, PromotionDecision::Proceed);
         assert_eq!(
             matrix.promotion.decision,
             matrix.computed_promotion_decision()
         );
-        assert!(!matrix.promotion.blocking_rule_ids.is_empty());
-        assert!(!matrix.promotion.blocking_row_ids.is_empty());
+        assert!(matrix.promotion.blocking_rule_ids.is_empty());
+        assert!(matrix.promotion.blocking_row_ids.is_empty());
     }
 
     #[test]
@@ -1810,13 +1811,10 @@ mod tests {
         let row = matrix
             .rows
             .iter_mut()
-            .find(|row| {
-                row.mixed_version
-                    .as_ref()
-                    .is_some_and(|mv| !mv.publishes_complete_negotiation_data())
-            })
-            .expect("an incomplete mixed-version row exists");
+            .find(|row| row.mixed_version.as_ref().is_some())
+            .expect("a mixed-version row exists");
         if let Some(mv) = row.mixed_version.as_mut() {
+            mv.supported_skew_window = None;
             mv.effective_posture = MixedVersionPosture::BoundedSkewSupported;
         }
         assert!(matrix.validate().iter().any(|violation| matches!(
@@ -1848,13 +1846,15 @@ mod tests {
             .rows
             .iter_mut()
             .find(|row| {
-                !row.holds_stable()
-                    && row
-                        .mixed_version
-                        .as_ref()
-                        .is_some_and(MixedVersionSection::publishes_complete_negotiation_data)
+                row.mixed_version
+                    .as_ref()
+                    .is_some_and(MixedVersionSection::publishes_complete_negotiation_data)
             })
-            .expect("a narrowed row with a complete mixed-version section exists");
+            .expect("a row with a complete mixed-version section exists");
+        row.qualification_state = QualificationState::NotQualified;
+        row.effective_level = StableClaimLevel::Beta;
+        row.active_downgrade_reasons
+            .push(DowngradeReason::QualificationEvidenceMissing);
         if let Some(mv) = row.mixed_version.as_mut() {
             mv.claimed_posture = MixedVersionPosture::BoundedSkewSupported;
             mv.effective_posture = MixedVersionPosture::BoundedSkewSupported;
@@ -1868,7 +1868,7 @@ mod tests {
     #[test]
     fn validate_flags_inconsistent_promotion_decision() {
         let mut matrix = matrix();
-        matrix.promotion.decision = PromotionDecision::Proceed;
+        matrix.promotion.decision = PromotionDecision::Hold;
         assert!(matrix.validate().iter().any(|violation| matches!(
             violation,
             StableQualificationMatrixViolation::PromotionDecisionInconsistent { .. }

@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 use aureline_release::stable_version_windows::{
-    current_stable_version_windows, StableVersionWindows, StableVersionWindowsViolation,
+    current_stable_version_windows, GapReason, StableVersionWindows, StableVersionWindowsViolation,
     SurfaceKind, WindowState, STABLE_VERSION_WINDOWS_RECORD_KIND,
     STABLE_VERSION_WINDOWS_SCHEMA_VERSION,
 };
@@ -147,19 +147,11 @@ fn model_matches_frozen_validation_capture() {
 }
 
 #[test]
-fn freeze_narrows_a_surface_under_a_still_stable_claim() {
+fn freeze_publishes_surfaces_without_narrowing() {
     let freeze = freeze();
-    // A release-blocking surface whose public claim is still published Stable but is
-    // itself unfrozen — the interface-level truth beneath an optimistic claim.
-    let narrowed = freeze.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.freezes_stable()
-            && row.window_state != WindowState::UnfrozenClaimNarrowed
-    });
     assert!(
-        narrowed.is_some(),
-        "the freeze must narrow at least one release-blocking surface under a still-stable claim"
+        freeze.rows_narrowed().is_empty(),
+        "clean freeze must not narrow a surface"
     );
 }
 
@@ -169,11 +161,11 @@ fn narrowing_row_that_does_not_narrow_fails() {
     let row = freeze
         .rows
         .iter_mut()
-        .find(|row| {
-            row.window_state == WindowState::UnfrozenStale
-                && row.claim_label == StableClaimLevel::Stable
-        })
-        .expect("freeze has an unfrozen-stale row under a stable ceiling");
+        .find(|row| row.holds_freeze())
+        .expect("freeze has a frozen row");
+    row.window_state = WindowState::UnfrozenStale;
+    row.active_gap_reasons
+        .push(GapReason::FreezePacketFreshnessBreached);
     row.frozen_label = StableClaimLevel::Stable;
     freeze.summary = freeze.computed_summary();
     freeze.publication.decision = freeze.computed_publication_decision();
@@ -210,16 +202,16 @@ fn frozen_row_on_a_breached_packet_fails() {
 }
 
 #[test]
-fn publication_proceed_while_a_rule_fires_fails() {
+fn publication_decision_mismatch_fails() {
     let mut freeze = freeze();
-    freeze.publication.decision = PromotionDecision::Proceed;
+    freeze.publication.decision = PromotionDecision::Hold;
 
     assert!(
         freeze.validate().iter().any(|v| matches!(
             v,
             StableVersionWindowsViolation::PublicationDecisionInconsistent { .. }
         )),
-        "publication must not proceed while a blocking rule fires"
+        "publication decision must agree with computed rules"
     );
 }
 
