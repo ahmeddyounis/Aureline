@@ -1,6 +1,6 @@
 //! Retained notebook preview runtime-truth model and canonical document model.
 //!
-//! This crate carries two typed models:
+//! This crate carries three typed models:
 //!
 //! 1. The [`runtime_truth`] module keeps a notebook preview row honest about
 //!    notebook identity, kernel/session state, output trust, variable freshness,
@@ -13,6 +13,13 @@
 //!    cell IDs stay durable, and notebook open/search/review flows remain useful
 //!    without a selected kernel.
 //!
+//! 3. The [`implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state`]
+//!    module materializes the composed notebook header, kernel bar,
+//!    execution-locus chips, and paired-export state that the notebook chrome
+//!    consumes. It reuses the closed vocabularies from [`runtime_truth`] and
+//!    adds the [`ExecutionLocusChip`] record so execution locus is visible
+//!    wherever the user can run, restart, debug, or export.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -24,6 +31,13 @@
 //! `/schemas/notebook/materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability.schema.json`.
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability/`.
+//!
+//! The records under
+//! [`implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state/`.
 //!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
@@ -42,6 +56,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-notebook/0.0.0")]
 
+pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
 
@@ -75,4 +90,14 @@ pub use materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachmen
     NOTEBOOK_DOCUMENT_MODEL_PACKET_PATH, NOTEBOOK_DOCUMENT_MODEL_PACKET_RECORD_KIND,
     NOTEBOOK_DOCUMENT_MODEL_SCHEMA_VERSION, NOTEBOOK_DOCUMENT_RECORD_KIND,
     NOTEBOOK_LOCAL_STATE_OVERLAY_RECORD_KIND,
+};
+
+pub use implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state::{
+    current_notebook_header_kernel_bar_packet, ExecutionLocusChip, ExecutionLocusChipClass,
+    ExecutionLocusChipFinding, ExecutionLocusChipState, HeaderKernelBarFinding,
+    NotebookHeaderKernelBarPacket, NotebookHeaderKernelBarPacketFinding,
+    NotebookHeaderKernelBarState, NotebookHeaderKernelBarStateFinding,
+    EXECUTION_LOCUS_CHIP_RECORD_KIND, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_JSON,
+    NOTEBOOK_HEADER_KERNEL_BAR_PACKET_PATH, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_RECORD_KIND,
+    NOTEBOOK_HEADER_KERNEL_BAR_SCHEMA_VERSION, NOTEBOOK_HEADER_KERNEL_BAR_STATE_RECORD_KIND,
 };

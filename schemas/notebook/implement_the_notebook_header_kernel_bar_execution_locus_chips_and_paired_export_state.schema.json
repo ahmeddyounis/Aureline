@@ -1,0 +1,405 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state.schema.json",
+  "title": "Aureline notebook header, kernel bar, execution-locus chips, and paired-export state",
+  "description": "Boundary schema for the notebook header, kernel bar, execution-locus chips, and paired-export state. Every record that crosses this boundary (execution-locus chip, header-kernel-bar state, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/execution_locus_chip_record" },
+    { "$ref": "#/$defs/notebook_header_kernel_bar_state_record" },
+    { "$ref": "#/$defs/notebook_header_kernel_bar_packet_record" }
+  ],
+  "$defs": {
+    "notebook_header_kernel_bar_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the header-kernel-bar record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, kernelspec, execution-context root, paired-text export, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "notebook_document_trust_class": {
+      "type": "string",
+      "enum": [
+        "document_trust_inherited_from_workspace",
+        "document_trust_elevated_on_explicit_grant",
+        "document_trust_restricted_by_policy",
+        "document_trust_revoked"
+      ],
+      "description": "Document-trust class projected for the header chip; mirrors notebook_document_trust_state (axis 1 of 4)."
+    },
+    "notebook_dirty_state_class": {
+      "type": "string",
+      "enum": [
+        "clean_saved",
+        "dirty_user_edited",
+        "dirty_cell_ordering_changed",
+        "dirty_external_change_detected",
+        "unreconciled_canonical_mismatch"
+      ]
+    },
+    "kernel_origin_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel",
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ],
+      "description": "Where the kernel actually runs. `no_kernel` is admitted; the document stays editable, reviewable, and diffable."
+    },
+    "kernel_selection_state": {
+      "type": "string",
+      "enum": [
+        "no_kernel_selected",
+        "selected_kernel_resolved",
+        "selection_pending_user",
+        "selection_pending_resolver",
+        "selection_narrowed_by_policy",
+        "selection_unavailable_no_compatible_kernel"
+      ]
+    },
+    "paired_text_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "paired_text_export_not_applicable",
+        "paired_text_export_derived_notebook_to_script",
+        "paired_text_export_derived_notebook_to_markdown"
+      ]
+    },
+    "kernel_bar_action_class": {
+      "type": "string",
+      "enum": [
+        "select_kernel",
+        "change_kernel",
+        "restart_kernel",
+        "restart_kernel_and_run_all",
+        "interrupt_kernel",
+        "reconnect_kernel",
+        "shutdown_kernel"
+      ]
+    },
+    "last_successful_run_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id_ref",
+        "attempt_id_ref",
+        "completed_at",
+        "cells_completed",
+        "summary_label"
+      ],
+      "properties": {
+        "run_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "completed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "cells_completed": { "type": "integer", "minimum": 0 },
+        "summary_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "execution_locus_chip_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "local_container",
+        "ssh_remote",
+        "managed_workspace",
+        "browser_bridge",
+        "service_plane",
+        "no_kernel"
+      ],
+      "description": "Frozen execution-locus chip class. Mirrors the host-identity vocabulary from the UX spec."
+    },
+    "execution_locus_chip_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "degraded",
+        "disconnected",
+        "reconnecting",
+        "policy_blocked"
+      ],
+      "description": "Frozen execution-locus chip state. Distinguishes active, degraded, disconnected, reconnecting, and policy-blocked states."
+    },
+    "execution_locus_chip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_header_kernel_bar_schema_version",
+        "chip_id",
+        "document_id_ref",
+        "chip_class",
+        "chip_state",
+        "target_name_label",
+        "tooltip_label",
+        "boundary_cue_visible",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_execution_locus_chip" },
+        "notebook_header_kernel_bar_schema_version": { "$ref": "#/$defs/notebook_header_kernel_bar_schema_version" },
+        "chip_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "chip_class": { "$ref": "#/$defs/execution_locus_chip_class" },
+        "chip_state": { "$ref": "#/$defs/execution_locus_chip_state" },
+        "target_name_label": { "type": "string", "minLength": 1 },
+        "tooltip_label": { "type": "string", "minLength": 1 },
+        "boundary_cue_visible": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Remote chip classes MUST render the boundary cue.",
+          "if": {
+            "properties": {
+              "chip_class": {
+                "enum": [
+                  "ssh_remote",
+                  "managed_workspace",
+                  "browser_bridge",
+                  "service_plane"
+                ]
+              }
+            },
+            "required": ["chip_class"]
+          },
+          "then": {
+            "properties": {
+              "boundary_cue_visible": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Local chip classes MUST NOT render the boundary cue.",
+          "if": {
+            "properties": {
+              "chip_class": {
+                "enum": [
+                  "local_host",
+                  "local_container"
+                ]
+              }
+            },
+            "required": ["chip_class"]
+          },
+          "then": {
+            "properties": {
+              "boundary_cue_visible": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "no_kernel chip class MUST NOT report active state.",
+          "if": {
+            "properties": {
+              "chip_class": { "const": "no_kernel" }
+            },
+            "required": ["chip_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "chip_state": { "const": "active" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "notebook_header_kernel_bar_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_header_kernel_bar_schema_version",
+        "state_id",
+        "document_id_ref",
+        "document_path_token_ref",
+        "document_title_label",
+        "document_trust_class",
+        "dirty_state_class",
+        "kernel_selection_state",
+        "kernel_origin_class",
+        "local_vs_remote_boundary_cue_visible",
+        "execution_locus_chips",
+        "paired_export_posture",
+        "available_actions",
+        "auto_rerun_forbidden",
+        "captured_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_header_kernel_bar_state" },
+        "notebook_header_kernel_bar_schema_version": { "$ref": "#/$defs/notebook_header_kernel_bar_schema_version" },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "document_path_token_ref": { "$ref": "#/$defs/opaque_ref" },
+        "document_title_label": { "type": "string", "minLength": 1 },
+        "document_trust_class": { "$ref": "#/$defs/notebook_document_trust_class" },
+        "dirty_state_class": { "$ref": "#/$defs/notebook_dirty_state_class" },
+        "kernel_selection_state": { "$ref": "#/$defs/kernel_selection_state" },
+        "kernel_origin_class": { "$ref": "#/$defs/kernel_origin_class" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "kernelspec_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_vs_remote_boundary_cue_visible": { "type": "boolean" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remote_agent_session_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_context_root_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_locus_chips": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_locus_chip_record" }
+        },
+        "paired_export_posture": { "$ref": "#/$defs/paired_text_export_posture_class" },
+        "paired_export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/kernel_bar_action_class" }
+        },
+        "last_successful_run": { "$ref": "#/$defs/last_successful_run_summary" },
+        "auto_rerun_forbidden": { "const": true },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Remote kernel origins MUST render the local-vs-remote boundary cue and MUST carry a target-identity witness ref and a remote-agent session id ref.",
+          "if": {
+            "properties": {
+              "kernel_origin_class": {
+                "enum": [
+                  "remote_agent_primary_kernel",
+                  "managed_workspace_agent_kernel",
+                  "provider_side_remote_kernel",
+                  "compatibility_bridge_remote_kernel"
+                ]
+              }
+            },
+            "required": ["kernel_origin_class"]
+          },
+          "then": {
+            "required": ["target_identity_witness_ref", "remote_agent_session_id_ref"],
+            "properties": {
+              "local_vs_remote_boundary_cue_visible": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "no_kernel origins MUST NOT carry a kernel_session_id_ref and MUST expose the select_kernel action.",
+          "if": {
+            "properties": {
+              "kernel_origin_class": { "const": "no_kernel" }
+            },
+            "required": ["kernel_origin_class"]
+          },
+          "then": {
+            "not": {
+              "required": ["kernel_session_id_ref"]
+            },
+            "properties": {
+              "available_actions": {
+                "contains": { "const": "select_kernel" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Derived paired-export postures MUST cite a paired_export_ref; not_applicable MUST NOT.",
+          "if": {
+            "properties": {
+              "paired_export_posture": {
+                "enum": [
+                  "paired_text_export_derived_notebook_to_script",
+                  "paired_text_export_derived_notebook_to_markdown"
+                ]
+              }
+            },
+            "required": ["paired_export_posture"]
+          },
+          "then": {
+            "required": ["paired_export_ref"]
+          }
+        },
+        {
+          "description": "paired_text_export_not_applicable MUST NOT carry a paired_export_ref.",
+          "if": {
+            "properties": {
+              "paired_export_posture": { "const": "paired_text_export_not_applicable" }
+            },
+            "required": ["paired_export_posture"]
+          },
+          "then": {
+            "properties": {
+              "paired_export_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "notebook_header_kernel_bar_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "execution_locus_chip_classes",
+        "execution_locus_chip_states",
+        "example_execution_locus_chips",
+        "example_header_kernel_bar_states",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_header_kernel_bar_schema_version" },
+        "record_kind": { "const": "notebook_header_kernel_bar_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "execution_locus_chip_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_locus_chip_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "execution_locus_chip_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_locus_chip_state" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "example_execution_locus_chips": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_locus_chip_record" }
+        },
+        "example_header_kernel_bar_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_header_kernel_bar_state_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
