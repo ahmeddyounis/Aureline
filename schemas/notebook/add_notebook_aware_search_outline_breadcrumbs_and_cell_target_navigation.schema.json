@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation.schema.json",
+  "title": "Aureline notebook-aware search, outline, breadcrumbs, and cell-target navigation",
+  "description": "Boundary schema for notebook search, outline, breadcrumb, and cell-target navigation records. Every record that crosses this boundary projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_search_query_record" },
+    { "$ref": "#/$defs/notebook_outline_item_record" },
+    { "$ref": "#/$defs/notebook_breadcrumb_record" },
+    { "$ref": "#/$defs/notebook_cell_target_record" },
+    { "$ref": "#/$defs/notebook_search_outline_navigation_packet_record" }
+  ],
+  "$defs": {
+    "notebook_search_outline_navigation_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook search/outline/navigation module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_search_query",
+        "notebook_outline_item",
+        "notebook_breadcrumb",
+        "notebook_cell_target",
+        "notebook_search_outline_navigation_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, heading anchor id, search match id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_search_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_cell",
+        "all_cells",
+        "selected_cells",
+        "cell_outputs_only",
+        "markdown_cells_only",
+        "code_cells_only"
+      ],
+      "description": "Frozen search-scope class. Defines where the search operates so the chrome never presents a scoped search as a full-document search."
+    },
+
+    "notebook_search_match_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "fuzzy",
+        "regex",
+        "semantic"
+      ],
+      "description": "Frozen search-match class. Defines how query text is matched so the user knows whether results are exact, fuzzy, regex, or semantic."
+    },
+
+    "notebook_outline_item_class": {
+      "type": "string",
+      "enum": [
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "heading_4",
+        "heading_5",
+        "heading_6",
+        "markdown_cell_boundary",
+        "code_cell_boundary",
+        "raw_cell_boundary"
+      ],
+      "description": "Frozen outline-item class. Defines what kind of structure the outline item represents — headings extracted from markdown cells or cell boundaries."
+    },
+
+    "notebook_breadcrumb_class": {
+      "type": "string",
+      "enum": [
+        "document_root",
+        "section_heading",
+        "cell_boundary",
+        "output_boundary",
+        "search_result_set"
+      ],
+      "description": "Frozen breadcrumb class. Defines what kind of breadcrumb segment this is so the chrome never invents ad hoc breadcrumb levels."
+    },
+
+    "notebook_cell_target_class": {
+      "type": "string",
+      "enum": [
+        "cell_id_anchor",
+        "cell_index_anchor",
+        "output_index_anchor",
+        "heading_anchor",
+        "search_match_anchor"
+      ],
+      "description": "Frozen cell-target class. Defines what kind of navigation target this is so deep links and goto actions never silently fall back to a different cell."
+    },
+
+    "notebook_scroll_behavior_class": {
+      "type": "string",
+      "enum": [
+        "center_in_view",
+        "scroll_to_top",
+        "scroll_to_nearest",
+        "no_scroll"
+      ],
+      "description": "Frozen scroll-behavior class. Defines how the view should scroll when navigating to a target so the chrome behaves predictably."
+    },
+
+    "notebook_search_query_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_search_outline_navigation_schema_version",
+        "search_query_id",
+        "document_id_ref",
+        "search_scope_class",
+        "query_label",
+        "match_class",
+        "result_count_visible",
+        "result_count_total",
+        "truncated",
+        "kernel_required_for_match_class",
+        "degraded_no_kernel",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_search_query" },
+        "notebook_search_outline_navigation_schema_version": { "$ref": "#/$defs/notebook_search_outline_navigation_schema_version" },
+        "search_query_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "search_scope_class": { "$ref": "#/$defs/notebook_search_scope_class" },
+        "query_label": { "type": "string", "minLength": 1, "description": "Export-safe search query label. Raw query text MUST NOT appear here." },
+        "match_class": { "$ref": "#/$defs/notebook_search_match_class" },
+        "result_cell_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "result_count_visible": { "type": "integer", "minimum": 0 },
+        "result_count_total": { "type": "integer", "minimum": 0 },
+        "truncated": { "type": "boolean" },
+        "kernel_required_for_match_class": { "type": "boolean" },
+        "degraded_no_kernel": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_outline_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_search_outline_navigation_schema_version",
+        "outline_item_id",
+        "document_id_ref",
+        "item_class",
+        "cell_id_ref",
+        "title_label",
+        "collapsed",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_outline_item" },
+        "notebook_search_outline_navigation_schema_version": { "$ref": "#/$defs/notebook_search_outline_navigation_schema_version" },
+        "outline_item_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "item_class": { "$ref": "#/$defs/notebook_outline_item_class" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "heading_level": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1, "maximum": 6 },
+            { "type": "null" }
+          ]
+        },
+        "title_label": { "type": "string", "minLength": 1 },
+        "child_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "collapsed": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_breadcrumb_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_search_outline_navigation_schema_version",
+        "breadcrumb_id",
+        "document_id_ref",
+        "segment_index",
+        "breadcrumb_class",
+        "label",
+        "target_ref",
+        "active",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_breadcrumb" },
+        "notebook_search_outline_navigation_schema_version": { "$ref": "#/$defs/notebook_search_outline_navigation_schema_version" },
+        "breadcrumb_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "segment_index": { "type": "integer", "minimum": 0 },
+        "breadcrumb_class": { "$ref": "#/$defs/notebook_breadcrumb_class" },
+        "label": { "type": "string", "minLength": 1 },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "active": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_cell_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_search_outline_navigation_schema_version",
+        "cell_target_id",
+        "document_id_ref",
+        "target_class",
+        "scroll_behavior_class",
+        "focus_cell",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_cell_target" },
+        "notebook_search_outline_navigation_schema_version": { "$ref": "#/$defs/notebook_search_outline_navigation_schema_version" },
+        "cell_target_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_class": { "$ref": "#/$defs/notebook_cell_target_class" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cell_index": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "output_index": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "heading_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "search_match_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "scroll_behavior_class": { "$ref": "#/$defs/notebook_scroll_behavior_class" },
+        "focus_cell": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_search_outline_navigation_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "search_scope_classes",
+        "search_match_classes",
+        "outline_item_classes",
+        "breadcrumb_classes",
+        "cell_target_classes",
+        "scroll_behavior_classes",
+        "example_search_queries",
+        "example_outline_items",
+        "example_breadcrumbs",
+        "example_cell_targets",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_search_outline_navigation_schema_version" },
+        "record_kind": { "const": "notebook_search_outline_navigation_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "search_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_search_scope_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "search_match_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_search_match_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "outline_item_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_outline_item_class" },
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "breadcrumb_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_breadcrumb_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "cell_target_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_cell_target_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "scroll_behavior_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_scroll_behavior_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_search_queries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_search_query_record" }
+        },
+        "example_outline_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_outline_item_record" }
+        },
+        "example_breadcrumbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_breadcrumb_record" }
+        },
+        "example_cell_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_cell_target_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

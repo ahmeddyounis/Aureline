@@ -42,6 +42,15 @@
 //!    records so the explorer never implies durable project facts and never
 //!    silently broadens capture on export.
 //!
+//! 7. The [`add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation`]
+//!    module materializes the typed records that keep notebook search, outline,
+//!    breadcrumb, and deep-link navigation honest about cell identity, scope,
+//!    and degraded state. It produces [`NotebookSearchQuery`] records,
+//!    [`NotebookOutlineItem`] records, [`NotebookBreadcrumb`] records, and
+//!    [`NotebookCellTarget`] records so search, outline, breadcrumbs, and
+//!    navigation remain useful without a selected kernel and never silently
+//!    fall back to a different cell.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -89,6 +98,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export/`.
 //!
+//! The records under
+//! [`add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -106,6 +122,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-notebook/0.0.0")]
 
+pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
@@ -188,6 +205,21 @@ pub use implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_label
     NOTEBOOK_VARIABLE_EXPLORER_PACKET_JSON, NOTEBOOK_VARIABLE_EXPLORER_PACKET_PATH,
     NOTEBOOK_VARIABLE_EXPLORER_PACKET_RECORD_KIND, NOTEBOOK_VARIABLE_EXPLORER_RECORD_KIND,
     NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION, VARIABLE_EXPLORER_TYPED_EXPORT_RECORD_KIND,
+};
+
+pub use add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation::{
+    current_notebook_search_outline_navigation_packet, NotebookBreadcrumb,
+    NotebookBreadcrumbClass, NotebookBreadcrumbFinding, NotebookCellTarget,
+    NotebookCellTargetClass, NotebookCellTargetFinding, NotebookOutlineItem,
+    NotebookOutlineItemClass, NotebookOutlineItemFinding, NotebookSearchMatchClass,
+    NotebookSearchOutlineNavigationPacket, NotebookSearchOutlineNavigationPacketFinding,
+    NotebookSearchQuery, NotebookSearchQueryFinding, NotebookSearchScopeClass,
+    NotebookScrollBehaviorClass, SearchOutlineNavigationFinding,
+    NOTEBOOK_BREADCRUMB_RECORD_KIND, NOTEBOOK_CELL_TARGET_RECORD_KIND,
+    NOTEBOOK_OUTLINE_ITEM_RECORD_KIND, NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_JSON,
+    NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_PATH,
+    NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_RECORD_KIND,
+    NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION, NOTEBOOK_SEARCH_QUERY_RECORD_KIND,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{
