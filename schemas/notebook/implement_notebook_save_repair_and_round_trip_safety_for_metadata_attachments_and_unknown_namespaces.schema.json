@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces.schema.json",
+  "title": "Aureline notebook save, repair, and round-trip safety for metadata, attachments, and unknown namespaces",
+  "description": "Boundary schema for notebook save, repair, and round-trip safety records. Every record that crosses this boundary (save operation, repair action, round-trip assertion, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw attachment bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_save_operation_record" },
+    { "$ref": "#/$defs/notebook_repair_action_record" },
+    { "$ref": "#/$defs/notebook_round_trip_assertion_record" },
+    { "$ref": "#/$defs/notebook_save_repair_round_trip_packet_record" }
+  ],
+  "$defs": {
+    "notebook_save_repair_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook save/repair/round-trip module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_save_operation",
+        "notebook_repair_action",
+        "notebook_round_trip_assertion",
+        "notebook_save_repair_round_trip_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (document id, save operation id, repair action id, attachment id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_save_kind_class": {
+      "type": "string",
+      "enum": [
+        "full_save",
+        "auto_save",
+        "checkpoint_save",
+        "export_derived_format"
+      ],
+      "description": "Frozen save-kind class. Distinguishes full explicit saves, auto-saves, checkpoint saves, and derived-format exports."
+    },
+
+    "notebook_metadata_preservation_class": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "partial_loss_explicit",
+        "explicit_loss_with_note",
+        "blocked_by_format_boundary"
+      ],
+      "description": "Frozen metadata-preservation class. Names whether notebook metadata was preserved, partially lost, explicitly dropped, or blocked by a format boundary."
+    },
+
+    "notebook_attachment_preservation_class": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "externalized_with_note",
+        "dropped_with_note",
+        "blocked_by_format_boundary"
+      ],
+      "description": "Frozen attachment-preservation class. Names whether attachments survived, were externalized, dropped, or blocked."
+    },
+
+    "notebook_unknown_namespace_preservation_class": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "filtered_with_note",
+        "dropped_with_note",
+        "blocked_by_format_boundary"
+      ],
+      "description": "Frozen unknown-namespace preservation class. Names whether unknown metadata namespaces survived, were filtered, dropped, or blocked."
+    },
+
+    "notebook_repair_kind_class": {
+      "type": "string",
+      "enum": [
+        "minted_missing_cell_id",
+        "restored_attachment_reference",
+        "reconstructed_metadata_namespace",
+        "removed_corrupt_cell",
+        "normalized_cell_order",
+        "rebuilt_cell_order_digest",
+        "preserved_raw_json_fallback"
+      ],
+      "description": "Frozen repair-kind class. Names the specific repair applied to a damaged notebook."
+    },
+
+    "notebook_repair_consequence_class": {
+      "type": "string",
+      "enum": [
+        "lossless",
+        "lossy_with_explicit_note",
+        "lossy_with_silent_fallback"
+      ],
+      "description": "Frozen repair-consequence class. lossy_with_silent_fallback is non-conforming and must surface as a finding."
+    },
+
+    "notebook_round_trip_assertion_kind_class": {
+      "type": "string",
+      "enum": [
+        "metadata_survives",
+        "attachment_survives",
+        "unknown_namespace_survives",
+        "cell_order_survives",
+        "cell_id_survives",
+        "source_survives",
+        "output_survives"
+      ],
+      "description": "Frozen round-trip assertion kind. Names the property being asserted across an open/edit/save cycle."
+    },
+
+    "notebook_round_trip_result_class": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "partial",
+        "blocked_by_format_boundary"
+      ],
+      "description": "Frozen round-trip result class. Names whether the assertion passed, failed, was partial, or blocked."
+    },
+
+    "notebook_save_operation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_save_repair_schema_version",
+        "save_operation_id",
+        "document_id_ref",
+        "save_kind_class",
+        "metadata_preservation_class",
+        "attachment_preservation_class",
+        "unknown_namespace_preservation_class",
+        "round_trip_safe",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_save_operation" },
+        "notebook_save_repair_schema_version": { "$ref": "#/$defs/notebook_save_repair_schema_version" },
+        "save_operation_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "save_kind_class": { "$ref": "#/$defs/notebook_save_kind_class" },
+        "metadata_preservation_class": { "$ref": "#/$defs/notebook_metadata_preservation_class" },
+        "attachment_preservation_class": { "$ref": "#/$defs/notebook_attachment_preservation_class" },
+        "unknown_namespace_preservation_class": { "$ref": "#/$defs/notebook_unknown_namespace_preservation_class" },
+        "round_trip_safe": { "type": "boolean" },
+        "repair_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "loss_summary": { "type": ["string", "null"], "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_repair_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_save_repair_schema_version",
+        "repair_action_id",
+        "document_id_ref",
+        "repair_kind_class",
+        "consequence_class",
+        "applied",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_repair_action" },
+        "notebook_save_repair_schema_version": { "$ref": "#/$defs/notebook_save_repair_schema_version" },
+        "repair_action_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "repair_kind_class": { "$ref": "#/$defs/notebook_repair_kind_class" },
+        "consequence_class": { "$ref": "#/$defs/notebook_repair_consequence_class" },
+        "applied": { "type": "boolean" },
+        "incorporated_into_save_operation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_round_trip_assertion_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_save_repair_schema_version",
+        "assertion_id",
+        "document_id_ref",
+        "assertion_kind_class",
+        "result_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_round_trip_assertion" },
+        "notebook_save_repair_schema_version": { "$ref": "#/$defs/notebook_save_repair_schema_version" },
+        "assertion_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "assertion_kind_class": { "$ref": "#/$defs/notebook_round_trip_assertion_kind_class" },
+        "result_class": { "$ref": "#/$defs/notebook_round_trip_result_class" },
+        "loss_summary": { "type": ["string", "null"], "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_save_repair_round_trip_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "save_kind_classes",
+        "metadata_preservation_classes",
+        "attachment_preservation_classes",
+        "unknown_namespace_preservation_classes",
+        "repair_kind_classes",
+        "repair_consequence_classes",
+        "round_trip_assertion_kind_classes",
+        "round_trip_result_classes",
+        "example_save_operations",
+        "example_repair_actions",
+        "example_round_trip_assertions",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_save_repair_schema_version" },
+        "record_kind": { "const": "notebook_save_repair_round_trip_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "save_kind_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_save_kind_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "metadata_preservation_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_metadata_preservation_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "attachment_preservation_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_attachment_preservation_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "unknown_namespace_preservation_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_unknown_namespace_preservation_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "repair_kind_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_repair_kind_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "repair_consequence_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_repair_consequence_class" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "round_trip_assertion_kind_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_round_trip_assertion_kind_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "round_trip_result_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_round_trip_result_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_save_operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_save_operation_record" }
+        },
+        "example_repair_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_repair_action_record" }
+        },
+        "example_round_trip_assertions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_round_trip_assertion_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

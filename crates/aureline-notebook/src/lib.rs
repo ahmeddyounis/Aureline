@@ -28,13 +28,18 @@
 //!    escalates trust, never freezes on heavy outputs, and always shows the user
 //!    why an output is rendered inline, virtualized, opened in detail, or blocked.
 //!
-//! 5. The [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
+//! 5. The [`implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces`]
+//!    module materializes save-operation, repair-action, and round-trip
+//!    assertion records so that metadata, attachments, and unknown namespaces
+//!    never disappear silently on open/save/import/export cycles.
+//!
+//! 6. The [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
 //!    module materializes kernel discovery, typed [`Kernelspec`] records,
 //!    [`InterpreterResolution`] records, [`EnvironmentFingerprint`] records,
 //!    and [`KernelDiscoveryEntry`] candidates so the kernel-selection layer
 //!    never presents opaque or unvalidated kernel identities.
 //!
-//! 6. The [`implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export`]
+//! 7. The [`implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export`]
 //!    module materializes the composed variable-explorer surface that the
 //!    notebook chrome consumes to render the variable panel, freshness labels,
 //!    truncation notices, and typed-export actions. It produces
@@ -42,7 +47,7 @@
 //!    records so the explorer never implies durable project facts and never
 //!    silently broadens capture on export.
 //!
-//! 7. The [`add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation`]
+//! 8. The [`add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation`]
 //!    module materializes the typed records that keep notebook search, outline,
 //!    breadcrumb, and deep-link navigation honest about cell identity, scope,
 //!    and degraded state. It produces [`NotebookSearchQuery`] records,
@@ -85,6 +90,13 @@
 //! `/fixtures/notebook/m5/ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows/`.
 //!
 //! The records under
+//! [`implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces/`.
+//!
+//! The records under
 //! [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
 //! mirror the boundary schema at
 //! `/schemas/notebook/implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors.schema.json`.
@@ -124,6 +136,7 @@
 
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
+pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
@@ -171,6 +184,20 @@ pub use implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paire
     EXECUTION_LOCUS_CHIP_RECORD_KIND, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_JSON,
     NOTEBOOK_HEADER_KERNEL_BAR_PACKET_PATH, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_RECORD_KIND,
     NOTEBOOK_HEADER_KERNEL_BAR_SCHEMA_VERSION, NOTEBOOK_HEADER_KERNEL_BAR_STATE_RECORD_KIND,
+};
+
+pub use implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces::{
+    current_notebook_save_repair_round_trip_packet, NotebookAttachmentPreservationClass,
+    NotebookMetadataPreservationClass, NotebookRepairAction, NotebookRepairActionFinding,
+    NotebookRepairConsequenceClass, NotebookRepairKindClass, NotebookRoundTripAssertion,
+    NotebookRoundTripAssertionFinding, NotebookRoundTripAssertionKindClass,
+    NotebookRoundTripResultClass, NotebookSaveKindClass, NotebookSaveOperation,
+    NotebookSaveOperationFinding, NotebookSaveRepairFinding, NotebookSaveRepairRoundTripPacket,
+    NotebookSaveRepairRoundTripPacketFinding, NotebookUnknownNamespacePreservationClass,
+    NOTEBOOK_REPAIR_ACTION_RECORD_KIND, NOTEBOOK_ROUND_TRIP_ASSERTION_RECORD_KIND,
+    NOTEBOOK_SAVE_OPERATION_RECORD_KIND, NOTEBOOK_SAVE_REPAIR_ROUND_TRIP_PACKET_JSON,
+    NOTEBOOK_SAVE_REPAIR_ROUND_TRIP_PACKET_PATH, NOTEBOOK_SAVE_REPAIR_ROUND_TRIP_PACKET_RECORD_KIND,
+    NOTEBOOK_SAVE_REPAIR_SCHEMA_VERSION,
 };
 
 pub use implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors::{
