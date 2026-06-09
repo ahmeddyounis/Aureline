@@ -241,6 +241,7 @@ pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
+pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
@@ -659,6 +660,19 @@ pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_PATH,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_RECORD_KIND,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+};
+
+pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::{
+    current_m5_feature_family_register, M5FeatureFamilyAction, M5FeatureFamilyGapReason,
+    M5FeatureFamilyKind, M5FeatureFamilyRegister, M5FeatureFamilyRegisterExportProjection,
+    M5FeatureFamilyRegisterExportRow, M5FeatureFamilyRegisterSummary,
+    M5FeatureFamilyRegisterViolation, M5FeatureFamilyRow, M5FeatureFamilyState,
+    M5FeatureFamilyStopRule, ProofCorpusItemKind, ProofCorpusItemState, ProofCorpusPlan,
+    ProofCorpusPlanEntry,
+    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_JSON,
+    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_PATH,
+    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND,
+    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION,
 };
 
 pub use stabilize_the_release_center_promotion_evidence_canary_pilot::{
