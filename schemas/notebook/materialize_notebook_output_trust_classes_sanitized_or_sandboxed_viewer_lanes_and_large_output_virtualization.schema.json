@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization.schema.json",
+  "title": "Aureline notebook output trust classes, sanitized or sandboxed viewer lanes, and large-output virtualization",
+  "description": "Boundary schema for notebook output viewer lanes and large-output virtualization. Every record that crosses this boundary (viewer lane, large-output virtualization, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_output_viewer_lane_record" },
+    { "$ref": "#/$defs/large_output_virtualization_record" },
+    { "$ref": "#/$defs/notebook_output_viewer_packet_record" }
+  ],
+  "$defs": {
+    "notebook_output_viewer_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the output-viewer record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, output block, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "output_trust_class": {
+      "type": "string",
+      "enum": [
+        "sanitized",
+        "sandboxed",
+        "trusted_active",
+        "stale"
+      ],
+      "description": "Frozen output-trust class vocabulary. Mirrors the runtime-truth schema."
+    },
+    "output_viewer_lane_class": {
+      "type": "string",
+      "enum": [
+        "inline",
+        "virtualized",
+        "open_detail",
+        "blocked_active_content"
+      ],
+      "description": "Frozen viewer-lane class. Distinguishes inline, virtualized, detail-pane, and blocked-placeholder rendering."
+    },
+    "output_size_bucket": {
+      "type": "string",
+      "enum": [
+        "small",
+        "medium",
+        "large",
+        "very_large"
+      ],
+      "description": "Frozen size-bucket vocabulary. Drives virtualization decisions."
+    },
+    "output_virtualization_state_class": {
+      "type": "string",
+      "enum": [
+        "not_needed",
+        "virtualized",
+        "truncated",
+        "lazy_pending"
+      ],
+      "description": "Frozen virtualization-state vocabulary. Distinguishes no special handling, active windowing, truncation, and deferred loading."
+    },
+    "notebook_output_viewer_lane_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_output_viewer_schema_version",
+        "lane_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "trust_class",
+        "viewer_lane_class",
+        "size_bucket",
+        "virtualization_state_class",
+        "compatible_viewer_available",
+        "raw_fallback_available",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_output_viewer_lane" },
+        "notebook_output_viewer_schema_version": { "$ref": "#/$defs/notebook_output_viewer_schema_version" },
+        "lane_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_class": { "$ref": "#/$defs/output_trust_class" },
+        "viewer_lane_class": { "$ref": "#/$defs/output_viewer_lane_class" },
+        "size_bucket": { "$ref": "#/$defs/output_size_bucket" },
+        "virtualization_state_class": { "$ref": "#/$defs/output_virtualization_state_class" },
+        "compatible_viewer_available": { "type": "boolean" },
+        "raw_fallback_available": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "large_output_virtualization_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_output_viewer_schema_version",
+        "virtualization_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "size_bucket",
+        "byte_size_estimate",
+        "row_count_estimate",
+        "virtualization_state_class",
+        "expand_action_available",
+        "export_action_available",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_large_output_virtualization" },
+        "notebook_output_viewer_schema_version": { "$ref": "#/$defs/notebook_output_viewer_schema_version" },
+        "virtualization_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "size_bucket": { "$ref": "#/$defs/output_size_bucket" },
+        "byte_size_estimate": { "type": "integer", "minimum": 0 },
+        "row_count_estimate": { "type": "integer", "minimum": 0 },
+        "virtualization_state_class": { "$ref": "#/$defs/output_virtualization_state_class" },
+        "truncation_note": { "type": "string", "minLength": 1 },
+        "expand_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_output_viewer_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "output_viewer_lane_classes",
+        "output_size_buckets",
+        "output_virtualization_state_classes",
+        "example_viewer_lanes",
+        "example_large_output_virtualizations",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_output_viewer_schema_version" },
+        "record_kind": { "const": "notebook_output_viewer_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "output_viewer_lane_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/output_viewer_lane_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "output_size_buckets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/output_size_bucket" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "output_virtualization_state_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/output_virtualization_state_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_viewer_lanes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_viewer_lane_record" }
+        },
+        "example_large_output_virtualizations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/large_output_virtualization_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

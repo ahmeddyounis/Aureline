@@ -20,7 +20,15 @@
 //!    adds the [`ExecutionLocusChip`] record so execution locus is visible
 //!    wherever the user can run, restart, debug, or export.
 //!
-//! 4. The [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
+//! 4. The [`materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization`]
+//!    module materializes the viewer-lane and virtualization layer that sits
+//!    between the output trust record and the rendered notebook surface. It
+//!    produces [`NotebookOutputViewerLane`] records and
+//!    [`LargeOutputVirtualizationRecord`] records so the chrome never silently
+//!    escalates trust, never freezes on heavy outputs, and always shows the user
+//!    why an output is rendered inline, virtualized, opened in detail, or blocked.
+//!
+//! 5. The [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
 //!    module materializes kernel discovery, typed [`Kernelspec`] records,
 //!    [`InterpreterResolution`] records, [`EnvironmentFingerprint`] records,
 //!    and [`KernelDiscoveryEntry`] candidates so the kernel-selection layer
@@ -44,6 +52,13 @@
 //! `/schemas/notebook/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state.schema.json`.
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state/`.
+//!
+//! The records under
+//! [`materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization/`.
 //!
 //! The records under
 //! [`ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows`]
@@ -78,6 +93,7 @@
 
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
+pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
@@ -135,6 +151,15 @@ pub use implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_env
     KERNEL_DISCOVERY_ENTRY_RECORD_KIND, KERNEL_DISCOVERY_PACKET_JSON,
     KERNEL_DISCOVERY_PACKET_PATH, KERNEL_DISCOVERY_PACKET_RECORD_KIND,
     KERNELSPEC_RECORD_KIND, NOTEBOOK_KERNEL_DISCOVERY_SCHEMA_VERSION,
+};
+
+pub use materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization::{
+    current_notebook_output_viewer_packet, LargeOutputVirtualizationRecord, NotebookOutputViewerLane,
+    NotebookOutputViewerPacket, NotebookOutputViewerPacketFinding, OutputViewerFinding,
+    OutputViewerLaneClass, OutputSizeBucket, OutputVirtualizationStateClass,
+    LARGE_OUTPUT_VIRTUALIZATION_RECORD_KIND, NOTEBOOK_OUTPUT_VIEWER_LANE_RECORD_KIND,
+    NOTEBOOK_OUTPUT_VIEWER_PACKET_JSON, NOTEBOOK_OUTPUT_VIEWER_PACKET_PATH,
+    NOTEBOOK_OUTPUT_VIEWER_PACKET_RECORD_KIND, NOTEBOOK_OUTPUT_VIEWER_SCHEMA_VERSION,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{
