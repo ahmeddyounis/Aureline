@@ -42,7 +42,8 @@ use crate::stable_claim_matrix::{
 };
 
 /// Supported register schema version.
-pub const PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION: u32 = 1;
+pub const PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION:
+    u32 = 1;
 
 /// Stable record-kind tag for the register.
 pub const PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND: &str =
@@ -1000,14 +1001,17 @@ impl M5FeatureFamilyRegister {
 
         for reason in M5FeatureFamilyGapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(M5FeatureFamilyRegisterViolation::GapReasonWithoutStopRule {
-                    reason,
-                });
+                violations
+                    .push(M5FeatureFamilyRegisterViolation::GapReasonWithoutStopRule { reason });
             }
         }
     }
 
-    fn validate_row(&self, row: &M5FeatureFamilyRow, violations: &mut Vec<M5FeatureFamilyRegisterViolation>) {
+    fn validate_row(
+        &self,
+        row: &M5FeatureFamilyRow,
+        violations: &mut Vec<M5FeatureFamilyRegisterViolation>,
+    ) {
         for (field, value) in [
             ("entry_id", &row.entry_id),
             ("title", &row.title),
@@ -1162,8 +1166,12 @@ impl M5FeatureFamilyRegister {
         self.validate_state_reason_coherence(row, violations);
 
         // Corpus-plan completeness: every required item kind must be present.
-        let present_kinds: BTreeSet<ProofCorpusItemKind> =
-            row.proof_corpus_plan.entries.iter().map(|e| e.item_kind).collect();
+        let present_kinds: BTreeSet<ProofCorpusItemKind> = row
+            .proof_corpus_plan
+            .entries
+            .iter()
+            .map(|e| e.item_kind)
+            .collect();
         for kind in ProofCorpusItemKind::ALL {
             if !present_kinds.contains(&kind) {
                 violations.push(
@@ -1199,14 +1207,14 @@ impl M5FeatureFamilyRegister {
         row: &M5FeatureFamilyRow,
         violations: &mut Vec<M5FeatureFamilyRegisterViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<M5FeatureFamilyRegisterViolation>, expected: M5FeatureFamilyGapReason| {
-                violations.push(M5FeatureFamilyRegisterViolation::StateReasonIncoherent {
-                    entry_id: row.entry_id.clone(),
-                    state: row.family_state,
-                    expected_reason: expected,
-                });
-            };
+        let push_incoherent = |violations: &mut Vec<M5FeatureFamilyRegisterViolation>,
+                               expected: M5FeatureFamilyGapReason| {
+            violations.push(M5FeatureFamilyRegisterViolation::StateReasonIncoherent {
+                entry_id: row.entry_id.clone(),
+                state: row.family_state,
+                expected_reason: expected,
+            });
+        };
 
         match row.family_state {
             M5FeatureFamilyState::Incomplete => {
@@ -1243,12 +1251,10 @@ impl M5FeatureFamilyRegister {
                     .map(|w| w.waiver_ref.trim().is_empty() || w.expires_at.trim().is_empty())
                     .unwrap_or(true)
                 {
-                    violations.push(
-                        M5FeatureFamilyRegisterViolation::WaiverStateWithoutWaiver {
-                            entry_id: row.entry_id.clone(),
-                            state: row.family_state,
-                        },
-                    );
+                    violations.push(M5FeatureFamilyRegisterViolation::WaiverStateWithoutWaiver {
+                        entry_id: row.entry_id.clone(),
+                        state: row.family_state,
+                    });
                 }
             }
             M5FeatureFamilyState::Complete => {}
@@ -1256,8 +1262,11 @@ impl M5FeatureFamilyRegister {
     }
 
     fn validate_coverage(&self, violations: &mut Vec<M5FeatureFamilyRegisterViolation>) {
-        let covered: BTreeSet<String> =
-            self.rows.iter().map(|row| row.surface_ref.clone()).collect();
+        let covered: BTreeSet<String> = self
+            .rows
+            .iter()
+            .map(|row| row.surface_ref.clone())
+            .collect();
         for declared in &self.release_blocking_family_refs {
             if !covered.contains(declared) {
                 violations.push(
@@ -1268,7 +1277,8 @@ impl M5FeatureFamilyRegister {
             }
         }
         for row in &self.rows {
-            if row.release_blocking && !self.release_blocking_family_refs.contains(&row.surface_ref) {
+            if row.release_blocking && !self.release_blocking_family_refs.contains(&row.surface_ref)
+            {
                 violations.push(
                     M5FeatureFamilyRegisterViolation::ReleaseBlockingRowNotDeclared {
                         entry_id: row.entry_id.clone(),
@@ -1293,20 +1303,26 @@ impl M5FeatureFamilyRegister {
         }
         let computed = self.computed_publication_decision();
         if self.publication.decision != computed {
-            violations.push(M5FeatureFamilyRegisterViolation::PublicationDecisionInconsistent {
-                declared: self.publication.decision,
-                computed,
-            });
+            violations.push(
+                M5FeatureFamilyRegisterViolation::PublicationDecisionInconsistent {
+                    declared: self.publication.decision,
+                    computed,
+                },
+            );
         }
         if self.publication.blocking_rule_ids != self.computed_blocking_rule_ids() {
-            violations.push(M5FeatureFamilyRegisterViolation::PublicationBlockingSetMismatch {
-                field: "blocking_rule_ids",
-            });
+            violations.push(
+                M5FeatureFamilyRegisterViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_rule_ids",
+                },
+            );
         }
         if self.publication.blocking_claim_ids != self.computed_blocking_entry_ids() {
-            violations.push(M5FeatureFamilyRegisterViolation::PublicationBlockingSetMismatch {
-                field: "blocking_claim_ids",
-            });
+            violations.push(
+                M5FeatureFamilyRegisterViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_claim_ids",
+                },
+            );
         }
     }
 }
@@ -1562,7 +1578,10 @@ impl fmt::Display for M5FeatureFamilyRegisterViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "row {entry_id} holds stable without fresh packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds stable on stale packet {slo_state:?}"
@@ -1622,7 +1641,10 @@ impl fmt::Display for M5FeatureFamilyRegisterViolation {
             Self::FreshnessSloInconsistent { entry_id } => {
                 write!(f, "row {entry_id} freshness SLO window is inconsistent")
             }
-            Self::CorpusPlanMissingRequiredKind { entry_id, item_kind } => {
+            Self::CorpusPlanMissingRequiredKind {
+                entry_id,
+                item_kind,
+            } => {
                 write!(
                     f,
                     "row {entry_id} corpus plan missing required kind {item_kind:?}"
@@ -1641,7 +1663,9 @@ impl Error for M5FeatureFamilyRegisterViolation {}
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`M5FeatureFamilyRegister`].
 pub fn current_m5_feature_family_register() -> Result<M5FeatureFamilyRegister, serde_json::Error> {
-    serde_json::from_str(PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_JSON)
+    serde_json::from_str(
+        PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_JSON,
+    )
 }
 
 #[cfg(test)]
@@ -1709,7 +1733,10 @@ mod tests {
     #[test]
     fn publication_decision_matches_computed() {
         let reg = register();
-        assert_eq!(reg.publication.decision, reg.computed_publication_decision());
+        assert_eq!(
+            reg.publication.decision,
+            reg.computed_publication_decision()
+        );
         assert_eq!(
             reg.publication.blocking_rule_ids,
             reg.computed_blocking_rule_ids()
@@ -1723,8 +1750,11 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_stop_rule() {
         let reg = register();
-        let covered: BTreeSet<M5FeatureFamilyGapReason> =
-            reg.stop_rules.iter().map(|rule| rule.trigger_reason).collect();
+        let covered: BTreeSet<M5FeatureFamilyGapReason> = reg
+            .stop_rules
+            .iter()
+            .map(|rule| rule.trigger_reason)
+            .collect();
         for reason in M5FeatureFamilyGapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1738,7 +1768,8 @@ mod tests {
             .iter_mut()
             .find(|row| row.publishes_stable())
             .expect("a held row exists");
-        row.active_gap_reasons.push(M5FeatureFamilyGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(M5FeatureFamilyGapReason::ProofPacketMissing);
         reg.summary = reg.computed_summary();
         assert!(reg.validate().iter().any(|v| matches!(
             v,
@@ -1755,7 +1786,8 @@ mod tests {
             .find(|row| row.publishes_stable())
             .expect("a held row exists");
         row.family_state = M5FeatureFamilyState::Incomplete;
-        row.active_gap_reasons.push(M5FeatureFamilyGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(M5FeatureFamilyGapReason::ProofPacketMissing);
         row.published_label = StableClaimLevel::Stable;
         reg.summary = reg.computed_summary();
         reg.publication.decision = reg.computed_publication_decision();

@@ -86,7 +86,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let m = matrix();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(m.as_of.as_str()));
@@ -129,10 +130,7 @@ fn model_matches_frozen_validation_capture() {
         m.promotion.decision.as_str(),
         "capture promotion decision must match the model"
     );
-    assert_eq!(
-        m.promotion.decision,
-        m.computed_promotion_decision()
-    );
+    assert_eq!(m.promotion.decision, m.computed_promotion_decision());
 
     for drill in capture["negative_drills"].as_array().unwrap() {
         assert_eq!(
@@ -157,11 +155,10 @@ fn model_matches_frozen_validation_capture() {
 #[test]
 fn matrix_narrows_a_release_blocking_row() {
     let m = matrix();
-    let narrowed = m.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.publishes_stable()
-    });
+    let narrowed = m
+        .rows
+        .iter()
+        .find(|row| row.release_blocking && row.claim_holds_stable() && !row.publishes_stable());
     assert!(
         narrowed.is_some(),
         "the matrix must narrow at least one release-blocking row under a still-stable claim"
@@ -218,10 +215,9 @@ fn backed_row_with_active_gap_fails() {
     m.summary = m.computed_summary();
 
     assert!(
-        m.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureTrainMatrixViolation::HeldWithActiveGap { .. }
-        )),
+        m.validate()
+            .iter()
+            .any(|v| matches!(v, M5FeatureTrainMatrixViolation::HeldWithActiveGap { .. })),
         "a backed row may not carry an active gap reason"
     );
 }
@@ -238,10 +234,9 @@ fn backed_row_on_a_breached_packet_fails() {
     m.summary = m.computed_summary();
 
     assert!(
-        m.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureTrainMatrixViolation::HeldOnStalePacket { .. }
-        )),
+        m.validate()
+            .iter()
+            .any(|v| matches!(v, M5FeatureTrainMatrixViolation::HeldOnStalePacket { .. })),
         "a backed row may not ride a packet outside its freshness SLO"
     );
 }
@@ -262,11 +257,13 @@ fn promotion_proceed_while_a_rule_fires_fails() {
 
 #[test]
 fn checked_in_fixtures_are_rejected_by_the_model() {
-    let fixtures_dir = repo_root()
-        .join("fixtures/release/m5/freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph");
+    let fixtures_dir = repo_root().join(
+        "fixtures/release/m5/freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph",
+    );
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 

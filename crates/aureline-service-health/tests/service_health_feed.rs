@@ -77,8 +77,13 @@ fn partial_outage_rows_preserve_explicit_unaffected_workflows() {
         .iter()
         .filter(|item| item.outage_scope == ServiceHealthOutageScope::PartialService)
         .collect::<Vec<_>>();
-    assert!(!partial.is_empty(), "expected at least one partial-outage row");
-    assert!(partial.iter().all(|item| !item.unaffected_workflows.is_empty()));
+    assert!(
+        !partial.is_empty(),
+        "expected at least one partial-outage row"
+    );
+    assert!(partial
+        .iter()
+        .all(|item| !item.unaffected_workflows.is_empty()));
 }
 
 #[test]

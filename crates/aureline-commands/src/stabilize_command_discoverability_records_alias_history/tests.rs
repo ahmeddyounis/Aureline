@@ -10,11 +10,9 @@ fn seeded_packet_validates() {
 fn empty_protected_corpus_is_rejected() {
     let mut packet = seeded_command_discoverability_packet();
     packet.commands.clear();
-    assert!(
-        packet
-            .validate()
-            .contains(&DiscoverabilitySupportViolation::EmptyProtectedCorpus)
-    );
+    assert!(packet
+        .validate()
+        .contains(&DiscoverabilitySupportViolation::EmptyProtectedCorpus));
 }
 
 #[test]
@@ -40,7 +38,12 @@ fn deprecated_alias_without_replacement_is_rejected() {
     let command = packet
         .commands
         .iter_mut()
-        .find(|command| command.alias_records.iter().any(|alias| alias.alias_state != "active"))
+        .find(|command| {
+            command
+                .alias_records
+                .iter()
+                .any(|alias| alias.alias_state != "active")
+        })
         .expect("seeded packet must contain a deprecated alias");
     let command_id = command.command_id.clone();
     let alias = command
@@ -61,26 +64,24 @@ fn deprecated_alias_without_replacement_is_rejected() {
 fn query_session_must_remain_local_first() {
     let mut packet = seeded_command_discoverability_packet();
     packet.query_session_policy.sync_posture = QuerySessionSyncPostureClass::GovernedSync;
-    assert!(
-        packet
-            .validate()
-            .contains(&DiscoverabilitySupportViolation::QuerySessionNotLocalFirst)
-    );
+    assert!(packet
+        .validate()
+        .contains(&DiscoverabilitySupportViolation::QuerySessionNotLocalFirst));
 }
 
 #[test]
 fn query_session_controls_must_forbid_raw_export() {
     let mut packet = seeded_command_discoverability_packet();
     packet.query_session_policy.raw_query_export_allowed = true;
-    assert!(packet.validate().contains(
-        &DiscoverabilitySupportViolation::QuerySessionControlsIncomplete
-    ));
+    assert!(packet
+        .validate()
+        .contains(&DiscoverabilitySupportViolation::QuerySessionControlsIncomplete));
 }
 
 #[test]
 fn checked_artifact_validates() {
-    let packet = current_command_discoverability_export()
-        .expect("checked discoverability export validates");
+    let packet =
+        current_command_discoverability_export().expect("checked discoverability export validates");
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
 }
 

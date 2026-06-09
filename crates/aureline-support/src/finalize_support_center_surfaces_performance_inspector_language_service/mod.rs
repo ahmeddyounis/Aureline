@@ -707,9 +707,9 @@ impl HealthFeedItem {
 
         let source_class = match self.freshness_state {
             FreshnessStateClass::Fresh => ServiceHealthSourceClass::LivePolling,
-            FreshnessStateClass::Stale | FreshnessStateClass::Partial | FreshnessStateClass::Unknown => {
-                ServiceHealthSourceClass::CachedData
-            }
+            FreshnessStateClass::Stale
+            | FreshnessStateClass::Partial
+            | FreshnessStateClass::Unknown => ServiceHealthSourceClass::CachedData,
         };
 
         let outage_scope = match overall_outage_scope {
@@ -769,11 +769,13 @@ impl HealthFeedItem {
                 .iter()
                 .map(|action| action.as_str().to_owned())
                 .collect(),
-            local_only_continuity_note: self
-                .local_only_continuity_note
-                .clone()
-                .unwrap_or_else(|| "Local diagnostics and support export remain available.".to_owned()),
-            surfaced_on: vec![ServiceHealthSurface::Diagnostics, ServiceHealthSurface::SupportExport],
+            local_only_continuity_note: self.local_only_continuity_note.clone().unwrap_or_else(
+                || "Local diagnostics and support export remain available.".to_owned(),
+            ),
+            surfaced_on: vec![
+                ServiceHealthSurface::Diagnostics,
+                ServiceHealthSurface::SupportExport,
+            ],
         }
     }
 }

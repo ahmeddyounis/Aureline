@@ -86,7 +86,8 @@ fn covers_every_declared_release_blocking_surface() {
 #[test]
 fn model_matches_frozen_validation_capture() {
     let m = matrix();
-    let capture: serde_json::Value = serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
+    let capture: serde_json::Value =
+        serde_json::from_str(CAPTURE_JSON).expect("frozen capture parses");
 
     assert_eq!(capture["status"].as_str(), Some("pass"));
     assert_eq!(capture["as_of"].as_str(), Some(m.as_of.as_str()));
@@ -124,10 +125,7 @@ fn model_matches_frozen_validation_capture() {
         m.publication.decision.as_str(),
         "capture publication decision must match the model"
     );
-    assert_eq!(
-        m.publication.decision,
-        m.computed_publication_decision()
-    );
+    assert_eq!(m.publication.decision, m.computed_publication_decision());
 
     for drill in capture["negative_drills"].as_array().unwrap() {
         assert_eq!(
@@ -152,11 +150,10 @@ fn model_matches_frozen_validation_capture() {
 #[test]
 fn matrix_narrows_a_release_blocking_row() {
     let m = matrix();
-    let narrowed = m.rows.iter().find(|row| {
-        row.release_blocking
-            && row.claim_holds_stable()
-            && !row.publishes_stable()
-    });
+    let narrowed = m
+        .rows
+        .iter()
+        .find(|row| row.release_blocking && row.claim_holds_stable() && !row.publishes_stable());
     assert!(
         narrowed.is_some(),
         "the matrix must narrow at least one release-blocking row under a still-stable claim"
@@ -209,14 +206,14 @@ fn backed_row_with_active_gap_fails() {
         .iter_mut()
         .find(|row| row.publishes_stable())
         .expect("matrix has a backed row");
-    row.active_gap_reasons.push(HealthBundleGapReason::HealthIndicatorMissing);
+    row.active_gap_reasons
+        .push(HealthBundleGapReason::HealthIndicatorMissing);
     m.summary = m.computed_summary();
 
     assert!(
-        m.validate().iter().any(|v| matches!(
-            v,
-            M5HealthBundleMatrixViolation::HeldWithActiveGap { .. }
-        )),
+        m.validate()
+            .iter()
+            .any(|v| matches!(v, M5HealthBundleMatrixViolation::HeldWithActiveGap { .. })),
         "a backed row may not carry an active gap reason"
     );
 }
@@ -241,7 +238,8 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
         .join("fixtures/release/m5/seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
-    let manifest: serde_json::Value = serde_json::from_str(&cases_json).expect("fixture manifest parses");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&cases_json).expect("fixture manifest parses");
     let cases = manifest["cases"].as_array().expect("cases is an array");
     assert!(!cases.is_empty(), "fixture manifest must list cases");
 

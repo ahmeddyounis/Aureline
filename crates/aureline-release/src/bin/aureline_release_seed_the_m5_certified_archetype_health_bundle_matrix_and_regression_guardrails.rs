@@ -82,10 +82,7 @@ fn emit_fixtures(dir: &str) -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("matrix has {} violation(s)", violations.len()).into());
     }
 
-    std::fs::write(
-        base.join("matrix.json"),
-        serde_json::to_string_pretty(&m)?,
-    )?;
+    std::fs::write(base.join("matrix.json"), serde_json::to_string_pretty(&m)?)?;
 
     let projection = m.support_export_projection();
     std::fs::write(

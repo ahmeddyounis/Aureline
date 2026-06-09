@@ -67,8 +67,7 @@ pub const STABILIZE_COMMAND_DISCOVERABILITY_SUMMARY_REF: &str =
 const SOURCE_DESCRIPTOR_CONTRACT_REF: &str = "docs/commands/command_descriptor_contract.md";
 const SOURCE_SEQUENCE_DISCOVERABILITY_REF: &str =
     "docs/commands/sequence_and_modal_discoverability_contract.md";
-const SOURCE_PALETTE_QUERY_CONTRACT_REF: &str =
-    "docs/commands/palette_query_session_contract.md";
+const SOURCE_PALETTE_QUERY_CONTRACT_REF: &str = "docs/commands/palette_query_session_contract.md";
 const SOURCE_REGISTRY_ARTIFACT_REF: &str = "artifacts/commands/command_registry_seed.yaml";
 const GENERATED_AT: &str = "2026-06-07T00:00:00Z";
 
@@ -571,7 +570,10 @@ impl ProtectedCommandDiscoverabilityRecord {
             && self.projection_refs.is_complete()
             && !self.automation_support.is_empty()
             && !self.surface_rows.is_empty()
-            && self.alias_records.iter().all(DiscoverabilityAliasRecord::is_complete)
+            && self
+                .alias_records
+                .iter()
+                .all(DiscoverabilityAliasRecord::is_complete)
             && self
                 .surface_rows
                 .iter()
@@ -667,14 +669,18 @@ impl DiscoverabilitySupportPacket {
                 ));
             }
             if command.stable_line_required && command.docs_help_anchor_ref.trim().is_empty() {
-                violations.push(DiscoverabilitySupportViolation::StableCommandMissingHelpAnchor(
-                    command.command_id.clone(),
-                ));
+                violations.push(
+                    DiscoverabilitySupportViolation::StableCommandMissingHelpAnchor(
+                        command.command_id.clone(),
+                    ),
+                );
             }
             if command.stable_line_required && command.alias_records.is_empty() {
-                violations.push(DiscoverabilitySupportViolation::StableCommandMissingAliasMap(
-                    command.command_id.clone(),
-                ));
+                violations.push(
+                    DiscoverabilitySupportViolation::StableCommandMissingAliasMap(
+                        command.command_id.clone(),
+                    ),
+                );
             }
             if command.stable_line_required
                 && command
@@ -689,12 +695,14 @@ impl DiscoverabilitySupportPacket {
                 );
             }
             if command.stable_line_required
-                && !DiscoverabilitySurfaceClass::required_coverage().into_iter().all(|required| {
-                    command
-                        .surface_rows
-                        .iter()
-                        .any(|row| row.surface_class == required)
-                })
+                && !DiscoverabilitySurfaceClass::required_coverage()
+                    .into_iter()
+                    .all(|required| {
+                        command
+                            .surface_rows
+                            .iter()
+                            .any(|row| row.surface_class == required)
+                    })
             {
                 violations.push(
                     DiscoverabilitySupportViolation::ProtectedSurfaceCoverageMissing(
@@ -716,19 +724,18 @@ impl DiscoverabilitySupportPacket {
                 if deprecated
                     && (alias.replacement_command_id.is_none() || alias.notes_ref.is_none())
                 {
-                    violations.push(
-                        DiscoverabilitySupportViolation::AliasLifecycleIncomplete(
-                            command.command_id.clone(),
-                            alias.alias_id.clone(),
-                        ),
-                    );
+                    violations.push(DiscoverabilitySupportViolation::AliasLifecycleIncomplete(
+                        command.command_id.clone(),
+                        alias.alias_id.clone(),
+                    ));
                 }
             }
         }
         if !self.query_session_policy.local_first() {
             violations.push(DiscoverabilitySupportViolation::QuerySessionNotLocalFirst);
         }
-        if !self.query_session_policy.controls_complete() || self.query_session_policy.raw_query_export_allowed
+        if !self.query_session_policy.controls_complete()
+            || self.query_session_policy.raw_query_export_allowed
         {
             violations.push(DiscoverabilitySupportViolation::QuerySessionControlsIncomplete);
         }
@@ -776,7 +783,10 @@ impl DiscoverabilitySupportPacket {
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Protected commands: {}\n", self.commands.len()));
         out.push_str(&format!("- Stable-line commands: {}\n", stable_commands));
-        out.push_str(&format!("- Deprecated or retired aliases: {}\n", deprecated_aliases));
+        out.push_str(&format!(
+            "- Deprecated or retired aliases: {}\n",
+            deprecated_aliases
+        ));
         out.push_str(&format!(
             "- Query history policy: `{}` / sync posture `{}`\n",
             self.query_session_policy.history_policy_class.as_str(),
@@ -891,9 +901,7 @@ impl DiscoverabilitySupportViolation {
                 format!("alias_lifecycle_incomplete:{command_id}:{alias_id}")
             }
             Self::QuerySessionNotLocalFirst => "query_session_not_local_first".to_owned(),
-            Self::QuerySessionControlsIncomplete => {
-                "query_session_controls_incomplete".to_owned()
-            }
+            Self::QuerySessionControlsIncomplete => "query_session_controls_incomplete".to_owned(),
             Self::RawMaterialInExport => "raw_material_in_export".to_owned(),
         }
     }
@@ -910,12 +918,11 @@ pub fn current_command_discoverability_export(
         env!("CARGO_MANIFEST_DIR"),
         "/../../artifacts/commands/m4/stabilize_command_discoverability_records_alias_history/support_export.json"
     );
-    let payload =
-        std::fs::read_to_string(path).map_err(|error| {
-            DiscoverabilitySupportArtifactError::SupportExport(serde_json::Error::io(error))
-        })?;
-    let packet: DiscoverabilitySupportPacket =
-        serde_json::from_str(&payload).map_err(DiscoverabilitySupportArtifactError::SupportExport)?;
+    let payload = std::fs::read_to_string(path).map_err(|error| {
+        DiscoverabilitySupportArtifactError::SupportExport(serde_json::Error::io(error))
+    })?;
+    let packet: DiscoverabilitySupportPacket = serde_json::from_str(&payload)
+        .map_err(DiscoverabilitySupportArtifactError::SupportExport)?;
     let violations = packet.validate();
     if violations.is_empty() {
         Ok(packet)
@@ -943,10 +950,7 @@ fn discoverability_string_array(entry: &CommandRegistryEntryRecord, key: &str) -
         .unwrap_or_default()
 }
 
-fn discoverability_projection_ref(
-    entry: &CommandRegistryEntryRecord,
-    key: &str,
-) -> Option<String> {
+fn discoverability_projection_ref(entry: &CommandRegistryEntryRecord, key: &str) -> Option<String> {
     discoverability_record_field(entry, "projection_refs")
         .and_then(|value| value.get(key))
         .and_then(serde_json::Value::as_str)
@@ -962,7 +966,8 @@ fn bool_field(value: &serde_json::Value, key: &str) -> Option<bool> {
 }
 
 fn alias_records(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityAliasRecord> {
-    entry.alias_records
+    entry
+        .alias_records
         .iter()
         .map(|record| DiscoverabilityAliasRecord {
             alias_id: string_field(record, "alias_id").unwrap_or_default(),
@@ -981,7 +986,8 @@ fn alias_records(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityAlias
 }
 
 fn keybindings(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityCurrentKeybindingRecord> {
-    entry.current_keybinding_refs
+    entry
+        .current_keybinding_refs
         .iter()
         .map(|record| DiscoverabilityCurrentKeybindingRecord {
             platform_class: string_field(record, "platform_class").unwrap_or_default(),
@@ -995,7 +1001,8 @@ fn keybindings(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityCurrent
 }
 
 fn origin_class(entry: &CommandRegistryEntryRecord) -> String {
-    entry.descriptor
+    entry
+        .descriptor
         .origin
         .as_ref()
         .map(|origin| origin.origin_class.clone())
@@ -1003,7 +1010,8 @@ fn origin_class(entry: &CommandRegistryEntryRecord) -> String {
 }
 
 fn origin_source_ref(entry: &CommandRegistryEntryRecord) -> Option<String> {
-    entry.descriptor
+    entry
+        .descriptor
         .origin
         .as_ref()
         .and_then(|origin| origin.source_ref.clone())
@@ -1015,7 +1023,9 @@ fn replacement_command_id(aliases: &[DiscoverabilityAliasRecord]) -> Option<Stri
         .find_map(|alias| alias.replacement_command_id.clone())
 }
 
-fn automation_support(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityAutomationSupportClass> {
+fn automation_support(
+    entry: &CommandRegistryEntryRecord,
+) -> Vec<DiscoverabilityAutomationSupportClass> {
     let mut support = Vec::new();
     for label in &entry.automation_labels {
         match label.as_str() {
@@ -1038,7 +1048,11 @@ fn automation_support(entry: &CommandRegistryEntryRecord) -> Vec<Discoverability
 }
 
 fn projection_refs(entry: &CommandRegistryEntryRecord) -> DiscoverabilityProjectionRefs {
-    let command_id_slug = entry.descriptor.command_id.trim_start_matches("cmd:").replace('.', "_");
+    let command_id_slug = entry
+        .descriptor
+        .command_id
+        .trim_start_matches("cmd:")
+        .replace('.', "_");
     DiscoverabilityProjectionRefs {
         palette_row_ref: discoverability_projection_ref(entry, "palette_row_ref")
             .unwrap_or_else(|| format!("projection:{command_id_slug}:palette_row")),
@@ -1046,14 +1060,26 @@ fn projection_refs(entry: &CommandRegistryEntryRecord) -> DiscoverabilityProject
             .unwrap_or_else(|| format!("projection:{command_id_slug}:help_search")),
         onboarding_hint_ref: discoverability_projection_ref(entry, "onboarding_hint_ref")
             .unwrap_or_else(|| format!("projection:{command_id_slug}:onboarding_hint")),
-        migration_bridge_card_ref: discoverability_projection_ref(entry, "migration_bridge_card_ref")
-            .unwrap_or_else(|| format!("projection:{command_id_slug}:migration_bridge_card")),
-        current_shortcut_display_ref: discoverability_projection_ref(entry, "current_shortcut_display_ref")
-            .unwrap_or_else(|| format!("projection:{command_id_slug}:current_shortcut_display")),
-        why_unavailable_explainer_ref: discoverability_projection_ref(entry, "why_unavailable_explainer_ref")
-            .unwrap_or_else(|| format!("projection:{command_id_slug}:why_unavailable_explainer")),
-        key_sequence_discoverability_ref: discoverability_projection_ref(entry, "key_sequence_discoverability_ref")
-            .unwrap_or_else(|| format!("projection:{command_id_slug}:key_sequence_discoverability")),
+        migration_bridge_card_ref: discoverability_projection_ref(
+            entry,
+            "migration_bridge_card_ref",
+        )
+        .unwrap_or_else(|| format!("projection:{command_id_slug}:migration_bridge_card")),
+        current_shortcut_display_ref: discoverability_projection_ref(
+            entry,
+            "current_shortcut_display_ref",
+        )
+        .unwrap_or_else(|| format!("projection:{command_id_slug}:current_shortcut_display")),
+        why_unavailable_explainer_ref: discoverability_projection_ref(
+            entry,
+            "why_unavailable_explainer_ref",
+        )
+        .unwrap_or_else(|| format!("projection:{command_id_slug}:why_unavailable_explainer")),
+        key_sequence_discoverability_ref: discoverability_projection_ref(
+            entry,
+            "key_sequence_discoverability_ref",
+        )
+        .unwrap_or_else(|| format!("projection:{command_id_slug}:key_sequence_discoverability")),
         docs_help_page_ref: format!(
             "projection:{}:docs_help_page",
             entry.descriptor.canonical_verb
@@ -1096,22 +1122,25 @@ fn surface_rows(refs: &DiscoverabilityProjectionRefs) -> Vec<DiscoverabilitySurf
         ),
     ]
     .into_iter()
-    .map(|(surface_class, projection_ref)| DiscoverabilitySurfaceProjectionRow {
-        surface_class,
-        projection_ref,
-        examples_match: true,
-        alias_set_matches: true,
-        lifecycle_matches: true,
-        disabled_reason_matches: true,
-        automation_support_matches: true,
-        accessibility_labels_match: true,
-        help_anchor_matches: true,
-    })
+    .map(
+        |(surface_class, projection_ref)| DiscoverabilitySurfaceProjectionRow {
+            surface_class,
+            projection_ref,
+            examples_match: true,
+            alias_set_matches: true,
+            lifecycle_matches: true,
+            disabled_reason_matches: true,
+            automation_support_matches: true,
+            accessibility_labels_match: true,
+            help_anchor_matches: true,
+        },
+    )
     .collect()
 }
 
 fn typed_arguments(entry: &CommandRegistryEntryRecord) -> Vec<DiscoverabilityTypedArgumentRecord> {
-    entry.descriptor
+    entry
+        .descriptor
         .typed_arguments
         .iter()
         .map(DiscoverabilityTypedArgumentRecord::from_descriptor)

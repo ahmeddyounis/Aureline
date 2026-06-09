@@ -29,9 +29,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("canonical-feed-validation") => print_json(&canonical_feed.validate())?,
         Some("shared-feed") => print_json(&descriptor.shared_service_health_feed())?,
         Some("support-export") => print_json(&descriptor.support_export_projection())?,
-        Some("shared-support-export") => {
-            print_json(&descriptor.shared_service_health_feed().support_export_projection())?
-        }
+        Some("shared-support-export") => print_json(
+            &descriptor
+                .shared_service_health_feed()
+                .support_export_projection(),
+        )?,
         Some("validation") => print_json(&descriptor.validate())?,
         Some("vocabulary") => {
             println!("service_contract_state:");

@@ -359,8 +359,7 @@ fn diagnostics_center_projects_the_shared_feed_contract() {
         assert!(
             report.passed,
             "{}: shared feed projection failed: {:?}",
-            scenario.scenario_id,
-            report.findings
+            scenario.scenario_id, report.findings
         );
         assert_eq!(
             feed.items.len(),

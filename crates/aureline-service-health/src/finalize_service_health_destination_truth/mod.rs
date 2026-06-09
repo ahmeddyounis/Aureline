@@ -22,8 +22,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::service_health_feed::{
-    ServiceHealthContractState as SharedContractState, ServiceHealthFeed,
-    ServiceHealthFeedItem, ServiceHealthFreshness, ServiceHealthOutageScope, ServiceHealthSourceClass,
+    ServiceHealthContractState as SharedContractState, ServiceHealthFeed, ServiceHealthFeedItem,
+    ServiceHealthFreshness, ServiceHealthOutageScope, ServiceHealthSourceClass,
     ServiceHealthSurface, ServiceHealthSurfaceBinding, SERVICE_HEALTH_FEED_ITEM_RECORD_KIND,
     SERVICE_HEALTH_FEED_RECORD_KIND, SERVICE_HEALTH_FEED_SCHEMA_REF,
     SERVICE_HEALTH_FEED_SCHEMA_VERSION, SERVICE_HEALTH_FEED_SHARED_CONTRACT_REF,

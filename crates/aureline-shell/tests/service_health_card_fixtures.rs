@@ -4,11 +4,11 @@
 //! headless inspector, so the checked-in JSON stays a literal projection
 //! of the seeded aggregator.
 
+use aureline_service_health_feed::ServiceHealthSurface;
 use aureline_shell::service_health::aggregator::{
     LocalContinuityClass, ServiceContractStateClass, ServiceHealthAggregator,
 };
 use aureline_shell::service_health::seed::seeded_aggregator;
-use aureline_service_health_feed::ServiceHealthSurface;
 
 const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -87,5 +87,8 @@ fn aggregator_projects_the_shared_feed_contract() {
         "shared feed projection must validate cleanly: {:#?}",
         report.findings
     );
-    assert_eq!(feed.surface_bindings.len(), ServiceHealthSurface::REQUIRED.len());
+    assert_eq!(
+        feed.surface_bindings.len(),
+        ServiceHealthSurface::REQUIRED.len()
+    );
 }

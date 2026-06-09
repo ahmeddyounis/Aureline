@@ -265,10 +265,11 @@ fn main() {
         discoverability.query_session_policy.sync_posture.as_str(),
     );
     out.push_str(",\n    \"required_surfaces\": ");
-    let required_surfaces = aureline_commands::CommandDiscoverabilitySurfaceClass::required_coverage()
-        .into_iter()
-        .map(|surface| surface.as_str().to_owned())
-        .collect::<Vec<_>>();
+    let required_surfaces =
+        aureline_commands::CommandDiscoverabilitySurfaceClass::required_coverage()
+            .into_iter()
+            .map(|surface| surface.as_str().to_owned())
+            .collect::<Vec<_>>();
     push_json_array(&mut out, &required_surfaces);
     out.push_str("\n  }\n}\n");
     print!("{out}");

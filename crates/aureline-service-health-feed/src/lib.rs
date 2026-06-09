@@ -749,7 +749,10 @@ pub fn canonical_service_health_feed() -> ServiceHealthFeed {
         ),
     ];
 
-    let item_refs = items.iter().map(ServiceHealthFeedItem::item_ref).collect::<Vec<_>>();
+    let item_refs = items
+        .iter()
+        .map(ServiceHealthFeedItem::item_ref)
+        .collect::<Vec<_>>();
     ServiceHealthFeed {
         record_kind: SERVICE_HEALTH_FEED_RECORD_KIND.to_owned(),
         schema_version: SERVICE_HEALTH_FEED_SCHEMA_VERSION,
@@ -804,7 +807,10 @@ fn item(
             .collect(),
         summary: summary.to_owned(),
         freshness,
-        diagnostics_actions: diagnostics_actions.iter().map(|v| (*v).to_owned()).collect(),
+        diagnostics_actions: diagnostics_actions
+            .iter()
+            .map(|v| (*v).to_owned())
+            .collect(),
         local_only_continuity_note: local_only_continuity_note.to_owned(),
         surfaced_on: surfaced_on.to_vec(),
     }
@@ -909,14 +915,20 @@ impl<'a> Validator<'a> {
             {
                 self.error(
                     "feed.item.required_fields",
-                    format!("item {} is missing required summary or identity fields", item.item_id),
+                    format!(
+                        "item {} is missing required summary or identity fields",
+                        item.item_id
+                    ),
                 );
             }
 
             if item.diagnostics_actions.is_empty() {
                 self.error(
                     "feed.item.diagnostics_actions",
-                    format!("item {} must expose at least one diagnostics action", item.item_id),
+                    format!(
+                        "item {} must expose at least one diagnostics action",
+                        item.item_id
+                    ),
                 );
             }
 
@@ -1020,6 +1032,5 @@ impl<'a> Validator<'a> {
                 );
             }
         }
-
     }
 }

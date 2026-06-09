@@ -866,7 +866,9 @@ impl ServiceHealthCard {
             ServiceHealthSourceClass::MirroredNotice
         } else if matches!(
             self.last_checked_age,
-            LastCheckedAgeClass::Stale | LastCheckedAgeClass::VeryStale | LastCheckedAgeClass::NeverChecked
+            LastCheckedAgeClass::Stale
+                | LastCheckedAgeClass::VeryStale
+                | LastCheckedAgeClass::NeverChecked
         ) {
             ServiceHealthSourceClass::CachedData
         } else {

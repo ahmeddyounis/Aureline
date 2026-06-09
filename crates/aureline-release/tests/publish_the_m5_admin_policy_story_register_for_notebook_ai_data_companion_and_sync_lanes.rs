@@ -1,33 +1,34 @@
-//! Protected tests binding the typed M5 feature-family register to the checked-in
-//! artifact, the frozen CI validation capture, and the negative fixtures.
+//! Protected tests binding the typed M5 admin/policy story register to the
+//! checked-in artifact, the frozen CI validation capture, and the negative
+//! fixtures.
 //!
 //! The positive case is the checked-in register; the capture cross-check proves
 //! the typed model and the CI gate agree on the publication verdict, the
-//! family-kind coverage counts, the packet-freshness counts, the corpus-item
+//! lane-kind coverage counts, the packet-freshness counts, the story-item
 //! counts, and the gap-reason counts; the negative cases mutate a parsed copy
-//! and the checked-in fixtures to prove that a family which fails to narrow, a
+//! and the checked-in fixtures to prove that a lane which fails to narrow, a
 //! held row with an active gap, a row carried wider than its public claim's
 //! ceiling, and a publication verdict that disagrees with the firing rules all
 //! fail validation.
 
 use std::path::{Path, PathBuf};
 
-use aureline_release::publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::{
-    current_m5_feature_family_register, M5FeatureFamilyGapReason, M5FeatureFamilyKind,
-    M5FeatureFamilyRegister, M5FeatureFamilyRegisterViolation, M5FeatureFamilyState,
-    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND,
-    PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION,
+use aureline_release::publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes::{
+    current_m5_admin_policy_story_register, AdminPolicyGapReason, M5AdminPolicyLaneKind,
+    AdminPolicyLaneState, M5AdminPolicyRegisterViolation, M5AdminPolicyStoryRegister,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_RECORD_KIND,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_SCHEMA_VERSION,
 };
 use aureline_release::stable_claim_manifest::FreshnessSloState;
 use aureline_release::stable_claim_matrix::{PromotionDecision, StableClaimLevel};
 
 const CAPTURE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../artifacts/release/captures/publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan_validation_capture.json"
+    "/../../artifacts/release/captures/publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes_validation_capture.json"
 ));
 
-fn register() -> M5FeatureFamilyRegister {
-    current_m5_feature_family_register().expect("checked-in register parses into the model")
+fn register() -> M5AdminPolicyStoryRegister {
+    current_m5_admin_policy_story_register().expect("checked-in register parses into the model")
 }
 
 fn repo_root() -> PathBuf {
@@ -42,11 +43,11 @@ fn checked_in_register_parses_and_validates() {
     let reg = register();
     assert_eq!(
         reg.schema_version,
-        PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION
+        PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_SCHEMA_VERSION
     );
     assert_eq!(
         reg.record_kind,
-        PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND
+        PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_RECORD_KIND
     );
     let violations = reg.validate();
     assert!(
@@ -56,12 +57,12 @@ fn checked_in_register_parses_and_validates() {
 }
 
 #[test]
-fn covers_every_family_kind() {
+fn covers_every_lane_kind() {
     let reg = register();
-    for kind in M5FeatureFamilyKind::ALL {
+    for kind in M5AdminPolicyLaneKind::ALL {
         assert!(
             !reg.rows_for_kind(kind).is_empty(),
-            "family kind {} must have at least one row",
+            "lane kind {} must have at least one row",
             kind.as_str()
         );
     }
@@ -70,13 +71,13 @@ fn covers_every_family_kind() {
 #[test]
 fn covers_every_declared_release_blocking_surface() {
     let reg = register();
-    assert!(!reg.release_blocking_family_refs.is_empty());
+    assert!(!reg.release_blocking_lane_refs.is_empty());
     let covered: Vec<&str> = reg
         .release_blocking_rows()
         .into_iter()
         .map(|row| row.surface_ref.as_str())
         .collect();
-    for declared in &reg.release_blocking_family_refs {
+    for declared in &reg.release_blocking_lane_refs {
         assert!(
             covered.contains(&declared.as_str()),
             "{declared} has no covering release-blocking row"
@@ -115,14 +116,14 @@ fn model_matches_frozen_validation_capture() {
         "capture breached-packet count must match the model"
     );
     assert_eq!(
-        summary["corpus_items_stale"].as_u64().unwrap() as usize,
-        reg.computed_summary().corpus_items_stale,
-        "capture stale-corpus-item count must match the model"
+        summary["story_items_stale"].as_u64().unwrap() as usize,
+        reg.computed_summary().story_items_stale,
+        "capture stale-story-item count must match the model"
     );
     assert_eq!(
-        summary["corpus_items_missing"].as_u64().unwrap() as usize,
-        reg.computed_summary().corpus_items_missing,
-        "capture missing-corpus-item count must match the model"
+        summary["story_items_missing"].as_u64().unwrap() as usize,
+        reg.computed_summary().story_items_missing,
+        "capture missing-story-item count must match the model"
     );
 
     let captured_decision = capture["publication"]["decision"].as_str().unwrap();
@@ -175,7 +176,7 @@ fn register_shows_a_row_on_waiver() {
     let on_waiver = reg
         .rows
         .iter()
-        .find(|row| row.family_state == M5FeatureFamilyState::OnWaiver)
+        .find(|row| row.lane_state == AdminPolicyLaneState::OnWaiver)
         .expect("the register must show a row on waiver");
     assert!(on_waiver.waiver.is_some());
     assert!(on_waiver.publishes_stable());
@@ -188,7 +189,7 @@ fn narrowing_row_that_does_not_narrow_fails() {
         .rows
         .iter_mut()
         .find(|row| {
-            row.family_state == M5FeatureFamilyState::Incomplete
+            row.lane_state == AdminPolicyLaneState::Incomplete
                 && row.claim_label == StableClaimLevel::Stable
         })
         .expect("register has an incomplete row under a stable ceiling");
@@ -201,7 +202,7 @@ fn narrowing_row_that_does_not_narrow_fails() {
     assert!(
         reg.validate().iter().any(|v| matches!(
             v,
-            M5FeatureFamilyRegisterViolation::PublishedLabelNotNarrowed { .. }
+            M5AdminPolicyRegisterViolation::PublishedLabelNotNarrowed { .. }
         )),
         "a row that is not backed must narrow below the cutline"
     );
@@ -216,14 +217,13 @@ fn backed_row_with_active_gap_fails() {
         .find(|row| row.publishes_stable())
         .expect("register has a backed row");
     row.active_gap_reasons
-        .push(M5FeatureFamilyGapReason::ProofPacketMissing);
+        .push(AdminPolicyGapReason::ProofPacketMissing);
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureFamilyRegisterViolation::HeldWithActiveGap { .. }
-        )),
+        reg.validate()
+            .iter()
+            .any(|v| matches!(v, M5AdminPolicyRegisterViolation::HeldWithActiveGap { .. })),
         "a backed row may not carry an active gap reason"
     );
 }
@@ -240,10 +240,9 @@ fn backed_row_on_a_breached_packet_fails() {
     reg.summary = reg.computed_summary();
 
     assert!(
-        reg.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureFamilyRegisterViolation::HeldOnStalePacket { .. }
-        )),
+        reg.validate()
+            .iter()
+            .any(|v| matches!(v, M5AdminPolicyRegisterViolation::HeldOnStalePacket { .. })),
         "a backed row may not ride a packet outside its freshness SLO"
     );
 }
@@ -256,7 +255,7 @@ fn publication_proceed_while_a_rule_fires_fails() {
     assert!(
         reg.validate().iter().any(|v| matches!(
             v,
-            M5FeatureFamilyRegisterViolation::PublicationDecisionInconsistent { .. }
+            M5AdminPolicyRegisterViolation::PublicationDecisionInconsistent { .. }
         )),
         "publication must not proceed while a blocking rule fires"
     );
@@ -265,7 +264,7 @@ fn publication_proceed_while_a_rule_fires_fails() {
 #[test]
 fn checked_in_fixtures_are_rejected_by_the_model() {
     let fixtures_dir = repo_root()
-        .join("fixtures/release/m5/publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan");
+        .join("fixtures/release/m5/publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes");
     let cases_json = std::fs::read_to_string(fixtures_dir.join("cases.json"))
         .expect("fixture manifest is readable");
     let manifest: serde_json::Value =
@@ -276,13 +275,13 @@ fn checked_in_fixtures_are_rejected_by_the_model() {
     let mut model_checked = 0;
     for case in cases {
         let file = case["file"].as_str().expect("case names a file");
-        let expected = case["expected_check_id"].as_str().unwrap_or_default();
+        let expected = case["expected_violation"].as_str().unwrap_or_default();
         if expected.starts_with("ceiling.") {
             continue;
         }
         let raw = std::fs::read_to_string(fixtures_dir.join(file))
             .unwrap_or_else(|_| panic!("fixture {file} is readable"));
-        let candidate: M5FeatureFamilyRegister =
+        let candidate: M5AdminPolicyStoryRegister =
             serde_json::from_str(&raw).unwrap_or_else(|_| panic!("fixture {file} parses"));
         assert!(
             !candidate.validate().is_empty(),

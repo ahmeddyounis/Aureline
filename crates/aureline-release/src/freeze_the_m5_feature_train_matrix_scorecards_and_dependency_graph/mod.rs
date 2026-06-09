@@ -906,16 +906,13 @@ impl M5FeatureTrainMatrix {
 
         for reason in M5GapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(M5FeatureTrainMatrixViolation::GapReasonWithoutStopRule {
-                    reason,
-                });
+                violations.push(M5FeatureTrainMatrixViolation::GapReasonWithoutStopRule { reason });
             }
         }
     }
 
     fn validate_dependencies(&self, violations: &mut Vec<M5FeatureTrainMatrixViolation>) {
-        let row_ids: BTreeSet<String> =
-            self.rows.iter().map(|row| row.entry_id.clone()).collect();
+        let row_ids: BTreeSet<String> = self.rows.iter().map(|row| row.entry_id.clone()).collect();
         let mut seen = BTreeSet::new();
         for edge in &self.dependencies {
             if !seen.insert(edge.edge_id.clone()) {
@@ -1009,11 +1006,9 @@ impl M5FeatureTrainMatrix {
 
         // A held lane must have a complete scorecard.
         if row.holds_label() && !row.scorecard.is_complete() {
-            violations.push(
-                M5FeatureTrainMatrixViolation::HeldWithIncompleteScorecard {
-                    entry_id: row.entry_id.clone(),
-                },
-            );
+            violations.push(M5FeatureTrainMatrixViolation::HeldWithIncompleteScorecard {
+                entry_id: row.entry_id.clone(),
+            });
         }
 
         // A public claim whose canonical label is below the cutline forces the lane
@@ -1071,13 +1066,11 @@ impl M5FeatureTrainMatrix {
             // A narrowing state must drop the published label below the cutline
             // and name at least one active reason.
             if row.publishes_stable() {
-                violations.push(
-                    M5FeatureTrainMatrixViolation::PublishedLabelNotNarrowed {
-                        entry_id: row.entry_id.clone(),
-                        state: row.scorecard_state,
-                        published: row.published_label,
-                    },
-                );
+                violations.push(M5FeatureTrainMatrixViolation::PublishedLabelNotNarrowed {
+                    entry_id: row.entry_id.clone(),
+                    state: row.scorecard_state,
+                    published: row.published_label,
+                });
             }
             if row.active_gap_reasons.is_empty() {
                 violations.push(M5FeatureTrainMatrixViolation::NarrowingWithoutReason {
@@ -1090,20 +1083,16 @@ impl M5FeatureTrainMatrix {
             if slo_state == FreshnessSloState::Breached
                 && !row.has_active_reason(M5GapReason::ProofPacketStale)
             {
-                violations.push(
-                    M5FeatureTrainMatrixViolation::BreachedPacketWithoutReason {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(M5FeatureTrainMatrixViolation::BreachedPacketWithoutReason {
+                    entry_id: row.entry_id.clone(),
+                });
             }
             if slo_state == FreshnessSloState::Missing
                 && !row.has_active_reason(M5GapReason::ProofPacketMissing)
             {
-                violations.push(
-                    M5FeatureTrainMatrixViolation::MissingPacketWithoutReason {
-                        entry_id: row.entry_id.clone(),
-                    },
-                );
+                violations.push(M5FeatureTrainMatrixViolation::MissingPacketWithoutReason {
+                    entry_id: row.entry_id.clone(),
+                });
             }
         }
 
@@ -1135,14 +1124,14 @@ impl M5FeatureTrainMatrix {
         row: &M5LaneRow,
         violations: &mut Vec<M5FeatureTrainMatrixViolation>,
     ) {
-        let push_incoherent =
-            |violations: &mut Vec<M5FeatureTrainMatrixViolation>, expected: M5GapReason| {
-                violations.push(M5FeatureTrainMatrixViolation::StateReasonIncoherent {
-                    entry_id: row.entry_id.clone(),
-                    state: row.scorecard_state,
-                    expected_reason: expected,
-                });
-            };
+        let push_incoherent = |violations: &mut Vec<M5FeatureTrainMatrixViolation>,
+                               expected: M5GapReason| {
+            violations.push(M5FeatureTrainMatrixViolation::StateReasonIncoherent {
+                entry_id: row.entry_id.clone(),
+                state: row.scorecard_state,
+                expected_reason: expected,
+            });
+        };
 
         match row.scorecard_state {
             M5ScorecardState::Incomplete => {
@@ -1178,12 +1167,10 @@ impl M5FeatureTrainMatrix {
                     .map(|w| w.waiver_ref.trim().is_empty() || w.expires_at.trim().is_empty())
                     .unwrap_or(true)
                 {
-                    violations.push(
-                        M5FeatureTrainMatrixViolation::WaiverStateWithoutWaiver {
-                            entry_id: row.entry_id.clone(),
-                            state: row.scorecard_state,
-                        },
-                    );
+                    violations.push(M5FeatureTrainMatrixViolation::WaiverStateWithoutWaiver {
+                        entry_id: row.entry_id.clone(),
+                        state: row.scorecard_state,
+                    });
                 }
             }
             M5ScorecardState::Complete => {}
@@ -1191,8 +1178,11 @@ impl M5FeatureTrainMatrix {
     }
 
     fn validate_coverage(&self, violations: &mut Vec<M5FeatureTrainMatrixViolation>) {
-        let covered: BTreeSet<String> =
-            self.rows.iter().map(|row| row.surface_ref.clone()).collect();
+        let covered: BTreeSet<String> = self
+            .rows
+            .iter()
+            .map(|row| row.surface_ref.clone())
+            .collect();
         for declared in &self.release_blocking_lane_refs {
             if !covered.contains(declared) {
                 violations.push(
@@ -1228,20 +1218,26 @@ impl M5FeatureTrainMatrix {
         }
         let computed = self.computed_promotion_decision();
         if self.promotion.decision != computed {
-            violations.push(M5FeatureTrainMatrixViolation::PromotionDecisionInconsistent {
-                declared: self.promotion.decision,
-                computed,
-            });
+            violations.push(
+                M5FeatureTrainMatrixViolation::PromotionDecisionInconsistent {
+                    declared: self.promotion.decision,
+                    computed,
+                },
+            );
         }
         if self.promotion.blocking_rule_ids != self.computed_blocking_rule_ids() {
-            violations.push(M5FeatureTrainMatrixViolation::PromotionBlockingSetMismatch {
-                field: "blocking_rule_ids",
-            });
+            violations.push(
+                M5FeatureTrainMatrixViolation::PromotionBlockingSetMismatch {
+                    field: "blocking_rule_ids",
+                },
+            );
         }
         if self.promotion.blocking_claim_ids != self.computed_blocking_entry_ids() {
-            violations.push(M5FeatureTrainMatrixViolation::PromotionBlockingSetMismatch {
-                field: "blocking_claim_ids",
-            });
+            violations.push(
+                M5FeatureTrainMatrixViolation::PromotionBlockingSetMismatch {
+                    field: "blocking_claim_ids",
+                },
+            );
         }
     }
 }
@@ -1675,7 +1671,10 @@ mod tests {
     fn promotion_decision_matches_computed() {
         let m = matrix();
         assert_eq!(m.promotion.decision, m.computed_promotion_decision());
-        assert_eq!(m.promotion.blocking_rule_ids, m.computed_blocking_rule_ids());
+        assert_eq!(
+            m.promotion.blocking_rule_ids,
+            m.computed_blocking_rule_ids()
+        );
         assert_eq!(
             m.promotion.blocking_claim_ids,
             m.computed_blocking_entry_ids()
@@ -1685,14 +1684,13 @@ mod tests {
     #[test]
     fn every_gap_reason_has_a_stop_rule() {
         let m = matrix();
-        let covered: BTreeSet<M5GapReason> =
-            m.stop_rules.iter().map(|rule| rule.trigger_reason).collect();
+        let covered: BTreeSet<M5GapReason> = m
+            .stop_rules
+            .iter()
+            .map(|rule| rule.trigger_reason)
+            .collect();
         for reason in M5GapReason::ALL {
-            assert!(
-                covered.contains(&reason),
-                "{}",
-                reason.as_str()
-            );
+            assert!(covered.contains(&reason), "{}", reason.as_str());
         }
     }
 
@@ -1706,10 +1704,10 @@ mod tests {
             .expect("a held row exists");
         row.active_gap_reasons.push(M5GapReason::ProofPacketMissing);
         m.summary = m.computed_summary();
-        assert!(m.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureTrainMatrixViolation::HeldWithActiveGap { .. }
-        )));
+        assert!(m
+            .validate()
+            .iter()
+            .any(|v| matches!(v, M5FeatureTrainMatrixViolation::HeldWithActiveGap { .. })));
     }
 
     #[test]
@@ -1754,10 +1752,10 @@ mod tests {
         row.owner_signoff.signed_off = false;
         row.owner_signoff.signed_at = None;
         m.summary = m.computed_summary();
-        assert!(m.validate().iter().any(|v| matches!(
-            v,
-            M5FeatureTrainMatrixViolation::HeldWithoutSignoff { .. }
-        )));
+        assert!(m
+            .validate()
+            .iter()
+            .any(|v| matches!(v, M5FeatureTrainMatrixViolation::HeldWithoutSignoff { .. })));
     }
 
     #[test]

@@ -51,9 +51,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("summary") => print_json(&aggregator.summary)?,
         Some("plaintext") => print!("{}", aggregator.render_plaintext()),
         Some("shared-feed") => print_json(&aggregator.shared_service_health_feed())?,
-        Some("shared-support-export") => {
-            print_json(&aggregator.shared_service_health_feed().support_export_projection())?
-        }
+        Some("shared-support-export") => print_json(
+            &aggregator
+                .shared_service_health_feed()
+                .support_export_projection(),
+        )?,
         Some("vocabulary") => print_vocabulary(),
         Some(other) => return Err(format!("unknown subcommand: {other}").into()),
     }

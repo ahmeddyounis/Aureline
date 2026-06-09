@@ -252,10 +252,11 @@ pub mod optional_surface_qualification;
 pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
 pub mod publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family;
+pub mod publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes;
 pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
-pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
+pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_embedded_surface_boundary_truth;
@@ -679,11 +680,24 @@ pub use publish_feature_scorecard_and_compatibility_packet_templates_for_every_m
     CompatibilityPacketTemplateSection, M5FamilyKind, M5FamilyTemplateRow, M5TemplateRegister,
     M5TemplateRegisterExportProjection, M5TemplateRegisterExportRow, M5TemplateRegisterSummary,
     M5TemplateRegisterViolation, ScorecardSectionKind, ScorecardTemplate, ScorecardTemplateSection,
-    TemplateAction, TemplateGapReason, TemplateRegisterState, TemplateSectionState, TemplateStopRule,
+    TemplateAction, TemplateGapReason, TemplateRegisterState, TemplateSectionState,
+    TemplateStopRule,
     PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_JSON,
     PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_PATH,
     PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_RECORD_KIND,
     PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_SCHEMA_VERSION,
+};
+
+pub use publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes::{
+    current_m5_admin_policy_story_register, AdminPolicyAction, AdminPolicyGapReason,
+    AdminPolicyLaneState, AdminPolicyStory, AdminPolicyStoryItem, AdminPolicyStoryItemKind,
+    AdminPolicyStoryItemState, AdminPolicyStopRule, M5AdminPolicyLaneKind, M5AdminPolicyLaneRow,
+    M5AdminPolicyRegisterExportProjection, M5AdminPolicyRegisterExportRow,
+    M5AdminPolicyRegisterSummary, M5AdminPolicyRegisterViolation, M5AdminPolicyStoryRegister,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_JSON,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_PATH,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_RECORD_KIND,
+    PUBLISH_THE_M5_ADMIN_POLICY_STORY_REGISTER_FOR_NOTEBOOK_AI_DATA_COMPANION_AND_SYNC_LANES_SCHEMA_VERSION,
 };
 
 pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::{
@@ -700,13 +714,11 @@ pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::
 };
 
 pub use seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails::{
-    current_m5_health_bundle_matrix, CertifiedArchetypeKind, HealthBundle,
-    HealthBundleAction, HealthBundleGapReason, HealthBundleKind, HealthBundleRow,
-    HealthBundleRowState, M5HealthBundleMatrixViolation,
-    HealthIndicator, HealthIndicatorKind, HealthIndicatorState,
-    M5HealthBundleMatrix, M5HealthBundleMatrixExportProjection, M5HealthBundleMatrixExportRow,
-    M5HealthBundleMatrixSummary,
-    RegressionGuardrailRule,
+    current_m5_health_bundle_matrix, CertifiedArchetypeKind, HealthBundle, HealthBundleAction,
+    HealthBundleGapReason, HealthBundleKind, HealthBundleRow, HealthBundleRowState,
+    HealthIndicator, HealthIndicatorKind, HealthIndicatorState, M5HealthBundleMatrix,
+    M5HealthBundleMatrixExportProjection, M5HealthBundleMatrixExportRow,
+    M5HealthBundleMatrixSummary, M5HealthBundleMatrixViolation, RegressionGuardrailRule,
     SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_JSON,
     SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_PATH,
     SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_RECORD_KIND,

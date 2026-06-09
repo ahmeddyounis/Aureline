@@ -79,9 +79,7 @@ fn idempotency_class(record: &ProtectedCommandDiscoverabilityRecord) -> Referenc
     match record.capability_scope_class.as_str() {
         "inert_metadata_only" | "reversible_local_read" => ReferenceIdempotencyClass::Idempotent,
         "reversible_local_mutation" => ReferenceIdempotencyClass::IdempotentWithVisibleRedirect,
-        "recoverable_durable_mutation" => {
-            ReferenceIdempotencyClass::NonIdempotentObservableOnly
-        }
+        "recoverable_durable_mutation" => ReferenceIdempotencyClass::NonIdempotentObservableOnly,
         _ => ReferenceIdempotencyClass::NonIdempotentDestructive,
     }
 }
@@ -155,7 +153,9 @@ fn deprecation(record: &ProtectedCommandDiscoverabilityRecord) -> DeprecationRec
     }
 }
 
-fn supported_surfaces(record: &ProtectedCommandDiscoverabilityRecord) -> Vec<ReferenceSurfaceFamily> {
+fn supported_surfaces(
+    record: &ProtectedCommandDiscoverabilityRecord,
+) -> Vec<ReferenceSurfaceFamily> {
     let mut surfaces = vec![
         ReferenceSurfaceFamily::CommandPalette,
         ReferenceSurfaceFamily::KeybindingHelp,
@@ -342,7 +342,9 @@ fn search_index(record: &ProtectedCommandDiscoverabilityRecord) -> Vec<SearchInd
     tokens
 }
 
-fn discoverability_links(record: &ProtectedCommandDiscoverabilityRecord) -> Vec<DiscoverabilityLink> {
+fn discoverability_links(
+    record: &ProtectedCommandDiscoverabilityRecord,
+) -> Vec<DiscoverabilityLink> {
     vec![
         DiscoverabilityLink {
             surface_family: ReferenceSurfaceFamily::DocsHelp,

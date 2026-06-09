@@ -57,8 +57,13 @@ const PARITY_BAND_CLASSES: &[&str] = &[
     "unsupported",
 ];
 
-const BRIDGE_PARITY_CLASSES: &[&str] =
-    &["exact", "partial", "approximate", "unsupported", "not_applicable"];
+const BRIDGE_PARITY_CLASSES: &[&str] = &[
+    "exact",
+    "partial",
+    "approximate",
+    "unsupported",
+    "not_applicable",
+];
 
 const FRESHNESS_CLASSES: &[&str] = &["current", "aging", "stale", "expired", "missing"];
 
@@ -310,8 +315,11 @@ impl EcosystemCompatibilityPacket {
             }
         }
 
-        let row_map: BTreeMap<&str, &EcosystemCompatibilityRow> =
-            self.rows.iter().map(|row| (row.row_id.as_str(), row)).collect();
+        let row_map: BTreeMap<&str, &EcosystemCompatibilityRow> = self
+            .rows
+            .iter()
+            .map(|row| (row.row_id.as_str(), row))
+            .collect();
         let mut claim_ids = BTreeSet::new();
         for claim in &self.consumer_claims {
             claim.validate()?;
@@ -337,7 +345,8 @@ impl EcosystemCompatibilityPacket {
             }
         }
 
-        let derived = EcosystemCompatibilityInspection::from_rows(&self.rows, &self.consumer_claims);
+        let derived =
+            EcosystemCompatibilityInspection::from_rows(&self.rows, &self.consumer_claims);
         if derived != self.inspection {
             return Err(err(
                 "stored inspection row does not match the canonical rows and consumer claims",
@@ -460,7 +469,11 @@ impl EcosystemCompatibilityRow {
     /// Returns [`EcosystemCompatibilityError`] when a row violates the shared
     /// compatibility contract.
     pub fn validate(&self) -> Result<(), EcosystemCompatibilityError> {
-        ensure_eq(self.record_kind.as_str(), ROW_RECORD_KIND, "row.record_kind")?;
+        ensure_eq(
+            self.record_kind.as_str(),
+            ROW_RECORD_KIND,
+            "row.record_kind",
+        )?;
         ensure_eq_u32(
             self.schema_version,
             ECOSYSTEM_COMPATIBILITY_SCORECARD_SCHEMA_VERSION,
@@ -490,7 +503,11 @@ impl EcosystemCompatibilityRow {
             &self.bridge_parity_class,
             "row.bridge_parity_class",
         )?;
-        ensure_token(FRESHNESS_CLASSES, &self.freshness_class, "row.freshness_class")?;
+        ensure_token(
+            FRESHNESS_CLASSES,
+            &self.freshness_class,
+            "row.freshness_class",
+        )?;
         ensure_token(
             EVIDENCE_SOURCE_CLASSES,
             &self.evidence_source_class,
@@ -521,43 +538,31 @@ impl EcosystemCompatibilityRow {
             &self.supported_runtime_profile_refs,
             "row.supported_runtime_profile_refs",
         )?;
-        ensure_no_blank_entries(
-            &self.reference_workspace_ids,
-            "row.reference_workspace_ids",
-        )?;
+        ensure_no_blank_entries(&self.reference_workspace_ids, "row.reference_workspace_ids")?;
         ensure_no_blank_entries(
             &self.reference_workspace_lineage_refs,
             "row.reference_workspace_lineage_refs",
         )?;
         ensure_no_blank_entries(&self.known_gap_refs, "row.known_gap_refs")?;
-        ensure_no_blank_entries(
-            &self.linked_bundle_refs,
-            "row.linked_bundle_refs",
-        )?;
+        ensure_no_blank_entries(&self.linked_bundle_refs, "row.linked_bundle_refs")?;
         ensure_no_blank_entries(
             &self.linked_handoff_bundle_refs,
             "row.linked_handoff_bundle_refs",
         )?;
         for rule in &self.downgrade_rule_classes {
-            ensure_token(
-                DOWNGRADE_RULE_CLASSES,
-                rule,
-                "row.downgrade_rule_classes",
-            )?;
+            ensure_token(DOWNGRADE_RULE_CLASSES, rule, "row.downgrade_rule_classes")?;
         }
         for reason in &self.downgrade_reasons {
-            ensure_token(
-                DOWNGRADE_RULE_CLASSES,
-                reason,
-                "row.downgrade_reasons",
-            )?;
+            ensure_token(DOWNGRADE_RULE_CLASSES, reason, "row.downgrade_reasons")?;
         }
         if self.claimed_parity_band_class == "stable" && self.reference_workspace_ids.is_empty() {
             return Err(err(
                 "stable claimed rows must cite at least one reference workspace id",
             ));
         }
-        if !self.reference_workspace_ids.is_empty() && self.reference_workspace_lineage_refs.is_empty() {
+        if !self.reference_workspace_ids.is_empty()
+            && self.reference_workspace_lineage_refs.is_empty()
+        {
             return Err(err(
                 "reference workspace ids must carry lineage or certification refs",
             ));
@@ -793,7 +798,8 @@ impl EcosystemCompatibilityClaimProjection {
                 "consumer projection drifted from the canonical ecosystem scorecard row",
             ));
         }
-        if self.consumer_surface_class == "bundle_detail_view" && self.linked_bundle_refs.is_empty() {
+        if self.consumer_surface_class == "bundle_detail_view" && self.linked_bundle_refs.is_empty()
+        {
             return Err(err(
                 "bundle detail projections must preserve bundle inheritance refs",
             ));
@@ -853,7 +859,8 @@ impl EcosystemCompatibilityInspection {
                 claim.row_ref == row.row_id
                     && claim.effective_parity_band_class == row.effective_parity_band_class
                     && claim.reference_workspace_ids == row.reference_workspace_ids
-                    && claim.reference_workspace_lineage_refs == row.reference_workspace_lineage_refs
+                    && claim.reference_workspace_lineage_refs
+                        == row.reference_workspace_lineage_refs
             })
         });
         let stable_rows_reference_workspace_backed = rows.iter().all(|row| {
@@ -974,10 +981,12 @@ fn derive_effective_row_state(input: &EcosystemCompatibilityRowInput) -> Derived
         )
     }) {
         "reference_workspace_narrowed"
-    } else if reasons
-        .iter()
-        .any(|reason| matches!(reason.as_str(), "evidence_freshness_expired" | "evidence_missing"))
-    {
+    } else if reasons.iter().any(|reason| {
+        matches!(
+            reason.as_str(),
+            "evidence_freshness_expired" | "evidence_missing"
+        )
+    }) {
         "freshness_expired"
     } else {
         "known_gap_narrowed"
@@ -1009,7 +1018,9 @@ fn min_parity_band(current: String, candidate: &str) -> String {
     }
 }
 
-fn validate_input(input: &EcosystemCompatibilityPacketInput) -> Result<(), EcosystemCompatibilityError> {
+fn validate_input(
+    input: &EcosystemCompatibilityPacketInput,
+) -> Result<(), EcosystemCompatibilityError> {
     ensure_nonempty(&input.packet_id, "packet_id")?;
     ensure_nonempty(&input.generated_at, "generated_at")?;
     ensure_nonempty(&input.summary_label, "summary_label")?;
@@ -1136,7 +1147,11 @@ mod tests {
     #[test]
     fn fixtures_build_validate_and_preserve_consumer_truth() {
         let fixtures = fixtures();
-        assert_eq!(fixtures.len(), 4, "all canonical ecosystem fixtures must load");
+        assert_eq!(
+            fixtures.len(),
+            4,
+            "all canonical ecosystem fixtures must load"
+        );
 
         for fixture in fixtures {
             let packet = EcosystemCompatibilityPacket::from_input(fixture.packet_input)
@@ -1145,7 +1160,11 @@ mod tests {
                 .validate()
                 .unwrap_or_else(|e| panic!("fixture {} must validate: {e}", fixture.case_name));
 
-            assert!(packet.inspection.all_consumer_claims_row_backed, "{}", fixture.case_name);
+            assert!(
+                packet.inspection.all_consumer_claims_row_backed,
+                "{}",
+                fixture.case_name
+            );
             assert!(
                 packet.inspection.stable_rows_reference_workspace_backed,
                 "{}",
@@ -1158,14 +1177,12 @@ mod tests {
             );
 
             assert_eq!(
-                packet.inspection.stable_row_count,
-                fixture.expected.stable_row_count,
+                packet.inspection.stable_row_count, fixture.expected.stable_row_count,
                 "{}",
                 fixture.case_name
             );
             assert_eq!(
-                packet.inspection.narrowed_row_count,
-                fixture.expected.narrowed_row_count,
+                packet.inspection.narrowed_row_count, fixture.expected.narrowed_row_count,
                 "{}",
                 fixture.case_name
             );
@@ -1214,7 +1231,8 @@ mod tests {
                         fixture.case_name
                     );
                     assert_eq!(
-                        claim.reference_workspace_lineage_refs, row.reference_workspace_lineage_refs,
+                        claim.reference_workspace_lineage_refs,
+                        row.reference_workspace_lineage_refs,
                         "{}",
                         fixture.case_name
                     );
