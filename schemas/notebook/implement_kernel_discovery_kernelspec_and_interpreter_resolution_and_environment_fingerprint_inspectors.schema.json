@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors.schema.json",
+  "title": "Aureline kernel discovery, kernelspec, interpreter resolution, and environment fingerprint inspectors",
+  "description": "Boundary schema for kernel discovery, kernelspec records, interpreter resolution records, environment fingerprint records, and kernel discovery entries. Every record that crosses this boundary (kernelspec, interpreter resolution, environment fingerprint, discovery entry, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/kernelspec_record" },
+    { "$ref": "#/$defs/interpreter_resolution_record" },
+    { "$ref": "#/$defs/environment_fingerprint_record" },
+    { "$ref": "#/$defs/kernel_discovery_entry_record" },
+    { "$ref": "#/$defs/kernel_discovery_packet_record" }
+  ],
+  "$defs": {
+    "notebook_kernel_discovery_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the kernel-discovery record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (kernelspec, interpreter resolution, environment fingerprint, execution-context root, policy epoch, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "kernelspec_discovery_source_class": {
+      "type": "string",
+      "enum": [
+        "jupyter_data_dir",
+        "conda_env",
+        "virtual_env",
+        "system_path",
+        "remote_registry",
+        "managed_workspace",
+        "remote_agent",
+        "browser_bridge"
+      ],
+      "description": "Where a kernelspec was discovered. Distinguishes local Jupyter data directories, Conda environments, virtual environments, system paths, remote registries, managed workspace pools, remote-agent enumerations, and browser-bridge sources."
+    },
+    "interpreter_manager_class": {
+      "type": "string",
+      "enum": [
+        "uv",
+        "venv",
+        "poetry",
+        "conda",
+        "pyenv",
+        "system",
+        "unknown"
+      ],
+      "description": "Environment manager class that resolved the interpreter. Mirrors the manager vocabulary the runtime detector already uses."
+    },
+    "environment_fingerprint_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "unresolved",
+        "policy_blocked"
+      ],
+      "description": "Freshness class for an environment fingerprint. Distinguishes current, stale, unresolved, and policy-blocked states."
+    },
+    "kernel_discovery_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "incompatible_language",
+        "incompatible_version",
+        "policy_narrowed",
+        "unresolved_dependencies"
+      ],
+      "description": "Compatibility class for a discovered kernel relative to a notebook. Distinguishes fully compatible kernels from language mismatches, version mismatches, policy-narrowed candidates, and unresolved dependency states."
+    },
+    "kernel_discovery_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "starting",
+        "busy",
+        "unavailable",
+        "policy_blocked"
+      ],
+      "description": "Availability class for a discovered kernel candidate. Distinguishes ready-to-launch kernels from starting, busy, unavailable, and policy-blocked states."
+    },
+    "kernelspec_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_kernel_discovery_schema_version",
+        "kernelspec_id",
+        "display_name_label",
+        "language_label",
+        "launch_command_template_ref",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_kernelspec" },
+        "notebook_kernel_discovery_schema_version": { "$ref": "#/$defs/notebook_kernel_discovery_schema_version" },
+        "kernelspec_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name_label": { "type": "string", "minLength": 1 },
+        "language_label": { "type": "string", "minLength": 1 },
+        "launch_command_template_ref": { "$ref": "#/$defs/opaque_ref" },
+        "resource_dir_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "metadata_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "interpreter_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_kernel_discovery_schema_version",
+        "resolution_id",
+        "interpreter_path_token_ref",
+        "version_label",
+        "language_label",
+        "manager_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_interpreter_resolution" },
+        "notebook_kernel_discovery_schema_version": { "$ref": "#/$defs/notebook_kernel_discovery_schema_version" },
+        "resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "interpreter_path_token_ref": { "$ref": "#/$defs/opaque_ref" },
+        "version_label": { "type": "string" },
+        "language_label": { "type": "string", "minLength": 1 },
+        "manager_class": { "$ref": "#/$defs/interpreter_manager_class" },
+        "source_manifest_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "environment_fingerprint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_kernel_discovery_schema_version",
+        "fingerprint_id",
+        "environment_identity_label",
+        "interpreter_resolution_ref",
+        "target_origin_label",
+        "freshness_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_environment_fingerprint" },
+        "notebook_kernel_discovery_schema_version": { "$ref": "#/$defs/notebook_kernel_discovery_schema_version" },
+        "fingerprint_id": { "$ref": "#/$defs/opaque_id" },
+        "environment_identity_label": { "type": "string", "minLength": 1 },
+        "interpreter_resolution_ref": { "$ref": "#/$defs/opaque_ref" },
+        "package_summary_label": { "type": ["string", "null"] },
+        "toolchain_summary_label": { "type": ["string", "null"] },
+        "target_origin_label": { "type": "string", "minLength": 1 },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "freshness_class": { "$ref": "#/$defs/environment_fingerprint_freshness_class" },
+        "last_known_good_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "fresh fingerprints MUST carry a last_known_good_at timestamp.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "fresh" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "required": ["last_known_good_at"]
+          }
+        },
+        {
+          "description": "policy_blocked fingerprints MUST carry a policy_epoch_ref.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "policy_blocked" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "required": ["policy_epoch_ref"]
+          }
+        }
+      ]
+    },
+    "kernel_discovery_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_kernel_discovery_schema_version",
+        "entry_id",
+        "kernelspec",
+        "discovery_source_class",
+        "interpreter_resolution_ref",
+        "environment_fingerprint_ref",
+        "compatibility_class",
+        "availability_class",
+        "target_origin_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_kernel_discovery_entry" },
+        "notebook_kernel_discovery_schema_version": { "$ref": "#/$defs/notebook_kernel_discovery_schema_version" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "kernelspec": { "$ref": "#/$defs/kernelspec_record" },
+        "discovery_source_class": { "$ref": "#/$defs/kernelspec_discovery_source_class" },
+        "interpreter_resolution_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "compatibility_class": { "$ref": "#/$defs/kernel_discovery_compatibility_class" },
+        "availability_class": { "$ref": "#/$defs/kernel_discovery_availability_class" },
+        "target_origin_label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "policy_blocked availability is incompatible with compatible compatibility_class.",
+          "if": {
+            "properties": {
+              "availability_class": { "const": "policy_blocked" },
+              "compatibility_class": { "const": "compatible" }
+            },
+            "required": ["availability_class", "compatibility_class"]
+          },
+          "then": {
+            "not": {}
+          }
+        },
+        {
+          "description": "Remote discovery sources MUST NOT claim local_host target origin.",
+          "if": {
+            "properties": {
+              "discovery_source_class": {
+                "enum": [
+                  "remote_registry",
+                  "managed_workspace",
+                  "remote_agent",
+                  "browser_bridge"
+                ]
+              }
+            },
+            "required": ["discovery_source_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "target_origin_label": { "const": "local_host" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "kernel_discovery_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "kernelspec_discovery_source_classes",
+        "interpreter_manager_classes",
+        "environment_fingerprint_freshness_classes",
+        "kernel_discovery_compatibility_classes",
+        "kernel_discovery_availability_classes",
+        "example_kernelspecs",
+        "example_interpreter_resolutions",
+        "example_environment_fingerprints",
+        "example_kernel_discovery_entries",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_kernel_discovery_schema_version" },
+        "record_kind": { "const": "notebook_kernel_discovery_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "kernelspec_discovery_source_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernelspec_discovery_source_class" },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "interpreter_manager_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/interpreter_manager_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "environment_fingerprint_freshness_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_fingerprint_freshness_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "kernel_discovery_compatibility_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_discovery_compatibility_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "kernel_discovery_availability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_discovery_availability_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "example_kernelspecs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernelspec_record" }
+        },
+        "example_interpreter_resolutions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/interpreter_resolution_record" }
+        },
+        "example_environment_fingerprints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_fingerprint_record" }
+        },
+        "example_kernel_discovery_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_discovery_entry_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

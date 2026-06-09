@@ -1,6 +1,6 @@
 //! Retained notebook preview runtime-truth model and canonical document model.
 //!
-//! This crate carries three typed models:
+//! This crate carries four typed models:
 //!
 //! 1. The [`runtime_truth`] module keeps a notebook preview row honest about
 //!    notebook identity, kernel/session state, output trust, variable freshness,
@@ -19,6 +19,12 @@
 //!    consumes. It reuses the closed vocabularies from [`runtime_truth`] and
 //!    adds the [`ExecutionLocusChip`] record so execution locus is visible
 //!    wherever the user can run, restart, debug, or export.
+//!
+//! 4. The [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
+//!    module materializes kernel discovery, typed [`Kernelspec`] records,
+//!    [`InterpreterResolution`] records, [`EnvironmentFingerprint`] records,
+//!    and [`KernelDiscoveryEntry`] candidates so the kernel-selection layer
+//!    never presents opaque or unvalidated kernel identities.
 //!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
@@ -46,6 +52,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows/`.
 //!
+//! The records under
+//! [`implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -63,6 +76,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-notebook/0.0.0")]
 
+pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
@@ -108,6 +122,19 @@ pub use implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paire
     EXECUTION_LOCUS_CHIP_RECORD_KIND, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_JSON,
     NOTEBOOK_HEADER_KERNEL_BAR_PACKET_PATH, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_RECORD_KIND,
     NOTEBOOK_HEADER_KERNEL_BAR_SCHEMA_VERSION, NOTEBOOK_HEADER_KERNEL_BAR_STATE_RECORD_KIND,
+};
+
+pub use implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors::{
+    current_kernel_discovery_packet, EnvironmentFingerprint, EnvironmentFingerprintFinding,
+    EnvironmentFingerprintFreshnessClass, InterpreterManagerClass, InterpreterResolution,
+    InterpreterResolutionFinding, KernelDiscoveryAvailabilityClass,
+    KernelDiscoveryCompatibilityClass, KernelDiscoveryEntry, KernelDiscoveryEntryFinding,
+    KernelDiscoveryFinding, KernelDiscoveryPacket, KernelDiscoveryPacketFinding,
+    Kernelspec, KernelspecDiscoverySourceClass, KernelspecFinding,
+    ENVIRONMENT_FINGERPRINT_RECORD_KIND, INTERPRETER_RESOLUTION_RECORD_KIND,
+    KERNEL_DISCOVERY_ENTRY_RECORD_KIND, KERNEL_DISCOVERY_PACKET_JSON,
+    KERNEL_DISCOVERY_PACKET_PATH, KERNEL_DISCOVERY_PACKET_RECORD_KIND,
+    KERNELSPEC_RECORD_KIND, NOTEBOOK_KERNEL_DISCOVERY_SCHEMA_VERSION,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{
