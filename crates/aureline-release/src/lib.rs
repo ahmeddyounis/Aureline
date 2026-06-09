@@ -238,6 +238,7 @@ pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph;
+pub mod freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules;
 pub mod generate_the_m5_channel_profile_provider_rollout_matrix_for_depth_lanes;
 pub mod go_no_go_rehearsal;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
@@ -664,6 +665,18 @@ pub use stabilize_the_known_limits_matrix_public_support_windows_and_stable_line
     STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_SCHEMA_VERSION,
 };
 
+pub use freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules::{
+    current_m5_rollback_downgrade_register, M5ClaimNarrowingRule, M5DowngradeRule,
+    M5PromotionStage, M5RollbackAction, M5RollbackDowngradeExportProjection,
+    M5RollbackDowngradeExportRow, M5RollbackDowngradeRegister, M5RollbackDowngradeRow,
+    M5RollbackDowngradeState, M5RollbackDowngradeSummary, M5RollbackDowngradeViolation,
+    M5RollbackGapReason, M5RollbackStopRule, DowngradeKind, PromotionStageKind,
+    RollbackPathState, StageState,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_JSON,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_PATH,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_RECORD_KIND,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_SCHEMA_VERSION,
+};
 pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     current_m5_feature_train_matrix, M5Action, M5DependencyEdge, M5DependencyKind,
     M5FeatureTrainExportProjection, M5FeatureTrainExportRow, M5FeatureTrainMatrix,
