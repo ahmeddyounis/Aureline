@@ -256,6 +256,7 @@ pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity
 pub mod publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family;
 pub mod publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes;
 pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
+pub mod publish_the_m5_local_model_provider_graduation_and_spend_governance_control_packet;
 pub mod publish_the_m5_storage_retention_export_and_offboarding_matrix_for_new_durable_artifacts;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
@@ -667,18 +668,6 @@ pub use stabilize_the_known_limits_matrix_public_support_windows_and_stable_line
     STABILIZE_THE_KNOWN_LIMITS_MATRIX_PUBLIC_SUPPORT_WINDOWS_AND_STABLE_LINE_OWNERSHIP_PUBLICATION_SCHEMA_VERSION,
 };
 
-pub use freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules::{
-    current_m5_rollback_downgrade_register, M5ClaimNarrowingRule, M5DowngradeRule,
-    M5PromotionStage, M5RollbackAction, M5RollbackDowngradeExportProjection,
-    M5RollbackDowngradeExportRow, M5RollbackDowngradeRegister, M5RollbackDowngradeRow,
-    M5RollbackDowngradeState, M5RollbackDowngradeSummary, M5RollbackDowngradeViolation,
-    M5RollbackGapReason, M5RollbackStopRule, DowngradeKind, PromotionStageKind,
-    RollbackPathState, StageState,
-    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_JSON,
-    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_PATH,
-    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_RECORD_KIND,
-    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_SCHEMA_VERSION,
-};
 pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     current_m5_feature_train_matrix, M5Action, M5DependencyEdge, M5DependencyKind,
     M5FeatureTrainExportProjection, M5FeatureTrainExportRow, M5FeatureTrainMatrix,
@@ -688,6 +677,17 @@ pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_PATH,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_RECORD_KIND,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+};
+pub use freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules::{
+    current_m5_rollback_downgrade_register, DowngradeKind, M5ClaimNarrowingRule, M5DowngradeRule,
+    M5PromotionStage, M5RollbackAction, M5RollbackDowngradeExportProjection,
+    M5RollbackDowngradeExportRow, M5RollbackDowngradeRegister, M5RollbackDowngradeRow,
+    M5RollbackDowngradeState, M5RollbackDowngradeSummary, M5RollbackDowngradeViolation,
+    M5RollbackGapReason, M5RollbackStopRule, PromotionStageKind, RollbackPathState, StageState,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_JSON,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_PATH,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_RECORD_KIND,
+    FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_SCHEMA_VERSION,
 };
 
 pub use publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family::{
@@ -739,6 +739,19 @@ pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_PATH,
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND,
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION,
+};
+
+pub use publish_the_m5_local_model_provider_graduation_and_spend_governance_control_packet::{
+    current_m5_control_packet_register, ControlPacketAction, ControlPacketGapReason,
+    ControlPacketItem, ControlPacketItemKind, ControlPacketItemState, ControlPacketLaneState,
+    ControlPacketStopRule, ControlPacketStory, M5ControlPacketLaneKind, M5ControlPacketLaneRow,
+    M5ControlPacketRegister, M5ControlPacketRegisterExportProjection,
+    M5ControlPacketRegisterExportRow, M5ControlPacketRegisterSummary,
+    M5ControlPacketRegisterViolation,
+    PUBLISH_THE_M5_LOCAL_MODEL_PROVIDER_GRADUATION_AND_SPEND_GOVERNANCE_CONTROL_PACKET_JSON,
+    PUBLISH_THE_M5_LOCAL_MODEL_PROVIDER_GRADUATION_AND_SPEND_GOVERNANCE_CONTROL_PACKET_PATH,
+    PUBLISH_THE_M5_LOCAL_MODEL_PROVIDER_GRADUATION_AND_SPEND_GOVERNANCE_CONTROL_PACKET_RECORD_KIND,
+    PUBLISH_THE_M5_LOCAL_MODEL_PROVIDER_GRADUATION_AND_SPEND_GOVERNANCE_CONTROL_PACKET_SCHEMA_VERSION,
 };
 
 pub use seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails::{

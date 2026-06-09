@@ -347,7 +347,9 @@ impl ArtifactRetentionPosture {
         if present.len() != RetentionPostureIndicatorKind::ALL.len() {
             return false;
         }
-        self.indicators.iter().all(|e| e.indicator_state.is_complete())
+        self.indicators
+            .iter()
+            .all(|e| e.indicator_state.is_complete())
     }
 
     /// True when every required indicator kind is present.
@@ -961,8 +963,7 @@ impl M5StorageRetentionMatrix {
 
         for reason in ArtifactRetentionGapReason::ALL {
             if !covered.contains(&reason) {
-                violations
-                    .push(M5ArtifactRetentionViolation::GapReasonWithoutStopRule { reason });
+                violations.push(M5ArtifactRetentionViolation::GapReasonWithoutStopRule { reason });
             }
         }
     }
@@ -1088,8 +1089,11 @@ impl M5StorageRetentionMatrix {
                 );
             }
         }
-        let rb_set: BTreeSet<String> =
-            self.release_blocking_artifact_refs.iter().cloned().collect();
+        let rb_set: BTreeSet<String> = self
+            .release_blocking_artifact_refs
+            .iter()
+            .cloned()
+            .collect();
         for row in &self.rows {
             if row.release_blocking && !rb_set.contains(&row.surface_ref) {
                 violations.push(
@@ -1359,7 +1363,8 @@ impl Error for M5ArtifactRetentionViolation {}
 ///
 /// Returns a JSON parse error when the checked-in matrix no longer matches
 /// [`M5StorageRetentionMatrix`].
-pub fn current_m5_storage_retention_matrix() -> Result<M5StorageRetentionMatrix, serde_json::Error> {
+pub fn current_m5_storage_retention_matrix() -> Result<M5StorageRetentionMatrix, serde_json::Error>
+{
     serde_json::from_str(
         PUBLISH_THE_M5_STORAGE_RETENTION_EXPORT_AND_OFFBOARDING_MATRIX_FOR_NEW_DURABLE_ARTIFACTS_JSON,
     )

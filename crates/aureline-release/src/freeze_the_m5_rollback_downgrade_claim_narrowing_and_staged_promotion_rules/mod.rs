@@ -82,12 +82,7 @@ pub enum RollbackPathState {
 
 impl RollbackPathState {
     /// Every state, in declaration order.
-    pub const ALL: [Self; 4] = [
-        Self::Defined,
-        Self::Tested,
-        Self::Exercised,
-        Self::Missing,
-    ];
+    pub const ALL: [Self; 4] = [Self::Defined, Self::Tested, Self::Exercised, Self::Missing];
 
     /// Stable token recorded in the register.
     pub const fn as_str(self) -> &'static str {
@@ -530,7 +525,9 @@ impl M5RollbackDowngradeRow {
 
     /// True when all promotion stages are complete.
     pub fn stages_complete(&self) -> bool {
-        self.promotion_stages.iter().all(|s| s.stage_state.allows_progression())
+        self.promotion_stages
+            .iter()
+            .all(|s| s.stage_state.allows_progression())
     }
 }
 
@@ -829,7 +826,10 @@ impl M5RollbackDowngradeRegister {
                 .rows
                 .iter()
                 .filter(|row| {
-                    row.waiver.as_ref().map(|w| !w.waiver_ref.trim().is_empty()).unwrap_or(false)
+                    row.waiver
+                        .as_ref()
+                        .map(|w| !w.waiver_ref.trim().is_empty())
+                        .unwrap_or(false)
                 })
                 .count(),
             entries_blocked: self
@@ -1234,9 +1234,11 @@ impl M5RollbackDowngradeRegister {
                 });
             }
             if row.claim_narrowing_rules.is_empty() {
-                violations.push(M5RollbackDowngradeViolation::HeldWithoutClaimNarrowingRules {
-                    entry_id: row.entry_id.clone(),
-                });
+                violations.push(
+                    M5RollbackDowngradeViolation::HeldWithoutClaimNarrowingRules {
+                        entry_id: row.entry_id.clone(),
+                    },
+                );
             }
         } else {
             // A narrowing state must drop the published label below the cutline
@@ -1370,18 +1372,14 @@ impl M5RollbackDowngradeRegister {
             );
         }
         if self.promotion.blocking_rule_ids != self.computed_blocking_rule_ids() {
-            violations.push(
-                M5RollbackDowngradeViolation::PromotionBlockingSetMismatch {
-                    field: "blocking_rule_ids",
-                },
-            );
+            violations.push(M5RollbackDowngradeViolation::PromotionBlockingSetMismatch {
+                field: "blocking_rule_ids",
+            });
         }
         if self.promotion.blocking_claim_ids != self.computed_blocking_entry_ids() {
-            violations.push(
-                M5RollbackDowngradeViolation::PromotionBlockingSetMismatch {
-                    field: "blocking_claim_ids",
-                },
-            );
+            violations.push(M5RollbackDowngradeViolation::PromotionBlockingSetMismatch {
+                field: "blocking_claim_ids",
+            });
         }
     }
 }
@@ -1730,8 +1728,11 @@ impl Error for M5RollbackDowngradeViolation {}
 ///
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`M5RollbackDowngradeRegister`].
-pub fn current_m5_rollback_downgrade_register() -> Result<M5RollbackDowngradeRegister, serde_json::Error> {
-    serde_json::from_str(FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_JSON)
+pub fn current_m5_rollback_downgrade_register(
+) -> Result<M5RollbackDowngradeRegister, serde_json::Error> {
+    serde_json::from_str(
+        FREEZE_THE_M5_ROLLBACK_DOWNGRADE_CLAIM_NARROWING_AND_STAGED_PROMOTION_RULES_JSON,
+    )
 }
 
 #[cfg(test)]
