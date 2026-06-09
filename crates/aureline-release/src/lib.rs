@@ -229,6 +229,7 @@ pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
 pub mod freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph;
+pub mod generate_the_m5_channel_profile_provider_rollout_matrix_for_depth_lanes;
 pub mod go_no_go_rehearsal;
 pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgrade_automation;
 pub mod harden_docs_help_about_and_service_health_truth;
@@ -654,8 +655,8 @@ pub use stabilize_the_known_limits_matrix_public_support_windows_and_stable_line
 pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     current_m5_feature_train_matrix, M5Action, M5DependencyEdge, M5DependencyKind,
     M5FeatureTrainExportProjection, M5FeatureTrainExportRow, M5FeatureTrainMatrix,
-    M5FeatureTrainMatrixSummary, M5FeatureTrainMatrixViolation, M5GapReason, M5LaneKind,
-    M5LaneRow, M5Scorecard, M5ScorecardState, M5StopRule,
+    M5FeatureTrainMatrixSummary, M5FeatureTrainMatrixViolation, M5GapReason, M5LaneKind, M5LaneRow,
+    M5Scorecard, M5ScorecardState, M5StopRule,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_JSON,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_PATH,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_RECORD_KIND,
