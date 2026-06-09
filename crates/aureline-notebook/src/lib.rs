@@ -56,6 +56,15 @@
 //!    navigation remain useful without a selected kernel and never silently
 //!    fall back to a different cell.
 //!
+//! 9. The [`ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories`]
+//!    module materializes the typed bridge records that connect notebook
+//!    execution to the canonical task-event stream, the activity-center
+//!    chronology, and session-restore history. It produces [`NotebookTaskEvent`]
+//!    records, [`NotebookActivityCenterRow`] records, and
+//!    [`NotebookRestoreSafeHistory`] records so notebook work is observable,
+//!    reviewable, and recoverable on the same contracts as build, test, and
+//!    debug work.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -117,6 +126,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation/`.
 //!
+//! The records under
+//! [`ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -142,6 +158,7 @@ pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_label
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
+pub mod ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
 
 pub use runtime_truth::{
@@ -247,6 +264,21 @@ pub use add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation
     NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_PATH,
     NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_RECORD_KIND,
     NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION, NOTEBOOK_SEARCH_QUERY_RECORD_KIND,
+};
+
+pub use ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories::{
+    current_notebook_activity_integration_packet, ActivityIntegrationFinding,
+    NotebookActivityAction, NotebookActivityActorKind, NotebookActivityCenterRow,
+    NotebookActivityCenterRowFinding, NotebookActivityFollowUpState,
+    NotebookActivityFreshnessClass, NotebookActivityIntegrationPacket,
+    NotebookActivityIntegrationPacketFinding, NotebookActivityObjectKind,
+    NotebookActivityOutcome, NotebookActivitySourceClass, NotebookActivitySurfaceClass,
+    NotebookRestoreClass, NotebookRestorePosture, NotebookRestoreSafeHistory,
+    NotebookRestoreSafeHistoryFinding, NotebookTaskEvent, NotebookTaskEventFinding,
+    NotebookTaskEventKind, NotebookTaskStateClass, NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND,
+    NOTEBOOK_ACTIVITY_INTEGRATION_PACKET_JSON, NOTEBOOK_ACTIVITY_INTEGRATION_PACKET_PATH,
+    NOTEBOOK_ACTIVITY_INTEGRATION_PACKET_RECORD_KIND, NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+    NOTEBOOK_RESTORE_SAFE_HISTORY_RECORD_KIND, NOTEBOOK_TASK_EVENT_RECORD_KIND,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{

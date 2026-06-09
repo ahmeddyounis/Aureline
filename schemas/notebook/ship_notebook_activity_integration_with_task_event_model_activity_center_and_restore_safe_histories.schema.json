@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories.schema.json",
+  "title": "Aureline notebook activity integration with task-event model, activity center, and restore-safe histories",
+  "description": "Boundary schema for the notebook activity integration with task-event model, activity center, and restore-safe histories. Every record that crosses this boundary (task event, activity-center row, restore-safe history, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_task_event_record" },
+    { "$ref": "#/$defs/notebook_activity_center_row_record" },
+    { "$ref": "#/$defs/notebook_restore_safe_history_record" },
+    { "$ref": "#/$defs/notebook_activity_integration_packet_record" }
+  ],
+  "$defs": {
+    "notebook_activity_integration_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the activity-integration record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, execution context, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "notebook_task_event_kind": {
+      "type": "string",
+      "enum": [
+        "task_queued",
+        "task_started",
+        "output_appended",
+        "task_completed",
+        "task_failed",
+        "task_cancelled"
+      ],
+      "description": "Frozen notebook task-event kind vocabulary. Mirrors the canonical task-event grammar."
+    },
+    "notebook_task_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "description": "Frozen notebook task-state class vocabulary. Mirrors the canonical task-state grammar."
+    },
+    "notebook_activity_actor_kind": {
+      "type": "string",
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "kernel_actor"
+      ],
+      "description": "Frozen notebook activity actor-kind vocabulary."
+    },
+    "notebook_activity_action": {
+      "type": "string",
+      "enum": [
+        "started",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "restored"
+      ],
+      "description": "Frozen notebook activity action vocabulary."
+    },
+    "notebook_activity_object_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_run",
+        "notebook_kernel_session",
+        "notebook_output_block"
+      ],
+      "description": "Frozen notebook activity object-kind vocabulary."
+    },
+    "notebook_activity_outcome": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "recovered"
+      ],
+      "description": "Frozen notebook activity outcome vocabulary."
+    },
+    "notebook_activity_surface_class": {
+      "type": "string",
+      "enum": [
+        "activity_center"
+      ],
+      "description": "Frozen notebook activity surface-class vocabulary."
+    },
+    "notebook_activity_source_class": {
+      "type": "string",
+      "enum": [
+        "first_party_direct_observation",
+        "first_party_synthesized_summary",
+        "recovery_reconstructed"
+      ],
+      "description": "Frozen notebook activity source-class vocabulary."
+    },
+    "notebook_activity_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "fresh",
+        "cached",
+        "stale",
+        "expired",
+        "unknown"
+      ],
+      "description": "Frozen notebook activity freshness-class vocabulary."
+    },
+    "notebook_activity_follow_up_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "open",
+        "acknowledged",
+        "resolved",
+        "dismissed",
+        "snoozed",
+        "muted"
+      ],
+      "description": "Frozen notebook activity follow-up-state vocabulary."
+    },
+    "notebook_restore_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Frozen notebook restore-class vocabulary. Mirrors the session-restore vocabulary."
+    },
+    "notebook_restore_posture": {
+      "type": "string",
+      "enum": [
+        "transcript_restored",
+        "session_ended",
+        "reconnect_available",
+        "rerun_required",
+        "context_unavailable"
+      ],
+      "description": "Frozen notebook restore-posture vocabulary."
+    },
+    "notebook_task_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_activity_integration_schema_version",
+        "event_id",
+        "notebook_id_ref",
+        "cell_id_ref",
+        "cell_execution_id_ref",
+        "task_event_kind",
+        "task_state_class",
+        "execution_context_ref",
+        "occurred_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_task_event" },
+        "notebook_activity_integration_schema_version": { "$ref": "#/$defs/notebook_activity_integration_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "task_event_kind": { "$ref": "#/$defs/notebook_task_event_kind" },
+        "task_state_class": { "$ref": "#/$defs/notebook_task_state_class" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_activity_center_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_activity_integration_schema_version",
+        "row_id",
+        "notebook_id_ref",
+        "actor_kind",
+        "action",
+        "object_kind",
+        "outcome",
+        "occurred_at",
+        "surface_class",
+        "source_class",
+        "freshness_class",
+        "follow_up_state",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_activity_center_row" },
+        "notebook_activity_integration_schema_version": { "$ref": "#/$defs/notebook_activity_integration_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "actor_kind": { "$ref": "#/$defs/notebook_activity_actor_kind" },
+        "action": { "$ref": "#/$defs/notebook_activity_action" },
+        "object_kind": { "$ref": "#/$defs/notebook_activity_object_kind" },
+        "outcome": { "$ref": "#/$defs/notebook_activity_outcome" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "surface_class": { "$ref": "#/$defs/notebook_activity_surface_class" },
+        "source_class": { "$ref": "#/$defs/notebook_activity_source_class" },
+        "freshness_class": { "$ref": "#/$defs/notebook_activity_freshness_class" },
+        "follow_up_state": { "$ref": "#/$defs/notebook_activity_follow_up_state" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_restore_safe_history_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_activity_integration_schema_version",
+        "history_id",
+        "notebook_id_ref",
+        "restore_class",
+        "restore_posture",
+        "cell_execution_id_refs",
+        "document_restored_at",
+        "honest_state_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_restore_safe_history" },
+        "notebook_activity_integration_schema_version": { "$ref": "#/$defs/notebook_activity_integration_schema_version" },
+        "history_id": { "$ref": "#/$defs/opaque_id" },
+        "notebook_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "restore_class": { "$ref": "#/$defs/notebook_restore_class" },
+        "restore_posture": { "$ref": "#/$defs/notebook_restore_posture" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cell_execution_id_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "document_restored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "honest_state_label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_activity_integration_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "task_event_kinds",
+        "task_state_classes",
+        "activity_actor_kinds",
+        "activity_actions",
+        "activity_object_kinds",
+        "activity_outcomes",
+        "activity_surface_classes",
+        "activity_source_classes",
+        "activity_freshness_classes",
+        "activity_follow_up_states",
+        "restore_classes",
+        "restore_postures",
+        "example_task_events",
+        "example_activity_center_rows",
+        "example_restore_safe_histories"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_activity_integration_schema_version" },
+        "record_kind": { "const": "notebook_activity_integration_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "task_event_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_task_event_kind" }
+        },
+        "task_state_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_task_state_class" }
+        },
+        "activity_actor_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_actor_kind" }
+        },
+        "activity_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_action" }
+        },
+        "activity_object_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_object_kind" }
+        },
+        "activity_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_outcome" }
+        },
+        "activity_surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_surface_class" }
+        },
+        "activity_source_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_source_class" }
+        },
+        "activity_freshness_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_freshness_class" }
+        },
+        "activity_follow_up_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_follow_up_state" }
+        },
+        "restore_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_restore_class" }
+        },
+        "restore_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_restore_posture" }
+        },
+        "example_task_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_task_event_record" }
+        },
+        "example_activity_center_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_activity_center_row_record" }
+        },
+        "example_restore_safe_histories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_restore_safe_history_record" }
+        }
+      }
+    }
+  }
+}
