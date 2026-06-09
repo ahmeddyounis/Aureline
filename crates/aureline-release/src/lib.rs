@@ -214,6 +214,15 @@
 //! push-to-talk or explicit activation defaults, provider/privacy disclosure, bounded
 //! transcript handling, unavailable-state fallbacks, accessibility evidence, and command
 //! graph parity before any voice or dictation row can render as Stable.
+//! The publish-feature-scorecard-and-compatibility-packet-templates module is the
+//! template-governance layer for every M5 feature family: it publishes the canonical
+//! scorecard-template and compatibility-packet-template definitions that downstream
+//! scorecards and compatibility reports must follow, binds each family to its templates,
+//! tracks template-section publication state, and narrows any family whose templates are
+//! incomplete, stale, missing required sections, or lack owner sign-off — while the
+//! notebook/data-rich/ai-adjacent/framework/review/companion/managed-depth family kinds
+//! and the release-blocking family set both stay fully covered, so shiproom and release
+//! tooling can fail promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -242,6 +251,7 @@ pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
+pub mod publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family;
 pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
@@ -661,6 +671,18 @@ pub use freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph::{
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_PATH,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_RECORD_KIND,
     FREEZE_M5_FEATURE_TRAIN_MATRIX_SCORECARDS_AND_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+};
+
+pub use publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family::{
+    current_m5_template_register, CompatibilityPacketSectionKind, CompatibilityPacketTemplate,
+    CompatibilityPacketTemplateSection, M5FamilyKind, M5FamilyTemplateRow, M5TemplateRegister,
+    M5TemplateRegisterExportProjection, M5TemplateRegisterExportRow, M5TemplateRegisterSummary,
+    M5TemplateRegisterViolation, ScorecardSectionKind, ScorecardTemplate, ScorecardTemplateSection,
+    TemplateAction, TemplateGapReason, TemplateRegisterState, TemplateSectionState, TemplateStopRule,
+    PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_JSON,
+    PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_PATH,
+    PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_RECORD_KIND,
+    PUBLISH_FEATURE_SCORECARD_AND_COMPATIBILITY_PACKET_TEMPLATES_FOR_EVERY_M5_FAMILY_SCHEMA_VERSION,
 };
 
 pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::{
