@@ -39,6 +39,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state/`.
 //!
+//! The records under
+//! [`ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -59,6 +66,7 @@
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
+pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
 
 pub use runtime_truth::{
     CellExecutionDetailRow, CellExecutionFinding, CellExecutionOutcomeClass, CellExecutionRunScope,
@@ -100,4 +108,15 @@ pub use implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paire
     EXECUTION_LOCUS_CHIP_RECORD_KIND, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_JSON,
     NOTEBOOK_HEADER_KERNEL_BAR_PACKET_PATH, NOTEBOOK_HEADER_KERNEL_BAR_PACKET_RECORD_KIND,
     NOTEBOOK_HEADER_KERNEL_BAR_SCHEMA_VERSION, NOTEBOOK_HEADER_KERNEL_BAR_STATE_RECORD_KIND,
+};
+
+pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{
+    current_notebook_cell_chrome_packet, CellChromeActionClass, CellChromeFinding,
+    CellChromeStatusClass, DurableExecutionStateRow, DurableExecutionStateRowFinding,
+    NotebookCellChrome, NotebookCellChromeFinding, NotebookCellChromePacket,
+    NotebookCellChromePacketFinding, RunScopeControl, RunScopeControlFinding,
+    RunScopeControlLockReasonClass, NOTEBOOK_CELL_CHROME_PACKET_JSON,
+    NOTEBOOK_CELL_CHROME_PACKET_PATH, NOTEBOOK_CELL_CHROME_PACKET_RECORD_KIND,
+    NOTEBOOK_CELL_CHROME_RECORD_KIND, NOTEBOOK_CELL_CHROME_SCHEMA_VERSION,
+    DURABLE_EXECUTION_STATE_ROW_RECORD_KIND, RUN_SCOPE_CONTROL_RECORD_KIND,
 };

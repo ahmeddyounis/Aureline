@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows.schema.json",
+  "title": "Aureline notebook cell chrome, run-scope controls, and durable execution-state rows",
+  "description": "Boundary schema for the notebook cell chrome, run-scope controls, and durable execution-state rows. Every record that crosses this boundary (cell chrome, run-scope control, durable execution-state row, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_cell_chrome_record" },
+    { "$ref": "#/$defs/run_scope_control_record" },
+    { "$ref": "#/$defs/durable_execution_state_row_record" },
+    { "$ref": "#/$defs/notebook_cell_chrome_packet_record" }
+  ],
+  "$defs": {
+    "notebook_cell_chrome_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the cell-chrome record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, kernelspec, execution-context root, paired-text export, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "cell_execution_run_scope": {
+      "type": "string",
+      "enum": [
+        "current_session",
+        "prior_session",
+        "replay_from_captured_output",
+        "manual_user_action",
+        "queued_not_yet_started"
+      ],
+      "description": "Frozen cell-execution run-scope vocabulary. Mirrors the runtime-truth schema."
+    },
+    "cell_execution_outcome_class": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "errored",
+        "interrupted",
+        "cancelled",
+        "queued",
+        "skipped_no_kernel",
+        "skipped_by_policy"
+      ],
+      "description": "Frozen cell-execution outcome vocabulary. Mirrors the runtime-truth schema."
+    },
+    "output_trust_class": {
+      "type": "string",
+      "enum": [
+        "sanitized",
+        "sandboxed",
+        "trusted_active",
+        "stale"
+      ],
+      "description": "Frozen output-trust class vocabulary. Mirrors the runtime-truth schema."
+    },
+    "output_trust_stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "kernel_restarted_since_produce",
+        "kernel_lost_transport",
+        "document_trust_downgraded_since_produce",
+        "output_captured_from_prior_session",
+        "source_cell_edited_since_produce",
+        "orphaned_no_kernel_binding"
+      ],
+      "description": "Frozen stale-reason vocabulary. Mirrors the runtime-truth schema."
+    },
+    "cell_chrome_status_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "queued",
+        "executing",
+        "succeeded",
+        "errored",
+        "interrupted",
+        "cancelled",
+        "stale_output",
+        "no_kernel"
+      ],
+      "description": "Frozen cell-chrome status class. Distinguishes idle, queued, executing, terminal, stale, and no-kernel states."
+    },
+    "cell_chrome_action_class": {
+      "type": "string",
+      "enum": [
+        "run_cell",
+        "run_cell_and_advance",
+        "run_all_above",
+        "run_all_below",
+        "clear_output",
+        "toggle_collapse_output",
+        "toggle_fold_source",
+        "debug_cell",
+        "export_output"
+      ],
+      "description": "Frozen cell-chrome action class. Actions exposed on the cell chrome."
+    },
+    "run_scope_control_lock_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_locked",
+        "locked_by_policy",
+        "locked_during_execution",
+        "locked_replay_only_environment",
+        "locked_no_kernel"
+      ],
+      "description": "Frozen run-scope control lock-reason class. Why the scope is locked."
+    },
+    "notebook_cell_chrome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_cell_chrome_schema_version",
+        "chrome_state_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "cell_display_index",
+        "execution_badge_label",
+        "cell_status_class",
+        "run_scope_control",
+        "output_trust_class",
+        "available_actions",
+        "collapsed",
+        "selected",
+        "focused",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_cell_chrome" },
+        "notebook_cell_chrome_schema_version": { "$ref": "#/$defs/notebook_cell_chrome_schema_version" },
+        "chrome_state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_display_index": { "type": "integer", "minimum": 0 },
+        "execution_badge_label": { "type": "string", "minLength": 1 },
+        "cell_status_class": { "$ref": "#/$defs/cell_chrome_status_class" },
+        "run_scope_control": { "$ref": "#/$defs/run_scope_control_record" },
+        "output_trust_class": { "$ref": "#/$defs/output_trust_class" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cell_chrome_action_class" }
+        },
+        "collapsed": { "type": "boolean" },
+        "selected": { "type": "boolean" },
+        "focused": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "run_scope_control_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_cell_chrome_schema_version",
+        "control_id",
+        "document_id_ref",
+        "current_scope",
+        "available_scopes",
+        "scope_changeable",
+        "lock_reason_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_run_scope_control" },
+        "notebook_cell_chrome_schema_version": { "$ref": "#/$defs/notebook_cell_chrome_schema_version" },
+        "control_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_scope": { "$ref": "#/$defs/cell_execution_run_scope" },
+        "available_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/cell_execution_run_scope" }
+        },
+        "scope_changeable": { "type": "boolean" },
+        "lock_reason_class": { "$ref": "#/$defs/run_scope_control_lock_reason_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "durable_execution_state_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_cell_chrome_schema_version",
+        "row_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "cell_display_index",
+        "latest_execution_detail_row_ref",
+        "durable_outcome_class",
+        "durable_run_scope",
+        "output_count",
+        "stale_output",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_durable_execution_state_row" },
+        "notebook_cell_chrome_schema_version": { "$ref": "#/$defs/notebook_cell_chrome_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_display_index": { "type": "integer", "minimum": 0 },
+        "latest_execution_detail_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "durable_outcome_class": { "$ref": "#/$defs/cell_execution_outcome_class" },
+        "durable_run_scope": { "$ref": "#/$defs/cell_execution_run_scope" },
+        "output_count": { "type": "integer", "minimum": 0 },
+        "stale_output": { "type": "boolean" },
+        "stale_reason_class": { "$ref": "#/$defs/output_trust_stale_reason_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_cell_chrome_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "cell_chrome_status_classes",
+        "cell_chrome_action_classes",
+        "run_scope_control_lock_reason_classes",
+        "example_cell_chromes",
+        "example_run_scope_controls",
+        "example_durable_execution_state_rows",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_cell_chrome_schema_version" },
+        "record_kind": { "const": "notebook_cell_chrome_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "cell_chrome_status_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cell_chrome_status_class" },
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "cell_chrome_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cell_chrome_action_class" },
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "run_scope_control_lock_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_scope_control_lock_reason_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "example_cell_chromes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_cell_chrome_record" }
+        },
+        "example_run_scope_controls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_scope_control_record" }
+        },
+        "example_durable_execution_state_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/durable_execution_state_row_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
