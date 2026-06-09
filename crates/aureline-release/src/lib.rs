@@ -253,6 +253,7 @@ pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
 pub mod publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family;
 pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
+pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
@@ -696,6 +697,20 @@ pub use publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan::
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_PATH,
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_RECORD_KIND,
     PUBLISH_THE_M5_FEATURE_FAMILY_REGISTER_OWNER_MAP_AND_PROOF_CORPUS_PLAN_SCHEMA_VERSION,
+};
+
+pub use seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails::{
+    current_m5_health_bundle_matrix, CertifiedArchetypeKind, HealthBundle,
+    HealthBundleAction, HealthBundleGapReason, HealthBundleKind, HealthBundleRow,
+    HealthBundleRowState, M5HealthBundleMatrixViolation,
+    HealthIndicator, HealthIndicatorKind, HealthIndicatorState,
+    M5HealthBundleMatrix, M5HealthBundleMatrixExportProjection, M5HealthBundleMatrixExportRow,
+    M5HealthBundleMatrixSummary,
+    RegressionGuardrailRule,
+    SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_JSON,
+    SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_PATH,
+    SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_RECORD_KIND,
+    SEED_THE_M5_CERTIFIED_ARCHETYPE_HEALTH_BUNDLE_MATRIX_AND_REGRESSION_GUARDRAILS_SCHEMA_VERSION,
 };
 
 pub use stabilize_the_release_center_promotion_evidence_canary_pilot::{
