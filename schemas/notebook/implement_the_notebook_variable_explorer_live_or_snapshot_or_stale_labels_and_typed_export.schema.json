@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export.schema.json",
+  "title": "Aureline notebook variable explorer, live or snapshot or stale labels, and typed export",
+  "description": "Boundary schema for the notebook variable explorer and typed export. Every record that crosses this boundary (variable explorer state, typed export, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_variable_explorer_record" },
+    { "$ref": "#/$defs/variable_explorer_typed_export_record" },
+    { "$ref": "#/$defs/notebook_variable_explorer_packet_record" }
+  ],
+  "$defs": {
+    "notebook_variable_explorer_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the variable-explorer record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, output block, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "variable_explorer_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_from_current_session",
+        "snapshot_from_prior_session",
+        "stale_after_restart",
+        "imported_snapshot",
+        "no_live_variables_no_kernel"
+      ],
+      "description": "Frozen variable-explorer freshness class vocabulary. Mirrors the runtime-truth schema."
+    },
+    "variable_explorer_truncation_class": {
+      "type": "string",
+      "enum": [
+        "no_truncation",
+        "truncated_for_display",
+        "truncated_for_redaction",
+        "truncated_for_size",
+        "unsupported_type_no_preview"
+      ],
+      "description": "Frozen variable-explorer truncation class vocabulary. Mirrors the runtime-truth schema."
+    },
+    "variable_explorer_entry_action_class": {
+      "type": "string",
+      "enum": [
+        "open_live_viewer",
+        "open_snapshot_viewer",
+        "export_with_redaction",
+        "review_before_export",
+        "dismiss_from_explorer"
+      ],
+      "description": "Frozen variable-explorer entry action class vocabulary. Mirrors the runtime-truth schema."
+    },
+    "variable_explorer_sort_class": {
+      "type": "string",
+      "enum": [
+        "name_ascending",
+        "name_descending",
+        "type_ascending",
+        "type_descending",
+        "freshness_ascending",
+        "freshness_descending"
+      ],
+      "description": "Frozen sort-class vocabulary. Distinguishes name, type, and freshness sort orders."
+    },
+    "variable_explorer_filter_class": {
+      "type": "string",
+      "enum": [
+        "no_filter",
+        "live_only",
+        "snapshot_only",
+        "stale_only",
+        "by_type",
+        "by_name"
+      ],
+      "description": "Frozen filter-class vocabulary. Distinguishes unfiltered, live-only, snapshot-only, stale-only, by-type, and by-name filters."
+    },
+    "variable_explorer_export_format_class": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "json",
+        "tsv",
+        "python_dict",
+        "markdown_table"
+      ],
+      "description": "Frozen export-format vocabulary. Distinguishes CSV, JSON, TSV, Python dict, and Markdown table exports."
+    },
+    "variable_explorer_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "requires_review",
+        "blocked_by_policy",
+        "redaction_required"
+      ],
+      "description": "Frozen export-posture vocabulary. Distinguishes ready, review-required, policy-blocked, and redaction-required postures."
+    },
+    "variable_explorer_export_scope_class": {
+      "type": "string",
+      "enum": [
+        "all_visible",
+        "selected_only",
+        "current_session_only",
+        "snapshot_session_only"
+      ],
+      "description": "Frozen export-scope vocabulary. Distinguishes all-visible, selected-only, current-session-only, and snapshot-session-only scopes."
+    },
+    "variable_explorer_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "entry_id",
+        "document_id_ref",
+        "variable_handle_ref",
+        "display_name_label",
+        "type_descriptor_ref",
+        "freshness_class",
+        "truncation_class",
+        "available_actions",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_variable_explorer_entry_record" },
+        "notebook_runtime_truth_schema_version": { "type": "integer", "const": 1 },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "variable_handle_ref": { "$ref": "#/$defs/opaque_ref" },
+        "display_name_label": { "type": "string", "minLength": 1 },
+        "type_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "freshness_class": { "$ref": "#/$defs/variable_explorer_freshness_class" },
+        "truncation_class": { "$ref": "#/$defs/variable_explorer_truncation_class" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_entry_action_class" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_variable_explorer_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_variable_explorer_schema_version",
+        "explorer_state_id",
+        "document_id_ref",
+        "sort_class",
+        "filter_class",
+        "entry_count_visible",
+        "entry_count_total",
+        "has_more_entries",
+        "truncation_notice_visible",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_variable_explorer" },
+        "notebook_variable_explorer_schema_version": { "$ref": "#/$defs/notebook_variable_explorer_schema_version" },
+        "explorer_state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_entry_record" }
+        },
+        "sort_class": { "$ref": "#/$defs/variable_explorer_sort_class" },
+        "filter_class": { "$ref": "#/$defs/variable_explorer_filter_class" },
+        "search_query_label": { "type": "string", "minLength": 1 },
+        "entry_count_visible": { "type": "integer", "minimum": 0 },
+        "entry_count_total": { "type": "integer", "minimum": 0 },
+        "has_more_entries": { "type": "boolean" },
+        "truncation_notice_visible": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "variable_explorer_typed_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_variable_explorer_schema_version",
+        "export_id",
+        "document_id_ref",
+        "variable_handle_refs",
+        "export_format_class",
+        "export_posture_class",
+        "export_scope_class",
+        "redaction_required",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_variable_explorer_typed_export" },
+        "notebook_variable_explorer_schema_version": { "$ref": "#/$defs/notebook_variable_explorer_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "variable_handle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "minItems": 1
+        },
+        "export_format_class": { "$ref": "#/$defs/variable_explorer_export_format_class" },
+        "export_posture_class": { "$ref": "#/$defs/variable_explorer_export_posture_class" },
+        "export_scope_class": { "$ref": "#/$defs/variable_explorer_export_scope_class" },
+        "redaction_required": { "type": "boolean" },
+        "output_path_token_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_variable_explorer_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "sort_classes",
+        "filter_classes",
+        "export_format_classes",
+        "export_posture_classes",
+        "export_scope_classes",
+        "example_variable_explorers",
+        "example_typed_exports",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_variable_explorer_schema_version" },
+        "record_kind": { "const": "notebook_variable_explorer_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "sort_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_sort_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "filter_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_filter_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "export_format_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_export_format_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "export_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_export_posture_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "export_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_export_scope_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_variable_explorers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_variable_explorer_record" }
+        },
+        "example_typed_exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_typed_export_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

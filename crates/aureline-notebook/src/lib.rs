@@ -34,6 +34,14 @@
 //!    and [`KernelDiscoveryEntry`] candidates so the kernel-selection layer
 //!    never presents opaque or unvalidated kernel identities.
 //!
+//! 6. The [`implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export`]
+//!    module materializes the composed variable-explorer surface that the
+//!    notebook chrome consumes to render the variable panel, freshness labels,
+//!    truncation notices, and typed-export actions. It produces
+//!    [`NotebookVariableExplorer`] records and [`VariableExplorerTypedExport`]
+//!    records so the explorer never implies durable project facts and never
+//!    silently broadens capture on export.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -74,6 +82,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors/`.
 //!
+//! The records under
+//! [`implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -93,6 +108,7 @@
 
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
+pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
@@ -160,6 +176,18 @@ pub use materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_
     LARGE_OUTPUT_VIRTUALIZATION_RECORD_KIND, NOTEBOOK_OUTPUT_VIEWER_LANE_RECORD_KIND,
     NOTEBOOK_OUTPUT_VIEWER_PACKET_JSON, NOTEBOOK_OUTPUT_VIEWER_PACKET_PATH,
     NOTEBOOK_OUTPUT_VIEWER_PACKET_RECORD_KIND, NOTEBOOK_OUTPUT_VIEWER_SCHEMA_VERSION,
+};
+
+pub use implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export::{
+    current_notebook_variable_explorer_packet, NotebookVariableExplorer,
+    NotebookVariableExplorerPacket, NotebookVariableExplorerPacketFinding,
+    VariableExplorerExportFormatClass, VariableExplorerExportPostureClass,
+    VariableExplorerExportScopeClass, VariableExplorerFilterClass,
+    VariableExplorerFinding, VariableExplorerSortClass, VariableExplorerTypedExport,
+    VariableExplorerTypedExportFinding,
+    NOTEBOOK_VARIABLE_EXPLORER_PACKET_JSON, NOTEBOOK_VARIABLE_EXPLORER_PACKET_PATH,
+    NOTEBOOK_VARIABLE_EXPLORER_PACKET_RECORD_KIND, NOTEBOOK_VARIABLE_EXPLORER_RECORD_KIND,
+    NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION, VARIABLE_EXPLORER_TYPED_EXPORT_RECORD_KIND,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{
