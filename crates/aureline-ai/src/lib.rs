@@ -61,6 +61,12 @@
 //! object binding structured diff packets, validation receipts, and rollback
 //! handles into one export-safe artifact for inline assist, patch review, and
 //! branch or worktree agent apply flows.
+//! The branch or worktree agent lifecycle lane exposes one
+//! [`implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff::BranchWorktreeAgentLifecyclePacket`]
+//! object binding an isolation-bound agent run lifecycle, the side-branch review
+//! pack it produces, and the human-gated merge-back handoff that lands the work
+//! without ever letting the agent self-merge or self-push to a protected
+//! destination.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -93,6 +99,7 @@ pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
 pub mod freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents;
 pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
+pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
@@ -248,6 +255,19 @@ pub use implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
     RICHER_PROMPT_COMPOSER_FIXTURE_DIR, RICHER_PROMPT_COMPOSER_RECORD_KIND,
     RICHER_PROMPT_COMPOSER_SCHEMA_REF, RICHER_PROMPT_COMPOSER_SCHEMA_VERSION,
     RICHER_PROMPT_COMPOSER_STABLE_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_SUMMARY_REF,
+};
+pub use implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff::{
+    current_stable_branch_worktree_agent_lifecycle_export, AgentLifecycleBlock, AgentLifecycleStage,
+    AgentLifecycleStageRow, BranchWorktreeAgentLifecycleArtifactError,
+    BranchWorktreeAgentLifecyclePacket, BranchWorktreeAgentLifecyclePacketInput,
+    BranchWorktreeAgentLifecycleViolation, ConsumerSurfaceParityRow as BranchAgentConsumerSurfaceParityRow,
+    DowngradeTrigger as BranchAgentLifecycleDowngradeTrigger, MergeBackAction, MergeBackHandoffBlock,
+    MergeBackState, ReviewFindingSeverity, ReviewPackFindingRow, SideBranchReviewPackBlock,
+    BRANCH_WORKTREE_AGENT_LIFECYCLE_ARTIFACT_REF, BRANCH_WORKTREE_AGENT_LIFECYCLE_BASE_CONTRACT_REF,
+    BRANCH_WORKTREE_AGENT_LIFECYCLE_DOC_REF, BRANCH_WORKTREE_AGENT_LIFECYCLE_EVIDENCE_CONTRACT_REF,
+    BRANCH_WORKTREE_AGENT_LIFECYCLE_FIXTURE_DIR, BRANCH_WORKTREE_AGENT_LIFECYCLE_M5_MATRIX_CONTRACT_REF,
+    BRANCH_WORKTREE_AGENT_LIFECYCLE_RECORD_KIND, BRANCH_WORKTREE_AGENT_LIFECYCLE_SCHEMA_REF,
+    BRANCH_WORKTREE_AGENT_LIFECYCLE_SCHEMA_VERSION, BRANCH_WORKTREE_AGENT_LIFECYCLE_SUMMARY_REF,
 };
 pub use graduation::{
     current_beta_graduation_packet_artifacts, current_beta_graduation_state,

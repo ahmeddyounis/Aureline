@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-branch-or-worktree-agent-lifecycle-side-branch-review-packs-and-merge-back-handoff.schema.json",
+  "title": "Aureline branch or worktree agent lifecycle, side-branch review packs, and merge-back handoff",
+  "$comment": "Rust owner: aureline_ai::implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff::BranchWorktreeAgentLifecyclePacket.",
+  "description": "Boundary schema for the metadata-only branch or worktree agent lifecycle record. The packet binds an isolation-bound agent run lifecycle (one execution locus plus a stage timeline where every mutating stage carries preview, approval, and checkpoint evidence and never writes outside its admitted isolation), the side-branch review pack it produces (diff packet, validation receipt, rollback handle, and evidence refs into the evidence-rich patch review lane plus disclosed findings), and the human-gated merge-back handoff that lands the work (the agent never self-merges or self-pushes to a protected destination; merge requires human approval; reviewable artifacts survive cleanup). It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw branch names, raw worktree paths, raw diff bodies, raw patch text, raw logs, raw prompt bodies, source file bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "agent_run_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "lifecycle",
+    "review_pack",
+    "merge_back",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "branch_worktree_agent_lifecycle_implementation" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "agent_run_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "lifecycle": { "$ref": "#/$defs/agent_lifecycle_block" },
+    "review_pack": { "$ref": "#/$defs/side_branch_review_pack_block" },
+    "merge_back": { "$ref": "#/$defs/merge_back_handoff_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "agent_lifecycle_stage": {
+      "type": "string",
+      "enum": [
+        "launch_review",
+        "planning",
+        "isolated_editing",
+        "validating",
+        "awaiting_approval",
+        "review_ready",
+        "merge_back_handoff",
+        "completed",
+        "re_review_required",
+        "cancelled",
+        "failed"
+      ],
+      "description": "Stage in the branch or worktree agent run lifecycle."
+    },
+    "execution_locus": {
+      "type": "string",
+      "enum": [
+        "local_only_current_worktree_assist",
+        "isolated_side_worktree",
+        "side_branch_no_worktree",
+        "ephemeral_workspace",
+        "managed_remote_workspace"
+      ],
+      "description": "Execution locus where the branch-agent run is admitted to operate. Reused from the background branch-agent lifecycle lane."
+    },
+    "operator_action": {
+      "type": "string",
+      "enum": [
+        "pause",
+        "cancel",
+        "open_review",
+        "take_over_manually",
+        "compare_to_base",
+        "cherry_pick",
+        "rerun_validation",
+        "discard_branch",
+        "resume_from_checkpoint"
+      ],
+      "description": "Controlled operator action. Reused from the background branch-agent lifecycle lane."
+    },
+    "review_finding_severity": {
+      "type": "string",
+      "enum": ["blocker", "major", "minor", "info"],
+      "description": "Severity class for a side-branch review-pack finding."
+    },
+    "merge_back_state": {
+      "type": "string",
+      "enum": ["pending_review", "ready_for_human_merge", "merged_by_human", "discarded", "blocked"],
+      "description": "State of the merge-back handoff. There is no agent-driven merge state: only a human lands the change."
+    },
+    "merge_back_action": {
+      "type": "string",
+      "enum": [
+        "compare_to_base",
+        "cherry_pick",
+        "open_pull_request",
+        "request_human_review",
+        "rerun_validation",
+        "discard_branch"
+      ],
+      "description": "Operator action offered on the merge-back handoff."
+    },
+    "cleanup_disposition": {
+      "type": "string",
+      "enum": [
+        "retain_for_review",
+        "preview_delete_available",
+        "discarded_after_evidence_retention",
+        "retention_blocked"
+      ],
+      "description": "Cleanup disposition for the side branch/worktree. Reused from the background branch-agent lifecycle lane."
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_agent_workspace",
+        "desktop_review_workspace",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this lane."
+    },
+    "surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "isolation_breach",
+        "review_pack_missing",
+        "merge_back_unapproved"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "agent_lifecycle_stage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "checkpoint_ref",
+        "preview_shown",
+        "approval_required",
+        "approval_granted",
+        "review_artifacts_preserved",
+        "mutated_outside_isolation",
+        "operator_actions"
+      ],
+      "properties": {
+        "stage": { "$ref": "#/$defs/agent_lifecycle_stage" },
+        "checkpoint_ref": { "type": "string", "minLength": 1 },
+        "preview_shown": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "approval_granted": { "type": "boolean" },
+        "review_artifacts_preserved": { "type": "boolean" },
+        "mutated_outside_isolation": { "type": "boolean" },
+        "operator_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/operator_action" }
+        }
+      }
+    },
+    "agent_lifecycle_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_locus",
+        "current_stage",
+        "base_ref",
+        "branch_identity_ref",
+        "launch_review_disclosed",
+        "isolation_verified",
+        "automation_bounded_by_stop_conditions",
+        "stage_rows"
+      ],
+      "properties": {
+        "execution_locus": { "$ref": "#/$defs/execution_locus" },
+        "current_stage": { "$ref": "#/$defs/agent_lifecycle_stage" },
+        "base_ref": { "type": "string", "minLength": 1 },
+        "branch_identity_ref": { "type": "string", "minLength": 1 },
+        "worktree_identity_ref": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "launch_review_disclosed": { "type": "boolean" },
+        "isolation_verified": { "type": "boolean" },
+        "automation_bounded_by_stop_conditions": { "type": "boolean" },
+        "stage_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/agent_lifecycle_stage_row" }
+        }
+      }
+    },
+    "review_pack_finding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_id", "severity", "file_ref", "disclosed_in_pack", "resolved"],
+      "properties": {
+        "finding_id": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/review_finding_severity" },
+        "file_ref": { "type": "string", "minLength": 1 },
+        "disclosed_in_pack": { "type": "boolean" },
+        "resolved": { "type": "boolean" }
+      }
+    },
+    "side_branch_review_pack_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "base_ref",
+        "head_ref",
+        "diff_packet_ref",
+        "validation_receipt_ref",
+        "rollback_handle_ref",
+        "evidence_packet_ref",
+        "finding_rows",
+        "compare_to_base_available",
+        "produced_in_isolation",
+        "review_required_before_merge"
+      ],
+      "properties": {
+        "pack_id": { "type": "string", "minLength": 1 },
+        "base_ref": { "type": "string", "minLength": 1 },
+        "head_ref": { "type": "string", "minLength": 1 },
+        "diff_packet_ref": { "type": "string", "minLength": 1, "description": "Ref into the evidence-rich patch review lane. Never a raw diff body." },
+        "validation_receipt_ref": { "type": "string", "minLength": 1 },
+        "rollback_handle_ref": { "type": "string", "minLength": 1 },
+        "evidence_packet_ref": { "type": "string", "minLength": 1 },
+        "finding_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_pack_finding_row" }
+        },
+        "compare_to_base_available": { "type": "boolean" },
+        "produced_in_isolation": { "type": "boolean" },
+        "review_required_before_merge": { "type": "boolean" }
+      }
+    },
+    "merge_back_handoff_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "state",
+        "destination_ref",
+        "destination_protected",
+        "requires_human_approval",
+        "human_approval_granted",
+        "self_merge_forbidden",
+        "protected_destination_self_push_forbidden",
+        "available_actions",
+        "cleanup_disposition",
+        "review_artifacts_survive_cleanup"
+      ],
+      "properties": {
+        "handoff_id": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/merge_back_state" },
+        "destination_ref": { "type": "string", "minLength": 1 },
+        "destination_protected": { "type": "boolean" },
+        "requires_human_approval": { "type": "boolean" },
+        "human_approval_granted": { "type": "boolean" },
+        "self_merge_forbidden": { "type": "boolean" },
+        "protected_destination_self_push_forbidden": { "type": "boolean" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/merge_back_action" }
+        },
+        "cleanup_disposition": { "$ref": "#/$defs/cleanup_disposition" },
+        "review_artifacts_survive_cleanup": { "type": "boolean" }
+      }
+    },
+    "consumer_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_lifecycle",
+        "shows_review_pack",
+        "shows_merge_back_handoff",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface_class" },
+        "shows_lifecycle": { "type": "boolean" },
+        "shows_review_pack": { "type": "boolean" },
+        "shows_merge_back_handoff": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}
