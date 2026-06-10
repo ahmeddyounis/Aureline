@@ -1,0 +1,467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/implement-durable-review-workspace-headers-local-ci-parity-and-stable-anchor-rehydration.schema.json",
+  "title": "Aureline durable review-workspace headers, local-CI parity, and stable anchor rehydration",
+  "description": "Export-safe packet implementing three review-lane pillars for a local review workspace: durable review-workspace headers that carry target identity, durable anchor id, base freshness, and approval state; local-CI parity that labels how local check results line up with the CI expectation they mirror; and stable anchor rehydration that relabels drift after edits, rebases, reopens, base changes, and external syncs rather than silently dropping anchors. The packet binds headers, parity lanes, rehydration events, downgrade triggers, consumer surfaces, trust review, consumer projection, and proof freshness. Raw diff bodies, raw build logs, raw pipeline artifacts, raw provider payloads, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "headers",
+    "parity_lanes",
+    "rehydration_events",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "durable_review_header_local_ci_parity_and_anchor_rehydration"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "headers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/header_row"
+      }
+    },
+    "parity_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/parity_lane_row"
+      }
+    },
+    "rehydration_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rehydration_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_base",
+        "outdated_diff",
+        "diverged",
+        "unknown"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "not_reviewed",
+        "approved",
+        "changes_requested",
+        "reset_on_base_change"
+      ]
+    },
+    "rehydration_state": {
+      "type": "string",
+      "enum": [
+        "rehydrated_exact",
+        "rehydrated_shifted",
+        "drifted_relabeled",
+        "orphaned_flagged",
+        "pending"
+      ]
+    },
+    "mutation_authority": {
+      "type": "string",
+      "enum": [
+        "read_only_no_mutation",
+        "attributable_write"
+      ]
+    },
+    "parity_verdict": {
+      "type": "string",
+      "enum": [
+        "parity_match",
+        "local_only_advisory",
+        "divergence_labeled",
+        "unavailable_offline"
+      ]
+    },
+    "check_enforcement": {
+      "type": "string",
+      "enum": [
+        "required",
+        "advisory",
+        "informational"
+      ]
+    },
+    "rehydration_trigger": {
+      "type": "string",
+      "enum": [
+        "edit",
+        "rebase",
+        "reopen",
+        "base_change",
+        "external_sync"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "anchor_drift",
+        "parity_divergence_unlabeled",
+        "stale_base_unlabeled",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_header",
+        "merge_queue_panel",
+        "pipeline_viewer",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "header_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header_id",
+        "target_identity_label",
+        "durable_anchor_id",
+        "base_freshness",
+        "approval_state",
+        "mutation_authority",
+        "header_fields_shown",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "header_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_identity_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "durable_anchor_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "base_freshness": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "approval_state": {
+          "$ref": "#/$defs/approval_state"
+        },
+        "mutation_authority": {
+          "$ref": "#/$defs/mutation_authority"
+        },
+        "header_fields_shown": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "parity_lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "enforcement",
+        "verdict",
+        "local_result_label",
+        "ci_expectation_label",
+        "divergence_label"
+      ],
+      "properties": {
+        "check_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "enforcement": {
+          "$ref": "#/$defs/check_enforcement"
+        },
+        "verdict": {
+          "$ref": "#/$defs/parity_verdict"
+        },
+        "local_result_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "ci_expectation_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "divergence_label": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "divergence_labeled"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "divergence_label": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rehydration_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "trigger",
+        "resulting_state",
+        "drift_label"
+      ],
+      "properties": {
+        "anchor_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "trigger": {
+          "$ref": "#/$defs/rehydration_trigger"
+        },
+        "resulting_state": {
+          "$ref": "#/$defs/rehydration_state"
+        },
+        "drift_label": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resulting_state": {
+                "enum": [
+                  "drifted_relabeled",
+                  "orphaned_flagged"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "drift_label": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchors_rehydrate_durably",
+        "anchor_drift_labeled_not_hidden",
+        "stale_base_labeled_explicit",
+        "approval_resets_on_base_change",
+        "local_ci_parity_explicit",
+        "divergence_labeled_not_hidden",
+        "target_identity_explicit",
+        "no_hidden_write_scope",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "anchors_rehydrate_durably": {
+          "type": "boolean",
+          "const": true
+        },
+        "anchor_drift_labeled_not_hidden": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_base_labeled_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "approval_resets_on_base_change": {
+          "type": "boolean",
+          "const": true
+        },
+        "local_ci_parity_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "divergence_labeled_not_hidden": {
+          "type": "boolean",
+          "const": true
+        },
+        "target_identity_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_hidden_write_scope": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header_shows_anchor_and_target_identity",
+        "header_shows_base_freshness",
+        "header_shows_approval_state",
+        "parity_shows_local_vs_ci_verdict",
+        "rehydration_shows_drift_label",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "preview_labs_label_for_unqualified"
+      ],
+      "properties": {
+        "header_shows_anchor_and_target_identity": {
+          "type": "boolean",
+          "const": true
+        },
+        "header_shows_base_freshness": {
+          "type": "boolean",
+          "const": true
+        },
+        "header_shows_approval_state": {
+          "type": "boolean",
+          "const": true
+        },
+        "parity_shows_local_vs_ci_verdict": {
+          "type": "boolean",
+          "const": true
+        },
+        "rehydration_shows_drift_label": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "diagnostics_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "preview_labs_label_for_unqualified": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -21,6 +21,7 @@ pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
+pub mod implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration;
 pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
@@ -185,6 +186,20 @@ pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
     REWRITE_FLOW_INSPECTION_RECORD_KIND, REWRITE_FLOW_INVALIDATION_REASONS,
     REWRITE_FLOW_OPERATION_KINDS, REWRITE_FLOW_RECORD_KIND, REWRITE_FLOW_STATES,
     REWRITE_FLOW_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+};
+pub use implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration::{
+    current_durable_review_header_export, AnchorRehydrationRow, AnchorRehydrationState,
+    CheckEnforcementClass, DurableReviewHeaderArtifactError, DurableReviewHeaderConsumerProjection,
+    DurableReviewHeaderConsumerSurface, DurableReviewHeaderDowngradeTrigger, DurableReviewHeaderPacket,
+    DurableReviewHeaderPacketInput, DurableReviewHeaderProofFreshness, DurableReviewHeaderRow,
+    DurableReviewHeaderTrustReview, DurableReviewHeaderViolation, HeaderFreshnessClass,
+    LocalCiParityLaneRow, LocalCiParityVerdict, MutationAuthorityClass, RehydrationTrigger,
+    ReviewApprovalState, DURABLE_REVIEW_HEADER_ANCHOR_STABILITY_CONTRACT_REF,
+    DURABLE_REVIEW_HEADER_ARTIFACT_REF, DURABLE_REVIEW_HEADER_DOC_REF,
+    DURABLE_REVIEW_HEADER_FIXTURE_DIR, DURABLE_REVIEW_HEADER_PIPELINE_RUN_CONTRACT_REF,
+    DURABLE_REVIEW_HEADER_RECORD_KIND, DURABLE_REVIEW_HEADER_REVIEW_PACK_CONTRACT_REF,
+    DURABLE_REVIEW_HEADER_REVIEW_WORKSPACE_CONTRACT_REF, DURABLE_REVIEW_HEADER_SCHEMA_REF,
+    DURABLE_REVIEW_HEADER_SCHEMA_VERSION, DURABLE_REVIEW_HEADER_SUMMARY_REF,
 };
 pub use infrastructure_intelligence::{
     project_infrastructure_relationships_for_review, InfrastructureIntelligenceAlphaPage,
