@@ -87,6 +87,7 @@ pub mod evidence;
 pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
 pub mod freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents;
+pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
@@ -228,6 +229,19 @@ pub use freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_bran
     M5_AI_WORKFLOW_MATRIX_PATCH_REVIEW_CONTRACT_REF, M5_AI_WORKFLOW_MATRIX_PATCH_SEQUENCE_REF,
     M5_AI_WORKFLOW_MATRIX_RECORD_KIND, M5_AI_WORKFLOW_MATRIX_SCHEMA_REF,
     M5_AI_WORKFLOW_MATRIX_SCHEMA_VERSION, M5_AI_WORKFLOW_MATRIX_SUMMARY_REF,
+};
+pub use implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru::{
+    current_richer_prompt_composer_export, AttachmentProvenanceClass, AttachmentSemanticRoleClass,
+    ExclusionFreshnessClass, IntentModeBehaviorConstraint, OmittedContextRestorationClass,
+    PinAutoRefreshClass, PinPolicyClass, RicherAttachmentRow, RicherBudgetDecisionRow,
+    RicherBudgetStrip, RicherOmittedContextRow, RicherPinnedContextRow, RicherPromptComposerArtifactError,
+    RicherPromptComposerInput, RicherPromptComposerPacket, RicherPromptComposerViolation,
+    RicherSurfaceConsistencyRow, RicherThreadHeader, RicherIntentModeRow,
+    RICHER_PROMPT_COMPOSER_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_BASE_CONTRACT_REF,
+    RICHER_PROMPT_COMPOSER_BETA_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_DOC_REF,
+    RICHER_PROMPT_COMPOSER_FIXTURE_DIR, RICHER_PROMPT_COMPOSER_RECORD_KIND,
+    RICHER_PROMPT_COMPOSER_SCHEMA_REF, RICHER_PROMPT_COMPOSER_SCHEMA_VERSION,
+    RICHER_PROMPT_COMPOSER_STABLE_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_SUMMARY_REF,
 };
 pub use graduation::{
     current_beta_graduation_packet_artifacts, current_beta_graduation_state,
