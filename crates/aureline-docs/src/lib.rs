@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
+pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
 pub mod citations;
 pub mod docs_browser_truth_packet;
 pub mod docs_maintenance_and_stale_example_governance;
@@ -25,6 +26,24 @@ pub mod semantic_recall_boundary_truth_packet;
 pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links;
 pub mod stable_docs_contract;
 
+pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels::{
+    current_stable_codebase_understanding_cards_export,
+    packet_to_input as codebase_understanding_cards_packet_to_input,
+    seeded_stable_codebase_understanding_cards_input, CardEvidence, CardProvenance,
+    CodebaseUnderstandingCardsArtifactError, CodebaseUnderstandingCardsPacket,
+    CodebaseUnderstandingCardsPacketInput, CodebaseUnderstandingCardsSupportExport,
+    EvidenceDerivation, EvidenceExportRow, EvidenceExportScope, EvidenceSubjectKind, OwnerRef,
+    OwnershipBasis, TopologyEdgeKind, TopologyEdgeRef, UnderstandingCard, UnderstandingCardKind,
+    UnderstandingChipSet, UnderstandingConfidence, UnderstandingConsumerProjection,
+    UnderstandingConsumerSurface, UnderstandingDegradation, UnderstandingDegradationClass,
+    UnderstandingEvidenceExport, UnderstandingFindingKind, UnderstandingFindingSeverity,
+    UnderstandingFreshness, UnderstandingLocality, UnderstandingPromotionState,
+    UnderstandingSourceClass, UnderstandingValidationFinding, UnderstandingVersionMatch,
+    UNDERSTANDING_CARDS_ARTIFACT_REF, UNDERSTANDING_CARDS_DOC_REF, UNDERSTANDING_CARDS_FIXTURE_DIR,
+    UNDERSTANDING_CARDS_RECORD_KIND, UNDERSTANDING_CARDS_SCHEMA_REF,
+    UNDERSTANDING_CARDS_SCHEMA_VERSION, UNDERSTANDING_CARDS_SUMMARY_REF,
+    UNDERSTANDING_CARDS_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
     CitationConfidenceClass, CitationDrawerEvidenceView, CitationDrawerEvidenceViewInput,
