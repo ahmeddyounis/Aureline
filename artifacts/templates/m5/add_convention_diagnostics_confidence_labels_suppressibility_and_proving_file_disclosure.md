@@ -1,0 +1,57 @@
+# Convention Diagnostics with Confidence Labels, Suppressibility, and Proving-File Disclosure
+
+- Packet: `convention-diagnostic:stable:0001`
+- Label: `Convention Diagnostics with Confidence Labels, Suppressibility, and Proving-File Disclosure`
+- Rows: 6 (2 admitted for display)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-08T00:00:00Z)
+
+## Rows
+
+- **Controller file location** `rule:framework_pack/controllers/file_location` (file_location): exact / exactly_modeled
+  - Message: Controllers are expected under the managed controllers directory; this file matches the convention exactly
+  - Confidence: Proven exactly from the framework-pack convention manifest; the expected location is declared, not inferred (exact)
+  - Freshness chip: analyzed · fresh (fresh)
+  - Suppression: Hard framework requirement; cannot be suppressed because the pack relies on the managed location (not_suppressible)
+  - Proving file: Grounded by the convention manifest entry that declares the expected controllers directory (proving_manifest_disclosed)
+  - Banner: no_banner
+  - Displayed: true
+- **Model type naming** `rule:framework_pack/models/type_naming` (naming_convention): high / exactly_modeled
+  - Message: Model types are expected in PascalCase singular; this type matches with high confidence
+  - Confidence: Strong static evidence from the analyzed type declaration; high but not manifest-exact (high)
+  - Freshness chip: analyzed · fresh (fresh)
+  - Suppression: May be suppressed per-file or per-project; currently active and shown (suppressible)
+  - Proving file: Grounded by the analyzed model type declaration that the convention matches (proving_file_disclosed)
+  - Banner: no_banner
+  - Displayed: true
+- **Legacy payment API usage** `rule:framework_pack/api/payment_usage` (api_usage_convention): heuristic / heuristic_mapping
+  - Message: This call may use a deprecated payment API; the match is inferred from naming and call shape, not modeled exactly
+  - Confidence: Inferred from naming and call-shape conventions only; this is a heuristic match, not exact modeling, and is disclosed by the confidence banner (heuristic)
+  - Freshness chip: analyzed · aging (aging)
+  - Suppression: May be suppressed per-file or per-project; held from confident display while heuristic (suppressible)
+  - Proving file: Grounded by the analyzed call site, but the deprecation match itself is heuristic (proving_file_disclosed)
+  - Banner: support_class_banner
+  - Displayed: false
+- **Route registration** `rule:framework_pack/routes/registration` (required_registration): high / exactly_modeled
+  - Message: A handler is expected to be registered in the router; the user has suppressed this diagnostic for this route
+  - Confidence: Strong static evidence the handler is unregistered; high confidence, but the user has chosen to suppress the diagnostic (high)
+  - Freshness chip: analyzed · fresh (fresh)
+  - Suppression: Suppressed by an explicit user action for this route; labeled as suppressed rather than silently hidden (suppressed_by_user)
+  - Proving file: Grounded by the router module that lacks the expected registration (proving_file_disclosed)
+  - Banner: no_banner
+  - Displayed: false
+- **Database config convention** `rule:framework_pack/config/database` (config_convention): confidence_unknown / support_unknown
+  - Message: A config convention was asserted, but the proving file could not be disclosed, so the diagnostic is blocked rather than presented
+  - Confidence: Confidence could not be determined because no proving file is available; the diagnostic is labeled unknown and blocked (confidence_unknown)
+  - Freshness chip: analyzed · fresh (fresh)
+  - Suppression: May be suppressed per-project, but is blocked from confident display while no proving file is available (suppressible)
+  - Proving file: No proving file or manifest could be disclosed for this convention; the diagnostic is held from any confident claim (proving_file_unavailable)
+  - Banner: proving_file_unavailable_banner
+  - Displayed: false
+- **Helper naming (bridged)** `rule:framework_pack/helpers/naming_bridge` (naming_convention): low / bridge_behavior
+  - Message: A naming concern bridged from an external linter; bridge behavior is disclosed and held from exact first-party truth
+  - Confidence: Low confidence: the finding is bridged from an external linter rather than modeled natively, and is disclosed by the support-class banner (low)
+  - Freshness chip: analyzed · rescan available (rescan_available)
+  - Suppression: May be suppressed per-file or per-project; held from confident display while bridged (suppressible)
+  - Proving file: Grounded by the bridged finding's reported location, but the finding is bridged, not modeled (proving_file_disclosed)
+  - Banner: support_class_banner
+  - Displayed: false

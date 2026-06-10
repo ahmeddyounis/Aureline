@@ -30,7 +30,16 @@
 //! the route explorer, component tree, app-topology view, diff-review, run,
 //! diagnostics, and support surfaces never present heuristic, bridged, or
 //! runtime-observed structure as exact authored or generated source truth.
+//!
+//! It also owns the convention-diagnostic packet, which binds each framework-pack
+//! convention diagnostic to its confidence label, analysis freshness, whether and
+//! how it may be suppressed, the proving file or manifest that grounds it, its
+//! support class, and its downgrade banner, so the editor diagnostics, problems
+//! panel, diff-review, run, diagnostics, and support surfaces never present a
+//! heuristic, bridged, or ungrounded convention as exact first-party truth, and a
+//! suppressed or blocked diagnostic is labeled rather than silently hidden.
 
+pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
