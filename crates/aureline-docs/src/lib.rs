@@ -15,6 +15,7 @@ pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
+pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
 pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings;
 pub mod index;
 pub mod locale_overlay;
@@ -108,6 +109,24 @@ pub use freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retr
     M5_DOCS_RECALL_MATRIX_RECORD_KIND, M5_DOCS_RECALL_MATRIX_RETRIEVAL_DEBUG_CONTRACT_REF,
     M5_DOCS_RECALL_MATRIX_SCHEMA_REF, M5_DOCS_RECALL_MATRIX_SCHEMA_VERSION,
     M5_DOCS_RECALL_MATRIX_SUMMARY_REF,
+};
+pub use implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export::{
+    current_stable_semantic_recall_ledger_export,
+    packet_to_input as semantic_recall_ledger_packet_to_input,
+    seeded_stable_semantic_recall_ledger_input, DerivationClass, ProvenanceExportScope,
+    QueryRefinementRelation, RankingSignal, RankingSignalKind, RecallDegradation,
+    RecallDegradationClass, ResultProvenance, SemanticRecallChipSet, SemanticRecallConfidence,
+    SemanticRecallConsumerProjection, SemanticRecallConsumerSurface, SemanticRecallFindingKind,
+    SemanticRecallFindingSeverity, SemanticRecallFreshness, SemanticRecallLedgerArtifactError,
+    SemanticRecallLedgerEntry, SemanticRecallLedgerPacket, SemanticRecallLedgerPacketInput,
+    SemanticRecallLedgerSupportExport, SemanticRecallLocality, SemanticRecallPromotionState,
+    SemanticRecallProvenanceExport, SemanticRecallProvenanceRow, SemanticRecallQuerySessionLedger,
+    SemanticRecallResultRow, SemanticRecallSourceClass, SemanticRecallSubjectKind,
+    SemanticRecallSubjectScope, SemanticRecallValidationFinding, SemanticRecallVersionMatch,
+    SignalContributionClass, SEMANTIC_RECALL_LEDGER_ARTIFACT_REF, SEMANTIC_RECALL_LEDGER_DOC_REF,
+    SEMANTIC_RECALL_LEDGER_FIXTURE_DIR, SEMANTIC_RECALL_LEDGER_RECORD_KIND,
+    SEMANTIC_RECALL_LEDGER_SCHEMA_REF, SEMANTIC_RECALL_LEDGER_SCHEMA_VERSION,
+    SEMANTIC_RECALL_LEDGER_SUMMARY_REF, SEMANTIC_RECALL_LEDGER_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings::{
     current_stable_docs_pack_recall_export, packet_to_input,
