@@ -27,6 +27,7 @@ pub mod landing;
 pub mod review_pack_dsl;
 pub mod review_pack_evaluator_and_local_ci_parity;
 pub mod review_pack_parity_harness;
+pub mod ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
 pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
@@ -265,6 +266,18 @@ pub use review_pack_parity_harness::{
     REVIEW_PACK_PARITY_HARNESS_OVERALL_VERDICT_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_ROW_DOWNGRADE_CLASSES,
+};
+pub use ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects::{
+    current_evidence_card_export, EvidenceCardArtifactError, EvidenceCardConsumerProjection,
+    EvidenceCardConsumerSurface, EvidenceCardDowngradeTrigger, EvidenceCardEvidenceRow,
+    EvidenceCardFindingRow, EvidenceCardPacket, EvidenceCardPacketInput, EvidenceCardProofFreshness,
+    EvidenceCardReviewPackBindingRow, EvidenceCardTrustReview, EvidenceCardViolation,
+    EvidenceFreshnessClass, EvidenceSourceClass, FindingApplyPosture, FindingSeverityClass,
+    FindingStatusClass, ReviewPackBindingState, ReviewPackCheckCoverage,
+    EVIDENCE_CARD_AI_EVIDENCE_CONTRACT_REF, EVIDENCE_CARD_ARTIFACT_REF,
+    EVIDENCE_CARD_CHANGE_OBJECT_CONTRACT_REF, EVIDENCE_CARD_DOC_REF, EVIDENCE_CARD_FIXTURE_DIR,
+    EVIDENCE_CARD_RECORD_KIND, EVIDENCE_CARD_REVIEW_PACK_CONTRACT_REF, EVIDENCE_CARD_SCHEMA_REF,
+    EVIDENCE_CARD_SCHEMA_VERSION, EVIDENCE_CARD_SUMMARY_REF,
 };
 pub use stabilize_provider_linked_object_models_snapshot_freshness_and::{
     project_provider_linked_review_stabilization_packet, ActorTargetIdentityInput,
