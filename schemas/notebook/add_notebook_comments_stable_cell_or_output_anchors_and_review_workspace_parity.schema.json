@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity.schema.json",
+  "title": "Aureline notebook comments, stable cell or output anchors, and review-workspace parity",
+  "description": "Boundary schema for notebook comments, stable anchors, and review-workspace parity records. Every record that crosses the comment/anchor/parity boundary (comment, anchor, review-workspace parity, comment-anchor packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_comment_record" },
+    { "$ref": "#/$defs/notebook_anchor_record" },
+    { "$ref": "#/$defs/notebook_review_workspace_parity_record" },
+    { "$ref": "#/$defs/notebook_comment_anchor_packet_record" }
+  ],
+  "$defs": {
+    "notebook_comment_anchor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook comment/anchor/parity module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_comment",
+        "notebook_anchor",
+        "notebook_review_workspace_parity",
+        "notebook_comment_anchor_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, anchor id, comment id, document id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_comment_target_class": {
+      "type": "string",
+      "enum": [
+        "cell",
+        "output",
+        "notebook_metadata"
+      ],
+      "description": "Frozen comment-target vocabulary. Names whether the comment is anchored to a cell, an output within a cell, or notebook-level metadata."
+    },
+
+    "notebook_comment_status_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "resolved",
+        "outdated",
+        "redacted"
+      ],
+      "description": "Frozen comment-status vocabulary. Names the lifecycle state of a comment so the review surface never presents a resolved or redacted comment as active."
+    },
+
+    "notebook_comment_thread_state": {
+      "type": "string",
+      "enum": [
+        "single",
+        "open",
+        "thread_resolved",
+        "stale"
+      ],
+      "description": "Frozen comment-thread-state vocabulary. Names whether the comment is a single standalone note, part of an open thread, resolved, or stale because the anchor has drifted."
+    },
+
+    "notebook_anchor_kind": {
+      "type": "string",
+      "enum": [
+        "cell",
+        "output"
+      ],
+      "description": "Frozen anchor-kind vocabulary. Names whether the anchor points to a cell or to an output within a cell so consumers know which runtime boundary applies."
+    },
+
+    "notebook_review_workspace_parity_class": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial_cell_aware",
+        "raw_fallback",
+        "degraded"
+      ],
+      "description": "Frozen review-workspace-parity vocabulary. Names the level of parity between the notebook document and its review-workspace projection."
+    },
+
+    "notebook_review_workspace_downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "missing_stable_ids",
+        "runtime_bound",
+        "output_untrusted",
+        "redacted",
+        "kernel_unavailable"
+      ],
+      "description": "Frozen review-workspace-downgrade-reason vocabulary. Names why review-workspace parity is less than full so the UI can show truthful degraded-state labels instead of optimistic placeholder language."
+    },
+
+    "notebook_comment_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_comment" },
+        "notebook_comment_anchor_schema_version": { "$ref": "#/$defs/notebook_comment_anchor_schema_version" },
+        "comment_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "comment_target_class": { "$ref": "#/$defs/notebook_comment_target_class" },
+        "comment_status": { "$ref": "#/$defs/notebook_comment_status_class" },
+        "thread_state": { "$ref": "#/$defs/notebook_comment_thread_state" },
+        "author_ref": { "$ref": "#/$defs/opaque_ref" },
+        "reply_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to reply comments bound to this comment."
+        },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_comment_anchor_schema_version",
+        "comment_id",
+        "document_id_ref",
+        "anchor_ref",
+        "comment_target_class",
+        "comment_status",
+        "thread_state",
+        "author_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_anchor_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_anchor" },
+        "notebook_comment_anchor_schema_version": { "$ref": "#/$defs/notebook_comment_anchor_schema_version" },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_kind": { "$ref": "#/$defs/notebook_anchor_kind" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_comment_anchor_schema_version",
+        "anchor_id",
+        "document_id_ref",
+        "anchor_kind",
+        "cell_id_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_review_workspace_parity_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_review_workspace_parity" },
+        "notebook_comment_anchor_schema_version": { "$ref": "#/$defs/notebook_comment_anchor_schema_version" },
+        "parity_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "parity_class": { "$ref": "#/$defs/notebook_review_workspace_parity_class" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_review_workspace_downgrade_reason" },
+          "description": "Downgrade reasons when parity is not full."
+        },
+        "anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to anchor records known in the review workspace."
+        },
+        "comment_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to comment records known in the review workspace."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_comment_anchor_schema_version",
+        "parity_id",
+        "document_id_ref",
+        "parity_class",
+        "downgrade_reasons",
+        "anchor_refs",
+        "comment_refs",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_comment_anchor_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_comment_anchor_schema_version" },
+        "record_kind": { "const": "notebook_comment_anchor_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "comment_target_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comment_target_class" },
+          "description": "Closed vocabulary: comment target classes. Must list every variant."
+        },
+        "comment_status_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comment_status_class" },
+          "description": "Closed vocabulary: comment status classes. Must list every variant."
+        },
+        "comment_thread_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comment_thread_state" },
+          "description": "Closed vocabulary: comment thread states. Must list every variant."
+        },
+        "anchor_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_anchor_kind" },
+          "description": "Closed vocabulary: anchor kinds. Must list every variant."
+        },
+        "review_workspace_parity_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_review_workspace_parity_class" },
+          "description": "Closed vocabulary: review workspace parity classes. Must list every variant."
+        },
+        "review_workspace_downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_review_workspace_downgrade_reason" },
+          "description": "Closed vocabulary: review workspace downgrade reasons. Must list every variant."
+        },
+        "example_comments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comment_record" },
+          "description": "Worked example comments."
+        },
+        "example_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_anchor_record" },
+          "description": "Worked example anchors."
+        },
+        "example_review_workspace_parities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_review_workspace_parity_record" },
+          "description": "Worked example review-workspace parity records."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "comment_target_classes",
+        "comment_status_classes",
+        "comment_thread_states",
+        "anchor_kinds",
+        "review_workspace_parity_classes",
+        "review_workspace_downgrade_reasons",
+        "example_comments",
+        "example_anchors",
+        "example_review_workspace_parities",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

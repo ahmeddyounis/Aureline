@@ -91,6 +91,15 @@
 //!     checked-in artifact that downstream docs, help, CI, and support surfaces
 //!     ingest instead of cloning status text.
 //!
+//! 13. The [`add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity`]
+//!     module materializes the typed records that keep notebook comments,
+//!     stable cell or output anchors, and review-workspace parity honest about
+//!     cell-aware comment identity, anchor durability, runtime-boundary truth,
+//!     and degraded-state labels. It produces [`NotebookComment`] records,
+//!     [`NotebookAnchor`] records, [`NotebookReviewWorkspaceParity`] records,
+//!     and the [`NotebookCommentAnchorPacket`] checked-in artifact that downstream
+//!     docs, help, CI, and support surfaces ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -180,6 +189,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets/`.
 //!
+//! The records under
+//! [`add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -198,6 +214,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-notebook/0.0.0")]
 
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
+pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues;
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
@@ -378,6 +395,18 @@ pub use ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_an
     NOTEBOOK_DIFF_PACKET_JSON, NOTEBOOK_DIFF_PACKET_PATH, NOTEBOOK_DIFF_PACKET_RECORD_KIND,
     NOTEBOOK_DIFF_REVIEW_SESSION_RECORD_KIND, NOTEBOOK_DIFF_SCHEMA_VERSION,
     NOTEBOOK_RAW_JSON_FALLBACK_RECORD_KIND,
+};
+
+pub use add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity::{
+    current_notebook_comment_anchor_packet, NotebookAnchor, NotebookAnchorFinding, NotebookAnchorKind,
+    NotebookComment, NotebookCommentAnchorPacket, NotebookCommentAnchorPacketFinding,
+    NotebookCommentStatusClass, NotebookCommentTargetClass, NotebookCommentThreadState,
+    NotebookReviewWorkspaceDowngradeReason, NotebookReviewWorkspaceParity,
+    NotebookReviewWorkspaceParityClass, NotebookReviewWorkspaceParityFinding,
+    NOTEBOOK_ANCHOR_RECORD_KIND, NOTEBOOK_COMMENT_ANCHOR_PACKET_JSON,
+    NOTEBOOK_COMMENT_ANCHOR_PACKET_PATH, NOTEBOOK_COMMENT_ANCHOR_PACKET_RECORD_KIND,
+    NOTEBOOK_COMMENT_ANCHOR_SCHEMA_VERSION, NOTEBOOK_COMMENT_RECORD_KIND,
+    NOTEBOOK_REVIEW_WORKSPACE_PARITY_RECORD_KIND,
 };
 
 pub use implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets::{
