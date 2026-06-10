@@ -475,9 +475,11 @@ impl HotspotWorkspaceQualificationPacket {
                 || row.title.trim().is_empty()
                 || row.thread_id.trim().is_empty()
             {
-                violations.push(HotspotWorkspaceQualificationViolation::IncompleteFlamegraphRow {
-                    frame_id: row.frame_id.clone(),
-                });
+                violations.push(
+                    HotspotWorkspaceQualificationViolation::IncompleteFlamegraphRow {
+                        frame_id: row.frame_id.clone(),
+                    },
+                );
             }
             if !row.shows_mapping_quality {
                 violations.push(
@@ -501,9 +503,11 @@ impl HotspotWorkspaceQualificationPacket {
                 || row.file_module_service.trim().is_empty()
                 || row.thread_id.trim().is_empty()
             {
-                violations.push(HotspotWorkspaceQualificationViolation::IncompleteCallTreeRow {
-                    frame_id: row.frame_id.clone(),
-                });
+                violations.push(
+                    HotspotWorkspaceQualificationViolation::IncompleteCallTreeRow {
+                        frame_id: row.frame_id.clone(),
+                    },
+                );
             }
             if !row.shows_symbolization_state {
                 violations.push(
@@ -528,9 +532,11 @@ impl HotspotWorkspaceQualificationPacket {
                 || row.capture_mode.trim().is_empty()
                 || row.capture_time.trim().is_empty()
             {
-                violations.push(HotspotWorkspaceQualificationViolation::IncompleteSessionStrip {
-                    strip_id: row.strip_id.clone(),
-                });
+                violations.push(
+                    HotspotWorkspaceQualificationViolation::IncompleteSessionStrip {
+                        strip_id: row.strip_id.clone(),
+                    },
+                );
             }
             if !row.shows_degraded_label {
                 violations.push(
@@ -797,19 +803,13 @@ impl fmt::Display for HotspotWorkspaceQualificationViolation {
                 write!(f, "incomplete flamegraph row: {frame_id}")
             }
             Self::FlamegraphRowMissingMappingQuality { frame_id } => {
-                write!(
-                    f,
-                    "flamegraph row {frame_id} must show mapping quality"
-                )
+                write!(f, "flamegraph row {frame_id} must show mapping quality")
             }
             Self::IncompleteCallTreeRow { frame_id } => {
                 write!(f, "incomplete call-tree row: {frame_id}")
             }
             Self::CallTreeRowMissingSymbolizationState { frame_id } => {
-                write!(
-                    f,
-                    "call-tree row {frame_id} must show symbolization state"
-                )
+                write!(f, "call-tree row {frame_id} must show symbolization state")
             }
             Self::IncompleteSessionStrip { strip_id } => {
                 write!(f, "incomplete session-strip row: {strip_id}")

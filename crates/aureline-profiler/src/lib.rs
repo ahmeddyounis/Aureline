@@ -1,8 +1,12 @@
-//! Profile launcher, attach sheets, capture-mode descriptors, and storage-location truth.
+//! Profile launcher, attach sheets, capture-mode descriptors, storage-location truth,
+//! hotspot workspace, flamegraph, call tree, mapping-quality labels, source navigation,
+//! and shared trace viewer with synchronized event lanes, bookmarks, and textual fallback.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
-//! capture-mode descriptors, and storage-location truth attributable and inspectable.
-//! It exposes one canonical
+//! capture-mode descriptors, storage-location truth, hotspot surfaces, and trace viewer
+//! surfaces attributable and inspectable.
+//!
+//! It exposes the canonical
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
 //! module that pins the launcher, attach-sheet, capture-mode, and storage-location
 //! contracts every profiler UI, support export, and release reviewer reads.
@@ -25,11 +29,36 @@
 //! [`/schemas/perf/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.schema.json`](../../../schemas/perf/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.json`](../../../artifacts/perf/m5/ship-the-hotspot-workspace-with-flamegraph-call-tree-mapping-quality-labels-and-source-navigation.json).
+//!
+//! This crate also exposes the
+//! [`implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback`]
+//! module that pins the shared trace viewer, synchronized event lanes, bookmarks,
+//! and textual-fallback contracts every trace and replay surface reads.
+//!
+//! The reviewer-facing contract for the trace viewer is at
+//! [`/docs/performance/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.md`](../../../docs/performance/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.schema.json`](../../../schemas/perf/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.json`](../../../artifacts/perf/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
+pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+
+pub use implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback::{
+    current_trace_viewer_qualification, BookmarkRow, EventLaneKind, EventLaneRow,
+    TextualFallbackContentKind, TextualFallbackRow, TraceMappingQualityLabel,
+    TraceViewerQualificationLabel, TraceViewerQualificationPacket,
+    TraceViewerQualificationProof, TraceViewerQualificationSummary,
+    TraceViewerQualificationViolation, TraceViewerQualificationViolationKind,
+    TraceViewerSurfaceGuardSet, TraceViewerSurfaceKind,
+    TraceViewerSurfaceQualificationRow,
+    TRACE_VIEWER_QUALIFICATION_PACKET_JSON, TRACE_VIEWER_QUALIFICATION_PACKET_PATH,
+    TRACE_VIEWER_QUALIFICATION_RECORD_KIND, TRACE_VIEWER_QUALIFICATION_SCHEMA_VERSION,
+};
 
 pub use materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth::{
     current_profile_launcher_qualification, AttachSheetKind, AttachSheetRow,

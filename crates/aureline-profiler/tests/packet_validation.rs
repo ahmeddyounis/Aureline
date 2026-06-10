@@ -2,6 +2,7 @@
 
 use aureline_profiler::{
     current_hotspot_workspace_qualification, current_profile_launcher_qualification,
+    current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -105,6 +106,69 @@ fn hotspot_workspace_stable_surfaces_have_complete_guards() {
             assert!(
                 surface.guards.call_tree_visible,
                 "surface {} must show call tree",
+                surface.surface_id
+            );
+        }
+    }
+}
+
+// --- Trace viewer packet (M05-047) ---
+
+#[test]
+fn embedded_trace_viewer_packet_parses() {
+    let packet = current_trace_viewer_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.event_lanes.is_empty());
+    assert!(!packet.bookmarks.is_empty());
+    assert!(!packet.textual_fallbacks.is_empty());
+}
+
+#[test]
+fn embedded_trace_viewer_packet_has_no_violations() {
+    let packet = current_trace_viewer_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_trace_viewer_summary_matches_computed() {
+    let packet = current_trace_viewer_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn trace_viewer_stable_surfaces_have_complete_guards() {
+    let packet = current_trace_viewer_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.event_lanes_visible,
+                "surface {} must show event lanes",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.bookmarks_visible,
+                "surface {} must show bookmarks",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.textual_fallback_visible,
+                "surface {} must show textual fallback",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.synchronization_visible,
+                "surface {} must show synchronization",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mapping_quality_visible,
+                "surface {} must show mapping quality",
                 surface.surface_id
             );
         }
