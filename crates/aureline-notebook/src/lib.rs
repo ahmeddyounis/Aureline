@@ -82,6 +82,15 @@
 //!     and the [`NotebookSupportPacket`] checked-in artifact that downstream
 //!     docs, help, CI, and support surfaces ingest instead of cloning status text.
 //!
+//! 12. The [`implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets`]
+//!     module materializes the typed records that keep notebook merge,
+//!     lineage, and conflict review honest about base/ours/theirs/result
+//!     provenance, cell-aware resolution, and downgrade posture. It produces
+//!     [`NotebookMergeFlow`] records, [`NotebookMergeLineage`] records,
+//!     [`NotebookConflictReviewSheet`] records, and the [`NotebookMergePacket`]
+//!     checked-in artifact that downstream docs, help, CI, and support surfaces
+//!     ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -164,6 +173,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet/`.
 //!
+//! The records under
+//! [`implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -186,6 +202,7 @@ pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_env
 pub mod implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues;
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
+pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
@@ -361,4 +378,15 @@ pub use ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_an
     NOTEBOOK_DIFF_PACKET_JSON, NOTEBOOK_DIFF_PACKET_PATH, NOTEBOOK_DIFF_PACKET_RECORD_KIND,
     NOTEBOOK_DIFF_REVIEW_SESSION_RECORD_KIND, NOTEBOOK_DIFF_SCHEMA_VERSION,
     NOTEBOOK_RAW_JSON_FALLBACK_RECORD_KIND,
+};
+
+pub use implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets::{
+    current_notebook_merge_packet, NotebookConflictClass, NotebookConflictReviewSheet,
+    NotebookConflictReviewSheetAction, NotebookConflictReviewSheetFinding, NotebookMergeFlow,
+    NotebookMergeFlowFinding, NotebookMergeKind, NotebookMergeLineage,
+    NotebookMergeLineageFinding, NotebookMergePacket, NotebookMergePacketFinding,
+    NotebookMergeResolutionStrategy, NOTEBOOK_CONFLICT_REVIEW_SHEET_RECORD_KIND,
+    NOTEBOOK_MERGE_FLOW_RECORD_KIND, NOTEBOOK_MERGE_LINEAGE_RECORD_KIND,
+    NOTEBOOK_MERGE_PACKET_JSON, NOTEBOOK_MERGE_PACKET_PATH, NOTEBOOK_MERGE_PACKET_RECORD_KIND,
+    NOTEBOOK_MERGE_SCHEMA_VERSION,
 };

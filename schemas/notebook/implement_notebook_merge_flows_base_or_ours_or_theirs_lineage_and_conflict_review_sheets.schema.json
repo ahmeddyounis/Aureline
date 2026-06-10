@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets.schema.json",
+  "title": "Aureline notebook merge flows, base/ours/theirs lineage, and conflict-review sheets",
+  "description": "Boundary schema for notebook merge, lineage, and conflict-review records. Every record that crosses the merge boundary (merge flow, merge lineage, conflict-review sheet, merge packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_merge_flow_record" },
+    { "$ref": "#/$defs/notebook_merge_lineage_record" },
+    { "$ref": "#/$defs/notebook_conflict_review_sheet_record" },
+    { "$ref": "#/$defs/notebook_merge_packet_record" }
+  ],
+  "$defs": {
+    "notebook_merge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook merge/lineage/conflict-review module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_merge_flow",
+        "notebook_merge_lineage",
+        "notebook_conflict_review_sheet",
+        "notebook_merge_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, flow id, lineage id, sheet id, document id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_merge_kind": {
+      "type": "string",
+      "enum": [
+        "three_way_merge",
+        "fast_forward",
+        "squash",
+        "rebase",
+        "cherry_pick",
+        "revert"
+      ],
+      "description": "Frozen merge-kind vocabulary. Names the kind of merge or history mutation so the UI can show the right lineage and rollback affordances."
+    },
+
+    "notebook_merge_resolution_strategy": {
+      "type": "string",
+      "enum": [
+        "cell_aware",
+        "metadata_aware",
+        "raw_fallback"
+      ],
+      "description": "Frozen merge-resolution strategy vocabulary. Names whether the merge resolves at cell granularity, metadata-field granularity, or falls back to raw side-by-side merge."
+    },
+
+    "notebook_conflict_class": {
+      "type": "string",
+      "enum": [
+        "source_conflict",
+        "metadata_conflict",
+        "output_conflict",
+        "cell_deleted_both",
+        "cell_added_both",
+        "type_conflict"
+      ],
+      "description": "Frozen conflict-class vocabulary. Names the kind of conflict a review sheet surfaces for a cell or metadata field."
+    },
+
+    "notebook_conflict_review_sheet_action": {
+      "type": "string",
+      "enum": [
+        "accept_ours",
+        "accept_theirs",
+        "accept_base",
+        "mark_resolved",
+        "edit_result",
+        "raw_merge",
+        "abort"
+      ],
+      "description": "Frozen conflict-review-sheet action vocabulary. Names the actions available on a per-cell conflict review sheet."
+    },
+
+    "notebook_diff_merge_resolution_class": {
+      "type": "string",
+      "enum": ["base", "ours", "theirs", "result", "unresolved"],
+      "description": "Frozen merge-resolution class vocabulary. Merge flows resolve at cell or metadata-field granularity when possible. Reused from the notebook diff/review schema."
+    },
+
+    "notebook_merge_flow_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_merge_flow" },
+        "notebook_merge_schema_version": { "$ref": "#/$defs/notebook_merge_schema_version" },
+        "merge_flow_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "merge_kind": { "$ref": "#/$defs/notebook_merge_kind" },
+        "base_ref": { "$ref": "#/$defs/opaque_ref" },
+        "ours_ref": { "$ref": "#/$defs/opaque_ref" },
+        "theirs_ref": { "$ref": "#/$defs/opaque_ref" },
+        "result_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "resolution_strategy": { "$ref": "#/$defs/notebook_merge_resolution_strategy" },
+        "unresolved_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of unresolved conflicts remaining in the flow."
+        },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to lineage records bound to this flow."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_merge_schema_version",
+        "merge_flow_id",
+        "document_id_ref",
+        "merge_kind",
+        "base_ref",
+        "ours_ref",
+        "theirs_ref",
+        "resolution_strategy",
+        "unresolved_count",
+        "rollback_checkpoint_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_merge_lineage_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_merge_lineage" },
+        "notebook_merge_schema_version": { "$ref": "#/$defs/notebook_merge_schema_version" },
+        "lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "merge_flow_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "base_cell_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "ours_cell_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "theirs_cell_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "result_cell_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "resolution_class": { "$ref": "#/$defs/notebook_diff_merge_resolution_class" },
+        "metadata_field_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to metadata-field lineage records bound to this cell."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_merge_schema_version",
+        "lineage_id",
+        "merge_flow_ref",
+        "cell_id_ref",
+        "resolution_class",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_conflict_review_sheet_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_conflict_review_sheet" },
+        "notebook_merge_schema_version": { "$ref": "#/$defs/notebook_merge_schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "merge_flow_ref": { "$ref": "#/$defs/opaque_ref" },
+        "conflict_cell_ref": { "$ref": "#/$defs/opaque_ref" },
+        "conflict_class": { "$ref": "#/$defs/notebook_conflict_class" },
+        "base_preview_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "ours_preview_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "theirs_preview_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "suggested_resolution": { "$ref": "#/$defs/notebook_diff_merge_resolution_class" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_conflict_review_sheet_action" },
+          "minItems": 1,
+          "description": "Available actions on this conflict-review sheet."
+        },
+        "rollback_path_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_merge_schema_version",
+        "sheet_id",
+        "merge_flow_ref",
+        "conflict_cell_ref",
+        "conflict_class",
+        "suggested_resolution",
+        "available_actions",
+        "rollback_path_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_merge_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_merge_schema_version" },
+        "record_kind": { "const": "notebook_merge_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "merge_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_merge_kind" },
+          "description": "Closed vocabulary: merge kinds. Must list every variant."
+        },
+        "resolution_strategies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_merge_resolution_strategy" },
+          "description": "Closed vocabulary: resolution strategies. Must list every variant."
+        },
+        "conflict_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_conflict_class" },
+          "description": "Closed vocabulary: conflict classes. Must list every variant."
+        },
+        "sheet_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_conflict_review_sheet_action" },
+          "description": "Closed vocabulary: sheet actions. Must list every variant."
+        },
+        "merge_resolution_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_merge_resolution_class" },
+          "description": "Closed vocabulary: merge resolution classes. Must list every variant."
+        },
+        "example_merge_flows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_merge_flow_record" },
+          "description": "Worked example merge flows."
+        },
+        "example_lineages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_merge_lineage_record" },
+          "description": "Worked example lineage records."
+        },
+        "example_conflict_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_conflict_review_sheet_record" },
+          "description": "Worked example conflict-review sheets."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "merge_kinds",
+        "resolution_strategies",
+        "conflict_classes",
+        "sheet_actions",
+        "merge_resolution_classes",
+        "example_merge_flows",
+        "example_lineages",
+        "example_conflict_sheets",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
