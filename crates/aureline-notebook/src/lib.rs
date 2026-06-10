@@ -158,6 +158,20 @@
 //!     artifact that downstream docs, help, CI, and support surfaces ingest
 //!     instead of cloning status text.
 //!
+//! 20. The [`integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export`]
+//!     module materializes the typed records that keep notebook output
+//!     integration honest across four consumer surfaces — documentation,
+//!     browser, AI context, and retrieval-debug provenance export — so that
+//!     each surface knows what it is receiving, whether the output is live
+//!     runtime state or captured output, and what downgrades or redactions
+//!     apply before the transfer. It produces
+//!     [`NotebookOutputDocIntegration`] records,
+//!     [`NotebookOutputBrowserIntegration`] records,
+//!     [`NotebookOutputAiContextIntegration`] records,
+//!     [`NotebookOutputRetrievalDebugProvenanceExport`] records, and the
+//!     [`NotebookOutputIntegrationPacket`] checked-in artifact that downstream
+//!     docs, help, CI, and support surfaces ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -296,6 +310,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows/`.
 //!
+//! The records under
+//! [`integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -324,6 +345,7 @@ pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_confli
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_versus_artifact_scope_separation;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
+pub mod integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export;
 pub mod ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
@@ -602,4 +624,24 @@ pub use ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_b
     NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_RECORD_KIND,
     NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION,
     NOTEBOOK_TEACHING_CONTINUITY_RECORD_KIND,
+};
+
+pub use integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export::{
+    current_notebook_output_integration_packet, NotebookOutputAiContextIntegration,
+    NotebookOutputAiContextIntegrationFinding, NotebookOutputAiContextPostureClass,
+    NotebookOutputBrowserIntegration, NotebookOutputBrowserIntegrationFinding,
+    NotebookOutputBrowserPostureClass, NotebookOutputContextScopeClass,
+    NotebookOutputDocIntegration, NotebookOutputDocIntegrationFinding,
+    NotebookOutputDocPostureClass, NotebookOutputIntegrationPacket,
+    NotebookOutputIntegrationPacketFinding, NotebookOutputProvenanceFieldClass,
+    NotebookOutputProvenanceFormatClass, NotebookOutputRetrievalDebugPostureClass,
+    NotebookOutputRetrievalDebugProvenanceExport, NotebookOutputRetrievalDebugProvenanceExportFinding,
+    NotebookOutputRuntimeBoundaryDisclosureClass,
+    NOTEBOOK_OUTPUT_AI_CONTEXT_INTEGRATION_RECORD_KIND,
+    NOTEBOOK_OUTPUT_BROWSER_INTEGRATION_RECORD_KIND,
+    NOTEBOOK_OUTPUT_DOC_INTEGRATION_RECORD_KIND,
+    NOTEBOOK_OUTPUT_INTEGRATION_PACKET_JSON, NOTEBOOK_OUTPUT_INTEGRATION_PACKET_PATH,
+    NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND,
+    NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION,
+    NOTEBOOK_OUTPUT_RETRIEVAL_DEBUG_PROVENANCE_EXPORT_RECORD_KIND,
 };

@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export.schema.json",
+  "title": "Aureline notebook output integration with docs, browser, AI context, and retrieval-debug provenance export",
+  "description": "Boundary schema for notebook output integration records across documentation, browser, AI context, and retrieval-debug provenance export surfaces. Every record that crosses the output-integration boundary (doc integration, browser integration, AI context integration, retrieval-debug provenance export, integration packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_output_doc_integration_record" },
+    { "$ref": "#/$defs/notebook_output_browser_integration_record" },
+    { "$ref": "#/$defs/notebook_output_ai_context_integration_record" },
+    { "$ref": "#/$defs/notebook_output_retrieval_debug_provenance_export_record" },
+    { "$ref": "#/$defs/notebook_output_integration_packet_record" }
+  ],
+  "$defs": {
+    "notebook_output_integration_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook output integration module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_output_doc_integration",
+        "notebook_output_browser_integration",
+        "notebook_output_ai_context_integration",
+        "notebook_output_retrieval_debug_provenance_export",
+        "notebook_output_integration_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, session id, document id, actor id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_output_doc_posture_class": {
+      "type": "string",
+      "enum": [
+        "embedded",
+        "linked",
+        "snapshot",
+        "stale",
+        "archived"
+      ],
+      "description": "Frozen doc-posture vocabulary. Names how a notebook output is integrated into a documentation surface so docs never silently flatten a live notebook into a static screenshot."
+    },
+
+    "notebook_output_browser_posture_class": {
+      "type": "string",
+      "enum": [
+        "inspected",
+        "rendered",
+        "sandboxed",
+        "blocked",
+        "degraded"
+      ],
+      "description": "Frozen browser-posture vocabulary. Names how a notebook output is integrated into a browser surface so the browser never conflates inspected live output with captured rendered output."
+    },
+
+    "notebook_output_ai_context_posture_class": {
+      "type": "string",
+      "enum": [
+        "included",
+        "redacted",
+        "summarized",
+        "excluded",
+        "degraded"
+      ],
+      "description": "Frozen AI-context-posture vocabulary. Names how a notebook output is integrated into an AI context surface so AI assistance never silently ingests stale or redacted output without labelling it."
+    },
+
+    "notebook_output_retrieval_debug_posture_class": {
+      "type": "string",
+      "enum": [
+        "full_provenance",
+        "summary_only",
+        "redacted",
+        "degraded"
+      ],
+      "description": "Frozen retrieval-debug-posture vocabulary. Names how provenance is exported for retrieval debugging so exports remain local-first, human-readable, and explicitly scoped."
+    },
+
+    "notebook_output_runtime_boundary_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "live_runtime",
+        "captured_output",
+        "degraded"
+      ],
+      "description": "Frozen runtime-boundary-disclosure vocabulary. Names the explicit boundary between live runtime state and captured output so every consumer surface knows what it is receiving."
+    },
+
+    "notebook_output_context_scope_class": {
+      "type": "string",
+      "enum": [
+        "cell",
+        "output",
+        "notebook",
+        "selection"
+      ],
+      "description": "Frozen context-scope vocabulary. Names the scope of notebook output included in an AI context integration so consumers never silently broaden the scope."
+    },
+
+    "notebook_output_provenance_field_class": {
+      "type": "string",
+      "enum": [
+        "execution_id",
+        "environment_fingerprint",
+        "dataset_lineage",
+        "cell_source_version",
+        "output_trust_class",
+        "timestamp",
+        "kernel_session_id"
+      ],
+      "description": "Frozen provenance-field vocabulary. Names the fields that may appear in a retrieval-debug provenance export so the export explicitly lists what provenance is included."
+    },
+
+    "notebook_output_provenance_format_class": {
+      "type": "string",
+      "enum": [
+        "json",
+        "yaml",
+        "packet"
+      ],
+      "description": "Frozen provenance-format vocabulary. Names the export formats available for retrieval-debug provenance exports."
+    },
+
+    "notebook_output_doc_integration_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_output_doc_integration" },
+        "notebook_output_integration_schema_version": { "$ref": "#/$defs/notebook_output_integration_schema_version" },
+        "doc_integration_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "doc_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "doc_posture": { "$ref": "#/$defs/notebook_output_doc_posture_class" },
+        "cell_aware_anchor": {
+          "type": "boolean",
+          "description": "Whether the doc surface keeps stable cell-aware anchors."
+        },
+        "runtime_boundary_disclosure": { "$ref": "#/$defs/notebook_output_runtime_boundary_disclosure_class" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_output_integration_schema_version",
+        "doc_integration_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "doc_surface_ref",
+        "doc_posture",
+        "cell_aware_anchor",
+        "runtime_boundary_disclosure",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_output_browser_integration_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_output_browser_integration" },
+        "notebook_output_integration_schema_version": { "$ref": "#/$defs/notebook_output_integration_schema_version" },
+        "browser_integration_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "browser_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "browser_posture": { "$ref": "#/$defs/notebook_output_browser_posture_class" },
+        "output_trust_class_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_boundary_disclosure": { "$ref": "#/$defs/notebook_output_runtime_boundary_disclosure_class" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_output_integration_schema_version",
+        "browser_integration_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "browser_surface_ref",
+        "browser_posture",
+        "output_trust_class_ref",
+        "runtime_boundary_disclosure",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_output_ai_context_integration_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_output_ai_context_integration" },
+        "notebook_output_integration_schema_version": { "$ref": "#/$defs/notebook_output_integration_schema_version" },
+        "ai_context_integration_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "ai_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "ai_context_posture": { "$ref": "#/$defs/notebook_output_ai_context_posture_class" },
+        "redaction_explanation": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "description": "Export-safe explanation when ai_context_posture is redacted or degraded."
+        },
+        "context_scope": { "$ref": "#/$defs/notebook_output_context_scope_class" },
+        "runtime_boundary_disclosure": { "$ref": "#/$defs/notebook_output_runtime_boundary_disclosure_class" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_output_integration_schema_version",
+        "ai_context_integration_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "ai_surface_ref",
+        "ai_context_posture",
+        "context_scope",
+        "runtime_boundary_disclosure",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_output_retrieval_debug_provenance_export_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_output_retrieval_debug_provenance_export" },
+        "notebook_output_integration_schema_version": { "$ref": "#/$defs/notebook_output_integration_schema_version" },
+        "provenance_export_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "retrieval_query_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_posture": { "$ref": "#/$defs/notebook_output_retrieval_debug_posture_class" },
+        "provenance_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_provenance_field_class" },
+          "description": "Provenance fields included in this export."
+        },
+        "export_format": { "$ref": "#/$defs/notebook_output_provenance_format_class" },
+        "debug_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_output_integration_schema_version",
+        "provenance_export_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "retrieval_query_ref",
+        "export_posture",
+        "provenance_fields",
+        "export_format",
+        "debug_session_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_output_integration_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_output_integration_schema_version" },
+        "record_kind": { "const": "notebook_output_integration_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "doc_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_doc_posture_class" },
+          "description": "Closed vocabulary: doc posture classes. Must list every variant."
+        },
+        "browser_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_browser_posture_class" },
+          "description": "Closed vocabulary: browser posture classes. Must list every variant."
+        },
+        "ai_context_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_ai_context_posture_class" },
+          "description": "Closed vocabulary: AI context posture classes. Must list every variant."
+        },
+        "retrieval_debug_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_retrieval_debug_posture_class" },
+          "description": "Closed vocabulary: retrieval-debug posture classes. Must list every variant."
+        },
+        "runtime_boundary_disclosure_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_runtime_boundary_disclosure_class" },
+          "description": "Closed vocabulary: runtime-boundary disclosure classes. Must list every variant."
+        },
+        "context_scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_context_scope_class" },
+          "description": "Closed vocabulary: context scope classes. Must list every variant."
+        },
+        "provenance_field_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_provenance_field_class" },
+          "description": "Closed vocabulary: provenance field classes. Must list every variant."
+        },
+        "provenance_format_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_provenance_format_class" },
+          "description": "Closed vocabulary: provenance format classes. Must list every variant."
+        },
+        "example_doc_integrations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_doc_integration_record" },
+          "description": "Worked example doc integrations."
+        },
+        "example_browser_integrations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_browser_integration_record" },
+          "description": "Worked example browser integrations."
+        },
+        "example_ai_context_integrations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_ai_context_integration_record" },
+          "description": "Worked example AI context integrations."
+        },
+        "example_retrieval_debug_provenance_exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_retrieval_debug_provenance_export_record" },
+          "description": "Worked example retrieval-debug provenance exports."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "doc_posture_classes",
+        "browser_posture_classes",
+        "ai_context_posture_classes",
+        "retrieval_debug_posture_classes",
+        "runtime_boundary_disclosure_classes",
+        "context_scope_classes",
+        "provenance_field_classes",
+        "provenance_format_classes",
+        "example_doc_integrations",
+        "example_browser_integrations",
+        "example_ai_context_integrations",
+        "example_retrieval_debug_provenance_exports",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
