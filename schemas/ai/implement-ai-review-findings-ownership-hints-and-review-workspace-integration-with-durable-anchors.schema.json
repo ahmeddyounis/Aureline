@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-ai-review-findings-ownership-hints-and-review-workspace-integration-with-durable-anchors.schema.json",
+  "title": "Aureline AI review findings, ownership hints, and review-workspace integration with durable anchors",
+  "$comment": "Rust owner: aureline_ai::implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors::AiReviewFindingsPacket.",
+  "description": "Boundary schema for the metadata-only AI review-findings record. The packet binds the findings an AI review pass produced (each carrying a finding class, severity, and confidence; bound to a durable anchor that survives edits and discloses drift; citing the evidence refs that back it, with uncited findings counted and surfaced and no finding claiming authority beyond its cited evidence; the pass is read-only and never self-applies), advisory ownership hints for the affected areas (each a typed reference to an owner drawn from a code-owners file, commit history, a declared team, or a heuristic; the AI never auto-assigns a reviewer or treats a hint as authority), and review-workspace integration (publish state, destination, the review-pack digest, and evidence-packet lineage; publishing into review requires a human gate). It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw source lines, raw symbol names, raw file paths, raw diff bodies, raw owner identities, email addresses, raw prompt bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "review_pass_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "findings",
+    "ownership_hints",
+    "workspace_integration",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_review_findings_ownership_anchors_implementation" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "review_pass_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "findings": { "$ref": "#/$defs/review_findings_block" },
+    "ownership_hints": { "$ref": "#/$defs/ownership_hints_block" },
+    "workspace_integration": { "$ref": "#/$defs/review_workspace_integration_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/review_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "review_finding_class": {
+      "type": "string",
+      "enum": [
+        "bug_risk",
+        "security",
+        "performance",
+        "maintainability",
+        "style",
+        "test_gap",
+        "documentation"
+      ],
+      "description": "Class of issue an AI review finding raises."
+    },
+    "finding_severity_class": {
+      "type": "string",
+      "enum": ["blocker", "major", "minor", "nit"],
+      "description": "Severity class disclosed for a finding."
+    },
+    "finding_confidence_class": {
+      "type": "string",
+      "enum": ["grounded", "probable", "speculative"],
+      "description": "Confidence class disclosed for a finding."
+    },
+    "finding_resolution_state": {
+      "type": "string",
+      "enum": ["open", "acknowledged", "resolved", "dismissed", "deferred"],
+      "description": "Resolution state of a finding within the review workspace."
+    },
+    "anchor_strategy": {
+      "type": "string",
+      "enum": ["symbol_path", "content_hash", "structural_node", "line_range"],
+      "description": "Strategy a durable anchor uses to bind a finding to a location."
+    },
+    "anchor_state": {
+      "type": "string",
+      "enum": ["bound", "drifted", "rebound", "lost"],
+      "description": "Lifecycle state of a durable anchor after edits."
+    },
+    "ownership_source": {
+      "type": "string",
+      "enum": ["codeowners_file", "commit_history", "declared_team", "heuristic"],
+      "description": "Source an ownership hint was drawn from."
+    },
+    "ownership_confidence_class": {
+      "type": "string",
+      "enum": ["strong", "moderate", "weak"],
+      "description": "Confidence class disclosed for an ownership hint."
+    },
+    "publish_state": {
+      "type": "string",
+      "enum": ["draft", "staged", "published_to_review", "withdrawn"],
+      "description": "Publish state of the findings within the review workspace. Publishing into review requires a human gate."
+    },
+    "publish_destination": {
+      "type": "string",
+      "enum": ["review_pack", "inline_thread", "pr_comment_set"],
+      "description": "Destination the findings publish into."
+    },
+    "review_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_review_panel",
+        "desktop_editor_gutter",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this lane."
+    },
+    "review_surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "anchor_lost_undisclosed",
+        "ownership_hint_treated_as_authority",
+        "published_without_human_gate",
+        "uncited_claim_surfaced"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "durable_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "strategy",
+        "target_ref",
+        "scope_ref",
+        "state",
+        "drift_detected",
+        "rebind_disclosed",
+        "durable"
+      ],
+      "properties": {
+        "anchor_id": { "type": "string", "minLength": 1 },
+        "strategy": { "$ref": "#/$defs/anchor_strategy" },
+        "target_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the anchored target. Never a raw symbol name or file path." },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/anchor_state" },
+        "drift_detected": { "type": "boolean" },
+        "rebind_disclosed": { "type": "boolean" },
+        "durable": { "type": "boolean" }
+      }
+    },
+    "review_finding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_class",
+        "severity",
+        "confidence",
+        "anchor",
+        "cited_evidence_refs",
+        "evidence_backed",
+        "resolution_state",
+        "requires_human_confirmation",
+        "disclosed"
+      ],
+      "properties": {
+        "finding_id": { "type": "string", "minLength": 1 },
+        "finding_class": { "$ref": "#/$defs/review_finding_class" },
+        "severity": { "$ref": "#/$defs/finding_severity_class" },
+        "confidence": { "$ref": "#/$defs/finding_confidence_class" },
+        "anchor": { "$ref": "#/$defs/durable_anchor" },
+        "cited_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_backed": { "type": "boolean" },
+        "resolution_state": { "$ref": "#/$defs/finding_resolution_state" },
+        "requires_human_confirmation": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "review_findings_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_set_id",
+        "uncited_findings_count",
+        "no_authority_beyond_evidence",
+        "produced_before_apply",
+        "finding_rows"
+      ],
+      "properties": {
+        "finding_set_id": { "type": "string", "minLength": 1 },
+        "uncited_findings_count": { "type": "integer", "minimum": 0 },
+        "no_authority_beyond_evidence": { "type": "boolean" },
+        "produced_before_apply": { "type": "boolean" },
+        "finding_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_finding_row" }
+        }
+      }
+    },
+    "ownership_hint_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hint_id",
+        "ownership_source",
+        "owner_ref",
+        "confidence",
+        "suggested_reviewer",
+        "scope_ref",
+        "advisory",
+        "disclosed"
+      ],
+      "properties": {
+        "hint_id": { "type": "string", "minLength": 1 },
+        "ownership_source": { "$ref": "#/$defs/ownership_source" },
+        "owner_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the owner. Never a raw identity, handle, or email address." },
+        "confidence": { "$ref": "#/$defs/ownership_confidence_class" },
+        "suggested_reviewer": { "type": "boolean" },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "advisory": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "ownership_hints_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hint_set_id",
+        "hints_are_advisory",
+        "no_auto_assignment",
+        "hint_rows"
+      ],
+      "properties": {
+        "hint_set_id": { "type": "string", "minLength": 1 },
+        "hints_are_advisory": { "type": "boolean" },
+        "no_auto_assignment": { "type": "boolean" },
+        "hint_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ownership_hint_row" }
+        }
+      }
+    },
+    "review_workspace_integration_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id",
+        "publish_state",
+        "publish_destination",
+        "human_gate_required",
+        "human_gated",
+        "review_pack_digest_ref",
+        "evidence_packet_lineage_refs",
+        "published_finding_ids"
+      ],
+      "properties": {
+        "workspace_id": { "type": "string", "minLength": 1 },
+        "publish_state": { "$ref": "#/$defs/publish_state" },
+        "publish_destination": { "$ref": "#/$defs/publish_destination" },
+        "human_gate_required": { "type": "boolean" },
+        "human_gated": { "type": "boolean" },
+        "review_pack_digest_ref": { "type": "string", "minLength": 1 },
+        "evidence_packet_lineage_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "published_finding_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "review_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_findings",
+        "shows_anchors",
+        "shows_ownership_hints",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/review_consumer_surface" },
+        "shows_findings": { "type": "boolean" },
+        "shows_anchors": { "type": "boolean" },
+        "shows_ownership_hints": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/review_surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

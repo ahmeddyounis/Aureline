@@ -81,6 +81,13 @@
 //! provenance, and trust labels, and the findings it produced — each citing the
 //! evidence link ids that back it, with uncited claims counted and surfaced and
 //! no finding claiming authority beyond its cited evidence.
+//! The AI review-findings lane exposes one
+//! [`implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors::AiReviewFindingsPacket`]
+//! object binding read-only AI review findings — each anchored to a location by
+//! a durable anchor that survives edits and discloses drift, citing the evidence
+//! that backs it — together with advisory ownership hints that never auto-assign
+//! a reviewer and review-workspace integration that only publishes findings into
+//! review behind a human gate.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -117,6 +124,7 @@ pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
 pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
+pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod memory;
 pub mod prompt_composer;
@@ -283,6 +291,21 @@ pub use implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
     RICHER_PROMPT_COMPOSER_FIXTURE_DIR, RICHER_PROMPT_COMPOSER_RECORD_KIND,
     RICHER_PROMPT_COMPOSER_SCHEMA_REF, RICHER_PROMPT_COMPOSER_SCHEMA_VERSION,
     RICHER_PROMPT_COMPOSER_STABLE_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_SUMMARY_REF,
+};
+pub use implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors::{
+    current_stable_ai_review_findings_export, AiReviewFindingsArtifactError, AiReviewFindingsPacket,
+    AiReviewFindingsPacketInput, AiReviewFindingsViolation, AnchorState, AnchorStrategy,
+    DurableAnchor, FindingConfidenceClass as ReviewFindingConfidenceClass, FindingResolutionState,
+    FindingSeverityClass, OwnershipConfidenceClass, OwnershipHintRow, OwnershipHintsBlock,
+    OwnershipSource, PublishDestination, PublishState, ReviewConsumerSurface, ReviewDowngradeTrigger,
+    ReviewFindingClass, ReviewFindingRow, ReviewFindingsBlock, ReviewSurfaceParityRow,
+    ReviewSurfaceQualificationClass, ReviewWorkspaceIntegrationBlock,
+    AI_REVIEW_FINDINGS_ARTIFACT_REF, AI_REVIEW_FINDINGS_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    AI_REVIEW_FINDINGS_DOC_REF, AI_REVIEW_FINDINGS_EVIDENCE_PACKET_CONTRACT_REF,
+    AI_REVIEW_FINDINGS_FIXTURE_DIR, AI_REVIEW_FINDINGS_M5_MATRIX_CONTRACT_REF,
+    AI_REVIEW_FINDINGS_RECORD_KIND, AI_REVIEW_FINDINGS_REVIEW_ASSIST_CONTRACT_REF,
+    AI_REVIEW_FINDINGS_REVIEW_PACK_CONTRACT_REF, AI_REVIEW_FINDINGS_SCHEMA_REF,
+    AI_REVIEW_FINDINGS_SCHEMA_VERSION, AI_REVIEW_FINDINGS_SUMMARY_REF,
 };
 pub use implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff::{
     current_stable_branch_worktree_agent_lifecycle_export, AgentLifecycleBlock, AgentLifecycleStage,
