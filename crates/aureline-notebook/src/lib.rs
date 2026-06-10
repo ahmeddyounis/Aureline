@@ -100,6 +100,15 @@
 //!     and the [`NotebookCommentAnchorPacket`] checked-in artifact that downstream
 //!     docs, help, CI, and support surfaces ingest instead of cloning status text.
 //!
+//! 14. The [`implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure`]
+//!     module materializes the typed records that keep notebook collaboration
+//!     honest about follow state, presenter authority, and the boundary between
+//!     live runtime state and captured output. It produces
+//!     [`NotebookCollaborationFollowState`] records, [`NotebookPresenterState`] records,
+//!     [`NotebookRuntimeDisclosure`] records, and the [`NotebookCollaborationFollowPresenterPacket`]
+//!     checked-in artifact that downstream docs, help, CI, and support surfaces
+//!     ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -196,6 +205,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity/`.
 //!
+//! The records under
+//! [`implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -216,6 +232,7 @@
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
+pub mod implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure;
 pub mod implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues;
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
@@ -418,4 +435,19 @@ pub use implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_confli
     NOTEBOOK_MERGE_FLOW_RECORD_KIND, NOTEBOOK_MERGE_LINEAGE_RECORD_KIND,
     NOTEBOOK_MERGE_PACKET_JSON, NOTEBOOK_MERGE_PACKET_PATH, NOTEBOOK_MERGE_PACKET_RECORD_KIND,
     NOTEBOOK_MERGE_SCHEMA_VERSION,
+};
+
+pub use implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure::{
+    current_notebook_collaboration_follow_presenter_packet, NotebookCollaborationFollowPresenterPacket,
+    NotebookCollaborationFollowPresenterPacketFinding, NotebookCollaborationFollowState,
+    NotebookCollaborationFollowStateFinding, NotebookFollowMode, NotebookFollowTargetClass,
+    NotebookPresenterActionClass, NotebookPresenterMode, NotebookPresenterState,
+    NotebookPresenterStateFinding, NotebookRuntimeDisclosure, NotebookRuntimeDisclosureActionClass,
+    NotebookRuntimeDisclosureClass, NotebookRuntimeDisclosureFinding,
+    NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_PACKET_JSON,
+    NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_PACKET_PATH,
+    NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_PACKET_RECORD_KIND,
+    NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+    NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND, NOTEBOOK_PRESENTER_STATE_RECORD_KIND,
+    NOTEBOOK_RUNTIME_DISCLOSURE_RECORD_KIND,
 };

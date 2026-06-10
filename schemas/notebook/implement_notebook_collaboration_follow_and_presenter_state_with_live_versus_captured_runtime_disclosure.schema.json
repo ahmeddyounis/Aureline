@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure.schema.json",
+  "title": "Aureline notebook collaboration follow and presenter state with live-versus-captured runtime disclosure",
+  "description": "Boundary schema for notebook collaboration follow state, presenter state, and live-versus-captured runtime disclosure records. Every record that crosses the collaboration follow/presenter/runtime-disclosure boundary (follow state, presenter state, runtime disclosure, collaboration follow/presenter packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_collaboration_follow_state_record" },
+    { "$ref": "#/$defs/notebook_presenter_state_record" },
+    { "$ref": "#/$defs/notebook_runtime_disclosure_record" },
+    { "$ref": "#/$defs/notebook_collaboration_follow_presenter_packet_record" }
+  ],
+  "$defs": {
+    "notebook_collaboration_follow_presenter_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook collaboration follow/presenter/runtime-disclosure module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_collaboration_follow_state",
+        "notebook_presenter_state",
+        "notebook_runtime_disclosure",
+        "notebook_collaboration_follow_presenter_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, session id, document id, actor id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_follow_mode": {
+      "type": "string",
+      "enum": [
+        "following_presenter",
+        "independent",
+        "breakaway",
+        "return_available",
+        "follow_degraded"
+      ],
+      "description": "Frozen follow-mode vocabulary. Names the participant's follow posture so the collaboration surface never silently loses track of a participant."
+    },
+
+    "notebook_follow_target_class": {
+      "type": "string",
+      "enum": [
+        "presenter",
+        "specific_cell",
+        "specific_output",
+        "specific_participant"
+      ],
+      "description": "Frozen follow-target vocabulary. Names what kind of entity a participant is following so consumers know the scope of the follow binding."
+    },
+
+    "notebook_presenter_mode": {
+      "type": "string",
+      "enum": [
+        "active_presenter",
+        "co_presenter",
+        "idle",
+        "handoff_pending"
+      ],
+      "description": "Frozen presenter-mode vocabulary. Names the lifecycle state of the presenter role so the audience always knows who is driving and whether a handoff is in progress."
+    },
+
+    "notebook_presenter_action_class": {
+      "type": "string",
+      "enum": [
+        "share_screen",
+        "share_cell",
+        "share_output",
+        "handoff",
+        "pause",
+        "resume"
+      ],
+      "description": "Frozen presenter-action vocabulary. Names the actions a presenter may take so the UI can show safe, scoped affordances instead of broad authority."
+    },
+
+    "notebook_runtime_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "live_runtime",
+        "captured_output",
+        "mixed_state",
+        "stale_runtime",
+        "no_kernel"
+      ],
+      "description": "Frozen runtime-disclosure vocabulary. Names whether a collaborative view is showing live runtime state, captured output, a mix, stale runtime, or no kernel so participants never mistake a saved notebook for a live runtime session."
+    },
+
+    "notebook_runtime_disclosure_action_class": {
+      "type": "string",
+      "enum": [
+        "refresh_runtime",
+        "acknowledge_captured",
+        "switch_to_live",
+        "switch_to_captured",
+        "request_kernel"
+      ],
+      "description": "Frozen runtime-disclosure-action vocabulary. Names the actions available when the live-versus-captured boundary changes so the UI can offer safe transitions instead of silent swaps."
+    },
+
+    "notebook_collaboration_follow_state_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_collaboration_follow_state" },
+        "notebook_collaboration_follow_presenter_schema_version": { "$ref": "#/$defs/notebook_collaboration_follow_presenter_schema_version" },
+        "follow_state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "session_envelope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "participant_ref": { "$ref": "#/$defs/opaque_ref" },
+        "follow_mode": { "$ref": "#/$defs/notebook_follow_mode" },
+        "follow_target_class": { "$ref": "#/$defs/notebook_follow_target_class" },
+        "follow_target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "current_output_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "follow_explanation": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "description": "Export-safe explanation when follow_mode is breakaway or follow_degraded."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_collaboration_follow_presenter_schema_version",
+        "follow_state_id",
+        "document_id_ref",
+        "session_envelope_ref",
+        "participant_ref",
+        "follow_mode",
+        "follow_target_class",
+        "follow_target_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_presenter_state_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_presenter_state" },
+        "notebook_collaboration_follow_presenter_schema_version": { "$ref": "#/$defs/notebook_collaboration_follow_presenter_schema_version" },
+        "presenter_state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "session_envelope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "presenter_mode": { "$ref": "#/$defs/notebook_presenter_mode" },
+        "presenter_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "shared_cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "shared_output_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "presenter_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_presenter_action_class" },
+          "description": "Available presenter actions for the current mode."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_collaboration_follow_presenter_schema_version",
+        "presenter_state_id",
+        "document_id_ref",
+        "session_envelope_ref",
+        "presenter_mode",
+        "presenter_actor_ref",
+        "presenter_actions",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_runtime_disclosure_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_runtime_disclosure" },
+        "notebook_collaboration_follow_presenter_schema_version": { "$ref": "#/$defs/notebook_collaboration_follow_presenter_schema_version" },
+        "runtime_disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "disclosure_class": { "$ref": "#/$defs/notebook_runtime_disclosure_class" },
+        "kernel_session_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "captured_at": {
+          "oneOf": [
+            { "type": "string", "format": "date-time" },
+            { "type": "null" }
+          ],
+          "description": "UTC timestamp when the captured state was frozen, when disclosure_class is captured_output."
+        },
+        "disclosure_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_runtime_disclosure_action_class" },
+          "description": "Available disclosure actions for the current class."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_collaboration_follow_presenter_schema_version",
+        "runtime_disclosure_id",
+        "document_id_ref",
+        "disclosure_class",
+        "disclosure_actions",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_collaboration_follow_presenter_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_collaboration_follow_presenter_schema_version" },
+        "record_kind": { "const": "notebook_collaboration_follow_presenter_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "follow_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_follow_mode" },
+          "description": "Closed vocabulary: follow modes. Must list every variant."
+        },
+        "follow_target_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_follow_target_class" },
+          "description": "Closed vocabulary: follow target classes. Must list every variant."
+        },
+        "presenter_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_presenter_mode" },
+          "description": "Closed vocabulary: presenter modes. Must list every variant."
+        },
+        "presenter_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_presenter_action_class" },
+          "description": "Closed vocabulary: presenter actions. Must list every variant."
+        },
+        "runtime_disclosure_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_runtime_disclosure_class" },
+          "description": "Closed vocabulary: runtime disclosure classes. Must list every variant."
+        },
+        "runtime_disclosure_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_runtime_disclosure_action_class" },
+          "description": "Closed vocabulary: runtime disclosure actions. Must list every variant."
+        },
+        "example_follow_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_collaboration_follow_state_record" },
+          "description": "Worked example follow states."
+        },
+        "example_presenter_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_presenter_state_record" },
+          "description": "Worked example presenter states."
+        },
+        "example_runtime_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_runtime_disclosure_record" },
+          "description": "Worked example runtime disclosures."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "follow_modes",
+        "follow_target_classes",
+        "presenter_modes",
+        "presenter_actions",
+        "runtime_disclosure_classes",
+        "runtime_disclosure_actions",
+        "example_follow_states",
+        "example_presenter_states",
+        "example_runtime_disclosures",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
