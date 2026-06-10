@@ -100,7 +100,14 @@
 //!     and the [`NotebookCommentAnchorPacket`] checked-in artifact that downstream
 //!     docs, help, CI, and support surfaces ingest instead of cloning status text.
 //!
-//! 14. The [`implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure`]
+//! 14. The [`ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records`]
+//!     module materializes the typed records that make debugger frame-to-cell
+//!     relationships explicit and kernel-restart consequences observable. It produces
+//!     [`DebuggerFrameCellLink`] records, [`KernelRestartDebuggerConsequence`] records,
+//!     and the [`NotebookDebuggerBridgePacket`] checked-in artifact that downstream
+//!     docs, help, CI, and support surfaces ingest instead of cloning status text.
+//!
+//! 15. The [`implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure`]
 //!     module materializes the typed records that keep notebook collaboration
 //!     honest about follow state, presenter authority, and the boundary between
 //!     live runtime state and captured output. It produces
@@ -206,6 +213,13 @@
 //! `/fixtures/notebook/m5/add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity/`.
 //!
 //! The records under
+//! [`ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records/`.
+//!
+//! The records under
 //! [`implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure`]
 //! mirror the boundary schema at
 //! `/schemas/notebook/implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure.schema.json`.
@@ -245,6 +259,7 @@ pub mod seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical
 pub mod ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback;
 pub mod ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
+pub mod ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records;
 
 pub use runtime_truth::{
     CellExecutionDetailRow, CellExecutionFinding, CellExecutionOutcomeClass, CellExecutionRunScope,
@@ -398,6 +413,17 @@ pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state
     NOTEBOOK_CELL_CHROME_PACKET_PATH, NOTEBOOK_CELL_CHROME_PACKET_RECORD_KIND,
     NOTEBOOK_CELL_CHROME_RECORD_KIND, NOTEBOOK_CELL_CHROME_SCHEMA_VERSION,
     DURABLE_EXECUTION_STATE_ROW_RECORD_KIND, RUN_SCOPE_CONTROL_RECORD_KIND,
+};
+
+pub use ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records::{
+    current_notebook_debugger_bridge_packet, DebuggerBridgeLinkRestartFinding, DebuggerFrameCellLink,
+    DebuggerFrameCellLinkClass, DebuggerFrameCellLinkFinding, DebuggerFrameCellLinkPostureClass,
+    KernelRestartConsequenceClass, KernelRestartDebuggerActionClass,
+    KernelRestartDebuggerConsequence, KernelRestartDebuggerConsequenceFinding, KernelRestartKind,
+    NotebookDebuggerBridgePacket, NotebookDebuggerBridgePacketFinding,
+    DEBUGGER_FRAME_CELL_LINK_RECORD_KIND, KERNEL_RESTART_DEBUGGER_CONSEQUENCE_RECORD_KIND,
+    NOTEBOOK_DEBUGGER_BRIDGE_PACKET_JSON, NOTEBOOK_DEBUGGER_BRIDGE_PACKET_PATH,
+    NOTEBOOK_DEBUGGER_BRIDGE_PACKET_RECORD_KIND, NOTEBOOK_DEBUGGER_BRIDGE_SCHEMA_VERSION,
 };
 
 pub use ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback::{

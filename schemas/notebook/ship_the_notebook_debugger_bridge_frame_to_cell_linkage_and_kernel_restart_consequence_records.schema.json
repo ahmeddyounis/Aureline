@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records.schema.json",
+  "title": "Aureline notebook debugger bridge, frame-to-cell linkage, and kernel restart consequence records",
+  "description": "Boundary schema for the notebook debugger-bridge surface. Every record that crosses this boundary (frame-to-cell link, kernel-restart debugger consequence, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/debugger_frame_cell_link_record" },
+    { "$ref": "#/$defs/kernel_restart_debugger_consequence_record" },
+    { "$ref": "#/$defs/notebook_debugger_bridge_packet_record" }
+  ],
+  "$defs": {
+    "notebook_debugger_bridge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the debugger-bridge record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, output block, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "debugger_frame_cell_link_class": {
+      "type": "string",
+      "enum": [
+        "exact_cell_match",
+        "nearest_cell_heuristic",
+        "no_cell_mapping",
+        "in_cell_library_code",
+        "in_cell_external_dependency",
+        "frame_stale_after_restart"
+      ],
+      "description": "Frozen frame-to-cell link class vocabulary. Distinguishes exact match, heuristic, no mapping, library code, external dependency, and stale-after-restart cases."
+    },
+    "debugger_frame_cell_link_posture_class": {
+      "type": "string",
+      "enum": [
+        "actionable_step_into_cell",
+        "actionable_step_over_cell",
+        "view_only_no_step",
+        "stale_reinitialize_required",
+        "unsupported_no_source_map"
+      ],
+      "description": "Frozen frame-to-cell link posture vocabulary. Distinguishes actionable stepping, view-only, stale, and unsupported cases."
+    },
+    "kernel_restart_kind": {
+      "type": "string",
+      "enum": [
+        "user_initiated_restart",
+        "transport_lost_reconnect_attempted",
+        "trust_downgrade_cancels_in_flight",
+        "policy_denies_continued_execution",
+        "managed_workspace_lifecycle_change",
+        "bridge_cancelled_by_restart"
+      ],
+      "description": "Frozen kernel-restart kind vocabulary. Names the exact reason a restart or reconnect occurred."
+    },
+    "kernel_restart_consequence_class": {
+      "type": "string",
+      "enum": [
+        "bridge_preserved_same_session",
+        "bridge_reset_fresh_session",
+        "bridge_cancelled_pending_reconnect",
+        "bridge_unavailable_no_kernel",
+        "breakpoints_retained_across_restart",
+        "breakpoints_lost_on_restart",
+        "variable_state_lost",
+        "execution_queue_cleared"
+      ],
+      "description": "Frozen kernel-restart consequence class vocabulary. Distinguishes preserved, reset, cancelled, unavailable, breakpoint-retained, breakpoint-lost, variable-lost, and queue-cleared cases."
+    },
+    "kernel_restart_debugger_action_class": {
+      "type": "string",
+      "enum": [
+        "reattach_automatically",
+        "reattach_on_demand",
+        "reattach_unavailable",
+        "reattach_requires_review"
+      ],
+      "description": "Frozen kernel-restart debugger-action class vocabulary. Distinguishes automatic, on-demand, unavailable, and review-required reattach paths."
+    },
+    "debugger_frame_cell_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_debugger_bridge_schema_version",
+        "link_id",
+        "document_id_ref",
+        "kernel_session_id_ref",
+        "frame_ref",
+        "link_class",
+        "link_posture_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_debugger_frame_cell_link" },
+        "notebook_debugger_bridge_schema_version": { "$ref": "#/$defs/notebook_debugger_bridge_schema_version" },
+        "link_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "frame_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "link_class": { "$ref": "#/$defs/debugger_frame_cell_link_class" },
+        "link_posture_class": { "$ref": "#/$defs/debugger_frame_cell_link_posture_class" },
+        "source_line_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "kernel_restart_debugger_consequence_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_debugger_bridge_schema_version",
+        "consequence_id",
+        "document_id_ref",
+        "restart_kind",
+        "consequence_class",
+        "in_flight_debug_cancelled",
+        "breakpoints_affected",
+        "reattach_action_class",
+        "auto_rerun_forbidden",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_kernel_restart_debugger_consequence" },
+        "notebook_debugger_bridge_schema_version": { "$ref": "#/$defs/notebook_debugger_bridge_schema_version" },
+        "consequence_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "prior_kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "next_kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "restart_kind": { "$ref": "#/$defs/kernel_restart_kind" },
+        "consequence_class": { "$ref": "#/$defs/kernel_restart_consequence_class" },
+        "in_flight_debug_cancelled": { "type": "boolean" },
+        "breakpoints_affected": { "type": "integer", "minimum": 0 },
+        "reattach_action_class": { "$ref": "#/$defs/kernel_restart_debugger_action_class" },
+        "reconnect_review_sheet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "auto_rerun_forbidden": { "type": "boolean", "const": true },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_debugger_bridge_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "debugger_frame_cell_link_classes",
+        "debugger_frame_cell_link_posture_classes",
+        "kernel_restart_kinds",
+        "kernel_restart_consequence_classes",
+        "kernel_restart_debugger_action_classes",
+        "example_debugger_frame_cell_links",
+        "example_kernel_restart_debugger_consequences",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_debugger_bridge_schema_version" },
+        "record_kind": { "const": "notebook_debugger_bridge_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "debugger_frame_cell_link_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debugger_frame_cell_link_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "debugger_frame_cell_link_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debugger_frame_cell_link_posture_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "kernel_restart_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_restart_kind" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "kernel_restart_consequence_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_restart_consequence_class" },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "kernel_restart_debugger_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_restart_debugger_action_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_debugger_frame_cell_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debugger_frame_cell_link_record" }
+        },
+        "example_kernel_restart_debugger_consequences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kernel_restart_debugger_consequence_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
