@@ -22,7 +22,16 @@
 //! diff-review, diagnostics, and support surfaces never present heuristic or
 //! bridge behavior as exact first-party truth without current support-class and
 //! downgrade cues.
+//!
+//! It also owns the route-explorer, component-tree, and app-topology view packet,
+//! which binds each structural node to its authored/generated/runtime-only origin,
+//! the generator version that produced any generated node, the view-scan freshness,
+//! how the node truth was derived, its support class, and its downgrade banner, so
+//! the route explorer, component tree, app-topology view, diff-review, run,
+//! diagnostics, and support surfaces never present heuristic, bridged, or
+//! runtime-observed structure as exact authored or generated source truth.
 
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
+pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;
