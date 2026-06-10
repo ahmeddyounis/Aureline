@@ -79,10 +79,7 @@ fn read_case(case_path: &str) -> FixtureCase {
         .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()))
 }
 
-fn assert_findings_match(
-    check_ids: &[String],
-    findings: &[aureline_notebook::CellChromeFinding],
-) {
+fn assert_findings_match(check_ids: &[String], findings: &[aureline_notebook::CellChromeFinding]) {
     let actual: Vec<String> = findings.iter().map(|f| f.check_id.clone()).collect();
     assert_eq!(
         actual, *check_ids,
@@ -161,8 +158,7 @@ fn every_case_validates_and_matches_expectations() {
 
         // Closed-vocabulary expectations are reflected in the records.
         assert_eq!(
-            case.notebook_cell_chrome.cell_status_class,
-            case.fixture.expected.cell_status_class,
+            case.notebook_cell_chrome.cell_status_class, case.fixture.expected.cell_status_class,
             "fixture {name} cell_status_class mismatch"
         );
         assert_eq!(
@@ -176,8 +172,7 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name} run_scope_control_changeable mismatch"
         );
         assert_eq!(
-            case.run_scope_control.lock_reason_class,
-            case.fixture.expected.lock_reason_class,
+            case.run_scope_control.lock_reason_class, case.fixture.expected.lock_reason_class,
             "fixture {name} lock_reason_class mismatch"
         );
         assert_eq!(
@@ -188,8 +183,7 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name} durable_outcome_class mismatch"
         );
         assert_eq!(
-            case.durable_execution_state_row.stale_output,
-            case.fixture.expected.stale_output,
+            case.durable_execution_state_row.stale_output, case.fixture.expected.stale_output,
             "fixture {name} stale_output mismatch"
         );
 
@@ -213,8 +207,7 @@ fn every_case_validates_and_matches_expectations() {
         for action in &case.notebook_cell_chrome.available_actions {
             observed_action_classes.insert(action.as_str(), ());
         }
-        observed_lock_reason_classes
-            .insert(case.run_scope_control.lock_reason_class.as_str(), ());
+        observed_lock_reason_classes.insert(case.run_scope_control.lock_reason_class.as_str(), ());
     }
 
     // The manifest's expected vocabulary lists must be exercised by at least

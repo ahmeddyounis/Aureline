@@ -207,7 +207,8 @@ fn backed_row_with_active_gap_fails() {
         .iter_mut()
         .find(|row| row.publishes_stable())
         .expect("register has a backed row");
-    row.active_gap_reasons.push(AutomationGapReason::ProofPacketMissing);
+    row.active_gap_reasons
+        .push(AutomationGapReason::ProofPacketMissing);
     r.summary = r.computed_summary();
 
     assert!(

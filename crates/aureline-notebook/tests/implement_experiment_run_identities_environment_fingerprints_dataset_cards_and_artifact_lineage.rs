@@ -165,15 +165,16 @@ fn every_case_validates_and_matches_expectations() {
 
         let fp_findings = case.experiment_environment_fingerprint.validate();
         assert_findings_match(
-            &case.fixture.expected.findings.experiment_environment_fingerprint,
+            &case
+                .fixture
+                .expected
+                .findings
+                .experiment_environment_fingerprint,
             &fp_findings,
         );
 
         let ds_findings = case.dataset_card.validate();
-        assert_findings_match(
-            &case.fixture.expected.findings.dataset_card,
-            &ds_findings,
-        );
+        assert_findings_match(&case.fixture.expected.findings.dataset_card, &ds_findings);
 
         let art_findings = case.artifact_lineage.validate();
         assert_findings_match(
@@ -183,8 +184,7 @@ fn every_case_validates_and_matches_expectations() {
 
         // Closed-vocabulary expectations are reflected in the records.
         assert_eq!(
-            case.experiment_run_identity.outcome_class,
-            case.fixture.expected.outcome_class,
+            case.experiment_run_identity.outcome_class, case.fixture.expected.outcome_class,
             "fixture {name} outcome_class mismatch"
         );
         assert_eq!(
@@ -193,8 +193,7 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name} freshness_class mismatch"
         );
         assert_eq!(
-            case.dataset_card.source_class,
-            case.fixture.expected.source_class,
+            case.dataset_card.source_class, case.fixture.expected.source_class,
             "fixture {name} source_class mismatch"
         );
         assert_eq!(
@@ -203,18 +202,15 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name} sensitivity_redaction_class mismatch"
         );
         assert_eq!(
-            case.dataset_card.location_class,
-            case.fixture.expected.location_class,
+            case.dataset_card.location_class, case.fixture.expected.location_class,
             "fixture {name} location_class mismatch"
         );
         assert_eq!(
-            case.artifact_lineage.save_location_class,
-            case.fixture.expected.save_location_class,
+            case.artifact_lineage.save_location_class, case.fixture.expected.save_location_class,
             "fixture {name} save_location_class mismatch"
         );
         assert_eq!(
-            case.artifact_lineage.lineage_state_class,
-            case.fixture.expected.lineage_state_class,
+            case.artifact_lineage.lineage_state_class, case.fixture.expected.lineage_state_class,
             "fixture {name} lineage_state_class mismatch"
         );
 
@@ -228,7 +224,8 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name}: run source_ref must not be empty"
         );
         assert!(
-            !case.experiment_environment_fingerprint
+            !case
+                .experiment_environment_fingerprint
                 .environment_identity_label
                 .trim()
                 .is_empty(),
@@ -245,7 +242,9 @@ fn every_case_validates_and_matches_expectations() {
 
         observed_outcomes.insert(case.experiment_run_identity.outcome_class.as_str(), ());
         observed_freshness.insert(
-            case.experiment_environment_fingerprint.freshness_class.as_str(),
+            case.experiment_environment_fingerprint
+                .freshness_class
+                .as_str(),
             (),
         );
         observed_sources.insert(case.dataset_card.source_class.as_str(), ());

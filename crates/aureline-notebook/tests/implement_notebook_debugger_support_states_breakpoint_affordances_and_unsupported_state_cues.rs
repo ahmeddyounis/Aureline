@@ -4,9 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use aureline_notebook::{
-    BreakpointAffordance, NotebookDebuggerSupportState, UnsupportedStateCue,
-};
+use aureline_notebook::{BreakpointAffordance, NotebookDebuggerSupportState, UnsupportedStateCue};
 use serde::Deserialize;
 
 fn repo_root() -> PathBuf {
@@ -146,7 +144,11 @@ fn every_case_validates_and_matches_expectations() {
         if let Some(state) = &case.notebook_debugger_support_state {
             let findings = state.validate();
             assert_findings_match(
-                &case.fixture.expected.findings.notebook_debugger_support_state,
+                &case
+                    .fixture
+                    .expected
+                    .findings
+                    .notebook_debugger_support_state,
                 &findings,
             );
             if let Some(expected) = &case.fixture.expected.debugger_support_state_class {

@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_versus_artifact_scope_separation.schema.json",
+  "title": "Aureline notebook share and handoff sheets with notebook-versus-report-versus-artifact scope separation",
+  "description": "Boundary schema for notebook share sheets, handoff sheets, and scope-separation records. Every record that crosses the share/handoff boundary (share sheet, handoff sheet, share/handoff packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_share_sheet_record" },
+    { "$ref": "#/$defs/notebook_handoff_sheet_record" },
+    { "$ref": "#/$defs/notebook_share_and_handoff_packet_record" }
+  ],
+  "$defs": {
+    "notebook_share_handoff_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook share/handoff module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_share_sheet",
+        "notebook_handoff_sheet",
+        "notebook_share_and_handoff_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, session id, document id, actor id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_scope_class": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "report",
+        "artifact"
+      ],
+      "description": "Frozen scope-class vocabulary. Names the separable scope of a share or handoff so consumers never conflate live runtime state with captured output or derived exports."
+    },
+
+    "notebook_share_posture_class": {
+      "type": "string",
+      "enum": [
+        "redacted_before_share",
+        "full_document",
+        "export_only",
+        "degraded_scope"
+      ],
+      "description": "Frozen share-posture vocabulary. Names the redaction and downgrade posture of a share so the UI shows redaction-before-share labels instead of optimistic placeholder language."
+    },
+
+    "notebook_handoff_posture_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "expired",
+        "revoked"
+      ],
+      "description": "Frozen handoff-posture vocabulary. Names the lifecycle state of a handoff so participants know whether the transfer is still actionable."
+    },
+
+    "notebook_share_sheet_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_share_sheet" },
+        "notebook_share_handoff_schema_version": { "$ref": "#/$defs/notebook_share_handoff_schema_version" },
+        "share_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "sharer_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "recipient_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to the recipients of the share."
+        },
+        "scope_class": { "$ref": "#/$defs/notebook_scope_class" },
+        "share_posture": { "$ref": "#/$defs/notebook_share_posture_class" },
+        "redaction_explanation": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "description": "Export-safe explanation when share_posture is redacted_before_share or degraded_scope."
+        },
+        "cell_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to the cells included in the share, when scope is partial."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_share_handoff_schema_version",
+        "share_sheet_id",
+        "document_id_ref",
+        "sharer_actor_ref",
+        "recipient_refs",
+        "scope_class",
+        "share_posture",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_handoff_sheet_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_handoff_sheet" },
+        "notebook_share_handoff_schema_version": { "$ref": "#/$defs/notebook_share_handoff_schema_version" },
+        "handoff_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "sender_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "recipient_actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "scope_class": { "$ref": "#/$defs/notebook_scope_class" },
+        "handoff_posture": { "$ref": "#/$defs/notebook_handoff_posture_class" },
+        "handoff_explanation": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "description": "Export-safe explanation when handoff_posture is declined or revoked."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_share_handoff_schema_version",
+        "handoff_sheet_id",
+        "document_id_ref",
+        "sender_actor_ref",
+        "recipient_actor_ref",
+        "scope_class",
+        "handoff_posture",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_share_and_handoff_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_share_handoff_schema_version" },
+        "record_kind": { "const": "notebook_share_and_handoff_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "scope_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_scope_class" },
+          "description": "Closed vocabulary: scope classes. Must list every variant."
+        },
+        "share_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_share_posture_class" },
+          "description": "Closed vocabulary: share posture classes. Must list every variant."
+        },
+        "handoff_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_handoff_posture_class" },
+          "description": "Closed vocabulary: handoff posture classes. Must list every variant."
+        },
+        "example_share_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_share_sheet_record" },
+          "description": "Worked example share sheets."
+        },
+        "example_handoff_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_handoff_sheet_record" },
+          "description": "Worked example handoff sheets."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "scope_classes",
+        "share_posture_classes",
+        "handoff_posture_classes",
+        "example_share_sheets",
+        "example_handoff_sheets",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

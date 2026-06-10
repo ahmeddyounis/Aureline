@@ -188,7 +188,8 @@ fn every_case_validates_and_matches_expectations() {
             }
             if let Some(expected_terminal) = case.fixture.expected.terminal_event {
                 assert_eq!(
-                    event.task_event_kind.is_terminal(), expected_terminal,
+                    event.task_event_kind.is_terminal(),
+                    expected_terminal,
                     "fixture {name} terminal_event mismatch"
                 );
             }
@@ -206,25 +207,29 @@ fn every_case_validates_and_matches_expectations() {
 
             if let Some(ref expected_actor) = case.fixture.expected.actor_kind {
                 assert_eq!(
-                    row.actor_kind.as_str(), expected_actor.as_str(),
+                    row.actor_kind.as_str(),
+                    expected_actor.as_str(),
                     "fixture {name} actor_kind mismatch"
                 );
             }
             if let Some(ref expected_action) = case.fixture.expected.action {
                 assert_eq!(
-                    row.action.as_str(), expected_action.as_str(),
+                    row.action.as_str(),
+                    expected_action.as_str(),
                     "fixture {name} action mismatch"
                 );
             }
             if let Some(ref expected_object) = case.fixture.expected.object_kind {
                 assert_eq!(
-                    row.object_kind.as_str(), expected_object.as_str(),
+                    row.object_kind.as_str(),
+                    expected_object.as_str(),
                     "fixture {name} object_kind mismatch"
                 );
             }
             if let Some(ref expected_outcome) = case.fixture.expected.outcome {
                 assert_eq!(
-                    row.outcome.as_str(), expected_outcome.as_str(),
+                    row.outcome.as_str(),
+                    expected_outcome.as_str(),
                     "fixture {name} outcome mismatch"
                 );
             }
@@ -244,19 +249,22 @@ fn every_case_validates_and_matches_expectations() {
 
             if let Some(ref expected_class) = case.fixture.expected.restore_class {
                 assert_eq!(
-                    history.restore_class.as_str(), expected_class.as_str(),
+                    history.restore_class.as_str(),
+                    expected_class.as_str(),
                     "fixture {name} restore_class mismatch"
                 );
             }
             if let Some(ref expected_posture) = case.fixture.expected.restore_posture {
                 assert_eq!(
-                    history.restore_posture.as_str(), expected_posture.as_str(),
+                    history.restore_posture.as_str(),
+                    expected_posture.as_str(),
                     "fixture {name} restore_posture mismatch"
                 );
             }
             if let Some(expected_has_session) = case.fixture.expected.has_kernel_session {
                 assert_eq!(
-                    history.kernel_session_id_ref.is_some(), expected_has_session,
+                    history.kernel_session_id_ref.is_some(),
+                    expected_has_session,
                     "fixture {name} has_kernel_session mismatch"
                 );
             }

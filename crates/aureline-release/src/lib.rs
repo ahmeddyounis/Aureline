@@ -692,10 +692,10 @@ pub use freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_ru
 };
 pub use generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains::{
     current_m5_depth_train_automation_register, AutomationAction, AutomationGapReason,
-    AutomationState, AutomationStopRule, BackportEligibility, BackportKind,
-    EvidenceExpiryRecord, EvidenceKind, M5DepthTrainAutomationExportProjection,
-    M5DepthTrainAutomationExportRow, M5DepthTrainAutomationRegister, M5DepthTrainAutomationSummary,
-    M5DepthTrainAutomationViolation, M5DepthTrainRow,
+    AutomationState, AutomationStopRule, BackportEligibility, BackportKind, EvidenceExpiryRecord,
+    EvidenceKind, M5DepthTrainAutomationExportProjection, M5DepthTrainAutomationExportRow,
+    M5DepthTrainAutomationRegister, M5DepthTrainAutomationSummary, M5DepthTrainAutomationViolation,
+    M5DepthTrainRow,
     GENERATE_M5_PROOF_FRESHNESS_BACKPORT_AND_EVIDENCE_EXPIRY_AUTOMATION_FOR_DEPTH_TRAINS_JSON,
     GENERATE_M5_PROOF_FRESHNESS_BACKPORT_AND_EVIDENCE_EXPIRY_AUTOMATION_FOR_DEPTH_TRAINS_PATH,
     GENERATE_M5_PROOF_FRESHNESS_BACKPORT_AND_EVIDENCE_EXPIRY_AUTOMATION_FOR_DEPTH_TRAINS_RECORD_KIND,

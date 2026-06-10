@@ -93,7 +93,8 @@ fn integration_packet_validates_clean() {
         save_kind_classes: NotebookSaveKindClass::ALL.to_vec(),
         metadata_preservation_classes: NotebookMetadataPreservationClass::ALL.to_vec(),
         attachment_preservation_classes: NotebookAttachmentPreservationClass::ALL.to_vec(),
-        unknown_namespace_preservation_classes: NotebookUnknownNamespacePreservationClass::ALL.to_vec(),
+        unknown_namespace_preservation_classes: NotebookUnknownNamespacePreservationClass::ALL
+            .to_vec(),
         repair_kind_classes: NotebookRepairKindClass::ALL.to_vec(),
         repair_consequence_classes: NotebookRepairConsequenceClass::ALL.to_vec(),
         round_trip_assertion_kind_classes: NotebookRoundTripAssertionKindClass::ALL.to_vec(),
@@ -112,8 +113,8 @@ fn integration_packet_validates_clean() {
 
 #[test]
 fn integration_embedded_packet_parses_and_validates() {
-    let packet = current_notebook_save_repair_round_trip_packet()
-        .expect("embedded packet must parse");
+    let packet =
+        current_notebook_save_repair_round_trip_packet().expect("embedded packet must parse");
     assert_eq!(packet.schema_version, NOTEBOOK_SAVE_REPAIR_SCHEMA_VERSION);
     assert_eq!(
         packet.record_kind,

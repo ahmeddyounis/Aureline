@@ -4,9 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use aureline_notebook::{
-    LargeOutputVirtualizationRecord, NotebookOutputViewerLane,
-};
+use aureline_notebook::{LargeOutputVirtualizationRecord, NotebookOutputViewerLane};
 use serde::Deserialize;
 
 fn repo_root() -> PathBuf {
@@ -76,7 +74,10 @@ fn read_case(case_path: &str) -> FixtureCase {
         .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()))
 }
 
-fn assert_findings_match(check_ids: &[String], findings: &[aureline_notebook::OutputViewerFinding]) {
+fn assert_findings_match(
+    check_ids: &[String],
+    findings: &[aureline_notebook::OutputViewerFinding],
+) {
     let actual: Vec<String> = findings.iter().map(|f| f.check_id.clone()).collect();
     assert_eq!(
         actual, *check_ids,
@@ -164,7 +165,9 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name} size_bucket mismatch"
         );
         assert_eq!(
-            case.notebook_output_viewer_lane.virtualization_state_class.as_str(),
+            case.notebook_output_viewer_lane
+                .virtualization_state_class
+                .as_str(),
             case.fixture.expected.virtualization_state_class,
             "fixture {name} virtualization_state_class mismatch"
         );
@@ -184,7 +187,10 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name}: virtualization summary must not be empty"
         );
 
-        observed_lanes.insert(case.notebook_output_viewer_lane.viewer_lane_class.as_str(), ());
+        observed_lanes.insert(
+            case.notebook_output_viewer_lane.viewer_lane_class.as_str(),
+            (),
+        );
         observed_buckets.insert(case.large_output_virtualization.size_bucket.as_str(), ());
         observed_states.insert(
             case.large_output_virtualization

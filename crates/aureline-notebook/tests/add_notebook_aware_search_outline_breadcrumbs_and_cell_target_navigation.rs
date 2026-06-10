@@ -171,13 +171,11 @@ fn every_case_validates_and_matches_expectations() {
 
         // Closed-vocabulary expectations are reflected in the records.
         assert_eq!(
-            case.notebook_search_query.search_scope_class,
-            case.fixture.expected.search_scope_class,
+            case.notebook_search_query.search_scope_class, case.fixture.expected.search_scope_class,
             "fixture {name} search_scope_class mismatch"
         );
         assert_eq!(
-            case.notebook_search_query.match_class,
-            case.fixture.expected.match_class,
+            case.notebook_search_query.match_class, case.fixture.expected.match_class,
             "fixture {name} match_class mismatch"
         );
 
@@ -201,28 +199,33 @@ fn every_case_validates_and_matches_expectations() {
 
         // At least one locator on cell target.
         let t = &case.notebook_cell_target;
-        let has_locator = t.cell_id_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+        let has_locator = t
+            .cell_id_ref
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
             || t.cell_index.is_some()
             || t.output_index.is_some()
-            || t.heading_anchor_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
-            || t.search_match_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+            || t.heading_anchor_ref
+                .as_ref()
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false)
+            || t.search_match_ref
+                .as_ref()
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
         assert!(
             has_locator,
             "fixture {name}: cell target must have at least one locator"
         );
 
-        observed_search_scope.insert(
-            case.notebook_search_query.search_scope_class.as_str(),
-            (),
-        );
+        observed_search_scope.insert(case.notebook_search_query.search_scope_class.as_str(), ());
         observed_search_match.insert(case.notebook_search_query.match_class.as_str(), ());
         observed_outline_item.insert(case.notebook_outline_item.item_class.as_str(), ());
         observed_breadcrumb.insert(case.notebook_breadcrumb.breadcrumb_class.as_str(), ());
         observed_cell_target.insert(case.notebook_cell_target.target_class.as_str(), ());
-        observed_scroll_behavior.insert(
-            case.notebook_cell_target.scroll_behavior_class.as_str(),
-            (),
-        );
+        observed_scroll_behavior
+            .insert(case.notebook_cell_target.scroll_behavior_class.as_str(), ());
     }
 
     // The manifest's expected vocabulary lists must be exercised by at least

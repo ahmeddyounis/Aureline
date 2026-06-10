@@ -1,8 +1,7 @@
 use aureline_notebook::{
-    current_notebook_support_packet, HeavyOutputCorpusEntry,
-    HeavyOutputCorpusSizeBucketClass, HeavyOutputCorpusTrustImplicationClass,
-    HeavyOutputCorpusVirtualizationClass, NotebookRoundTripFixture,
-    NotebookRoundTripFixtureKindClass, NotebookSupportPacket,
+    current_notebook_support_packet, HeavyOutputCorpusEntry, HeavyOutputCorpusSizeBucketClass,
+    HeavyOutputCorpusTrustImplicationClass, HeavyOutputCorpusVirtualizationClass,
+    NotebookRoundTripFixture, NotebookRoundTripFixtureKindClass, NotebookSupportPacket,
     NotebookSupportPacketCoverageClass, HEAVY_OUTPUT_CORPUS_ENTRY_RECORD_KIND,
     NOTEBOOK_ROUND_TRIP_FIXTURE_RECORD_KIND, NOTEBOOK_SUPPORT_PACKET_RECORD_KIND,
     NOTEBOOK_SUPPORT_SCHEMA_VERSION,

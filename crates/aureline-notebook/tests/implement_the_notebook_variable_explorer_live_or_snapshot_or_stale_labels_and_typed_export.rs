@@ -4,9 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use aureline_notebook::{
-    NotebookVariableExplorer, VariableExplorerTypedExport,
-};
+use aureline_notebook::{NotebookVariableExplorer, VariableExplorerTypedExport};
 use serde::Deserialize;
 
 fn repo_root() -> PathBuf {
@@ -83,7 +81,10 @@ fn read_case(case_path: &str) -> FixtureCase {
         .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()))
 }
 
-fn assert_findings_match(check_ids: &[String], findings: &[aureline_notebook::VariableExplorerFinding]) {
+fn assert_findings_match(
+    check_ids: &[String],
+    findings: &[aureline_notebook::VariableExplorerFinding],
+) {
     let actual: Vec<String> = findings.iter().map(|f| f.check_id.clone()).collect();
     assert_eq!(
         actual, *check_ids,
@@ -152,7 +153,11 @@ fn every_case_validates_and_matches_expectations() {
 
         let export_findings = case.variable_explorer_typed_export.validate();
         assert_findings_match(
-            &case.fixture.expected.findings.variable_explorer_typed_export,
+            &case
+                .fixture
+                .expected
+                .findings
+                .variable_explorer_typed_export,
             &export_findings,
         );
 
@@ -173,58 +178,59 @@ fn every_case_validates_and_matches_expectations() {
         }
         if let Some(expected) = case.fixture.expected.entry_count_visible {
             assert_eq!(
-                case.notebook_variable_explorer.entry_count_visible,
-                expected,
+                case.notebook_variable_explorer.entry_count_visible, expected,
                 "fixture {name} entry_count_visible mismatch"
             );
         }
         if let Some(expected) = case.fixture.expected.entry_count_total {
             assert_eq!(
-                case.notebook_variable_explorer.entry_count_total,
-                expected,
+                case.notebook_variable_explorer.entry_count_total, expected,
                 "fixture {name} entry_count_total mismatch"
             );
         }
         if let Some(expected) = case.fixture.expected.has_more_entries {
             assert_eq!(
-                case.notebook_variable_explorer.has_more_entries,
-                expected,
+                case.notebook_variable_explorer.has_more_entries, expected,
                 "fixture {name} has_more_entries mismatch"
             );
         }
         if let Some(expected) = case.fixture.expected.truncation_notice_visible {
             assert_eq!(
-                case.notebook_variable_explorer.truncation_notice_visible,
-                expected,
+                case.notebook_variable_explorer.truncation_notice_visible, expected,
                 "fixture {name} truncation_notice_visible mismatch"
             );
         }
 
         if let Some(expected) = &case.fixture.expected.export_format_class {
             assert_eq!(
-                case.variable_explorer_typed_export.export_format_class.as_str(),
+                case.variable_explorer_typed_export
+                    .export_format_class
+                    .as_str(),
                 expected.as_str(),
                 "fixture {name} export_format_class mismatch"
             );
         }
         if let Some(expected) = &case.fixture.expected.export_posture_class {
             assert_eq!(
-                case.variable_explorer_typed_export.export_posture_class.as_str(),
+                case.variable_explorer_typed_export
+                    .export_posture_class
+                    .as_str(),
                 expected.as_str(),
                 "fixture {name} export_posture_class mismatch"
             );
         }
         if let Some(expected) = &case.fixture.expected.export_scope_class {
             assert_eq!(
-                case.variable_explorer_typed_export.export_scope_class.as_str(),
+                case.variable_explorer_typed_export
+                    .export_scope_class
+                    .as_str(),
                 expected.as_str(),
                 "fixture {name} export_scope_class mismatch"
             );
         }
         if let Some(expected) = case.fixture.expected.redaction_required {
             assert_eq!(
-                case.variable_explorer_typed_export.redaction_required,
-                expected,
+                case.variable_explorer_typed_export.redaction_required, expected,
                 "fixture {name} redaction_required mismatch"
             );
         }
@@ -235,15 +241,34 @@ fn every_case_validates_and_matches_expectations() {
             "fixture {name}: explorer summary must not be empty"
         );
         assert!(
-            !case.variable_explorer_typed_export.summary.trim().is_empty(),
+            !case
+                .variable_explorer_typed_export
+                .summary
+                .trim()
+                .is_empty(),
             "fixture {name}: export summary must not be empty"
         );
 
         observed_sorts.insert(case.notebook_variable_explorer.sort_class.as_str(), ());
         observed_filters.insert(case.notebook_variable_explorer.filter_class.as_str(), ());
-        observed_formats.insert(case.variable_explorer_typed_export.export_format_class.as_str(), ());
-        observed_postures.insert(case.variable_explorer_typed_export.export_posture_class.as_str(), ());
-        observed_scopes.insert(case.variable_explorer_typed_export.export_scope_class.as_str(), ());
+        observed_formats.insert(
+            case.variable_explorer_typed_export
+                .export_format_class
+                .as_str(),
+            (),
+        );
+        observed_postures.insert(
+            case.variable_explorer_typed_export
+                .export_posture_class
+                .as_str(),
+            (),
+        );
+        observed_scopes.insert(
+            case.variable_explorer_typed_export
+                .export_scope_class
+                .as_str(),
+            (),
+        );
     }
 
     // The manifest's expected vocabulary lists must be exercised by at least

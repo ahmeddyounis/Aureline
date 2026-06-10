@@ -766,16 +766,12 @@ impl M5DepthTrainAutomationRegister {
             entries_missing_backport_policy: self
                 .rows
                 .iter()
-                .filter(|row| {
-                    row.has_active_reason(AutomationGapReason::BackportPolicyMissing)
-                })
+                .filter(|row| row.has_active_reason(AutomationGapReason::BackportPolicyMissing))
                 .count(),
             entries_backport_window_closed: self
                 .rows
                 .iter()
-                .filter(|row| {
-                    row.has_active_reason(AutomationGapReason::BackportWindowClosed)
-                })
+                .filter(|row| row.has_active_reason(AutomationGapReason::BackportWindowClosed))
                 .count(),
         }
     }
@@ -963,12 +959,17 @@ impl M5DepthTrainAutomationRegister {
 
         for reason in AutomationGapReason::ALL {
             if !covered.contains(&reason) {
-                violations.push(M5DepthTrainAutomationViolation::GapReasonWithoutStopRule { reason });
+                violations
+                    .push(M5DepthTrainAutomationViolation::GapReasonWithoutStopRule { reason });
             }
         }
     }
 
-    fn validate_row(&self, row: &M5DepthTrainRow, violations: &mut Vec<M5DepthTrainAutomationViolation>) {
+    fn validate_row(
+        &self,
+        row: &M5DepthTrainRow,
+        violations: &mut Vec<M5DepthTrainAutomationViolation>,
+    ) {
         for (field, value) in [
             ("entry_id", &row.entry_id),
             ("title", &row.title),
@@ -987,8 +988,14 @@ impl M5DepthTrainAutomationRegister {
                 &row.proof_packet.freshness_slo.slo_register_ref,
             ),
             ("owner_signoff.owner_ref", &row.owner_signoff.owner_ref),
-            ("backport_eligibility.policy_ref", &row.backport_eligibility.policy_ref),
-            ("backport_eligibility.rationale", &row.backport_eligibility.rationale),
+            (
+                "backport_eligibility.policy_ref",
+                &row.backport_eligibility.policy_ref,
+            ),
+            (
+                "backport_eligibility.rationale",
+                &row.backport_eligibility.rationale,
+            ),
         ] {
             if value.trim().is_empty() {
                 violations.push(M5DepthTrainAutomationViolation::EmptyField {
@@ -1024,9 +1031,11 @@ impl M5DepthTrainAutomationRegister {
 
         // A held lane must have a non-empty backport policy ref.
         if row.holds_label() && !row.backport_eligibility.has_policy() {
-            violations.push(M5DepthTrainAutomationViolation::HeldWithMissingBackportPolicy {
-                entry_id: row.entry_id.clone(),
-            });
+            violations.push(
+                M5DepthTrainAutomationViolation::HeldWithMissingBackportPolicy {
+                    entry_id: row.entry_id.clone(),
+                },
+            );
         }
 
         // A public claim whose canonical label is below the cutline forces the lane
@@ -1107,16 +1116,20 @@ impl M5DepthTrainAutomationRegister {
             if slo_state == FreshnessSloState::Breached
                 && !row.has_active_reason(AutomationGapReason::ProofPacketStale)
             {
-                violations.push(M5DepthTrainAutomationViolation::BreachedPacketWithoutReason {
-                    entry_id: row.entry_id.clone(),
-                });
+                violations.push(
+                    M5DepthTrainAutomationViolation::BreachedPacketWithoutReason {
+                        entry_id: row.entry_id.clone(),
+                    },
+                );
             }
             if slo_state == FreshnessSloState::Missing
                 && !row.has_active_reason(AutomationGapReason::ProofPacketMissing)
             {
-                violations.push(M5DepthTrainAutomationViolation::MissingPacketWithoutReason {
-                    entry_id: row.entry_id.clone(),
-                });
+                violations.push(
+                    M5DepthTrainAutomationViolation::MissingPacketWithoutReason {
+                        entry_id: row.entry_id.clone(),
+                    },
+                );
             }
         }
 
@@ -1501,7 +1514,10 @@ impl fmt::Display for M5DepthTrainAutomationViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "row {entry_id} holds stable without fresh packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
                 write!(
                     f,
                     "row {entry_id} holds stable on stale packet {slo_state:?}"
@@ -1514,7 +1530,10 @@ impl fmt::Display for M5DepthTrainAutomationViolation {
                 write!(f, "row {entry_id} holds stable with expired evidence")
             }
             Self::HeldWithMissingBackportPolicy { entry_id } => {
-                write!(f, "row {entry_id} holds stable with missing backport policy")
+                write!(
+                    f,
+                    "row {entry_id} holds stable with missing backport policy"
+                )
             }
             Self::BreachedPacketWithoutReason { entry_id } => {
                 write!(
@@ -1576,8 +1595,11 @@ impl Error for M5DepthTrainAutomationViolation {}
 ///
 /// Returns a JSON parse error when the checked-in register no longer matches
 /// [`M5DepthTrainAutomationRegister`].
-pub fn current_m5_depth_train_automation_register() -> Result<M5DepthTrainAutomationRegister, serde_json::Error> {
-    serde_json::from_str(GENERATE_M5_PROOF_FRESHNESS_BACKPORT_AND_EVIDENCE_EXPIRY_AUTOMATION_FOR_DEPTH_TRAINS_JSON)
+pub fn current_m5_depth_train_automation_register(
+) -> Result<M5DepthTrainAutomationRegister, serde_json::Error> {
+    serde_json::from_str(
+        GENERATE_M5_PROOF_FRESHNESS_BACKPORT_AND_EVIDENCE_EXPIRY_AUTOMATION_FOR_DEPTH_TRAINS_JSON,
+    )
 }
 
 #[cfg(test)]
@@ -1677,7 +1699,8 @@ mod tests {
             .iter_mut()
             .find(|row| row.publishes_stable())
             .expect("a held row exists");
-        row.active_gap_reasons.push(AutomationGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(AutomationGapReason::ProofPacketMissing);
         r.summary = r.computed_summary();
         assert!(r
             .validate()
@@ -1694,7 +1717,8 @@ mod tests {
             .find(|row| row.publishes_stable())
             .expect("a held row exists");
         row.automation_state = AutomationState::Incomplete;
-        row.active_gap_reasons.push(AutomationGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(AutomationGapReason::ProofPacketMissing);
         row.published_label = StableClaimLevel::Stable;
         r.summary = r.computed_summary();
         r.promotion.decision = r.computed_promotion_decision();
@@ -1727,10 +1751,10 @@ mod tests {
         row.owner_signoff.signed_off = false;
         row.owner_signoff.signed_at = None;
         r.summary = r.computed_summary();
-        assert!(r
-            .validate()
-            .iter()
-            .any(|v| matches!(v, M5DepthTrainAutomationViolation::HeldWithoutSignoff { .. })));
+        assert!(r.validate().iter().any(|v| matches!(
+            v,
+            M5DepthTrainAutomationViolation::HeldWithoutSignoff { .. }
+        )));
     }
 
     #[test]
@@ -1751,10 +1775,10 @@ mod tests {
             rationale: "Expired".to_owned(),
         });
         r.summary = r.computed_summary();
-        assert!(r
-            .validate()
-            .iter()
-            .any(|v| matches!(v, M5DepthTrainAutomationViolation::HeldWithExpiredEvidence { .. })));
+        assert!(r.validate().iter().any(|v| matches!(
+            v,
+            M5DepthTrainAutomationViolation::HeldWithExpiredEvidence { .. }
+        )));
     }
 
     #[test]
