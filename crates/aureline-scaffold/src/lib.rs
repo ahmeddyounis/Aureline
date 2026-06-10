@@ -6,4 +6,5 @@
 //! lane is allowed to claim stable behavior.
 
 pub mod freeze_the_m5_template_registry_framework_pack_and_support_class_matrix;
+pub mod ship_the_scaffold_planner_parameter_review_environment_preflights_and_create_empty_parity;
 pub mod stabilize_template_manifest_scaffold_lineage;
