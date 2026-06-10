@@ -447,9 +447,7 @@ impl ResponseViewerQualificationPacket {
             ResponseViewerQualificationViolationKind::ResponseViewer,
         );
         collect_ids(
-            self.assertions
-                .iter()
-                .map(|row| row.assertion_id.as_str()),
+            self.assertions.iter().map(|row| row.assertion_id.as_str()),
             &mut violations,
             ResponseViewerQualificationViolationKind::Assertion,
         );
@@ -471,14 +469,18 @@ impl ResponseViewerQualificationPacket {
         for surface in &self.surfaces {
             if surface.displayed_label.is_stable() {
                 if surface.qualification_packet.is_none() {
-                    violations.push(ResponseViewerQualificationViolation::StableSurfaceMissingProof {
-                        surface_id: surface.surface_id.clone(),
-                    });
+                    violations.push(
+                        ResponseViewerQualificationViolation::StableSurfaceMissingProof {
+                            surface_id: surface.surface_id.clone(),
+                        },
+                    );
                 }
                 if !surface.guards.all_visible() {
-                    violations.push(ResponseViewerQualificationViolation::StableSurfaceMissingGuard {
-                        surface_id: surface.surface_id.clone(),
-                    });
+                    violations.push(
+                        ResponseViewerQualificationViolation::StableSurfaceMissingGuard {
+                            surface_id: surface.surface_id.clone(),
+                        },
+                    );
                 }
             }
             if !surface.displayed_label.is_stable()
@@ -493,13 +495,21 @@ impl ResponseViewerQualificationPacket {
             }
         }
 
-        let viewer_kinds: BTreeSet<_> =
-            self.response_viewers.iter().map(|row| row.viewer_kind).collect();
-        for required_kind in [ResponseViewerKind::RestResponse, ResponseViewerKind::GraphqlResponse] {
+        let viewer_kinds: BTreeSet<_> = self
+            .response_viewers
+            .iter()
+            .map(|row| row.viewer_kind)
+            .collect();
+        for required_kind in [
+            ResponseViewerKind::RestResponse,
+            ResponseViewerKind::GraphqlResponse,
+        ] {
             if !viewer_kinds.contains(&required_kind) {
-                violations.push(ResponseViewerQualificationViolation::MissingResponseViewerKind {
-                    viewer_kind: required_kind,
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::MissingResponseViewerKind {
+                        viewer_kind: required_kind,
+                    },
+                );
             }
         }
 
@@ -514,22 +524,28 @@ impl ResponseViewerQualificationPacket {
             ResponsePreviewClass::Redacted,
         ] {
             if !preview_classes.contains(&required_class) {
-                violations.push(ResponseViewerQualificationViolation::MissingResponsePreviewClass {
-                    preview_class: required_class,
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::MissingResponsePreviewClass {
+                        preview_class: required_class,
+                    },
+                );
             }
         }
 
         for row in &self.response_viewers {
             if row.grants_ambient_execution {
-                violations.push(ResponseViewerQualificationViolation::ResponseViewerGrantsAmbientExecution {
-                    viewer_id: row.viewer_id.clone(),
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::ResponseViewerGrantsAmbientExecution {
+                        viewer_id: row.viewer_id.clone(),
+                    },
+                );
             }
             if row.body_size_limit_bytes == 0 {
-                violations.push(ResponseViewerQualificationViolation::ResponseViewerHasNoSizeLimit {
-                    viewer_id: row.viewer_id.clone(),
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::ResponseViewerHasNoSizeLimit {
+                        viewer_id: row.viewer_id.clone(),
+                    },
+                );
             }
         }
 
@@ -542,9 +558,11 @@ impl ResponseViewerQualificationPacket {
             AssertionOutcome::Skipped,
         ] {
             if !assertion_outcomes.contains(&required_outcome) {
-                violations.push(ResponseViewerQualificationViolation::MissingAssertionOutcome {
-                    outcome: required_outcome,
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::MissingAssertionOutcome {
+                        outcome: required_outcome,
+                    },
+                );
             }
         }
 
@@ -553,9 +571,11 @@ impl ResponseViewerQualificationPacket {
                 || row.request_identity_ref.is_empty()
                 || row.response_identity_ref.is_empty()
             {
-                violations.push(ResponseViewerQualificationViolation::IncompleteAssertionProjection {
-                    assertion_id: row.assertion_id.clone(),
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::IncompleteAssertionProjection {
+                        assertion_id: row.assertion_id.clone(),
+                    },
+                );
             }
         }
 
@@ -579,9 +599,11 @@ impl ResponseViewerQualificationPacket {
 
         for row in &self.timing_tabs {
             if row.request_identity_ref.is_empty() {
-                violations.push(ResponseViewerQualificationViolation::IncompleteTimingTabProjection {
-                    timing_tab_id: row.timing_tab_id.clone(),
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::IncompleteTimingTabProjection {
+                        timing_tab_id: row.timing_tab_id.clone(),
+                    },
+                );
             }
         }
 
@@ -597,9 +619,11 @@ impl ResponseViewerQualificationPacket {
             BrowserRuntimeTrustClass::SandboxPreview,
         ] {
             if !trust_classes.contains(&required_class) {
-                violations.push(ResponseViewerQualificationViolation::MissingBrowserRuntimeTrustClass {
-                    trust_class: required_class,
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::MissingBrowserRuntimeTrustClass {
+                        trust_class: required_class,
+                    },
+                );
             }
         }
 
@@ -613,9 +637,11 @@ impl ResponseViewerQualificationPacket {
             BrowserRuntimeSurfaceKind::NetworkInspector,
         ] {
             if !browser_surface_kinds.contains(&required_kind) {
-                violations.push(ResponseViewerQualificationViolation::MissingBrowserRuntimeSurfaceKind {
-                    surface_kind: required_kind,
-                });
+                violations.push(
+                    ResponseViewerQualificationViolation::MissingBrowserRuntimeSurfaceKind {
+                        surface_kind: required_kind,
+                    },
+                );
             }
         }
 
@@ -650,7 +676,8 @@ impl ResponseViewerQualificationPacket {
 ///
 /// Returns the underlying JSON parse error when the embedded artifact no longer
 /// matches the typed model.
-pub fn current_response_viewer_qualification() -> Result<ResponseViewerQualificationPacket, serde_json::Error> {
+pub fn current_response_viewer_qualification(
+) -> Result<ResponseViewerQualificationPacket, serde_json::Error> {
     serde_json::from_str(RESPONSE_VIEWER_QUALIFICATION_PACKET_JSON)
 }
 
@@ -721,9 +748,13 @@ pub enum ResponseViewerQualificationViolation {
     /// Timing tab row does not project truth everywhere.
     IncompleteTimingTabProjection { timing_tab_id: String },
     /// Required browser-runtime trust class is missing.
-    MissingBrowserRuntimeTrustClass { trust_class: BrowserRuntimeTrustClass },
+    MissingBrowserRuntimeTrustClass {
+        trust_class: BrowserRuntimeTrustClass,
+    },
     /// Required browser-runtime surface kind is missing.
-    MissingBrowserRuntimeSurfaceKind { surface_kind: BrowserRuntimeSurfaceKind },
+    MissingBrowserRuntimeSurfaceKind {
+        surface_kind: BrowserRuntimeSurfaceKind,
+    },
     /// Browser-runtime trust row does not project truth everywhere.
     IncompleteBrowserRuntimeTrustProjection { trust_row_id: String },
     /// Browser-runtime trust class is not visible in UI.
@@ -767,22 +798,37 @@ impl fmt::Display for ResponseViewerQualificationViolation {
                 write!(f, "assertion outcome {outcome:?} is not covered")
             }
             Self::IncompleteAssertionProjection { assertion_id } => {
-                write!(f, "{assertion_id} does not project assertion truth everywhere")
+                write!(
+                    f,
+                    "{assertion_id} does not project assertion truth everywhere"
+                )
             }
             Self::MissingTimingPhase { phase } => {
                 write!(f, "timing phase {phase:?} is not covered")
             }
             Self::IncompleteTimingTabProjection { timing_tab_id } => {
-                write!(f, "{timing_tab_id} does not project timing tab truth everywhere")
+                write!(
+                    f,
+                    "{timing_tab_id} does not project timing tab truth everywhere"
+                )
             }
             Self::MissingBrowserRuntimeTrustClass { trust_class } => {
-                write!(f, "browser runtime trust class {trust_class:?} is not covered")
+                write!(
+                    f,
+                    "browser runtime trust class {trust_class:?} is not covered"
+                )
             }
             Self::MissingBrowserRuntimeSurfaceKind { surface_kind } => {
-                write!(f, "browser runtime surface kind {surface_kind:?} is not covered")
+                write!(
+                    f,
+                    "browser runtime surface kind {surface_kind:?} is not covered"
+                )
             }
             Self::IncompleteBrowserRuntimeTrustProjection { trust_row_id } => {
-                write!(f, "{trust_row_id} does not project browser-runtime trust truth everywhere")
+                write!(
+                    f,
+                    "{trust_row_id} does not project browser-runtime trust truth everywhere"
+                )
             }
             Self::BrowserRuntimeTrustNotVisibleInUi { trust_row_id } => {
                 write!(f, "{trust_row_id} is not visible in UI")

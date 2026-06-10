@@ -139,7 +139,10 @@ impl StatementSafetyClass {
 
     /// Returns true when this class is a destructive DDL operation.
     pub const fn is_destructive_ddl(self) -> bool {
-        matches!(self, Self::DataDefinitionDrop | Self::DataDefinitionTruncate)
+        matches!(
+            self,
+            Self::DataDefinitionDrop | Self::DataDefinitionTruncate
+        )
     }
 
     /// Returns true when this class is read-only or explain-only.
@@ -725,7 +728,11 @@ impl StatementSafetyQualificationPacket {
             .classifiers
             .iter()
             .map(|row| row.transaction_context.transaction_context_class)
-            .chain(self.write_mode_bars.iter().map(|row| row.transaction_context_class))
+            .chain(
+                self.write_mode_bars
+                    .iter()
+                    .map(|row| row.transaction_context_class),
+            )
             .collect();
         for required_ctx in [
             TransactionContextClass::ImplicitAutocommitNoTransaction,
@@ -853,11 +860,9 @@ impl StatementSafetyQualificationPacket {
             StatementSafetyWritePosture::PolicyBlocked,
         ] {
             if !write_postures.contains(&required_posture) {
-                violations.push(
-                    StatementSafetyQualificationViolation::MissingWritePosture {
-                        write_posture: required_posture,
-                    },
-                );
+                violations.push(StatementSafetyQualificationViolation::MissingWritePosture {
+                    write_posture: required_posture,
+                });
             }
         }
 
@@ -874,11 +879,9 @@ impl StatementSafetyQualificationPacket {
             StepUpKind::AdminOverrideTicket,
         ] {
             if !step_up_kinds.contains(&required_kind) {
-                violations.push(
-                    StatementSafetyQualificationViolation::MissingStepUpKind {
-                        step_up_kind: required_kind,
-                    },
-                );
+                violations.push(StatementSafetyQualificationViolation::MissingStepUpKind {
+                    step_up_kind: required_kind,
+                });
             }
         }
 
@@ -896,11 +899,9 @@ impl StatementSafetyQualificationPacket {
             StepUpState::BlockedByPolicy,
         ] {
             if !step_up_states.contains(&required_state) {
-                violations.push(
-                    StatementSafetyQualificationViolation::MissingStepUpState {
-                        step_up_state: required_state,
-                    },
-                );
+                violations.push(StatementSafetyQualificationViolation::MissingStepUpState {
+                    step_up_state: required_state,
+                });
             }
         }
 
@@ -922,7 +923,8 @@ impl StatementSafetyQualificationPacket {
                 );
             }
             if row.statement_safety_class == StatementSafetyClass::AmbiguousClassUserReviewRequired
-                && row.ambiguity_reason_class == AmbiguityReasonClass::NoAmbiguityClassificationConfident
+                && row.ambiguity_reason_class
+                    == AmbiguityReasonClass::NoAmbiguityClassificationConfident
             {
                 violations.push(
                     StatementSafetyQualificationViolation::AmbiguousWithoutReason {
@@ -930,7 +932,8 @@ impl StatementSafetyQualificationPacket {
                     },
                 );
             }
-            if row.statement_safety_class == StatementSafetyClass::BlockedClassNotAdmissibleOnThisConnection
+            if row.statement_safety_class
+                == StatementSafetyClass::BlockedClassNotAdmissibleOnThisConnection
                 && row.blocked_reason_class == BlockedReasonClass::NotBlockedAdmissible
             {
                 violations.push(
@@ -950,8 +953,10 @@ impl StatementSafetyQualificationPacket {
                 );
             }
             if row.statement_safety_class.is_read_only()
-                && row.object_impact.object_impact_class != ObjectImpactClass::NoObjectImpactReadOnly
-                && row.object_impact.object_impact_class != ObjectImpactClass::ObjectImpactNotApplicableExplainOnly
+                && row.object_impact.object_impact_class
+                    != ObjectImpactClass::NoObjectImpactReadOnly
+                && row.object_impact.object_impact_class
+                    != ObjectImpactClass::ObjectImpactNotApplicableExplainOnly
             {
                 violations.push(
                     StatementSafetyQualificationViolation::ReadOnlyWithUnexpectedObjectImpact {
@@ -1089,13 +1094,9 @@ pub enum StatementSafetyQualificationViolation {
         write_posture: StatementSafetyWritePosture,
     },
     /// Required step-up kind is missing.
-    MissingStepUpKind {
-        step_up_kind: StepUpKind,
-    },
+    MissingStepUpKind { step_up_kind: StepUpKind },
     /// Required step-up state is missing.
-    MissingStepUpState {
-        step_up_state: StepUpState,
-    },
+    MissingStepUpState { step_up_state: StepUpState },
     /// Classifier row does not project classification truth everywhere.
     IncompleteClassifierProjection { classifier_id: String },
     /// Multi-statement mixed class row lacks per-statement class set.
@@ -1137,37 +1138,49 @@ impl fmt::Display for StatementSafetyQualificationViolation {
             Self::NarrowedSurfaceLacksDowngradeRule { surface_id } => {
                 write!(f, "{surface_id} is narrowed without a downgrade rule")
             }
-            Self::MissingStatementSafetyClass { statement_safety_class } => {
+            Self::MissingStatementSafetyClass {
+                statement_safety_class,
+            } => {
                 write!(
                     f,
                     "statement safety class {statement_safety_class:?} is not covered"
                 )
             }
-            Self::MissingTransactionContextClass { transaction_context_class } => {
+            Self::MissingTransactionContextClass {
+                transaction_context_class,
+            } => {
                 write!(
                     f,
                     "transaction context class {transaction_context_class:?} is not covered"
                 )
             }
-            Self::MissingObjectImpactClass { object_impact_class } => {
+            Self::MissingObjectImpactClass {
+                object_impact_class,
+            } => {
                 write!(
                     f,
                     "object impact class {object_impact_class:?} is not covered"
                 )
             }
-            Self::MissingMultiStatementPostureClass { multi_statement_posture_class } => {
+            Self::MissingMultiStatementPostureClass {
+                multi_statement_posture_class,
+            } => {
                 write!(
                     f,
                     "multi-statement posture class {multi_statement_posture_class:?} is not covered"
                 )
             }
-            Self::MissingAmbiguityReasonClass { ambiguity_reason_class } => {
+            Self::MissingAmbiguityReasonClass {
+                ambiguity_reason_class,
+            } => {
                 write!(
                     f,
                     "ambiguity reason class {ambiguity_reason_class:?} is not covered"
                 )
             }
-            Self::MissingBlockedReasonClass { blocked_reason_class } => {
+            Self::MissingBlockedReasonClass {
+                blocked_reason_class,
+            } => {
                 write!(
                     f,
                     "blocked reason class {blocked_reason_class:?} is not covered"
@@ -1219,7 +1232,10 @@ impl fmt::Display for StatementSafetyQualificationViolation {
                 )
             }
             Self::IncompleteWriteModeBarProjection { bar_id } => {
-                write!(f, "{bar_id} does not project write-mode bar truth everywhere")
+                write!(
+                    f,
+                    "{bar_id} does not project write-mode bar truth everywhere"
+                )
             }
             Self::IncompleteStepUpProjection { step_up_id } => {
                 write!(f, "{step_up_id} does not project step-up truth everywhere")

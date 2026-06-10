@@ -473,14 +473,18 @@ impl DatabaseBrowserQualificationPacket {
         for surface in &self.surfaces {
             if surface.displayed_label.is_stable() {
                 if surface.qualification_packet.is_none() {
-                    violations.push(DatabaseBrowserQualificationViolation::StableSurfaceMissingProof {
-                        surface_id: surface.surface_id.clone(),
-                    });
+                    violations.push(
+                        DatabaseBrowserQualificationViolation::StableSurfaceMissingProof {
+                            surface_id: surface.surface_id.clone(),
+                        },
+                    );
                 }
                 if !surface.guards.all_visible() {
-                    violations.push(DatabaseBrowserQualificationViolation::StableSurfaceMissingGuard {
-                        surface_id: surface.surface_id.clone(),
-                    });
+                    violations.push(
+                        DatabaseBrowserQualificationViolation::StableSurfaceMissingGuard {
+                            surface_id: surface.surface_id.clone(),
+                        },
+                    );
                 }
             }
             if !surface.displayed_label.is_stable()
@@ -499,7 +503,11 @@ impl DatabaseBrowserQualificationPacket {
             .connection_browsers
             .iter()
             .map(|row| row.connection_class)
-            .chain(self.target_context_envelopes.iter().map(|row| row.connection_class))
+            .chain(
+                self.target_context_envelopes
+                    .iter()
+                    .map(|row| row.connection_class),
+            )
             .collect();
         for required_class in [
             DatabaseBrowserConnectionClass::EmbeddedLocal,
@@ -508,9 +516,11 @@ impl DatabaseBrowserQualificationPacket {
             DatabaseBrowserConnectionClass::CloudWarehouse,
         ] {
             if !connection_classes.contains(&required_class) {
-                violations.push(DatabaseBrowserQualificationViolation::MissingConnectionClass {
-                    connection_class: required_class,
-                });
+                violations.push(
+                    DatabaseBrowserQualificationViolation::MissingConnectionClass {
+                        connection_class: required_class,
+                    },
+                );
             }
         }
         if !connection_classes.contains(&DatabaseBrowserConnectionClass::ImportedSnapshot) {
@@ -521,7 +531,11 @@ impl DatabaseBrowserQualificationPacket {
             .connection_browsers
             .iter()
             .map(|row| row.auth_source_mode)
-            .chain(self.target_context_envelopes.iter().map(|row| row.auth_source_mode))
+            .chain(
+                self.target_context_envelopes
+                    .iter()
+                    .map(|row| row.auth_source_mode),
+            )
             .collect();
         for required_mode in [
             DatabaseBrowserAuthSourceMode::NoAuthLocalFile,
@@ -530,9 +544,11 @@ impl DatabaseBrowserQualificationPacket {
             DatabaseBrowserAuthSourceMode::PolicyBlocked,
         ] {
             if !auth_modes.contains(&required_mode) {
-                violations.push(DatabaseBrowserQualificationViolation::MissingAuthSourceMode {
-                    auth_source_mode: required_mode,
-                });
+                violations.push(
+                    DatabaseBrowserQualificationViolation::MissingAuthSourceMode {
+                        auth_source_mode: required_mode,
+                    },
+                );
             }
         }
 
@@ -540,7 +556,11 @@ impl DatabaseBrowserQualificationPacket {
             .connection_browsers
             .iter()
             .map(|row| row.write_posture)
-            .chain(self.target_context_envelopes.iter().map(|row| row.write_posture))
+            .chain(
+                self.target_context_envelopes
+                    .iter()
+                    .map(|row| row.write_posture),
+            )
             .collect();
         for required_posture in [
             DatabaseBrowserWritePosture::ReadOnly,
@@ -569,7 +589,8 @@ impl DatabaseBrowserQualificationPacket {
         }
 
         for row in &self.schema_trees {
-            if row.root_node_ref.is_empty() || row.freshness_state.is_empty() || !row.visible_in_ui {
+            if row.root_node_ref.is_empty() || row.freshness_state.is_empty() || !row.visible_in_ui
+            {
                 violations.push(
                     DatabaseBrowserQualificationViolation::IncompleteSchemaTreeProjection {
                         tree_id: row.tree_id.clone(),
@@ -660,14 +681,17 @@ impl DatabaseBrowserQualificationPacket {
             DatabaseBrowserRedactionMode::PolicyBlocked,
         ] {
             if !redaction_modes.contains(&required_mode) {
-                violations.push(DatabaseBrowserQualificationViolation::MissingRedactionMode {
-                    redaction_mode: required_mode,
-                });
+                violations.push(
+                    DatabaseBrowserQualificationViolation::MissingRedactionMode {
+                        redaction_mode: required_mode,
+                    },
+                );
             }
         }
 
         for row in &self.target_context_envelopes {
-            if row.target_endpoint_ref.is_empty() || !row.visible_before_send || !row.visible_in_ui {
+            if row.target_endpoint_ref.is_empty() || !row.visible_before_send || !row.visible_in_ui
+            {
                 violations.push(
                     DatabaseBrowserQualificationViolation::IncompleteTargetContextEnvelopeProjection {
                         envelope_id: row.envelope_id.clone(),
@@ -690,7 +714,8 @@ impl DatabaseBrowserQualificationPacket {
 ///
 /// Returns the underlying JSON parse error when the embedded artifact no longer
 /// matches the typed model.
-pub fn current_database_browser_qualification() -> Result<DatabaseBrowserQualificationPacket, serde_json::Error> {
+pub fn current_database_browser_qualification(
+) -> Result<DatabaseBrowserQualificationPacket, serde_json::Error> {
     serde_json::from_str(DATABASE_BROWSER_QUALIFICATION_PACKET_JSON)
 }
 
@@ -815,13 +840,17 @@ impl fmt::Display for DatabaseBrowserQualificationViolation {
             Self::MissingWritePosture { write_posture } => {
                 write!(f, "write posture {write_posture:?} is not covered")
             }
-            Self::MissingStatementSafetyClass { statement_safety_class } => {
+            Self::MissingStatementSafetyClass {
+                statement_safety_class,
+            } => {
                 write!(
                     f,
                     "statement safety class {statement_safety_class:?} is not covered"
                 )
             }
-            Self::MissingTransactionPosture { transaction_posture } => {
+            Self::MissingTransactionPosture {
+                transaction_posture,
+            } => {
                 write!(
                     f,
                     "transaction posture {transaction_posture:?} is not covered"

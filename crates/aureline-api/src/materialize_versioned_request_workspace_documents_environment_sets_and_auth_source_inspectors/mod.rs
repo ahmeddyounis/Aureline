@@ -561,8 +561,10 @@ impl RequestQualificationPacket {
 
         let document_kinds: BTreeSet<_> =
             self.documents.iter().map(|row| row.document_kind).collect();
-        for required_kind in [RequestDocumentKind::HttpRequest, RequestDocumentKind::GraphqlOperation]
-        {
+        for required_kind in [
+            RequestDocumentKind::HttpRequest,
+            RequestDocumentKind::GraphqlOperation,
+        ] {
             if !document_kinds.contains(&required_kind) {
                 violations.push(RequestQualificationViolation::MissingDocumentKind {
                     document_kind: required_kind,
@@ -590,14 +592,15 @@ impl RequestQualificationPacket {
                 || row.auth_source_ref.is_empty()
                 || !row.diffable
             {
-                violations.push(RequestQualificationViolation::IncompleteDocumentProjection {
-                    document_id: row.document_id.clone(),
-                });
+                violations.push(
+                    RequestQualificationViolation::IncompleteDocumentProjection {
+                        document_id: row.document_id.clone(),
+                    },
+                );
             }
         }
 
-        let auth_modes: BTreeSet<_> =
-            self.auth_sources.iter().map(|row| row.auth_mode).collect();
+        let auth_modes: BTreeSet<_> = self.auth_sources.iter().map(|row| row.auth_mode).collect();
         for required_mode in [
             AuthSourceMode::NoAuth,
             AuthSourceMode::SecretBrokerHandle,
@@ -651,9 +654,11 @@ impl RequestQualificationPacket {
                 && row.visible_before_send
                 && row.preserves_provenance_in_export)
             {
-                violations.push(RequestQualificationViolation::IncompleteEffectiveInspector {
-                    case_id: row.case_id.clone(),
-                });
+                violations.push(
+                    RequestQualificationViolation::IncompleteEffectiveInspector {
+                        case_id: row.case_id.clone(),
+                    },
+                );
             }
         }
 
@@ -684,7 +689,8 @@ impl RequestQualificationPacket {
 ///
 /// Returns the underlying JSON parse error when the embedded artifact no longer
 /// matches the typed model.
-pub fn current_request_workspace_qualification() -> Result<RequestQualificationPacket, serde_json::Error> {
+pub fn current_request_workspace_qualification(
+) -> Result<RequestQualificationPacket, serde_json::Error> {
     serde_json::from_str(REQUEST_QUALIFICATION_PACKET_JSON)
 }
 
@@ -793,25 +799,31 @@ impl fmt::Display for RequestQualificationViolation {
                 write!(f, "write posture {write_posture:?} is not covered")
             }
             Self::IncompleteDocumentProjection { document_id } => {
-                write!(f, "{document_id} does not project document truth everywhere")
+                write!(
+                    f,
+                    "{document_id} does not project document truth everywhere"
+                )
             }
             Self::MissingAuthSourceMode { auth_mode } => {
                 write!(f, "auth source mode {auth_mode:?} is not covered")
             }
             Self::AuthSourceHidesSecret { auth_source_id } => {
-                write!(f, "{auth_source_id} hides secret material instead of using broker handles")
+                write!(
+                    f,
+                    "{auth_source_id} hides secret material instead of using broker handles"
+                )
             }
             Self::UnsafeEnvironmentSet { environment_id } => {
-                write!(f, "{environment_id} is not previewable or may export raw secrets")
+                write!(
+                    f,
+                    "{environment_id} is not previewable or may export raw secrets"
+                )
             }
             Self::MissingEnvironmentLayer {
                 environment_id,
                 provenance,
             } => {
-                write!(
-                    f,
-                    "{environment_id} lacks a {provenance:?} layer"
-                )
+                write!(f, "{environment_id} lacks a {provenance:?} layer")
             }
             Self::IncompleteEffectiveInspector { case_id } => {
                 write!(f, "{case_id} does not show all value sources before send")

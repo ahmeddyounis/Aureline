@@ -31,6 +31,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`](../../../artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json).
 //!
+//! This crate also owns the result-grid virtualization, typed copy or export,
+//! filter and sort state, and row-count boundary truth qualification records.
+//! The result-grid boundary schema is
+//! [`/schemas/data/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.schema.json`](../../../schemas/data/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`](../../../artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -43,6 +50,7 @@ pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
+pub mod ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_state_and_row_count_boundary_truth;
 
 pub use implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export::{
     current_request_composer_qualification, ComposerQualificationLabel,
@@ -82,15 +90,30 @@ pub use implement_connection_browsers_schema_trees_and_target_context_envelopes_
 
 pub use add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows::{
     current_statement_safety_qualification, AmbiguityReasonClass, BlockedReasonClass,
-    MultiStatementPostureClass, ObjectImpactClass, ObjectImpactEnvelope, PerStatementClassDescriptor,
-    ProtectedTargetStepUpRow, StatementSafetyClass, StatementSafetyClassifierRow,
-    StatementSafetyExecutionOrigin, StatementSafetyQualificationLabel, StatementSafetyQualificationPacket,
-    StatementSafetyQualificationProof, StatementSafetyQualificationSummary, StatementSafetyQualificationViolation,
-    StatementSafetyQualificationViolationKind, StatementSafetySurfaceGuardSet, StatementSafetySurfaceKind,
+    MultiStatementPostureClass, ObjectImpactClass, ObjectImpactEnvelope,
+    PerStatementClassDescriptor, ProtectedTargetStepUpRow, StatementSafetyClass,
+    StatementSafetyClassifierRow, StatementSafetyExecutionOrigin,
+    StatementSafetyQualificationLabel, StatementSafetyQualificationPacket,
+    StatementSafetyQualificationProof, StatementSafetyQualificationSummary,
+    StatementSafetyQualificationViolation, StatementSafetyQualificationViolationKind,
+    StatementSafetySurfaceGuardSet, StatementSafetySurfaceKind,
     StatementSafetySurfaceQualificationRow, StatementSafetyWritePosture, StepUpKind, StepUpState,
     TransactionContextClass, TransactionEnvelope, WriteModeBarRow,
     STATEMENT_SAFETY_QUALIFICATION_PACKET_JSON, STATEMENT_SAFETY_QUALIFICATION_PACKET_PATH,
     STATEMENT_SAFETY_QUALIFICATION_RECORD_KIND, STATEMENT_SAFETY_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_state_and_row_count_boundary_truth::{
+    current_result_grid_qualification, ColumnProvenanceClass, ColumnTypeClass, ExportFormatClass,
+    ExportPostureClass, FilterEvaluationLocus, FilterSortStatePanelRow,
+    NotebookHandoffStateClass, ResultGridQualificationLabel, ResultGridQualificationPacket,
+    ResultGridQualificationProof, ResultGridQualificationSummary, ResultGridQualificationViolation,
+    ResultGridQualificationViolationKind, ResultGridSurfaceGuardSet, ResultGridSurfaceKind,
+    ResultGridSurfaceQualificationRow, ResultGridViewerRow, RowCountBoundaryChipRow,
+    RowCountTruthClass, TruncationReasonClass, TruncationStateClass, TypedCopyActionRow,
+    TypedExportActionRow, TypeCoercionStateClass, VirtualizationPostureClass,
+    RESULT_GRID_QUALIFICATION_PACKET_JSON, RESULT_GRID_QUALIFICATION_PACKET_PATH,
+    RESULT_GRID_QUALIFICATION_RECORD_KIND, RESULT_GRID_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{

@@ -535,8 +535,10 @@ impl ComposerQualificationPacket {
 
         let composer_kinds: BTreeSet<_> =
             self.composers.iter().map(|row| row.composer_kind).collect();
-        for required_kind in [RequestComposerKind::HttpRequest, RequestComposerKind::GraphqlOperation]
-        {
+        for required_kind in [
+            RequestComposerKind::HttpRequest,
+            RequestComposerKind::GraphqlOperation,
+        ] {
             if !composer_kinds.contains(&required_kind) {
                 violations.push(ComposerQualificationViolation::MissingComposerKind {
                     composer_kind: required_kind,
@@ -544,8 +546,11 @@ impl ComposerQualificationPacket {
             }
         }
 
-        let mutation_risks: BTreeSet<_> =
-            self.composers.iter().map(|row| row.mutation_risk_class).collect();
+        let mutation_risks: BTreeSet<_> = self
+            .composers
+            .iter()
+            .map(|row| row.mutation_risk_class)
+            .collect();
         for required_risk in [
             MutationRiskClass::ReadOnly,
             MutationRiskClass::IdempotentMutation,
@@ -565,9 +570,11 @@ impl ComposerQualificationPacket {
                 || row.auth_source_ref.is_empty()
                 || !row.diffable
             {
-                violations.push(ComposerQualificationViolation::IncompleteComposerProjection {
-                    composer_id: row.composer_id.clone(),
-                });
+                violations.push(
+                    ComposerQualificationViolation::IncompleteComposerProjection {
+                        composer_id: row.composer_id.clone(),
+                    },
+                );
             }
         }
 
@@ -592,8 +599,11 @@ impl ComposerQualificationPacket {
             }
         }
 
-        let replay_modes: BTreeSet<_> =
-            self.replay_configs.iter().map(|row| row.replay_mode).collect();
+        let replay_modes: BTreeSet<_> = self
+            .replay_configs
+            .iter()
+            .map(|row| row.replay_mode)
+            .collect();
         for required_mode in [
             ReplayMode::ExactRerun,
             ReplayMode::RerunWithCurrentContext,
@@ -608,11 +618,14 @@ impl ComposerQualificationPacket {
         }
 
         for row in &self.replay_configs {
-            if row.replay_mode == ReplayMode::ExactRerun && row.exact_rerun_attestation_ref.is_none()
+            if row.replay_mode == ReplayMode::ExactRerun
+                && row.exact_rerun_attestation_ref.is_none()
             {
-                violations.push(ComposerQualificationViolation::ExactRerunMissingAttestation {
-                    config_id: row.config_id.clone(),
-                });
+                violations.push(
+                    ComposerQualificationViolation::ExactRerunMissingAttestation {
+                        config_id: row.config_id.clone(),
+                    },
+                );
             }
             if !(row.context_resolution_disclosed
                 && row.auth_reuse_disclosed
@@ -635,17 +648,21 @@ impl ComposerQualificationPacket {
             ExportRedactionClass::SafePreview,
         ] {
             if !export_classes.contains(&required_class) {
-                violations.push(ComposerQualificationViolation::MissingExportRedactionClass {
-                    export_redaction_class: required_class,
-                });
+                violations.push(
+                    ComposerQualificationViolation::MissingExportRedactionClass {
+                        export_redaction_class: required_class,
+                    },
+                );
             }
         }
 
         for row in &self.redaction_safe_exports {
             if row.includes_raw_secrets || row.includes_raw_response_body {
-                violations.push(ComposerQualificationViolation::ExportIncludesRawSensitiveData {
-                    export_id: row.export_id.clone(),
-                });
+                violations.push(
+                    ComposerQualificationViolation::ExportIncludesRawSensitiveData {
+                        export_id: row.export_id.clone(),
+                    },
+                );
             }
             if row.portable_format_ref.is_empty() || row.redaction_rationale.is_empty() {
                 violations.push(ComposerQualificationViolation::IncompleteExportProjection {
@@ -654,17 +671,22 @@ impl ComposerQualificationPacket {
             }
         }
 
-        let retention_postures: BTreeSet<_> =
-            self.history_lanes.iter().map(|row| row.retention_posture).collect();
+        let retention_postures: BTreeSet<_> = self
+            .history_lanes
+            .iter()
+            .map(|row| row.retention_posture)
+            .collect();
         for required_posture in [
             HistoryRetentionPosture::LocalFirst,
             HistoryRetentionPosture::Bounded,
             HistoryRetentionPosture::Pinned,
         ] {
             if !retention_postures.contains(&required_posture) {
-                violations.push(ComposerQualificationViolation::MissingHistoryRetentionPosture {
-                    retention_posture: required_posture,
-                });
+                violations.push(
+                    ComposerQualificationViolation::MissingHistoryRetentionPosture {
+                        retention_posture: required_posture,
+                    },
+                );
             }
         }
 
@@ -694,7 +716,8 @@ impl ComposerQualificationPacket {
 ///
 /// Returns the underlying JSON parse error when the embedded artifact no longer
 /// matches the typed model.
-pub fn current_request_composer_qualification() -> Result<ComposerQualificationPacket, serde_json::Error> {
+pub fn current_request_composer_qualification(
+) -> Result<ComposerQualificationPacket, serde_json::Error> {
     serde_json::from_str(COMPOSER_QUALIFICATION_PACKET_JSON)
 }
 
@@ -753,7 +776,9 @@ pub enum ComposerQualificationViolation {
     /// Required request composer kind is missing.
     MissingComposerKind { composer_kind: RequestComposerKind },
     /// Required mutation risk class is missing.
-    MissingMutationRiskClass { mutation_risk_class: MutationRiskClass },
+    MissingMutationRiskClass {
+        mutation_risk_class: MutationRiskClass,
+    },
     /// Composer row does not project truth everywhere.
     IncompleteComposerProjection { composer_id: String },
     /// Mutation-review sheet is incomplete.
@@ -767,13 +792,17 @@ pub enum ComposerQualificationViolation {
     /// Replay config does not disclose context, auth, and environment reuse.
     IncompleteReplayDisclosure { config_id: String },
     /// Required export redaction class is missing.
-    MissingExportRedactionClass { export_redaction_class: ExportRedactionClass },
+    MissingExportRedactionClass {
+        export_redaction_class: ExportRedactionClass,
+    },
     /// Export row includes raw secrets or raw response bodies.
     ExportIncludesRawSensitiveData { export_id: String },
     /// Export row lacks portable format or redaction rationale.
     IncompleteExportProjection { export_id: String },
     /// Required history retention posture is missing.
-    MissingHistoryRetentionPosture { retention_posture: HistoryRetentionPosture },
+    MissingHistoryRetentionPosture {
+        retention_posture: HistoryRetentionPosture,
+    },
     /// History lane lacks required identity refs.
     IncompleteHistoryLane { lane_id: String },
     /// Stored summary no longer matches row state.
@@ -802,14 +831,25 @@ impl fmt::Display for ComposerQualificationViolation {
             Self::MissingComposerKind { composer_kind } => {
                 write!(f, "composer kind {composer_kind:?} is not covered")
             }
-            Self::MissingMutationRiskClass { mutation_risk_class } => {
-                write!(f, "mutation risk class {mutation_risk_class:?} is not covered")
+            Self::MissingMutationRiskClass {
+                mutation_risk_class,
+            } => {
+                write!(
+                    f,
+                    "mutation risk class {mutation_risk_class:?} is not covered"
+                )
             }
             Self::IncompleteComposerProjection { composer_id } => {
-                write!(f, "{composer_id} does not project composer truth everywhere")
+                write!(
+                    f,
+                    "{composer_id} does not project composer truth everywhere"
+                )
             }
             Self::IncompleteMutationReviewSheet { sheet_id } => {
-                write!(f, "{sheet_id} does not project mutation-review truth everywhere")
+                write!(
+                    f,
+                    "{sheet_id} does not project mutation-review truth everywhere"
+                )
             }
             Self::MutationReviewMissingReplayConsequences { sheet_id } => {
                 write!(
@@ -829,20 +869,22 @@ impl fmt::Display for ComposerQualificationViolation {
                     "{config_id} does not disclose context, auth, and environment reuse"
                 )
             }
-            Self::MissingExportRedactionClass { export_redaction_class } => {
+            Self::MissingExportRedactionClass {
+                export_redaction_class,
+            } => {
                 write!(
                     f,
                     "export redaction class {export_redaction_class:?} is not covered"
                 )
             }
             Self::ExportIncludesRawSensitiveData { export_id } => {
-                write!(
-                    f,
-                    "{export_id} includes raw secrets or raw response bodies"
-                )
+                write!(f, "{export_id} includes raw secrets or raw response bodies")
             }
             Self::IncompleteExportProjection { export_id } => {
-                write!(f, "{export_id} lacks portable format or redaction rationale")
+                write!(
+                    f,
+                    "{export_id} lacks portable format or redaction rationale"
+                )
             }
             Self::MissingHistoryRetentionPosture { retention_posture } => {
                 write!(
