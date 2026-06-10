@@ -14,6 +14,7 @@ pub mod docs_browser_truth_packet;
 pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
+pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
 pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
@@ -91,6 +92,20 @@ pub use evidence_model::{
     DOCS_DERIVED_EXPLANATION_RECORD_KIND, DOCS_KNOWLEDGE_SURFACE_EVIDENCE_PACKET_RECORD_KIND,
     DOCS_KNOWLEDGE_SURFACE_PROJECTION_RECORD_KIND, DOCS_KNOWLEDGE_SURFACE_SCHEMA_VERSION,
     DOCS_NODE_PROVENANCE_RECORD_KIND,
+};
+pub use freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract::{
+    current_stable_m5_docs_and_code_recall_matrix_export, M5DocsRecallConsumerSurface,
+    M5DocsRecallDowngradeTrigger, M5DocsRecallEvidenceRequirement, M5DocsRecallLane,
+    M5DocsRecallMatrixArtifactError, M5DocsRecallMatrixConsumerProjection, M5DocsRecallMatrixLaneRow,
+    M5DocsRecallMatrixPacket, M5DocsRecallMatrixPacketInput, M5DocsRecallMatrixProofFreshness,
+    M5DocsRecallMatrixTrustReview, M5DocsRecallMatrixViolation, M5DocsRecallQualificationClass,
+    M5DocsRecallRollbackPosture, M5_DOCS_RECALL_MATRIX_ARTIFACT_REF,
+    M5_DOCS_RECALL_MATRIX_BROWSER_SURFACE_CONTRACT_REF,
+    M5_DOCS_RECALL_MATRIX_CODE_EXPLAINER_CONTRACT_REF, M5_DOCS_RECALL_MATRIX_DOCS_RECALL_CONTRACT_REF,
+    M5_DOCS_RECALL_MATRIX_DOC_REF, M5_DOCS_RECALL_MATRIX_FIXTURE_DIR,
+    M5_DOCS_RECALL_MATRIX_RECORD_KIND, M5_DOCS_RECALL_MATRIX_RETRIEVAL_DEBUG_CONTRACT_REF,
+    M5_DOCS_RECALL_MATRIX_SCHEMA_REF, M5_DOCS_RECALL_MATRIX_SCHEMA_VERSION,
+    M5_DOCS_RECALL_MATRIX_SUMMARY_REF,
 };
 pub use index::{
     DocsSearchIndex, DocsSearchIndexEntry, DocsSearchQueryResult,
