@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/add-ai-assisted-test-generation-assumption-review-sandbox-validation-and-coverage-impact-notes.schema.json",
+  "title": "Aureline AI-assisted test generation, assumption review, sandbox validation, and coverage-impact notes",
+  "$comment": "Rust owner: aureline_ai::add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes::GeneratedTestReviewPacket.",
+  "description": "Boundary schema for the metadata-only AI generated-test-review record. The packet binds the test proposals a generation pass produced (each carrying a proposal class, a generated-diff risk class, and a review state that is never auto-applied; bound to a durable anchor that survives edits and discloses drift; referencing the sandbox run that validated it; citing the evidence refs that back it, with uncited proposals counted and surfaced and no proposal claiming authority beyond its cited evidence; the pass is read-only and never self-applies), an assumption-review sheet (each assumption typed with its confidence and whether it has been validated; unvalidated assumptions counted and surfaced and required to need human confirmation), sandbox validation (each run carrying its profile, outcome, and isolation posture; runs stay isolated and non-leaking and a sandbox pass is never treated as release/benchmark coverage truth), and coverage-impact notes (each carrying a measurement basis and a delta direction; estimated coverage labeled as estimated and never presented as measured). It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw generated test source, raw patch bodies, raw diffs, raw runner logs, raw stdout/stderr, raw symbol names, raw file paths, raw prompt bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generation_pass_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "proposals",
+    "assumptions",
+    "sandbox",
+    "coverage_impact",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_test_generation_sandbox_coverage_implementation" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "generation_pass_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "proposals": { "$ref": "#/$defs/test_proposals_block" },
+    "assumptions": { "$ref": "#/$defs/assumption_review_block" },
+    "sandbox": { "$ref": "#/$defs/sandbox_validation_block" },
+    "coverage_impact": { "$ref": "#/$defs/coverage_impact_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/test_gen_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "test_proposal_class": {
+      "type": "string",
+      "enum": [
+        "bug_regression",
+        "uncovered_branch",
+        "changed_symbol",
+        "boundary_condition",
+        "property_invariant",
+        "release_regression_gap"
+      ],
+      "description": "Concrete trigger or shape of an AI-generated test proposal."
+    },
+    "generated_diff_risk_class": {
+      "type": "string",
+      "enum": [
+        "additive_test_only",
+        "touches_existing_test",
+        "touches_production_code",
+        "touches_protected_path"
+      ],
+      "description": "Risk class of the diff a generated test proposes."
+    },
+    "proposal_review_state": {
+      "type": "string",
+      "enum": ["draft_only", "review_ready_draft", "blocked_review_only", "auto_applied"],
+      "description": "Review posture of a generated test proposal. The auto_applied state is forbidden on this lane."
+    },
+    "assumption_class": {
+      "type": "string",
+      "enum": [
+        "input_shape",
+        "environment_state",
+        "dependency_behavior",
+        "timing_ordering",
+        "external_service",
+        "fixture_state"
+      ],
+      "description": "Class of assumption a generated test makes."
+    },
+    "assumption_confidence_class": {
+      "type": "string",
+      "enum": ["grounded", "probable", "speculative"],
+      "description": "Confidence class disclosed for an assumption."
+    },
+    "sandbox_profile_class": {
+      "type": "string",
+      "enum": ["ephemeral_container", "in_process_isolate", "network_denied", "filesystem_scratch"],
+      "description": "Sandbox profile a validation run executed under."
+    },
+    "sandbox_outcome_class": {
+      "type": "string",
+      "enum": ["passed", "failed", "errored", "timed_out", "skipped"],
+      "description": "Outcome class of a sandbox validation run."
+    },
+    "coverage_measurement_basis": {
+      "type": "string",
+      "enum": ["measured", "estimated"],
+      "description": "Whether a coverage-impact note is measured or estimated."
+    },
+    "coverage_delta_direction": {
+      "type": "string",
+      "enum": ["increase", "no_change", "decrease", "unknown"],
+      "description": "Direction of a coverage-impact delta."
+    },
+    "anchor_strategy": {
+      "type": "string",
+      "enum": ["symbol_path", "content_hash", "structural_node", "line_range"],
+      "description": "Strategy a durable anchor uses to bind a proposal to a location."
+    },
+    "anchor_state": {
+      "type": "string",
+      "enum": ["bound", "drifted", "rebound", "lost"],
+      "description": "Lifecycle state of a durable anchor after edits."
+    },
+    "test_gen_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_test_panel",
+        "desktop_editor_gutter",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this lane."
+    },
+    "test_gen_surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "generated_test_auto_applied",
+        "sandbox_treated_as_release_truth",
+        "estimated_coverage_presented_as_measured",
+        "uncited_assumption_surfaced"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "durable_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "strategy",
+        "target_ref",
+        "scope_ref",
+        "state",
+        "drift_detected",
+        "rebind_disclosed",
+        "durable"
+      ],
+      "properties": {
+        "anchor_id": { "type": "string", "minLength": 1 },
+        "strategy": { "$ref": "#/$defs/anchor_strategy" },
+        "target_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the anchored target. Never a raw symbol name or file path." },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/anchor_state" },
+        "drift_detected": { "type": "boolean" },
+        "rebind_disclosed": { "type": "boolean" },
+        "durable": { "type": "boolean" }
+      }
+    },
+    "test_proposal_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "proposal_class",
+        "diff_risk",
+        "review_state",
+        "anchor",
+        "sandbox_run_ref",
+        "cited_evidence_refs",
+        "evidence_backed",
+        "requires_human_review",
+        "disclosed"
+      ],
+      "properties": {
+        "proposal_id": { "type": "string", "minLength": 1 },
+        "proposal_class": { "$ref": "#/$defs/test_proposal_class" },
+        "diff_risk": { "$ref": "#/$defs/generated_diff_risk_class" },
+        "review_state": { "$ref": "#/$defs/proposal_review_state" },
+        "anchor": { "$ref": "#/$defs/durable_anchor" },
+        "sandbox_run_ref": { "type": "string", "minLength": 1 },
+        "cited_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_backed": { "type": "boolean" },
+        "requires_human_review": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "test_proposals_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_set_id",
+        "uncited_proposals_count",
+        "no_authority_beyond_evidence",
+        "produced_before_apply",
+        "never_auto_applied",
+        "proposal_rows"
+      ],
+      "properties": {
+        "proposal_set_id": { "type": "string", "minLength": 1 },
+        "uncited_proposals_count": { "type": "integer", "minimum": 0 },
+        "no_authority_beyond_evidence": { "type": "boolean" },
+        "produced_before_apply": { "type": "boolean" },
+        "never_auto_applied": { "type": "boolean" },
+        "proposal_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_proposal_row" }
+        }
+      }
+    },
+    "assumption_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "assumption_class",
+        "confidence",
+        "validated",
+        "requires_human_confirmation",
+        "scope_ref",
+        "disclosed"
+      ],
+      "properties": {
+        "assumption_id": { "type": "string", "minLength": 1 },
+        "assumption_class": { "$ref": "#/$defs/assumption_class" },
+        "confidence": { "$ref": "#/$defs/assumption_confidence_class" },
+        "validated": { "type": "boolean" },
+        "requires_human_confirmation": { "type": "boolean" },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "assumption_review_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_sheet_id",
+        "unvalidated_assumptions_count",
+        "assumptions_surfaced",
+        "assumption_rows"
+      ],
+      "properties": {
+        "assumption_sheet_id": { "type": "string", "minLength": 1 },
+        "unvalidated_assumptions_count": { "type": "integer", "minimum": 0 },
+        "assumptions_surfaced": { "type": "boolean" },
+        "assumption_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assumption_row" }
+        }
+      }
+    },
+    "sandbox_run_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "profile",
+        "outcome",
+        "isolated",
+        "leaked_outside_sandbox",
+        "validated_proposal_ids",
+        "disclosed"
+      ],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "profile": { "$ref": "#/$defs/sandbox_profile_class" },
+        "outcome": { "$ref": "#/$defs/sandbox_outcome_class" },
+        "isolated": { "type": "boolean" },
+        "leaked_outside_sandbox": { "type": "boolean" },
+        "validated_proposal_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "sandbox_validation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sandbox_session_id",
+        "runs_isolated",
+        "sandbox_is_not_release_truth",
+        "run_rows"
+      ],
+      "properties": {
+        "sandbox_session_id": { "type": "string", "minLength": 1 },
+        "runs_isolated": { "type": "boolean" },
+        "sandbox_is_not_release_truth": { "type": "boolean" },
+        "run_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sandbox_run_row" }
+        }
+      }
+    },
+    "coverage_impact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "target_ref",
+        "measurement_basis",
+        "delta_direction",
+        "estimated_labeled",
+        "disclosed"
+      ],
+      "properties": {
+        "note_id": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "measurement_basis": { "$ref": "#/$defs/coverage_measurement_basis" },
+        "delta_direction": { "$ref": "#/$defs/coverage_delta_direction" },
+        "estimated_labeled": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "coverage_impact_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact_set_id",
+        "estimated_notes_count",
+        "no_estimate_as_measured",
+        "impact_rows"
+      ],
+      "properties": {
+        "impact_set_id": { "type": "string", "minLength": 1 },
+        "estimated_notes_count": { "type": "integer", "minimum": 0 },
+        "no_estimate_as_measured": { "type": "boolean" },
+        "impact_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/coverage_impact_row" }
+        }
+      }
+    },
+    "test_gen_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_proposals",
+        "shows_assumptions",
+        "shows_sandbox",
+        "shows_coverage",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/test_gen_consumer_surface" },
+        "shows_proposals": { "type": "boolean" },
+        "shows_assumptions": { "type": "boolean" },
+        "shows_sandbox": { "type": "boolean" },
+        "shows_coverage": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/test_gen_surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

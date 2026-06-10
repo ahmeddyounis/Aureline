@@ -88,6 +88,13 @@
 //! that backs it — together with advisory ownership hints that never auto-assign
 //! a reviewer and review-workspace integration that only publishes findings into
 //! review behind a human gate.
+//! The AI test-generation lane exposes one
+//! [`add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes::GeneratedTestReviewPacket`]
+//! object binding read-only generated test proposals — each anchored by a durable
+//! anchor, never auto-applied, and citing the evidence that backs it — together
+//! with an assumption-review sheet that flags unvalidated assumptions, sandbox
+//! validation that stays isolated and never counts as release coverage truth, and
+//! coverage-impact notes that label estimates as estimates rather than measured.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -109,6 +116,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
+pub mod add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes;
 pub mod add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes;
 pub mod ai_pack_rollout;
 pub mod ai_review_assist;
@@ -141,6 +149,24 @@ pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
 
+pub use add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes::{
+    current_stable_generated_test_review_export, AnchorState as GeneratedTestAnchorState,
+    AnchorStrategy as GeneratedTestAnchorStrategy, AssumptionClass as GeneratedTestAssumptionClass,
+    AssumptionConfidenceClass, AssumptionReviewBlock, AssumptionRow, CoverageDeltaDirection,
+    CoverageImpactBlock, CoverageImpactRow, CoverageMeasurementBasis,
+    DurableAnchor as GeneratedTestDurableAnchor, GeneratedDiffRiskClass,
+    GeneratedTestReviewArtifactError, GeneratedTestReviewPacket, GeneratedTestReviewPacketInput,
+    GeneratedTestReviewViolation, ProposalReviewState, SandboxOutcomeClass as GeneratedTestSandboxOutcomeClass,
+    SandboxProfileClass, SandboxRunRow, SandboxValidationBlock, TestGenConsumerSurface,
+    TestGenDowngradeTrigger, TestGenSurfaceParityRow, TestGenSurfaceQualificationClass,
+    TestProposalClass, TestProposalRow, TestProposalsBlock, GENERATED_TEST_REVIEW_ARTIFACT_REF,
+    GENERATED_TEST_REVIEW_CONTEXT_ASSEMBLY_CONTRACT_REF, GENERATED_TEST_REVIEW_DOC_REF,
+    GENERATED_TEST_REVIEW_FIXTURE_DIR, GENERATED_TEST_REVIEW_M5_MATRIX_CONTRACT_REF,
+    GENERATED_TEST_REVIEW_RECORD_KIND, GENERATED_TEST_REVIEW_SANDBOX_CONTRACT_REF,
+    GENERATED_TEST_REVIEW_SCHEMA_REF, GENERATED_TEST_REVIEW_SCHEMA_VERSION,
+    GENERATED_TEST_REVIEW_SUMMARY_REF, GENERATED_TEST_REVIEW_TESTING_CONTRACT_REF,
+    GENERATED_TEST_REVIEW_TEST_GENERATION_CONTRACT_REF,
+};
 pub use add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes::{
     current_stable_refactor_planner_export, CandidatePreviewBlock, CandidateRow, CandidateState,
     ImpactConfidenceClass, ImpactSetBlock, ImpactSiteClass, ImpactSiteRow, MultiFileSafetyClass,
