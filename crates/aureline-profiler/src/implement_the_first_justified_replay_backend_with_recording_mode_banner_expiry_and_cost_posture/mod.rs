@@ -117,7 +117,10 @@ impl RecordingModeState {
 
     /// Returns true when the banner should show a degraded-state label.
     pub const fn shows_degraded_label(self) -> bool {
-        matches!(self, Self::Expired | Self::Unsupported | Self::PolicyBlocked)
+        matches!(
+            self,
+            Self::Expired | Self::Unsupported | Self::PolicyBlocked
+        )
     }
 }
 
@@ -147,7 +150,10 @@ impl ExpiryStatus {
 
     /// Returns true when the status should show a degraded-state label.
     pub const fn shows_degraded_label(self) -> bool {
-        matches!(self, Self::Stale | Self::Expired | Self::Missing | Self::PolicyBlocked)
+        matches!(
+            self,
+            Self::Stale | Self::Expired | Self::Missing | Self::PolicyBlocked
+        )
     }
 }
 
@@ -472,9 +478,11 @@ impl ReplayQualificationPacket {
                 || banner.backend_ref.trim().is_empty()
                 || banner.chronology_support.trim().is_empty()
             {
-                violations.push(ReplayQualificationViolation::IncompleteRecordingModeBanner {
-                    banner_id: banner.banner_id.clone(),
-                });
+                violations.push(
+                    ReplayQualificationViolation::IncompleteRecordingModeBanner {
+                        banner_id: banner.banner_id.clone(),
+                    },
+                );
             }
             if !banner.shows_recording_mode_state {
                 violations.push(
@@ -700,7 +708,10 @@ impl fmt::Display for ReplayQualificationViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")

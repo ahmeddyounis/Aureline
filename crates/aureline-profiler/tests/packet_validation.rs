@@ -1,10 +1,11 @@
 //! Integration test: the embedded qualification packets parse and validate.
 
 use aureline_profiler::{
-    current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
-    current_memory_analysis_qualification, current_profile_compare_qualification,
-    current_profile_launcher_qualification, current_regression_baseline_qualification,
-    current_replay_qualification, current_trace_viewer_qualification,
+    current_chronology_qualification, current_evidence_handoff_qualification,
+    current_hotspot_workspace_qualification, current_memory_analysis_qualification,
+    current_profile_compare_qualification, current_profile_launcher_qualification,
+    current_regression_baseline_qualification, current_replay_qualification,
+    current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -434,6 +435,103 @@ fn profile_compare_confounder_severity_blocks_stable_claim_correctly() {
     assert!(ConfounderSeverity::Major.blocks_stable_claim());
     assert!(!ConfounderSeverity::Minor.blocks_stable_claim());
     assert!(!ConfounderSeverity::Info.blocks_stable_claim());
+}
+
+// --- Chronology qualification packet (M05-053) ---
+
+#[test]
+fn embedded_chronology_packet_parses() {
+    let packet = current_chronology_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.chronology_controls.is_empty());
+    assert!(!packet.reverse_step_actions.is_empty());
+    assert!(!packet.history_partiality_cues.is_empty());
+    assert!(!packet.import_export_packets.is_empty());
+}
+
+#[test]
+fn embedded_chronology_packet_has_no_violations() {
+    let packet = current_chronology_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_chronology_summary_matches_computed() {
+    let packet = current_chronology_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn chronology_partiality_severity_blocks_stable_claim_correctly() {
+    use aureline_profiler::PartialitySeverity;
+
+    assert!(PartialitySeverity::Critical.blocks_stable_claim());
+    assert!(!PartialitySeverity::Warning.blocks_stable_claim());
+    assert!(!PartialitySeverity::Info.blocks_stable_claim());
+
+    assert!(PartialitySeverity::Critical.shows_degraded_label());
+    assert!(PartialitySeverity::Warning.shows_degraded_label());
+    assert!(!PartialitySeverity::Info.shows_degraded_label());
+}
+
+#[test]
+fn chronology_packet_direction_behavior_is_correct() {
+    use aureline_profiler::PacketDirection;
+
+    assert!(PacketDirection::Import.is_import());
+    assert!(!PacketDirection::Import.is_export());
+    assert!(PacketDirection::Export.is_export());
+    assert!(!PacketDirection::Export.is_import());
+}
+
+#[test]
+fn chronology_stable_surfaces_have_complete_guards() {
+    let packet = current_chronology_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.chronology_controls_visible,
+                "surface {} must show chronology controls",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.reverse_step_actions_visible,
+                "surface {} must show reverse step actions",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.history_partiality_cues_visible,
+                "surface {} must show history partiality cues",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.import_export_packets_visible,
+                "surface {} must show import/export packets",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mapping_quality_visible,
+                "surface {} must show mapping quality",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.degraded_state_label_visible,
+                "surface {} must show degraded state label",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.integrity_check_visible,
+                "surface {} must show integrity check",
+                surface.surface_id
+            );
+        }
+    }
 }
 
 // --- Evidence handoff packet ---

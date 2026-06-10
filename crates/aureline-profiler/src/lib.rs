@@ -5,13 +5,14 @@
 //! confidence, regression baseline store, baseline selection UX, comparable-environment
 //! guards, profile-compare cards, threshold or waiver state, confounder disclosure,
 //! coverage, profile, test, debug, and notebook evidence handoff bars with artifact
-//! lineage, and justified replay backend with recording-mode banner, expiry, and cost
-//! posture.
+//! lineage, justified replay backend with recording-mode banner, expiry, and cost
+//! posture, and chronology and reverse-step controls, history partiality cues, and
+//! import or export packets.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
-//! surfaces, memory-analysis surfaces, regression-baseline surfaces, and evidence-handoff
-//! surfaces attributable and inspectable.
+//! surfaces, memory-analysis surfaces, regression-baseline surfaces, evidence-handoff
+//! surfaces, replay surfaces, and chronology surfaces attributable and inspectable.
 //!
 //! It exposes the canonical
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
@@ -53,6 +54,19 @@
 //! [`/schemas/perf/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.schema.json`](../../../schemas/perf/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.json`](../../../artifacts/perf/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.json).
+//!
+//! This crate also exposes the
+//! [`add_chronology_and_reverse_step_controls_history_partiality_cues_and_import_or_export_packets`]
+//! module that pins the chronology controls, reverse-step actions, history partiality
+//! cues, and import/export packet contracts every profiler chronology, replay, and
+//! evidence surface reads.
+//!
+//! The reviewer-facing contract for chronology and reverse-step controls is at
+//! [`/docs/performance/m5/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.md`](../../../docs/performance/m5/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.schema.json`](../../../schemas/perf/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.json`](../../../artifacts/perf/m5/add-chronology-and-reverse-step-controls-history-partiality-cues-and-import-or-export-packets.json).
 //!
 //! This crate also exposes the
 //! [`ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation`]
@@ -113,6 +127,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
+pub mod add_chronology_and_reverse_step_controls_history_partiality_cues_and_import_or_export_packets;
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
@@ -193,6 +208,18 @@ pub use ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with
     LineageState, SaveShareScopeKind, SaveShareScopeRow,
     EVIDENCE_HANDOFF_QUALIFICATION_PACKET_JSON, EVIDENCE_HANDOFF_QUALIFICATION_PACKET_PATH,
     EVIDENCE_HANDOFF_QUALIFICATION_RECORD_KIND, EVIDENCE_HANDOFF_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use add_chronology_and_reverse_step_controls_history_partiality_cues_and_import_or_export_packets::{
+    current_chronology_qualification, ChronologyControlKind, ChronologyControlRow,
+    ChronologyQualificationLabel, ChronologyQualificationPacket, ChronologyQualificationProof,
+    ChronologyQualificationSummary, ChronologyQualificationViolation,
+    ChronologyQualificationViolationKind, ChronologySurfaceGuardSet, ChronologySurfaceKind,
+    ChronologySurfaceQualificationRow, HistoryPartialityCueKind, HistoryPartialityCueRow,
+    ImportExportPacketRow, PacketDirection, PacketFormatKind, PartialitySeverity,
+    ReverseStepActionKind, ReverseStepActionRow,
+    CHRONOLOGY_QUALIFICATION_PACKET_JSON, CHRONOLOGY_QUALIFICATION_PACKET_PATH,
+    CHRONOLOGY_QUALIFICATION_RECORD_KIND, CHRONOLOGY_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture::{
