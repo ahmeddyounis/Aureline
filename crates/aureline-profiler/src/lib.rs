@@ -124,6 +124,18 @@
 //! [`/schemas/perf/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.schema.json`](../../../schemas/perf/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.json`](../../../artifacts/perf/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.json).
+//!
+//! This crate also exposes the
+//! [`integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles`]
+//! module that pins the incident workspace attachment, AI explanation, and support
+//! bundle inclusion contracts every integration surface reads.
+//!
+//! The reviewer-facing contract for integration is at
+//! [`/docs/performance/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.md`](../../../docs/performance/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json`](../../../schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.json`](../../../artifacts/perf/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
@@ -133,9 +145,23 @@ pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
 pub mod implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
+pub mod integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+
+pub use integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles::{
+    current_integrate_profile_trace_qualification, AiExplanationKind, AiExplanationRow,
+    ArtifactAttachmentKind, ExplanationConfidence, IncidentWorkspaceAttachmentRow,
+    IntegrateProfileTraceQualificationLabel, IntegrateProfileTraceQualificationPacket,
+    IntegrateProfileTraceQualificationProof, IntegrateProfileTraceQualificationSummary,
+    IntegrateProfileTraceQualificationViolation, IntegrateProfileTraceQualificationViolationKind,
+    IntegrateProfileTraceSurfaceGuardSet, IntegrateProfileTraceSurfaceKind,
+    IntegrateProfileTraceSurfaceQualificationRow, SupportBundleInclusionKind,
+    SupportBundleInclusionRow, INTEGRATE_PROFILE_TRACE_QUALIFICATION_PACKET_JSON,
+    INTEGRATE_PROFILE_TRACE_QUALIFICATION_PACKET_PATH, INTEGRATE_PROFILE_TRACE_QUALIFICATION_RECORD_KIND,
+    INTEGRATE_PROFILE_TRACE_QUALIFICATION_SCHEMA_VERSION,
+};
 
 pub use build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards::{
     current_regression_baseline_qualification, BaselineFreshness, BaselineSelectionKind,

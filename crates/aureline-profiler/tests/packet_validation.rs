@@ -2,10 +2,10 @@
 
 use aureline_profiler::{
     current_chronology_qualification, current_evidence_handoff_qualification,
-    current_hotspot_workspace_qualification, current_memory_analysis_qualification,
-    current_profile_compare_qualification, current_profile_launcher_qualification,
-    current_regression_baseline_qualification, current_replay_qualification,
-    current_trace_viewer_qualification,
+    current_hotspot_workspace_qualification, current_integrate_profile_trace_qualification,
+    current_memory_analysis_qualification, current_profile_compare_qualification,
+    current_profile_launcher_qualification, current_regression_baseline_qualification,
+    current_replay_qualification, current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -746,6 +746,103 @@ fn evidence_handoff_stable_surfaces_have_complete_guards() {
             assert!(
                 surface.guards.lineage_detail_visible,
                 "surface {} must show lineage detail",
+                surface.surface_id
+            );
+        }
+    }
+}
+
+// --- Integration packet (M05-054) ---
+
+#[test]
+fn embedded_integrate_profile_trace_packet_parses() {
+    let packet =
+        current_integrate_profile_trace_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.incident_workspace_attachments.is_empty());
+    assert!(!packet.ai_explanations.is_empty());
+    assert!(!packet.support_bundle_inclusions.is_empty());
+}
+
+#[test]
+fn embedded_integrate_profile_trace_packet_has_no_violations() {
+    let packet =
+        current_integrate_profile_trace_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_integrate_profile_trace_summary_matches_computed() {
+    let packet =
+        current_integrate_profile_trace_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn explanation_confidence_trustworthiness_is_correct() {
+    use aureline_profiler::ExplanationConfidence;
+
+    assert!(ExplanationConfidence::High.is_trustworthy());
+    assert!(ExplanationConfidence::Medium.is_trustworthy());
+    assert!(!ExplanationConfidence::Low.is_trustworthy());
+    assert!(!ExplanationConfidence::Uncertain.is_trustworthy());
+}
+
+#[test]
+fn integrate_profile_trace_stable_surfaces_have_complete_guards() {
+    let packet =
+        current_integrate_profile_trace_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.artifact_origin_visible,
+                "surface {} must show artifact origin",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.build_identity_visible,
+                "surface {} must show build identity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mapping_quality_visible,
+                "surface {} must show mapping quality",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.comparison_basis_visible,
+                "surface {} must show comparison basis",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.export_posture_visible,
+                "surface {} must show export posture",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.incident_workspace_link_visible,
+                "surface {} must show incident workspace link",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.ai_explanation_visible,
+                "surface {} must show AI explanation",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.support_bundle_link_visible,
+                "surface {} must show support bundle link",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.degraded_state_label_visible,
+                "surface {} must show degraded state label",
                 surface.surface_id
             );
         }
