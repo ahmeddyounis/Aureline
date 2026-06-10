@@ -65,7 +65,17 @@
 //!    reviewable, and recoverable on the same contracts as build, test, and
 //!    debug work.
 //!
-//! 10. The [`seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet`]
+//! 10. The [`ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback`]
+//!     module materializes the typed records that keep notebook review, diff,
+//!     merge, and collaboration honest about cell identity, metadata boundaries,
+//!     output visibility, and fallback posture. It produces
+//!     [`NotebookDiffReviewSession`] records, [`NotebookDiffCellChange`] records,
+//!     [`NotebookDiffOutputSummary`] records, [`NotebookDiffMetadataFilter`] records,
+//!     [`NotebookRawJsonFallback`] records, and the [`NotebookDiffPacket`] checked-in
+//!     artifact that downstream docs, help, CI, and support surfaces ingest instead
+//!     of cloning status text.
+//!
+//! 11. The [`seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet`]
 //!     module seeds the bounded fixture set and heavy-output corpus that keep
 //!     M5 notebook round-trip and output-truth claims evidence-based. It produces
 //!     [`NotebookRoundTripFixture`] records, [`HeavyOutputCorpusEntry`] records,
@@ -141,6 +151,13 @@
 //! `/fixtures/notebook/m5/ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories/`.
 //!
 //! The records under
+//! [`ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback/`.
+//!
+//! The records under
 //! [`seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet`]
 //! mirror the boundary schema at
 //! `/schemas/notebook/seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet.schema.json`.
@@ -174,6 +191,7 @@ pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
 pub mod seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet;
+pub mod ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback;
 pub mod ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
 
@@ -329,4 +347,18 @@ pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state
     NOTEBOOK_CELL_CHROME_PACKET_PATH, NOTEBOOK_CELL_CHROME_PACKET_RECORD_KIND,
     NOTEBOOK_CELL_CHROME_RECORD_KIND, NOTEBOOK_CELL_CHROME_SCHEMA_VERSION,
     DURABLE_EXECUTION_STATE_ROW_RECORD_KIND, RUN_SCOPE_CONTROL_RECORD_KIND,
+};
+
+pub use ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback::{
+    current_notebook_diff_packet, NotebookDiffCellChange, NotebookDiffCellChangeClass,
+    NotebookDiffCellChangeFinding, NotebookDiffMergeResolutionClass, NotebookDiffMetadataFilter,
+    NotebookDiffMetadataFilterFinding, NotebookDiffMode, NotebookDiffOutputChangeClass,
+    NotebookDiffOutputSummary, NotebookDiffOutputSummaryFinding, NotebookDiffPacket,
+    NotebookDiffPacketFinding, NotebookDiffReviewSession, NotebookDiffReviewSessionFinding,
+    NotebookMetadataFilterState, NotebookOutputIncludeState, NotebookRawJsonFallback,
+    NotebookRawJsonFallbackFinding, RawJsonFallbackReason, NOTEBOOK_DIFF_CELL_CHANGE_RECORD_KIND,
+    NOTEBOOK_DIFF_METADATA_FILTER_RECORD_KIND, NOTEBOOK_DIFF_OUTPUT_SUMMARY_RECORD_KIND,
+    NOTEBOOK_DIFF_PACKET_JSON, NOTEBOOK_DIFF_PACKET_PATH, NOTEBOOK_DIFF_PACKET_RECORD_KIND,
+    NOTEBOOK_DIFF_REVIEW_SESSION_RECORD_KIND, NOTEBOOK_DIFF_SCHEMA_VERSION,
+    NOTEBOOK_RAW_JSON_FALLBACK_RECORD_KIND,
 };

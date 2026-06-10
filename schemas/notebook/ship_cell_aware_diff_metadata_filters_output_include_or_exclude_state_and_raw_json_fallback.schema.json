@@ -1,0 +1,405 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback.schema.json",
+  "title": "Aureline cell-aware diff, metadata filters, output include or exclude state, and raw JSON fallback",
+  "description": "Boundary schema for notebook diff, review, merge, and collaboration records. Every record that crosses the diff/review boundary (review session, cell change, output summary, metadata filter, raw JSON fallback, diff packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_diff_review_session_record" },
+    { "$ref": "#/$defs/notebook_diff_cell_change_record" },
+    { "$ref": "#/$defs/notebook_diff_output_summary_record" },
+    { "$ref": "#/$defs/notebook_diff_metadata_filter_record" },
+    { "$ref": "#/$defs/notebook_raw_json_fallback_record" },
+    { "$ref": "#/$defs/notebook_diff_packet_record" }
+  ],
+  "$defs": {
+    "notebook_diff_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook diff/review module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_diff_review_session",
+        "notebook_diff_cell_change",
+        "notebook_diff_output_summary",
+        "notebook_diff_metadata_filter",
+        "notebook_raw_json_fallback",
+        "notebook_diff_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, filter id, fallback id, document id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_diff_mode": {
+      "type": "string",
+      "enum": ["cell_aware", "metadata_focused", "output_aware", "raw_json_fallback"],
+      "description": "Frozen diff-mode vocabulary. Cell-aware is the default; raw_json_fallback is the escape hatch."
+    },
+
+    "notebook_diff_cell_change_class": {
+      "type": "string",
+      "enum": [
+        "cell_added",
+        "cell_removed",
+        "cell_reordered",
+        "cell_type_changed",
+        "source_changed",
+        "metadata_changed",
+        "output_changed",
+        "execution_changed",
+        "unchanged"
+      ],
+      "description": "Frozen per-cell change-class vocabulary."
+    },
+
+    "notebook_diff_output_change_class": {
+      "type": "string",
+      "enum": [
+        "output_added",
+        "output_removed",
+        "output_updated",
+        "output_unchanged"
+      ],
+      "description": "Frozen per-output change-class vocabulary."
+    },
+
+    "notebook_metadata_filter_state": {
+      "type": "string",
+      "enum": ["all_visible", "official_only", "aureline_only", "unknown_hidden"],
+      "description": "Frozen metadata-filter state vocabulary. Filters are review conveniences only and never justify stripping unknown fields on save."
+    },
+
+    "notebook_output_include_state": {
+      "type": "string",
+      "enum": ["included", "excluded", "collapsed"],
+      "description": "Frozen output-include state vocabulary. Reviewers must know whether outputs are absent, hidden, or intentionally excluded from comparison."
+    },
+
+    "raw_json_fallback_reason": {
+      "type": "string",
+      "enum": [
+        "parse_error",
+        "unsupported_version",
+        "extension_mismatch",
+        "explicit_user_choice",
+        "corrupt_structure"
+      ],
+      "description": "Frozen raw-JSON fallback reason vocabulary. The UI must explain why semantic review is unavailable."
+    },
+
+    "notebook_diff_merge_resolution_class": {
+      "type": "string",
+      "enum": ["base", "ours", "theirs", "result", "unresolved"],
+      "description": "Frozen merge-resolution class vocabulary. Merge flows resolve at cell or metadata-field granularity when possible."
+    },
+
+    "notebook_diff_review_session_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_diff_review_session" },
+        "notebook_diff_schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diff_mode": { "$ref": "#/$defs/notebook_diff_mode" },
+        "metadata_filter_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_include_state": { "$ref": "#/$defs/notebook_output_include_state" },
+        "cell_change_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to cell-change records in diff order."
+        },
+        "raw_json_fallback_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "stable_cell_anchors": {
+          "type": "boolean",
+          "description": "Whether comments and review anchors bind to stable cell IDs."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_diff_schema_version",
+        "session_id",
+        "document_id_ref",
+        "diff_mode",
+        "metadata_filter_ref",
+        "output_include_state",
+        "cell_change_refs",
+        "stable_cell_anchors",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_diff_cell_change_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_diff_cell_change" },
+        "notebook_diff_schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "cell_change_id": { "$ref": "#/$defs/opaque_id" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_change_class": { "$ref": "#/$defs/notebook_diff_cell_change_class" },
+        "source_edit_summary_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "output_summary_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to output summary records bound to this cell."
+        },
+        "metadata_filter_ref": { "$ref": "#/$defs/opaque_ref" },
+        "merge_resolution_class": { "$ref": "#/$defs/notebook_diff_merge_resolution_class" },
+        "collapsed_in_diff": {
+          "type": "boolean",
+          "description": "Whether this cell is collapsed in the diff view."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_diff_schema_version",
+        "cell_change_id",
+        "cell_id_ref",
+        "cell_change_class",
+        "metadata_filter_ref",
+        "collapsed_in_diff",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_diff_output_summary_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_diff_output_summary" },
+        "notebook_diff_schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "output_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "owner_cell_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_change_class": { "$ref": "#/$defs/notebook_diff_output_change_class" },
+        "output_include_state": { "$ref": "#/$defs/notebook_output_include_state" },
+        "truncated_in_review": {
+          "type": "boolean",
+          "description": "Whether the output is truncated or virtualized in the review view."
+        },
+        "output_trust_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_diff_schema_version",
+        "output_summary_id",
+        "owner_cell_ref",
+        "output_change_class",
+        "output_include_state",
+        "truncated_in_review",
+        "output_trust_state_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_diff_metadata_filter_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_diff_metadata_filter" },
+        "notebook_diff_schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "metadata_filter_id": { "$ref": "#/$defs/opaque_id" },
+        "metadata_filter_state": { "$ref": "#/$defs/notebook_metadata_filter_state" },
+        "visible_namespace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to visible metadata namespace ids."
+        },
+        "hidden_namespace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to hidden metadata namespace ids."
+        },
+        "unknown_namespaces_preserved_on_save": {
+          "type": "boolean",
+          "description": "Whether unknown vendor namespaces are preserved on save despite being hidden in review."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_diff_schema_version",
+        "metadata_filter_id",
+        "metadata_filter_state",
+        "unknown_namespaces_preserved_on_save",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_raw_json_fallback_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_raw_json_fallback" },
+        "notebook_diff_schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "fallback_id": { "$ref": "#/$defs/opaque_id" },
+        "fallback_reason": { "$ref": "#/$defs/raw_json_fallback_reason" },
+        "fallback_explanation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation shown in the UI."
+        },
+        "explicit_user_choice": {
+          "type": "boolean",
+          "description": "Whether the raw JSON view is the explicit user choice."
+        },
+        "canonical_document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_diff_schema_version",
+        "fallback_id",
+        "fallback_reason",
+        "fallback_explanation",
+        "explicit_user_choice",
+        "canonical_document_ref",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_diff_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_diff_schema_version" },
+        "record_kind": { "const": "notebook_diff_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "diff_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_mode" },
+          "description": "Closed vocabulary: diff modes. Must list every variant."
+        },
+        "cell_change_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_cell_change_class" },
+          "description": "Closed vocabulary: cell change classes. Must list every variant."
+        },
+        "output_change_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_output_change_class" },
+          "description": "Closed vocabulary: output change classes. Must list every variant."
+        },
+        "metadata_filter_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_metadata_filter_state" },
+          "description": "Closed vocabulary: metadata filter states. Must list every variant."
+        },
+        "output_include_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_output_include_state" },
+          "description": "Closed vocabulary: output include states. Must list every variant."
+        },
+        "raw_json_fallback_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/raw_json_fallback_reason" },
+          "description": "Closed vocabulary: raw JSON fallback reasons. Must list every variant."
+        },
+        "merge_resolution_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_merge_resolution_class" },
+          "description": "Closed vocabulary: merge resolution classes. Must list every variant."
+        },
+        "example_review_sessions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_review_session_record" },
+          "description": "Worked example review sessions."
+        },
+        "example_cell_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_cell_change_record" },
+          "description": "Worked example cell changes."
+        },
+        "example_output_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_output_summary_record" },
+          "description": "Worked example output summaries."
+        },
+        "example_metadata_filters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_diff_metadata_filter_record" },
+          "description": "Worked example metadata filters."
+        },
+        "example_raw_json_fallbacks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_raw_json_fallback_record" },
+          "description": "Worked example raw JSON fallbacks."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "diff_modes",
+        "cell_change_classes",
+        "output_change_classes",
+        "metadata_filter_states",
+        "output_include_states",
+        "raw_json_fallback_reasons",
+        "merge_resolution_classes",
+        "example_review_sessions",
+        "example_cell_changes",
+        "example_output_summaries",
+        "example_metadata_filters",
+        "example_raw_json_fallbacks",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
