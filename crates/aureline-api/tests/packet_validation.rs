@@ -2,6 +2,7 @@
 
 use aureline_api::{
     current_request_composer_qualification, current_request_workspace_qualification,
+    current_response_viewer_qualification,
 };
 
 #[test]
@@ -57,5 +58,33 @@ fn embedded_composer_packet_has_no_violations() {
 #[test]
 fn embedded_composer_summary_matches_computed() {
     let packet = current_request_composer_qualification().expect("embedded composer packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_response_viewer_packet_parses() {
+    let packet = current_response_viewer_qualification().expect("embedded response viewer packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.response_viewers.is_empty());
+    assert!(!packet.assertions.is_empty());
+    assert!(!packet.timing_tabs.is_empty());
+    assert!(!packet.browser_runtime_trusts.is_empty());
+}
+
+#[test]
+fn embedded_response_viewer_packet_has_no_violations() {
+    let packet = current_response_viewer_qualification().expect("embedded response viewer packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_response_viewer_summary_matches_computed() {
+    let packet = current_response_viewer_qualification().expect("embedded response viewer packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }

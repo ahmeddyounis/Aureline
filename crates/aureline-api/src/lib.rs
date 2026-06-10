@@ -16,6 +16,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-the-request-composer-mutation-review-sheets-and-replay-or-history-lanes-with-redaction-safe-export.json`](../../../artifacts/data/m5/implement-the-request-composer-mutation-review-sheets-and-replay-or-history-lanes-with-redaction-safe-export.json).
 //!
+//! This crate also owns the REST and GraphQL response viewers, assertion
+//! panels, timing tabs, and browser-runtime trust class qualification records.
+//! The response-viewer boundary schema is
+//! [`/schemas/data/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.schema.json`](../../../schemas/data/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json`](../../../artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -25,6 +32,7 @@
 
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
+pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
 
 pub use implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export::{
     current_request_composer_qualification, ComposerQualificationLabel,
@@ -47,4 +55,16 @@ pub use materialize_versioned_request_workspace_documents_environment_sets_and_a
     RequestWritePosture, ResponseSafePreviewClass, SchemaSnapshotRow, REQUEST_QUALIFICATION_PACKET_JSON,
     REQUEST_QUALIFICATION_PACKET_PATH, REQUEST_QUALIFICATION_RECORD_KIND,
     REQUEST_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{
+    current_response_viewer_qualification, AssertionOutcome, AssertionRow, BrowserRuntimeSurfaceKind,
+    BrowserRuntimeTrustClass, BrowserRuntimeTrustRow, ResponsePreviewClass,
+    ResponseViewerQualificationLabel, ResponseViewerQualificationPacket,
+    ResponseViewerQualificationProof, ResponseViewerQualificationSummary,
+    ResponseViewerQualificationViolation, ResponseViewerQualificationViolationKind,
+    ResponseViewerSurfaceGuardSet, ResponseViewerSurfaceKind, ResponseViewerSurfaceQualificationRow,
+    ResponseViewerKind, ResponseViewerRow, TimingPhaseKind, TimingTabRow,
+    RESPONSE_VIEWER_QUALIFICATION_PACKET_JSON, RESPONSE_VIEWER_QUALIFICATION_PACKET_PATH,
+    RESPONSE_VIEWER_QUALIFICATION_RECORD_KIND, RESPONSE_VIEWER_QUALIFICATION_SCHEMA_VERSION,
 };
