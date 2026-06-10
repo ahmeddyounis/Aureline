@@ -2,8 +2,8 @@
 //! hotspot workspace, flamegraph, call tree, mapping-quality labels, source navigation,
 //! shared trace viewer with synchronized event lanes, bookmarks, and textual fallback,
 //! memory-analysis views, snapshot pairs, retained or allocation diffs, leak-hint
-//! confidence, and regression baseline store, baseline selection UX, and comparable-environment
-//! guards.
+//! confidence, regression baseline store, baseline selection UX, comparable-environment
+//! guards, and profile-compare cards, threshold or waiver state, and confounder disclosure.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
@@ -14,6 +14,11 @@
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
 //! module that pins the launcher, attach-sheet, capture-mode, and storage-location
 //! contracts every profiler UI, support export, and release reviewer reads.
+//!
+//! This crate also exposes the
+//! [`implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure`]
+//! module that pins the profile-compare card, threshold-state, waiver-state, and
+//! confounder-disclosure contracts every comparison surface reads.
 //!
 //! The reviewer-facing contract is at
 //! [`/docs/performance/m5/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.md`](../../../docs/performance/m5/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.md).
@@ -33,6 +38,13 @@
 //! [`/schemas/perf/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.schema.json`](../../../schemas/perf/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.json`](../../../artifacts/perf/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.json).
+//!
+//! The reviewer-facing contract for profile-compare cards is at
+//! [`/docs/performance/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.md`](../../../docs/performance/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.schema.json`](../../../schemas/perf/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.json`](../../../artifacts/perf/m5/implement-profile-compare-cards-threshold-or-waiver-state-and-confounder-disclosure.json).
 //!
 //! This crate also exposes the
 //! [`ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation`]
@@ -75,6 +87,7 @@
 
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
+pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
@@ -126,6 +139,18 @@ pub use materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_
     StorageLocationTruthLabel, StorageLocationTruthRow, PROFILE_LAUNCHER_QUALIFICATION_PACKET_JSON,
     PROFILE_LAUNCHER_QUALIFICATION_PACKET_PATH, PROFILE_LAUNCHER_QUALIFICATION_RECORD_KIND,
     PROFILE_LAUNCHER_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure::{
+    current_profile_compare_qualification, ComparisonKind, ConfounderDisclosureRow, ConfounderKind,
+    ConfounderSeverity, ProfileCompareCardRow, ProfileCompareQualificationLabel,
+    ProfileCompareQualificationPacket, ProfileCompareQualificationProof,
+    ProfileCompareQualificationSummary, ProfileCompareQualificationViolation,
+    ProfileCompareQualificationViolationKind, ProfileCompareSurfaceGuardSet,
+    ProfileCompareSurfaceKind, ProfileCompareSurfaceQualificationRow, ThresholdState,
+    ThresholdStateRow, WaiverStateRow, WaiverStatus,
+    PROFILE_COMPARE_QUALIFICATION_PACKET_JSON, PROFILE_COMPARE_QUALIFICATION_PACKET_PATH,
+    PROFILE_COMPARE_QUALIFICATION_RECORD_KIND, PROFILE_COMPARE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation::{

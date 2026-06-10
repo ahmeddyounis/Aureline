@@ -2,8 +2,8 @@
 
 use aureline_profiler::{
     current_hotspot_workspace_qualification, current_memory_analysis_qualification,
-    current_profile_launcher_qualification, current_regression_baseline_qualification,
-    current_trace_viewer_qualification,
+    current_profile_compare_qualification, current_profile_launcher_qualification,
+    current_regression_baseline_qualification, current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -356,6 +356,133 @@ fn regression_baseline_stable_surfaces_have_complete_guards() {
             assert!(
                 surface.guards.guard_criteria_visible,
                 "surface {} must show guard criteria",
+                surface.surface_id
+            );
+        }
+    }
+}
+
+// --- Profile-compare packet (M05-050) ---
+
+#[test]
+fn embedded_profile_compare_packet_parses() {
+    let packet = current_profile_compare_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.compare_cards.is_empty());
+    assert!(!packet.threshold_states.is_empty());
+    assert!(!packet.waiver_states.is_empty());
+    assert!(!packet.confounder_disclosures.is_empty());
+}
+
+#[test]
+fn embedded_profile_compare_packet_has_no_violations() {
+    let packet = current_profile_compare_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_profile_compare_summary_matches_computed() {
+    let packet = current_profile_compare_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn profile_compare_threshold_state_alert_behavior_is_correct() {
+    use aureline_profiler::ThresholdState;
+
+    assert!(ThresholdState::Within.allows_comparison());
+    assert!(ThresholdState::Warning.allows_comparison());
+    assert!(!ThresholdState::Breach.allows_comparison());
+    assert!(ThresholdState::Waived.allows_comparison());
+    assert!(ThresholdState::Provisional.allows_comparison());
+
+    assert!(!ThresholdState::Within.is_breach());
+    assert!(!ThresholdState::Warning.is_breach());
+    assert!(ThresholdState::Breach.is_breach());
+    assert!(ThresholdState::Waived.is_breach());
+    assert!(!ThresholdState::Provisional.is_breach());
+
+    assert!(!ThresholdState::Within.shows_alert());
+    assert!(ThresholdState::Warning.shows_alert());
+    assert!(ThresholdState::Breach.shows_alert());
+    assert!(ThresholdState::Waived.shows_alert());
+    assert!(ThresholdState::Provisional.shows_alert());
+}
+
+#[test]
+fn profile_compare_waiver_status_covering_behavior_is_correct() {
+    use aureline_profiler::WaiverStatus;
+
+    assert!(WaiverStatus::Active.is_covering());
+    assert!(!WaiverStatus::Expired.is_covering());
+    assert!(!WaiverStatus::Pending.is_covering());
+    assert!(!WaiverStatus::Retired.is_covering());
+}
+
+#[test]
+fn profile_compare_confounder_severity_blocks_stable_claim_correctly() {
+    use aureline_profiler::ConfounderSeverity;
+
+    assert!(ConfounderSeverity::Critical.blocks_stable_claim());
+    assert!(ConfounderSeverity::Major.blocks_stable_claim());
+    assert!(!ConfounderSeverity::Minor.blocks_stable_claim());
+    assert!(!ConfounderSeverity::Info.blocks_stable_claim());
+}
+
+#[test]
+fn profile_compare_stable_surfaces_have_complete_guards() {
+    let packet = current_profile_compare_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.compare_card_visible,
+                "surface {} must show compare card",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.threshold_inspector_visible,
+                "surface {} must show threshold inspector",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.waiver_badge_visible,
+                "surface {} must show waiver badge",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.confounder_disclosure_visible,
+                "surface {} must show confounder disclosure",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.capture_identity_visible,
+                "surface {} must show capture identity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.comparison_basis_visible,
+                "surface {} must show comparison basis",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.threshold_bar_visible,
+                "surface {} must show threshold bar",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.waiver_expiry_visible,
+                "surface {} must show waiver expiry",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mapping_quality_visible,
+                "surface {} must show mapping quality",
                 surface.surface_id
             );
         }
