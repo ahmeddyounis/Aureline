@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-customer-visible-usage-export-budget-attribution-and-managed-or-offline-safe-reporting-for-ai-lanes.schema.json",
+  "title": "Aureline customer-visible usage export, budget attribution, and managed or offline-safe reporting for AI lanes",
+  "description": "Export-safe packet materializing the customer-facing AI usage-reporting surface into per-period rows. Each row binds the customer-visible usage export the customer can read, the budget attribution that splits the period's spend across the dimensions that consumed it, and the managed or offline-safe reporting continuity that says whether the report can still be produced when the managed service is unavailable. A partial or estimate-only export and an estimate-only attribution may not back a Stable claim; an export may not advertise availability when the report is unavailable; no attributed slice may cost more than the period total; a charged total or line discloses who is charged; an offline-safe or offline-fallback lane must be generatable offline; a local lane may not be managed-only; region and retention are disclosed so locality never hides; and a degraded, unavailable, or policy-blocked report narrows the claim. Raw provider endpoints, credential bodies, raw provider payloads, exact token counts, exact usage counts, and exact spend amounts never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "catalogue_label",
+    "reports",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_customer_visible_usage_export_budget_attribution_and_managed_or_offline_safe_reporting_for_ai_lanes"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "catalogue_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "reports": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/usage_report_row"
+      }
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "qualification_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+    },
+    "rollback_posture": {
+      "enum": [
+        "fully_reversible",
+        "checkpoint_reversible",
+        "evidence_preserved_no_revert",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "route_policy_mode": {
+      "enum": ["local", "byok", "managed", "enterprise_gateway"]
+    },
+    "quota_family": {
+      "enum": [
+        "per_user_local_unmetered",
+        "per_user_byok_vendor_quota",
+        "organisation_pooled_quota",
+        "enterprise_gateway_pooled_quota",
+        "managed_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered"
+      ]
+    },
+    "cost_band": {
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_low_band",
+        "metered_medium_band",
+        "metered_high_band",
+        "flat_fee_subscription_band",
+        "estimated_unverified_band"
+      ]
+    },
+    "cost_measurement": {
+      "enum": ["estimate_band", "actual_measured", "actual_unverified"]
+    },
+    "charged_disclosure": {
+      "enum": [
+        "not_charged_local",
+        "not_charged_bundled",
+        "charged_user_metered",
+        "charged_user_subscription",
+        "charged_organisation_pooled",
+        "charge_unknown_unverified"
+      ]
+    },
+    "route_region": {
+      "enum": [
+        "on_device_only",
+        "single_region_pinned",
+        "multi_region_pinned",
+        "vendor_default_unpinned",
+        "unknown_unverified",
+        "policy_blocked"
+      ]
+    },
+    "route_retention": {
+      "enum": [
+        "no_retention_local_only",
+        "no_retention_promised",
+        "bounded_retention_operator_only",
+        "bounded_retention_with_export",
+        "unbounded_retention_not_trained",
+        "unbounded_retention_used_for_training",
+        "unknown_unverified",
+        "policy_blocked"
+      ]
+    },
+    "reporting_continuity": {
+      "enum": [
+        "managed_only",
+        "managed_with_offline_fallback",
+        "offline_safe",
+        "local_only"
+      ]
+    },
+    "report_generation_state": {
+      "enum": [
+        "generated",
+        "degraded_partial",
+        "managed_unavailable_used_offline",
+        "managed_unavailable_no_fallback",
+        "pending"
+      ]
+    },
+    "export_availability": {
+      "enum": ["available_now", "on_request", "unavailable"]
+    },
+    "report_completeness": {
+      "enum": ["complete", "partial_degraded", "estimate_only"]
+    },
+    "export_redaction": {
+      "enum": [
+        "coarse_bands_only",
+        "aggregated_per_dimension",
+        "coarse_bands_and_aggregated"
+      ]
+    },
+    "attribution_dimension": {
+      "enum": [
+        "per_workspace",
+        "per_user",
+        "per_project",
+        "per_model",
+        "per_provider",
+        "per_feature_surface",
+        "per_session"
+      ]
+    },
+    "attribution_share": {
+      "enum": ["negligible", "minor", "moderate", "major", "dominant"]
+    },
+    "usage_export_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability",
+        "customer_visible",
+        "completeness",
+        "redaction",
+        "format_label",
+        "explanation_label"
+      ],
+      "properties": {
+        "availability": { "$ref": "#/$defs/export_availability" },
+        "customer_visible": { "type": "boolean" },
+        "completeness": { "$ref": "#/$defs/report_completeness" },
+        "redaction": { "$ref": "#/$defs/export_redaction" },
+        "format_label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "budget_attribution_line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "subject_label", "cost_band", "charged", "share"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/attribution_dimension" },
+        "subject_label": { "$ref": "#/$defs/non_empty_string" },
+        "cost_band": { "$ref": "#/$defs/cost_band" },
+        "charged": { "$ref": "#/$defs/charged_disclosure" },
+        "share": { "$ref": "#/$defs/attribution_share" },
+        "notes_label": { "type": "string" }
+      }
+    },
+    "budget_attribution_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cost_band",
+        "measurement",
+        "charged",
+        "billing_owner_label",
+        "lines",
+        "explanation_label"
+      ],
+      "properties": {
+        "total_cost_band": { "$ref": "#/$defs/cost_band" },
+        "measurement": { "$ref": "#/$defs/cost_measurement" },
+        "charged": { "$ref": "#/$defs/charged_disclosure" },
+        "billing_owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/budget_attribution_line" }
+        },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "narrowed_to", "auto_enforced", "rationale"],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "narrowed_to": { "$ref": "#/$defs/qualification_class" },
+        "auto_enforced": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "usage_report_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_id",
+        "lane_id",
+        "lane_label",
+        "reporting_period_label",
+        "resolved_mode",
+        "quota_family",
+        "claimed_qualification",
+        "continuity",
+        "offline_generatable",
+        "generation_state",
+        "region",
+        "retention",
+        "usage_export",
+        "budget_attribution",
+        "downgrade_rules",
+        "rollback_posture",
+        "rollback_verified",
+        "evidence_packet_refs"
+      ],
+      "properties": {
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane_label": { "$ref": "#/$defs/non_empty_string" },
+        "reporting_period_label": { "$ref": "#/$defs/non_empty_string" },
+        "resolved_mode": { "$ref": "#/$defs/route_policy_mode" },
+        "quota_family": { "$ref": "#/$defs/quota_family" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "continuity": { "$ref": "#/$defs/reporting_continuity" },
+        "offline_generatable": { "type": "boolean" },
+        "generation_state": { "$ref": "#/$defs/report_generation_state" },
+        "region": { "$ref": "#/$defs/route_region" },
+        "retention": { "$ref": "#/$defs/route_retention" },
+        "usage_export": { "$ref": "#/$defs/usage_export_block" },
+        "budget_attribution": { "$ref": "#/$defs/budget_attribution_block" },
+        "downgrade_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_rule" }
+        },
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "rollback_verified": { "type": "boolean" },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

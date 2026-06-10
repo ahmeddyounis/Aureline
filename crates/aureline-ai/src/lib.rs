@@ -216,6 +216,25 @@
 //! rollback-posture vocabulary, the routing-policy mode vocabulary, the
 //! tool-gateway side-effect and approval vocabularies, and the signed/shared
 //! recipe-pack replay-preview, audit, and reversibility vocabularies.
+//! The customer-visible usage-reporting lane exposes one
+//! [`implement_customer_visible_usage_export_budget_attribution_and_managed_or_offline_safe_reporting_for_ai_lanes::UsageReportingPacket`]
+//! object binding, for every reporting period of a governed AI lane, the
+//! customer-visible usage export the customer can read, the budget attribution
+//! that splits the period's spend across the workspace, user, project, model,
+//! provider, feature, or session dimensions that consumed it, and the managed or
+//! offline-safe reporting continuity that says whether the report can still be
+//! produced when the managed service is unavailable — holding a partial or
+//! estimate-only export and an estimate-only attribution back from a Stable
+//! claim, refusing an attributed slice that costs more than the period total,
+//! demanding a disclosed charge owner on any charged total or line, requiring an
+//! offline-safe or offline-fallback lane to actually be generatable offline,
+//! forbidding a local lane from being managed-only, disclosing region and
+//! retention so locality never hides, and narrowing rather than a Stable claim
+//! when the report degrades, the managed service is unavailable with no fallback,
+//! or the region or retention posture is policy-blocked — reusing the frozen M5
+//! qualification, downgrade, and rollback-posture vocabulary, the routing-policy
+//! mode, quota, and cost-band vocabulary, and the provider-route region and
+//! retention vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -259,6 +278,7 @@ pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
 pub mod implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture;
 pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
+pub mod implement_customer_visible_usage_export_budget_attribution_and_managed_or_offline_safe_reporting_for_ai_lanes;
 pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
 pub mod implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains;
 pub mod implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay;
