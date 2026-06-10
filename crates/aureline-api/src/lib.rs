@@ -59,6 +59,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`](../../../artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json).
 //!
+//! This crate also owns the certification qualification records for API,
+//! database, and browser-runtime workflows with mutation, redaction, and scale
+//! drills. The certification boundary schema is
+//! [`/schemas/data/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.schema.json`](../../../schemas/data/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json`](../../../artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -68,6 +75,7 @@
 
 pub mod add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions;
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
+pub mod certify_api_database_and_browser_runtime_workflows_with_mutation_redaction_and_scale_drills;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
@@ -200,4 +208,16 @@ pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browse
     ResponseViewerKind, ResponseViewerRow, TimingPhaseKind, TimingTabRow,
     RESPONSE_VIEWER_QUALIFICATION_PACKET_JSON, RESPONSE_VIEWER_QUALIFICATION_PACKET_PATH,
     RESPONSE_VIEWER_QUALIFICATION_RECORD_KIND, RESPONSE_VIEWER_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use certify_api_database_and_browser_runtime_workflows_with_mutation_redaction_and_scale_drills::{
+    current_certification_qualification, CertificationQualificationLabel,
+    CertificationQualificationPacket, CertificationQualificationProof,
+    CertificationQualificationSummary, CertificationQualificationViolation,
+    CertificationQualificationViolationKind, CertificationSurfaceGuardSet,
+    CertificationSurfaceKind, CertificationSurfaceQualificationRow, MutationDrillClass,
+    MutationDrillRow, RedactionDrillClass, RedactionDrillRow, ScaleDrillClass, ScaleDrillRow,
+    UpstreamPacketRefRow,
+    CERTIFICATION_QUALIFICATION_PACKET_JSON, CERTIFICATION_QUALIFICATION_PACKET_PATH,
+    CERTIFICATION_QUALIFICATION_RECORD_KIND, CERTIFICATION_QUALIFICATION_SCHEMA_VERSION,
 };
