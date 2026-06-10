@@ -52,6 +52,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.json`](../../../artifacts/data/m5/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.json).
 //!
+//! This crate also owns the query history, connection-profile portability,
+//! secret-safe auth storage, and mirror or offline truth qualification records.
+//! The ship-query-history boundary schema is
+//! [`/schemas/data/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.schema.json`](../../../schemas/data/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json`](../../../artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -66,6 +73,7 @@ pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_c
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
+pub mod ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
 pub mod ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_state_and_row_count_boundary_truth;
 
@@ -166,6 +174,20 @@ pub use integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_s
     SupportExportPostureClass, SupportExportRow,
     HANDOFF_QUALIFICATION_PACKET_JSON, HANDOFF_QUALIFICATION_PACKET_PATH,
     HANDOFF_QUALIFICATION_RECORD_KIND, HANDOFF_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth::{
+    current_ship_query_history_qualification, ConnectionProfilePortabilityPosture,
+    ConnectionProfilePortabilityRow, MirrorOrOfflineStateClass, MirrorOrOfflineTruthRow,
+    QueryHistoryEntryRow, QueryHistoryReplayDriftRisk, QueryHistoryRetentionPosture,
+    SecretSafeAuthStorageMode, SecretSafeAuthStorageRow, ShipQueryHistoryQualificationLabel,
+    ShipQueryHistoryQualificationPacket, ShipQueryHistoryQualificationProof,
+    ShipQueryHistoryQualificationSummary, ShipQueryHistoryQualificationViolation,
+    ShipQueryHistoryQualificationViolationKind, ShipQueryHistoryRedactionClass,
+    ShipQueryHistorySurfaceGuardSet, ShipQueryHistorySurfaceKind,
+    ShipQueryHistorySurfaceQualificationRow,
+    SHIP_QUERY_HISTORY_QUALIFICATION_PACKET_JSON, SHIP_QUERY_HISTORY_QUALIFICATION_PACKET_PATH,
+    SHIP_QUERY_HISTORY_QUALIFICATION_RECORD_KIND, SHIP_QUERY_HISTORY_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{

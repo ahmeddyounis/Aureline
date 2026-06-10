@@ -4,8 +4,8 @@ use aureline_api::{
     current_database_browser_qualification, current_explain_plan_qualification,
     current_handoff_qualification, current_request_composer_qualification,
     current_request_workspace_qualification, current_response_viewer_qualification,
-    current_result_grid_qualification, current_staged_row_mutation_qualification,
-    current_statement_safety_qualification,
+    current_result_grid_qualification, current_ship_query_history_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -245,6 +245,37 @@ fn embedded_handoff_packet_has_no_violations() {
 #[test]
 fn embedded_handoff_summary_matches_computed() {
     let packet = current_handoff_qualification().expect("embedded handoff packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_ship_query_history_packet_parses() {
+    let packet = current_ship_query_history_qualification()
+        .expect("embedded ship query history packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.query_history_entries.is_empty());
+    assert!(!packet.connection_profile_portabilities.is_empty());
+    assert!(!packet.secret_safe_auth_storages.is_empty());
+    assert!(!packet.mirror_or_offline_truths.is_empty());
+}
+
+#[test]
+fn embedded_ship_query_history_packet_has_no_violations() {
+    let packet = current_ship_query_history_qualification()
+        .expect("embedded ship query history packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_ship_query_history_summary_matches_computed() {
+    let packet = current_ship_query_history_qualification()
+        .expect("embedded ship query history packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }
 
