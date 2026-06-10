@@ -172,6 +172,19 @@
 //! estimated, reusing the frozen M5 qualification, downgrade, and
 //! rollback-posture vocabulary and the routing-policy mode, quota, and cost-band
 //! vocabulary.
+//! The external-tool connector-manifest lane exposes one
+//! [`ship_the_external_tool_gateway_and_connector_manifests_with_capability_classes_and_side_effect_disclosure::ConnectorManifestPacket`]
+//! object binding, for every governed external connector, the capability classes
+//! it advertises and a side-effect disclosure for every effect it can produce —
+//! holding a mutating effect to the same preview, policy, and audit bar as a
+//! first-party command, demanding an externally auditable trail on an
+//! irreversible publish, tainting any output that crosses the network, allowing a
+//! trusted-output posture only on a signed local boundary, narrowing rather than a
+//! claimed label when the connector is policy-blocked, trust-blocked, quarantined,
+//! or withdrawn, and narrowing rather than hiding on stale proof — reusing the
+//! frozen M5 qualification, downgrade, and rollback-posture vocabulary, the
+//! routing-policy mode vocabulary, and the tool-gateway capability, side-effect,
+//! boundary, network, credential, and output-trust vocabularies.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -229,6 +242,7 @@ pub mod ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_
 pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
 pub mod ship_provider_and_model_graduation_packets_rollout_rings_and_kill_switch_or_backout_paths;
 pub mod ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement;
+pub mod ship_the_external_tool_gateway_and_connector_manifests_with_capability_classes_and_side_effect_disclosure;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
 pub mod tainted_context;
