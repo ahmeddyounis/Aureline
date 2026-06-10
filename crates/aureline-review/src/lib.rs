@@ -14,6 +14,7 @@
 pub mod add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows;
 pub mod add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure;
 pub mod add_review_export_bundles_publish_later_packets_and_offline_follow_up_flows_for_code_review_and_ci_surfaces;
+pub mod certify_review_workspace_merge_queue_pipeline_and_remote_preview_maturity_on_all_claimed_m5_rows;
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
@@ -72,6 +73,23 @@ pub use add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_ru
     REMOTE_PREVIEW_ROUTE_PREVIEW_ROUTE_CONTRACT_REF, REMOTE_PREVIEW_ROUTE_RECORD_KIND,
     REMOTE_PREVIEW_ROUTE_SCHEMA_REF, REMOTE_PREVIEW_ROUTE_SCHEMA_VERSION,
     REMOTE_PREVIEW_ROUTE_SUMMARY_REF, REMOTE_PREVIEW_ROUTE_TRUST_CLASS_CONTRACT_REF,
+};
+pub use certify_review_workspace_merge_queue_pipeline_and_remote_preview_maturity_on_all_claimed_m5_rows::{
+    canonical_consumer_projection as m5_review_certification_canonical_consumer_projection,
+    canonical_source_contract_refs as m5_review_certification_canonical_source_contract_refs,
+    canonical_trust_review as m5_review_certification_canonical_trust_review,
+    certify_from_current_exports, current_m5_review_certification_export, M5ClaimedRow,
+    M5ReviewCertificationArtifactError, M5ReviewCertificationCompatibilityReport,
+    M5ReviewCertificationConsumerProjection, M5ReviewCertificationDowngradeTrigger,
+    M5ReviewCertificationLane, M5ReviewCertificationPacket, M5ReviewCertificationPacketInput,
+    M5ReviewCertificationProofFreshness, M5ReviewCertificationQualificationClass,
+    M5ReviewCertificationRollbackPosture, M5ReviewCertificationRowFreshness,
+    M5ReviewCertificationRowObservation, M5ReviewCertificationTrustReview,
+    M5ReviewCertificationVerdict, M5ReviewCertificationViolation, M5ReviewCertifiedRow,
+    M5_REVIEW_CERTIFICATION_ARTIFACT_REF, M5_REVIEW_CERTIFICATION_DOC_REF,
+    M5_REVIEW_CERTIFICATION_FIXTURE_DIR, M5_REVIEW_CERTIFICATION_MATRIX_CONTRACT_REF,
+    M5_REVIEW_CERTIFICATION_RECORD_KIND, M5_REVIEW_CERTIFICATION_SCHEMA_REF,
+    M5_REVIEW_CERTIFICATION_SCHEMA_VERSION, M5_REVIEW_CERTIFICATION_SUMMARY_REF,
 };
 pub use aureline_navigation::target_model as navigation_target_model;
 pub use change_inspector::{
