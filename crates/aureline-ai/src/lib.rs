@@ -110,6 +110,15 @@
 //! accountable, consented, revocable explicit saved memory, and workspace- or
 //! tenant-scoped delete and export operations whose claimed-complete runs address
 //! every class and carry a verified receipt rather than overstating completion.
+//! The M5 AI mode certification lane exposes one
+//! [`certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode::AiModeCertificationPacket`]
+//! object binding, for every shipped M5 AI mode — inline edit, patch review,
+//! explain, debug, test, refactor, and branch or worktree agents — a workflow
+//! scorecard scored against fixed trust thresholds, a red-team pack whose
+//! required attack vectors must be blocked or mitigated, and a closed set of
+//! downgrade rules that narrow the claim instead of hiding the mode; it reuses
+//! the frozen M5 AI workflow matrix qualification and downgrade vocabularies so
+//! no certified mode may stay greener than its evidence.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -137,6 +146,7 @@ pub mod ai_pack_rollout;
 pub mod ai_review_assist;
 pub mod ai_test_generation;
 pub mod audit_optional_ai_adjacent_surfaces;
+pub mod certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode;
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
@@ -236,6 +246,16 @@ pub use ai_test_generation::{
     AI_TEST_GENERATION_TRUTH_SCHEMA_VERSION, AI_TEST_GENERATION_TRUTH_SUMMARY_REF,
 };
 pub use aureline_navigation::target_model as navigation_target_model;
+pub use certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode::{
+    current_ai_mode_certification_export, AiModeCertification, AiModeCertificationArtifactError,
+    AiModeCertificationPacket, AiModeCertificationPacketInput, AiModeCertificationProofFreshness,
+    AiModeCertificationViolation, AiModeDowngradeRule, AiModeRedTeamScenario, AiModeScorecardRow,
+    AiRedTeamHandling, AiRedTeamVector, AiScorecardDimension, AiScorecardStatus, M5AiMode,
+    AI_MODE_CERTIFICATION_ARTIFACT_REF, AI_MODE_CERTIFICATION_DOC_REF,
+    AI_MODE_CERTIFICATION_FIXTURE_DIR, AI_MODE_CERTIFICATION_RECORD_KIND,
+    AI_MODE_CERTIFICATION_SCHEMA_REF, AI_MODE_CERTIFICATION_SCHEMA_VERSION,
+    AI_MODE_CERTIFICATION_SUMMARY_REF,
+};
 pub use composer::beta::{
     current_beta_composer_context_evidence_support_export,
     ComposerContextEvidenceBetaArtifactError, ComposerContextEvidenceBetaInput,
