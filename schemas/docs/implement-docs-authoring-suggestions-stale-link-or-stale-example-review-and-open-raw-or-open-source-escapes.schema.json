@@ -1,0 +1,608 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/implement-docs-authoring-suggestions-stale-link-or-stale-example-review-and-open-raw-or-open-source-escapes.schema.json",
+  "title": "Aureline docs authoring suggestions, stale-link / stale-example review, and open-raw / open-source escapes",
+  "description": "Export-safe packet for the M5 docs authoring-and-review boundary. The packet carries one or more docs review items across the qualified authoring_suggestion / stale_link_review / stale_example_review / freshness_review kinds, each with a five-chip set (source class, version match, freshness, locality, confidence), one trust-class disclosure (first_party_authored / signed_docs_pack / imported_docs_pack / live_mirror_suggestion / derived_heuristic_only), an authoring-suggestion block (apply posture + trigger), a stale-link / stale-example review verdict (finding class + severity), a live-vs-captured state, citation state, and open-raw / open-source escapes. An unverified (live-mirror / derived) suggestion that offers a one-click apply, a one-click apply offered while the item's own review verdict blocks, a stale verdict that claims live-authoritative freshness, a non-current version presented as a confident live match, an untrusted origin presented at high confidence, an uncited untrusted item, or a missing open-raw / open-source escape blocks the claim. An export preserves item kind, trust class, source class, confidence, apply posture, finding class, and escapes per item. Per-item review-verdict severities and packet-level degradations narrow or block the claim. The promotion state (stable / narrowed_below_stable / blocks_stable) is computed from validation findings, review-verdict severities, and degradation severities. Raw document bodies, raw source files, raw URLs, diff bodies, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "session_label",
+    "session_digest_ref",
+    "items",
+    "export",
+    "review_degradations",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "docs_authoring_review_controls"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "session_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "session_digest_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "review_degradations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/review_degradation"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "promotion_state": {
+      "$ref": "#/$defs/promotion_state"
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validation_finding"
+      }
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "item_kind": {
+      "type": "string",
+      "enum": [
+        "authoring_suggestion",
+        "stale_link_review",
+        "stale_example_review",
+        "freshness_review"
+      ]
+    },
+    "apply_posture": {
+      "type": "string",
+      "enum": [
+        "preview_required",
+        "apply_available",
+        "apply_blocked_by_policy",
+        "suggestion_only",
+        "apply_unavailable_disclosed"
+      ]
+    },
+    "suggestion_trigger": {
+      "type": "string",
+      "enum": [
+        "manual_authoring",
+        "stale_example_detected",
+        "broken_link_detected",
+        "version_drift_detected",
+        "style_lint_hint",
+        "ai_authoring_assist"
+      ]
+    },
+    "review_finding_class": {
+      "type": "string",
+      "enum": [
+        "fresh_ok",
+        "stale_link_broken",
+        "stale_link_redirected",
+        "stale_example_drifted",
+        "stale_example_uncompilable",
+        "stale_example_version_mismatch",
+        "needs_review",
+        "quarantined_source"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "first_party_authored",
+        "signed_docs_pack",
+        "imported_docs_pack",
+        "live_mirror_suggestion",
+        "derived_heuristic_only"
+      ]
+    },
+    "captured_vs_live": {
+      "type": "string",
+      "enum": [
+        "live",
+        "captured_snapshot",
+        "narrowed_scope_rerun"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "first_party_doc",
+        "signed_docs_pack",
+        "imported_docs_pack",
+        "mirrored_vendor_doc",
+        "live_mirror",
+        "derived_heuristic"
+      ]
+    },
+    "version_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "locality": {
+      "type": "string",
+      "enum": [
+        "local",
+        "imported_pack",
+        "mirrored_pack",
+        "managed"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "heuristic"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": [
+        "blocking",
+        "narrowing",
+        "advisory"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "docs_authoring_surface",
+        "docs_browser_shell",
+        "docs_review_panel",
+        "stale_example_review_queue",
+        "ai_context_inspector",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "degradation_class": {
+      "type": "string",
+      "enum": [
+        "mirror_offline_snapshot",
+        "example_harness_unavailable",
+        "link_checker_offline",
+        "suggestion_engine_degraded",
+        "scope_narrowed_rerun",
+        "review_narrowed",
+        "quarantined_source",
+        "broken_anchor"
+      ]
+    },
+    "export_scope": {
+      "type": "string",
+      "enum": [
+        "all_items",
+        "suggestions_only",
+        "reviews_only",
+        "stale_only"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "narrowed_below_stable",
+        "blocks_stable"
+      ]
+    },
+    "validation_finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_identity",
+        "items_empty",
+        "duplicate_item_id",
+        "required_item_kind_missing",
+        "item_title_or_detail_missing",
+        "trust_class_disclosure_missing",
+        "trust_class_disclosure_collapsed",
+        "open_raw_open_source_escape_missing",
+        "item_not_cited",
+        "version_truth_collapsed",
+        "apply_posture_note_missing",
+        "unverified_suggestion_apply_offered",
+        "apply_offered_on_blocking_finding",
+        "review_verdict_note_missing",
+        "stale_verdict_freshness_mismatch",
+        "export_drops_preservation",
+        "export_row_orphan",
+        "export_coverage_missing",
+        "export_item_kind_mismatch",
+        "export_trust_class_mismatch",
+        "export_source_class_mismatch",
+        "export_confidence_mismatch",
+        "export_apply_posture_mismatch",
+        "export_finding_class_mismatch",
+        "export_cited_mismatch",
+        "degradation_incomplete",
+        "degradation_orphan",
+        "consumer_projection_drift",
+        "consumer_projection_packet_id_mismatch",
+        "required_surface_coverage_missing",
+        "raw_boundary_material_present"
+      ]
+    },
+    "chip_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "version_match",
+        "freshness",
+        "locality",
+        "confidence"
+      ],
+      "properties": {
+        "source_class": {
+          "$ref": "#/$defs/source_class"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "locality": {
+          "$ref": "#/$defs/locality"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apply_posture",
+        "trigger",
+        "note"
+      ],
+      "properties": {
+        "apply_posture": {
+          "$ref": "#/$defs/apply_posture"
+        },
+        "trigger": {
+          "$ref": "#/$defs/suggestion_trigger"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_class",
+        "severity",
+        "note"
+      ],
+      "properties": {
+        "finding_class": {
+          "$ref": "#/$defs/review_finding_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "item_kind",
+        "subject_ref",
+        "title",
+        "detail",
+        "chips",
+        "trust_class",
+        "trust_disclosure_note",
+        "suggestion",
+        "review",
+        "captured_vs_live",
+        "cited",
+        "open_raw_escape_ref",
+        "open_source_escape_ref"
+      ],
+      "properties": {
+        "item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "item_kind": {
+          "$ref": "#/$defs/item_kind"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "chips": {
+          "$ref": "#/$defs/chip_set"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/trust_class"
+        },
+        "trust_disclosure_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "suggestion": {
+          "$ref": "#/$defs/suggestion"
+        },
+        "review": {
+          "$ref": "#/$defs/review"
+        },
+        "captured_vs_live": {
+          "$ref": "#/$defs/captured_vs_live"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "citation_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_raw_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_source_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id_ref",
+        "item_kind",
+        "trust_class",
+        "source_class",
+        "confidence",
+        "apply_posture",
+        "finding_class",
+        "review_severity",
+        "cited",
+        "open_raw_escape_ref",
+        "open_source_escape_ref"
+      ],
+      "properties": {
+        "item_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "item_kind": {
+          "$ref": "#/$defs/item_kind"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/trust_class"
+        },
+        "source_class": {
+          "$ref": "#/$defs/source_class"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "apply_posture": {
+          "$ref": "#/$defs/apply_posture"
+        },
+        "finding_class": {
+          "$ref": "#/$defs/review_finding_class"
+        },
+        "review_severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "open_raw_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_source_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "preserves_item_kind",
+        "preserves_trust_class",
+        "preserves_source_class",
+        "preserves_confidence",
+        "preserves_apply_posture",
+        "preserves_finding_class",
+        "preserves_open_raw_open_source_escape",
+        "rows"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/export_scope"
+        },
+        "preserves_item_kind": {
+          "type": "boolean"
+        },
+        "preserves_trust_class": {
+          "type": "boolean"
+        },
+        "preserves_source_class": {
+          "type": "boolean"
+        },
+        "preserves_confidence": {
+          "type": "boolean"
+        },
+        "preserves_apply_posture": {
+          "type": "boolean"
+        },
+        "preserves_finding_class": {
+          "type": "boolean"
+        },
+        "preserves_open_raw_open_source_escape": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_row"
+          }
+        }
+      }
+    },
+    "review_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation_class",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "degradation_class": {
+          "$ref": "#/$defs/degradation_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "item_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_chips",
+        "preserves_item_kinds",
+        "preserves_apply_posture",
+        "preserves_finding_class",
+        "preserves_trust_classes",
+        "preserves_confidence",
+        "preserves_open_raw_open_source_escape"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/consumer_surface"
+        },
+        "packet_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_chips": {
+          "type": "boolean"
+        },
+        "preserves_item_kinds": {
+          "type": "boolean"
+        },
+        "preserves_apply_posture": {
+          "type": "boolean"
+        },
+        "preserves_finding_class": {
+          "type": "boolean"
+        },
+        "preserves_trust_classes": {
+          "type": "boolean"
+        },
+        "preserves_confidence": {
+          "type": "boolean"
+        },
+        "preserves_open_raw_open_source_escape": {
+          "type": "boolean"
+        }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_kind",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "finding_kind": {
+          "$ref": "#/$defs/validation_finding_kind"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

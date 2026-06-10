@@ -18,6 +18,7 @@ pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
 pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
+pub mod implement_docs_authoring_suggestions_stale_link_or_stale_example_review_and_open_raw_or_open_source_escapes;
 pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings;
 pub mod implement_scoped_browser_surfaces_for_docs_and_review_with_handoff_reason_return_path_and_trust_class_disclosu;
 pub mod index;
@@ -168,6 +169,24 @@ pub use implement_docs_and_code_semantic_recall_with_query_session_ledger_rankin
     SEMANTIC_RECALL_LEDGER_FIXTURE_DIR, SEMANTIC_RECALL_LEDGER_RECORD_KIND,
     SEMANTIC_RECALL_LEDGER_SCHEMA_REF, SEMANTIC_RECALL_LEDGER_SCHEMA_VERSION,
     SEMANTIC_RECALL_LEDGER_SUMMARY_REF, SEMANTIC_RECALL_LEDGER_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use implement_docs_authoring_suggestions_stale_link_or_stale_example_review_and_open_raw_or_open_source_escapes::{
+    current_stable_docs_authoring_review_export,
+    packet_to_input as docs_authoring_review_packet_to_input,
+    seeded_stable_docs_authoring_review_input, AuthoringSuggestion,
+    CapturedVsLive as DocsAuthoringReviewCapturedVsLive, DocsAuthoringReviewArtifactError,
+    DocsAuthoringReviewExport, DocsAuthoringReviewExportRow, DocsAuthoringReviewPacket,
+    DocsAuthoringReviewPacketInput, DocsAuthoringReviewSupportExport, DocsReviewChipSet,
+    DocsReviewConfidence, DocsReviewConsumerProjection, DocsReviewConsumerSurface,
+    DocsReviewDegradation, DocsReviewDegradationClass, DocsReviewExportScope, DocsReviewFindingKind,
+    DocsReviewFindingSeverity, DocsReviewFreshness, DocsReviewItem, DocsReviewItemKind,
+    DocsReviewLocality, DocsReviewPromotionState, DocsReviewSourceClass, DocsReviewTrustClass,
+    DocsReviewValidationFinding, DocsReviewVersionMatch, ReviewFindingClass, StaleReviewVerdict,
+    SuggestionApplyPosture, SuggestionTrigger, DOCS_AUTHORING_REVIEW_ARTIFACT_REF,
+    DOCS_AUTHORING_REVIEW_DOC_REF, DOCS_AUTHORING_REVIEW_FIXTURE_DIR,
+    DOCS_AUTHORING_REVIEW_RECORD_KIND, DOCS_AUTHORING_REVIEW_SCHEMA_REF,
+    DOCS_AUTHORING_REVIEW_SCHEMA_VERSION, DOCS_AUTHORING_REVIEW_SUMMARY_REF,
+    DOCS_AUTHORING_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings::{
     current_stable_docs_pack_recall_export, packet_to_input,
