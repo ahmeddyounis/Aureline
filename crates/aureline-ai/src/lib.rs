@@ -128,6 +128,15 @@
 //! must agree with where bytes run, that refuses to hide cost, provider, region,
 //! retention, or authority behind generic labels, and that narrows rather than
 //! hides on stale proof using the frozen M5 downgrade vocabulary.
+//! The local-model pack lane exposes one
+//! [`implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support::LocalModelPackInstallPacket`]
+//! object binding, for every local model pack, its install state, provenance
+//! class, source channel, hardware-fit class, footprint tier, and accelerator
+//! requirement into one record that refuses to present a pack as installed
+//! without verified provenance, quarantines a pack whose signature failed, never
+//! presents a pack that does not fit the device, holds offline and mirror
+//! channels to the same signing bar as a direct download, and narrows rather
+//! than hides on stale proof using the frozen M5 downgrade vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -169,6 +178,7 @@ pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
 pub mod implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture;
 pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
+pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
 pub mod prompt_composer;
@@ -443,6 +453,15 @@ pub use harden_repo_ai_instructions::{
     HARDEN_REPO_AI_INSTRUCTIONS_KILL_SWITCH_CONTRACT_REF, HARDEN_REPO_AI_INSTRUCTIONS_RECORD_KIND,
     HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_REF, HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_VERSION,
     HARDEN_REPO_AI_INSTRUCTIONS_SUMMARY_REF, HARDEN_REPO_AI_INSTRUCTIONS_TAINT_CONTRACT_REF,
+};
+pub use implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support::{
+    current_local_model_pack_install_export, HardwareFitClass, LocalModelPackArtifactError,
+    LocalModelPackInstallPacket, LocalModelPackInstallPacketInput, LocalModelPackProofFreshness,
+    LocalModelPackRow, LocalModelPackViolation, LocalPackDowngradeRule, LocalPackInstallState,
+    PackAcceleratorClass, PackFootprintTierClass, PackProvenanceClass, PackSourceChannelClass,
+    LOCAL_MODEL_PACK_ARTIFACT_REF, LOCAL_MODEL_PACK_DOC_REF, LOCAL_MODEL_PACK_FIXTURE_DIR,
+    LOCAL_MODEL_PACK_RECORD_KIND, LOCAL_MODEL_PACK_SCHEMA_REF, LOCAL_MODEL_PACK_SCHEMA_VERSION,
+    LOCAL_MODEL_PACK_SUMMARY_REF,
 };
 pub use materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors::{
     current_provider_route_disclosure_export, ExecutionModeClass,
