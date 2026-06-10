@@ -95,6 +95,14 @@
 //! with an assumption-review sheet that flags unvalidated assumptions, sandbox
 //! validation that stays isolated and never counts as release coverage truth, and
 //! coverage-impact notes that label estimates as estimates rather than measured.
+//! The repo-AI instruction/tool-approval/fence governance lane exposes one
+//! [`ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement::RepoAiInstructionToolApprovalFencePacket`]
+//! object binding three interlocking governance concerns — repo-defined
+//! instruction packs that may narrow but never widen policy, per-tool approvals
+//! that gate every tool side effect behind a disclosed posture with human review
+//! on first use, and tainted-context fences that keep untrusted context from
+//! widening policy or auto-approving a tool — so tainted context can never grant a
+//! tool approval and a repo instruction can never widen policy.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -144,6 +152,7 @@ pub mod routing_policy;
 pub mod run_history;
 pub mod ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles;
 pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
+pub mod ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
 pub mod tainted_context;
@@ -506,6 +515,23 @@ pub use ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_an
     EVIDENCE_RICH_PATCH_REVIEW_PREVIEW_APPLY_REVERT_CONTRACT_REF,
     EVIDENCE_RICH_PATCH_REVIEW_RECORD_KIND, EVIDENCE_RICH_PATCH_REVIEW_SCHEMA_REF,
     EVIDENCE_RICH_PATCH_REVIEW_SCHEMA_VERSION, EVIDENCE_RICH_PATCH_REVIEW_SUMMARY_REF,
+};
+pub use ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement::{
+    current_stable_repo_ai_instruction_tool_approval_fence_export, ContextFenceBlock,
+    ContextFenceEnforcementClass, ContextFenceRow, ContextFenceSourceClass,
+    ContextFenceUsageConstraintClass, GovernanceConsumerSurface, GovernanceDowngradeTrigger,
+    GovernanceSurfaceParityRow, GovernanceSurfaceQualificationClass, InstructionPackScopeEffectClass,
+    InstructionPackSourceClass, InstructionPackTrustClass, PerToolApprovalActorClass,
+    PerToolApprovalBlock, PerToolApprovalPostureClass, PerToolApprovalRow, PerToolCapabilityClass,
+    PerToolSideEffectClass, RepoAiInstructionToolApprovalFenceArtifactError,
+    RepoAiInstructionToolApprovalFencePacket, RepoAiInstructionToolApprovalFencePacketInput,
+    RepoAiInstructionToolApprovalFenceViolation, RepoInstructionPackBlock, RepoInstructionPackRow,
+    REPO_AI_GOVERNANCE_ARTIFACT_REF, REPO_AI_GOVERNANCE_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    REPO_AI_GOVERNANCE_DOC_REF, REPO_AI_GOVERNANCE_FENCE_CONTRACT_REF,
+    REPO_AI_GOVERNANCE_FIXTURE_DIR, REPO_AI_GOVERNANCE_M5_MATRIX_CONTRACT_REF,
+    REPO_AI_GOVERNANCE_RECORD_KIND, REPO_AI_GOVERNANCE_REPO_INSTRUCTION_CONTRACT_REF,
+    REPO_AI_GOVERNANCE_SCHEMA_REF, REPO_AI_GOVERNANCE_SCHEMA_VERSION, REPO_AI_GOVERNANCE_SUMMARY_REF,
+    REPO_AI_GOVERNANCE_TAINT_CONTRACT_REF, REPO_AI_GOVERNANCE_TOOL_REGISTRY_CONTRACT_REF,
 };
 pub use stabilize_ai_route_and_spend_truth::{
     current_stable_ai_route_spend_truth_export, AiActionFlowClass, AiRouteSpendTruthArtifactError,

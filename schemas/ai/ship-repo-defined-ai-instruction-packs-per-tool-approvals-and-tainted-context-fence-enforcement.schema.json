@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ship-repo-defined-ai-instruction-packs-per-tool-approvals-and-tainted-context-fence-enforcement.schema.json",
+  "title": "Aureline repo-defined AI instruction packs, per-tool approvals, and tainted-context fence enforcement",
+  "$comment": "Rust owner: aureline_ai::ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement::RepoAiInstructionToolApprovalFencePacket.",
+  "description": "Boundary schema for the metadata-only AI governance record that locks three interlocking concerns into one export-safe artifact: repo-defined instruction packs (each carrying a source class, trust posture, scope effect, and precedence rank; every pack repo-sourced, any widening attempt blocked and never applied, precedence disclosed), per-tool approvals (each carrying the tool's capability class, side-effect class, approval posture, and approval actor; no tool side effect runs without approval, a denied tool is never approved, and any approved side-effecting tool carries a human approval actor and requires human review on first use), and tainted-context fences (each carrying the tainted source class, enforcement applied, and usage constraint; every tainted source fenced, no fence bypassed, and each fence blocking both policy widening and tool auto-approval). The concerns are enforced together: tainted context can never grant a tool approval and a repo instruction can never widen policy. It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw instruction-pack bodies, raw prompt bodies, raw tool arguments, raw tool output, raw tainted content, raw symbol names, raw file paths, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "governance_run_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "fence_enforcement_interlocked",
+    "instruction_packs",
+    "tool_approvals",
+    "context_fences",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_instruction_packs_tool_approvals_tainted_fence_enforcement" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "governance_run_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "fence_enforcement_interlocked": { "type": "boolean" },
+    "instruction_packs": { "$ref": "#/$defs/repo_instruction_pack_block" },
+    "tool_approvals": { "$ref": "#/$defs/per_tool_approval_block" },
+    "context_fences": { "$ref": "#/$defs/context_fence_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/governance_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/governance_downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "instruction_pack_source_class": {
+      "type": "string",
+      "enum": ["repo_committed", "repo_local_uncommitted", "workspace_shared", "organization_pinned"],
+      "description": "Source class of a repo-defined AI instruction pack."
+    },
+    "instruction_pack_trust_class": {
+      "type": "string",
+      "enum": ["trusted_repo", "untrusted_imported", "restricted"],
+      "description": "Trust posture assigned to a repo-defined instruction pack."
+    },
+    "instruction_pack_scope_effect_class": {
+      "type": "string",
+      "enum": ["narrows_policy", "neutral", "attempts_widen"],
+      "description": "Effect a repo-defined instruction pack has on the AI's policy scope. An attempts_widen pack must be blocked and never applied."
+    },
+    "per_tool_capability_class": {
+      "type": "string",
+      "enum": ["read_only", "workspace_write", "network_egress", "process_exec", "external_service"],
+      "description": "Capability class of a tool the per-tool approval lane gates."
+    },
+    "per_tool_side_effect_class": {
+      "type": "string",
+      "enum": ["none", "local_mutation", "network_call", "irreversible"],
+      "description": "Side-effect class of a tool the per-tool approval lane gates."
+    },
+    "per_tool_approval_posture_class": {
+      "type": "string",
+      "enum": ["denied", "first_use_review", "per_call", "session_scoped", "pre_approved_read_only"],
+      "description": "Approval posture recorded for a per-tool decision. A denied tool is never approved."
+    },
+    "per_tool_approval_actor_class": {
+      "type": "string",
+      "enum": ["human_operator", "repo_policy", "unattributed"],
+      "description": "Actor that granted a per-tool approval. A side-effecting approved tool must carry a human_operator actor."
+    },
+    "context_fence_source_class": {
+      "type": "string",
+      "enum": ["imported_external", "tool_output", "web_fetch", "untrusted_repo_doc", "pasted_content"],
+      "description": "Source class of a tainted context input the fence lane guards."
+    },
+    "context_fence_enforcement_class": {
+      "type": "string",
+      "enum": ["blocked", "downgraded_to_advisory", "quarantined", "allowed_after_review"],
+      "description": "Enforcement applied to a tainted context input by a fence."
+    },
+    "context_fence_usage_constraint_class": {
+      "type": "string",
+      "enum": ["no_policy_widening", "no_tool_auto_approval", "no_apply_authority", "display_only"],
+      "description": "Usage constraint a fence imposes on a tainted context input."
+    },
+    "governance_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_composer",
+        "desktop_settings",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this governance lane."
+    },
+    "governance_surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer-surface projection."
+    },
+    "governance_downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "repo_instruction_widened_policy",
+        "tool_side_effect_unapproved",
+        "tainted_context_bypassed_fence",
+        "tool_approval_granted_by_tainted_context"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "repo_instruction_pack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "source_class",
+        "trust_posture",
+        "scope_effect",
+        "precedence_rank",
+        "applied",
+        "widen_blocked",
+        "disclosed"
+      ],
+      "properties": {
+        "pack_id": { "type": "string", "minLength": 1 },
+        "source_class": { "$ref": "#/$defs/instruction_pack_source_class" },
+        "trust_posture": { "$ref": "#/$defs/instruction_pack_trust_class" },
+        "scope_effect": { "$ref": "#/$defs/instruction_pack_scope_effect_class" },
+        "precedence_rank": { "type": "integer", "minimum": 0 },
+        "applied": { "type": "boolean" },
+        "widen_blocked": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "repo_instruction_pack_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_set_id",
+        "repo_only",
+        "no_repo_policy_widening",
+        "precedence_disclosed",
+        "pack_rows"
+      ],
+      "properties": {
+        "pack_set_id": { "type": "string", "minLength": 1 },
+        "repo_only": { "type": "boolean" },
+        "no_repo_policy_widening": { "type": "boolean" },
+        "precedence_disclosed": { "type": "boolean" },
+        "pack_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repo_instruction_pack_row" }
+        }
+      }
+    },
+    "per_tool_approval_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_id",
+        "capability_class",
+        "side_effect_class",
+        "approval_posture",
+        "approved",
+        "approval_actor_class",
+        "requires_human_first_use",
+        "disclosed"
+      ],
+      "properties": {
+        "tool_id": { "type": "string", "minLength": 1 },
+        "capability_class": { "$ref": "#/$defs/per_tool_capability_class" },
+        "side_effect_class": { "$ref": "#/$defs/per_tool_side_effect_class" },
+        "approval_posture": { "$ref": "#/$defs/per_tool_approval_posture_class" },
+        "approved": { "type": "boolean" },
+        "approval_actor_class": { "$ref": "#/$defs/per_tool_approval_actor_class" },
+        "requires_human_first_use": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "per_tool_approval_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_set_id",
+        "no_side_effect_without_approval",
+        "first_use_review_required",
+        "approval_rows"
+      ],
+      "properties": {
+        "approval_set_id": { "type": "string", "minLength": 1 },
+        "no_side_effect_without_approval": { "type": "boolean" },
+        "first_use_review_required": { "type": "boolean" },
+        "approval_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/per_tool_approval_row" }
+        }
+      }
+    },
+    "context_fence_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fence_id",
+        "source_class",
+        "enforcement",
+        "usage_constraint",
+        "widening_blocked",
+        "auto_approval_blocked",
+        "disclosed"
+      ],
+      "properties": {
+        "fence_id": { "type": "string", "minLength": 1 },
+        "source_class": { "$ref": "#/$defs/context_fence_source_class" },
+        "enforcement": { "$ref": "#/$defs/context_fence_enforcement_class" },
+        "usage_constraint": { "$ref": "#/$defs/context_fence_usage_constraint_class" },
+        "widening_blocked": { "type": "boolean" },
+        "auto_approval_blocked": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "context_fence_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fence_set_id",
+        "all_tainted_fenced",
+        "no_fence_bypass",
+        "fence_rows"
+      ],
+      "properties": {
+        "fence_set_id": { "type": "string", "minLength": 1 },
+        "all_tainted_fenced": { "type": "boolean" },
+        "no_fence_bypass": { "type": "boolean" },
+        "fence_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/context_fence_row" }
+        }
+      }
+    },
+    "governance_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_instruction_packs",
+        "shows_tool_approvals",
+        "shows_fences",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/governance_consumer_surface" },
+        "shows_instruction_packs": { "type": "boolean" },
+        "shows_tool_approvals": { "type": "boolean" },
+        "shows_fences": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/governance_surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}
