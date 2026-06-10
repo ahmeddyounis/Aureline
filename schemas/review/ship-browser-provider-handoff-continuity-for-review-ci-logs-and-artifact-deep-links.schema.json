@@ -1,0 +1,585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/ship-browser-provider-handoff-continuity-for-review-ci-logs-and-artifact-deep-links.schema.json",
+  "title": "Aureline browser/provider handoff continuity for review, CI, logs, and artifact deep links",
+  "description": "Export-safe packet implementing four handoff-continuity lane pillars: handoff target rows that name the surface a handoff leaves from (a review thread, a CI pipeline, a CI run, a log viewer, an artifact deep link, a generic target, or a provider-owned unknown) and disclose whether the target supports anchored deep links, safe preview, and a provider handoff; handoff rows that carry the durable review anchor, the target id, a redaction-aware subject label, an attention block, and an actor attribution with an audit row; target identities that disclose the destination class, trust class, host label, and provider label; and deep-link continuity, safe-preview, and action disclosures so a jump from review/CI/logs/artifacts out to a browser tab or provider web surface is read-only navigation unless an attributable handoff is cited, and a stale truth, an unanchored link, or an unsafe preview narrows the action rather than jumping blind. A bound target table records the targets handoffs reference. The packet binds target rows, handoff rows, downgrade triggers, consumer surfaces, trust review, consumer projection, and proof freshness. A read-only action carries no handoff ref; open_in_browser_handoff and open_in_provider_handoff must cite a handoff_ref; an unsupported_no_continuity action must be blocked. Raw deep-link URLs, raw host names, raw provider payloads, raw log bodies, raw artifact bytes, raw absolute paths, raw author email addresses, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "target_rows",
+    "handoff_rows",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "ship_browser_provider_handoff_continuity_for_review_ci_logs_and_artifact_deep_links"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "target_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/target_row"
+      }
+    },
+    "handoff_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/handoff_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "nullable_ref": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "review_thread",
+        "ci_pipeline",
+        "ci_run",
+        "log_viewer",
+        "artifact_deep_link",
+        "generic_target",
+        "unknown_target_provider_owned"
+      ]
+    },
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "in_product_surface",
+        "browser_tab",
+        "provider_web_surface",
+        "native_app",
+        "unknown_destination_provider_owned"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "first_party_trusted",
+        "provider_verified",
+        "provider_unverified",
+        "untrusted_external",
+        "unknown_trust_provider_owned"
+      ]
+    },
+    "deep_link_class": {
+      "type": "string",
+      "enum": [
+        "anchored_deep_link",
+        "path_scoped_link",
+        "opaque_token_link",
+        "unanchored_link",
+        "unknown_link_provider_owned"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_current_truth",
+        "stale_prior_truth",
+        "unknown_freshness_provider_owned"
+      ]
+    },
+    "safe_preview_class": {
+      "type": "string",
+      "enum": [
+        "safe_preview_sandboxed",
+        "safe_preview_read_only",
+        "unsafe_preview_blocked",
+        "preview_unsupported",
+        "unknown_preview_provider_owned"
+      ]
+    },
+    "handoff_action_kind": {
+      "type": "string",
+      "enum": [
+        "open_in_product",
+        "copy_deep_link",
+        "reveal_target_local",
+        "open_in_browser_handoff",
+        "open_in_provider_handoff",
+        "unsupported_no_continuity"
+      ]
+    },
+    "handoff_blocked_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked",
+        "blocked_no_durable_anchor",
+        "blocked_stale_truth_review_required",
+        "blocked_untrusted_target",
+        "blocked_policy_forbids_handoff",
+        "blocked_unsafe_preview",
+        "blocked_offline_or_disconnected",
+        "blocked_unknown_reason_provider_owned"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "handoff_attribution_missing",
+        "truth_stale",
+        "deep_link_unanchored",
+        "target_identity_undisclosed",
+        "target_trust_unknown",
+        "safe_preview_unsupported",
+        "trust_narrowing",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_header",
+        "merge_queue_panel",
+        "pipeline_run_viewer",
+        "log_viewer",
+        "artifact_browser",
+        "handoff_action",
+        "command_palette",
+        "cli_headless",
+        "support_export",
+        "diagnostics"
+      ]
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_class",
+        "trust_class",
+        "host_label",
+        "provider_label",
+        "identity_disclosed"
+      ],
+      "properties": {
+        "destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/trust_class"
+        },
+        "host_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_disclosed": {
+          "const": true
+        }
+      }
+    },
+    "deep_link_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_class",
+        "freshness_class",
+        "link_disclosed",
+        "link_label"
+      ],
+      "properties": {
+        "link_class": {
+          "$ref": "#/$defs/deep_link_class"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "link_disclosed": {
+          "const": true
+        },
+        "link_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "safe_preview_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_class",
+        "preview_disclosed",
+        "preview_label"
+      ],
+      "properties": {
+        "preview_class": {
+          "$ref": "#/$defs/safe_preview_class"
+        },
+        "preview_disclosed": {
+          "const": true
+        },
+        "preview_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "handoff_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_kind",
+        "action_disclosed",
+        "read_only",
+        "action_label",
+        "handoff_ref"
+      ],
+      "properties": {
+        "action_kind": {
+          "$ref": "#/$defs/handoff_action_kind"
+        },
+        "action_disclosed": {
+          "const": true
+        },
+        "read_only": {
+          "type": "boolean"
+        },
+        "action_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "handoff_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": ["open_in_browser_handoff", "open_in_provider_handoff"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "read_only": {
+                "const": false
+              },
+              "handoff_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "read_only": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "target_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "target_class",
+        "target_label",
+        "supports_deep_link",
+        "supports_safe_preview",
+        "supports_provider_handoff",
+        "coverage_label",
+        "disclosure_label"
+      ],
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_class": {
+          "$ref": "#/$defs/target_class"
+        },
+        "target_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "supports_deep_link": {
+          "type": "boolean"
+        },
+        "supports_safe_preview": {
+          "type": "boolean"
+        },
+        "supports_provider_handoff": {
+          "type": "boolean"
+        },
+        "coverage_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "disclosure_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "handoff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "durable_anchor_id",
+        "target_id",
+        "subject_label",
+        "target_identity",
+        "deep_link",
+        "safe_preview",
+        "handoff_action",
+        "blocked_class",
+        "actor_attribution_label",
+        "audit_row_ref",
+        "attention_reasons",
+        "review_summary",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "handoff_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "durable_anchor_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_identity": {
+          "$ref": "#/$defs/target_identity"
+        },
+        "deep_link": {
+          "$ref": "#/$defs/deep_link_disclosure"
+        },
+        "safe_preview": {
+          "$ref": "#/$defs/safe_preview_disclosure"
+        },
+        "handoff_action": {
+          "$ref": "#/$defs/handoff_action"
+        },
+        "blocked_class": {
+          "$ref": "#/$defs/handoff_blocked_class"
+        },
+        "actor_attribution_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "audit_row_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "attention_reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "review_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_identity_disclosed",
+        "target_trust_explicit",
+        "deep_link_disclosed",
+        "truth_freshness_disclosed",
+        "safe_preview_disclosed",
+        "handoff_action_disclosed",
+        "handoff_read_only_unless_attributed",
+        "every_handoff_anchored",
+        "every_action_attributable",
+        "no_hidden_write_scope",
+        "stale_truth_narrows_action",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "target_identity_disclosed": {
+          "const": true
+        },
+        "target_trust_explicit": {
+          "const": true
+        },
+        "deep_link_disclosed": {
+          "const": true
+        },
+        "truth_freshness_disclosed": {
+          "const": true
+        },
+        "safe_preview_disclosed": {
+          "const": true
+        },
+        "handoff_action_disclosed": {
+          "const": true
+        },
+        "handoff_read_only_unless_attributed": {
+          "const": true
+        },
+        "every_handoff_anchored": {
+          "const": true
+        },
+        "every_action_attributable": {
+          "const": true
+        },
+        "no_hidden_write_scope": {
+          "const": true
+        },
+        "stale_truth_narrows_action": {
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_workspace_header_shows_anchor",
+        "merge_queue_panel_shows_freshness",
+        "pipeline_run_viewer_shows_target_identity",
+        "log_viewer_shows_safe_preview",
+        "artifact_browser_shows_deep_link",
+        "handoff_action_shows_trust",
+        "command_palette_shows_handoff_state",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "label_for_unqualified"
+      ],
+      "properties": {
+        "review_workspace_header_shows_anchor": {
+          "const": true
+        },
+        "merge_queue_panel_shows_freshness": {
+          "const": true
+        },
+        "pipeline_run_viewer_shows_target_identity": {
+          "const": true
+        },
+        "log_viewer_shows_safe_preview": {
+          "const": true
+        },
+        "artifact_browser_shows_deep_link": {
+          "const": true
+        },
+        "handoff_action_shows_trust": {
+          "const": true
+        },
+        "command_palette_shows_handoff_state": {
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "const": true
+        },
+        "support_export_shows_truth": {
+          "const": true
+        },
+        "diagnostics_shows_truth": {
+          "const": true
+        },
+        "label_for_unqualified": {
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
