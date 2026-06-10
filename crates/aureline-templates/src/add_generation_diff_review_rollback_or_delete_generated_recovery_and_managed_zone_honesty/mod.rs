@@ -1,0 +1,1319 @@
+//! Generation diff review, rollback or delete-generated recovery, and managed-zone honesty rows.
+//!
+//! This module locks the canonical, export-safe packet for the generation
+//! review and recovery lane. Each [`GenerationRecoveryRow`] binds one generated
+//! project tree to its managed-zone classification, its generation-diff review
+//! state and overwrite guard, its rollback or delete-generated recovery action,
+//! its support class, and its admission decision — so the diff-review, run,
+//! recovery, diagnostics, and support surfaces project the same truth about what
+//! is authored, what is generated, what may be overwritten, and how the tree can
+//! be recovered, instead of overwriting silently or deleting authored work.
+//!
+//! The packet is metadata only. Raw file bodies, raw diffs, raw paths,
+//! repository URLs, hook bodies, secrets, and user-authored content never cross
+//! this boundary; rows carry opaque refs, closed-vocabulary class tokens, and
+//! short reviewable summaries. It references the upstream
+//! [`generated_project_lineage_alpha`](GENERATED_PROJECT_LINEAGE_CONTRACT_REF)
+//! and
+//! [`generated_project_update_semantics`](GENERATED_PROJECT_UPDATE_SEMANTICS_CONTRACT_REF)
+//! records by ref rather than embedding them.
+//!
+//! [`GenerationRecoveryPacket::apply_downgrade_automation`] narrows rows whose
+//! lineage went unknown, whose generation diff could not be previewed, whose
+//! rollback checkpoint is unavailable, whose authored-content protection could
+//! not be verified, or whose proof or upstream dependency narrowed — withholding
+//! a destructive recovery and marking the blocking state rather than hiding the
+//! row, so CI or release tooling narrows a stale or underqualified row before it
+//! is offered.
+//!
+//! The boundary schema is
+//! [`schemas/templates/add-generation-diff-review-rollback-or-delete-generated-recovery-and-managed-zone-honesty.schema.json`](../../../../schemas/templates/add-generation-diff-review-rollback-or-delete-generated-recovery-and-managed-zone-honesty.schema.json).
+//! The contract doc is
+//! [`docs/frameworks/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty.md`](../../../../docs/frameworks/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty.md).
+//! The protected fixture directory is
+//! [`fixtures/templates/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty/`](../../../../fixtures/templates/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty/).
+
+#[cfg(test)]
+mod tests;
+
+use std::collections::BTreeSet;
+use std::error::Error;
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+/// Stable record-kind tag carried by [`GenerationRecoveryPacket`].
+pub const GENERATION_RECOVERY_RECORD_KIND: &str =
+    "generation_diff_review_and_managed_zone_recovery_rows";
+
+/// Schema version for generation-recovery packets.
+pub const GENERATION_RECOVERY_SCHEMA_VERSION: u32 = 1;
+
+/// Repo-relative path of the boundary schema.
+pub const GENERATION_RECOVERY_SCHEMA_REF: &str =
+    "schemas/templates/add-generation-diff-review-rollback-or-delete-generated-recovery-and-managed-zone-honesty.schema.json";
+
+/// Repo-relative path of the contract doc.
+pub const GENERATION_RECOVERY_DOC_REF: &str =
+    "docs/frameworks/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty.md";
+
+/// Repo-relative path of the upstream generated-project lineage contract this packet references.
+pub const GENERATED_PROJECT_LINEAGE_CONTRACT_REF: &str =
+    "schemas/templates/generated_project_lineage_alpha.schema.json";
+
+/// Repo-relative path of the upstream generated-project update-semantics contract this packet references.
+pub const GENERATED_PROJECT_UPDATE_SEMANTICS_CONTRACT_REF: &str =
+    "schemas/templates/generated_project_update_semantics.schema.json";
+
+/// Repo-relative path of the template-registry and scaffold contract doc.
+pub const TEMPLATE_REGISTRY_CONTRACT_DOC_REF: &str =
+    "docs/templates/template_registry_and_scaffold_contract.md";
+
+/// Repo-relative path of the protected fixture directory.
+pub const GENERATION_RECOVERY_FIXTURE_DIR: &str =
+    "fixtures/templates/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty";
+
+/// Repo-relative path of the checked support-export artifact.
+pub const GENERATION_RECOVERY_ARTIFACT_REF: &str =
+    "artifacts/templates/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty/support_export.json";
+
+/// Managed-zone classification for a generated tree — honest about what is authored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManagedZoneClass {
+    /// Entirely authored by the user; nothing in this scope was generated.
+    AuthoredOnly,
+    /// Entirely generated by the scaffold and not yet hand-edited.
+    GeneratedOnly,
+    /// Generated by the scaffold and later hand-edited in place.
+    GeneratedThenUserEdited,
+    /// Runtime-only artifacts (caches, build output) owned by neither author nor template.
+    RuntimeOnly,
+    /// Authored and generated files in distinct zones within one tree.
+    MixedAuthoredAndGenerated,
+    /// Zone classification could not be resolved; review required.
+    ZoneUnknownReviewRequired,
+}
+
+impl ManagedZoneClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AuthoredOnly => "authored_only",
+            Self::GeneratedOnly => "generated_only",
+            Self::GeneratedThenUserEdited => "generated_then_user_edited",
+            Self::RuntimeOnly => "runtime_only",
+            Self::MixedAuthoredAndGenerated => "mixed_authored_and_generated",
+            Self::ZoneUnknownReviewRequired => "zone_unknown_review_required",
+        }
+    }
+
+    /// Whether this zone holds authored content that recovery must protect.
+    pub const fn holds_authored_content(self) -> bool {
+        matches!(
+            self,
+            Self::AuthoredOnly | Self::GeneratedThenUserEdited | Self::MixedAuthoredAndGenerated
+        )
+    }
+
+    /// Whether the zone classification is unresolved.
+    pub const fn is_unknown(self) -> bool {
+        matches!(self, Self::ZoneUnknownReviewRequired)
+    }
+}
+
+/// Generation-diff review state for a row — no silent overwrite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationDiffReviewClass {
+    /// A reviewable diff preview exists and is shown before any write.
+    PreviewReady,
+    /// A diff preview must be produced and reviewed before any write.
+    PreviewRequiredBeforeWrite,
+    /// No write is pending; there is nothing to diff.
+    NoDiffNoOp,
+    /// The diff could not be computed; review required before any write.
+    DiffUnavailableReviewRequired,
+}
+
+impl GenerationDiffReviewClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PreviewReady => "preview_ready",
+            Self::PreviewRequiredBeforeWrite => "preview_required_before_write",
+            Self::NoDiffNoOp => "no_diff_no_op",
+            Self::DiffUnavailableReviewRequired => "diff_unavailable_review_required",
+        }
+    }
+
+    /// Whether this state needs an available diff preview to proceed.
+    pub const fn needs_preview(self) -> bool {
+        matches!(self, Self::PreviewReady | Self::PreviewRequiredBeforeWrite)
+    }
+
+    /// Whether this state blocks any write until review.
+    pub const fn blocks_write(self) -> bool {
+        matches!(self, Self::DiffUnavailableReviewRequired)
+    }
+}
+
+/// Overwrite guard for a row — mirrors the update-semantics overwrite vocabulary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationOverwriteGuardClass {
+    /// No overwrite is needed.
+    NoOverwriteNeeded,
+    /// Overwrite is forbidden until a preview is shown.
+    OverwriteForbiddenWithoutPreview,
+    /// Overwrite requires a three-way review against the preview.
+    OverwriteRequiresThreeWayReview,
+    /// Overwrite requires user-selected files only.
+    OverwriteRequiresUserSelectedFiles,
+    /// Overwrite is blocked by policy or trust.
+    OverwriteBlockedPolicyOrTrust,
+    /// Overwrite is blocked because lineage is unknown.
+    OverwriteBlockedLineageUnknown,
+}
+
+impl GenerationOverwriteGuardClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoOverwriteNeeded => "no_overwrite_needed",
+            Self::OverwriteForbiddenWithoutPreview => "overwrite_forbidden_without_preview",
+            Self::OverwriteRequiresThreeWayReview => "overwrite_requires_three_way_review",
+            Self::OverwriteRequiresUserSelectedFiles => "overwrite_requires_user_selected_files",
+            Self::OverwriteBlockedPolicyOrTrust => "overwrite_blocked_policy_or_trust",
+            Self::OverwriteBlockedLineageUnknown => "overwrite_blocked_lineage_unknown",
+        }
+    }
+
+    /// Whether this guard hard-blocks any overwrite (not merely gated on preview).
+    pub const fn is_hard_blocked(self) -> bool {
+        matches!(
+            self,
+            Self::OverwriteBlockedPolicyOrTrust | Self::OverwriteBlockedLineageUnknown
+        )
+    }
+}
+
+/// Recovery action available for a generated tree — rollback or delete-generated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationRecoveryActionClass {
+    /// Roll the whole generated tree back to a pre-generation checkpoint.
+    RollbackToCheckpoint,
+    /// Delete only the generated zone, leaving authored files intact.
+    DeleteGeneratedOnly,
+    /// Restore authored files and delete the generated zone.
+    RestoreAuthoredAndDeleteGenerated,
+    /// Quarantine the generated zone rather than deleting it (preserves hand edits).
+    QuarantineGenerated,
+    /// No recovery action is available.
+    NoRecoveryAvailable,
+    /// Recovery is blocked because lineage is unknown.
+    RecoveryBlockedLineageUnknown,
+}
+
+impl GenerationRecoveryActionClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RollbackToCheckpoint => "rollback_to_checkpoint",
+            Self::DeleteGeneratedOnly => "delete_generated_only",
+            Self::RestoreAuthoredAndDeleteGenerated => "restore_authored_and_delete_generated",
+            Self::QuarantineGenerated => "quarantine_generated",
+            Self::NoRecoveryAvailable => "no_recovery_available",
+            Self::RecoveryBlockedLineageUnknown => "recovery_blocked_lineage_unknown",
+        }
+    }
+
+    /// Whether this action deletes generated files and so must protect authored content.
+    pub const fn deletes_generated(self) -> bool {
+        matches!(
+            self,
+            Self::RollbackToCheckpoint
+                | Self::DeleteGeneratedOnly
+                | Self::RestoreAuthoredAndDeleteGenerated
+        )
+    }
+
+    /// Whether this action requires a rollback checkpoint to be available.
+    pub const fn requires_checkpoint(self) -> bool {
+        matches!(self, Self::RollbackToCheckpoint)
+    }
+
+    /// Whether this action is too blocked or absent to be admitted for recovery.
+    pub const fn is_unavailable(self) -> bool {
+        matches!(
+            self,
+            Self::NoRecoveryAvailable | Self::RecoveryBlockedLineageUnknown
+        )
+    }
+}
+
+/// Support class communicated for a row — keeps bridge/heuristic behavior honest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationSupportClass {
+    /// Officially supported by the vendor.
+    OfficiallySupported,
+    /// Community-supported, best effort.
+    CommunitySupported,
+    /// Experimental; may change without notice.
+    Experimental,
+    /// Bridge behavior: some files are bridged rather than first-party generated.
+    BridgeBehavior,
+    /// Heuristic mapping; not exact first-party generation.
+    HeuristicMapping,
+    /// Explicitly unsupported.
+    Unsupported,
+    /// Support class unknown.
+    SupportUnknown,
+}
+
+impl GenerationSupportClass {
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OfficiallySupported => "officially_supported",
+            Self::CommunitySupported => "community_supported",
+            Self::Experimental => "experimental",
+            Self::BridgeBehavior => "bridge_behavior",
+            Self::HeuristicMapping => "heuristic_mapping",
+            Self::Unsupported => "unsupported",
+            Self::SupportUnknown => "support_unknown",
+        }
+    }
+
+    /// Whether this class is bridge or heuristic behavior that must be disclosed.
+    ///
+    /// Bridge and heuristic rows must never be presented as exact first-party
+    /// truth without a known issue and a [`GenerationRecoveryDowngradeTrigger::BridgeBehaviorDisclosed`]
+    /// cue.
+    pub const fn requires_disclosure(self) -> bool {
+        matches!(self, Self::BridgeBehavior | Self::HeuristicMapping)
+    }
+}
+
+/// Downgrade trigger that can narrow a generation-recovery row below its claimed state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationRecoveryDowngradeTrigger {
+    /// Proof packet has gone stale.
+    ProofStale,
+    /// Policy or legal block applies.
+    PolicyBlocked,
+    /// The scaffold lineage could not be resolved.
+    LineageUnknown,
+    /// The rollback checkpoint is unavailable.
+    CheckpointUnavailable,
+    /// The generation diff could not be previewed.
+    DiffPreviewUnavailable,
+    /// Authored-content protection could not be verified.
+    AuthoredProtectionUnverified,
+    /// The managed-zone classification is unknown.
+    ManagedZoneUnknown,
+    /// Bridge or heuristic behavior is disclosed and held from first-party claims.
+    BridgeBehaviorDisclosed,
+    /// A blocking known issue applies.
+    KnownIssueBlocking,
+    /// A validation bundle failed.
+    ValidationFailed,
+    /// An upstream dependency lane narrowed.
+    UpstreamDependencyNarrowed,
+}
+
+impl GenerationRecoveryDowngradeTrigger {
+    /// Every trigger, in declaration order.
+    pub const ALL: [Self; 11] = [
+        Self::ProofStale,
+        Self::PolicyBlocked,
+        Self::LineageUnknown,
+        Self::CheckpointUnavailable,
+        Self::DiffPreviewUnavailable,
+        Self::AuthoredProtectionUnverified,
+        Self::ManagedZoneUnknown,
+        Self::BridgeBehaviorDisclosed,
+        Self::KnownIssueBlocking,
+        Self::ValidationFailed,
+        Self::UpstreamDependencyNarrowed,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProofStale => "proof_stale",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::LineageUnknown => "lineage_unknown",
+            Self::CheckpointUnavailable => "checkpoint_unavailable",
+            Self::DiffPreviewUnavailable => "diff_preview_unavailable",
+            Self::AuthoredProtectionUnverified => "authored_protection_unverified",
+            Self::ManagedZoneUnknown => "managed_zone_unknown",
+            Self::BridgeBehaviorDisclosed => "bridge_behavior_disclosed",
+            Self::KnownIssueBlocking => "known_issue_blocking",
+            Self::ValidationFailed => "validation_failed",
+            Self::UpstreamDependencyNarrowed => "upstream_dependency_narrowed",
+        }
+    }
+}
+
+/// Consumer surface that must project a generation-recovery row's truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationRecoveryConsumerSurface {
+    /// Generation diff-review surface.
+    DiffReview,
+    /// Scaffold run surface.
+    RunSurface,
+    /// Recovery / rollback surface.
+    Recovery,
+    /// Template / starter gallery.
+    Gallery,
+    /// CLI / headless replay or JSON output.
+    CliHeadless,
+    /// Support / export packet.
+    SupportExport,
+    /// Diagnostics or telemetry surface.
+    Diagnostics,
+    /// Help / About surface.
+    HelpAbout,
+}
+
+impl GenerationRecoveryConsumerSurface {
+    /// Every surface, in declaration order.
+    pub const ALL: [Self; 8] = [
+        Self::DiffReview,
+        Self::RunSurface,
+        Self::Recovery,
+        Self::Gallery,
+        Self::CliHeadless,
+        Self::SupportExport,
+        Self::Diagnostics,
+        Self::HelpAbout,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DiffReview => "diff_review",
+            Self::RunSurface => "run_surface",
+            Self::Recovery => "recovery",
+            Self::Gallery => "gallery",
+            Self::CliHeadless => "cli_headless",
+            Self::SupportExport => "support_export",
+            Self::Diagnostics => "diagnostics",
+            Self::HelpAbout => "help_about",
+        }
+    }
+}
+
+/// One generation-recovery row: one generated tree and its review/recovery truth.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenerationRecoveryRow {
+    /// Opaque stable row id.
+    pub row_id: String,
+    /// Opaque ref to the generated project root.
+    pub generated_root_ref: String,
+    /// Opaque ref to the scaffold run that produced the tree.
+    pub scaffold_run_ref: String,
+    /// Opaque ref to the upstream generated-project lineage record.
+    pub lineage_ref: String,
+    /// Opaque stable template id.
+    pub template_id: String,
+    /// Template revision semver.
+    pub template_revision_semver: String,
+    /// Short reviewable scope summary.
+    pub scope_summary: String,
+    /// Managed-zone classification.
+    pub managed_zone_class: ManagedZoneClass,
+    /// Generation-diff review state.
+    pub diff_review_class: GenerationDiffReviewClass,
+    /// Opaque ref to the diff preview, when one exists.
+    pub diff_preview_ref: Option<String>,
+    /// Overwrite guard for this row.
+    pub overwrite_guard_class: GenerationOverwriteGuardClass,
+    /// Recovery action available for this tree.
+    pub recovery_action_class: GenerationRecoveryActionClass,
+    /// Opaque ref to the rollback checkpoint, when one exists.
+    pub checkpoint_ref: Option<String>,
+    /// Whether authored content is protected from any destructive recovery.
+    pub authored_content_protected: bool,
+    /// Support class communicated for this row.
+    pub support_class: GenerationSupportClass,
+    /// Opaque known-issue refs disclosed before recovery.
+    pub known_issue_refs: Vec<String>,
+    /// Whether this row's recovery action is admitted to proceed.
+    pub admitted_for_recovery: bool,
+    /// Downgrade triggers that apply to this row.
+    pub downgrade_triggers: Vec<GenerationRecoveryDowngradeTrigger>,
+    /// Consumer surfaces that must project this row.
+    pub consumer_surfaces: Vec<GenerationRecoveryConsumerSurface>,
+}
+
+impl GenerationRecoveryRow {
+    /// Whether this row's recovery action would delete generated files.
+    pub const fn recovery_deletes_generated(&self) -> bool {
+        self.recovery_action_class.deletes_generated()
+    }
+}
+
+/// Review block asserting the lane's honesty invariants.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenerationRecoveryReview {
+    /// A diff preview is required and shown before any write.
+    pub diff_preview_required_before_write: bool,
+    /// Writes never silently overwrite; the guard is always explicit.
+    pub no_silent_overwrite: bool,
+    /// Recovery never deletes authored content.
+    pub authored_content_never_deleted_by_recovery: bool,
+    /// The generated zone is labeled distinct from the authored zone.
+    pub generated_zone_labeled_distinct_from_authored: bool,
+    /// Runtime-only zones are labeled as such.
+    pub runtime_only_zone_labeled: bool,
+    /// The rollback boundary stays inspectable.
+    pub rollback_boundary_inspectable: bool,
+    /// Delete-generated recovery is scoped to the generated zone only.
+    pub delete_generated_scoped_to_generated_zone: bool,
+    /// Managed zones are never presented as first-party truth without a support class.
+    pub managed_zone_not_presented_as_first_party_without_support_class: bool,
+    /// Known issues are disclosed before recovery.
+    pub known_issues_disclosed_before_recovery: bool,
+    /// No raw file bodies or diffs cross the export boundary.
+    pub no_raw_file_bodies_or_diffs_in_export: bool,
+    /// Downgrade narrows the row's claim rather than hiding the row.
+    pub downgrade_narrows_instead_of_hides: bool,
+    /// Stale or underqualified rows automatically block promotion.
+    pub stale_or_underqualified_blocks_promotion: bool,
+}
+
+/// Consumer projection block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenerationRecoveryConsumerProjection {
+    /// Diff-review surface shows managed-zone labels.
+    pub diff_review_shows_managed_zone_labels: bool,
+    /// Diff-review surface shows the overwrite guard.
+    pub diff_review_shows_overwrite_guard: bool,
+    /// Recovery surface shows the rollback and delete-generated scope.
+    pub recovery_shows_rollback_and_delete_scope: bool,
+    /// Recovery surface shows authored-content protection.
+    pub recovery_shows_authored_protection: bool,
+    /// Run surface shows the diff-preview state.
+    pub run_surface_shows_diff_preview_state: bool,
+    /// CLI / headless shows recovery rows.
+    pub cli_headless_shows_recovery_rows: bool,
+    /// Support export shows recovery rows.
+    pub support_export_shows_recovery_rows: bool,
+    /// Diagnostics shows managed-zone state.
+    pub diagnostics_shows_managed_zone_state: bool,
+    /// Blocked rows are visibly labeled rather than hidden.
+    pub blocked_rows_labeled_not_hidden: bool,
+}
+
+/// Proof freshness block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenerationRecoveryProofFreshness {
+    /// Proof-freshness SLO in hours.
+    pub proof_freshness_slo_hours: u32,
+    /// RFC 3339 timestamp of the last proof refresh.
+    pub last_proof_refresh: String,
+    /// True when stale proof automatically narrows the affected rows.
+    pub auto_narrow_on_stale: bool,
+}
+
+/// Per-row observation fed to [`GenerationRecoveryPacket::apply_downgrade_automation`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenerationRecoveryRowObservation {
+    /// Row id the observation applies to.
+    pub row_id: String,
+    /// True when the generation diff can currently be previewed.
+    pub diff_preview_available: bool,
+    /// True when a rollback checkpoint is currently available.
+    pub checkpoint_available: bool,
+    /// True when the scaffold lineage currently resolves.
+    pub lineage_known: bool,
+    /// True when authored-content protection currently verifies.
+    pub authored_protection_verified: bool,
+    /// True when the row's proof is within its freshness SLO.
+    pub proof_fresh: bool,
+    /// True when an upstream dependency of the row narrowed.
+    pub upstream_narrowed: bool,
+}
+
+/// Constructor input for [`GenerationRecoveryPacket::new`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenerationRecoveryPacketInput {
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Human-readable packet label.
+    pub packet_label: String,
+    /// Recovery rows.
+    pub rows: Vec<GenerationRecoveryRow>,
+    /// Review block.
+    pub review: GenerationRecoveryReview,
+    /// Consumer projection block.
+    pub consumer_projection: GenerationRecoveryConsumerProjection,
+    /// Proof freshness block.
+    pub proof_freshness: GenerationRecoveryProofFreshness,
+    /// Canonical source contract refs.
+    pub source_contract_refs: Vec<String>,
+    /// Packet redaction class token.
+    pub redaction_class_token: String,
+    /// Packet mint timestamp.
+    pub minted_at: String,
+}
+
+/// Export-safe generation diff-review, recovery, and managed-zone honesty packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenerationRecoveryPacket {
+    /// Record kind; must equal [`GENERATION_RECOVERY_RECORD_KIND`].
+    pub record_kind: String,
+    /// Schema version; must equal [`GENERATION_RECOVERY_SCHEMA_VERSION`].
+    pub schema_version: u32,
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Human-readable packet label.
+    pub packet_label: String,
+    /// Recovery rows.
+    pub rows: Vec<GenerationRecoveryRow>,
+    /// Review block.
+    pub review: GenerationRecoveryReview,
+    /// Consumer projection block.
+    pub consumer_projection: GenerationRecoveryConsumerProjection,
+    /// Proof freshness block.
+    pub proof_freshness: GenerationRecoveryProofFreshness,
+    /// Canonical source contract refs.
+    pub source_contract_refs: Vec<String>,
+    /// Packet redaction class token.
+    pub redaction_class_token: String,
+    /// Packet mint timestamp.
+    pub minted_at: String,
+}
+
+impl GenerationRecoveryPacket {
+    /// Builds a generation-recovery packet from stable-row input.
+    pub fn new(input: GenerationRecoveryPacketInput) -> Self {
+        Self {
+            record_kind: GENERATION_RECOVERY_RECORD_KIND.to_owned(),
+            schema_version: GENERATION_RECOVERY_SCHEMA_VERSION,
+            packet_id: input.packet_id,
+            packet_label: input.packet_label,
+            rows: input.rows,
+            review: input.review,
+            consumer_projection: input.consumer_projection,
+            proof_freshness: input.proof_freshness,
+            source_contract_refs: input.source_contract_refs,
+            redaction_class_token: input.redaction_class_token,
+            minted_at: input.minted_at,
+        }
+    }
+
+    /// Narrows rows whose lineage went unknown, whose diff could not be
+    /// previewed, whose checkpoint is unavailable, whose authored protection
+    /// could not be verified, or whose proof or upstream narrowed.
+    ///
+    /// Unknown lineage is the hardest block: the row's recovery and overwrite are
+    /// blocked, its zone is marked unknown, and it loses admission. An
+    /// unverified authored-content protection downgrades a destructive recovery
+    /// to a quarantine and withdraws admission. A missing diff preview marks the
+    /// diff unavailable and forbids overwrite. A missing rollback checkpoint
+    /// withdraws a rollback action. Stale proof or a narrowed upstream withholds
+    /// admission until evidence refreshes. Rows without a matching observation are
+    /// left unchanged.
+    pub fn apply_downgrade_automation(
+        &mut self,
+        observations: &[GenerationRecoveryRowObservation],
+    ) {
+        for row in &mut self.rows {
+            let Some(observation) = observations.iter().find(|obs| obs.row_id == row.row_id) else {
+                continue;
+            };
+
+            if !observation.lineage_known {
+                row.managed_zone_class = ManagedZoneClass::ZoneUnknownReviewRequired;
+                row.diff_review_class = GenerationDiffReviewClass::DiffUnavailableReviewRequired;
+                row.overwrite_guard_class =
+                    GenerationOverwriteGuardClass::OverwriteBlockedLineageUnknown;
+                row.recovery_action_class =
+                    GenerationRecoveryActionClass::RecoveryBlockedLineageUnknown;
+                row.admitted_for_recovery = false;
+                push_unique_trigger(
+                    &mut row.downgrade_triggers,
+                    GenerationRecoveryDowngradeTrigger::LineageUnknown,
+                );
+                continue;
+            }
+
+            if !observation.authored_protection_verified {
+                if row.recovery_action_class.deletes_generated() {
+                    row.recovery_action_class = GenerationRecoveryActionClass::QuarantineGenerated;
+                }
+                row.admitted_for_recovery = false;
+                push_unique_trigger(
+                    &mut row.downgrade_triggers,
+                    GenerationRecoveryDowngradeTrigger::AuthoredProtectionUnverified,
+                );
+            }
+
+            if row.diff_review_class.needs_preview() && !observation.diff_preview_available {
+                row.diff_review_class = GenerationDiffReviewClass::DiffUnavailableReviewRequired;
+                row.overwrite_guard_class =
+                    GenerationOverwriteGuardClass::OverwriteForbiddenWithoutPreview;
+                row.admitted_for_recovery = false;
+                push_unique_trigger(
+                    &mut row.downgrade_triggers,
+                    GenerationRecoveryDowngradeTrigger::DiffPreviewUnavailable,
+                );
+            }
+
+            if row.recovery_action_class.requires_checkpoint() && !observation.checkpoint_available
+            {
+                row.recovery_action_class = GenerationRecoveryActionClass::NoRecoveryAvailable;
+                row.admitted_for_recovery = false;
+                push_unique_trigger(
+                    &mut row.downgrade_triggers,
+                    GenerationRecoveryDowngradeTrigger::CheckpointUnavailable,
+                );
+            }
+
+            if (!observation.proof_fresh || observation.upstream_narrowed)
+                && row.admitted_for_recovery
+            {
+                row.admitted_for_recovery = false;
+                let trigger = if observation.proof_fresh {
+                    GenerationRecoveryDowngradeTrigger::UpstreamDependencyNarrowed
+                } else {
+                    GenerationRecoveryDowngradeTrigger::ProofStale
+                };
+                push_unique_trigger(&mut row.downgrade_triggers, trigger);
+            }
+        }
+    }
+
+    /// Validates the generation-recovery invariants.
+    pub fn validate(&self) -> Vec<GenerationRecoveryViolation> {
+        let mut violations = Vec::new();
+
+        if self.record_kind != GENERATION_RECOVERY_RECORD_KIND {
+            violations.push(GenerationRecoveryViolation::WrongRecordKind);
+        }
+        if self.schema_version != GENERATION_RECOVERY_SCHEMA_VERSION {
+            violations.push(GenerationRecoveryViolation::WrongSchemaVersion);
+        }
+        if self.packet_id.trim().is_empty()
+            || self.packet_label.trim().is_empty()
+            || self.redaction_class_token.trim().is_empty()
+            || self.minted_at.trim().is_empty()
+        {
+            violations.push(GenerationRecoveryViolation::MissingIdentity);
+        }
+
+        validate_source_contracts(self, &mut violations);
+        validate_rows(self, &mut violations);
+        validate_review(self, &mut violations);
+        validate_consumer_projection(self, &mut violations);
+        validate_proof_freshness(self, &mut violations);
+
+        if json_contains_forbidden_boundary_material(
+            &serde_json::to_value(self).expect("generation-recovery packet serializes"),
+        ) {
+            violations.push(GenerationRecoveryViolation::RawBoundaryMaterialInExport);
+        }
+
+        violations
+    }
+
+    /// Deterministic export-safe JSON.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if serializing this metadata-only packet fails.
+    pub fn export_safe_json(&self) -> String {
+        serde_json::to_string_pretty(self).expect("generation-recovery packet serializes")
+    }
+
+    /// Rows currently admitted for recovery.
+    pub fn admitted_rows(&self) -> impl Iterator<Item = &GenerationRecoveryRow> {
+        self.rows.iter().filter(|row| row.admitted_for_recovery)
+    }
+
+    /// Deterministic Markdown summary for diff-review, support, or release handoff.
+    pub fn render_markdown_summary(&self) -> String {
+        let admitted = self.admitted_rows().count();
+        let mut out = String::new();
+        out.push_str(
+            "# Generation Diff Review, Rollback/Delete-Generated Recovery, and Managed-Zone Honesty\n\n",
+        );
+        out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
+        out.push_str(&format!("- Label: `{}`\n", self.packet_label));
+        out.push_str(&format!(
+            "- Rows: {} ({} admitted for recovery)\n",
+            self.rows.len(),
+            admitted
+        ));
+        out.push_str(&format!(
+            "- Proof freshness SLO: {} hours (last refresh: {})\n",
+            self.proof_freshness.proof_freshness_slo_hours, self.proof_freshness.last_proof_refresh
+        ));
+        out.push_str("\n## Rows\n\n");
+        for row in &self.rows {
+            out.push_str(&format!(
+                "- **{}** `{}`: {} / {}\n",
+                row.template_id,
+                row.template_revision_semver,
+                row.managed_zone_class.as_str(),
+                row.support_class.as_str()
+            ));
+            out.push_str(&format!("  - Scope: {}\n", row.scope_summary));
+            out.push_str(&format!(
+                "  - Diff review: {} (overwrite guard: {})\n",
+                row.diff_review_class.as_str(),
+                row.overwrite_guard_class.as_str()
+            ));
+            out.push_str(&format!(
+                "  - Recovery: {} (authored protected: {}, admitted: {})\n",
+                row.recovery_action_class.as_str(),
+                row.authored_content_protected,
+                row.admitted_for_recovery
+            ));
+        }
+        out
+    }
+}
+
+/// Errors emitted when reading the checked-in generation-recovery export.
+#[derive(Debug)]
+pub enum GenerationRecoveryArtifactError {
+    /// Support export failed to parse.
+    SupportExport(serde_json::Error),
+    /// Support export failed validation.
+    Validation(Vec<GenerationRecoveryViolation>),
+}
+
+impl fmt::Display for GenerationRecoveryArtifactError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SupportExport(error) => {
+                write!(
+                    formatter,
+                    "generation-recovery export parse failed: {error}"
+                )
+            }
+            Self::Validation(violations) => {
+                let tokens = violations
+                    .iter()
+                    .map(|violation| violation.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                write!(
+                    formatter,
+                    "generation-recovery export failed validation: {tokens}"
+                )
+            }
+        }
+    }
+}
+
+impl Error for GenerationRecoveryArtifactError {}
+
+/// Validation failures emitted by [`GenerationRecoveryPacket::validate`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenerationRecoveryViolation {
+    /// Packet record kind is wrong.
+    WrongRecordKind,
+    /// Packet schema version is wrong.
+    WrongSchemaVersion,
+    /// Required identity field is missing.
+    MissingIdentity,
+    /// Source contract refs are incomplete.
+    MissingSourceContracts,
+    /// The packet carries no rows.
+    RowsEmpty,
+    /// A row is incomplete.
+    RowIncomplete,
+    /// A rollback row is missing its checkpoint ref.
+    CheckpointRefMissing,
+    /// A preview-ready row is missing its diff-preview ref.
+    DiffPreviewRefMissing,
+    /// A destructive recovery row does not protect authored content.
+    AuthoredProtectionMissing,
+    /// A delete-generated action is scoped over an authored-only zone.
+    DeleteGeneratedScopeInvalid,
+    /// A bridge/heuristic row is missing a known issue or disclosure trigger.
+    BridgeBehaviorUndisclosed,
+    /// A blocked row is still admitted for recovery.
+    BlockedRecoveryAdmitted,
+    /// A row has no downgrade triggers.
+    DowngradeTriggersMissing,
+    /// A row has no consumer surfaces.
+    ConsumerSurfacesMissing,
+    /// Review block does not satisfy required invariants.
+    ReviewIncomplete,
+    /// Consumer projection does not satisfy required invariants.
+    ConsumerProjectionIncomplete,
+    /// Proof freshness block is incomplete.
+    ProofFreshnessIncomplete,
+    /// Export contains raw boundary material.
+    RawBoundaryMaterialInExport,
+}
+
+impl GenerationRecoveryViolation {
+    /// Stable token used in tests and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingSourceContracts => "missing_source_contracts",
+            Self::RowsEmpty => "rows_empty",
+            Self::RowIncomplete => "row_incomplete",
+            Self::CheckpointRefMissing => "checkpoint_ref_missing",
+            Self::DiffPreviewRefMissing => "diff_preview_ref_missing",
+            Self::AuthoredProtectionMissing => "authored_protection_missing",
+            Self::DeleteGeneratedScopeInvalid => "delete_generated_scope_invalid",
+            Self::BridgeBehaviorUndisclosed => "bridge_behavior_undisclosed",
+            Self::BlockedRecoveryAdmitted => "blocked_recovery_admitted",
+            Self::DowngradeTriggersMissing => "downgrade_triggers_missing",
+            Self::ConsumerSurfacesMissing => "consumer_surfaces_missing",
+            Self::ReviewIncomplete => "review_incomplete",
+            Self::ConsumerProjectionIncomplete => "consumer_projection_incomplete",
+            Self::ProofFreshnessIncomplete => "proof_freshness_incomplete",
+            Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
+        }
+    }
+}
+
+/// Reads and validates the checked-in generation-recovery export.
+///
+/// This is the first real consumer of the generation-recovery lane: a
+/// diff-review, recovery, diagnostics, or support-export surface calls it to
+/// ingest the canonical packet rather than cloning status text.
+///
+/// # Errors
+///
+/// Returns [`GenerationRecoveryArtifactError`] when the checked-in support
+/// export fails to parse or fails validation.
+pub fn current_generation_recovery_export(
+) -> Result<GenerationRecoveryPacket, GenerationRecoveryArtifactError> {
+    let packet: GenerationRecoveryPacket = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/templates/m5/add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty/support_export.json"
+    )))
+    .map_err(GenerationRecoveryArtifactError::SupportExport)?;
+    let violations = packet.validate();
+    if violations.is_empty() {
+        Ok(packet)
+    } else {
+        Err(GenerationRecoveryArtifactError::Validation(violations))
+    }
+}
+
+/// Canonical review block with every invariant satisfied.
+pub fn canonical_review() -> GenerationRecoveryReview {
+    GenerationRecoveryReview {
+        diff_preview_required_before_write: true,
+        no_silent_overwrite: true,
+        authored_content_never_deleted_by_recovery: true,
+        generated_zone_labeled_distinct_from_authored: true,
+        runtime_only_zone_labeled: true,
+        rollback_boundary_inspectable: true,
+        delete_generated_scoped_to_generated_zone: true,
+        managed_zone_not_presented_as_first_party_without_support_class: true,
+        known_issues_disclosed_before_recovery: true,
+        no_raw_file_bodies_or_diffs_in_export: true,
+        downgrade_narrows_instead_of_hides: true,
+        stale_or_underqualified_blocks_promotion: true,
+    }
+}
+
+/// Canonical consumer projection block with every surface projecting row truth.
+pub fn canonical_consumer_projection() -> GenerationRecoveryConsumerProjection {
+    GenerationRecoveryConsumerProjection {
+        diff_review_shows_managed_zone_labels: true,
+        diff_review_shows_overwrite_guard: true,
+        recovery_shows_rollback_and_delete_scope: true,
+        recovery_shows_authored_protection: true,
+        run_surface_shows_diff_preview_state: true,
+        cli_headless_shows_recovery_rows: true,
+        support_export_shows_recovery_rows: true,
+        diagnostics_shows_managed_zone_state: true,
+        blocked_rows_labeled_not_hidden: true,
+    }
+}
+
+/// Canonical source contract refs that every recovery export must carry.
+pub fn canonical_source_contract_refs() -> Vec<String> {
+    vec![
+        GENERATION_RECOVERY_SCHEMA_REF.to_owned(),
+        GENERATION_RECOVERY_DOC_REF.to_owned(),
+        GENERATED_PROJECT_LINEAGE_CONTRACT_REF.to_owned(),
+        GENERATED_PROJECT_UPDATE_SEMANTICS_CONTRACT_REF.to_owned(),
+        TEMPLATE_REGISTRY_CONTRACT_DOC_REF.to_owned(),
+    ]
+}
+
+/// Builds the canonical generation-recovery packet from stable-row truth.
+///
+/// The rows mirror the checked-in support export and cover the managed-zone and
+/// recovery spectrum: a clean generated-only tree with a rollback checkpoint, a
+/// mixed authored/generated tree with delete-generated recovery, a held
+/// framework-pack bridge row, and a lineage-unknown imported tree that is
+/// blocked rather than overwritten.
+pub fn canonical_generation_recovery(
+    packet_id: String,
+    packet_label: String,
+    minted_at: String,
+    proof_freshness: GenerationRecoveryProofFreshness,
+) -> GenerationRecoveryPacket {
+    GenerationRecoveryPacket::new(GenerationRecoveryPacketInput {
+        packet_id,
+        packet_label,
+        rows: canonical_rows(),
+        review: canonical_review(),
+        consumer_projection: canonical_consumer_projection(),
+        proof_freshness,
+        source_contract_refs: canonical_source_contract_refs(),
+        redaction_class_token: "metadata_safe_default".to_owned(),
+        minted_at,
+    })
+}
+
+/// Canonical rows that match the checked-in support export.
+pub fn canonical_rows() -> Vec<GenerationRecoveryRow> {
+    use GenerationRecoveryConsumerSurface as Surface;
+    use GenerationRecoveryDowngradeTrigger as Trigger;
+
+    vec![
+        GenerationRecoveryRow {
+            row_id: "generation-recovery-row:rust_cli.clean_generate:2026.05".to_owned(),
+            generated_root_ref: "generated-root:rust_cli_tool:01".to_owned(),
+            scaffold_run_ref: "scaffold-run:rust_cli_tool:2026.05.18-01".to_owned(),
+            lineage_ref: "lineage:rust_cli_tool:2026.05".to_owned(),
+            template_id: "template:first_party.rust.cli_tool:01".to_owned(),
+            template_revision_semver: "0.4.2".to_owned(),
+            scope_summary: "Freshly generated first-party Rust CLI starter; the generation diff is previewed before any write and a pre-generation checkpoint exists so the whole generated tree can be rolled back without touching authored files".to_owned(),
+            managed_zone_class: ManagedZoneClass::GeneratedOnly,
+            diff_review_class: GenerationDiffReviewClass::PreviewReady,
+            diff_preview_ref: Some("diff-preview:rust_cli_tool:initial_generate:2026.05.18".to_owned()),
+            overwrite_guard_class: GenerationOverwriteGuardClass::NoOverwriteNeeded,
+            recovery_action_class: GenerationRecoveryActionClass::RollbackToCheckpoint,
+            checkpoint_ref: Some("checkpoint:rust_cli_tool:pre_generate:2026.05.18".to_owned()),
+            authored_content_protected: true,
+            support_class: GenerationSupportClass::OfficiallySupported,
+            known_issue_refs: vec![],
+            admitted_for_recovery: true,
+            downgrade_triggers: vec![
+                Trigger::ProofStale,
+                Trigger::LineageUnknown,
+                Trigger::CheckpointUnavailable,
+                Trigger::DiffPreviewUnavailable,
+            ],
+            consumer_surfaces: vec![
+                Surface::DiffReview,
+                Surface::RunSurface,
+                Surface::Recovery,
+                Surface::SupportExport,
+            ],
+        },
+        GenerationRecoveryRow {
+            row_id: "generation-recovery-row:node_service.mixed_zone:2026.05".to_owned(),
+            generated_root_ref: "generated-root:node_backend_service:02".to_owned(),
+            scaffold_run_ref: "scaffold-run:node_backend_service:2026.05.02-01".to_owned(),
+            lineage_ref: "lineage:node_backend_service:2026.05".to_owned(),
+            template_id: "template:community.node.backend_service:02".to_owned(),
+            template_revision_semver: "2.1.0".to_owned(),
+            scope_summary: "Generated Node backend whose authored source and generated scaffolding live in distinct zones; deleting the generated zone leaves authored files intact, and any overwrite needs a three-way review against the previewed diff".to_owned(),
+            managed_zone_class: ManagedZoneClass::MixedAuthoredAndGenerated,
+            diff_review_class: GenerationDiffReviewClass::PreviewRequiredBeforeWrite,
+            diff_preview_ref: Some("diff-preview:node_backend_service:reapply:2026.05.19".to_owned()),
+            overwrite_guard_class: GenerationOverwriteGuardClass::OverwriteRequiresThreeWayReview,
+            recovery_action_class: GenerationRecoveryActionClass::DeleteGeneratedOnly,
+            checkpoint_ref: None,
+            authored_content_protected: true,
+            support_class: GenerationSupportClass::CommunitySupported,
+            known_issue_refs: vec![
+                "known-issue:node_backend_service:runtime_only_dir_excluded".to_owned(),
+            ],
+            admitted_for_recovery: true,
+            downgrade_triggers: vec![
+                Trigger::ProofStale,
+                Trigger::AuthoredProtectionUnverified,
+                Trigger::DiffPreviewUnavailable,
+                Trigger::UpstreamDependencyNarrowed,
+            ],
+            consumer_surfaces: vec![
+                Surface::DiffReview,
+                Surface::Recovery,
+                Surface::RunSurface,
+                Surface::SupportExport,
+            ],
+        },
+        GenerationRecoveryRow {
+            row_id: "generation-recovery-row:web_pack.bridge_map:2026.04".to_owned(),
+            generated_root_ref: "generated-root:python_web_service:11".to_owned(),
+            scaffold_run_ref: "scaffold-run:python_web_service:2026.04.22-03".to_owned(),
+            lineage_ref: "lineage:python_web_service:2026.04".to_owned(),
+            template_id: "template:community.python.web_framework_pack:04".to_owned(),
+            template_revision_semver: "0.9.0".to_owned(),
+            scope_summary: "Framework-pack scaffold that bridges some files through heuristic mapping rather than exact first-party generation; the bridge behavior and its known issues stay labeled, recovery quarantines the hand-edited generated zone, and the row is held for review instead of being offered as exact truth".to_owned(),
+            managed_zone_class: ManagedZoneClass::GeneratedThenUserEdited,
+            diff_review_class: GenerationDiffReviewClass::PreviewRequiredBeforeWrite,
+            diff_preview_ref: Some("diff-preview:python_web_service:bridge_reapply:2026.04.22".to_owned()),
+            overwrite_guard_class: GenerationOverwriteGuardClass::OverwriteRequiresUserSelectedFiles,
+            recovery_action_class: GenerationRecoveryActionClass::QuarantineGenerated,
+            checkpoint_ref: None,
+            authored_content_protected: true,
+            support_class: GenerationSupportClass::BridgeBehavior,
+            known_issue_refs: vec![
+                "known-issue:python_web_service:heuristic_bridge_mapping".to_owned(),
+                "known-issue:python_web_service:generated_files_hand_edited".to_owned(),
+            ],
+            admitted_for_recovery: false,
+            downgrade_triggers: vec![
+                Trigger::ProofStale,
+                Trigger::BridgeBehaviorDisclosed,
+                Trigger::KnownIssueBlocking,
+                Trigger::AuthoredProtectionUnverified,
+            ],
+            consumer_surfaces: vec![
+                Surface::DiffReview,
+                Surface::Recovery,
+                Surface::SupportExport,
+                Surface::HelpAbout,
+            ],
+        },
+        GenerationRecoveryRow {
+            row_id: "generation-recovery-row:imported.unknown_lineage:2026.03".to_owned(),
+            generated_root_ref: "generated-root:imported_project:21".to_owned(),
+            scaffold_run_ref: "scaffold-run:imported_project:unknown".to_owned(),
+            lineage_ref: "lineage:imported_project:unknown".to_owned(),
+            template_id: "template:imported.unknown_origin:00".to_owned(),
+            template_revision_semver: "0.0.0".to_owned(),
+            scope_summary: "Imported project with no resolvable scaffold lineage; the generation diff cannot be computed, overwrite and recovery are blocked, and the row is labeled lineage-unknown rather than hidden or silently overwritten".to_owned(),
+            managed_zone_class: ManagedZoneClass::ZoneUnknownReviewRequired,
+            diff_review_class: GenerationDiffReviewClass::DiffUnavailableReviewRequired,
+            diff_preview_ref: None,
+            overwrite_guard_class: GenerationOverwriteGuardClass::OverwriteBlockedLineageUnknown,
+            recovery_action_class: GenerationRecoveryActionClass::RecoveryBlockedLineageUnknown,
+            checkpoint_ref: None,
+            authored_content_protected: true,
+            support_class: GenerationSupportClass::SupportUnknown,
+            known_issue_refs: vec![
+                "known-issue:imported_project:lineage_unresolved".to_owned(),
+            ],
+            admitted_for_recovery: false,
+            downgrade_triggers: vec![
+                Trigger::ProofStale,
+                Trigger::LineageUnknown,
+                Trigger::DiffPreviewUnavailable,
+                Trigger::ManagedZoneUnknown,
+            ],
+            consumer_surfaces: vec![
+                Surface::DiffReview,
+                Surface::Recovery,
+                Surface::SupportExport,
+                Surface::Diagnostics,
+            ],
+        },
+    ]
+}
+
+fn validate_source_contracts(
+    packet: &GenerationRecoveryPacket,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    let refs: BTreeSet<&str> = packet
+        .source_contract_refs
+        .iter()
+        .map(String::as_str)
+        .collect();
+    for required in [
+        GENERATION_RECOVERY_SCHEMA_REF,
+        GENERATION_RECOVERY_DOC_REF,
+        GENERATED_PROJECT_LINEAGE_CONTRACT_REF,
+        GENERATED_PROJECT_UPDATE_SEMANTICS_CONTRACT_REF,
+        TEMPLATE_REGISTRY_CONTRACT_DOC_REF,
+    ] {
+        if !refs.contains(required) {
+            violations.push(GenerationRecoveryViolation::MissingSourceContracts);
+            return;
+        }
+    }
+}
+
+fn validate_rows(
+    packet: &GenerationRecoveryPacket,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    if packet.rows.is_empty() {
+        violations.push(GenerationRecoveryViolation::RowsEmpty);
+        return;
+    }
+
+    for row in &packet.rows {
+        if row.row_id.trim().is_empty()
+            || row.generated_root_ref.trim().is_empty()
+            || row.scaffold_run_ref.trim().is_empty()
+            || row.lineage_ref.trim().is_empty()
+            || row.template_id.trim().is_empty()
+            || row.template_revision_semver.trim().is_empty()
+            || row.scope_summary.trim().is_empty()
+        {
+            violations.push(GenerationRecoveryViolation::RowIncomplete);
+        }
+        if row.downgrade_triggers.is_empty() {
+            violations.push(GenerationRecoveryViolation::DowngradeTriggersMissing);
+        }
+        if row.consumer_surfaces.is_empty() {
+            violations.push(GenerationRecoveryViolation::ConsumerSurfacesMissing);
+        }
+
+        validate_row_recovery(row, violations);
+    }
+}
+
+fn validate_row_recovery(
+    row: &GenerationRecoveryRow,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    // Rollback rows cite a checkpoint ref.
+    if row.recovery_action_class.requires_checkpoint()
+        && row
+            .checkpoint_ref
+            .as_deref()
+            .map(str::trim)
+            .map_or(true, str::is_empty)
+    {
+        violations.push(GenerationRecoveryViolation::CheckpointRefMissing);
+    }
+
+    // Preview-ready rows cite a diff-preview ref.
+    if row.diff_review_class == GenerationDiffReviewClass::PreviewReady
+        && row
+            .diff_preview_ref
+            .as_deref()
+            .map(str::trim)
+            .map_or(true, str::is_empty)
+    {
+        violations.push(GenerationRecoveryViolation::DiffPreviewRefMissing);
+    }
+
+    // A destructive recovery must protect authored content.
+    if row.recovery_action_class.deletes_generated() && !row.authored_content_protected {
+        violations.push(GenerationRecoveryViolation::AuthoredProtectionMissing);
+    }
+
+    // Delete-generated must not be scoped over an authored-only zone.
+    if row.recovery_action_class == GenerationRecoveryActionClass::DeleteGeneratedOnly
+        && row.managed_zone_class == ManagedZoneClass::AuthoredOnly
+    {
+        violations.push(GenerationRecoveryViolation::DeleteGeneratedScopeInvalid);
+    }
+
+    // Bridge/heuristic rows must disclose a known issue and carry a disclosure trigger.
+    if row.support_class.requires_disclosure()
+        && (row.known_issue_refs.is_empty()
+            || !row
+                .downgrade_triggers
+                .contains(&GenerationRecoveryDowngradeTrigger::BridgeBehaviorDisclosed))
+    {
+        violations.push(GenerationRecoveryViolation::BridgeBehaviorUndisclosed);
+    }
+
+    // Blocked rows cannot be admitted for recovery.
+    let blocked = row.diff_review_class.blocks_write()
+        || row.overwrite_guard_class.is_hard_blocked()
+        || row.recovery_action_class.is_unavailable()
+        || row.managed_zone_class.is_unknown();
+    if blocked && row.admitted_for_recovery {
+        violations.push(GenerationRecoveryViolation::BlockedRecoveryAdmitted);
+    }
+}
+
+fn validate_review(
+    packet: &GenerationRecoveryPacket,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    let review = &packet.review;
+    for ok in [
+        review.diff_preview_required_before_write,
+        review.no_silent_overwrite,
+        review.authored_content_never_deleted_by_recovery,
+        review.generated_zone_labeled_distinct_from_authored,
+        review.runtime_only_zone_labeled,
+        review.rollback_boundary_inspectable,
+        review.delete_generated_scoped_to_generated_zone,
+        review.managed_zone_not_presented_as_first_party_without_support_class,
+        review.known_issues_disclosed_before_recovery,
+        review.no_raw_file_bodies_or_diffs_in_export,
+        review.downgrade_narrows_instead_of_hides,
+        review.stale_or_underqualified_blocks_promotion,
+    ] {
+        if !ok {
+            violations.push(GenerationRecoveryViolation::ReviewIncomplete);
+            return;
+        }
+    }
+}
+
+fn validate_consumer_projection(
+    packet: &GenerationRecoveryPacket,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    let projection = &packet.consumer_projection;
+    for ok in [
+        projection.diff_review_shows_managed_zone_labels,
+        projection.diff_review_shows_overwrite_guard,
+        projection.recovery_shows_rollback_and_delete_scope,
+        projection.recovery_shows_authored_protection,
+        projection.run_surface_shows_diff_preview_state,
+        projection.cli_headless_shows_recovery_rows,
+        projection.support_export_shows_recovery_rows,
+        projection.diagnostics_shows_managed_zone_state,
+        projection.blocked_rows_labeled_not_hidden,
+    ] {
+        if !ok {
+            violations.push(GenerationRecoveryViolation::ConsumerProjectionIncomplete);
+            return;
+        }
+    }
+}
+
+fn validate_proof_freshness(
+    packet: &GenerationRecoveryPacket,
+    violations: &mut Vec<GenerationRecoveryViolation>,
+) {
+    if packet.proof_freshness.proof_freshness_slo_hours == 0
+        || packet.proof_freshness.last_proof_refresh.trim().is_empty()
+    {
+        violations.push(GenerationRecoveryViolation::ProofFreshnessIncomplete);
+    }
+}
+
+fn push_unique_trigger(
+    triggers: &mut Vec<GenerationRecoveryDowngradeTrigger>,
+    trigger: GenerationRecoveryDowngradeTrigger,
+) {
+    if !triggers.contains(&trigger) {
+        triggers.push(trigger);
+    }
+}
+
+/// Heuristic that rejects obviously forbidden material in export-safe JSON.
+fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::String(s) => {
+            let lower = s.to_lowercase();
+            lower.contains("api_key")
+                || lower.contains("password")
+                || lower.contains("secret")
+                || lower.contains("bearer ")
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_contains_forbidden_boundary_material),
+        serde_json::Value::Object(map) => {
+            map.values().any(json_contains_forbidden_boundary_material)
+        }
+        _ => false,
+    }
+}
