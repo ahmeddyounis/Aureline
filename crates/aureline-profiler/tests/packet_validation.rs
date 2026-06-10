@@ -1,12 +1,176 @@
 //! Integration test: the embedded qualification packets parse and validate.
 
 use aureline_profiler::{
-    current_chronology_qualification, current_evidence_handoff_qualification,
-    current_hotspot_workspace_qualification, current_integrate_profile_trace_qualification,
-    current_memory_analysis_qualification, current_profile_compare_qualification,
-    current_profile_launcher_qualification, current_regression_baseline_qualification,
-    current_replay_qualification, current_trace_viewer_qualification,
+    current_certification_qualification, current_chronology_qualification,
+    current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
+    current_integrate_profile_trace_qualification, current_memory_analysis_qualification,
+    current_profile_compare_qualification, current_profile_launcher_qualification,
+    current_regression_baseline_qualification, current_replay_qualification,
+    current_trace_viewer_qualification,
 };
+
+// --- Certification packet (M05-055) ---
+
+#[test]
+fn embedded_certification_packet_parses() {
+    let packet = current_certification_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.certifications.is_empty());
+    assert!(!packet.imported_versus_live_truths.is_empty());
+    assert!(!packet.downgrade_rules.is_empty());
+}
+
+#[test]
+fn embedded_certification_packet_has_no_violations() {
+    let packet = current_certification_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_certification_summary_matches_computed() {
+    let packet = current_certification_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn certification_status_behavior_is_correct() {
+    use aureline_profiler::CertificationStatus;
+
+    assert!(CertificationStatus::Certified.allows_promotion());
+    assert!(!CertificationStatus::Pending.allows_promotion());
+    assert!(!CertificationStatus::Stale.allows_promotion());
+    assert!(!CertificationStatus::Underqualified.allows_promotion());
+    assert!(!CertificationStatus::PolicyBlocked.allows_promotion());
+    assert!(!CertificationStatus::RolledBack.allows_promotion());
+
+    assert!(!CertificationStatus::Certified.triggers_downgrade());
+    assert!(!CertificationStatus::Pending.triggers_downgrade());
+    assert!(CertificationStatus::Stale.triggers_downgrade());
+    assert!(CertificationStatus::Underqualified.triggers_downgrade());
+    assert!(!CertificationStatus::PolicyBlocked.triggers_downgrade());
+    assert!(CertificationStatus::RolledBack.triggers_downgrade());
+
+    assert!(!CertificationStatus::Certified.shows_degraded_label());
+    assert!(!CertificationStatus::Pending.shows_degraded_label());
+    assert!(CertificationStatus::Stale.shows_degraded_label());
+    assert!(CertificationStatus::Underqualified.shows_degraded_label());
+    assert!(CertificationStatus::PolicyBlocked.shows_degraded_label());
+    assert!(CertificationStatus::RolledBack.shows_degraded_label());
+}
+
+#[test]
+fn origin_class_behavior_is_correct() {
+    use aureline_profiler::OriginClass;
+
+    assert!(OriginClass::LiveCapture.is_live());
+    assert!(!OriginClass::ImportedArtifact.is_live());
+    assert!(!OriginClass::CachedReplay.is_live());
+    assert!(!OriginClass::SupportBundle.is_live());
+    assert!(!OriginClass::Unknown.is_live());
+
+    assert!(!OriginClass::LiveCapture.is_imported_or_cached());
+    assert!(OriginClass::ImportedArtifact.is_imported_or_cached());
+    assert!(OriginClass::CachedReplay.is_imported_or_cached());
+    assert!(!OriginClass::SupportBundle.is_imported_or_cached());
+    assert!(!OriginClass::Unknown.is_imported_or_cached());
+
+    assert!(!OriginClass::LiveCapture.requires_provenance());
+    assert!(OriginClass::ImportedArtifact.requires_provenance());
+    assert!(OriginClass::CachedReplay.requires_provenance());
+    assert!(OriginClass::SupportBundle.requires_provenance());
+    assert!(!OriginClass::Unknown.requires_provenance());
+}
+
+#[test]
+fn mapping_fidelity_behavior_is_correct() {
+    use aureline_profiler::MappingFidelity;
+
+    assert!(MappingFidelity::Exact.allows_source_navigation());
+    assert!(MappingFidelity::Approximate.allows_source_navigation());
+    assert!(MappingFidelity::Partial.allows_source_navigation());
+    assert!(!MappingFidelity::Unavailable.allows_source_navigation());
+    assert!(!MappingFidelity::Stale.allows_source_navigation());
+    assert!(!MappingFidelity::Mismatched.allows_source_navigation());
+
+    assert!(!MappingFidelity::Exact.blocks_stable_comparison());
+    assert!(!MappingFidelity::Approximate.blocks_stable_comparison());
+    assert!(!MappingFidelity::Partial.blocks_stable_comparison());
+    assert!(MappingFidelity::Unavailable.blocks_stable_comparison());
+    assert!(MappingFidelity::Stale.blocks_stable_comparison());
+    assert!(MappingFidelity::Mismatched.blocks_stable_comparison());
+}
+
+#[test]
+fn baseline_comparability_behavior_is_correct() {
+    use aureline_profiler::BaselineComparability;
+
+    assert!(BaselineComparability::Comparable.allows_comparison_with_warning());
+    assert!(BaselineComparability::Partial.allows_comparison_with_warning());
+    assert!(BaselineComparability::Stale.allows_comparison_with_warning());
+    assert!(!BaselineComparability::Mismatch.allows_comparison_with_warning());
+    assert!(!BaselineComparability::Unknown.allows_comparison_with_warning());
+
+    assert!(!BaselineComparability::Comparable.shows_warning());
+    assert!(BaselineComparability::Partial.shows_warning());
+    assert!(BaselineComparability::Stale.shows_warning());
+    assert!(BaselineComparability::Mismatch.shows_warning());
+    assert!(!BaselineComparability::Unknown.shows_warning());
+}
+
+#[test]
+fn certification_stable_surfaces_have_complete_guards() {
+    let packet = current_certification_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.certification_status_visible,
+                "surface {} must show certification status",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.imported_versus_live_visible,
+                "surface {} must show imported versus live",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.provenance_chain_visible,
+                "surface {} must show provenance chain",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.build_identity_visible,
+                "surface {} must show build identity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mapping_fidelity_visible,
+                "surface {} must show mapping fidelity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.comparison_basis_visible,
+                "surface {} must show comparison basis",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.downgrade_rules_visible,
+                "surface {} must show downgrade rules",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.stale_warning_visible,
+                "surface {} must show stale warning",
+                surface.surface_id
+            );
+        }
+    }
+}
 
 // --- Profile launcher packet (M05-045) ---
 

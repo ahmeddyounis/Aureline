@@ -6,8 +6,9 @@
 //! guards, profile-compare cards, threshold or waiver state, confounder disclosure,
 //! coverage, profile, test, debug, and notebook evidence handoff bars with artifact
 //! lineage, justified replay backend with recording-mode banner, expiry, and cost
-//! posture, and chronology and reverse-step controls, history partiality cues, and
-//! import or export packets.
+//! posture, chronology and reverse-step controls, history partiality cues, and
+//! import or export packets, and certification of profiler, trace, replay, and
+//! imported-versus-live truth on all claimed M5 rows.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
@@ -18,6 +19,13 @@
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
 //! module that pins the launcher, attach-sheet, capture-mode, and storage-location
 //! contracts every profiler UI, support export, and release reviewer reads.
+//!
+//! This crate also exposes the
+//! [`certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows`]
+//! module that pins the certification, imported-versus-live truth, provenance,
+//! mapping fidelity, baseline comparability, and downgrade-rule contracts every
+//! certification dashboard, trace comparison basis viewer, and profile provenance
+//! auditor reads.
 //!
 //! This crate also exposes the
 //! [`implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture`]
@@ -142,6 +150,7 @@
 pub mod add_chronology_and_reverse_step_controls_history_partiality_cues_and_import_or_export_packets;
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
+pub mod certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows;
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
 pub mod implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
@@ -149,6 +158,18 @@ pub mod integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explan
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+
+pub use certify_profiler_trace_replay_and_imported_versus_live_truth_on_all_claimed_m5_rows::{
+    current_certification_qualification, BaselineComparability, CertificationQualificationLabel,
+    CertificationQualificationPacket, CertificationQualificationProof,
+    CertificationQualificationSummary, CertificationQualificationViolation,
+    CertificationQualificationViolationKind, CertificationRow, CertificationStatus,
+    CertificationSurfaceGuardSet, CertificationSurfaceKind,
+    CertificationSurfaceQualificationRow, DowngradeRuleRow, ImportedVersusLiveTruthRow,
+    MappingFidelity, OriginClass, CERTIFICATION_QUALIFICATION_PACKET_JSON,
+    CERTIFICATION_QUALIFICATION_PACKET_PATH, CERTIFICATION_QUALIFICATION_RECORD_KIND,
+    CERTIFICATION_QUALIFICATION_SCHEMA_VERSION,
+};
 
 pub use integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles::{
     current_integrate_profile_trace_qualification, AiExplanationKind, AiExplanationRow,
