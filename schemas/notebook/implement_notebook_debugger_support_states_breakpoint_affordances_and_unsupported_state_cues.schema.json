@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues.schema.json",
+  "title": "Aureline notebook debugger-support states, breakpoint affordances, and unsupported-state cues",
+  "description": "Boundary schema for the notebook debugger-support surface. Every record that crosses this boundary (debugger-support state, breakpoint affordance, unsupported-state cue, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_debugger_support_state_record" },
+    { "$ref": "#/$defs/breakpoint_affordance_record" },
+    { "$ref": "#/$defs/unsupported_state_cue_record" },
+    { "$ref": "#/$defs/notebook_debugger_support_packet_record" }
+  ],
+  "$defs": {
+    "notebook_debugger_support_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the debugger-support record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, output block, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "debugger_support_state_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "paused",
+        "stepping",
+        "running",
+        "disconnected",
+        "unsupported",
+        "unsupported_partial",
+        "degraded"
+      ],
+      "description": "Frozen debugger-support state class vocabulary. Distinguishes idle, paused, stepping, running, disconnected, unsupported, partial, and degraded states."
+    },
+    "breakpoint_affordance_class": {
+      "type": "string",
+      "enum": [
+        "set_breakpoint",
+        "remove_breakpoint",
+        "enable_breakpoint",
+        "disable_breakpoint",
+        "clear_all_breakpoints",
+        "set_conditional_breakpoint"
+      ],
+      "description": "Frozen breakpoint-affordance class vocabulary. Distinguishes set, remove, enable, disable, clear-all, and set-conditional actions."
+    },
+    "breakpoint_affordance_posture_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "unavailable_no_kernel",
+        "unavailable_unsupported",
+        "unavailable_policy_blocked",
+        "unavailable_requires_review"
+      ],
+      "description": "Frozen breakpoint-affordance posture vocabulary. Distinguishes available and unavailable variants with reason."
+    },
+    "unsupported_state_cue_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel",
+        "adapter_unavailable",
+        "kernel_does_not_implement_debug_protocol",
+        "remote_parity_unverified",
+        "policy_blocked",
+        "bridge_cancelled_by_restart",
+        "cell_stepping_unsupported"
+      ],
+      "description": "Frozen unsupported-state cue class vocabulary. Names the exact reason debugging is limited."
+    },
+    "notebook_debugger_support_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_debugger_support_schema_version",
+        "state_id",
+        "document_id_ref",
+        "debugger_support_state_class",
+        "underlying_bridge_state_ref",
+        "breakpoint_affordances",
+        "unsupported_state_cues",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_debugger_support_state" },
+        "notebook_debugger_support_schema_version": { "$ref": "#/$defs/notebook_debugger_support_schema_version" },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "debugger_support_state_class": { "$ref": "#/$defs/debugger_support_state_class" },
+        "underlying_bridge_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "breakpoint_affordances": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/breakpoint_affordance_record" }
+        },
+        "unsupported_state_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_state_cue_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "breakpoint_affordance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_debugger_support_schema_version",
+        "affordance_id",
+        "document_id_ref",
+        "breakpoint_affordance_class",
+        "posture_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_breakpoint_affordance" },
+        "notebook_debugger_support_schema_version": { "$ref": "#/$defs/notebook_debugger_support_schema_version" },
+        "affordance_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "breakpoint_affordance_class": { "$ref": "#/$defs/breakpoint_affordance_class" },
+        "posture_class": { "$ref": "#/$defs/breakpoint_affordance_posture_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "unsupported_state_cue_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_debugger_support_schema_version",
+        "cue_id",
+        "document_id_ref",
+        "unsupported_state_cue_class",
+        "tooltip_label",
+        "action_hint_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_unsupported_state_cue" },
+        "notebook_debugger_support_schema_version": { "$ref": "#/$defs/notebook_debugger_support_schema_version" },
+        "cue_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "unsupported_state_cue_class": { "$ref": "#/$defs/unsupported_state_cue_class" },
+        "tooltip_label": { "type": "string", "minLength": 1 },
+        "action_hint_label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notebook_debugger_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "debugger_support_state_classes",
+        "breakpoint_affordance_classes",
+        "breakpoint_affordance_posture_classes",
+        "unsupported_state_cue_classes",
+        "example_notebook_debugger_support_states",
+        "example_breakpoint_affordances",
+        "example_unsupported_state_cues",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_debugger_support_schema_version" },
+        "record_kind": { "const": "notebook_debugger_support_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "debugger_support_state_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debugger_support_state_class" },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "breakpoint_affordance_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/breakpoint_affordance_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "breakpoint_affordance_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/breakpoint_affordance_posture_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "unsupported_state_cue_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_state_cue_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "example_notebook_debugger_support_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_debugger_support_state_record" }
+        },
+        "example_breakpoint_affordances": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/breakpoint_affordance_record" }
+        },
+        "example_unsupported_state_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_state_cue_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
