@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-ai-memory-classes-explicit-saved-memory-and-workspace-or-tenant-deletion-and-export-posture.schema.json",
+  "title": "Aureline AI memory classes, explicit saved memory, and workspace/tenant deletion and export posture",
+  "$comment": "Rust owner: aureline_ai::implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture::AiMemoryDeletionExportPosturePacket.",
+  "description": "Boundary schema for the metadata-only AI memory deletion/export posture record. It builds on the stable AI memory-state lane (schemas/ai/ai-memory-state.schema.json) and binds three blocks: memory-class coverage (every product AI memory class addressed by the delete and export fan-out; a class not delete-covered must carry a disclosed retention hold), explicit saved memory (each entry carrying the scope it was saved at, an accountable actor, a consent posture, and a revocable flag; saved memory is never anonymous, never unconsented, and always revocable), and workspace- or tenant-scoped deletion/export operations (each carrying the operation kind, scope, per-class fan-out completeness, receipt handle, and receipt verification; a claimed-complete operation addresses every class and carries a verified receipt). It references upstream lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw saved-memory bodies, raw prompts, responses, terminal transcripts, raw vectors, raw provider payloads, raw support bodies, credentials, endpoint URLs, raw file paths, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "posture_run_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "memory_class_coverage",
+    "explicit_saved_memory",
+    "scoped_operations",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_memory_deletion_export_posture" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "posture_run_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "memory_class_coverage": { "$ref": "#/$defs/memory_class_coverage_block" },
+    "explicit_saved_memory": { "$ref": "#/$defs/explicit_saved_memory_block" },
+    "scoped_operations": { "$ref": "#/$defs/scoped_deletion_export_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/memory_posture_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/memory_posture_downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "ai_state_class": {
+      "type": "string",
+      "enum": [
+        "turn_state",
+        "conversation_thread",
+        "prompt_result_cache",
+        "reusable_repo_facts_summaries",
+        "retained_evidence_copy",
+        "explicit_saved_memory"
+      ],
+      "description": "Product AI memory class. Mirrors the frozen ai-memory-state vocabulary."
+    },
+    "retention_hold_class": {
+      "type": "string",
+      "enum": ["no_hold", "evidence_hold", "legal_hold"],
+      "description": "Retention hold that keeps a memory class beyond a delete request."
+    },
+    "saved_memory_scope_class": {
+      "type": "string",
+      "enum": ["user_scoped", "repo_scoped", "org_scoped"],
+      "description": "Scope at which an explicit saved-memory entry was saved."
+    },
+    "saved_memory_actor_class": {
+      "type": "string",
+      "enum": ["end_user", "repo_owner", "org_admin", "unattributed"],
+      "description": "Accountable actor that saved an explicit memory entry. An unattributed actor is not allowed for saved memory."
+    },
+    "saved_memory_consent_class": {
+      "type": "string",
+      "enum": ["explicitly_consented", "policy_default", "not_consented"],
+      "description": "Consent posture recorded for an explicit saved-memory entry. A not_consented entry is not allowed."
+    },
+    "memory_operation_kind_class": {
+      "type": "string",
+      "enum": ["deletion", "export"],
+      "description": "Kind of scoped memory operation."
+    },
+    "deletion_export_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scoped",
+        "repository_scoped",
+        "tenant_scoped",
+        "account_scoped",
+        "organization_scoped"
+      ],
+      "description": "Scope at which a deletion or export operation runs."
+    },
+    "fan_out_completeness_class": {
+      "type": "string",
+      "enum": [
+        "all_classes_covered",
+        "partial_pending_retention_hold",
+        "incomplete_unverified"
+      ],
+      "description": "Per-class fan-out completeness for a deletion or export operation."
+    },
+    "receipt_verification_class": {
+      "type": "string",
+      "enum": ["verified_receipt", "pending_verification", "unverified_no_receipt"],
+      "description": "Receipt verification state for a deletion or export operation."
+    },
+    "memory_posture_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "memory_inspector",
+        "delete_export_review",
+        "admin_console",
+        "cli_headless",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this memory deletion/export lane."
+    },
+    "memory_posture_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer-surface projection."
+    },
+    "memory_posture_downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "delete_fan_out_incomplete",
+        "export_fan_out_incomplete",
+        "saved_memory_without_accountable_owner",
+        "deletion_receipt_unverified",
+        "retention_hold_undisclosed"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "memory_class_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "delete_fan_out_covered",
+        "export_fan_out_covered",
+        "retention_hold",
+        "hold_disclosed",
+        "disclosed"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/ai_state_class" },
+        "delete_fan_out_covered": { "type": "boolean" },
+        "export_fan_out_covered": { "type": "boolean" },
+        "retention_hold": { "$ref": "#/$defs/retention_hold_class" },
+        "hold_disclosed": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "memory_class_coverage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage_set_id", "all_classes_covered", "class_rows"],
+      "properties": {
+        "coverage_set_id": { "type": "string", "minLength": 1 },
+        "all_classes_covered": { "type": "boolean" },
+        "class_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/memory_class_coverage_row" }
+        }
+      }
+    },
+    "explicit_saved_memory_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "scope", "actor_class", "consent", "revocable", "disclosed"],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "scope": { "$ref": "#/$defs/saved_memory_scope_class" },
+        "actor_class": { "$ref": "#/$defs/saved_memory_actor_class" },
+        "consent": { "$ref": "#/$defs/saved_memory_consent_class" },
+        "revocable": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "explicit_saved_memory_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["saved_set_id", "owner_accountable", "all_revocable", "saved_rows"],
+      "properties": {
+        "saved_set_id": { "type": "string", "minLength": 1 },
+        "owner_accountable": { "type": "boolean" },
+        "all_revocable": { "type": "boolean" },
+        "saved_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/explicit_saved_memory_row" }
+        }
+      }
+    },
+    "scoped_deletion_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "operation_kind",
+        "scope",
+        "fan_out_completeness",
+        "receipt_verification",
+        "receipt_ref",
+        "all_classes_addressed",
+        "disclosed"
+      ],
+      "properties": {
+        "operation_id": { "type": "string", "minLength": 1 },
+        "operation_kind": { "$ref": "#/$defs/memory_operation_kind_class" },
+        "scope": { "$ref": "#/$defs/deletion_export_scope_class" },
+        "fan_out_completeness": { "$ref": "#/$defs/fan_out_completeness_class" },
+        "receipt_verification": { "$ref": "#/$defs/receipt_verification_class" },
+        "receipt_ref": { "type": "string" },
+        "all_classes_addressed": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "scoped_deletion_export_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_set_id",
+        "per_class_fan_out_enforced",
+        "receipts_required",
+        "operation_rows"
+      ],
+      "properties": {
+        "operation_set_id": { "type": "string", "minLength": 1 },
+        "per_class_fan_out_enforced": { "type": "boolean" },
+        "receipts_required": { "type": "boolean" },
+        "operation_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scoped_deletion_export_row" }
+        }
+      }
+    },
+    "memory_posture_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_memory_classes",
+        "shows_saved_memory",
+        "shows_scoped_operations",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/memory_posture_consumer_surface" },
+        "shows_memory_classes": { "type": "boolean" },
+        "shows_saved_memory": { "type": "boolean" },
+        "shows_scoped_operations": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/memory_posture_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

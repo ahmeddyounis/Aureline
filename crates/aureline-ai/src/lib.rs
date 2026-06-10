@@ -103,6 +103,13 @@
 //! on first use, and tainted-context fences that keep untrusted context from
 //! widening policy or auto-approving a tool — so tainted context can never grant a
 //! tool approval and a repo instruction can never widen policy.
+//! The AI memory deletion/export posture lane exposes one
+//! [`implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture::AiMemoryDeletionExportPosturePacket`]
+//! object binding the per-class deletion and export fan-out over the frozen AI
+//! memory classes — with disclosed retention holds for evidence-governed copies —
+//! accountable, consented, revocable explicit saved memory, and workspace- or
+//! tenant-scoped delete and export operations whose claimed-complete runs address
+//! every class and carry a verified receipt rather than overstating completion.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -140,6 +147,7 @@ pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
 pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
+pub mod implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture;
 pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod memory;
@@ -326,6 +334,23 @@ pub use implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
     RICHER_PROMPT_COMPOSER_FIXTURE_DIR, RICHER_PROMPT_COMPOSER_RECORD_KIND,
     RICHER_PROMPT_COMPOSER_SCHEMA_REF, RICHER_PROMPT_COMPOSER_SCHEMA_VERSION,
     RICHER_PROMPT_COMPOSER_STABLE_ARTIFACT_REF, RICHER_PROMPT_COMPOSER_SUMMARY_REF,
+};
+pub use implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture::{
+    current_stable_ai_memory_deletion_export_posture_export, AiMemoryDeletionExportArtifactError,
+    AiMemoryDeletionExportPosturePacket, AiMemoryDeletionExportPosturePacketInput,
+    AiMemoryDeletionExportViolation, DeletionExportScopeClass, ExplicitSavedMemoryBlock,
+    ExplicitSavedMemoryRow, FanOutCompletenessClass, MemoryClassCoverageBlock,
+    MemoryClassCoverageRow, MemoryOperationKindClass, MemoryPostureConsumerSurface,
+    MemoryPostureDowngradeTrigger, MemoryPostureQualificationClass, MemoryPostureSurfaceParityRow,
+    ReceiptVerificationClass, RetentionHoldClass, SavedMemoryActorClass, SavedMemoryConsentClass,
+    SavedMemoryScopeClass, ScopedDeletionExportBlock, ScopedDeletionExportRow,
+    MEMORY_DELETION_EXPORT_ARTIFACT_REF, MEMORY_DELETION_EXPORT_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    MEMORY_DELETION_EXPORT_DELETE_CONTRACT_REF, MEMORY_DELETION_EXPORT_DOC_REF,
+    MEMORY_DELETION_EXPORT_FIXTURE_DIR, MEMORY_DELETION_EXPORT_M5_MATRIX_CONTRACT_REF,
+    MEMORY_DELETION_EXPORT_MEMORY_CLASSES_REF, MEMORY_DELETION_EXPORT_MEMORY_OBJECT_SCHEMA_REF,
+    MEMORY_DELETION_EXPORT_RECONCILIATION_CONTRACT_REF, MEMORY_DELETION_EXPORT_RECORD_KIND,
+    MEMORY_DELETION_EXPORT_SCHEMA_REF, MEMORY_DELETION_EXPORT_SCHEMA_VERSION,
+    MEMORY_DELETION_EXPORT_SUMMARY_REF,
 };
 pub use implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors::{
     current_stable_ai_review_findings_export, AiReviewFindingsArtifactError, AiReviewFindingsPacket,
