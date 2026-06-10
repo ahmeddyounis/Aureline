@@ -116,6 +116,14 @@
 //!     checked-in artifact that downstream docs, help, CI, and support surfaces
 //!     ingest instead of cloning status text.
 //!
+//! 16. The [`implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage`]
+//!     module materializes the typed experiment lineage layer that sits between
+//!     notebook execution and reproducibility claims. It produces
+//!     [`ExperimentRunIdentity`] records, [`ExperimentEnvironmentFingerprint`] records,
+//!     [`DatasetCard`] records, [`ArtifactLineage`] records, and the
+//!     [`ExperimentLineagePacket`] checked-in artifact that downstream docs, help,
+//!     CI, and support surfaces ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -226,6 +234,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure/`.
 //!
+//! The records under
+//! [`implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -245,6 +260,7 @@
 
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
+pub mod implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure;
 pub mod implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues;
@@ -461,6 +477,20 @@ pub use implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_confli
     NOTEBOOK_MERGE_FLOW_RECORD_KIND, NOTEBOOK_MERGE_LINEAGE_RECORD_KIND,
     NOTEBOOK_MERGE_PACKET_JSON, NOTEBOOK_MERGE_PACKET_PATH, NOTEBOOK_MERGE_PACKET_RECORD_KIND,
     NOTEBOOK_MERGE_SCHEMA_VERSION,
+};
+
+pub use implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage::{
+    current_experiment_lineage_packet, ArtifactLineage, ArtifactLineageFinding,
+    ArtifactLineageStateClass, ArtifactSaveLocationClass, DatasetCard, DatasetCardFinding,
+    DatasetLocationClass, DatasetSensitivityRedactionClass, DatasetSourceClass,
+    ExperimentEnvironmentFingerprint, ExperimentEnvironmentFingerprintFinding,
+    ExperimentEnvironmentFingerprintFreshnessClass, ExperimentLineageFinding,
+    ExperimentLineagePacket, ExperimentLineagePacketFinding, ExperimentRunIdentity,
+    ExperimentRunIdentityFinding, ExperimentRunOutcomeClass,
+    ARTIFACT_LINEAGE_RECORD_KIND, DATASET_CARD_RECORD_KIND,
+    EXPERIMENT_ENVIRONMENT_FINGERPRINT_RECORD_KIND, EXPERIMENT_LINEAGE_PACKET_JSON,
+    EXPERIMENT_LINEAGE_PACKET_PATH, EXPERIMENT_LINEAGE_PACKET_RECORD_KIND,
+    EXPERIMENT_RUN_IDENTITY_RECORD_KIND, NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure::{

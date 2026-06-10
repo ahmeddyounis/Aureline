@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage.schema.json",
+  "title": "Aureline experiment run identities, environment fingerprints, dataset cards, and artifact lineage",
+  "description": "Boundary schema for experiment run identity records, environment fingerprint records, dataset card records, artifact lineage records, and the experiment lineage packet. Every record that crosses this boundary (experiment run identity, environment fingerprint, dataset card, artifact lineage, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/experiment_run_identity_record" },
+    { "$ref": "#/$defs/experiment_environment_fingerprint_record" },
+    { "$ref": "#/$defs/dataset_card_record" },
+    { "$ref": "#/$defs/artifact_lineage_record" },
+    { "$ref": "#/$defs/experiment_lineage_packet_record" }
+  ],
+  "$defs": {
+    "notebook_experiment_lineage_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the experiment-lineage record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run, fingerprint, dataset, artifact, execution-context root, policy epoch, etc.)."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "experiment_run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failure",
+        "cancelled",
+        "partial",
+        "policy_blocked"
+      ],
+      "description": "Outcome class for an experiment run. Distinguishes successful, failed, cancelled, partial, and policy-blocked outcomes."
+    },
+    "experiment_environment_fingerprint_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "unresolved",
+        "policy_blocked"
+      ],
+      "description": "Freshness class for an experiment environment fingerprint. Distinguishes current, stale, unresolved, and policy-blocked states."
+    },
+    "dataset_source_class": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "remote_url",
+        "database",
+        "api_endpoint",
+        "versioned_store",
+        "generated",
+        "unknown"
+      ],
+      "description": "Source class for a dataset. Distinguishes local files, remote URLs, databases, API endpoints, versioned stores, generated outputs, and unknown sources."
+    },
+    "dataset_sensitivity_redaction_class": {
+      "type": "string",
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "redacted_preview",
+        "blocked"
+      ],
+      "description": "Sensitivity and redaction class for a dataset card. Distinguishes public, internal, confidential, redacted-preview, and blocked states."
+    },
+    "dataset_location_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "remote_storage",
+        "managed_cache",
+        "provider_only"
+      ],
+      "description": "Location class for a dataset. Distinguishes local workspace, remote storage, managed cache, and provider-only locations."
+    },
+    "artifact_save_location_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "remote_storage",
+        "managed_artifact_store",
+        "export_buffer"
+      ],
+      "description": "Save location class for an artifact. Distinguishes local workspace, remote storage, managed artifact store, and export buffer locations."
+    },
+    "artifact_lineage_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale",
+        "diverged",
+        "orphaned",
+        "imported"
+      ],
+      "description": "State class for an artifact lineage entry. Distinguishes current, stale, diverged, orphaned, and imported states."
+    },
+    "experiment_run_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_experiment_lineage_schema_version",
+        "run_id",
+        "title",
+        "source_ref",
+        "started_at",
+        "outcome_class",
+        "execution_origin_label",
+        "environment_fingerprint_ref",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_experiment_run_identity" },
+        "notebook_experiment_lineage_schema_version": { "$ref": "#/$defs/notebook_experiment_lineage_schema_version" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "type": "string", "minLength": 1 },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "outcome_class": { "$ref": "#/$defs/experiment_run_outcome_class" },
+        "commit_or_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_origin_label": { "type": "string", "minLength": 1 },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "success outcome requires an ended_at timestamp.",
+          "if": {
+            "properties": {
+              "outcome_class": { "const": "success" }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "required": ["ended_at"]
+          }
+        }
+      ]
+    },
+    "experiment_environment_fingerprint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_experiment_lineage_schema_version",
+        "fingerprint_id",
+        "environment_identity_label",
+        "interpreter_kernel_label",
+        "target_origin_label",
+        "freshness_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_experiment_environment_fingerprint" },
+        "notebook_experiment_lineage_schema_version": { "$ref": "#/$defs/notebook_experiment_lineage_schema_version" },
+        "fingerprint_id": { "$ref": "#/$defs/opaque_id" },
+        "environment_identity_label": { "type": "string", "minLength": 1 },
+        "interpreter_kernel_label": { "type": "string", "minLength": 1 },
+        "package_toolchain_summary": { "type": ["string", "null"] },
+        "target_origin_label": { "type": "string", "minLength": 1 },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "freshness_class": { "$ref": "#/$defs/experiment_environment_fingerprint_freshness_class" },
+        "last_known_good_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "fresh fingerprints MUST carry a last_known_good_at timestamp.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "fresh" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "required": ["last_known_good_at"]
+          }
+        },
+        {
+          "description": "policy_blocked fingerprints MUST carry a policy_epoch_ref.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "policy_blocked" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "required": ["policy_epoch_ref"]
+          }
+        }
+      ]
+    },
+    "dataset_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_experiment_lineage_schema_version",
+        "dataset_id",
+        "dataset_label",
+        "source_class",
+        "sensitivity_redaction_class",
+        "location_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_dataset_card" },
+        "notebook_experiment_lineage_schema_version": { "$ref": "#/$defs/notebook_experiment_lineage_schema_version" },
+        "dataset_id": { "$ref": "#/$defs/opaque_id" },
+        "dataset_label": { "type": "string", "minLength": 1 },
+        "source_class": { "$ref": "#/$defs/dataset_source_class" },
+        "snapshot_version_label": { "type": ["string", "null"] },
+        "size_estimate_label": { "type": ["string", "null"] },
+        "sensitivity_redaction_class": { "$ref": "#/$defs/dataset_sensitivity_redaction_class" },
+        "location_class": { "$ref": "#/$defs/dataset_location_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "redacted_preview or blocked datasets MUST carry a size_estimate_label.",
+          "if": {
+            "properties": {
+              "sensitivity_redaction_class": {
+                "enum": ["redacted_preview", "blocked"]
+              }
+            },
+            "required": ["sensitivity_redaction_class"]
+          },
+          "then": {
+            "required": ["size_estimate_label"]
+          }
+        }
+      ]
+    },
+    "artifact_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_experiment_lineage_schema_version",
+        "artifact_id",
+        "producing_run_ref",
+        "generator_step_label",
+        "save_location_class",
+        "lineage_state_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_artifact_lineage" },
+        "notebook_experiment_lineage_schema_version": { "$ref": "#/$defs/notebook_experiment_lineage_schema_version" },
+        "artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "producing_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "generator_step_label": { "type": "string", "minLength": 1 },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "save_location_class": { "$ref": "#/$defs/artifact_save_location_class" },
+        "lineage_state_class": { "$ref": "#/$defs/artifact_lineage_state_class" },
+        "stale_diverged_note": { "type": ["string", "null"] },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "stale or diverged lineage MUST carry a stale_diverged_note.",
+          "if": {
+            "properties": {
+              "lineage_state_class": {
+                "enum": ["stale", "diverged"]
+              }
+            },
+            "required": ["lineage_state_class"]
+          },
+          "then": {
+            "required": ["stale_diverged_note"]
+          }
+        },
+        {
+          "description": "orphaned lineage MUST set producing_run_ref to 'orphaned'.",
+          "if": {
+            "properties": {
+              "lineage_state_class": { "const": "orphaned" }
+            },
+            "required": ["lineage_state_class"]
+          },
+          "then": {
+            "properties": {
+              "producing_run_ref": { "const": "orphaned" }
+            }
+          }
+        }
+      ]
+    },
+    "experiment_lineage_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "experiment_run_outcome_classes",
+        "experiment_environment_fingerprint_freshness_classes",
+        "dataset_source_classes",
+        "dataset_sensitivity_redaction_classes",
+        "dataset_location_classes",
+        "artifact_save_location_classes",
+        "artifact_lineage_state_classes",
+        "example_experiment_run_identities",
+        "example_experiment_environment_fingerprints",
+        "example_dataset_cards",
+        "example_artifact_lineages",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_experiment_lineage_schema_version" },
+        "record_kind": { "const": "notebook_experiment_lineage_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "experiment_run_outcome_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/experiment_run_outcome_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "experiment_environment_fingerprint_freshness_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/experiment_environment_fingerprint_freshness_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "dataset_source_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dataset_source_class" },
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "dataset_sensitivity_redaction_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dataset_sensitivity_redaction_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "dataset_location_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dataset_location_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "artifact_save_location_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_save_location_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "artifact_lineage_state_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_lineage_state_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "example_experiment_run_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/experiment_run_identity_record" }
+        },
+        "example_experiment_environment_fingerprints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/experiment_environment_fingerprint_record" }
+        },
+        "example_dataset_cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dataset_card_record" }
+        },
+        "example_artifact_lineages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_lineage_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
