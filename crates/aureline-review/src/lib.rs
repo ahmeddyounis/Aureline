@@ -23,6 +23,7 @@ pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod implement_durable_review_workspace_headers_local_ci_parity_and_stable_anchor_rehydration;
+pub mod implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes;
 pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
@@ -218,6 +219,20 @@ pub use implement_durable_review_workspace_headers_local_ci_parity_and_stable_an
     DURABLE_REVIEW_HEADER_RECORD_KIND, DURABLE_REVIEW_HEADER_REVIEW_PACK_CONTRACT_REF,
     DURABLE_REVIEW_HEADER_REVIEW_WORKSPACE_CONTRACT_REF, DURABLE_REVIEW_HEADER_SCHEMA_REF,
     DURABLE_REVIEW_HEADER_SCHEMA_VERSION, DURABLE_REVIEW_HEADER_SUMMARY_REF,
+};
+pub use implement_normalized_pipeline_run_rows_log_viewers_artifact_browsers_and_safe_preview_trust_classes::{
+    current_pipeline_viewer_export, ArtifactBrowserRow, ArtifactKind, LogStreamState, LogViewerRow,
+    PipelineRunRow, PipelineRunStatus, PipelineViewerArtifactError,
+    PipelineViewerConsumerProjection, PipelineViewerConsumerSurface,
+    PipelineViewerDowngradeTrigger, PipelineViewerPacket, PipelineViewerPacketInput,
+    PipelineViewerProofFreshness, PipelineViewerRunControlAuthority, PipelineViewerTrustReview,
+    PipelineViewerViolation, RunFreshness, SafeOpenPath, SafePreviewTrustClass,
+    PIPELINE_VIEWER_ARTIFACT_CARD_CONTRACT_REF, PIPELINE_VIEWER_ARTIFACT_REF,
+    PIPELINE_VIEWER_DOC_REF, PIPELINE_VIEWER_FIXTURE_DIR, PIPELINE_VIEWER_LOG_VIEW_CONTRACT_REF,
+    PIPELINE_VIEWER_PIPELINE_RUN_CONTRACT_REF, PIPELINE_VIEWER_RECORD_KIND,
+    PIPELINE_VIEWER_RUN_CONTROL_CONTRACT_REF, PIPELINE_VIEWER_SCHEMA_REF,
+    PIPELINE_VIEWER_SCHEMA_VERSION, PIPELINE_VIEWER_SUMMARY_REF,
+    PIPELINE_VIEWER_TRUST_CLASS_CONTRACT_REF,
 };
 pub use infrastructure_intelligence::{
     project_infrastructure_relationships_for_review, InfrastructureIntelligenceAlphaPage,
