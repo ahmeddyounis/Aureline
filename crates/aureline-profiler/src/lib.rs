@@ -1,10 +1,12 @@
 //! Profile launcher, attach sheets, capture-mode descriptors, storage-location truth,
 //! hotspot workspace, flamegraph, call tree, mapping-quality labels, source navigation,
-//! and shared trace viewer with synchronized event lanes, bookmarks, and textual fallback.
+//! shared trace viewer with synchronized event lanes, bookmarks, and textual fallback,
+//! and memory-analysis views, snapshot pairs, retained or allocation diffs, and leak-hint
+//! confidence.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
-//! capture-mode descriptors, storage-location truth, hotspot surfaces, and trace viewer
-//! surfaces attributable and inspectable.
+//! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
+//! surfaces, and memory-analysis surfaces attributable and inspectable.
 //!
 //! It exposes the canonical
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
@@ -41,12 +43,39 @@
 //! [`/schemas/perf/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.schema.json`](../../../schemas/perf/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.json`](../../../artifacts/perf/m5/implement-the-shared-trace-viewer-with-synchronized-event-lanes-bookmarks-and-textual-fallback.json).
+//!
+//! This crate also exposes the
+//! [`add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence`]
+//! module that pins the memory-analysis views, snapshot pairs, retained diffs,
+//! allocation diffs, and leak-hint confidence contracts every memory-analysis surface
+//! reads.
+//!
+//! The reviewer-facing contract for memory analysis is at
+//! [`/docs/performance/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.md`](../../../docs/performance/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.schema.json`](../../../schemas/perf/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.json`](../../../artifacts/perf/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
+pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+
+pub use add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence::{
+    current_memory_analysis_qualification, AllocationDiffRow, ComparisonBasis,
+    LeakHintConfidence, LeakHintRow, MemoryAnalysisQualificationLabel,
+    MemoryAnalysisQualificationPacket, MemoryAnalysisQualificationProof,
+    MemoryAnalysisQualificationSummary, MemoryAnalysisQualificationViolation,
+    MemoryAnalysisQualificationViolationKind, MemoryAnalysisSurfaceGuardSet,
+    MemoryAnalysisSurfaceKind, MemoryAnalysisSurfaceQualificationRow,
+    MemoryAnalysisViewKind, MemoryAnalysisViewRow, MemoryMappingQualityLabel,
+    RetainedDiffRow, SnapshotKind, SnapshotPairRow,
+    MEMORY_ANALYSIS_QUALIFICATION_PACKET_JSON, MEMORY_ANALYSIS_QUALIFICATION_PACKET_PATH,
+    MEMORY_ANALYSIS_QUALIFICATION_RECORD_KIND, MEMORY_ANALYSIS_QUALIFICATION_SCHEMA_VERSION,
+};
 
 pub use implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback::{
     current_trace_viewer_qualification, BookmarkRow, EventLaneKind, EventLaneRow,
