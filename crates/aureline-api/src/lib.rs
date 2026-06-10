@@ -23,6 +23,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json`](../../../artifacts/data/m5/ship-rest-and-graphql-response-viewers-assertions-timing-tabs-and-browser-runtime-trust-classes.json).
 //!
+//! This crate also owns the connection browsers, schema trees, and
+//! target-context envelope qualification records for database tooling. The
+//! database-browser boundary schema is
+//! [`/schemas/data/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.schema.json`](../../../schemas/data/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json`](../../../artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -30,6 +37,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-api/0.0.0")]
 
+pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
@@ -55,6 +63,19 @@ pub use materialize_versioned_request_workspace_documents_environment_sets_and_a
     RequestWritePosture, ResponseSafePreviewClass, SchemaSnapshotRow, REQUEST_QUALIFICATION_PACKET_JSON,
     REQUEST_QUALIFICATION_PACKET_PATH, REQUEST_QUALIFICATION_RECORD_KIND,
     REQUEST_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling::{
+    current_database_browser_qualification, ConnectionBrowserRow, DatabaseBrowserAuthSourceMode,
+    DatabaseBrowserConnectionClass, DatabaseBrowserQualificationLabel,
+    DatabaseBrowserQualificationPacket, DatabaseBrowserQualificationProof,
+    DatabaseBrowserQualificationSummary, DatabaseBrowserQualificationViolation,
+    DatabaseBrowserQualificationViolationKind, DatabaseBrowserRedactionMode,
+    DatabaseBrowserResultScope, DatabaseBrowserStatementSafetyClass, DatabaseBrowserSurfaceGuardSet,
+    DatabaseBrowserSurfaceKind, DatabaseBrowserSurfaceQualificationRow, DatabaseBrowserTransactionPosture,
+    DatabaseBrowserWritePosture, SchemaTreeRow, TargetContextEnvelopeRow,
+    DATABASE_BROWSER_QUALIFICATION_PACKET_JSON, DATABASE_BROWSER_QUALIFICATION_PACKET_PATH,
+    DATABASE_BROWSER_QUALIFICATION_RECORD_KIND, DATABASE_BROWSER_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{
