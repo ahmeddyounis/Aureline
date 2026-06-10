@@ -49,7 +49,8 @@ fn sample_raw_json_fallback() -> NotebookRawJsonFallback {
         notebook_diff_schema_version: NOTEBOOK_DIFF_SCHEMA_VERSION,
         fallback_id: "nb.diff.fallback.01".to_owned(),
         fallback_reason: RawJsonFallbackReason::UnsupportedVersion,
-        fallback_explanation: "Notebook format version 3 is not supported for cell-aware diff.".to_owned(),
+        fallback_explanation: "Notebook format version 3 is not supported for cell-aware diff."
+            .to_owned(),
         explicit_user_choice: false,
         canonical_document_ref: "nb.doc.legacy".to_owned(),
         summary: "Raw JSON fallback due to unsupported version.".to_owned(),
@@ -127,9 +128,9 @@ fn review_session_requires_fallback_ref_when_raw_json() {
     let mut s = sample_review_session();
     s.diff_mode = NotebookDiffMode::RawJsonFallback;
     let findings = s.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_diff_review_session.raw_json_fallback_ref_required")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_diff_review_session.raw_json_fallback_ref_required"));
 }
 
 #[test]
@@ -137,9 +138,9 @@ fn review_session_rejects_fallback_ref_when_not_raw_json() {
     let mut s = sample_review_session();
     s.raw_json_fallback_ref = Some("nb.diff.fallback.01".to_owned());
     let findings = s.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_diff_review_session.raw_json_fallback_ref_unexpected")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_diff_review_session.raw_json_fallback_ref_unexpected"));
 }
 
 #[test]
@@ -147,9 +148,9 @@ fn output_summary_rejects_empty_summary() {
     let mut s = sample_output_summary();
     s.summary = "".to_owned();
     let findings = s.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_diff_output_summary.summary_required")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_diff_output_summary.summary_required"));
 }
 
 #[test]
@@ -157,9 +158,9 @@ fn metadata_filter_rejects_empty_summary() {
     let mut f = sample_metadata_filter();
     f.summary = "".to_owned();
     let findings = f.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_diff_metadata_filter.summary_required")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_diff_metadata_filter.summary_required"));
 }
 
 #[test]
@@ -167,9 +168,9 @@ fn cell_change_rejects_empty_cell_id_ref() {
     let mut c = sample_cell_change();
     c.cell_id_ref = "".to_owned();
     let findings = c.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_diff_cell_change.cell_id_ref_required")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_diff_cell_change.cell_id_ref_required"));
 }
 
 #[test]
@@ -177,9 +178,9 @@ fn raw_json_fallback_rejects_empty_explanation() {
     let mut r = sample_raw_json_fallback();
     r.fallback_explanation = "".to_owned();
     let findings = r.validate();
-    assert!(
-        findings.iter().any(|f| f.check_id == "notebook_raw_json_fallback.fallback_explanation_required")
-    );
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_raw_json_fallback.fallback_explanation_required"));
 }
 
 #[test]

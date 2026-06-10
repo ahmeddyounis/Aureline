@@ -108,7 +108,10 @@ closed_vocab!(
 impl DebuggerSupportStateClass {
     /// True for states that denote a live debugger session is present.
     pub const fn is_live_session(self) -> bool {
-        matches!(self, Self::Idle | Self::Paused | Self::Stepping | Self::Running)
+        matches!(
+            self,
+            Self::Idle | Self::Paused | Self::Stepping | Self::Running
+        )
     }
 
     /// True for states that denote the debugger is not fully supported.
@@ -249,7 +252,8 @@ impl NotebookDebuggerSupportState {
                 ),
             ));
         }
-        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION {
+        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION
+        {
             findings.push(NotebookDebuggerSupportStateFinding::new(
                 "notebook_debugger_support_state.schema_version",
                 subject,
@@ -278,7 +282,10 @@ impl NotebookDebuggerSupportState {
             }
         }
 
-        if self.debugger_support_state_class.is_degraded_or_unsupported() {
+        if self
+            .debugger_support_state_class
+            .is_degraded_or_unsupported()
+        {
             if self.unsupported_state_cues.is_empty() {
                 findings.push(NotebookDebuggerSupportStateFinding::new(
                     "notebook_debugger_support_state.cues_required_for_degraded",
@@ -364,7 +371,8 @@ impl BreakpointAffordance {
                 ),
             ));
         }
-        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION {
+        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION
+        {
             findings.push(BreakpointAffordanceFinding::new(
                 "breakpoint_affordance.schema_version",
                 subject,
@@ -435,7 +443,8 @@ impl UnsupportedStateCue {
                 ),
             ));
         }
-        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION {
+        if self.notebook_debugger_support_schema_version != NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION
+        {
             findings.push(UnsupportedStateCueFinding::new(
                 "unsupported_state_cue.schema_version",
                 subject,
@@ -535,7 +544,9 @@ impl NotebookDebuggerSupportPacket {
                 "breakpoint_affordance_classes must list every variant",
             ));
         }
-        if self.breakpoint_affordance_posture_classes.len() != BreakpointAffordancePostureClass::ALL.len() {
+        if self.breakpoint_affordance_posture_classes.len()
+            != BreakpointAffordancePostureClass::ALL.len()
+        {
             findings.push(NotebookDebuggerSupportPacketFinding::new(
                 "notebook_debugger_support_packet.posture_classes_coverage",
                 subject,
@@ -621,7 +632,8 @@ impl UnsupportedStateCueClass {
 }
 
 /// Parses the checked-in debugger-support packet JSON.
-pub fn current_notebook_debugger_support_packet() -> Result<NotebookDebuggerSupportPacket, serde_json::Error> {
+pub fn current_notebook_debugger_support_packet(
+) -> Result<NotebookDebuggerSupportPacket, serde_json::Error> {
     serde_json::from_str(NOTEBOOK_DEBUGGER_SUPPORT_PACKET_JSON)
 }
 

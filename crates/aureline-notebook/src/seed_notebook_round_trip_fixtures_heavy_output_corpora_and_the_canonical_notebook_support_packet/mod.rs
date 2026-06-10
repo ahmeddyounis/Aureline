@@ -322,9 +322,13 @@ impl HeavyOutputCorpusEntry {
             ));
         }
 
-        if matches!(self.size_bucket_class, HeavyOutputCorpusSizeBucketClass::Small)
-            && !matches!(self.virtualization_class, HeavyOutputCorpusVirtualizationClass::None)
-        {
+        if matches!(
+            self.size_bucket_class,
+            HeavyOutputCorpusSizeBucketClass::Small
+        ) && !matches!(
+            self.virtualization_class,
+            HeavyOutputCorpusVirtualizationClass::None
+        ) {
             findings.push(HeavyOutputCorpusEntryFinding::new(
                 "heavy_output_corpus_entry.small_no_virtualization",
                 subject,
@@ -406,7 +410,8 @@ impl NotebookSupportPacket {
                 "size_bucket_classes must list every variant",
             ));
         }
-        if self.trust_implication_classes.len() != HeavyOutputCorpusTrustImplicationClass::ALL.len() {
+        if self.trust_implication_classes.len() != HeavyOutputCorpusTrustImplicationClass::ALL.len()
+        {
             findings.push(NotebookSupportPacketFinding::new(
                 "notebook_support_packet.trust_implication_classes_coverage",
                 subject,
@@ -487,7 +492,12 @@ impl HeavyOutputCorpusVirtualizationClass {
 
 impl NotebookSupportPacketCoverageClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 4] = [Self::Full, Self::Partial, Self::FixtureOnly, Self::CorpusOnly];
+    pub const ALL: [Self; 4] = [
+        Self::Full,
+        Self::Partial,
+        Self::FixtureOnly,
+        Self::CorpusOnly,
+    ];
 }
 
 /// Parses the checked-in notebook support packet JSON.

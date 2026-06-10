@@ -142,7 +142,9 @@ fn task_event_rejects_bad_record_kind() {
     let mut event = sample_task_event_queued();
     event.record_kind = "wrong_kind".to_owned();
     let findings = event.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_task_event.record_kind"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_task_event.record_kind"));
 }
 
 #[test]
@@ -150,7 +152,9 @@ fn task_event_rejects_empty_notebook_id() {
     let mut event = sample_task_event_queued();
     event.notebook_id_ref = "".to_owned();
     let findings = event.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_task_event.notebook_id_ref_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_task_event.notebook_id_ref_required"));
 }
 
 #[test]
@@ -158,7 +162,9 @@ fn task_event_rejects_empty_cell_id() {
     let mut event = sample_task_event_queued();
     event.cell_id_ref = "".to_owned();
     let findings = event.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_task_event.cell_id_ref_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_task_event.cell_id_ref_required"));
 }
 
 #[test]
@@ -166,7 +172,9 @@ fn task_event_rejects_terminal_kind_with_non_terminal_state() {
     let mut event = sample_task_event_completed();
     event.task_state_class = NotebookTaskStateClass::Running;
     let findings = event.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_task_event.terminal_kind_mismatched_state"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_task_event.terminal_kind_mismatched_state"));
 }
 
 #[test]
@@ -194,7 +202,9 @@ fn activity_center_row_rejects_bad_record_kind() {
     let mut row = sample_activity_row_started();
     row.record_kind = "wrong_kind".to_owned();
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.record_kind"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.record_kind"));
 }
 
 #[test]
@@ -203,7 +213,9 @@ fn activity_center_row_rejects_pending_with_wrong_action() {
     row.outcome = NotebookActivityOutcome::Pending;
     row.action = NotebookActivityAction::Succeeded;
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.pending_action_invariant"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.pending_action_invariant"));
 }
 
 #[test]
@@ -212,7 +224,9 @@ fn activity_center_row_rejects_in_progress_with_wrong_action() {
     row.outcome = NotebookActivityOutcome::InProgress;
     row.action = NotebookActivityAction::Succeeded;
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.in_progress_action_invariant"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.in_progress_action_invariant"));
 }
 
 #[test]
@@ -221,7 +235,9 @@ fn activity_center_row_rejects_succeeded_with_wrong_action() {
     row.outcome = NotebookActivityOutcome::Succeeded;
     row.action = NotebookActivityAction::Started;
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.succeeded_action_invariant"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.succeeded_action_invariant"));
 }
 
 #[test]
@@ -230,7 +246,9 @@ fn activity_center_row_rejects_failed_with_wrong_action() {
     row.outcome = NotebookActivityOutcome::Failed;
     row.action = NotebookActivityAction::Started;
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.failed_action_invariant"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.failed_action_invariant"));
 }
 
 #[test]
@@ -239,7 +257,9 @@ fn activity_center_row_rejects_cancelled_with_wrong_action() {
     row.outcome = NotebookActivityOutcome::Cancelled;
     row.action = NotebookActivityAction::Started;
     let findings = row.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_center_row.cancelled_action_invariant"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_center_row.cancelled_action_invariant"));
 }
 
 #[test]
@@ -257,7 +277,9 @@ fn restore_safe_history_rejects_bad_record_kind() {
     let mut history = sample_restore_safe_history();
     history.record_kind = "wrong_kind".to_owned();
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.record_kind"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.record_kind"));
 }
 
 #[test]
@@ -265,7 +287,9 @@ fn restore_safe_history_rejects_empty_notebook_id() {
     let mut history = sample_restore_safe_history();
     history.notebook_id_ref = "".to_owned();
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.notebook_id_ref_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.notebook_id_ref_required"));
 }
 
 #[test]
@@ -273,7 +297,9 @@ fn restore_safe_history_rejects_empty_honest_state_label() {
     let mut history = sample_restore_safe_history();
     history.honest_state_label = "".to_owned();
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.honest_state_label_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.honest_state_label_required"));
 }
 
 #[test]
@@ -282,7 +308,9 @@ fn restore_safe_history_rejects_transcript_with_kernel_session() {
     history.restore_posture = NotebookRestorePosture::TranscriptRestored;
     history.kernel_session_id_ref = Some("nb.kernel.session.01".to_owned());
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.transcript_no_session"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.transcript_no_session"));
 }
 
 #[test]
@@ -291,7 +319,9 @@ fn restore_safe_history_rejects_session_ended_with_kernel_session() {
     history.restore_posture = NotebookRestorePosture::SessionEnded;
     history.kernel_session_id_ref = Some("nb.kernel.session.01".to_owned());
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.ended_no_session"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.ended_no_session"));
 }
 
 #[test]
@@ -299,7 +329,9 @@ fn restore_safe_history_rejects_empty_cell_execution_refs() {
     let mut history = sample_restore_safe_history();
     history.cell_execution_id_refs = vec![];
     let findings = history.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_restore_safe_history.cell_execution_id_refs_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_restore_safe_history.cell_execution_id_refs_required"));
 }
 
 #[test]
@@ -317,7 +349,9 @@ fn packet_rejects_bad_record_kind() {
     let mut packet = current_notebook_activity_integration_packet();
     packet.record_kind = "wrong_kind".to_owned();
     let findings = packet.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_integration_packet.record_kind"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_integration_packet.record_kind"));
 }
 
 #[test]
@@ -325,7 +359,9 @@ fn packet_rejects_wrong_schema_version() {
     let mut packet = current_notebook_activity_integration_packet();
     packet.schema_version = 999;
     let findings = packet.validate();
-    assert!(findings.iter().any(|f| f.check_id == "notebook_activity_integration_packet.schema_version"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "notebook_activity_integration_packet.schema_version"));
 }
 
 #[test]

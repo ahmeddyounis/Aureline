@@ -124,6 +124,16 @@
 //!     [`ExperimentLineagePacket`] checked-in artifact that downstream docs, help,
 //!     CI, and support surfaces ingest instead of cloning status text.
 //!
+//! 17. The [`add_notebook_result_comparison_baseline_selection_and_confounder_visibility`]
+//!     module materializes the typed records that keep notebook result
+//!     comparison, baseline selection, and confounder visibility honest about
+//!     baseline provenance, comparison scope, and environmental confounders. It
+//!     produces [`NotebookResultComparison`] records,
+//!     [`NotebookBaselineSelection`] records, [`NotebookConfounderVisibility`]
+//!     records, and the [`NotebookResultComparisonPacket`] checked-in artifact
+//!     that downstream docs, help, CI, and support surfaces ingest instead of
+//!     cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -241,6 +251,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage/`.
 //!
+//! The records under
+//! [`add_notebook_result_comparison_baseline_selection_and_confounder_visibility`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/add_notebook_result_comparison_baseline_selection_and_confounder_visibility.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/add_notebook_result_comparison_baseline_selection_and_confounder_visibility/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -260,13 +277,14 @@
 
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
+pub mod add_notebook_result_comparison_baseline_selection_and_confounder_visibility;
 pub mod implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure;
 pub mod implement_notebook_debugger_support_states_breakpoint_affordances_and_unsupported_state_cues;
+pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets;
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
-pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
@@ -368,16 +386,15 @@ pub use implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_label
 };
 
 pub use add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation::{
-    current_notebook_search_outline_navigation_packet, NotebookBreadcrumb,
-    NotebookBreadcrumbClass, NotebookBreadcrumbFinding, NotebookCellTarget,
-    NotebookCellTargetClass, NotebookCellTargetFinding, NotebookOutlineItem,
-    NotebookOutlineItemClass, NotebookOutlineItemFinding, NotebookSearchMatchClass,
+    current_notebook_search_outline_navigation_packet, NotebookBreadcrumb, NotebookBreadcrumbClass,
+    NotebookBreadcrumbFinding, NotebookCellTarget, NotebookCellTargetClass,
+    NotebookCellTargetFinding, NotebookOutlineItem, NotebookOutlineItemClass,
+    NotebookOutlineItemFinding, NotebookScrollBehaviorClass, NotebookSearchMatchClass,
     NotebookSearchOutlineNavigationPacket, NotebookSearchOutlineNavigationPacketFinding,
     NotebookSearchQuery, NotebookSearchQueryFinding, NotebookSearchScopeClass,
-    NotebookScrollBehaviorClass, SearchOutlineNavigationFinding,
-    NOTEBOOK_BREADCRUMB_RECORD_KIND, NOTEBOOK_CELL_TARGET_RECORD_KIND,
-    NOTEBOOK_OUTLINE_ITEM_RECORD_KIND, NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_JSON,
-    NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_PATH,
+    SearchOutlineNavigationFinding, NOTEBOOK_BREADCRUMB_RECORD_KIND,
+    NOTEBOOK_CELL_TARGET_RECORD_KIND, NOTEBOOK_OUTLINE_ITEM_RECORD_KIND,
+    NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_JSON, NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_PATH,
     NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_PACKET_RECORD_KIND,
     NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION, NOTEBOOK_SEARCH_QUERY_RECORD_KIND,
 };
@@ -425,10 +442,10 @@ pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state
     CellChromeStatusClass, DurableExecutionStateRow, DurableExecutionStateRowFinding,
     NotebookCellChrome, NotebookCellChromeFinding, NotebookCellChromePacket,
     NotebookCellChromePacketFinding, RunScopeControl, RunScopeControlFinding,
-    RunScopeControlLockReasonClass, NOTEBOOK_CELL_CHROME_PACKET_JSON,
-    NOTEBOOK_CELL_CHROME_PACKET_PATH, NOTEBOOK_CELL_CHROME_PACKET_RECORD_KIND,
-    NOTEBOOK_CELL_CHROME_RECORD_KIND, NOTEBOOK_CELL_CHROME_SCHEMA_VERSION,
-    DURABLE_EXECUTION_STATE_ROW_RECORD_KIND, RUN_SCOPE_CONTROL_RECORD_KIND,
+    RunScopeControlLockReasonClass, DURABLE_EXECUTION_STATE_ROW_RECORD_KIND,
+    NOTEBOOK_CELL_CHROME_PACKET_JSON, NOTEBOOK_CELL_CHROME_PACKET_PATH,
+    NOTEBOOK_CELL_CHROME_PACKET_RECORD_KIND, NOTEBOOK_CELL_CHROME_RECORD_KIND,
+    NOTEBOOK_CELL_CHROME_SCHEMA_VERSION, RUN_SCOPE_CONTROL_RECORD_KIND,
 };
 
 pub use ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records::{
@@ -457,15 +474,15 @@ pub use ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_an
 };
 
 pub use add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity::{
-    current_notebook_comment_anchor_packet, NotebookAnchor, NotebookAnchorFinding, NotebookAnchorKind,
-    NotebookComment, NotebookCommentAnchorPacket, NotebookCommentAnchorPacketFinding,
-    NotebookCommentStatusClass, NotebookCommentTargetClass, NotebookCommentThreadState,
-    NotebookReviewWorkspaceDowngradeReason, NotebookReviewWorkspaceParity,
-    NotebookReviewWorkspaceParityClass, NotebookReviewWorkspaceParityFinding,
-    NOTEBOOK_ANCHOR_RECORD_KIND, NOTEBOOK_COMMENT_ANCHOR_PACKET_JSON,
-    NOTEBOOK_COMMENT_ANCHOR_PACKET_PATH, NOTEBOOK_COMMENT_ANCHOR_PACKET_RECORD_KIND,
-    NOTEBOOK_COMMENT_ANCHOR_SCHEMA_VERSION, NOTEBOOK_COMMENT_RECORD_KIND,
-    NOTEBOOK_REVIEW_WORKSPACE_PARITY_RECORD_KIND,
+    current_notebook_comment_anchor_packet, NotebookAnchor, NotebookAnchorFinding,
+    NotebookAnchorKind, NotebookComment, NotebookCommentAnchorPacket,
+    NotebookCommentAnchorPacketFinding, NotebookCommentStatusClass, NotebookCommentTargetClass,
+    NotebookCommentThreadState, NotebookReviewWorkspaceDowngradeReason,
+    NotebookReviewWorkspaceParity, NotebookReviewWorkspaceParityClass,
+    NotebookReviewWorkspaceParityFinding, NOTEBOOK_ANCHOR_RECORD_KIND,
+    NOTEBOOK_COMMENT_ANCHOR_PACKET_JSON, NOTEBOOK_COMMENT_ANCHOR_PACKET_PATH,
+    NOTEBOOK_COMMENT_ANCHOR_PACKET_RECORD_KIND, NOTEBOOK_COMMENT_ANCHOR_SCHEMA_VERSION,
+    NOTEBOOK_COMMENT_RECORD_KIND, NOTEBOOK_REVIEW_WORKSPACE_PARITY_RECORD_KIND,
 };
 
 pub use implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_conflict_review_sheets::{
@@ -506,4 +523,17 @@ pub use implement_notebook_collaboration_follow_and_presenter_state_with_live_ve
     NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
     NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND, NOTEBOOK_PRESENTER_STATE_RECORD_KIND,
     NOTEBOOK_RUNTIME_DISCLOSURE_RECORD_KIND,
+};
+
+pub use add_notebook_result_comparison_baseline_selection_and_confounder_visibility::{
+    current_notebook_result_comparison_packet, NotebookBaselineSelection,
+    NotebookBaselineSelectionFinding, NotebookBaselineSelectionState, NotebookBaselineSourceClass,
+    NotebookComparisonMode, NotebookComparisonOutcomeClass, NotebookComparisonScopeClass,
+    NotebookConfounderClass, NotebookConfounderVisibility, NotebookConfounderVisibilityClass,
+    NotebookConfounderVisibilityFinding, NotebookResultComparison, NotebookResultComparisonFinding,
+    NotebookResultComparisonPacket, NotebookResultComparisonPacketFinding,
+    NOTEBOOK_BASELINE_SELECTION_RECORD_KIND, NOTEBOOK_CONFOUNDER_VISIBILITY_RECORD_KIND,
+    NOTEBOOK_RESULT_COMPARISON_PACKET_JSON, NOTEBOOK_RESULT_COMPARISON_PACKET_PATH,
+    NOTEBOOK_RESULT_COMPARISON_PACKET_RECORD_KIND, NOTEBOOK_RESULT_COMPARISON_RECORD_KIND,
+    NOTEBOOK_RESULT_COMPARISON_SCHEMA_VERSION,
 };

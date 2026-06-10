@@ -149,7 +149,10 @@ closed_vocab!(
 impl OutputVirtualizationStateClass {
     /// True for states that imply the output is not fully materialized.
     pub const fn is_partial(self) -> bool {
-        matches!(self, Self::Virtualized | Self::Truncated | Self::LazyPending)
+        matches!(
+            self,
+            Self::Virtualized | Self::Truncated | Self::LazyPending
+        )
     }
 }
 
@@ -167,7 +170,11 @@ pub struct OutputViewerFinding {
 
 impl OutputViewerFinding {
     /// Constructs a finding.
-    pub fn new(check_id: impl Into<String>, subject_ref: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(
+        check_id: impl Into<String>,
+        subject_ref: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             check_id: check_id.into(),
             subject_ref: subject_ref.into(),
@@ -398,7 +405,11 @@ impl LargeOutputVirtualizationRecord {
         }
 
         if self.virtualization_state_class == OutputVirtualizationStateClass::Truncated
-            && self.truncation_note.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true)
+            && self
+                .truncation_note
+                .as_ref()
+                .map(|s| s.trim().is_empty())
+                .unwrap_or(true)
         {
             findings.push(OutputViewerFinding::new(
                 "large_output_virtualization.truncated_note_required",
@@ -500,7 +511,8 @@ impl NotebookOutputViewerPacket {
                 "output_size_buckets must list every variant",
             ));
         }
-        if self.output_virtualization_state_classes.len() != OutputVirtualizationStateClass::ALL.len()
+        if self.output_virtualization_state_classes.len()
+            != OutputVirtualizationStateClass::ALL.len()
         {
             findings.push(NotebookOutputViewerPacketFinding::new(
                 "output_viewer_packet.virtualization_state_classes_coverage",
@@ -510,18 +522,14 @@ impl NotebookOutputViewerPacket {
         }
 
         for lane in &self.example_viewer_lanes {
-            findings.extend(
-                lane.validate()
-                    .into_iter()
-                    .map(|f| NotebookOutputViewerPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)),
-            );
+            findings.extend(lane.validate().into_iter().map(|f| {
+                NotebookOutputViewerPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+            }));
         }
         for virt in &self.example_large_output_virtualizations {
-            findings.extend(
-                virt.validate()
-                    .into_iter()
-                    .map(|f| NotebookOutputViewerPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)),
-            );
+            findings.extend(virt.validate().into_iter().map(|f| {
+                NotebookOutputViewerPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+            }));
         }
 
         findings
@@ -530,7 +538,12 @@ impl NotebookOutputViewerPacket {
 
 impl OutputViewerLaneClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 4] = [Self::Inline, Self::Virtualized, Self::OpenDetail, Self::BlockedActiveContent];
+    pub const ALL: [Self; 4] = [
+        Self::Inline,
+        Self::Virtualized,
+        Self::OpenDetail,
+        Self::BlockedActiveContent,
+    ];
 }
 
 impl OutputSizeBucket {
@@ -540,11 +553,17 @@ impl OutputSizeBucket {
 
 impl OutputVirtualizationStateClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 4] = [Self::NotNeeded, Self::Virtualized, Self::Truncated, Self::LazyPending];
+    pub const ALL: [Self; 4] = [
+        Self::NotNeeded,
+        Self::Virtualized,
+        Self::Truncated,
+        Self::LazyPending,
+    ];
 }
 
 /// Parses the checked-in output-viewer packet JSON.
-pub fn current_notebook_output_viewer_packet() -> Result<NotebookOutputViewerPacket, serde_json::Error> {
+pub fn current_notebook_output_viewer_packet(
+) -> Result<NotebookOutputViewerPacket, serde_json::Error> {
     serde_json::from_str(NOTEBOOK_OUTPUT_VIEWER_PACKET_JSON)
 }
 

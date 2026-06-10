@@ -108,7 +108,10 @@ fn closed_vocabularies_expose_stable_tokens() {
         NotebookRoundTripFixtureKindClass::ExportOnly.as_str(),
         "export_only"
     );
-    assert_eq!(HeavyOutputCorpusSizeBucketClass::VeryLarge.as_str(), "very_large");
+    assert_eq!(
+        HeavyOutputCorpusSizeBucketClass::VeryLarge.as_str(),
+        "very_large"
+    );
     assert_eq!(
         HeavyOutputCorpusTrustImplicationClass::SanitizedVirtualized.as_str(),
         "sanitized_virtualized"

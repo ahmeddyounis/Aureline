@@ -286,8 +286,10 @@ impl DebuggerFrameCellLink {
         if matches!(
             self.link_posture_class,
             DebuggerFrameCellLinkPostureClass::StaleReinitializeRequired
-        ) && !matches!(self.link_class, DebuggerFrameCellLinkClass::FrameStaleAfterRestart)
-        {
+        ) && !matches!(
+            self.link_class,
+            DebuggerFrameCellLinkClass::FrameStaleAfterRestart
+        ) {
             findings.push(DebuggerFrameCellLinkFinding::new(
                 "debugger_frame_cell_link.stale_requires_stale_class",
                 subject,
@@ -611,7 +613,8 @@ impl KernelRestartDebuggerActionClass {
 }
 
 /// Parses the checked-in debugger-bridge packet JSON.
-pub fn current_notebook_debugger_bridge_packet() -> Result<NotebookDebuggerBridgePacket, serde_json::Error> {
+pub fn current_notebook_debugger_bridge_packet(
+) -> Result<NotebookDebuggerBridgePacket, serde_json::Error> {
     serde_json::from_str(NOTEBOOK_DEBUGGER_BRIDGE_PACKET_JSON)
 }
 

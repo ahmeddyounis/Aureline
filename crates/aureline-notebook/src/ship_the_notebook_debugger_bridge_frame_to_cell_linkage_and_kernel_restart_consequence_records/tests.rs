@@ -326,8 +326,9 @@ fn stale_posture_without_stale_class_is_rejected() {
     let mut link = sample_stale_link();
     link.link_class = DebuggerFrameCellLinkClass::ExactCellMatch;
     let findings = link.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "debugger_frame_cell_link.stale_requires_stale_class"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "debugger_frame_cell_link.stale_requires_stale_class"));
 }
 
 #[test]
@@ -345,8 +346,9 @@ fn unavailable_consequence_with_next_session_is_rejected() {
     let mut consequence = sample_unavailable_consequence();
     consequence.next_kernel_session_id_ref = Some("nb.kernel.session.02".to_owned());
     let findings = consequence.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "kernel_restart_debugger_consequence.unavailable_no_next_session"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id == "kernel_restart_debugger_consequence.unavailable_no_next_session"));
 }
 
 #[test]
@@ -398,8 +400,14 @@ fn packet_validates_clean() {
 #[test]
 fn embedded_packet_parses() {
     let packet = current_notebook_debugger_bridge_packet().expect("embedded packet must parse");
-    assert_eq!(packet.schema_version, NOTEBOOK_DEBUGGER_BRIDGE_SCHEMA_VERSION);
-    assert_eq!(packet.record_kind, NOTEBOOK_DEBUGGER_BRIDGE_PACKET_RECORD_KIND);
+    assert_eq!(
+        packet.schema_version,
+        NOTEBOOK_DEBUGGER_BRIDGE_SCHEMA_VERSION
+    );
+    assert_eq!(
+        packet.record_kind,
+        NOTEBOOK_DEBUGGER_BRIDGE_PACKET_RECORD_KIND
+    );
 }
 
 #[test]

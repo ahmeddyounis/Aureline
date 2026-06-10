@@ -69,7 +69,8 @@ fn sample_blocked_active_content_lane() -> NotebookOutputViewerLane {
         virtualization_state_class: OutputVirtualizationStateClass::NotNeeded,
         compatible_viewer_available: false,
         raw_fallback_available: true,
-        summary: "Trusted-active output blocked because no compatible viewer is available.".to_owned(),
+        summary: "Trusted-active output blocked because no compatible viewer is available."
+            .to_owned(),
     }
 }
 
@@ -141,7 +142,9 @@ fn sample_truncated_virtualization() -> LargeOutputVirtualizationRecord {
         byte_size_estimate: 150_000_000,
         row_count_estimate: 5_000_000,
         virtualization_state_class: OutputVirtualizationStateClass::Truncated,
-        truncation_note: Some("Output truncated after first 10,000 rows. Expand to load more.".to_owned()),
+        truncation_note: Some(
+            "Output truncated after first 10,000 rows. Expand to load more.".to_owned(),
+        ),
         expand_action_available: true,
         export_action_available: true,
         summary: "Very large output truncated at 10k rows; full payload is 150 MB.".to_owned(),
@@ -396,13 +399,19 @@ fn packet_validates_clean() {
 fn embedded_packet_parses() {
     let packet = current_notebook_output_viewer_packet().expect("embedded packet must parse");
     assert_eq!(packet.schema_version, NOTEBOOK_OUTPUT_VIEWER_SCHEMA_VERSION);
-    assert_eq!(packet.record_kind, NOTEBOOK_OUTPUT_VIEWER_PACKET_RECORD_KIND);
+    assert_eq!(
+        packet.record_kind,
+        NOTEBOOK_OUTPUT_VIEWER_PACKET_RECORD_KIND
+    );
 }
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
     assert_eq!(OutputViewerLaneClass::Inline.as_str(), "inline");
-    assert_eq!(OutputViewerLaneClass::BlockedActiveContent.as_str(), "blocked_active_content");
+    assert_eq!(
+        OutputViewerLaneClass::BlockedActiveContent.as_str(),
+        "blocked_active_content"
+    );
     assert!(OutputViewerLaneClass::Inline.requires_compatible_viewer());
     assert!(!OutputViewerLaneClass::BlockedActiveContent.requires_compatible_viewer());
     assert!(OutputViewerLaneClass::BlockedActiveContent.is_placeholder());
@@ -412,7 +421,10 @@ fn closed_vocabularies_expose_stable_tokens() {
     assert!(!OutputSizeBucket::Small.requires_virtualization());
     assert!(OutputSizeBucket::Large.requires_virtualization());
 
-    assert_eq!(OutputVirtualizationStateClass::Truncated.as_str(), "truncated");
+    assert_eq!(
+        OutputVirtualizationStateClass::Truncated.as_str(),
+        "truncated"
+    );
     assert!(OutputVirtualizationStateClass::Truncated.is_partial());
     assert!(!OutputVirtualizationStateClass::NotNeeded.is_partial());
 }

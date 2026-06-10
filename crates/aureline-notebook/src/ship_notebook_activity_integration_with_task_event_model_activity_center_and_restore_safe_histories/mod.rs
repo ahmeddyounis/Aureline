@@ -118,7 +118,10 @@ impl NotebookTaskEventKind {
 
     /// True for terminal kinds that end the cell execution lifecycle.
     pub const fn is_terminal(self) -> bool {
-        matches!(self, Self::TaskCompleted | Self::TaskFailed | Self::TaskCancelled)
+        matches!(
+            self,
+            Self::TaskCompleted | Self::TaskFailed | Self::TaskCancelled
+        )
     }
 }
 
@@ -462,7 +465,9 @@ impl NotebookTaskEvent {
                 ),
             ));
         }
-        if self.notebook_activity_integration_schema_version != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_activity_integration_schema_version
+            != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookTaskEventFinding::new(
                 "notebook_task_event.schema_version",
                 subject,
@@ -578,7 +583,9 @@ impl NotebookActivityCenterRow {
                 ),
             ));
         }
-        if self.notebook_activity_integration_schema_version != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_activity_integration_schema_version
+            != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookActivityCenterRowFinding::new(
                 "notebook_activity_center_row.schema_version",
                 subject,
@@ -605,7 +612,10 @@ impl NotebookActivityCenterRow {
         }
 
         if self.outcome == NotebookActivityOutcome::Pending
-            && !matches!(self.action, NotebookActivityAction::Started | NotebookActivityAction::Blocked)
+            && !matches!(
+                self.action,
+                NotebookActivityAction::Started | NotebookActivityAction::Blocked
+            )
         {
             findings.push(NotebookActivityCenterRowFinding::new(
                 "notebook_activity_center_row.pending_action_invariant",
@@ -627,8 +637,10 @@ impl NotebookActivityCenterRow {
         if matches!(
             self.outcome,
             NotebookActivityOutcome::Succeeded | NotebookActivityOutcome::Recovered
-        ) && !matches!(self.action, NotebookActivityAction::Succeeded | NotebookActivityAction::Restored)
-        {
+        ) && !matches!(
+            self.action,
+            NotebookActivityAction::Succeeded | NotebookActivityAction::Restored
+        ) {
             findings.push(NotebookActivityCenterRowFinding::new(
                 "notebook_activity_center_row.succeeded_action_invariant",
                 subject,
@@ -709,7 +721,9 @@ impl NotebookRestoreSafeHistory {
                 ),
             ));
         }
-        if self.notebook_activity_integration_schema_version != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_activity_integration_schema_version
+            != NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookRestoreSafeHistoryFinding::new(
                 "notebook_restore_safe_history.schema_version",
                 subject,
@@ -742,8 +756,10 @@ impl NotebookRestoreSafeHistory {
             ));
         }
 
-        if matches!(self.restore_posture, NotebookRestorePosture::TranscriptRestored)
-            && self.kernel_session_id_ref.is_some()
+        if matches!(
+            self.restore_posture,
+            NotebookRestorePosture::TranscriptRestored
+        ) && self.kernel_session_id_ref.is_some()
         {
             findings.push(NotebookRestoreSafeHistoryFinding::new(
                 "notebook_restore_safe_history.transcript_no_session",
@@ -863,27 +879,31 @@ impl NotebookActivityIntegrationPacket {
         }
 
         for event in &self.example_task_events {
-            findings.extend(
-                event
-                    .validate()
-                    .into_iter()
-                    .map(|f| NotebookActivityIntegrationPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)),
-            );
+            findings.extend(event.validate().into_iter().map(|f| {
+                NotebookActivityIntegrationPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
+            }));
         }
         for row in &self.example_activity_center_rows {
-            findings.extend(
-                row.validate()
-                    .into_iter()
-                    .map(|f| NotebookActivityIntegrationPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)),
-            );
+            findings.extend(row.validate().into_iter().map(|f| {
+                NotebookActivityIntegrationPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
+            }));
         }
         for history in &self.example_restore_safe_histories {
-            findings.extend(
-                history
-                    .validate()
-                    .into_iter()
-                    .map(|f| NotebookActivityIntegrationPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)),
-            );
+            findings.extend(history.validate().into_iter().map(|f| {
+                NotebookActivityIntegrationPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
+            }));
         }
 
         findings
@@ -897,22 +917,59 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
         record_kind: NOTEBOOK_ACTIVITY_INTEGRATION_PACKET_RECORD_KIND.to_owned(),
         packet_id: "nb.activity_integration.packet.m5.01".to_owned(),
         as_of: "2026-06-09T00:00:00Z".to_owned(),
-        task_event_kinds: NotebookTaskEventKind::ALL.iter().map(|k| k.as_str().to_owned()).collect(),
-        task_state_classes: NotebookTaskStateClass::ALL.iter().map(|s| s.as_str().to_owned()).collect(),
-        activity_actor_kinds: NotebookActivityActorKind::ALL.iter().map(|a| a.as_str().to_owned()).collect(),
-        activity_actions: NotebookActivityAction::ALL.iter().map(|a| a.as_str().to_owned()).collect(),
-        activity_object_kinds: NotebookActivityObjectKind::ALL.iter().map(|o| o.as_str().to_owned()).collect(),
-        activity_outcomes: NotebookActivityOutcome::ALL.iter().map(|o| o.as_str().to_owned()).collect(),
-        activity_surface_classes: NotebookActivitySurfaceClass::ALL.iter().map(|s| s.as_str().to_owned()).collect(),
-        activity_source_classes: NotebookActivitySourceClass::ALL.iter().map(|s| s.as_str().to_owned()).collect(),
-        activity_freshness_classes: NotebookActivityFreshnessClass::ALL.iter().map(|f| f.as_str().to_owned()).collect(),
-        activity_follow_up_states: NotebookActivityFollowUpState::ALL.iter().map(|f| f.as_str().to_owned()).collect(),
-        restore_classes: NotebookRestoreClass::ALL.iter().map(|r| r.as_str().to_owned()).collect(),
-        restore_postures: NotebookRestorePosture::ALL.iter().map(|p| p.as_str().to_owned()).collect(),
+        task_event_kinds: NotebookTaskEventKind::ALL
+            .iter()
+            .map(|k| k.as_str().to_owned())
+            .collect(),
+        task_state_classes: NotebookTaskStateClass::ALL
+            .iter()
+            .map(|s| s.as_str().to_owned())
+            .collect(),
+        activity_actor_kinds: NotebookActivityActorKind::ALL
+            .iter()
+            .map(|a| a.as_str().to_owned())
+            .collect(),
+        activity_actions: NotebookActivityAction::ALL
+            .iter()
+            .map(|a| a.as_str().to_owned())
+            .collect(),
+        activity_object_kinds: NotebookActivityObjectKind::ALL
+            .iter()
+            .map(|o| o.as_str().to_owned())
+            .collect(),
+        activity_outcomes: NotebookActivityOutcome::ALL
+            .iter()
+            .map(|o| o.as_str().to_owned())
+            .collect(),
+        activity_surface_classes: NotebookActivitySurfaceClass::ALL
+            .iter()
+            .map(|s| s.as_str().to_owned())
+            .collect(),
+        activity_source_classes: NotebookActivitySourceClass::ALL
+            .iter()
+            .map(|s| s.as_str().to_owned())
+            .collect(),
+        activity_freshness_classes: NotebookActivityFreshnessClass::ALL
+            .iter()
+            .map(|f| f.as_str().to_owned())
+            .collect(),
+        activity_follow_up_states: NotebookActivityFollowUpState::ALL
+            .iter()
+            .map(|f| f.as_str().to_owned())
+            .collect(),
+        restore_classes: NotebookRestoreClass::ALL
+            .iter()
+            .map(|r| r.as_str().to_owned())
+            .collect(),
+        restore_postures: NotebookRestorePosture::ALL
+            .iter()
+            .map(|p| p.as_str().to_owned())
+            .collect(),
         example_task_events: vec![
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.queued.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.01".to_owned(),
@@ -926,7 +983,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.started.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.01".to_owned(),
@@ -940,7 +998,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.output.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.01".to_owned(),
@@ -954,7 +1013,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.completed.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.01".to_owned(),
@@ -968,7 +1028,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.failed.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.02".to_owned(),
@@ -982,7 +1043,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookTaskEvent {
                 record_kind: NOTEBOOK_TASK_EVENT_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 event_id: "nb.task_event.cancelled.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: "nb.cell.03".to_owned(),
@@ -998,7 +1060,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
         example_activity_center_rows: vec![
             NotebookActivityCenterRow {
                 record_kind: NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 row_id: "nb.activity.started.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: Some("nb.cell.01".to_owned()),
@@ -1015,7 +1078,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookActivityCenterRow {
                 record_kind: NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 row_id: "nb.activity.succeeded.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: Some("nb.cell.01".to_owned()),
@@ -1032,7 +1096,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookActivityCenterRow {
                 record_kind: NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 row_id: "nb.activity.failed.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: Some("nb.cell.02".to_owned()),
@@ -1049,7 +1114,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookActivityCenterRow {
                 record_kind: NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 row_id: "nb.activity.cancelled.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: Some("nb.cell.03".to_owned()),
@@ -1066,7 +1132,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
             },
             NotebookActivityCenterRow {
                 record_kind: NOTEBOOK_ACTIVITY_CENTER_ROW_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 row_id: "nb.activity.restored.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 cell_id_ref: None,
@@ -1085,33 +1152,45 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
         example_restore_safe_histories: vec![
             NotebookRestoreSafeHistory {
                 record_kind: NOTEBOOK_RESTORE_SAFE_HISTORY_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 history_id: "nb.restore.exact.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 restore_class: NotebookRestoreClass::ExactRestore,
                 restore_posture: NotebookRestorePosture::ReconnectAvailable,
                 kernel_session_id_ref: Some("nb.kernel.session.01".to_owned()),
-                cell_execution_id_refs: vec!["nb.exec.01".to_owned(), "nb.exec.02".to_owned(), "nb.exec.03".to_owned()],
+                cell_execution_id_refs: vec![
+                    "nb.exec.01".to_owned(),
+                    "nb.exec.02".to_owned(),
+                    "nb.exec.03".to_owned(),
+                ],
                 document_restored_at: "2026-06-09T11:00:00Z".to_owned(),
                 honest_state_label: "Exact restore; kernel session reconnect available.".to_owned(),
                 summary: "Exact notebook restore with reconnectable kernel session.".to_owned(),
             },
             NotebookRestoreSafeHistory {
                 record_kind: NOTEBOOK_RESTORE_SAFE_HISTORY_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 history_id: "nb.restore.transcript.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 restore_class: NotebookRestoreClass::CompatibleRestore,
                 restore_posture: NotebookRestorePosture::TranscriptRestored,
                 kernel_session_id_ref: None,
-                cell_execution_id_refs: vec!["nb.exec.01".to_owned(), "nb.exec.02".to_owned(), "nb.exec.03".to_owned()],
+                cell_execution_id_refs: vec![
+                    "nb.exec.01".to_owned(),
+                    "nb.exec.02".to_owned(),
+                    "nb.exec.03".to_owned(),
+                ],
                 document_restored_at: "2026-06-09T11:00:00Z".to_owned(),
-                honest_state_label: "Transcript restored; rerun required to rebuild kernel state.".to_owned(),
+                honest_state_label: "Transcript restored; rerun required to rebuild kernel state."
+                    .to_owned(),
                 summary: "Compatible restore with transcript-only recovery.".to_owned(),
             },
             NotebookRestoreSafeHistory {
                 record_kind: NOTEBOOK_RESTORE_SAFE_HISTORY_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 history_id: "nb.restore.rerun.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 restore_class: NotebookRestoreClass::LayoutOnly,
@@ -1119,12 +1198,14 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
                 kernel_session_id_ref: None,
                 cell_execution_id_refs: vec!["nb.exec.01".to_owned()],
                 document_restored_at: "2026-06-09T11:00:00Z".to_owned(),
-                honest_state_label: "Layout restored; all cell executions require rerun.".to_owned(),
+                honest_state_label: "Layout restored; all cell executions require rerun."
+                    .to_owned(),
                 summary: "Layout-only restore with explicit rerun requirement.".to_owned(),
             },
             NotebookRestoreSafeHistory {
                 record_kind: NOTEBOOK_RESTORE_SAFE_HISTORY_RECORD_KIND.to_owned(),
-                notebook_activity_integration_schema_version: NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
+                notebook_activity_integration_schema_version:
+                    NOTEBOOK_ACTIVITY_INTEGRATION_SCHEMA_VERSION,
                 history_id: "nb.restore.unavailable.01".to_owned(),
                 notebook_id_ref: "nb.doc.example".to_owned(),
                 restore_class: NotebookRestoreClass::EvidenceOnly,
@@ -1132,7 +1213,8 @@ pub fn current_notebook_activity_integration_packet() -> NotebookActivityIntegra
                 kernel_session_id_ref: None,
                 cell_execution_id_refs: vec!["nb.exec.01".to_owned()],
                 document_restored_at: "2026-06-09T11:00:00Z".to_owned(),
-                honest_state_label: "Context unavailable; only recovery evidence retained.".to_owned(),
+                honest_state_label: "Context unavailable; only recovery evidence retained."
+                    .to_owned(),
                 summary: "Evidence-only restore with no recoverable notebook context.".to_owned(),
             },
         ],

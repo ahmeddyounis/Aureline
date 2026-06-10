@@ -117,7 +117,11 @@ impl CellChromeStatusClass {
     pub const fn is_terminal(self) -> bool {
         matches!(
             self,
-            Self::Succeeded | Self::Errored | Self::Interrupted | Self::Cancelled | Self::StaleOutput
+            Self::Succeeded
+                | Self::Errored
+                | Self::Interrupted
+                | Self::Cancelled
+                | Self::StaleOutput
         )
     }
 
@@ -271,10 +275,12 @@ impl NotebookCellChrome {
         }
 
         if self.cell_status_class.is_no_kernel() {
-            let has_run = self
-                .available_actions
-                .iter()
-                .any(|action| matches!(action, CellChromeActionClass::RunCell | CellChromeActionClass::RunCellAndAdvance));
+            let has_run = self.available_actions.iter().any(|action| {
+                matches!(
+                    action,
+                    CellChromeActionClass::RunCell | CellChromeActionClass::RunCellAndAdvance
+                )
+            });
             if has_run {
                 findings.push(NotebookCellChromeFinding::new(
                     "notebook_cell_chrome.no_kernel_run_actions",
@@ -296,10 +302,12 @@ impl NotebookCellChrome {
         }
 
         if self.cell_status_class.is_active_or_pending() {
-            let has_run = self
-                .available_actions
-                .iter()
-                .any(|action| matches!(action, CellChromeActionClass::RunCell | CellChromeActionClass::RunCellAndAdvance));
+            let has_run = self.available_actions.iter().any(|action| {
+                matches!(
+                    action,
+                    CellChromeActionClass::RunCell | CellChromeActionClass::RunCellAndAdvance
+                )
+            });
             if has_run {
                 findings.push(NotebookCellChromeFinding::new(
                     "notebook_cell_chrome.active_pending_no_rerun",
@@ -309,9 +317,12 @@ impl NotebookCellChrome {
             }
         }
 
-        findings.extend(self.run_scope_control.validate().into_iter().map(|f| {
-            NotebookCellChromeFinding::new(&f.check_id, &f.subject_ref, &f.message)
-        }));
+        findings.extend(
+            self.run_scope_control
+                .validate()
+                .into_iter()
+                .map(|f| NotebookCellChromeFinding::new(&f.check_id, &f.subject_ref, &f.message)),
+        );
 
         findings
     }
@@ -381,7 +392,10 @@ impl RunScopeControl {
         }
 
         if self.scope_changeable {
-            if !matches!(self.lock_reason_class, RunScopeControlLockReasonClass::NotLocked) {
+            if !matches!(
+                self.lock_reason_class,
+                RunScopeControlLockReasonClass::NotLocked
+            ) {
                 findings.push(RunScopeControlFinding::new(
                     "run_scope_control.changeable_not_locked",
                     subject,
@@ -389,7 +403,10 @@ impl RunScopeControl {
                 ));
             }
         } else {
-            if matches!(self.lock_reason_class, RunScopeControlLockReasonClass::NotLocked) {
+            if matches!(
+                self.lock_reason_class,
+                RunScopeControlLockReasonClass::NotLocked
+            ) {
                 findings.push(RunScopeControlFinding::new(
                     "run_scope_control.locked_reason_required",
                     subject,
@@ -398,8 +415,10 @@ impl RunScopeControl {
             }
         }
 
-        if matches!(self.current_scope, crate::CellExecutionRunScope::QueuedNotYetStarted)
-            && self.scope_changeable
+        if matches!(
+            self.current_scope,
+            crate::CellExecutionRunScope::QueuedNotYetStarted
+        ) && self.scope_changeable
         {
             findings.push(RunScopeControlFinding::new(
                 "run_scope_control.queued_not_changeable",
@@ -606,7 +625,9 @@ impl NotebookCellChromePacket {
                 "cell_chrome_action_classes must list every variant",
             ));
         }
-        if self.run_scope_control_lock_reason_classes.len() != RunScopeControlLockReasonClass::ALL.len() {
+        if self.run_scope_control_lock_reason_classes.len()
+            != RunScopeControlLockReasonClass::ALL.len()
+        {
             findings.push(NotebookCellChromePacketFinding::new(
                 "notebook_cell_chrome_packet.lock_reason_classes_coverage",
                 subject,
@@ -676,8 +697,8 @@ impl RunScopeControlLockReasonClass {
 }
 
 /// Parses the checked-in cell-chrome packet JSON.
-pub fn current_notebook_cell_chrome_packet(
-) -> Result<NotebookCellChromePacket, serde_json::Error> {
+pub fn current_notebook_cell_chrome_packet() -> Result<NotebookCellChromePacket, serde_json::Error>
+{
     serde_json::from_str(NOTEBOOK_CELL_CHROME_PACKET_JSON)
 }
 

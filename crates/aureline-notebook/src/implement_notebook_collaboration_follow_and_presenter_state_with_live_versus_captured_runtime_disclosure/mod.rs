@@ -38,7 +38,8 @@ use serde::{Deserialize, Serialize};
 pub const NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for serialized [`NotebookCollaborationFollowState`] payloads.
-pub const NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND: &str = "notebook_collaboration_follow_state";
+pub const NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND: &str =
+    "notebook_collaboration_follow_state";
 
 /// Stable record-kind tag for serialized [`NotebookPresenterState`] payloads.
 pub const NOTEBOOK_PRESENTER_STATE_RECORD_KIND: &str = "notebook_presenter_state";
@@ -629,7 +630,8 @@ impl NotebookCollaborationFollowPresenterPacket {
                 "runtime_disclosure_classes must list every variant",
             ));
         }
-        if self.runtime_disclosure_actions.len() != NotebookRuntimeDisclosureActionClass::ALL.len() {
+        if self.runtime_disclosure_actions.len() != NotebookRuntimeDisclosureActionClass::ALL.len()
+        {
             findings.push(NotebookCollaborationFollowPresenterPacketFinding::new(
                 "notebook_collaboration_follow_presenter_packet.runtime_disclosure_actions_coverage",
                 subject,
@@ -640,21 +642,27 @@ impl NotebookCollaborationFollowPresenterPacket {
         for follow_state in &self.example_follow_states {
             findings.extend(follow_state.validate().into_iter().map(|f| {
                 NotebookCollaborationFollowPresenterPacketFinding::new(
-                    &f.check_id, &f.subject_ref, &f.message,
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
                 )
             }));
         }
         for presenter_state in &self.example_presenter_states {
             findings.extend(presenter_state.validate().into_iter().map(|f| {
                 NotebookCollaborationFollowPresenterPacketFinding::new(
-                    &f.check_id, &f.subject_ref, &f.message,
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
                 )
             }));
         }
         for disclosure in &self.example_runtime_disclosures {
             findings.extend(disclosure.validate().into_iter().map(|f| {
                 NotebookCollaborationFollowPresenterPacketFinding::new(
-                    &f.check_id, &f.subject_ref, &f.message,
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
                 )
             }));
         }

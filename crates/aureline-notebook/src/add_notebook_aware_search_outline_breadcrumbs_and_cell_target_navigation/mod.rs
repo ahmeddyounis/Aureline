@@ -308,7 +308,9 @@ impl NotebookSearchQuery {
             // Degraded label is correct when kernel is required but absent.
         }
 
-        if self.match_class == NotebookSearchMatchClass::Semantic && !self.kernel_required_for_match_class {
+        if self.match_class == NotebookSearchMatchClass::Semantic
+            && !self.kernel_required_for_match_class
+        {
             findings.push(NotebookSearchQueryFinding::new(
                 "notebook_search_query.semantic_requires_kernel_flag",
                 subject,
@@ -434,7 +436,11 @@ impl NotebookOutlineItem {
         }
 
         // Detect self-reference in child_item_refs.
-        if self.child_item_refs.iter().any(|r| r == &self.outline_item_id) {
+        if self
+            .child_item_refs
+            .iter()
+            .any(|r| r == &self.outline_item_id)
+        {
             findings.push(NotebookOutlineItemFinding::new(
                 "notebook_outline_item.self_reference",
                 subject,
@@ -520,7 +526,8 @@ impl NotebookBreadcrumb {
         }
 
         // Document root must be at segment_index 0.
-        if self.breadcrumb_class == NotebookBreadcrumbClass::DocumentRoot && self.segment_index != 0 {
+        if self.breadcrumb_class == NotebookBreadcrumbClass::DocumentRoot && self.segment_index != 0
+        {
             findings.push(NotebookBreadcrumbFinding::new(
                 "notebook_breadcrumb.document_root_index",
                 subject,
@@ -607,7 +614,8 @@ impl NotebookCellTarget {
         // Target-class / field consistency.
         match self.target_class {
             NotebookCellTargetClass::CellIdAnchor => {
-                if self.cell_id_ref.is_none() || self.cell_id_ref.as_ref().unwrap().trim().is_empty()
+                if self.cell_id_ref.is_none()
+                    || self.cell_id_ref.as_ref().unwrap().trim().is_empty()
                 {
                     findings.push(NotebookCellTargetFinding::new(
                         "notebook_cell_target.cell_id_ref_required",
@@ -626,7 +634,8 @@ impl NotebookCellTarget {
                 }
             }
             NotebookCellTargetClass::OutputIndexAnchor => {
-                if self.cell_id_ref.is_none() || self.cell_id_ref.as_ref().unwrap().trim().is_empty()
+                if self.cell_id_ref.is_none()
+                    || self.cell_id_ref.as_ref().unwrap().trim().is_empty()
                 {
                     findings.push(NotebookCellTargetFinding::new(
                         "notebook_cell_target.cell_id_ref_required_for_output",
@@ -667,11 +676,23 @@ impl NotebookCellTarget {
         }
 
         // At least one concrete locator must be present.
-        let has_locator = self.cell_id_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+        let has_locator = self
+            .cell_id_ref
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
             || self.cell_index.is_some()
             || self.output_index.is_some()
-            || self.heading_anchor_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
-            || self.search_match_ref.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+            || self
+                .heading_anchor_ref
+                .as_ref()
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false)
+            || self
+                .search_match_ref
+                .as_ref()
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
 
         if !has_locator {
             findings.push(NotebookCellTargetFinding::new(

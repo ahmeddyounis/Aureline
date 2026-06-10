@@ -267,7 +267,8 @@ impl ExperimentRunIdentity {
                 ),
             ));
         }
-        if self.notebook_experiment_lineage_schema_version != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
+        if self.notebook_experiment_lineage_schema_version
+            != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
         {
             findings.push(ExperimentRunIdentityFinding::new(
                 "experiment_run_identity.schema_version",
@@ -375,7 +376,8 @@ impl ExperimentEnvironmentFingerprint {
                 ),
             ));
         }
-        if self.notebook_experiment_lineage_schema_version != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
+        if self.notebook_experiment_lineage_schema_version
+            != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
         {
             findings.push(ExperimentEnvironmentFingerprintFinding::new(
                 "experiment_environment_fingerprint.schema_version",
@@ -409,8 +411,10 @@ impl ExperimentEnvironmentFingerprint {
             ));
         }
 
-        if matches!(self.freshness_class, ExperimentEnvironmentFingerprintFreshnessClass::Fresh)
-            && self.last_known_good_at.is_none()
+        if matches!(
+            self.freshness_class,
+            ExperimentEnvironmentFingerprintFreshnessClass::Fresh
+        ) && self.last_known_good_at.is_none()
         {
             findings.push(ExperimentEnvironmentFingerprintFinding::new(
                 "experiment_environment_fingerprint.fresh_requires_last_known_good",
@@ -481,7 +485,8 @@ impl DatasetCard {
                 ),
             ));
         }
-        if self.notebook_experiment_lineage_schema_version != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
+        if self.notebook_experiment_lineage_schema_version
+            != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
         {
             findings.push(DatasetCardFinding::new(
                 "dataset_card.schema_version",
@@ -503,7 +508,8 @@ impl DatasetCard {
 
         if matches!(
             self.sensitivity_redaction_class,
-            DatasetSensitivityRedactionClass::RedactedPreview | DatasetSensitivityRedactionClass::Blocked
+            DatasetSensitivityRedactionClass::RedactedPreview
+                | DatasetSensitivityRedactionClass::Blocked
         ) && self.size_estimate_label.is_none()
         {
             findings.push(DatasetCardFinding::new(
@@ -566,7 +572,8 @@ impl ArtifactLineage {
                 ),
             ));
         }
-        if self.notebook_experiment_lineage_schema_version != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
+        if self.notebook_experiment_lineage_schema_version
+            != NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
         {
             findings.push(ArtifactLineageFinding::new(
                 "artifact_lineage.schema_version",
@@ -605,8 +612,10 @@ impl ArtifactLineage {
             ));
         }
 
-        if matches!(self.lineage_state_class, ArtifactLineageStateClass::Orphaned)
-            && self.producing_run_ref != "orphaned"
+        if matches!(
+            self.lineage_state_class,
+            ArtifactLineageStateClass::Orphaned
+        ) && self.producing_run_ref != "orphaned"
         {
             findings.push(ArtifactLineageFinding::new(
                 "artifact_lineage.orphaned_run_ref",
@@ -633,7 +642,8 @@ pub struct ExperimentLineagePacket {
     /// Closed vocabulary: experiment run outcome classes.
     pub experiment_run_outcome_classes: Vec<ExperimentRunOutcomeClass>,
     /// Closed vocabulary: experiment environment fingerprint freshness classes.
-    pub experiment_environment_fingerprint_freshness_classes: Vec<ExperimentEnvironmentFingerprintFreshnessClass>,
+    pub experiment_environment_fingerprint_freshness_classes:
+        Vec<ExperimentEnvironmentFingerprintFreshnessClass>,
     /// Closed vocabulary: dataset source classes.
     pub dataset_source_classes: Vec<DatasetSourceClass>,
     /// Closed vocabulary: dataset sensitivity and redaction classes.
@@ -690,7 +700,9 @@ impl ExperimentLineagePacket {
                 "experiment_run_outcome_classes must list every variant",
             ));
         }
-        if self.experiment_environment_fingerprint_freshness_classes.len()
+        if self
+            .experiment_environment_fingerprint_freshness_classes
+            .len()
             != ExperimentEnvironmentFingerprintFreshnessClass::ALL.len()
         {
             findings.push(ExperimentLineagePacketFinding::new(

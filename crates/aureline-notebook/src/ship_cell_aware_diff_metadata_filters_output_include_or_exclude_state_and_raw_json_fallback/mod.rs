@@ -559,7 +559,9 @@ impl NotebookDiffReviewSession {
             ));
         }
 
-        if self.diff_mode == NotebookDiffMode::RawJsonFallback && self.raw_json_fallback_ref.is_none() {
+        if self.diff_mode == NotebookDiffMode::RawJsonFallback
+            && self.raw_json_fallback_ref.is_none()
+        {
             findings.push(NotebookDiffReviewSessionFinding::new(
                 "notebook_diff_review_session.raw_json_fallback_ref_required",
                 subject,
@@ -567,7 +569,9 @@ impl NotebookDiffReviewSession {
             ));
         }
 
-        if self.diff_mode != NotebookDiffMode::RawJsonFallback && self.raw_json_fallback_ref.is_some() {
+        if self.diff_mode != NotebookDiffMode::RawJsonFallback
+            && self.raw_json_fallback_ref.is_some()
+        {
             findings.push(NotebookDiffReviewSessionFinding::new(
                 "notebook_diff_review_session.raw_json_fallback_ref_unexpected",
                 subject,
@@ -696,29 +700,39 @@ impl NotebookDiffPacket {
         }
 
         for session in &self.example_review_sessions {
-            findings.extend(session.validate().into_iter().map(|f| {
-                NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
-            }));
+            findings.extend(
+                session.validate().into_iter().map(|f| {
+                    NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                }),
+            );
         }
         for change in &self.example_cell_changes {
-            findings.extend(change.validate().into_iter().map(|f| {
-                NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
-            }));
+            findings.extend(
+                change.validate().into_iter().map(|f| {
+                    NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                }),
+            );
         }
         for summary in &self.example_output_summaries {
-            findings.extend(summary.validate().into_iter().map(|f| {
-                NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
-            }));
+            findings.extend(
+                summary.validate().into_iter().map(|f| {
+                    NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                }),
+            );
         }
         for filter in &self.example_metadata_filters {
-            findings.extend(filter.validate().into_iter().map(|f| {
-                NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
-            }));
+            findings.extend(
+                filter.validate().into_iter().map(|f| {
+                    NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                }),
+            );
         }
         for fallback in &self.example_raw_json_fallbacks {
-            findings.extend(fallback.validate().into_iter().map(|f| {
-                NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
-            }));
+            findings.extend(
+                fallback.validate().into_iter().map(|f| {
+                    NotebookDiffPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                }),
+            );
         }
 
         findings

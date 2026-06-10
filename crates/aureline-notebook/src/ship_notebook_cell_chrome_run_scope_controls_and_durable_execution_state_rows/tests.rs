@@ -304,7 +304,9 @@ fn cell_chrome_rejects_empty_badge_label() {
 #[test]
 fn no_kernel_cell_chrome_rejects_run_actions() {
     let mut chrome = sample_cell_chrome_no_kernel();
-    chrome.available_actions.push(CellChromeActionClass::RunCell);
+    chrome
+        .available_actions
+        .push(CellChromeActionClass::RunCell);
     let findings = chrome.validate();
     assert!(findings
         .iter()
@@ -314,7 +316,9 @@ fn no_kernel_cell_chrome_rejects_run_actions() {
 #[test]
 fn no_kernel_cell_chrome_rejects_debug_action() {
     let mut chrome = sample_cell_chrome_no_kernel();
-    chrome.available_actions.push(CellChromeActionClass::DebugCell);
+    chrome
+        .available_actions
+        .push(CellChromeActionClass::DebugCell);
     let findings = chrome.validate();
     assert!(findings
         .iter()
@@ -438,8 +442,9 @@ fn packet_validates_clean() {
             sample_durable_row_stale(),
             sample_durable_row_skipped_no_kernel(),
         ],
-        summary: "Notebook cell chrome, run-scope controls, and durable execution-state rows packet v1."
-            .to_owned(),
+        summary:
+            "Notebook cell chrome, run-scope controls, and durable execution-state rows packet v1."
+                .to_owned(),
     };
     assert!(
         packet.validate().is_empty(),
@@ -469,7 +474,10 @@ fn closed_vocabularies_expose_stable_tokens() {
     assert_eq!(CellChromeActionClass::RunCell.as_str(), "run_cell");
     assert_eq!(CellChromeActionClass::DebugCell.as_str(), "debug_cell");
 
-    assert_eq!(RunScopeControlLockReasonClass::NotLocked.as_str(), "not_locked");
+    assert_eq!(
+        RunScopeControlLockReasonClass::NotLocked.as_str(),
+        "not_locked"
+    );
     assert_eq!(
         RunScopeControlLockReasonClass::LockedDuringExecution.as_str(),
         "locked_during_execution"

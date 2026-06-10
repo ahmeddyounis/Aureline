@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/add_notebook_result_comparison_baseline_selection_and_confounder_visibility.schema.json",
+  "title": "Aureline notebook result comparison, baseline selection, and confounder visibility",
+  "description": "Boundary schema for notebook result comparison, baseline selection, and confounder visibility records. Every record that crosses the result-comparison boundary (result comparison, baseline selection, confounder visibility, result-comparison packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_result_comparison_record" },
+    { "$ref": "#/$defs/notebook_baseline_selection_record" },
+    { "$ref": "#/$defs/notebook_confounder_visibility_record" },
+    { "$ref": "#/$defs/notebook_result_comparison_packet_record" }
+  ],
+  "$defs": {
+    "notebook_result_comparison_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook result comparison module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_result_comparison",
+        "notebook_baseline_selection",
+        "notebook_confounder_visibility",
+        "notebook_result_comparison_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, run id, confounder id, document id, etc.). Consumers resolve refs through the owning registry."
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+    "notebook_comparison_mode": {
+      "type": "string",
+      "enum": [
+        "cell_aware",
+        "output_aware",
+        "summary_only",
+        "raw_json_fallback"
+      ],
+      "description": "Frozen comparison-mode vocabulary. Names whether the comparison is cell-aware, output-aware, summary-only, or forced to raw JSON fallback."
+    },
+    "notebook_comparison_outcome_class": {
+      "type": "string",
+      "enum": [
+        "equivalent",
+        "different",
+        "baseline_missing",
+        "current_missing",
+        "incomparable"
+      ],
+      "description": "Frozen comparison-outcome vocabulary. Names the result of comparing baseline and current runs."
+    },
+    "notebook_comparison_scope_class": {
+      "type": "string",
+      "enum": [
+        "full_notebook",
+        "selected_cells",
+        "active_cell"
+      ],
+      "description": "Frozen comparison-scope vocabulary. Names whether the comparison covers the full notebook, a selection of cells, or only the active cell."
+    },
+    "notebook_baseline_source_class": {
+      "type": "string",
+      "enum": [
+        "last_successful_run",
+        "pinned_experiment",
+        "tagged_commit",
+        "manual_upload",
+        "workspace_snapshot"
+      ],
+      "description": "Frozen baseline-source vocabulary. Names how the baseline run was chosen."
+    },
+    "notebook_baseline_selection_state": {
+      "type": "string",
+      "enum": [
+        "selected",
+        "stale",
+        "unavailable",
+        "ambiguous",
+        "explicit_none"
+      ],
+      "description": "Frozen baseline-selection-state vocabulary. Names the lifecycle state of the baseline selection."
+    },
+    "notebook_confounder_class": {
+      "type": "string",
+      "enum": [
+        "environment_drift",
+        "dependency_change",
+        "dataset_change",
+        "hardware_difference",
+        "kernel_restart",
+        "runtime_parameter_change",
+        "unspecified"
+      ],
+      "description": "Frozen confounder-class vocabulary. Names the kind of confounder that may explain a result difference independent of source changes."
+    },
+    "notebook_confounder_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "suppressed",
+        "unknown",
+        "not_applicable"
+      ],
+      "description": "Frozen confounder-visibility vocabulary. Names whether the confounder is visible to the reviewer, suppressed, unknown, or not applicable."
+    },
+    "notebook_result_comparison_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_result_comparison" },
+        "notebook_result_comparison_schema_version": { "$ref": "#/$defs/notebook_result_comparison_schema_version" },
+        "comparison_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "comparison_mode": { "$ref": "#/$defs/notebook_comparison_mode" },
+        "comparison_scope": { "$ref": "#/$defs/notebook_comparison_scope_class" },
+        "outcome_class": { "$ref": "#/$defs/notebook_comparison_outcome_class" },
+        "confounder_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to confounder visibility records that explain detected differences."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_result_comparison_schema_version",
+        "comparison_id",
+        "document_id_ref",
+        "baseline_run_ref",
+        "current_run_ref",
+        "comparison_mode",
+        "comparison_scope",
+        "outcome_class",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "notebook_baseline_selection_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_baseline_selection" },
+        "notebook_result_comparison_schema_version": { "$ref": "#/$defs/notebook_result_comparison_schema_version" },
+        "selection_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_source": { "$ref": "#/$defs/notebook_baseline_source_class" },
+        "selection_state": { "$ref": "#/$defs/notebook_baseline_selection_state" },
+        "baseline_run_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "pinned_by_actor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_result_comparison_schema_version",
+        "selection_id",
+        "document_id_ref",
+        "baseline_source",
+        "selection_state",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "notebook_confounder_visibility_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_confounder_visibility" },
+        "notebook_result_comparison_schema_version": { "$ref": "#/$defs/notebook_result_comparison_schema_version" },
+        "confounder_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "confounder_class": { "$ref": "#/$defs/notebook_confounder_class" },
+        "visibility_class": { "$ref": "#/$defs/notebook_confounder_visibility_class" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to evidence records that support this confounder."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_result_comparison_schema_version",
+        "confounder_id",
+        "document_id_ref",
+        "confounder_class",
+        "visibility_class",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "notebook_result_comparison_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_result_comparison_schema_version" },
+        "record_kind": { "const": "notebook_result_comparison_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date-time this packet is current as of."
+        },
+        "comparison_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comparison_mode" },
+          "description": "Closed vocabulary: comparison modes."
+        },
+        "comparison_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comparison_outcome_class" },
+          "description": "Closed vocabulary: comparison outcomes."
+        },
+        "comparison_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_comparison_scope_class" },
+          "description": "Closed vocabulary: comparison scopes."
+        },
+        "baseline_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_baseline_source_class" },
+          "description": "Closed vocabulary: baseline sources."
+        },
+        "selection_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_baseline_selection_state" },
+          "description": "Closed vocabulary: selection states."
+        },
+        "confounder_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_confounder_class" },
+          "description": "Closed vocabulary: confounder classes."
+        },
+        "visibility_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_confounder_visibility_class" },
+          "description": "Closed vocabulary: visibility classes."
+        },
+        "example_comparisons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_result_comparison_record" },
+          "description": "Worked example comparison records."
+        },
+        "example_baselines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_baseline_selection_record" },
+          "description": "Worked example baseline selection records."
+        },
+        "example_confounders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_confounder_visibility_record" },
+          "description": "Worked example confounder visibility records."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "comparison_modes",
+        "comparison_outcomes",
+        "comparison_scopes",
+        "baseline_sources",
+        "selection_states",
+        "confounder_classes",
+        "visibility_classes",
+        "example_comparisons",
+        "example_baselines",
+        "example_confounders",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

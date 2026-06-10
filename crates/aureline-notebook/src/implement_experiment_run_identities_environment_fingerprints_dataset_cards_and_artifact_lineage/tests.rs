@@ -679,16 +679,16 @@ fn embedded_packet_parses() {
         packet.schema_version,
         NOTEBOOK_EXPERIMENT_LINEAGE_SCHEMA_VERSION
     );
-    assert_eq!(
-        packet.record_kind,
-        EXPERIMENT_LINEAGE_PACKET_RECORD_KIND
-    );
+    assert_eq!(packet.record_kind, EXPERIMENT_LINEAGE_PACKET_RECORD_KIND);
 }
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
     assert_eq!(ExperimentRunOutcomeClass::Success.as_str(), "success");
-    assert_eq!(ExperimentRunOutcomeClass::PolicyBlocked.as_str(), "policy_blocked");
+    assert_eq!(
+        ExperimentRunOutcomeClass::PolicyBlocked.as_str(),
+        "policy_blocked"
+    );
 
     assert_eq!(
         ExperimentEnvironmentFingerprintFreshnessClass::Fresh.as_str(),
@@ -706,16 +706,25 @@ fn closed_vocabularies_expose_stable_tokens() {
         DatasetSensitivityRedactionClass::RedactedPreview.as_str(),
         "redacted_preview"
     );
-    assert_eq!(DatasetSensitivityRedactionClass::Blocked.as_str(), "blocked");
+    assert_eq!(
+        DatasetSensitivityRedactionClass::Blocked.as_str(),
+        "blocked"
+    );
 
-    assert_eq!(DatasetLocationClass::LocalWorkspace.as_str(), "local_workspace");
+    assert_eq!(
+        DatasetLocationClass::LocalWorkspace.as_str(),
+        "local_workspace"
+    );
     assert_eq!(DatasetLocationClass::ProviderOnly.as_str(), "provider_only");
 
     assert_eq!(
         ArtifactSaveLocationClass::ManagedArtifactStore.as_str(),
         "managed_artifact_store"
     );
-    assert_eq!(ArtifactSaveLocationClass::ExportBuffer.as_str(), "export_buffer");
+    assert_eq!(
+        ArtifactSaveLocationClass::ExportBuffer.as_str(),
+        "export_buffer"
+    );
 
     assert_eq!(ArtifactLineageStateClass::Current.as_str(), "current");
     assert_eq!(ArtifactLineageStateClass::Orphaned.as_str(), "orphaned");

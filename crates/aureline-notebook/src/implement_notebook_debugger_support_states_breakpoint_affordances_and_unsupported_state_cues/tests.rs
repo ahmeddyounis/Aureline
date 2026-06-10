@@ -45,18 +45,16 @@ fn sample_paused_state() -> NotebookDebuggerSupportState {
         kernel_session_id_ref: Some("nb.kernel.session.01".to_owned()),
         debugger_support_state_class: DebuggerSupportStateClass::Paused,
         underlying_bridge_state_ref: "nb.debugger.bridge.02".to_owned(),
-        breakpoint_affordances: vec![
-            BreakpointAffordance {
-                record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                affordance_id: "nb.debugger.bp.remove.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                cell_id_ref: Some("nb.cell.02".to_owned()),
-                breakpoint_affordance_class: BreakpointAffordanceClass::RemoveBreakpoint,
-                posture_class: BreakpointAffordancePostureClass::Available,
-                summary: "Remove breakpoint in cell 2.".to_owned(),
-            },
-        ],
+        breakpoint_affordances: vec![BreakpointAffordance {
+            record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            affordance_id: "nb.debugger.bp.remove.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            cell_id_ref: Some("nb.cell.02".to_owned()),
+            breakpoint_affordance_class: BreakpointAffordanceClass::RemoveBreakpoint,
+            posture_class: BreakpointAffordancePostureClass::Available,
+            summary: "Remove breakpoint in cell 2.".to_owned(),
+        }],
         unsupported_state_cues: vec![],
         summary: "Debugger paused on a breakpoint.".to_owned(),
     }
@@ -71,18 +69,16 @@ fn sample_no_kernel_state() -> NotebookDebuggerSupportState {
         kernel_session_id_ref: None,
         debugger_support_state_class: DebuggerSupportStateClass::Unsupported,
         underlying_bridge_state_ref: "nb.debugger.bridge.none".to_owned(),
-        breakpoint_affordances: vec![
-            BreakpointAffordance {
-                record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                affordance_id: "nb.debugger.bp.unavailable.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                cell_id_ref: None,
-                breakpoint_affordance_class: BreakpointAffordanceClass::SetBreakpoint,
-                posture_class: BreakpointAffordancePostureClass::UnavailableNoKernel,
-                summary: "Breakpoint unavailable because no kernel is selected.".to_owned(),
-            },
-        ],
+        breakpoint_affordances: vec![BreakpointAffordance {
+            record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            affordance_id: "nb.debugger.bp.unavailable.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            cell_id_ref: None,
+            breakpoint_affordance_class: BreakpointAffordanceClass::SetBreakpoint,
+            posture_class: BreakpointAffordancePostureClass::UnavailableNoKernel,
+            summary: "Breakpoint unavailable because no kernel is selected.".to_owned(),
+        }],
         unsupported_state_cues: vec![UnsupportedStateCue {
             record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
             notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
@@ -106,31 +102,26 @@ fn sample_degraded_state() -> NotebookDebuggerSupportState {
         kernel_session_id_ref: Some("nb.kernel.session.01".to_owned()),
         debugger_support_state_class: DebuggerSupportStateClass::Degraded,
         underlying_bridge_state_ref: "nb.debugger.bridge.03".to_owned(),
-        breakpoint_affordances: vec![
-            BreakpointAffordance {
-                record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                affordance_id: "nb.debugger.bp.policy.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                cell_id_ref: Some("nb.cell.03".to_owned()),
-                breakpoint_affordance_class: BreakpointAffordanceClass::SetConditionalBreakpoint,
-                posture_class: BreakpointAffordancePostureClass::UnavailablePolicyBlocked,
-                summary: "Conditional breakpoints are blocked by policy.".to_owned(),
-            },
-        ],
-        unsupported_state_cues: vec![
-            UnsupportedStateCue {
-                record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                cue_id: "nb.debugger.cue.policy.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                unsupported_state_cue_class: UnsupportedStateCueClass::PolicyBlocked,
-                tooltip_label: "Debugging is restricted by policy.".to_owned(),
-                action_hint_label: "Contact your administrator to request debugging access."
-                    .to_owned(),
-                summary: "Debugger degraded due to policy restrictions.".to_owned(),
-            },
-        ],
+        breakpoint_affordances: vec![BreakpointAffordance {
+            record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            affordance_id: "nb.debugger.bp.policy.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            cell_id_ref: Some("nb.cell.03".to_owned()),
+            breakpoint_affordance_class: BreakpointAffordanceClass::SetConditionalBreakpoint,
+            posture_class: BreakpointAffordancePostureClass::UnavailablePolicyBlocked,
+            summary: "Conditional breakpoints are blocked by policy.".to_owned(),
+        }],
+        unsupported_state_cues: vec![UnsupportedStateCue {
+            record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            cue_id: "nb.debugger.cue.policy.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            unsupported_state_cue_class: UnsupportedStateCueClass::PolicyBlocked,
+            tooltip_label: "Debugging is restricted by policy.".to_owned(),
+            action_hint_label: "Contact your administrator to request debugging access.".to_owned(),
+            summary: "Debugger degraded due to policy restrictions.".to_owned(),
+        }],
         summary: "Debugger degraded due to policy restrictions.".to_owned(),
     }
 }
@@ -144,30 +135,26 @@ fn sample_partial_state() -> NotebookDebuggerSupportState {
         kernel_session_id_ref: Some("nb.kernel.session.01".to_owned()),
         debugger_support_state_class: DebuggerSupportStateClass::UnsupportedPartial,
         underlying_bridge_state_ref: "nb.debugger.bridge.04".to_owned(),
-        breakpoint_affordances: vec![
-            BreakpointAffordance {
-                record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                affordance_id: "nb.debugger.bp.review.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                cell_id_ref: Some("nb.cell.04".to_owned()),
-                breakpoint_affordance_class: BreakpointAffordanceClass::SetBreakpoint,
-                posture_class: BreakpointAffordancePostureClass::UnavailableRequiresReview,
-                summary: "Breakpoint requires review before use.".to_owned(),
-            },
-        ],
-        unsupported_state_cues: vec![
-            UnsupportedStateCue {
-                record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                cue_id: "nb.debugger.cue.review.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                unsupported_state_cue_class: UnsupportedStateCueClass::RemoteParityUnverified,
-                tooltip_label: "Remote debugger parity is unverified.".to_owned(),
-                action_hint_label: "Run a diagnostic to verify remote debugger parity.".to_owned(),
-                summary: "Partial support due to unverified remote parity.".to_owned(),
-            },
-        ],
+        breakpoint_affordances: vec![BreakpointAffordance {
+            record_kind: BREAKPOINT_AFFORDANCE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            affordance_id: "nb.debugger.bp.review.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            cell_id_ref: Some("nb.cell.04".to_owned()),
+            breakpoint_affordance_class: BreakpointAffordanceClass::SetBreakpoint,
+            posture_class: BreakpointAffordancePostureClass::UnavailableRequiresReview,
+            summary: "Breakpoint requires review before use.".to_owned(),
+        }],
+        unsupported_state_cues: vec![UnsupportedStateCue {
+            record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            cue_id: "nb.debugger.cue.review.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            unsupported_state_cue_class: UnsupportedStateCueClass::RemoteParityUnverified,
+            tooltip_label: "Remote debugger parity is unverified.".to_owned(),
+            action_hint_label: "Run a diagnostic to verify remote debugger parity.".to_owned(),
+            summary: "Partial support due to unverified remote parity.".to_owned(),
+        }],
         summary: "Debugger partially supported due to unverified remote parity.".to_owned(),
     }
 }
@@ -182,18 +169,16 @@ fn sample_disconnected_state() -> NotebookDebuggerSupportState {
         debugger_support_state_class: DebuggerSupportStateClass::Disconnected,
         underlying_bridge_state_ref: "nb.debugger.bridge.05".to_owned(),
         breakpoint_affordances: vec![],
-        unsupported_state_cues: vec![
-            UnsupportedStateCue {
-                record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
-                notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
-                cue_id: "nb.debugger.cue.restart.01".to_owned(),
-                document_id_ref: "nb.doc.example".to_owned(),
-                unsupported_state_cue_class: UnsupportedStateCueClass::BridgeCancelledByRestart,
-                tooltip_label: "Debugger bridge was cancelled by a kernel restart.".to_owned(),
-                action_hint_label: "Reconnect the kernel to restore debugging.".to_owned(),
-                summary: "Debugger disconnected after kernel restart.".to_owned(),
-            },
-        ],
+        unsupported_state_cues: vec![UnsupportedStateCue {
+            record_kind: UNSUPPORTED_STATE_CUE_RECORD_KIND.to_owned(),
+            notebook_debugger_support_schema_version: NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION,
+            cue_id: "nb.debugger.cue.restart.01".to_owned(),
+            document_id_ref: "nb.doc.example".to_owned(),
+            unsupported_state_cue_class: UnsupportedStateCueClass::BridgeCancelledByRestart,
+            tooltip_label: "Debugger bridge was cancelled by a kernel restart.".to_owned(),
+            action_hint_label: "Reconnect the kernel to restore debugging.".to_owned(),
+            summary: "Debugger disconnected after kernel restart.".to_owned(),
+        }],
         summary: "Debugger disconnected after kernel restart.".to_owned(),
     }
 }
@@ -292,8 +277,10 @@ fn degraded_state_with_available_breakpoint_is_rejected() {
         summary: "Bad available breakpoint.".to_owned(),
     }];
     let findings = state.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "notebook_debugger_support_state.no_available_breakpoints_when_degraded"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id
+            == "notebook_debugger_support_state.no_available_breakpoints_when_degraded"));
 }
 
 #[test]
@@ -320,8 +307,10 @@ fn empty_bridge_ref_is_rejected() {
     let mut state = sample_live_state();
     state.underlying_bridge_state_ref = "".to_owned();
     let findings = state.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "notebook_debugger_support_state.underlying_bridge_state_ref_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id
+            == "notebook_debugger_support_state.underlying_bridge_state_ref_required"));
 }
 
 #[test]
@@ -423,16 +412,28 @@ fn packet_validates_clean() {
 #[test]
 fn embedded_packet_parses() {
     let packet = current_notebook_debugger_support_packet().expect("embedded packet must parse");
-    assert_eq!(packet.schema_version, NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION);
-    assert_eq!(packet.record_kind, NOTEBOOK_DEBUGGER_SUPPORT_PACKET_RECORD_KIND);
+    assert_eq!(
+        packet.schema_version,
+        NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        packet.record_kind,
+        NOTEBOOK_DEBUGGER_SUPPORT_PACKET_RECORD_KIND
+    );
 }
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
     assert_eq!(DebuggerSupportStateClass::Idle.as_str(), "idle");
-    assert_eq!(DebuggerSupportStateClass::UnsupportedPartial.as_str(), "unsupported_partial");
+    assert_eq!(
+        DebuggerSupportStateClass::UnsupportedPartial.as_str(),
+        "unsupported_partial"
+    );
 
-    assert_eq!(BreakpointAffordanceClass::SetBreakpoint.as_str(), "set_breakpoint");
+    assert_eq!(
+        BreakpointAffordanceClass::SetBreakpoint.as_str(),
+        "set_breakpoint"
+    );
     assert_eq!(
         BreakpointAffordanceClass::SetConditionalBreakpoint.as_str(),
         "set_conditional_breakpoint"

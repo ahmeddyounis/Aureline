@@ -3,7 +3,8 @@ use super::*;
 fn sample_search_query() -> NotebookSearchQuery {
     NotebookSearchQuery {
         record_kind: NOTEBOOK_SEARCH_QUERY_RECORD_KIND.to_owned(),
-        notebook_search_outline_navigation_schema_version: NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
+        notebook_search_outline_navigation_schema_version:
+            NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
         search_query_id: "nb.search.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         search_scope_class: NotebookSearchScopeClass::AllCells,
@@ -22,7 +23,8 @@ fn sample_search_query() -> NotebookSearchQuery {
 fn sample_outline_item() -> NotebookOutlineItem {
     NotebookOutlineItem {
         record_kind: NOTEBOOK_OUTLINE_ITEM_RECORD_KIND.to_owned(),
-        notebook_search_outline_navigation_schema_version: NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
+        notebook_search_outline_navigation_schema_version:
+            NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
         outline_item_id: "nb.outline.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         item_class: NotebookOutlineItemClass::Heading2,
@@ -38,7 +40,8 @@ fn sample_outline_item() -> NotebookOutlineItem {
 fn sample_breadcrumb() -> NotebookBreadcrumb {
     NotebookBreadcrumb {
         record_kind: NOTEBOOK_BREADCRUMB_RECORD_KIND.to_owned(),
-        notebook_search_outline_navigation_schema_version: NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
+        notebook_search_outline_navigation_schema_version:
+            NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
         breadcrumb_id: "nb.breadcrumb.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         segment_index: 1,
@@ -53,7 +56,8 @@ fn sample_breadcrumb() -> NotebookBreadcrumb {
 fn sample_cell_target() -> NotebookCellTarget {
     NotebookCellTarget {
         record_kind: NOTEBOOK_CELL_TARGET_RECORD_KIND.to_owned(),
-        notebook_search_outline_navigation_schema_version: NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
+        notebook_search_outline_navigation_schema_version:
+            NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION,
         cell_target_id: "nb.target.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         target_class: NotebookCellTargetClass::CellIdAnchor,
@@ -317,8 +321,14 @@ fn closed_vocabularies_expose_stable_tokens() {
     assert_eq!(NotebookSearchScopeClass::AllCells.as_str(), "all_cells");
     assert_eq!(NotebookSearchMatchClass::Exact.as_str(), "exact");
     assert_eq!(NotebookOutlineItemClass::Heading3.as_str(), "heading_3");
-    assert_eq!(NotebookBreadcrumbClass::CellBoundary.as_str(), "cell_boundary");
-    assert_eq!(NotebookCellTargetClass::HeadingAnchor.as_str(), "heading_anchor");
+    assert_eq!(
+        NotebookBreadcrumbClass::CellBoundary.as_str(),
+        "cell_boundary"
+    );
+    assert_eq!(
+        NotebookCellTargetClass::HeadingAnchor.as_str(),
+        "heading_anchor"
+    );
     assert_eq!(
         NotebookScrollBehaviorClass::ScrollToNearest.as_str(),
         "scroll_to_nearest"
@@ -353,8 +363,8 @@ fn packet_validates_clean() {
 
 #[test]
 fn embedded_packet_parses() {
-    let packet = current_notebook_search_outline_navigation_packet()
-        .expect("embedded packet must parse");
+    let packet =
+        current_notebook_search_outline_navigation_packet().expect("embedded packet must parse");
     assert_eq!(
         packet.schema_version,
         NOTEBOOK_SEARCH_OUTLINE_NAVIGATION_SCHEMA_VERSION

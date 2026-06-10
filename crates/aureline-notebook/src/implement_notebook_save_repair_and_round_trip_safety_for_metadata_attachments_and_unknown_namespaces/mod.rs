@@ -288,8 +288,10 @@ impl NotebookSaveOperation {
             ));
         }
 
-        if matches!(self.save_kind_class, NotebookSaveKindClass::ExportDerivedFormat)
-            && self.round_trip_safe
+        if matches!(
+            self.save_kind_class,
+            NotebookSaveKindClass::ExportDerivedFormat
+        ) && self.round_trip_safe
         {
             findings.push(NotebookSaveOperationFinding::new(
                 "notebook_save_operation.export_not_round_trip_safe",
@@ -560,21 +562,26 @@ impl NotebookSaveRepairRoundTripPacket {
                 "save_kind_classes must list every variant",
             ));
         }
-        if self.metadata_preservation_classes.len() != NotebookMetadataPreservationClass::ALL.len() {
+        if self.metadata_preservation_classes.len() != NotebookMetadataPreservationClass::ALL.len()
+        {
             findings.push(NotebookSaveRepairRoundTripPacketFinding::new(
                 "notebook_save_repair_round_trip_packet.metadata_preservation_classes_coverage",
                 subject,
                 "metadata_preservation_classes must list every variant",
             ));
         }
-        if self.attachment_preservation_classes.len() != NotebookAttachmentPreservationClass::ALL.len() {
+        if self.attachment_preservation_classes.len()
+            != NotebookAttachmentPreservationClass::ALL.len()
+        {
             findings.push(NotebookSaveRepairRoundTripPacketFinding::new(
                 "notebook_save_repair_round_trip_packet.attachment_preservation_classes_coverage",
                 subject,
                 "attachment_preservation_classes must list every variant",
             ));
         }
-        if self.unknown_namespace_preservation_classes.len() != NotebookUnknownNamespacePreservationClass::ALL.len() {
+        if self.unknown_namespace_preservation_classes.len()
+            != NotebookUnknownNamespacePreservationClass::ALL.len()
+        {
             findings.push(NotebookSaveRepairRoundTripPacketFinding::new(
                 "notebook_save_repair_round_trip_packet.unknown_namespace_preservation_classes_coverage",
                 subject,
@@ -595,7 +602,9 @@ impl NotebookSaveRepairRoundTripPacket {
                 "repair_consequence_classes must list every variant",
             ));
         }
-        if self.round_trip_assertion_kind_classes.len() != NotebookRoundTripAssertionKindClass::ALL.len() {
+        if self.round_trip_assertion_kind_classes.len()
+            != NotebookRoundTripAssertionKindClass::ALL.len()
+        {
             findings.push(NotebookSaveRepairRoundTripPacketFinding::new(
                 "notebook_save_repair_round_trip_packet.round_trip_assertion_kind_classes_coverage",
                 subject,
@@ -612,17 +621,29 @@ impl NotebookSaveRepairRoundTripPacket {
 
         for op in &self.example_save_operations {
             findings.extend(op.validate().into_iter().map(|f| {
-                NotebookSaveRepairRoundTripPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                NotebookSaveRepairRoundTripPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
             }));
         }
         for action in &self.example_repair_actions {
             findings.extend(action.validate().into_iter().map(|f| {
-                NotebookSaveRepairRoundTripPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                NotebookSaveRepairRoundTripPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
             }));
         }
         for assertion in &self.example_round_trip_assertions {
             findings.extend(assertion.validate().into_iter().map(|f| {
-                NotebookSaveRepairRoundTripPacketFinding::new(&f.check_id, &f.subject_ref, &f.message)
+                NotebookSaveRepairRoundTripPacketFinding::new(
+                    &f.check_id,
+                    &f.subject_ref,
+                    &f.message,
+                )
             }));
         }
 
@@ -632,7 +653,12 @@ impl NotebookSaveRepairRoundTripPacket {
 
 impl NotebookSaveKindClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 4] = [Self::FullSave, Self::AutoSave, Self::CheckpointSave, Self::ExportDerivedFormat];
+    pub const ALL: [Self; 4] = [
+        Self::FullSave,
+        Self::AutoSave,
+        Self::CheckpointSave,
+        Self::ExportDerivedFormat,
+    ];
 }
 
 impl NotebookMetadataPreservationClass {
@@ -680,7 +706,11 @@ impl NotebookRepairKindClass {
 
 impl NotebookRepairConsequenceClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 3] = [Self::Lossless, Self::LossyWithExplicitNote, Self::LossyWithSilentFallback];
+    pub const ALL: [Self; 3] = [
+        Self::Lossless,
+        Self::LossyWithExplicitNote,
+        Self::LossyWithSilentFallback,
+    ];
 }
 
 impl NotebookRoundTripAssertionKindClass {
@@ -698,7 +728,12 @@ impl NotebookRoundTripAssertionKindClass {
 
 impl NotebookRoundTripResultClass {
     /// Every variant, in declaration order.
-    pub const ALL: [Self; 4] = [Self::Pass, Self::Fail, Self::Partial, Self::BlockedByFormatBoundary];
+    pub const ALL: [Self; 4] = [
+        Self::Pass,
+        Self::Fail,
+        Self::Partial,
+        Self::BlockedByFormatBoundary,
+    ];
 }
 
 /// Parses the checked-in save-repair-round-trip packet JSON.

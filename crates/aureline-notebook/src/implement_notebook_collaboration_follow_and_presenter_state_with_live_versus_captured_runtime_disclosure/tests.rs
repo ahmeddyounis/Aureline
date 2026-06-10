@@ -3,7 +3,8 @@ use super::*;
 fn sample_follow_state_following() -> NotebookCollaborationFollowState {
     NotebookCollaborationFollowState {
         record_kind: NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         follow_state_id: "nb.follow.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -21,7 +22,8 @@ fn sample_follow_state_following() -> NotebookCollaborationFollowState {
 fn sample_follow_state_breakaway() -> NotebookCollaborationFollowState {
     NotebookCollaborationFollowState {
         record_kind: NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         follow_state_id: "nb.follow.02".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -31,7 +33,9 @@ fn sample_follow_state_breakaway() -> NotebookCollaborationFollowState {
         follow_target_ref: "nb.cell.plot".to_owned(),
         current_cell_id_ref: Some("nb.cell.plot".to_owned()),
         current_output_handle_ref: Some("output.plot.01".to_owned()),
-        follow_explanation: Some("Charlie browsed independently to inspect the plot output.".to_owned()),
+        follow_explanation: Some(
+            "Charlie browsed independently to inspect the plot output.".to_owned(),
+        ),
         summary: "Charlie broke away to inspect the plot output independently.".to_owned(),
     }
 }
@@ -39,7 +43,8 @@ fn sample_follow_state_breakaway() -> NotebookCollaborationFollowState {
 fn sample_follow_state_degraded() -> NotebookCollaborationFollowState {
     NotebookCollaborationFollowState {
         record_kind: NOTEBOOK_COLLABORATION_FOLLOW_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         follow_state_id: "nb.follow.03".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -57,7 +62,8 @@ fn sample_follow_state_degraded() -> NotebookCollaborationFollowState {
 fn sample_presenter_state_active() -> NotebookPresenterState {
     NotebookPresenterState {
         record_kind: NOTEBOOK_PRESENTER_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         presenter_state_id: "nb.presenter.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -77,7 +83,8 @@ fn sample_presenter_state_active() -> NotebookPresenterState {
 fn sample_presenter_state_handoff() -> NotebookPresenterState {
     NotebookPresenterState {
         record_kind: NOTEBOOK_PRESENTER_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         presenter_state_id: "nb.presenter.02".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -93,7 +100,8 @@ fn sample_presenter_state_handoff() -> NotebookPresenterState {
 fn sample_presenter_state_idle() -> NotebookPresenterState {
     NotebookPresenterState {
         record_kind: NOTEBOOK_PRESENTER_STATE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         presenter_state_id: "nb.presenter.03".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         session_envelope_ref: "collab.session.01".to_owned(),
@@ -109,7 +117,8 @@ fn sample_presenter_state_idle() -> NotebookPresenterState {
 fn sample_runtime_disclosure_live() -> NotebookRuntimeDisclosure {
     NotebookRuntimeDisclosure {
         record_kind: NOTEBOOK_RUNTIME_DISCLOSURE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         runtime_disclosure_id: "nb.runtime.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         disclosure_class: NotebookRuntimeDisclosureClass::LiveRuntime,
@@ -119,14 +128,17 @@ fn sample_runtime_disclosure_live() -> NotebookRuntimeDisclosure {
             NotebookRuntimeDisclosureActionClass::RefreshRuntime,
             NotebookRuntimeDisclosureActionClass::SwitchToCaptured,
         ],
-        summary: "The collaborative view is showing live runtime state from the active Python kernel.".to_owned(),
+        summary:
+            "The collaborative view is showing live runtime state from the active Python kernel."
+                .to_owned(),
     }
 }
 
 fn sample_runtime_disclosure_captured() -> NotebookRuntimeDisclosure {
     NotebookRuntimeDisclosure {
         record_kind: NOTEBOOK_RUNTIME_DISCLOSURE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         runtime_disclosure_id: "nb.runtime.02".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         disclosure_class: NotebookRuntimeDisclosureClass::CapturedOutput,
@@ -137,21 +149,24 @@ fn sample_runtime_disclosure_captured() -> NotebookRuntimeDisclosure {
             NotebookRuntimeDisclosureActionClass::SwitchToLive,
             NotebookRuntimeDisclosureActionClass::RequestKernel,
         ],
-        summary: "The collaborative view is showing captured output from a prior session.".to_owned(),
+        summary: "The collaborative view is showing captured output from a prior session."
+            .to_owned(),
     }
 }
 
 fn sample_runtime_disclosure_no_kernel() -> NotebookRuntimeDisclosure {
     NotebookRuntimeDisclosure {
         record_kind: NOTEBOOK_RUNTIME_DISCLOSURE_RECORD_KIND.to_owned(),
-        notebook_collaboration_follow_presenter_schema_version: NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
+        notebook_collaboration_follow_presenter_schema_version:
+            NOTEBOOK_COLLABORATION_FOLLOW_PRESENTER_SCHEMA_VERSION,
         runtime_disclosure_id: "nb.runtime.03".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         disclosure_class: NotebookRuntimeDisclosureClass::NoKernel,
         kernel_session_ref: None,
         captured_at: None,
         disclosure_actions: vec![NotebookRuntimeDisclosureActionClass::RequestKernel],
-        summary: "No kernel is selected; only the saved document and captured outputs are visible.".to_owned(),
+        summary: "No kernel is selected; only the saved document and captured outputs are visible."
+            .to_owned(),
     }
 }
 
@@ -310,7 +325,10 @@ fn presenter_state_allows_missing_shared_ref_when_idle() {
     let mut p = sample_presenter_state_idle();
     p.shared_cell_id_ref = None;
     p.shared_output_handle_ref = None;
-    assert!(p.validate().is_empty(), "idle presenter may have no shared ref");
+    assert!(
+        p.validate().is_empty(),
+        "idle presenter may have no shared ref"
+    );
 }
 
 #[test]
@@ -335,13 +353,31 @@ fn runtime_disclosure_rejects_missing_captured_at_when_captured() {
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
-    assert_eq!(NotebookFollowMode::FollowingPresenter.as_str(), "following_presenter");
+    assert_eq!(
+        NotebookFollowMode::FollowingPresenter.as_str(),
+        "following_presenter"
+    );
     assert_eq!(NotebookFollowMode::Breakaway.as_str(), "breakaway");
-    assert_eq!(NotebookFollowTargetClass::SpecificCell.as_str(), "specific_cell");
-    assert_eq!(NotebookPresenterMode::HandoffPending.as_str(), "handoff_pending");
-    assert_eq!(NotebookPresenterActionClass::ShareOutput.as_str(), "share_output");
-    assert_eq!(NotebookRuntimeDisclosureClass::StaleRuntime.as_str(), "stale_runtime");
-    assert_eq!(NotebookRuntimeDisclosureActionClass::RequestKernel.as_str(), "request_kernel");
+    assert_eq!(
+        NotebookFollowTargetClass::SpecificCell.as_str(),
+        "specific_cell"
+    );
+    assert_eq!(
+        NotebookPresenterMode::HandoffPending.as_str(),
+        "handoff_pending"
+    );
+    assert_eq!(
+        NotebookPresenterActionClass::ShareOutput.as_str(),
+        "share_output"
+    );
+    assert_eq!(
+        NotebookRuntimeDisclosureClass::StaleRuntime.as_str(),
+        "stale_runtime"
+    );
+    assert_eq!(
+        NotebookRuntimeDisclosureActionClass::RequestKernel.as_str(),
+        "request_kernel"
+    );
 }
 
 #[test]

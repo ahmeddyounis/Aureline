@@ -268,7 +268,10 @@ fn sample_markdown_table_export() -> VariableExplorerTypedExport {
         export_id: "nb.var.export.markdown.01".to_owned(),
         document_id_ref: "nb.doc.example".to_owned(),
         kernel_session_id_ref: Some("nb.kernel.session.01".to_owned()),
-        variable_handle_refs: vec!["nb.var.handle.df".to_owned(), "nb.var.handle.summary".to_owned()],
+        variable_handle_refs: vec![
+            "nb.var.handle.df".to_owned(),
+            "nb.var.handle.summary".to_owned(),
+        ],
         export_format_class: VariableExplorerExportFormatClass::MarkdownTable,
         export_posture_class: VariableExplorerExportPostureClass::Ready,
         export_scope_class: VariableExplorerExportScopeClass::AllVisible,
@@ -543,25 +546,46 @@ fn packet_validates_clean() {
 #[test]
 fn embedded_packet_parses() {
     let packet = current_notebook_variable_explorer_packet().expect("embedded packet must parse");
-    assert_eq!(packet.schema_version, NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION);
-    assert_eq!(packet.record_kind, NOTEBOOK_VARIABLE_EXPLORER_PACKET_RECORD_KIND);
+    assert_eq!(
+        packet.schema_version,
+        NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION
+    );
+    assert_eq!(
+        packet.record_kind,
+        NOTEBOOK_VARIABLE_EXPLORER_PACKET_RECORD_KIND
+    );
 }
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
-    assert_eq!(VariableExplorerSortClass::NameAscending.as_str(), "name_ascending");
-    assert_eq!(VariableExplorerSortClass::FreshnessDescending.as_str(), "freshness_descending");
+    assert_eq!(
+        VariableExplorerSortClass::NameAscending.as_str(),
+        "name_ascending"
+    );
+    assert_eq!(
+        VariableExplorerSortClass::FreshnessDescending.as_str(),
+        "freshness_descending"
+    );
 
     assert_eq!(VariableExplorerFilterClass::LiveOnly.as_str(), "live_only");
     assert_eq!(VariableExplorerFilterClass::ByName.as_str(), "by_name");
 
     assert_eq!(VariableExplorerExportFormatClass::Csv.as_str(), "csv");
-    assert_eq!(VariableExplorerExportFormatClass::MarkdownTable.as_str(), "markdown_table");
+    assert_eq!(
+        VariableExplorerExportFormatClass::MarkdownTable.as_str(),
+        "markdown_table"
+    );
 
     assert_eq!(VariableExplorerExportPostureClass::Ready.as_str(), "ready");
-    assert_eq!(VariableExplorerExportPostureClass::BlockedByPolicy.as_str(), "blocked_by_policy");
+    assert_eq!(
+        VariableExplorerExportPostureClass::BlockedByPolicy.as_str(),
+        "blocked_by_policy"
+    );
 
-    assert_eq!(VariableExplorerExportScopeClass::AllVisible.as_str(), "all_visible");
+    assert_eq!(
+        VariableExplorerExportScopeClass::AllVisible.as_str(),
+        "all_visible"
+    );
     assert_eq!(
         VariableExplorerExportScopeClass::SnapshotSessionOnly.as_str(),
         "snapshot_session_only"

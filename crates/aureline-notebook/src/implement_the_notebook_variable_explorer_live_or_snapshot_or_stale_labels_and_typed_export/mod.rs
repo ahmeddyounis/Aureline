@@ -36,7 +36,8 @@ pub const NOTEBOOK_VARIABLE_EXPLORER_RECORD_KIND: &str = "notebook_variable_expl
 
 /// Stable record-kind tag for serialized [`VariableExplorerTypedExport`]
 /// payloads.
-pub const VARIABLE_EXPLORER_TYPED_EXPORT_RECORD_KIND: &str = "notebook_variable_explorer_typed_export";
+pub const VARIABLE_EXPLORER_TYPED_EXPORT_RECORD_KIND: &str =
+    "notebook_variable_explorer_typed_export";
 
 /// Stable record-kind tag for the checked-in [`NotebookVariableExplorerPacket`].
 pub const NOTEBOOK_VARIABLE_EXPLORER_PACKET_RECORD_KIND: &str = "notebook_variable_explorer_packet";
@@ -239,7 +240,9 @@ impl NotebookVariableExplorer {
                 ),
             ));
         }
-        if self.notebook_variable_explorer_schema_version != NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION {
+        if self.notebook_variable_explorer_schema_version
+            != NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION
+        {
             findings.push(NotebookVariableExplorerFinding::new(
                 "notebook_variable_explorer.schema_version",
                 subject,
@@ -397,7 +400,9 @@ impl VariableExplorerTypedExport {
                 ),
             ));
         }
-        if self.notebook_variable_explorer_schema_version != NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION {
+        if self.notebook_variable_explorer_schema_version
+            != NOTEBOOK_VARIABLE_EXPLORER_SCHEMA_VERSION
+        {
             findings.push(VariableExplorerTypedExportFinding::new(
                 "variable_explorer_typed_export.schema_version",
                 subject,
@@ -638,7 +643,8 @@ impl VariableExplorerExportScopeClass {
 }
 
 /// Parses the checked-in variable-explorer packet JSON.
-pub fn current_notebook_variable_explorer_packet() -> Result<NotebookVariableExplorerPacket, serde_json::Error> {
+pub fn current_notebook_variable_explorer_packet(
+) -> Result<NotebookVariableExplorerPacket, serde_json::Error> {
     serde_json::from_str(NOTEBOOK_VARIABLE_EXPLORER_PACKET_JSON)
 }
 
