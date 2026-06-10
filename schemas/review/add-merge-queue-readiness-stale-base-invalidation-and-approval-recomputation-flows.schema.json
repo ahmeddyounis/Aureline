@@ -1,0 +1,514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/add-merge-queue-readiness-stale-base-invalidation-and-approval-recomputation-flows.schema.json",
+  "title": "Aureline merge-queue readiness, stale-base invalidation, and approval-recomputation flows",
+  "description": "Export-safe packet implementing three merge-queue lane pillars: merge-queue readiness rows that carry target identity, durable review anchor, queue position, base freshness, readiness verdict, and the blocking reasons behind a non-ready verdict; stale-base invalidation rows that label how a base advance invalidates a queued entry's readiness instead of silently keeping it green; and approval-recomputation rows that label whether approvals were retained, fully reset, partially invalidated, or re-requested when the diff or base changes. The packet binds readiness entries, stale-base invalidations, approval recomputations, downgrade triggers, consumer surfaces, trust review, consumer projection, and proof freshness. Raw diff bodies, raw build logs, raw pipeline artifacts, raw provider payloads, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "readiness_entries",
+    "stale_base_invalidations",
+    "approval_recomputations",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "merge_queue_readiness_stale_base_invalidation_and_approval_recomputation"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "readiness_entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/readiness_row"
+      }
+    },
+    "stale_base_invalidations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stale_base_invalidation_row"
+      }
+    },
+    "approval_recomputations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/approval_recomputation_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "base_freshness": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_base",
+        "diverged",
+        "unknown"
+      ]
+    },
+    "readiness_verdict": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "blocked_on_checks",
+        "blocked_on_approvals",
+        "blocked_on_stale_base",
+        "blocked_on_policy",
+        "holding"
+      ]
+    },
+    "mutation_authority": {
+      "type": "string",
+      "enum": [
+        "read_only_no_mutation",
+        "attributable_write"
+      ]
+    },
+    "invalidation_action": {
+      "type": "string",
+      "enum": [
+        "requeue_after_rerun",
+        "auto_rebase_proposed",
+        "eject_to_author",
+        "hold_for_resolution",
+        "no_action_needed"
+      ]
+    },
+    "recomputation_trigger": {
+      "type": "string",
+      "enum": [
+        "diff_changed",
+        "base_advanced",
+        "requeue_requested",
+        "reviewer_removed",
+        "policy_changed"
+      ]
+    },
+    "recomputation_outcome": {
+      "type": "string",
+      "enum": [
+        "retained",
+        "reset_full",
+        "invalidated_partial",
+        "re_requested",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "stale_base_unlabeled",
+        "approval_recompute_unlabeled",
+        "readiness_overstated",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "merge_queue_panel",
+        "review_workspace_header",
+        "pipeline_viewer",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "readiness_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "target_identity_label",
+        "durable_anchor_id",
+        "queue_position",
+        "base_freshness",
+        "readiness_verdict",
+        "mutation_authority",
+        "required_checks_summary",
+        "required_approvals_summary",
+        "blocking_reasons",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_identity_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "durable_anchor_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "queue_position": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "base_freshness": {
+          "$ref": "#/$defs/base_freshness"
+        },
+        "readiness_verdict": {
+          "$ref": "#/$defs/readiness_verdict"
+        },
+        "mutation_authority": {
+          "$ref": "#/$defs/mutation_authority"
+        },
+        "required_checks_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "required_approvals_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "blocking_reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "readiness_verdict": {
+                "enum": [
+                  "blocked_on_checks",
+                  "blocked_on_approvals",
+                  "blocked_on_stale_base",
+                  "blocked_on_policy",
+                  "holding"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "blocking_reasons": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "stale_base_invalidation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "base_advance_label",
+        "invalidation_action",
+        "recompute_required",
+        "invalidation_label"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "base_advance_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "invalidation_action": {
+          "$ref": "#/$defs/invalidation_action"
+        },
+        "recompute_required": {
+          "type": "boolean"
+        },
+        "invalidation_label": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "invalidation_action": {
+                "enum": [
+                  "requeue_after_rerun",
+                  "auto_rebase_proposed",
+                  "eject_to_author",
+                  "hold_for_resolution"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "invalidation_label": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "approval_recomputation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "trigger",
+        "outcome",
+        "approvals_before",
+        "approvals_after",
+        "recomputation_label"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "trigger": {
+          "$ref": "#/$defs/recomputation_trigger"
+        },
+        "outcome": {
+          "$ref": "#/$defs/recomputation_outcome"
+        },
+        "approvals_before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "approvals_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recomputation_label": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "reset_full",
+                  "invalidated_partial",
+                  "re_requested"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "recomputation_label": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readiness_verdict_explicit",
+        "readiness_never_overstated",
+        "stale_base_invalidation_labeled_not_hidden",
+        "approval_recompute_labeled_not_hidden",
+        "approval_recomputes_on_base_or_diff_change",
+        "base_freshness_explicit",
+        "target_identity_explicit",
+        "no_hidden_write_scope",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "readiness_verdict_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "readiness_never_overstated": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_base_invalidation_labeled_not_hidden": {
+          "type": "boolean",
+          "const": true
+        },
+        "approval_recompute_labeled_not_hidden": {
+          "type": "boolean",
+          "const": true
+        },
+        "approval_recomputes_on_base_or_diff_change": {
+          "type": "boolean",
+          "const": true
+        },
+        "base_freshness_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "target_identity_explicit": {
+          "type": "boolean",
+          "const": true
+        },
+        "no_hidden_write_scope": {
+          "type": "boolean",
+          "const": true
+        },
+        "downgrade_narrows_instead_of_hides": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_or_underqualified_blocks_promotion": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "merge_queue_shows_readiness_verdict",
+        "merge_queue_shows_base_freshness",
+        "merge_queue_shows_blocking_reasons",
+        "stale_base_shows_invalidation_action",
+        "approval_surface_shows_recomputation",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "preview_labs_label_for_unqualified"
+      ],
+      "properties": {
+        "merge_queue_shows_readiness_verdict": {
+          "type": "boolean",
+          "const": true
+        },
+        "merge_queue_shows_base_freshness": {
+          "type": "boolean",
+          "const": true
+        },
+        "merge_queue_shows_blocking_reasons": {
+          "type": "boolean",
+          "const": true
+        },
+        "stale_base_shows_invalidation_action": {
+          "type": "boolean",
+          "const": true
+        },
+        "approval_surface_shows_recomputation": {
+          "type": "boolean",
+          "const": true
+        },
+        "cli_headless_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "support_export_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "diagnostics_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "help_about_shows_truth": {
+          "type": "boolean",
+          "const": true
+        },
+        "preview_labs_label_for_unqualified": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

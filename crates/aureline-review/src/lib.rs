@@ -11,6 +11,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
+pub mod add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows;
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
@@ -35,6 +36,22 @@ pub mod stabilize_work_item_status_transition_review;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
+pub use add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows::{
+    current_merge_queue_readiness_export, ApprovalRecomputationOutcome, ApprovalRecomputationRow,
+    MergeQueueReadinessArtifactError, MergeQueueReadinessConsumerProjection,
+    MergeQueueReadinessConsumerSurface, MergeQueueReadinessDowngradeTrigger,
+    MergeQueueReadinessPacket, MergeQueueReadinessPacketInput, MergeQueueReadinessProofFreshness,
+    MergeQueueReadinessRow, MergeQueueReadinessTrustReview, MergeQueueReadinessVerdict,
+    MergeQueueReadinessViolation, MutationAuthorityClass as MergeQueueMutationAuthorityClass,
+    QueueBaseFreshness, RecomputationTrigger, StaleBaseInvalidationAction,
+    StaleBaseInvalidationRow, MERGE_QUEUE_READINESS_ANCHOR_STABILITY_CONTRACT_REF,
+    MERGE_QUEUE_READINESS_ARTIFACT_REF, MERGE_QUEUE_READINESS_DOC_REF,
+    MERGE_QUEUE_READINESS_FIXTURE_DIR, MERGE_QUEUE_READINESS_LANDING_CONTRACT_REF,
+    MERGE_QUEUE_READINESS_MERGE_QUEUE_CONTRACT_REF,
+    MERGE_QUEUE_READINESS_PIPELINE_RUN_CONTRACT_REF, MERGE_QUEUE_READINESS_RECORD_KIND,
+    MERGE_QUEUE_READINESS_SCHEMA_REF, MERGE_QUEUE_READINESS_SCHEMA_VERSION,
+    MERGE_QUEUE_READINESS_SUMMARY_REF,
+};
 pub use aureline_navigation::target_model as navigation_target_model;
 pub use change_inspector::{
     project_change_lineage, ChangeLineageAncestorEntry, ChangeLineageAncestryView,
