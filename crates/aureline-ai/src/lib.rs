@@ -235,6 +235,24 @@
 //! qualification, downgrade, and rollback-posture vocabulary, the routing-policy
 //! mode, quota, and cost-band vocabulary, and the provider-route region and
 //! retention vocabulary.
+//! The M5 lane certification capstone exposes one
+//! [`certify_local_model_provider_recipe_connector_and_spend_governance_lanes_on_every_claimed_m5_profile::M5LaneCertificationPacket`]
+//! object binding, for every governed lane — local-model packs, provider
+//! routing, recipe automation, external connectors, and spend governance — the
+//! per-profile coverage that says where the lane is claimed across the local,
+//! BYOK, managed, offline-mirror, and hybrid-managed families and how each claim
+//! discloses provider, model, locality, region, retention, cost owner, tool
+//! side-effect class, and automation authority, a disclosure scorecard scored
+//! against fixed thresholds, and a closed set of downgrade rules — refusing to
+//! claim a lane on a profile while hiding provider, model, region, retention, or
+//! cost, refusing an execution mode that disagrees with the profile family,
+//! refusing to widen a managed claim beyond a qualified family, refusing an
+//! automation authority too weak for the side effect it grants, binding every
+//! lane to its canonical source schema so no surface stays greener than this
+//! packet, and narrowing rather than hiding on stale proof — reusing the frozen
+//! M5 qualification and downgrade vocabulary, the routing-policy execution-mode
+//! vocabulary, the tool-gateway side-effect vocabulary, and the recipe-pack
+//! automation-authority vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -265,6 +283,7 @@ pub mod ai_review_assist;
 pub mod ai_test_generation;
 pub mod audit_optional_ai_adjacent_surfaces;
 pub mod certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode;
+pub mod certify_local_model_provider_recipe_connector_and_spend_governance_lanes_on_every_claimed_m5_profile;
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
@@ -381,6 +400,16 @@ pub use certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_ea
     AI_MODE_CERTIFICATION_FIXTURE_DIR, AI_MODE_CERTIFICATION_RECORD_KIND,
     AI_MODE_CERTIFICATION_SCHEMA_REF, AI_MODE_CERTIFICATION_SCHEMA_VERSION,
     AI_MODE_CERTIFICATION_SUMMARY_REF,
+};
+pub use certify_local_model_provider_recipe_connector_and_spend_governance_lanes_on_every_claimed_m5_profile::{
+    current_m5_lane_certification_export, CertifiedLane, DisclosureStatus, LaneCertification,
+    LaneDisclosureDimension, LaneDisclosureRow, LaneDowngradeRule, M5LaneCertificationArtifactError,
+    M5LaneCertificationPacket, M5LaneCertificationPacketInput, M5LaneCertificationProofFreshness,
+    M5LaneCertificationViolation, M5LaneProfile, ProfileCoverageRow,
+    M5_LANE_CERTIFICATION_ARTIFACT_REF, M5_LANE_CERTIFICATION_DOC_REF,
+    M5_LANE_CERTIFICATION_FIXTURE_DIR, M5_LANE_CERTIFICATION_RECORD_KIND,
+    M5_LANE_CERTIFICATION_SCHEMA_REF, M5_LANE_CERTIFICATION_SCHEMA_VERSION,
+    M5_LANE_CERTIFICATION_SUMMARY_REF,
 };
 pub use composer::beta::{
     current_beta_composer_context_evidence_support_export,

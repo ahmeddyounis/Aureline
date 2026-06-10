@@ -1,0 +1,60 @@
+# M5 Lane Certification
+
+- Packet: `m5-lane-certification:stable:0001`
+- Label: `M5 Lane Certification`
+- Lanes: 5 (3 stable)
+- Claimed (lane, profile) pairs: 21
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-07T00:00:00Z)
+
+## Lanes
+
+- **local_model_pack**: `stable`
+  - Scope: Local model pack install, provenance, hardware fit, and offline/mirror channels
+  - Canonical schemas: `schemas/ai/implement-local-model-pack-install-provenance-hardware-fit-checks-and-offline-or-mirror-support.schema.json`
+  - Profiles:
+    - `local_only`: stable (local)
+    - `offline_mirror`: stable (local)
+    - `byok_direct`: not claimed (byok)
+    - `managed_hosted`: not claimed (managed)
+    - `hybrid_managed`: not claimed (managed)
+  - Disclosure dimensions: 8 | Downgrade rules: 2
+- **provider_routing**: `stable`
+  - Scope: Provider/model registry, route disclosure, graduation rings, and routing policy
+  - Canonical schemas: `schemas/ai/materialize-the-provider-and-model-registry-local-or-byok-or-managed-mode-disclosure-and-route-inspectors.schema.json`, `schemas/ai/implement-routing-policy-quota-families-per-session-cost-bands-and-fallback-chains.schema.json`
+  - Profiles:
+    - `local_only`: stable (local)
+    - `byok_direct`: stable (byok)
+    - `managed_hosted`: stable (managed)
+    - `offline_mirror`: stable (local)
+    - `hybrid_managed`: stable (managed)
+  - Disclosure dimensions: 8 | Downgrade rules: 2
+- **recipe_automation**: `beta`
+  - Scope: Signed/shared recipe packs and recorded-macro promotion under preview-first replay
+  - Canonical schemas: `schemas/ai/implement-signed-and-shared-recipe-packs-safe-automation-graduation-and-preview-first-replay.schema.json`, `schemas/ai/add-recorded-macro-promotion-recipe-insertion-and-headless-safe-result-packets-for-user-automation.schema.json`
+  - Profiles:
+    - `local_only`: beta (local)
+    - `byok_direct`: beta (byok)
+    - `managed_hosted`: beta (managed)
+    - `offline_mirror`: preview (local)
+    - `hybrid_managed`: beta (managed)
+  - Disclosure dimensions: 8 | Downgrade rules: 2
+- **external_connector**: `beta`
+  - Scope: External-tool gateway connectors with capability classes and side-effect disclosure
+  - Canonical schemas: `schemas/ai/ship-the-external-tool-gateway-and-connector-manifests-with-capability-classes-and-side-effect-disclosure.schema.json`, `schemas/ai/tool_gateway_descriptor.schema.json`
+  - Profiles:
+    - `local_only`: beta (local)
+    - `byok_direct`: beta (byok)
+    - `managed_hosted`: beta (managed)
+    - `offline_mirror`: not claimed (local)
+    - `hybrid_managed`: preview (managed)
+  - Disclosure dimensions: 8 | Downgrade rules: 2
+- **spend_governance**: `stable`
+  - Scope: Spend ledgers, quota ceilings, budget attribution, and offline-safe usage reporting
+  - Canonical schemas: `schemas/ai/add-spend-ledgers-quota-warning-surfaces-and-wall-clock-or-token-or-tool-call-ceilings-for-long-running-agents.schema.json`, `schemas/ai/implement-customer-visible-usage-export-budget-attribution-and-managed-or-offline-safe-reporting-for-ai-lanes.schema.json`
+  - Profiles:
+    - `local_only`: stable (local)
+    - `byok_direct`: stable (byok)
+    - `managed_hosted`: stable (managed)
+    - `offline_mirror`: stable (local)
+    - `hybrid_managed`: stable (managed)
+  - Disclosure dimensions: 8 | Downgrade rules: 2
