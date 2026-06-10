@@ -15,6 +15,7 @@ pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
+pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings;
 pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
@@ -106,6 +107,19 @@ pub use freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retr
     M5_DOCS_RECALL_MATRIX_RECORD_KIND, M5_DOCS_RECALL_MATRIX_RETRIEVAL_DEBUG_CONTRACT_REF,
     M5_DOCS_RECALL_MATRIX_SCHEMA_REF, M5_DOCS_RECALL_MATRIX_SCHEMA_VERSION,
     M5_DOCS_RECALL_MATRIX_SUMMARY_REF,
+};
+pub use implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings::{
+    current_stable_docs_pack_recall_export, packet_to_input,
+    seeded_stable_docs_pack_recall_input, DocsPackRecallArtifactError, DocsPackRecallChipSet,
+    DocsPackRecallConfidence, DocsPackRecallConsumerProjection, DocsPackRecallConsumerSurface,
+    DocsPackRecallFindingKind, DocsPackRecallFindingSeverity, DocsPackRecallFreshness,
+    DocsPackRecallLocality, DocsPackRecallMirrorAwareness, DocsPackRecallPacket,
+    DocsPackRecallPacketInput, DocsPackRecallPromotionState, DocsPackRecallResultRow,
+    DocsPackRecallSourceClass, DocsPackRecallStaleFinding, DocsPackRecallStaleFindingClass,
+    DocsPackRecallSupportExport, DocsPackRecallValidationFinding, DocsPackRecallVersionMatch,
+    DOCS_PACK_RECALL_ARTIFACT_REF, DOCS_PACK_RECALL_DOC_REF, DOCS_PACK_RECALL_FIXTURE_DIR,
+    DOCS_PACK_RECALL_RECORD_KIND, DOCS_PACK_RECALL_SCHEMA_REF, DOCS_PACK_RECALL_SCHEMA_VERSION,
+    DOCS_PACK_RECALL_SUMMARY_REF, DOCS_PACK_RECALL_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use index::{
     DocsSearchIndex, DocsSearchIndexEntry, DocsSearchQueryResult,
