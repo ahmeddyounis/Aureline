@@ -30,6 +30,7 @@ pub mod review_pack_dsl;
 pub mod review_pack_evaluator_and_local_ci_parity;
 pub mod review_pack_parity_harness;
 pub mod ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects;
+pub mod ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_and_side_effect_review;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
 pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
@@ -310,6 +311,18 @@ pub use ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_c
     EVIDENCE_CARD_CHANGE_OBJECT_CONTRACT_REF, EVIDENCE_CARD_DOC_REF, EVIDENCE_CARD_FIXTURE_DIR,
     EVIDENCE_CARD_RECORD_KIND, EVIDENCE_CARD_REVIEW_PACK_CONTRACT_REF, EVIDENCE_CARD_SCHEMA_REF,
     EVIDENCE_CARD_SCHEMA_VERSION, EVIDENCE_CARD_SUMMARY_REF,
+};
+pub use ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_and_side_effect_review::{
+    current_rerun_cancel_review_export, ActionBlockedClass, ActionControlClass, ActionEffectSummary,
+    ActionMutationMode, ActionTargetScope, ContextFreshness, ExecutionContextReuseDecision,
+    RerunCancelActionRow, RerunCancelArtifactError, RerunCancelConsumerProjection,
+    RerunCancelConsumerSurface, RerunCancelDowngradeTrigger, RerunCancelProofFreshness,
+    RerunCancelReviewPacket, RerunCancelReviewPacketInput, RerunCancelTrustReview,
+    RerunCancelViolation, SideEffectAckRequirement, SideEffectClass, SideEffectReviewRow,
+    RERUN_CANCEL_ARTIFACT_REF, RERUN_CANCEL_DOC_REF, RERUN_CANCEL_EXECUTION_CONTEXT_CONTRACT_REF,
+    RERUN_CANCEL_FIXTURE_DIR, RERUN_CANCEL_PIPELINE_RUN_CONTRACT_REF, RERUN_CANCEL_RECORD_KIND,
+    RERUN_CANCEL_RUN_CONTROL_CONTRACT_REF, RERUN_CANCEL_SCHEMA_REF, RERUN_CANCEL_SCHEMA_VERSION,
+    RERUN_CANCEL_SUMMARY_REF, RERUN_CANCEL_TRUST_CLASS_CONTRACT_REF,
 };
 pub use stabilize_provider_linked_object_models_snapshot_freshness_and::{
     project_provider_linked_review_stabilization_packet, ActorTargetIdentityInput,

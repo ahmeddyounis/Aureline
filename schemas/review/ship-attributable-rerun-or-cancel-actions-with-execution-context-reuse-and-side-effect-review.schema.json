@@ -1,0 +1,568 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/ship-attributable-rerun-or-cancel-actions-with-execution-context-reuse-and-side-effect-review.schema.json",
+  "title": "Aureline attributable rerun / cancel actions with execution-context reuse and side-effect review",
+  "description": "Export-safe packet implementing three rerun/cancel lane pillars: attributable rerun/cancel action rows that carry the run, durable review anchor, target identity, control class, target scope, provider-mode mutation mode, execution context id, reuse decision, context freshness, blocked class, actor attribution, audit row ref, and a reviewable effect summary; execution-context reuse that flags a degraded or stale reused context with a non-empty staleness label rather than silently replaying it; and side-effect review rows that bind a typed side-effect class and acknowledgment requirement to each action so a non-inert side effect is acknowledged before the control can fire. The packet binds action rows, side-effect rows, downgrade triggers, consumer surfaces, trust review, consumer projection, and proof freshness. Rerun and cancel controls always reach upstream provider state, so the local-only local_draft mutation mode is intentionally absent; publish_now must cite an approval_ticket_ref, open_in_provider must cite a browser_handoff_ref, and deferred_publish must cite a deferred_queue_ref. Raw run/log/artifact bodies, raw provider payloads, raw URLs, raw absolute paths, raw author email addresses, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "action_rows",
+    "side_effect_rows",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_and_side_effect_review"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "action_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/action_row"
+      }
+    },
+    "side_effect_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/side_effect_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "nullable_ref": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "control_class": {
+      "type": "string",
+      "enum": [
+        "rerun_workflow",
+        "rerun_failed_jobs",
+        "rerun_single_job",
+        "rerun_single_step",
+        "cancel_workflow",
+        "cancel_single_job",
+        "unknown_control_provider_owned"
+      ]
+    },
+    "target_scope": {
+      "type": "string",
+      "enum": [
+        "single_step_only",
+        "single_job_only",
+        "failed_jobs_only",
+        "entire_workflow_run",
+        "entire_check_run",
+        "entire_deployment_run",
+        "entire_release_run"
+      ]
+    },
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish"
+      ],
+      "description": "Provider-mode mutation modes admissible for rerun/cancel. local_draft is intentionally absent because rerun and cancel reach upstream provider state."
+    },
+    "context_reuse_decision": {
+      "type": "string",
+      "enum": [
+        "reuse_identical_context",
+        "reuse_with_pinned_inputs",
+        "reuse_with_refreshed_secrets",
+        "fork_new_context",
+        "provider_default_context",
+        "unknown_context_provider_owned"
+      ]
+    },
+    "context_freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "blocked_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked",
+        "blocked_no_auth_for_target_scope",
+        "blocked_policy_forbids_control",
+        "blocked_provider_does_not_support_control",
+        "blocked_run_state_not_eligible",
+        "blocked_freshness_stale_review_required",
+        "blocked_context_reuse_stale_review_required",
+        "blocked_side_effect_unacknowledged",
+        "blocked_offline_or_disconnected",
+        "blocked_unknown_reason_provider_owned"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_external_side_effect",
+        "triggers_deployment",
+        "triggers_release",
+        "sends_notifications",
+        "writes_external_artifact",
+        "mutates_provider_run_state",
+        "consumes_quota_or_cost",
+        "unknown_side_effect_provider_owned"
+      ]
+    },
+    "acknowledgment_requirement": {
+      "type": "string",
+      "enum": [
+        "no_ack_required",
+        "requires_explicit_confirmation",
+        "requires_approval_ticket",
+        "requires_browser_handoff",
+        "requires_deferred_queue",
+        "denied_no_safe_action"
+      ]
+    },
+    "explicit_acknowledgment_requirement": {
+      "type": "string",
+      "enum": [
+        "requires_explicit_confirmation",
+        "requires_approval_ticket",
+        "requires_browser_handoff",
+        "requires_deferred_queue",
+        "denied_no_safe_action"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "action_attribution_missing",
+        "context_reuse_stale",
+        "side_effect_unreviewed",
+        "run_control_authority_revoked",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "runs_panel",
+        "run_control_menu",
+        "side_effect_review_sheet",
+        "review_workspace_header",
+        "command_palette",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "effect_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "what_will_fire_label",
+        "where_label",
+        "under_whose_authority_label",
+        "audit_row_label"
+      ],
+      "properties": {
+        "what_will_fire_label": { "$ref": "#/$defs/non_empty_string" },
+        "where_label": { "$ref": "#/$defs/non_empty_string" },
+        "under_whose_authority_label": { "$ref": "#/$defs/non_empty_string" },
+        "audit_row_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "run_id",
+        "durable_anchor_id",
+        "target_identity_label",
+        "control_class",
+        "target_scope",
+        "mutation_mode",
+        "execution_context_id",
+        "context_reuse_decision",
+        "context_freshness",
+        "context_staleness_label",
+        "blocked_class",
+        "actor_attribution_label",
+        "audit_row_ref",
+        "effect_summary",
+        "attention_reasons",
+        "review_summary",
+        "approval_ticket_ref",
+        "browser_handoff_ref",
+        "deferred_queue_ref",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "run_id": { "$ref": "#/$defs/non_empty_string" },
+        "durable_anchor_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_label": { "$ref": "#/$defs/non_empty_string" },
+        "control_class": { "$ref": "#/$defs/control_class" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "context_reuse_decision": { "$ref": "#/$defs/context_reuse_decision" },
+        "context_freshness": { "$ref": "#/$defs/context_freshness" },
+        "context_staleness_label": { "type": "string" },
+        "blocked_class": { "$ref": "#/$defs/blocked_class" },
+        "actor_attribution_label": { "$ref": "#/$defs/non_empty_string" },
+        "audit_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "effect_summary": { "$ref": "#/$defs/effect_summary" },
+        "attention_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "review_summary": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_ref" },
+        "browser_handoff_ref": { "$ref": "#/$defs/nullable_ref" },
+        "deferred_queue_ref": { "$ref": "#/$defs/nullable_ref" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" }
+      },
+      "allOf": [
+        {
+          "description": "rerun_workflow and cancel_workflow MUST resolve to entire_workflow_run.",
+          "if": {
+            "properties": {
+              "control_class": { "enum": ["rerun_workflow", "cancel_workflow"] }
+            },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "target_scope": { "const": "entire_workflow_run" }
+            }
+          }
+        },
+        {
+          "description": "rerun_failed_jobs MUST resolve to failed_jobs_only.",
+          "if": {
+            "properties": { "control_class": { "const": "rerun_failed_jobs" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": { "target_scope": { "const": "failed_jobs_only" } }
+          }
+        },
+        {
+          "description": "rerun_single_job and cancel_single_job MUST resolve to single_job_only.",
+          "if": {
+            "properties": {
+              "control_class": { "enum": ["rerun_single_job", "cancel_single_job"] }
+            },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": { "target_scope": { "const": "single_job_only" } }
+          }
+        },
+        {
+          "description": "rerun_single_step MUST resolve to single_step_only.",
+          "if": {
+            "properties": { "control_class": { "const": "rerun_single_step" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": { "target_scope": { "const": "single_step_only" } }
+          }
+        },
+        {
+          "description": "unknown_control_provider_owned MUST carry at least one attention reason.",
+          "if": {
+            "properties": {
+              "control_class": { "const": "unknown_control_provider_owned" }
+            },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "attention_reasons": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "A blocked action MUST carry at least one attention reason.",
+          "if": {
+            "properties": {
+              "blocked_class": {
+                "not": { "const": "not_blocked" }
+              }
+            },
+            "required": ["blocked_class"]
+          },
+          "then": {
+            "properties": {
+              "attention_reasons": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "publish_now MUST cite an approval_ticket_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "publish_now" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "open_in_provider MUST cite a browser_handoff_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "open_in_provider" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["browser_handoff_ref"]
+          }
+        },
+        {
+          "description": "deferred_publish MUST cite a deferred_queue_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "deferred_publish" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "deferred_queue_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["deferred_queue_ref"]
+          }
+        },
+        {
+          "description": "A degraded reused context MUST carry a non-empty staleness label.",
+          "if": {
+            "properties": {
+              "context_reuse_decision": {
+                "enum": [
+                  "reuse_identical_context",
+                  "reuse_with_pinned_inputs",
+                  "reuse_with_refreshed_secrets"
+                ]
+              },
+              "context_freshness": {
+                "enum": ["degraded_cached", "stale", "unverified"]
+              }
+            },
+            "required": ["context_reuse_decision", "context_freshness"]
+          },
+          "then": {
+            "properties": {
+              "context_staleness_label": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+    "side_effect_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "side_effect_id",
+        "side_effect_label",
+        "side_effect_class",
+        "acknowledgment_requirement",
+        "disclosure_label"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_id": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_label": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "acknowledgment_requirement": { "$ref": "#/$defs/acknowledgment_requirement" },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "description": "A non-inert side effect MUST require an explicit acknowledgment.",
+          "if": {
+            "properties": {
+              "side_effect_class": {
+                "not": { "const": "no_external_side_effect" }
+              }
+            },
+            "required": ["side_effect_class"]
+          },
+          "then": {
+            "properties": {
+              "acknowledgment_requirement": {
+                "$ref": "#/$defs/explicit_acknowledgment_requirement"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_control_class_explicit",
+        "target_scope_explicit",
+        "every_mutating_action_attributable",
+        "audit_row_recorded_for_every_action",
+        "execution_context_reuse_explicit",
+        "stale_context_reuse_flagged_not_hidden",
+        "side_effect_reviewed_before_invocation",
+        "non_inert_side_effect_requires_acknowledgment",
+        "no_hidden_write_scope",
+        "mutation_mode_cites_required_grant",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "action_control_class_explicit": { "const": true },
+        "target_scope_explicit": { "const": true },
+        "every_mutating_action_attributable": { "const": true },
+        "audit_row_recorded_for_every_action": { "const": true },
+        "execution_context_reuse_explicit": { "const": true },
+        "stale_context_reuse_flagged_not_hidden": { "const": true },
+        "side_effect_reviewed_before_invocation": { "const": true },
+        "non_inert_side_effect_requires_acknowledgment": { "const": true },
+        "no_hidden_write_scope": { "const": true },
+        "mutation_mode_cites_required_grant": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true },
+        "stale_or_underqualified_blocks_promotion": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runs_panel_shows_control_class",
+        "run_control_menu_shows_target_scope",
+        "run_control_menu_shows_attribution",
+        "side_effect_sheet_shows_effect_summary",
+        "side_effect_sheet_shows_acknowledgment",
+        "review_workspace_header_shows_context_reuse",
+        "command_palette_shows_effect_summary",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "preview_labs_label_for_unqualified"
+      ],
+      "properties": {
+        "runs_panel_shows_control_class": { "const": true },
+        "run_control_menu_shows_target_scope": { "const": true },
+        "run_control_menu_shows_attribution": { "const": true },
+        "side_effect_sheet_shows_effect_summary": { "const": true },
+        "side_effect_sheet_shows_acknowledgment": { "const": true },
+        "review_workspace_header_shows_context_reuse": { "const": true },
+        "command_palette_shows_effect_summary": { "const": true },
+        "cli_headless_shows_truth": { "const": true },
+        "support_export_shows_truth": { "const": true },
+        "diagnostics_shows_truth": { "const": true },
+        "help_about_shows_truth": { "const": true },
+        "preview_labs_label_for_unqualified": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
