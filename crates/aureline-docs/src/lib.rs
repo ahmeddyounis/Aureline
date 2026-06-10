@@ -24,6 +24,7 @@ pub mod maintenance;
 pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
 pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links;
+pub mod ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling;
 pub mod stable_docs_contract;
 
 pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels::{
@@ -245,6 +246,22 @@ pub use ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preservin
     DOCS_SEARCH_LINK_SCHEMA_VERSION, DOCS_SEARCH_LINK_SUMMARY_REF,
     DOCS_SEARCH_LINK_SUPPORT_EXPORT_RECORD_KIND,
     DOCS_SEARCH_LINK_SYMBOL_REFERENCE_CONTRACT_REF, DOCS_SEARCH_LINK_VALIDATION_MANIFEST_REF,
+};
+pub use ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling::{
+    current_stable_retrieval_debug_export,
+    packet_to_input as retrieval_debug_packet_to_input, seeded_stable_retrieval_debug_input,
+    RankingSignal as RetrievalRankingSignal, RankingSignalKind as RetrievalRankingSignalKind,
+    RetrievalChipSet, RetrievalConfidence,
+    RetrievalConsumerProjection, RetrievalConsumerSurface, RetrievalDebugArtifactError,
+    RetrievalDebugEntry, RetrievalDebugExport, RetrievalDebugExportRow, RetrievalDebugPacket,
+    RetrievalDebugPacketInput, RetrievalDebugSupportExport, RetrievalDegradation,
+    RetrievalDegradationClass, RetrievalDerivationLabel, RetrievalExportScope, RetrievalFindingKind,
+    RetrievalFindingSeverity, RetrievalFreshness, RetrievalLane, RetrievalLocality,
+    RetrievalPromotionState, RetrievalSourceClass, RetrievalSubjectKind, RetrievalValidationFinding,
+    RetrievalVersionMatch, SignalContribution, RETRIEVAL_DEBUG_ARTIFACT_REF, RETRIEVAL_DEBUG_DOC_REF,
+    RETRIEVAL_DEBUG_FIXTURE_DIR, RETRIEVAL_DEBUG_RECORD_KIND, RETRIEVAL_DEBUG_SCHEMA_REF,
+    RETRIEVAL_DEBUG_SCHEMA_VERSION, RETRIEVAL_DEBUG_SUMMARY_REF,
+    RETRIEVAL_DEBUG_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stable_docs_contract::{
     current_stable_docs_source_result_pack_and_citation_packet,
