@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ship-evidence-rich-patch-review-with-diff-packets-validation-receipts-and-rollback-handles-across-apply-flows.schema.json",
+  "title": "Aureline evidence-rich patch review with diff packets, validation receipts, and rollback handles across apply flows",
+  "$comment": "Rust owner: aureline_ai::ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows::EvidenceRichPatchReviewPacket.",
+  "description": "Boundary schema for the metadata-only evidence-rich patch review record. The packet binds structured diff packets (content-addressed hunk-level diff inventory with per-file and per-hunk disclosure, approval, and scope honesty), validation receipts (attributable validation evidence bound to the exact patch digest), and rollback handles (recoverable checkpoint lineage and revert availability) into one export-safe artifact for the three AI apply flows: inline assist, patch review, and branch or worktree agents. It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, digests, and review labels only. It never carries raw diff bodies, raw patch text, raw prompt bodies, source file bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "apply_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "diff_packet",
+    "validation_receipt",
+    "rollback_handle",
+    "apply_flow_bindings",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "evidence_rich_patch_review" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "apply_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "diff_packet": { "$ref": "#/$defs/diff_packet_block" },
+    "validation_receipt": { "$ref": "#/$defs/validation_receipt_block" },
+    "rollback_handle": { "$ref": "#/$defs/rollback_handle_block" },
+    "apply_flow_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/apply_flow_binding_row" }
+    },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "apply_flow_class": {
+      "type": "string",
+      "enum": ["inline_assist", "patch_review", "branch_or_worktree_agent"],
+      "description": "One of the three M5 AI apply flows governed by this packet."
+    },
+    "diff_packet_state_class": {
+      "type": "string",
+      "enum": ["proposed", "under_review", "approved", "applied", "reverted", "rejected"],
+      "description": "Lifecycle state of a diff packet across propose, review, validate, approve, apply, and revert."
+    },
+    "validation_kind_class": {
+      "type": "string",
+      "enum": ["lint", "type_check", "test", "security_scan", "format_check", "build_check"],
+      "description": "Kind of validation run against a diff packet."
+    },
+    "validation_outcome_class": {
+      "type": "string",
+      "enum": ["passed", "failed", "partial", "skipped", "blocked"],
+      "description": "Outcome of a single validation run."
+    },
+    "rollback_scope_class": {
+      "type": "string",
+      "enum": ["single_file", "multi_file_bounded", "workspace_wide"],
+      "description": "Scope a rollback handle can recover."
+    },
+    "rollback_state_class": {
+      "type": "string",
+      "enum": ["available", "consumed", "expired", "unavailable"],
+      "description": "Availability state of a rollback handle."
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": ["desktop_composer", "desktop_review_workspace", "cli_headless", "browser_companion", "support_export", "diagnostics"],
+      "description": "Consumer surface that must project this lane."
+    },
+    "surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "patch_change_kind": {
+      "type": "string",
+      "enum": ["create_file", "modify_file", "delete_file", "rename_file"],
+      "description": "Per-file change kind disclosed in a multi-file patch."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "validation_failed_or_missing",
+        "rollback_unavailable"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "diff_file_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_ref", "change_kind", "hunk_count", "within_declared_scope", "disclosed_in_preview", "approved_for_apply", "reached_live_tree"],
+      "properties": {
+        "file_ref": { "type": "string", "minLength": 1, "description": "Opaque file ref (never a raw absolute path)." },
+        "change_kind": { "$ref": "#/$defs/patch_change_kind" },
+        "hunk_count": { "type": "integer", "minimum": 0 },
+        "within_declared_scope": { "type": "boolean" },
+        "disclosed_in_preview": { "type": "boolean" },
+        "approved_for_apply": { "type": "boolean" },
+        "reached_live_tree": { "type": "boolean" },
+        "rename_from_ref": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] }
+      }
+    },
+    "diff_hunk_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hunk_id", "file_ref", "hunk_digest", "disclosed_in_preview", "approved_for_apply", "reached_live_tree"],
+      "properties": {
+        "hunk_id": { "type": "string", "minLength": 1 },
+        "file_ref": { "type": "string", "minLength": 1 },
+        "hunk_digest": { "type": "string", "minLength": 1, "description": "Content-addressed hunk digest." },
+        "disclosed_in_preview": { "type": "boolean" },
+        "approved_for_apply": { "type": "boolean" },
+        "reached_live_tree": { "type": "boolean" }
+      }
+    },
+    "diff_packet_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["patch_digest_ref", "declared_file_count", "disclosed_file_count", "files", "hunks", "patch_artifact_ref"],
+      "properties": {
+        "patch_digest_ref": { "type": "string", "minLength": 1, "description": "Content-addressed patch digest ref binding the diff packet to validation and rollback lineage." },
+        "declared_file_count": { "type": "integer", "minimum": 0 },
+        "disclosed_file_count": { "type": "integer", "minimum": 0 },
+        "files": { "type": "array", "items": { "$ref": "#/$defs/diff_file_row" } },
+        "hunks": { "type": "array", "items": { "$ref": "#/$defs/diff_hunk_row" } },
+        "patch_artifact_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the patch artifact stored in the evidence cache. Never a raw diff body." }
+      }
+    },
+    "validation_receipt_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "outcome", "validator_ref", "run_at", "bound_patch_digest_ref", "disclosed_before_apply", "blocked_apply"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/validation_kind_class" },
+        "outcome": { "$ref": "#/$defs/validation_outcome_class" },
+        "validator_ref": { "type": "string", "minLength": 1 },
+        "run_at": { "type": "string", "format": "date-time" },
+        "bound_patch_digest_ref": { "type": "string", "minLength": 1 },
+        "disclosed_before_apply": { "type": "boolean" },
+        "blocked_apply": { "type": "boolean" }
+      }
+    },
+    "validation_receipt_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_id", "validations", "overall_outcome", "validation_required_before_apply", "all_required_passed"],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "validations": { "type": "array", "items": { "$ref": "#/$defs/validation_receipt_row" } },
+        "overall_outcome": { "$ref": "#/$defs/validation_outcome_class" },
+        "validation_required_before_apply": { "type": "boolean" },
+        "all_required_passed": { "type": "boolean" }
+      }
+    },
+    "rollback_handle_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle_id", "scope", "state", "checkpoint_ref", "revert_available"],
+      "properties": {
+        "handle_id": { "type": "string", "minLength": 1 },
+        "scope": { "$ref": "#/$defs/rollback_scope_class" },
+        "state": { "$ref": "#/$defs/rollback_state_class" },
+        "checkpoint_ref": { "type": "string", "minLength": 1 },
+        "mutation_journal_ref": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "revert_available": { "type": "boolean" },
+        "revert_handle_ref": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "expires_at": { "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }] }
+      }
+    },
+    "apply_flow_binding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow", "diff_state", "has_diff_packet", "has_validation_receipt", "has_rollback_handle", "preview_shown", "approval_required", "approval_granted", "apply_bounded_to_scope"],
+      "properties": {
+        "flow": { "$ref": "#/$defs/apply_flow_class" },
+        "diff_state": { "$ref": "#/$defs/diff_packet_state_class" },
+        "has_diff_packet": { "type": "boolean" },
+        "has_validation_receipt": { "type": "boolean" },
+        "has_rollback_handle": { "type": "boolean" },
+        "preview_shown": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "approval_granted": { "type": "boolean" },
+        "apply_bounded_to_scope": { "type": "boolean" }
+      }
+    },
+    "consumer_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "shows_diff_packet", "shows_validation_receipt", "shows_rollback_handle", "shows_apply_flow_binding", "reachable", "qualification", "claimed_stable"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface_class" },
+        "shows_diff_packet": { "type": "boolean" },
+        "shows_validation_receipt": { "type": "boolean" },
+        "shows_rollback_handle": { "type": "boolean" },
+        "shows_apply_flow_binding": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -56,6 +56,11 @@
 //! finding rows, scope selectors, publish-to-review sheets, and resolution
 //! memory to the same review-pack digest and evidence packet lineage across
 //! desktop, CLI/headless, browser/companion, and support/export lanes.
+//! The evidence-rich patch review lane exposes one
+//! [`ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows::EvidenceRichPatchReviewPacket`]
+//! object binding structured diff packets, validation receipts, and rollback
+//! handles into one export-safe artifact for inline assist, patch review, and
+//! branch or worktree agent apply flows.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -99,6 +104,7 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 pub mod run_history;
+pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
 pub mod tainted_context;
@@ -377,6 +383,20 @@ pub use run_history::{
     AI_RUN_HISTORY_PARITY_ARTIFACT_REF, AI_RUN_HISTORY_PARITY_PACKET_RECORD_KIND,
     AI_RUN_HISTORY_SCHEMA_VERSION, AI_RUN_HISTORY_SUPPORT_PACKET_RECORD_KIND,
     AI_RUN_HISTORY_SURFACE_ROW_RECORD_KIND,
+};
+pub use ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows::{
+    current_stable_evidence_rich_patch_review_export, ApplyFlowBindingRow, ApplyFlowClass,
+    ConsumerSurfaceClass, ConsumerSurfaceParityRow, DiffFileRow, DiffHunkRow, DiffPacketBlock,
+    DiffPacketStateClass, DowngradeTrigger, EvidenceRichPatchReviewArtifactError,
+    EvidenceRichPatchReviewPacket, EvidenceRichPatchReviewPacketInput,
+    EvidenceRichPatchReviewViolation, RollbackHandleBlock, RollbackScopeClass, RollbackStateClass,
+    ValidationKindClass, ValidationReceiptBlock, ValidationReceiptRow,
+    EVIDENCE_RICH_PATCH_REVIEW_ARTIFACT_REF, EVIDENCE_RICH_PATCH_REVIEW_DOC_REF,
+    EVIDENCE_RICH_PATCH_REVIEW_FIXTURE_DIR, EVIDENCE_RICH_PATCH_REVIEW_M5_MATRIX_CONTRACT_REF,
+    EVIDENCE_RICH_PATCH_REVIEW_PATCH_SEQUENCE_REF,
+    EVIDENCE_RICH_PATCH_REVIEW_PREVIEW_APPLY_REVERT_CONTRACT_REF,
+    EVIDENCE_RICH_PATCH_REVIEW_RECORD_KIND, EVIDENCE_RICH_PATCH_REVIEW_SCHEMA_REF,
+    EVIDENCE_RICH_PATCH_REVIEW_SCHEMA_VERSION, EVIDENCE_RICH_PATCH_REVIEW_SUMMARY_REF,
 };
 pub use stabilize_ai_route_and_spend_truth::{
     current_stable_ai_route_spend_truth_export, AiActionFlowClass, AiRouteSpendTruthArtifactError,
