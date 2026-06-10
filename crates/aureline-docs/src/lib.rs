@@ -21,6 +21,7 @@ pub mod locale_overlay;
 pub mod maintenance;
 pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
+pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links;
 pub mod stable_docs_contract;
 
 pub use citations::{
@@ -188,6 +189,24 @@ pub use semantic_recall_boundary_truth_packet::{
     SEMANTIC_RECALL_BOUNDARY_TRUTH_PACKET_RECORD_KIND, SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_REF,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_VERSION,
     SEMANTIC_RECALL_BOUNDARY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links::{
+    current_stable_docs_search_link_export, packet_to_input as docs_search_link_packet_to_input,
+    seeded_stable_docs_search_link_input, DocsSearchLinkAnchorKind,
+    DocsSearchLinkArtifactError, DocsSearchLinkBrowserHandoffReason, DocsSearchLinkChipSet,
+    DocsSearchLinkCodeAnchor, DocsSearchLinkConsumerProjection, DocsSearchLinkConsumerSurface,
+    DocsSearchLinkDeepLink, DocsSearchLinkDisclosure, DocsSearchLinkDisclosureClass,
+    DocsSearchLinkFindingKind, DocsSearchLinkFindingSeverity, DocsSearchLinkFreshness,
+    DocsSearchLinkPacket, DocsSearchLinkPacketInput, DocsSearchLinkProjectVendorCue,
+    DocsSearchLinkPromotionState, DocsSearchLinkRepairHook, DocsSearchLinkRepairHookKind,
+    DocsSearchLinkResolutionClass, DocsSearchLinkResultKind, DocsSearchLinkResultRow,
+    DocsSearchLinkReuseState, DocsSearchLinkSourceClass, DocsSearchLinkSubjectKind,
+    DocsSearchLinkSupportExport, DocsSearchLinkSymbolCard, DocsSearchLinkValidationFinding,
+    DocsSearchLinkVersionMatch, DOCS_SEARCH_LINK_ARTIFACT_REF, DOCS_SEARCH_LINK_DOC_REF,
+    DOCS_SEARCH_LINK_FIXTURE_DIR, DOCS_SEARCH_LINK_RECORD_KIND, DOCS_SEARCH_LINK_SCHEMA_REF,
+    DOCS_SEARCH_LINK_SCHEMA_VERSION, DOCS_SEARCH_LINK_SUMMARY_REF,
+    DOCS_SEARCH_LINK_SUPPORT_EXPORT_RECORD_KIND,
+    DOCS_SEARCH_LINK_SYMBOL_REFERENCE_CONTRACT_REF, DOCS_SEARCH_LINK_VALIDATION_MANIFEST_REF,
 };
 pub use stable_docs_contract::{
     current_stable_docs_source_result_pack_and_citation_packet,
