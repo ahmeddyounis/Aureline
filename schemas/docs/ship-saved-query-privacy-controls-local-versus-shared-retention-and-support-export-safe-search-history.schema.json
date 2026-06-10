@@ -1,0 +1,684 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/ship-saved-query-privacy-controls-local-versus-shared-retention-and-support-export-safe-search-history.schema.json",
+  "title": "Aureline saved-query privacy controls, local-versus-shared retention, and support-export-safe search history",
+  "description": "Export-safe packet for the M5 saved-query privacy boundary. The packet carries one or more saved-query / history entries across the qualified private_local / private_synced / shared_team / shared_org privacy classes, each with a five-chip set (source class, version match, freshness, locality, confidence), one trust-class disclosure (first_party_user_saved / signed_shared_library / extension_imported_set / live_synced_suggestion / derived_suggestion_only), a granted-vs-effective visibility pair (no hidden visibility expansion), a retention disclosure (local-versus-shared retention truth), a support-export safety block (export-safe history), a share posture, a live-vs-captured state, citation state, and open-raw/open-source escapes. An entry declaring a privacy class outside the qualified scope, exposing more visibility than was granted or than its privacy class permits, retaining a query in a storage tier that exposes it more widely than its privacy class allows, failing to disclose a synced or shared tier, marking an entry export-safe while its redaction class is not export-safe, presenting an untrusted origin at high confidence, or presenting a policy-blocked share as available blocks the claim. An export preserves privacy class, retention, visibility, trust class, source class, confidence, redaction, export-safe, and escapes per entry. Packet-level degradations narrow or block the claim. The promotion state (stable / narrowed_below_stable / blocks_stable) is computed from validation and degradation findings. Raw query bodies, raw URLs, raw history payloads, raw source files, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "session_label",
+    "session_digest_ref",
+    "entries",
+    "export",
+    "query_degradations",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "saved_query_privacy_controls"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "session_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "session_digest_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "query_degradations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/query_degradation"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "promotion_state": {
+      "$ref": "#/$defs/promotion_state"
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validation_finding"
+      }
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "owner_only",
+        "owner_devices",
+        "team",
+        "organization",
+        "everyone"
+      ]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "private_local",
+        "private_synced",
+        "shared_team",
+        "shared_org",
+        "public_listing",
+        "unscoped_export"
+      ]
+    },
+    "retention_posture": {
+      "type": "string",
+      "enum": [
+        "ephemeral_session",
+        "local_only",
+        "synced_private",
+        "shared_store",
+        "managed_retention"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "redacted_label_only",
+        "digest_only",
+        "raw_withheld",
+        "needs_redaction",
+        "not_exportable"
+      ]
+    },
+    "entry_kind": {
+      "type": "string",
+      "enum": [
+        "saved_query",
+        "recent_history",
+        "pinned_query",
+        "suggested_query"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "first_party_user_saved",
+        "signed_shared_library",
+        "extension_imported_set",
+        "live_synced_suggestion",
+        "derived_suggestion_only"
+      ]
+    },
+    "share_posture": {
+      "type": "string",
+      "enum": [
+        "local_private_only",
+        "share_available",
+        "share_blocked_by_policy",
+        "share_unavailable_disclosed"
+      ]
+    },
+    "captured_vs_live": {
+      "type": "string",
+      "enum": [
+        "live",
+        "captured_snapshot",
+        "narrowed_scope_rerun"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "user_saved_query",
+        "team_shared_library",
+        "synced_history",
+        "imported_query_set",
+        "suggested_query",
+        "derived_suggestion"
+      ]
+    },
+    "version_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "locality": {
+      "type": "string",
+      "enum": [
+        "local",
+        "synced_private",
+        "shared_store",
+        "managed"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "heuristic"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": [
+        "blocking",
+        "narrowing",
+        "advisory"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "search_surface",
+        "docs_browser_shell",
+        "saved_query_library",
+        "history_panel",
+        "ai_context_inspector",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "query_degradation_class": {
+      "type": "string",
+      "enum": [
+        "sync_offline_snapshot",
+        "shared_store_unreachable_captured_snapshot",
+        "share_blocked_by_policy",
+        "retention_tier_degraded",
+        "scope_narrowed_rerun",
+        "privacy_narrowed",
+        "redaction_upgraded",
+        "broken_anchor",
+        "quarantined_source"
+      ]
+    },
+    "export_scope": {
+      "type": "string",
+      "enum": [
+        "all_entries",
+        "saved_queries_only",
+        "history_only",
+        "shared_only"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "narrowed_below_stable",
+        "blocks_stable"
+      ]
+    },
+    "validation_finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_identity",
+        "entries_empty",
+        "duplicate_entry_id",
+        "required_privacy_class_missing",
+        "privacy_class_out_of_bounds",
+        "entry_title_or_label_missing",
+        "retention_disclosure_missing",
+        "trust_class_disclosure_missing",
+        "trust_class_disclosure_collapsed",
+        "blocked_share_presented_available",
+        "open_raw_open_source_escape_missing",
+        "entry_not_cited",
+        "version_truth_collapsed",
+        "visibility_expansion_detected",
+        "privacy_visibility_mismatch",
+        "retention_privacy_mismatch",
+        "support_export_unsafe",
+        "export_row_orphan",
+        "export_coverage_missing",
+        "export_drops_preservation",
+        "export_privacy_class_mismatch",
+        "export_retention_mismatch",
+        "export_visibility_mismatch",
+        "export_trust_class_mismatch",
+        "export_source_class_mismatch",
+        "export_confidence_mismatch",
+        "export_redaction_mismatch",
+        "export_export_safe_mismatch",
+        "degradation_incomplete",
+        "degradation_orphan",
+        "consumer_projection_drift",
+        "consumer_projection_packet_id_mismatch",
+        "required_surface_coverage_missing",
+        "raw_boundary_material_present"
+      ]
+    },
+    "chip_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "version_match",
+        "freshness",
+        "locality",
+        "confidence"
+      ],
+      "properties": {
+        "source_class": {
+          "$ref": "#/$defs/source_class"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "locality": {
+          "$ref": "#/$defs/locality"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "visibility_grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "granted",
+        "effective"
+      ],
+      "properties": {
+        "granted": {
+          "$ref": "#/$defs/visibility"
+        },
+        "effective": {
+          "$ref": "#/$defs/visibility"
+        }
+      }
+    },
+    "retention_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture",
+        "disclosed",
+        "note"
+      ],
+      "properties": {
+        "posture": {
+          "$ref": "#/$defs/retention_posture"
+        },
+        "disclosed": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "support_export_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "export_safe": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_kind",
+        "privacy_class",
+        "subject_ref",
+        "title",
+        "query_label",
+        "chips",
+        "trust_class",
+        "trust_disclosure_note",
+        "visibility",
+        "retention",
+        "export_safety",
+        "share_posture",
+        "captured_vs_live",
+        "cited",
+        "open_raw_escape_ref",
+        "open_source_escape_ref"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_kind": {
+          "$ref": "#/$defs/entry_kind"
+        },
+        "privacy_class": {
+          "$ref": "#/$defs/privacy_class"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "query_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "chips": {
+          "$ref": "#/$defs/chip_set"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/trust_class"
+        },
+        "trust_disclosure_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/visibility_grant"
+        },
+        "retention": {
+          "$ref": "#/$defs/retention_disclosure"
+        },
+        "export_safety": {
+          "$ref": "#/$defs/support_export_safety"
+        },
+        "share_posture": {
+          "$ref": "#/$defs/share_posture"
+        },
+        "captured_vs_live": {
+          "$ref": "#/$defs/captured_vs_live"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "citation_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_raw_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_source_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id_ref",
+        "entry_kind",
+        "privacy_class",
+        "retention_posture",
+        "granted_visibility",
+        "effective_visibility",
+        "trust_class",
+        "source_class",
+        "confidence",
+        "redaction_class",
+        "export_safe",
+        "retention_disclosed",
+        "cited",
+        "open_raw_escape_ref",
+        "open_source_escape_ref"
+      ],
+      "properties": {
+        "entry_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_kind": {
+          "$ref": "#/$defs/entry_kind"
+        },
+        "privacy_class": {
+          "$ref": "#/$defs/privacy_class"
+        },
+        "retention_posture": {
+          "$ref": "#/$defs/retention_posture"
+        },
+        "granted_visibility": {
+          "$ref": "#/$defs/visibility"
+        },
+        "effective_visibility": {
+          "$ref": "#/$defs/visibility"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/trust_class"
+        },
+        "source_class": {
+          "$ref": "#/$defs/source_class"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "export_safe": {
+          "type": "boolean"
+        },
+        "retention_disclosed": {
+          "type": "boolean"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "open_raw_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_source_escape_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "preserves_privacy_class",
+        "preserves_retention",
+        "preserves_visibility",
+        "preserves_trust_class",
+        "preserves_source_class",
+        "preserves_confidence",
+        "preserves_redaction",
+        "preserves_export_safe",
+        "preserves_open_raw_open_source_escape",
+        "rows"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/export_scope"
+        },
+        "preserves_privacy_class": {
+          "type": "boolean"
+        },
+        "preserves_retention": {
+          "type": "boolean"
+        },
+        "preserves_visibility": {
+          "type": "boolean"
+        },
+        "preserves_trust_class": {
+          "type": "boolean"
+        },
+        "preserves_source_class": {
+          "type": "boolean"
+        },
+        "preserves_confidence": {
+          "type": "boolean"
+        },
+        "preserves_redaction": {
+          "type": "boolean"
+        },
+        "preserves_export_safe": {
+          "type": "boolean"
+        },
+        "preserves_open_raw_open_source_escape": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_row"
+          }
+        }
+      }
+    },
+    "query_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation_class",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "degradation_class": {
+          "$ref": "#/$defs/query_degradation_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_chips",
+        "preserves_privacy_classes",
+        "preserves_retention",
+        "preserves_visibility",
+        "preserves_trust_classes",
+        "preserves_redaction",
+        "preserves_export_safe",
+        "preserves_open_raw_open_source_escape"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/consumer_surface"
+        },
+        "packet_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_chips": {
+          "type": "boolean"
+        },
+        "preserves_privacy_classes": {
+          "type": "boolean"
+        },
+        "preserves_retention": {
+          "type": "boolean"
+        },
+        "preserves_visibility": {
+          "type": "boolean"
+        },
+        "preserves_trust_classes": {
+          "type": "boolean"
+        },
+        "preserves_redaction": {
+          "type": "boolean"
+        },
+        "preserves_export_safe": {
+          "type": "boolean"
+        },
+        "preserves_open_raw_open_source_escape": {
+          "type": "boolean"
+        }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_kind",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "finding_kind": {
+          "$ref": "#/$defs/validation_finding_kind"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

@@ -27,6 +27,7 @@ pub mod pack;
 pub mod semantic_recall_boundary_truth_packet;
 pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preserving_deep_links;
 pub mod ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling;
+pub mod ship_saved_query_privacy_controls_local_versus_shared_retention_and_support_export_safe_search_history;
 pub mod stable_docs_contract;
 
 pub use add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa::{
@@ -298,6 +299,23 @@ pub use ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_
     RETRIEVAL_DEBUG_FIXTURE_DIR, RETRIEVAL_DEBUG_RECORD_KIND, RETRIEVAL_DEBUG_SCHEMA_REF,
     RETRIEVAL_DEBUG_SCHEMA_VERSION, RETRIEVAL_DEBUG_SUMMARY_REF,
     RETRIEVAL_DEBUG_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use ship_saved_query_privacy_controls_local_versus_shared_retention_and_support_export_safe_search_history::{
+    current_stable_saved_query_privacy_export,
+    packet_to_input as saved_query_privacy_packet_to_input,
+    seeded_stable_saved_query_privacy_input, CapturedVsLive as SavedQueryCapturedVsLive,
+    QueryChipSet, QueryConfidence, QueryEntryKind, QueryFreshness, QueryLocality, QueryPrivacyClass,
+    QueryRedactionClass, QuerySourceClass, QueryTrustClass, QueryVersionMatch, RetentionDisclosure,
+    RetentionPosture, SavedQueryConsumerProjection, SavedQueryConsumerSurface, SavedQueryDegradation,
+    SavedQueryDegradationClass, SavedQueryEntry, SavedQueryExportRow, SavedQueryExportScope,
+    SavedQueryFindingKind, SavedQueryFindingSeverity, SavedQueryHistoryExport,
+    SavedQueryPrivacyArtifactError, SavedQueryPrivacyPacket, SavedQueryPrivacyPacketInput,
+    SavedQueryPrivacySupportExport, SavedQueryPromotionState, SavedQueryValidationFinding,
+    SharePosture, SupportExportSafety, Visibility, VisibilityGrant,
+    SAVED_QUERY_PRIVACY_ARTIFACT_REF, SAVED_QUERY_PRIVACY_DOC_REF, SAVED_QUERY_PRIVACY_FIXTURE_DIR,
+    SAVED_QUERY_PRIVACY_RECORD_KIND, SAVED_QUERY_PRIVACY_SCHEMA_REF,
+    SAVED_QUERY_PRIVACY_SCHEMA_VERSION, SAVED_QUERY_PRIVACY_SUMMARY_REF,
+    SAVED_QUERY_PRIVACY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stable_docs_contract::{
     current_stable_docs_source_result_pack_and_citation_packet,
