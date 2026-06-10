@@ -86,6 +86,7 @@ pub mod context_inspector;
 pub mod evidence;
 pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
+pub mod freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
@@ -213,6 +214,20 @@ pub use finalize_tainted_context_fences::{
     FINALIZE_TAINTED_CONTEXT_FIXTURE_DIR, FINALIZE_TAINTED_CONTEXT_RECORD_KIND,
     FINALIZE_TAINTED_CONTEXT_SCHEMA_REF, FINALIZE_TAINTED_CONTEXT_SCHEMA_VERSION,
     FINALIZE_TAINTED_CONTEXT_SUMMARY_REF, FINALIZE_TAINTED_CONTEXT_TAINT_CONTRACT_REF,
+};
+pub use freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents::{
+    current_stable_m5_ai_workflow_matrix_export, M5AiWorkflowConsumerSurface,
+    M5AiWorkflowDowngradeTrigger, M5AiWorkflowEvidenceRequirement, M5AiWorkflowLane,
+    M5AiWorkflowMatrixArtifactError, M5AiWorkflowMatrixConsumerProjection,
+    M5AiWorkflowMatrixLaneRow, M5AiWorkflowMatrixPacket, M5AiWorkflowMatrixPacketInput,
+    M5AiWorkflowMatrixProofFreshness, M5AiWorkflowQualificationClass,
+    M5AiWorkflowRollbackPosture, M5AiWorkflowMatrixSecurityReview,
+    M5AiWorkflowMatrixViolation, M5_AI_WORKFLOW_MATRIX_ARTIFACT_REF,
+    M5_AI_WORKFLOW_MATRIX_BRANCH_AGENT_CONTRACT_REF, M5_AI_WORKFLOW_MATRIX_DOC_REF,
+    M5_AI_WORKFLOW_MATRIX_FIXTURE_DIR, M5_AI_WORKFLOW_MATRIX_INLINE_ASSIST_CONTRACT_REF,
+    M5_AI_WORKFLOW_MATRIX_PATCH_REVIEW_CONTRACT_REF, M5_AI_WORKFLOW_MATRIX_PATCH_SEQUENCE_REF,
+    M5_AI_WORKFLOW_MATRIX_RECORD_KIND, M5_AI_WORKFLOW_MATRIX_SCHEMA_REF,
+    M5_AI_WORKFLOW_MATRIX_SCHEMA_VERSION, M5_AI_WORKFLOW_MATRIX_SUMMARY_REF,
 };
 pub use graduation::{
     current_beta_graduation_packet_artifacts, current_beta_graduation_state,
