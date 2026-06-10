@@ -17,6 +17,7 @@ pub mod diff;
 pub mod finalize_git_and_review_support_export_packets_timeline;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
+pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
@@ -112,6 +113,23 @@ pub use finalize_migration_rollback_checkpoints_diff_review_and_retained::{
     MIGRATION_ROLLBACK_CHECKPOINT_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_PACKET_RECORD_KIND,
     MIGRATION_ROLLBACK_DIFF_REVIEW_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
     MIGRATION_SUPPORT_EXPORT_PACKET_RECORD_KIND, RETAINED_DIAGNOSTIC_RECORD_KIND,
+};
+pub use freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix::{
+    current_stable_m5_review_ci_preview_matrix_export, M5ReviewCiPreviewConsumerSurface,
+    M5ReviewCiPreviewDowngradeTrigger, M5ReviewCiPreviewEvidenceRequirement, M5ReviewCiPreviewLane,
+    M5ReviewCiPreviewMatrixArtifactError, M5ReviewCiPreviewMatrixConsumerProjection,
+    M5ReviewCiPreviewMatrixLaneRow, M5ReviewCiPreviewMatrixPacket,
+    M5ReviewCiPreviewMatrixPacketInput, M5ReviewCiPreviewMatrixProofFreshness,
+    M5ReviewCiPreviewMatrixTrustReview, M5ReviewCiPreviewMatrixViolation,
+    M5ReviewCiPreviewQualificationClass, M5ReviewCiPreviewRollbackPosture,
+    M5_REVIEW_CI_PREVIEW_MATRIX_ARTIFACT_REF, M5_REVIEW_CI_PREVIEW_MATRIX_DOC_REF,
+    M5_REVIEW_CI_PREVIEW_MATRIX_FIXTURE_DIR, M5_REVIEW_CI_PREVIEW_MATRIX_MERGE_QUEUE_CONTRACT_REF,
+    M5_REVIEW_CI_PREVIEW_MATRIX_PIPELINE_VIEWER_CONTRACT_REF,
+    M5_REVIEW_CI_PREVIEW_MATRIX_RECORD_KIND,
+    M5_REVIEW_CI_PREVIEW_MATRIX_REMOTE_PREVIEW_CONTRACT_REF,
+    M5_REVIEW_CI_PREVIEW_MATRIX_REVIEW_WORKSPACE_CONTRACT_REF,
+    M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_REF, M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_VERSION,
+    M5_REVIEW_CI_PREVIEW_MATRIX_SUMMARY_REF,
 };
 pub use harden_browser_handoff_and_in_product_review_boundaries::{
     project_review_boundary_hardening_packet, BoundaryFreshnessObservationInput,
