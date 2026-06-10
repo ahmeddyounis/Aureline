@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/add-staged-row-mutation-sheets-optimistic-concurrency-cues-and-rollback-or-checkpoint-actions.schema.json",
+  "title": "Aureline staged row-mutation sheets, optimistic-concurrency cues, and rollback or checkpoint actions packet",
+  "description": "Boundary schema for staged row-mutation sheets, optimistic-concurrency control cues, rollback actions, and checkpoint actions. Raw row values, raw primary keys, raw secrets, raw transaction IDs, and raw database connection strings do not appear in this packet; payloads require explicit drill-down or export review.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "as_of",
+    "release_doc_ref",
+    "help_doc_ref",
+    "schema_ref",
+    "surfaces",
+    "staged_row_mutation_sheets",
+    "optimistic_concurrency_cues",
+    "rollback_actions",
+    "checkpoint_actions",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "as_of": { "type": "string", "format": "date" },
+    "release_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "help_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "schema_ref": { "$ref": "#/$defs/path_ref" },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/staged_row_mutation_surface_qualification_row" }
+    },
+    "staged_row_mutation_sheets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/staged_row_mutation_sheet_row" }
+    },
+    "optimistic_concurrency_cues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/optimistic_concurrency_cue_row" }
+    },
+    "rollback_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rollback_action_row" }
+    },
+    "checkpoint_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/checkpoint_action_row" }
+    },
+    "summary": { "$ref": "#/$defs/staged_row_mutation_qualification_summary" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "reviewable": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+    "staged_row_mutation_qualification_label": {
+      "type": "string",
+      "enum": ["stable", "preview", "labs", "inspect_only", "import_only"]
+    },
+    "staged_row_mutation_surface_kind": {
+      "type": "string",
+      "enum": [
+        "staged_row_mutation_sheet",
+        "optimistic_concurrency_cue",
+        "rollback_action",
+        "checkpoint_action",
+        "mutation_session"
+      ]
+    },
+    "mutation_kind": {
+      "type": "string",
+      "enum": ["insert", "update", "delete", "upsert", "batch"]
+    },
+    "concurrency_conflict_class": {
+      "type": "string",
+      "enum": ["no_conflict", "stale_read", "version_mismatch", "concurrent_write", "policy_blocked"]
+    },
+    "rollback_scope": {
+      "type": "string",
+      "enum": ["single_row", "sheet_level", "session_level", "to_checkpoint"]
+    },
+    "checkpoint_scope": {
+      "type": "string",
+      "enum": ["pre_mutation", "pre_commit", "post_commit", "automatic"]
+    },
+    "staged_row_mutation_qualification_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "packet_ref", "proof_index_ref", "captured_at", "evidence_refs"],
+      "properties": {
+        "packet_id": { "type": "string" },
+        "packet_ref": { "type": "string" },
+        "proof_index_ref": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "staged_row_mutation_surface_guard_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staged_sheet_visible",
+        "concurrency_cue_visible",
+        "rollback_action_visible",
+        "checkpoint_action_visible",
+        "mutation_session_visible",
+        "auth_scope_visible",
+        "target_class_visible"
+      ],
+      "properties": {
+        "staged_sheet_visible": { "type": "boolean" },
+        "concurrency_cue_visible": { "type": "boolean" },
+        "rollback_action_visible": { "type": "boolean" },
+        "checkpoint_action_visible": { "type": "boolean" },
+        "mutation_session_visible": { "type": "boolean" },
+        "auth_scope_visible": { "type": "boolean" },
+        "target_class_visible": { "type": "boolean" }
+      }
+    },
+    "staged_row_mutation_surface_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "title",
+        "surface_kind",
+        "promoted_build_surface",
+        "claim_label",
+        "displayed_label",
+        "qualification_packet",
+        "guards",
+        "downgrade_if_missing",
+        "rationale"
+      ],
+      "properties": {
+        "surface_id": { "type": "string" },
+        "title": { "type": "string" },
+        "surface_kind": { "$ref": "#/$defs/staged_row_mutation_surface_kind" },
+        "promoted_build_surface": { "type": "boolean" },
+        "claim_label": { "$ref": "#/$defs/staged_row_mutation_qualification_label" },
+        "displayed_label": { "$ref": "#/$defs/staged_row_mutation_qualification_label" },
+        "qualification_packet": { "oneOf": [{ "$ref": "#/$defs/staged_row_mutation_qualification_proof" }, { "type": "null" }] },
+        "guards": { "$ref": "#/$defs/staged_row_mutation_surface_guard_set" },
+        "downgrade_if_missing": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "staged_row_mutation_sheet_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sheet_id",
+        "mutation_kind",
+        "target_table_ref",
+        "row_count_affected",
+        "previewable_before_apply",
+        "confirmation_required",
+        "rollback_path_visible",
+        "auth_scope_ref"
+      ],
+      "properties": {
+        "sheet_id": { "type": "string" },
+        "mutation_kind": { "$ref": "#/$defs/mutation_kind" },
+        "target_table_ref": { "type": "string" },
+        "row_count_affected": { "type": "integer", "minimum": 0 },
+        "previewable_before_apply": { "type": "boolean" },
+        "confirmation_required": { "type": "boolean" },
+        "rollback_path_visible": { "type": "boolean" },
+        "checkpoint_ref": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+        "auth_scope_ref": { "type": "string" }
+      }
+    },
+    "optimistic_concurrency_cue_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cue_id",
+        "conflict_class",
+        "version_ref",
+        "last_modified_ref",
+        "resolution_action_visible",
+        "stale_read_warning_visible",
+        "target_table_ref"
+      ],
+      "properties": {
+        "cue_id": { "type": "string" },
+        "conflict_class": { "$ref": "#/$defs/concurrency_conflict_class" },
+        "version_ref": { "type": "string" },
+        "last_modified_ref": { "type": "string" },
+        "resolution_action_visible": { "type": "boolean" },
+        "stale_read_warning_visible": { "type": "boolean" },
+        "target_table_ref": { "type": "string" }
+      }
+    },
+    "rollback_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "rollback_scope",
+        "requires_confirmation",
+        "affected_sheet_ref",
+        "undo_stack_depth"
+      ],
+      "properties": {
+        "action_id": { "type": "string" },
+        "rollback_scope": { "$ref": "#/$defs/rollback_scope" },
+        "requires_confirmation": { "type": "boolean" },
+        "affected_sheet_ref": { "type": "string" },
+        "checkpoint_ref": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+        "undo_stack_depth": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "checkpoint_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "checkpoint_scope",
+        "auto_checkpoint",
+        "session_ref",
+        "label",
+        "restorable"
+      ],
+      "properties": {
+        "action_id": { "type": "string" },
+        "checkpoint_scope": { "$ref": "#/$defs/checkpoint_scope" },
+        "auto_checkpoint": { "type": "boolean" },
+        "session_ref": { "type": "string" },
+        "label": { "type": "string" },
+        "restorable": { "type": "boolean" }
+      }
+    },
+    "staged_row_mutation_qualification_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promoted_surface_count",
+        "stable_surface_count",
+        "narrowed_surface_count",
+        "staged_row_mutation_sheet_count",
+        "optimistic_concurrency_cue_count",
+        "rollback_action_count",
+        "checkpoint_action_count"
+      ],
+      "properties": {
+        "promoted_surface_count": { "type": "integer", "minimum": 0 },
+        "stable_surface_count": { "type": "integer", "minimum": 0 },
+        "narrowed_surface_count": { "type": "integer", "minimum": 0 },
+        "staged_row_mutation_sheet_count": { "type": "integer", "minimum": 0 },
+        "optimistic_concurrency_cue_count": { "type": "integer", "minimum": 0 },
+        "rollback_action_count": { "type": "integer", "minimum": 0 },
+        "checkpoint_action_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

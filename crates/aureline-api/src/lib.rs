@@ -52,6 +52,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-api/0.0.0")]
 
+pub mod add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions;
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
@@ -94,6 +95,18 @@ pub use implement_connection_browsers_schema_trees_and_target_context_envelopes_
     DatabaseBrowserWritePosture, SchemaTreeRow, TargetContextEnvelopeRow,
     DATABASE_BROWSER_QUALIFICATION_PACKET_JSON, DATABASE_BROWSER_QUALIFICATION_PACKET_PATH,
     DATABASE_BROWSER_QUALIFICATION_RECORD_KIND, DATABASE_BROWSER_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions::{
+    current_staged_row_mutation_qualification, CheckpointActionRow, CheckpointScope,
+    ConcurrencyConflictClass, MutationKind, OptimisticConcurrencyCueRow, RollbackActionRow,
+    RollbackScope, StagedRowMutationQualificationLabel, StagedRowMutationQualificationPacket,
+    StagedRowMutationQualificationProof, StagedRowMutationQualificationSummary,
+    StagedRowMutationQualificationViolation, StagedRowMutationQualificationViolationKind,
+    StagedRowMutationSheetRow, StagedRowMutationSurfaceGuardSet, StagedRowMutationSurfaceKind,
+    StagedRowMutationSurfaceQualificationRow, STAGED_ROW_MUTATION_QUALIFICATION_PACKET_JSON,
+    STAGED_ROW_MUTATION_QUALIFICATION_PACKET_PATH, STAGED_ROW_MUTATION_QUALIFICATION_RECORD_KIND,
+    STAGED_ROW_MUTATION_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows::{

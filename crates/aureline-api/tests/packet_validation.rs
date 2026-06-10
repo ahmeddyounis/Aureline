@@ -4,7 +4,7 @@ use aureline_api::{
     current_database_browser_qualification, current_explain_plan_qualification,
     current_request_composer_qualification, current_request_workspace_qualification,
     current_response_viewer_qualification, current_result_grid_qualification,
-    current_statement_safety_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -216,5 +216,36 @@ fn embedded_explain_plan_packet_has_no_violations() {
 fn embedded_explain_plan_summary_matches_computed() {
     let packet =
         current_explain_plan_qualification().expect("embedded explain plan packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_staged_row_mutation_packet_parses() {
+    let packet = current_staged_row_mutation_qualification()
+        .expect("embedded staged row mutation packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.staged_row_mutation_sheets.is_empty());
+    assert!(!packet.optimistic_concurrency_cues.is_empty());
+    assert!(!packet.rollback_actions.is_empty());
+    assert!(!packet.checkpoint_actions.is_empty());
+}
+
+#[test]
+fn embedded_staged_row_mutation_packet_has_no_violations() {
+    let packet = current_staged_row_mutation_qualification()
+        .expect("embedded staged row mutation packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_staged_row_mutation_summary_matches_computed() {
+    let packet = current_staged_row_mutation_qualification()
+        .expect("embedded staged row mutation packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }
