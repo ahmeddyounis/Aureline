@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/add-the-ai-refactor-planner-with-impact-sets-candidate-previews-and-multi-file-safety-classes.schema.json",
+  "title": "Aureline AI refactor planner with impact sets, candidate previews, and multi-file safety classes",
+  "$comment": "Rust owner: aureline_ai::add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes::RefactorPlannerPacket.",
+  "description": "Boundary schema for the metadata-only AI refactor planner record. The packet binds a preview-only refactor plan (one refactor kind, intent, and scope, with a preview required before any apply), the impact set of affected sites (each site carries its site class, resolution confidence, and multi-file safety class; the worst-case safety class is disclosed and any incomplete analysis stays visible), and the candidate previews it produces (each references a diff packet, validation receipt, and rollback handle into the evidence-rich patch review lane by id, requires human review before apply, and blocks auto-apply for any unsafe safety class). It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw symbol names, raw file paths, raw diff bodies, raw patch text, raw source bodies, raw prompt bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "plan_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "plan",
+    "impact_set",
+    "candidate_preview",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_refactor_planner_implementation" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "plan_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "plan": { "$ref": "#/$defs/refactor_plan_block" },
+    "impact_set": { "$ref": "#/$defs/impact_set_block" },
+    "candidate_preview": { "$ref": "#/$defs/candidate_preview_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/refactor_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "refactor_kind": {
+      "type": "string",
+      "enum": [
+        "rename_symbol",
+        "extract_function",
+        "extract_variable",
+        "inline_symbol",
+        "move_item",
+        "change_signature",
+        "introduce_parameter",
+        "replace_pattern",
+        "organize_imports"
+      ],
+      "description": "Kind of refactor the planner is planning."
+    },
+    "refactor_plan_state": {
+      "type": "string",
+      "enum": [
+        "drafted",
+        "impact_analyzed",
+        "candidates_previewed",
+        "awaiting_approval",
+        "handed_to_apply",
+        "blocked",
+        "discarded"
+      ],
+      "description": "State of the refactor plan lifecycle. There is no agent-driven apply state: the planner hands a selected candidate to the evidence-rich patch review apply flow."
+    },
+    "impact_site_class": {
+      "type": "string",
+      "enum": [
+        "definition_site",
+        "reference_site",
+        "test_site",
+        "doc_site",
+        "generated_site",
+        "public_api_boundary",
+        "cross_crate_boundary",
+        "dynamic_or_reflective"
+      ],
+      "description": "Class of an impacted site inside a refactor's impact set."
+    },
+    "impact_confidence_class": {
+      "type": "string",
+      "enum": ["resolved", "heuristic", "ambiguous"],
+      "description": "Confidence with which an impacted site was resolved."
+    },
+    "multi_file_safety_class": {
+      "type": "string",
+      "enum": [
+        "mechanical_single_file",
+        "mechanical_multi_file",
+        "semantic_local",
+        "semantic_cross_boundary",
+        "behavior_affecting",
+        "ambiguous_unsafe"
+      ],
+      "description": "Multi-file safety class for a refactor candidate or impacted site, ordered from least to most risky. Only mechanical classes are auto-applicable; the rest require a human review boundary."
+    },
+    "candidate_state": {
+      "type": "string",
+      "enum": ["proposed", "previewed", "selected", "handed_to_apply", "rejected"],
+      "description": "State of a preview candidate."
+    },
+    "refactor_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_refactor_panel",
+        "desktop_review_workspace",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this lane."
+    },
+    "refactor_surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "impact_set_incomplete",
+        "candidate_preview_missing",
+        "unsafe_class_auto_applied"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "refactor_plan_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refactor_kind",
+        "state",
+        "intent_summary_ref",
+        "target_symbol_ref",
+        "scope_ref",
+        "impact_set_complete",
+        "preview_required_before_apply",
+        "context_input_refs"
+      ],
+      "properties": {
+        "refactor_kind": { "$ref": "#/$defs/refactor_kind" },
+        "state": { "$ref": "#/$defs/refactor_plan_state" },
+        "intent_summary_ref": { "type": "string", "minLength": 1 },
+        "target_symbol_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the target symbol. Never a raw symbol name." },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "impact_set_complete": { "type": "boolean" },
+        "preview_required_before_apply": { "type": "boolean" },
+        "context_input_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "impact_site_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site_id",
+        "file_ref",
+        "site_class",
+        "confidence",
+        "safety_class",
+        "included_in_candidate",
+        "disclosed"
+      ],
+      "properties": {
+        "site_id": { "type": "string", "minLength": 1 },
+        "file_ref": { "type": "string", "minLength": 1, "description": "Opaque file ref. Never a raw file path." },
+        "site_class": { "$ref": "#/$defs/impact_site_class" },
+        "confidence": { "$ref": "#/$defs/impact_confidence_class" },
+        "safety_class": { "$ref": "#/$defs/multi_file_safety_class" },
+        "included_in_candidate": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "impact_set_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact_set_id",
+        "highest_safety_class",
+        "analysis_complete",
+        "partial_reason_disclosed",
+        "cross_boundary_present",
+        "site_rows"
+      ],
+      "properties": {
+        "impact_set_id": { "type": "string", "minLength": 1 },
+        "highest_safety_class": { "$ref": "#/$defs/multi_file_safety_class" },
+        "analysis_complete": { "type": "boolean" },
+        "partial_reason_disclosed": { "type": "boolean" },
+        "cross_boundary_present": { "type": "boolean" },
+        "site_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_site_row" }
+        }
+      }
+    },
+    "candidate_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "safety_class",
+        "state",
+        "file_count",
+        "diff_packet_ref",
+        "validation_receipt_ref",
+        "rollback_handle_ref",
+        "review_required_before_apply",
+        "auto_apply_blocked_for_unsafe_class"
+      ],
+      "properties": {
+        "candidate_id": { "type": "string", "minLength": 1 },
+        "safety_class": { "$ref": "#/$defs/multi_file_safety_class" },
+        "state": { "$ref": "#/$defs/candidate_state" },
+        "file_count": { "type": "integer", "minimum": 0 },
+        "diff_packet_ref": { "type": "string", "minLength": 1, "description": "Ref into the evidence-rich patch review lane. Never a raw diff body." },
+        "validation_receipt_ref": { "type": "string", "minLength": 1 },
+        "rollback_handle_ref": { "type": "string", "minLength": 1 },
+        "review_required_before_apply": { "type": "boolean" },
+        "auto_apply_blocked_for_unsafe_class": { "type": "boolean" }
+      }
+    },
+    "candidate_preview_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "candidate_rows",
+        "compare_to_base_available",
+        "produced_before_apply"
+      ],
+      "properties": {
+        "preview_id": { "type": "string", "minLength": 1 },
+        "selected_candidate_id": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "candidate_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate_row" }
+        },
+        "compare_to_base_available": { "type": "boolean" },
+        "produced_before_apply": { "type": "boolean" }
+      }
+    },
+    "refactor_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_plan",
+        "shows_impact_set",
+        "shows_candidates",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/refactor_consumer_surface" },
+        "shows_plan": { "type": "boolean" },
+        "shows_impact_set": { "type": "boolean" },
+        "shows_candidates": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/refactor_surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

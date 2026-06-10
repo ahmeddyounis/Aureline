@@ -67,6 +67,13 @@
 //! pack it produces, and the human-gated merge-back handoff that lands the work
 //! without ever letting the agent self-merge or self-push to a protected
 //! destination.
+//! The AI refactor planner lane exposes one
+//! [`add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes::RefactorPlannerPacket`]
+//! object binding a preview-only refactor plan, the impact set of affected sites
+//! with their multi-file safety classes and resolution confidence, and the
+//! candidate previews that each carry diff/validation/rollback refs into the
+//! evidence-rich patch review lane and block auto-apply for any unsafe safety
+//! class.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -88,6 +95,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
+pub mod add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes;
 pub mod ai_pack_rollout;
 pub mod ai_review_assist;
 pub mod ai_test_generation;
@@ -117,6 +125,18 @@ pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
 
+pub use add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes::{
+    current_stable_refactor_planner_export, CandidatePreviewBlock, CandidateRow, CandidateState,
+    ImpactConfidenceClass, ImpactSetBlock, ImpactSiteClass, ImpactSiteRow, MultiFileSafetyClass,
+    RefactorConsumerSurface, RefactorDowngradeTrigger, RefactorKind, RefactorPlanBlock,
+    RefactorPlanState, RefactorPlannerArtifactError, RefactorPlannerPacket,
+    RefactorPlannerPacketInput, RefactorPlannerViolation, RefactorSurfaceParityRow,
+    RefactorSurfaceQualificationClass, REFACTOR_PLANNER_ARTIFACT_REF,
+    REFACTOR_PLANNER_CONTEXT_ASSEMBLY_CONTRACT_REF, REFACTOR_PLANNER_DOC_REF,
+    REFACTOR_PLANNER_EVIDENCE_CONTRACT_REF, REFACTOR_PLANNER_FIXTURE_DIR,
+    REFACTOR_PLANNER_M5_MATRIX_CONTRACT_REF, REFACTOR_PLANNER_RECORD_KIND,
+    REFACTOR_PLANNER_SCHEMA_REF, REFACTOR_PLANNER_SCHEMA_VERSION, REFACTOR_PLANNER_SUMMARY_REF,
+};
 pub use ai_pack_rollout::{
     AiDowngradeReceipt, AiFallbackContract, AiFallbackRouteClass, AiMirrorPublication,
     AiPackRevocationStateClass, AiRolloutObject, AiRolloutObjectKind, AiRolloutPacketViolation,
