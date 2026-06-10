@@ -199,6 +199,23 @@
 //! M5 qualification, downgrade, and rollback-posture vocabulary, the
 //! routing-policy mode vocabulary, and the tool-gateway side-effect and approval
 //! vocabularies.
+//! The user-automation lane exposes one
+//! [`add_recorded_macro_promotion_recipe_insertion_and_headless_safe_result_packets_for_user_automation::UserAutomationPacket`]
+//! object binding, for every recorded macro, how it was captured, the promotion
+//! that graduates it into a reusable recipe, how that recipe inserts into a
+//! target surface, and the headless-safe result it produces when it runs with no
+//! interactive operator present — holding a mutating step to preview-first apply
+//! under the same approval and audit bar as a first-party command, promoting a
+//! macro only behind an explicit, audited gate with no silent forward, keeping an
+//! irreversible publish from ever running unattended headless, deferring or
+//! blocking fail-closed any step that needs interactive confirmation,
+//! reconciling the headless result's step counts and state against the disclosed
+//! steps, narrowing rather than a claimed label when the promotion is
+//! policy-blocked, tainted-blocked, or withdrawn, and narrowing rather than
+//! hiding on stale proof — reusing the frozen M5 qualification, downgrade, and
+//! rollback-posture vocabulary, the routing-policy mode vocabulary, the
+//! tool-gateway side-effect and approval vocabularies, and the signed/shared
+//! recipe-pack replay-preview, audit, and reversibility vocabularies.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -221,6 +238,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes;
+pub mod add_recorded_macro_promotion_recipe_insertion_and_headless_safe_result_packets_for_user_automation;
 pub mod add_spend_ledgers_quota_warning_surfaces_and_wall_clock_or_token_or_tool_call_ceilings_for_long_running_agents;
 pub mod add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes;
 pub mod ai_pack_rollout;
