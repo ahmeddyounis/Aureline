@@ -11,6 +11,7 @@
 
 pub mod add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa;
 pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
+pub mod certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface;
 pub mod citations;
 pub mod docs_browser_truth_packet;
 pub mod docs_maintenance_and_stale_example_governance;
@@ -66,6 +67,17 @@ pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_c
     UNDERSTANDING_CARDS_RECORD_KIND, UNDERSTANDING_CARDS_SCHEMA_REF,
     UNDERSTANDING_CARDS_SCHEMA_VERSION, UNDERSTANDING_CARDS_SUMMARY_REF,
     UNDERSTANDING_CARDS_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface::{
+    current_stable_certification_export, seeded_stable_certification_input,
+    CertificationArtifactError, CertificationCompatibilityReport, CertificationConsumerProjection,
+    CertificationConsumerSurface, CertificationDowngradeAction, CertificationDowngradeRule,
+    CertificationDowngradeTrigger, CertificationPacket, CertificationPacketInput,
+    CertificationProofFreshness, CertificationQualificationClass, CertificationTrustReview,
+    CertificationVerdict, CertificationViolation, CertifiedSurfaceLane, CertifiedSurfaceRow,
+    CERTIFICATION_ARTIFACT_REF, CERTIFICATION_DOC_REF, CERTIFICATION_FIXTURE_DIR,
+    CERTIFICATION_RECORD_KIND, CERTIFICATION_SCHEMA_REF, CERTIFICATION_SCHEMA_VERSION,
+    CERTIFICATION_SUMMARY_REF,
 };
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
