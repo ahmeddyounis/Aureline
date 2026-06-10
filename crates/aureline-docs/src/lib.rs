@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
+pub mod add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa;
 pub mod add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels;
 pub mod citations;
 pub mod docs_browser_truth_packet;
@@ -28,6 +29,24 @@ pub mod ship_docs_search_symbol_linked_reference_cards_and_code_anchor_preservin
 pub mod ship_retrieval_debug_surfaces_for_docs_recall_and_ai_context_with_exact_or_imported_or_heuristic_labeling;
 pub mod stable_docs_contract;
 
+pub use add_browser_lite_light_remote_edit_surfaces_with_narrow_scope_stale_state_honesty_and_no_hidden_authority_expa::{
+    current_stable_light_remote_edit_export,
+    packet_to_input as light_remote_edit_packet_to_input,
+    seeded_stable_light_remote_edit_input, ApplyPosture, AuthorityGrant, AuthorityScope,
+    BaseStateKind, CapturedVsLive as LightRemoteEditCapturedVsLive, EditConfidence, EditFreshness,
+    EditIntent, EditIntentKind, EditLocality, EditSourceClass, EditTrustClass, EditVersionMatch,
+    LightRemoteEditArtifactError, LightRemoteEditChipSet, LightRemoteEditConsumerProjection,
+    LightRemoteEditConsumerSurface, LightRemoteEditDegradation, LightRemoteEditDegradationClass,
+    LightRemoteEditExport, LightRemoteEditExportRow, LightRemoteEditExportScope,
+    LightRemoteEditFindingKind, LightRemoteEditFindingSeverity, LightRemoteEditPromotionState,
+    LightRemoteEditScope, LightRemoteEditSupportExport, LightRemoteEditSurface,
+    LightRemoteEditSurfacesPacket, LightRemoteEditSurfacesPacketInput,
+    LightRemoteEditValidationFinding, ReturnPath as LightRemoteEditReturnPath,
+    ReturnPathKind as LightRemoteEditReturnPathKind, StaleStateDisclosure,
+    LIGHT_REMOTE_EDIT_ARTIFACT_REF, LIGHT_REMOTE_EDIT_DOC_REF, LIGHT_REMOTE_EDIT_FIXTURE_DIR,
+    LIGHT_REMOTE_EDIT_RECORD_KIND, LIGHT_REMOTE_EDIT_SCHEMA_REF, LIGHT_REMOTE_EDIT_SCHEMA_VERSION,
+    LIGHT_REMOTE_EDIT_SUMMARY_REF, LIGHT_REMOTE_EDIT_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use add_topology_maps_ownership_surfaces_and_codebase_explainer_cards_with_cited_evidence_and_confidence_labels::{
     current_stable_codebase_understanding_cards_export,
     packet_to_input as codebase_understanding_cards_packet_to_input,
