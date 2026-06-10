@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ship-ai-explain-debug-and-test-flows-with-evidence-links-to-logs-traces-runbooks-and-profiles.schema.json",
+  "title": "Aureline AI explain, debug, and test flows with evidence links to logs, traces, runbooks, and profiles",
+  "$comment": "Rust owner: aureline_ai::ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles::AiFlowEvidencePacket.",
+  "description": "Boundary schema for the metadata-only AI explain/debug/test flow record. The packet binds a read-only flow (one flow kind — explain, debug, or test — that requires evidence for every claim and never self-applies; a test-flow candidate is handed to the evidence-rich patch review apply lane by id), the evidence links it consumed (each a typed reference into a log, trace, runbook, or profile source carrying its freshness, provenance, and trust labels; unresolved or stale links stay disclosed rather than dropped), and the findings it produced (each citing the evidence link ids that back it; uncited findings are counted and surfaced, and no finding claims authority beyond its cited evidence). It references upstream M4/M5 lanes by id rather than embedding their content. It carries refs, state tokens, coarse classes, counts, and review labels only. It never carries raw log lines, raw trace bodies, raw runbook text, raw profile samples, raw symbol names, raw file paths, raw diff bodies, raw prompt bodies, provider payloads, endpoint URLs, credentials, raw token counts, exact prices, or billing-account ids. Adding a new enum member or a new optional field is additive-minor; repurposing an existing member is breaking and bumps schema_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "flow_id",
+    "display_label",
+    "trust_state_token",
+    "policy_epoch_ref",
+    "flow",
+    "evidence_links",
+    "findings",
+    "consumer_surface_parity",
+    "downgrade_triggers",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_explain_debug_test_flows_implementation" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "flow_id": { "type": "string", "minLength": 1 },
+    "display_label": { "type": "string", "minLength": 1 },
+    "trust_state_token": { "type": "string", "minLength": 1 },
+    "policy_epoch_ref": { "type": "string", "minLength": 1 },
+    "flow": { "$ref": "#/$defs/ai_flow_block" },
+    "evidence_links": { "$ref": "#/$defs/evidence_link_block" },
+    "findings": { "$ref": "#/$defs/flow_finding_block" },
+    "consumer_surface_parity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/flow_surface_parity_row" }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_trigger" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "ai_flow_kind": {
+      "type": "string",
+      "enum": ["explain", "debug", "test"],
+      "description": "Kind of work loop the flow drives."
+    },
+    "ai_flow_state": {
+      "type": "string",
+      "enum": [
+        "drafted",
+        "gathering_evidence",
+        "evidence_linked",
+        "answer_composed",
+        "awaiting_review",
+        "handed_to_apply",
+        "blocked",
+        "discarded"
+      ],
+      "description": "State of the flow lifecycle. There is no agent-driven apply state: a test-flow candidate is handed to the evidence-rich patch review apply flow."
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": ["log", "trace", "runbook", "profile"],
+      "description": "Kind of evidence an evidence link points at."
+    },
+    "evidence_source_surface": {
+      "type": "string",
+      "enum": ["log_store", "trace_store", "runbook_registry", "profile_store"],
+      "description": "Source surface an evidence link was drawn from."
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": ["fresh", "aging", "stale", "unknown"],
+      "description": "Freshness class disclosed for an evidence link."
+    },
+    "evidence_provenance_class": {
+      "type": "string",
+      "enum": ["recorded_run", "live_capture", "imported_artifact", "synthesized_summary"],
+      "description": "Provenance class disclosed for an evidence link."
+    },
+    "evidence_trust_class": {
+      "type": "string",
+      "enum": ["trusted", "unverified", "untrusted"],
+      "description": "Trust class disclosed for an evidence link."
+    },
+    "flow_finding_kind": {
+      "type": "string",
+      "enum": [
+        "explanation",
+        "root_cause_hypothesis",
+        "repro_step",
+        "fix_recommendation",
+        "test_case",
+        "caveat"
+      ],
+      "description": "Kind of finding the flow produced."
+    },
+    "finding_confidence_class": {
+      "type": "string",
+      "enum": ["grounded", "probable", "speculative"],
+      "description": "Confidence class disclosed for a finding."
+    },
+    "flow_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_explain_panel",
+        "desktop_debug_console",
+        "desktop_test_runner",
+        "cli_headless",
+        "support_export",
+        "diagnostics"
+      ],
+      "description": "Consumer surface that must project this lane."
+    },
+    "flow_surface_qualification_class": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable"],
+      "description": "Qualification class for a consumer surface projection."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed",
+        "evidence_unresolved",
+        "evidence_stale_undisclosed",
+        "uncited_claim_surfaced"
+      ],
+      "description": "Downgrade trigger that can narrow this lane below its claimed qualification."
+    },
+    "ai_flow_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_kind",
+        "state",
+        "intent_summary_ref",
+        "target_ref",
+        "scope_ref",
+        "evidence_required_for_claims",
+        "read_only",
+        "context_input_refs"
+      ],
+      "properties": {
+        "flow_kind": { "$ref": "#/$defs/ai_flow_kind" },
+        "state": { "$ref": "#/$defs/ai_flow_state" },
+        "intent_summary_ref": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the target. Never a raw symbol name or file path." },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "evidence_required_for_claims": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "apply_handoff_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional ref into the evidence-rich patch review apply lane for a test-flow candidate. Never a raw diff body."
+        },
+        "context_input_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence_link_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "evidence_kind",
+        "source_surface",
+        "evidence_ref",
+        "freshness",
+        "provenance",
+        "trust",
+        "scope_ref",
+        "resolved",
+        "disclosed"
+      ],
+      "properties": {
+        "link_id": { "type": "string", "minLength": 1 },
+        "evidence_kind": { "$ref": "#/$defs/evidence_kind" },
+        "source_surface": { "$ref": "#/$defs/evidence_source_surface" },
+        "evidence_ref": { "type": "string", "minLength": 1, "description": "Opaque ref to the evidence. Never a raw log line, trace body, runbook text, or profile sample." },
+        "freshness": { "$ref": "#/$defs/evidence_freshness_class" },
+        "provenance": { "$ref": "#/$defs/evidence_provenance_class" },
+        "trust": { "$ref": "#/$defs/evidence_trust_class" },
+        "scope_ref": { "type": "string", "minLength": 1 },
+        "resolved": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "evidence_link_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_set_id",
+        "all_links_resolved",
+        "unresolved_reason_disclosed",
+        "stale_evidence_present",
+        "stale_disclosed",
+        "link_rows"
+      ],
+      "properties": {
+        "evidence_set_id": { "type": "string", "minLength": 1 },
+        "all_links_resolved": { "type": "boolean" },
+        "unresolved_reason_disclosed": { "type": "boolean" },
+        "stale_evidence_present": { "type": "boolean" },
+        "stale_disclosed": { "type": "boolean" },
+        "link_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_link_row" }
+        }
+      }
+    },
+    "flow_finding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_kind",
+        "confidence",
+        "cited_evidence_link_ids",
+        "evidence_backed",
+        "requires_human_confirmation",
+        "disclosed"
+      ],
+      "properties": {
+        "finding_id": { "type": "string", "minLength": 1 },
+        "finding_kind": { "$ref": "#/$defs/flow_finding_kind" },
+        "confidence": { "$ref": "#/$defs/finding_confidence_class" },
+        "cited_evidence_link_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_backed": { "type": "boolean" },
+        "requires_human_confirmation": { "type": "boolean" },
+        "disclosed": { "type": "boolean" }
+      }
+    },
+    "flow_finding_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_set_id",
+        "uncited_findings_count",
+        "no_authority_beyond_evidence",
+        "produced_before_apply",
+        "finding_rows"
+      ],
+      "properties": {
+        "finding_set_id": { "type": "string", "minLength": 1 },
+        "uncited_findings_count": { "type": "integer", "minimum": 0 },
+        "no_authority_beyond_evidence": { "type": "boolean" },
+        "produced_before_apply": { "type": "boolean" },
+        "finding_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flow_finding_row" }
+        }
+      }
+    },
+    "flow_surface_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "shows_flow",
+        "shows_evidence_links",
+        "shows_findings",
+        "reachable",
+        "qualification",
+        "claimed_stable"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/flow_consumer_surface" },
+        "shows_flow": { "type": "boolean" },
+        "shows_evidence_links": { "type": "boolean" },
+        "shows_findings": { "type": "boolean" },
+        "reachable": { "type": "boolean" },
+        "qualification": { "$ref": "#/$defs/flow_surface_qualification_class" },
+        "claimed_stable": { "type": "boolean" }
+      }
+    }
+  }
+}

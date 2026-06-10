@@ -74,6 +74,13 @@
 //! candidate previews that each carry diff/validation/rollback refs into the
 //! evidence-rich patch review lane and block auto-apply for any unsafe safety
 //! class.
+//! The AI explain/debug/test flow lane exposes one
+//! [`ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles::AiFlowEvidencePacket`]
+//! object binding a read-only explain, debug, or test flow, the evidence links
+//! it consumed into logs, traces, runbooks, and profiles with their freshness,
+//! provenance, and trust labels, and the findings it produced — each citing the
+//! evidence link ids that back it, with uncited claims counted and surfaced and
+//! no finding claiming authority beyond its cited evidence.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -106,11 +113,11 @@ pub mod evidence;
 pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
 pub mod freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents;
-pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
-pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
 pub mod harden_repo_ai_instructions;
+pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_context_pinning_and_omitted_context_tru;
+pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod memory;
 pub mod prompt_composer;
 pub mod publish_stable_ai_graduation_packets;
@@ -119,6 +126,7 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 pub mod run_history;
+pub mod ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles;
 pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
@@ -423,6 +431,18 @@ pub use run_history::{
     AI_RUN_HISTORY_PARITY_ARTIFACT_REF, AI_RUN_HISTORY_PARITY_PACKET_RECORD_KIND,
     AI_RUN_HISTORY_SCHEMA_VERSION, AI_RUN_HISTORY_SUPPORT_PACKET_RECORD_KIND,
     AI_RUN_HISTORY_SURFACE_ROW_RECORD_KIND,
+};
+pub use ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles::{
+    current_stable_ai_flow_evidence_export, AiFlowBlock, AiFlowEvidenceArtifactError,
+    AiFlowEvidencePacket, AiFlowEvidencePacketInput, AiFlowEvidenceViolation, AiFlowKind,
+    AiFlowState, EvidenceKind, EvidenceLinkBlock, EvidenceLinkRow,
+    EvidenceProvenanceClass, EvidenceSourceSurface, EvidenceTrustClass, FindingConfidenceClass,
+    FlowConsumerSurface, FlowDowngradeTrigger, FlowFindingBlock, FlowFindingKind, FlowFindingRow,
+    FlowSurfaceParityRow, FlowSurfaceQualificationClass, AI_FLOW_EVIDENCE_ARTIFACT_REF,
+    AI_FLOW_EVIDENCE_CONTEXT_ASSEMBLY_CONTRACT_REF, AI_FLOW_EVIDENCE_DOC_REF,
+    AI_FLOW_EVIDENCE_FIXTURE_DIR, AI_FLOW_EVIDENCE_M5_MATRIX_CONTRACT_REF,
+    AI_FLOW_EVIDENCE_PATCH_REVIEW_CONTRACT_REF, AI_FLOW_EVIDENCE_RECORD_KIND,
+    AI_FLOW_EVIDENCE_SCHEMA_REF, AI_FLOW_EVIDENCE_SCHEMA_VERSION, AI_FLOW_EVIDENCE_SUMMARY_REF,
 };
 pub use ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows::{
     current_stable_evidence_rich_patch_review_export, ApplyFlowBindingRow, ApplyFlowClass,
