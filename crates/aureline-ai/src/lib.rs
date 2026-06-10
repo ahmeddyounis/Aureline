@@ -185,6 +185,20 @@
 //! frozen M5 qualification, downgrade, and rollback-posture vocabulary, the
 //! routing-policy mode vocabulary, and the tool-gateway capability, side-effect,
 //! boundary, network, credential, and output-trust vocabularies.
+//! The signed/shared recipe-pack lane exposes one
+//! [`implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay::RecipePackGraduationPacket`]
+//! object binding, for every signed and shareable recipe pack, its signature and
+//! share-scope posture, the automation authority it has graduated to, and a
+//! step disclosure for every effect it can produce — holding a mutating step to
+//! preview-first replay under the same approval and audit bar as a first-party
+//! command, demanding an admin-gated authority and an externally auditable trail
+//! for an irreversible publish, requiring a shared pack to be signed and a
+//! managed-channel pack to ride a managed mode, narrowing rather than a claimed
+//! label when the pack is policy-blocked, trust-blocked, quarantined, or
+//! withdrawn, and narrowing rather than hiding on stale proof — reusing the frozen
+//! M5 qualification, downgrade, and rollback-posture vocabulary, the
+//! routing-policy mode vocabulary, and the tool-gateway side-effect and approval
+//! vocabularies.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -229,6 +243,7 @@ pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integr
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
 pub mod implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains;
+pub mod implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
 pub mod prompt_composer;
