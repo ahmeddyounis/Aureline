@@ -3,6 +3,7 @@
 use aureline_api::{
     current_database_browser_qualification, current_request_composer_qualification,
     current_request_workspace_qualification, current_response_viewer_qualification,
+    current_statement_safety_qualification,
 };
 
 #[test]
@@ -113,5 +114,32 @@ fn embedded_database_browser_packet_has_no_violations() {
 #[test]
 fn embedded_database_browser_summary_matches_computed() {
     let packet = current_database_browser_qualification().expect("embedded database browser packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_statement_safety_packet_parses() {
+    let packet = current_statement_safety_qualification().expect("embedded statement safety packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.classifiers.is_empty());
+    assert!(!packet.write_mode_bars.is_empty());
+    assert!(!packet.protected_target_step_ups.is_empty());
+}
+
+#[test]
+fn embedded_statement_safety_packet_has_no_violations() {
+    let packet = current_statement_safety_qualification().expect("embedded statement safety packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_statement_safety_summary_matches_computed() {
+    let packet = current_statement_safety_qualification().expect("embedded statement safety packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }

@@ -1,7 +1,8 @@
-//! API-client, request-workspace, and auth-source inspector contracts.
+//! API-client, request-workspace, database-tooling, and auth-source inspector contracts.
 //!
 //! This crate owns the typed records that keep versioned request-workspace
-//! documents, layered environment sets, auth-source inspectors, and request
+//! documents, layered environment sets, auth-source inspectors, statement-safety
+//! classification, write-mode bars, protected-target step-up flows, and request
 //! qualification packets attributable and inspectable without depending on
 //! hidden shell shortcuts or ad hoc scripts. The request-workspace boundary
 //! schema is
@@ -37,6 +38,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-api/0.0.0")]
 
+pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
@@ -76,6 +78,19 @@ pub use implement_connection_browsers_schema_trees_and_target_context_envelopes_
     DatabaseBrowserWritePosture, SchemaTreeRow, TargetContextEnvelopeRow,
     DATABASE_BROWSER_QUALIFICATION_PACKET_JSON, DATABASE_BROWSER_QUALIFICATION_PACKET_PATH,
     DATABASE_BROWSER_QUALIFICATION_RECORD_KIND, DATABASE_BROWSER_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows::{
+    current_statement_safety_qualification, AmbiguityReasonClass, BlockedReasonClass,
+    MultiStatementPostureClass, ObjectImpactClass, ObjectImpactEnvelope, PerStatementClassDescriptor,
+    ProtectedTargetStepUpRow, StatementSafetyClass, StatementSafetyClassifierRow,
+    StatementSafetyExecutionOrigin, StatementSafetyQualificationLabel, StatementSafetyQualificationPacket,
+    StatementSafetyQualificationProof, StatementSafetyQualificationSummary, StatementSafetyQualificationViolation,
+    StatementSafetyQualificationViolationKind, StatementSafetySurfaceGuardSet, StatementSafetySurfaceKind,
+    StatementSafetySurfaceQualificationRow, StatementSafetyWritePosture, StepUpKind, StepUpState,
+    TransactionContextClass, TransactionEnvelope, WriteModeBarRow,
+    STATEMENT_SAFETY_QUALIFICATION_PACKET_JSON, STATEMENT_SAFETY_QUALIFICATION_PACKET_PATH,
+    STATEMENT_SAFETY_QUALIFICATION_RECORD_KIND, STATEMENT_SAFETY_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{
