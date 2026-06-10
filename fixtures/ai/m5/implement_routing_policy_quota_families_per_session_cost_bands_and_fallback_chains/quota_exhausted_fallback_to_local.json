@@ -1,0 +1,145 @@
+{
+  "record_kind": "implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains",
+  "schema_version": 1,
+  "packet_id": "routing-policy:incident:0001",
+  "catalogue_label": "Routing Policy After Per-Session Quota Exhaustion",
+  "policies": [
+    {
+      "policy_id": "composer-managed",
+      "surface_id": "composer",
+      "surface_label": "Composer inline assist",
+      "resolved_mode": "local",
+      "claimed_qualification": "beta",
+      "quota": {
+        "family": "per_user_byok_vendor_quota",
+        "state": "grace",
+        "scope": "per_session",
+        "budget_owner_label": "BYOK credential owner",
+        "explanation_label": "In the grace window after the vendor quota warning"
+      },
+      "session_cost_band": {
+        "band": "metered_medium_band",
+        "measurement": "actual_measured",
+        "charged": "charged_user_metered",
+        "session_budget_owner_label": "BYOK credential owner",
+        "exhausted_this_session": false,
+        "explanation_label": "Metered against the user's own vendor account"
+      },
+      "fallback_chain": [
+        {
+          "order": 0,
+          "mode": "byok",
+          "reason": "primary_cheapest_qualifying",
+          "outcome": "available_not_selected",
+          "label": "BYOK vendor route held in grace"
+        },
+        {
+          "order": 1,
+          "mode": "local",
+          "reason": "fallback_after_quota_exhausted",
+          "outcome": "selected",
+          "label": "On-device model serving the surface during grace"
+        },
+        {
+          "order": 2,
+          "mode": "local",
+          "reason": "non_ai_terminal_fallback",
+          "outcome": "terminal_reachable",
+          "label": "Manual command path reachable without any model"
+        }
+      ],
+      "downgrade_rules": [
+        {
+          "trigger": "proof_stale",
+          "narrowed_to": "preview",
+          "auto_enforced": true,
+          "rationale": "Stale proof narrows the public claim"
+        },
+        {
+          "trigger": "provider_unavailable",
+          "narrowed_to": "unavailable",
+          "auto_enforced": true,
+          "rationale": "Quota or provider exhaustion narrows the claim"
+        }
+      ],
+      "rollback_posture": "fully_reversible",
+      "rollback_verified": true,
+      "evidence_packet_refs": ["evidence:composer-managed:m5"]
+    },
+    {
+      "policy_id": "agent-byok",
+      "surface_id": "agent",
+      "surface_label": "Background agent",
+      "resolved_mode": "byok",
+      "claimed_qualification": "held",
+      "quota": {
+        "family": "per_user_byok_vendor_quota",
+        "state": "exhausted",
+        "scope": "per_session",
+        "budget_owner_label": "BYOK credential owner",
+        "explanation_label": "Per-session vendor quota is exhausted; primary route blocked"
+      },
+      "session_cost_band": {
+        "band": "metered_high_band",
+        "measurement": "actual_measured",
+        "charged": "charged_user_metered",
+        "session_budget_owner_label": "BYOK credential owner",
+        "exhausted_this_session": true,
+        "explanation_label": "Per-session budget spent; no AI route remains for this surface"
+      },
+      "fallback_chain": [
+        {
+          "order": 0,
+          "mode": "byok",
+          "reason": "primary_cheapest_qualifying",
+          "outcome": "exhausted_skipped",
+          "label": "BYOK vendor route skipped after exhaustion"
+        },
+        {
+          "order": 1,
+          "mode": "local",
+          "reason": "fallback_after_quota_exhausted",
+          "outcome": "exhausted_skipped",
+          "label": "On-device model unavailable on this device"
+        },
+        {
+          "order": 2,
+          "mode": "local",
+          "reason": "non_ai_terminal_fallback",
+          "outcome": "terminal_reachable",
+          "label": "Manual command path reachable without any model"
+        }
+      ],
+      "downgrade_rules": [
+        {
+          "trigger": "proof_stale",
+          "narrowed_to": "unavailable",
+          "auto_enforced": true,
+          "rationale": "Stale proof narrows the public claim"
+        },
+        {
+          "trigger": "provider_unavailable",
+          "narrowed_to": "unavailable",
+          "auto_enforced": true,
+          "rationale": "Quota or provider exhaustion narrows the claim"
+        }
+      ],
+      "rollback_posture": "evidence_preserved_no_revert",
+      "rollback_verified": false,
+      "evidence_packet_refs": []
+    }
+  ],
+  "proof_freshness": {
+    "proof_freshness_slo_hours": 168,
+    "last_proof_refresh": "2026-06-09T00:00:00Z",
+    "auto_narrow_on_stale": true
+  },
+  "source_contract_refs": [
+    "schemas/ai/implement-routing-policy-quota-families-per-session-cost-bands-and-fallback-chains.schema.json",
+    "docs/ai/m5/implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains.md",
+    "schemas/ai/provider_model_registry.schema.json",
+    "schemas/ai/freeze-the-m5-ai-workflow-matrix-for-inline-assist-patch-review-and-branch-or-worktree-agents.schema.json"
+  ],
+  "redaction_class_token": "metadata_safe_default",
+  "minted_at": "2026-06-09T00:00:00Z"
+}

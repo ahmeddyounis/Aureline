@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-routing-policy-quota-families-per-session-cost-bands-and-fallback-chains.schema.json",
+  "title": "Aureline routing policy, quota families, per-session cost bands, and fallback chains",
+  "description": "Export-safe packet materializing the route-governance surface into per-surface rows. Each row binds the provider/locality mode its routing policy resolves to, the quota family that rations it, the per-session cost band that prices it, and the ordered fallback chain that keeps it reachable. Every fallback chain must be strictly ordered from zero and end in a non-AI terminal fallback, a claimed surface must resolve to exactly one selected hop whose mode matches the resolved mode, a metered or subscription cost band must disclose who is charged, an estimate-only band may not back a Stable claim, and an exhausted quota or per-session budget may not keep claiming Stable. Raw provider endpoints, credential bodies, raw provider payloads, and exact spend values never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "catalogue_label",
+    "policies",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "catalogue_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/routing_policy_row"
+      }
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "qualification_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+    },
+    "rollback_posture": {
+      "enum": [
+        "fully_reversible",
+        "checkpoint_reversible",
+        "evidence_preserved_no_revert",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "route_policy_mode": {
+      "enum": ["local", "byok", "managed", "enterprise_gateway"]
+    },
+    "quota_family": {
+      "enum": [
+        "per_user_local_unmetered",
+        "per_user_byok_vendor_quota",
+        "organisation_pooled_quota",
+        "enterprise_gateway_pooled_quota",
+        "managed_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered"
+      ]
+    },
+    "quota_state": {
+      "enum": [
+        "within_limit",
+        "warning",
+        "exhausted",
+        "grace",
+        "paused_by_policy",
+        "unknown_unverified"
+      ]
+    },
+    "quota_scope": {
+      "enum": [
+        "per_session",
+        "per_user",
+        "per_workspace",
+        "per_organisation",
+        "per_deployment_profile",
+        "local_device",
+        "enterprise_pool"
+      ]
+    },
+    "cost_band": {
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_low_band",
+        "metered_medium_band",
+        "metered_high_band",
+        "flat_fee_subscription_band",
+        "estimated_unverified_band"
+      ]
+    },
+    "cost_measurement": {
+      "enum": ["estimate_band", "actual_measured", "actual_unverified"]
+    },
+    "charged_disclosure": {
+      "enum": [
+        "not_charged_local",
+        "not_charged_bundled",
+        "charged_user_metered",
+        "charged_user_subscription",
+        "charged_organisation_pooled",
+        "charge_unknown_unverified"
+      ]
+    },
+    "fallback_hop_reason": {
+      "enum": [
+        "primary_cheapest_qualifying",
+        "fallback_after_quota_exhausted",
+        "fallback_after_budget_exhausted",
+        "fallback_after_provider_unavailable",
+        "fallback_after_policy_blocked",
+        "non_ai_terminal_fallback"
+      ]
+    },
+    "fallback_hop_outcome": {
+      "enum": [
+        "selected",
+        "available_not_selected",
+        "exhausted_skipped",
+        "blocked_skipped",
+        "terminal_reachable"
+      ]
+    },
+    "quota_inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "state", "scope", "budget_owner_label", "explanation_label"],
+      "properties": {
+        "family": { "$ref": "#/$defs/quota_family" },
+        "state": { "$ref": "#/$defs/quota_state" },
+        "scope": { "$ref": "#/$defs/quota_scope" },
+        "budget_owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "per_session_cost_band": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "band",
+        "measurement",
+        "charged",
+        "session_budget_owner_label",
+        "exhausted_this_session",
+        "explanation_label"
+      ],
+      "properties": {
+        "band": { "$ref": "#/$defs/cost_band" },
+        "measurement": { "$ref": "#/$defs/cost_measurement" },
+        "charged": { "$ref": "#/$defs/charged_disclosure" },
+        "session_budget_owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "exhausted_this_session": { "type": "boolean" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "fallback_hop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "mode", "reason", "outcome", "label"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "mode": { "$ref": "#/$defs/route_policy_mode" },
+        "reason": { "$ref": "#/$defs/fallback_hop_reason" },
+        "outcome": { "$ref": "#/$defs/fallback_hop_outcome" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "narrowed_to", "auto_enforced", "rationale"],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "narrowed_to": { "$ref": "#/$defs/qualification_class" },
+        "auto_enforced": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "routing_policy_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "surface_id",
+        "surface_label",
+        "resolved_mode",
+        "claimed_qualification",
+        "quota",
+        "session_cost_band",
+        "fallback_chain",
+        "downgrade_rules",
+        "rollback_posture",
+        "rollback_verified",
+        "evidence_packet_refs"
+      ],
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "resolved_mode": { "$ref": "#/$defs/route_policy_mode" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "quota": { "$ref": "#/$defs/quota_inspector" },
+        "session_cost_band": { "$ref": "#/$defs/per_session_cost_band" },
+        "fallback_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_hop" }
+        },
+        "downgrade_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_rule" }
+        },
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "rollback_verified": { "type": "boolean" },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

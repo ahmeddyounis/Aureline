@@ -148,6 +148,17 @@
 //! narrowing a kill-switched or backed-out route instead of letting it keep
 //! claiming Stable, and narrowing rather than hiding on stale proof using the
 //! frozen M5 downgrade vocabulary.
+//! The routing-policy lane exposes one
+//! [`implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains::RoutingPolicyPacket`]
+//! object binding, for every governed surface, the provider/locality mode its
+//! routing policy resolves to, the quota family that rations it, the per-session
+//! cost band that prices it, and the ordered fallback chain that keeps it
+//! reachable — requiring a strictly-ordered chain that ends in a non-AI terminal
+//! fallback, a single selected hop whose mode matches the resolved mode, a
+//! disclosed charge owner on any metered or subscription band, and narrowing
+//! rather than a Stable claim when the per-session budget or quota is exhausted
+//! or the cost is only estimated, all using the frozen M5 qualification,
+//! downgrade, and rollback-posture vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -190,6 +201,7 @@ pub mod implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenan
 pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
 pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
+pub mod implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
 pub mod prompt_composer;
