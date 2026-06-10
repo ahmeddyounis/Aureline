@@ -401,9 +401,7 @@ fn consumer_surface_coverage_missing_fails() {
     input.consumer_surface_parity = vec![input.consumer_surface_parity[0].clone()];
     let packet = EvidenceRichPatchReviewPacket::new(input);
     let violations = packet.validate();
-    assert!(
-        violations.contains(&EvidenceRichPatchReviewViolation::ConsumerSurfaceCoverageMissing)
-    );
+    assert!(violations.contains(&EvidenceRichPatchReviewViolation::ConsumerSurfaceCoverageMissing));
 }
 
 #[test]
@@ -423,9 +421,7 @@ fn raw_boundary_material_detected() {
         "https://internal.aureline.dev/artifacts/patch-secret".to_owned();
     let packet = EvidenceRichPatchReviewPacket::new(input);
     let violations = packet.validate();
-    assert!(
-        violations.contains(&EvidenceRichPatchReviewViolation::RawBoundaryMaterialInExport)
-    );
+    assert!(violations.contains(&EvidenceRichPatchReviewViolation::RawBoundaryMaterialInExport));
 }
 
 #[test]

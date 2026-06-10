@@ -159,7 +159,10 @@ impl OriginClass {
 
     /// Returns true when the origin requires a provenance chain display.
     pub const fn requires_provenance(self) -> bool {
-        matches!(self, Self::ImportedArtifact | Self::CachedReplay | Self::SupportBundle)
+        matches!(
+            self,
+            Self::ImportedArtifact | Self::CachedReplay | Self::SupportBundle
+        )
     }
 }
 
@@ -446,11 +449,7 @@ impl CertificationQualificationPacket {
                     || (t.origin_class.is_imported_or_cached() && t.shows_imported_label)
             })
             .count();
-        let active_downgrade_rule_count = self
-            .downgrade_rules
-            .iter()
-            .filter(|r| r.active)
-            .count();
+        let active_downgrade_rule_count = self.downgrade_rules.iter().filter(|r| r.active).count();
 
         CertificationQualificationSummary {
             certification_count: self.certifications.len(),
@@ -829,7 +828,10 @@ impl fmt::Display for CertificationQualificationViolation {
                     "active downgrade rule {rule_id} must be visible on certification surfaces"
                 )
             }
-            Self::DowngradeRuleAffectsUnknownRow { rule_id, m5_row_ref } => {
+            Self::DowngradeRuleAffectsUnknownRow {
+                rule_id,
+                m5_row_ref,
+            } => {
                 write!(
                     f,
                     "downgrade rule {rule_id} affects unknown M5 row {m5_row_ref}"

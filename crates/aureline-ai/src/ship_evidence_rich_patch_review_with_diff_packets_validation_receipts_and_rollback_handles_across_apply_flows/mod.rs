@@ -93,7 +93,11 @@ pub enum ApplyFlowClass {
 
 impl ApplyFlowClass {
     /// Every flow, in declaration order.
-    pub const ALL: [Self; 3] = [Self::InlineAssist, Self::PatchReview, Self::BranchOrWorktreeAgent];
+    pub const ALL: [Self; 3] = [
+        Self::InlineAssist,
+        Self::PatchReview,
+        Self::BranchOrWorktreeAgent,
+    ];
 
     /// Stable token used in exports and fixtures.
     pub const fn as_str(self) -> &'static str {
@@ -680,8 +684,7 @@ impl EvidenceRichPatchReviewPacket {
     ///
     /// Panics only if serializing this metadata-only packet fails.
     pub fn export_safe_json(&self) -> String {
-        serde_json::to_string_pretty(self)
-            .expect("evidence-rich patch review packet serializes")
+        serde_json::to_string_pretty(self).expect("evidence-rich patch review packet serializes")
     }
 
     /// Deterministic Markdown summary for support, docs, or review handoff.

@@ -43,7 +43,8 @@ fn attachment_rows() -> Vec<RicherAttachmentRow> {
             open_action_ref: "action:open:att-001".to_owned(),
             remove_action_ref: "action:remove:att-001".to_owned(),
             keyboard_reachable: true,
-            screen_reader_label: "Attachment src main rs, workspace file, primary context".to_owned(),
+            screen_reader_label: "Attachment src main rs, workspace file, primary context"
+                .to_owned(),
         },
         RicherAttachmentRow {
             attachment_id: "att-002".to_owned(),
@@ -89,7 +90,8 @@ fn attachment_rows() -> Vec<RicherAttachmentRow> {
             open_action_ref: "action:open:att-003".to_owned(),
             remove_action_ref: "action:remove:att-003".to_owned(),
             keyboard_reachable: true,
-            screen_reader_label: "Attachment API Guide, docs reference, instruction source".to_owned(),
+            screen_reader_label: "Attachment API Guide, docs reference, instruction source"
+                .to_owned(),
         },
         RicherAttachmentRow {
             attachment_id: "att-004".to_owned(),
@@ -171,8 +173,8 @@ fn attachment_rows() -> Vec<RicherAttachmentRow> {
             open_action_ref: "action:open:att-007".to_owned(),
             remove_action_ref: "action:remove:att-007".to_owned(),
             keyboard_reachable: true,
-            screen_reader_label: "Attachment pasted snippet, external text, external reference, tainted"
-                .to_owned(),
+            screen_reader_label:
+                "Attachment pasted snippet, external text, external reference, tainted".to_owned(),
         },
     ]
 }
@@ -293,7 +295,8 @@ fn thread_header() -> RicherThreadHeader {
         export_action_ref: "action:memory:export".to_owned(),
         remember_preview: crate::stabilize_prompt_composer::RememberPreview {
             retained_summary_label: "Current composer thread with draft patch intent".to_owned(),
-            retention_locus_class: crate::stabilize_prompt_composer::RetentionLocusClass::LocalDevice,
+            retention_locus_class:
+                crate::stabilize_prompt_composer::RetentionLocusClass::LocalDevice,
             reuse_audience_class: crate::stabilize_prompt_composer::ReuseAudienceClass::OnlyMe,
             memory_class_token: "composer-thread".to_owned(),
             preview_action_ref: "action:memory:preview".to_owned(),
@@ -416,7 +419,10 @@ fn packet_serializes_and_deserializes() {
 fn validate_self_passes_for_valid_packet() {
     let packet = packet();
     let violations = packet.validate_self();
-    assert!(violations.is_empty(), "expected no violations, got: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {violations:?}"
+    );
 }
 
 #[test]
@@ -509,7 +515,9 @@ fn validate_self_fails_on_stale_pin_without_drift() {
 #[test]
 fn validate_self_fails_on_omitted_without_restoration() {
     let mut packet = packet();
-    packet.omitted_context_rows[0].restoration_action_ref.clear();
+    packet.omitted_context_rows[0]
+        .restoration_action_ref
+        .clear();
     let violations = packet.validate_self();
     assert!(violations.contains(&RicherPromptComposerViolation::OmittedContextNotInspectable));
 }
@@ -520,9 +528,7 @@ fn validate_self_fails_on_budget_overflow_without_explanation() {
     packet.budget_strip.pressure_class = BudgetPressureClass::Overflow;
     packet.budget_strip.explanation_label.clear();
     let violations = packet.validate_self();
-    assert!(
-        violations.contains(&RicherPromptComposerViolation::BudgetOverflowWithoutExplanation)
-    );
+    assert!(violations.contains(&RicherPromptComposerViolation::BudgetOverflowWithoutExplanation));
 }
 
 #[test]

@@ -29,7 +29,7 @@ use crate::prompt_composer::{
     PromptEvidenceLineage, PromptEvidencePacketClass,
 };
 use crate::stabilize_prompt_composer::{
-    ComposerSurfaceClass, ContextDriftBanner, CompareAnswerRow, ForkedThreadLineage,
+    CompareAnswerRow, ComposerSurfaceClass, ContextDriftBanner, ForkedThreadLineage,
     PinnedFreshnessStateClass, StableAttachmentSourceClass,
 };
 use crate::{SourceClass, TrustPosture};
@@ -122,10 +122,9 @@ impl IntentModeBehaviorConstraint {
                 Self::GeneratedTestsNotCoverageProof,
                 Self::RequiresEvidencePacket,
             ],
-            IntentModeClass::RunToolWithApproval => &[
-                Self::ExplicitToolApproval,
-                Self::RequiresEvidencePacket,
-            ],
+            IntentModeClass::RunToolWithApproval => {
+                &[Self::ExplicitToolApproval, Self::RequiresEvidencePacket]
+            }
         }
     }
 }
@@ -869,7 +868,9 @@ impl RicherPromptComposerViolation {
             Self::EmbeddedStabilizationInvalid => "embedded_stabilization_invalid",
             Self::IntentModeConstraintsMissing => "intent_mode_constraints_missing",
             Self::AttachmentRichnessIncomplete => "attachment_richness_incomplete",
-            Self::AttachmentSourceClassCoverageMissing => "attachment_source_class_coverage_missing",
+            Self::AttachmentSourceClassCoverageMissing => {
+                "attachment_source_class_coverage_missing"
+            }
             Self::PinPolicyIncomplete => "pin_policy_incomplete",
             Self::PinnedStaleNotSurfaced => "pinned_stale_not_surfaced",
             Self::OmittedContextNotInspectable => "omitted_context_not_inspectable",
@@ -931,9 +932,7 @@ fn validate_intent_row(
     violations: &mut Vec<RicherPromptComposerViolation>,
 ) {
     let row = &packet.intent_row;
-    if row.current_scope_label.trim().is_empty()
-        || row.approval_posture_class.trim().is_empty()
-    {
+    if row.current_scope_label.trim().is_empty() || row.approval_posture_class.trim().is_empty() {
         violations.push(RicherPromptComposerViolation::IntentModeConstraintsMissing);
         return;
     }

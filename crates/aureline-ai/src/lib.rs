@@ -159,6 +159,19 @@
 //! rather than a Stable claim when the per-session budget or quota is exhausted
 //! or the cost is only estimated, all using the frozen M5 qualification,
 //! downgrade, and rollback-posture vocabulary.
+//! The long-running-agent budget lane exposes one
+//! [`add_spend_ledgers_quota_warning_surfaces_and_wall_clock_or_token_or_tool_call_ceilings_for_long_running_agents::AgentBudgetPacket`]
+//! object binding, for every long-running agent run, the running spend ledger
+//! that accrues its cost, the quota-warning surface that flags an approaching
+//! provider limit before it is hit, and the wall-clock, token, and tool-call
+//! ceilings that keep the run bounded — requiring every claimed run to configure
+//! and bound those ceilings so it can never run unbounded, a reached ceiling to
+//! actually stop or pause the run with the run state agreeing, a spend ledger
+//! that only accumulates and discloses who is charged, and narrowing rather than
+//! a Stable claim when the provider quota is exhausted or the cost is only
+//! estimated, reusing the frozen M5 qualification, downgrade, and
+//! rollback-posture vocabulary and the routing-policy mode, quota, and cost-band
+//! vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -181,6 +194,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes;
+pub mod add_spend_ledgers_quota_warning_surfaces_and_wall_clock_or_token_or_tool_call_ceilings_for_long_running_agents;
 pub mod add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes;
 pub mod ai_pack_rollout;
 pub mod ai_review_assist;
