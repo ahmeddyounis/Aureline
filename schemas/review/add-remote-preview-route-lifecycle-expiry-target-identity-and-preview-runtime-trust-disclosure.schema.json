@@ -1,0 +1,537 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/add-remote-preview-route-lifecycle-expiry-target-identity-and-preview-runtime-trust-disclosure.schema.json",
+  "title": "Aureline remote preview route lifecycle, expiry, target identity, and preview/runtime trust disclosure",
+  "description": "Export-safe packet implementing four remote-preview lane pillars: route rows that carry the durable review anchor, lifecycle phase, target identity (label, run, and commit), expiry disclosure, host identity, preview/runtime trust disclosure, provider-mode mutation mode, blocked class, actor attribution, and audit row ref; expiry disclosure that keeps every served route time-bounded with a positive TTL, an honest expiry label, and auto-revoke, while an unbounded route is blocked rather than served; host identity that discloses the host/provider class and origin; and preview/runtime trust disclosure that names the runtime trust class and network egress so untrusted remote content or unrestricted egress can never hide. A bound lifecycle-event table records route transitions. The packet binds route rows, lifecycle event rows, downgrade triggers, consumer surfaces, trust review, consumer projection, and proof freshness. Publishing a remote preview route always reaches upstream host state, so the local-only local_draft mutation mode is intentionally absent; publish_now must cite an approval_ticket_ref, open_in_provider must cite a browser_handoff_ref, and deferred_publish must cite a deferred_queue_ref. Raw preview URLs, raw host names, raw run/log bodies, raw provider payloads, raw absolute paths, raw author email addresses, credentials, and live provider responses never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "surface_label",
+    "route_rows",
+    "lifecycle_event_rows",
+    "downgrade_triggers",
+    "consumer_surfaces",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "surface_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "route_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/route_row"
+      }
+    },
+    "lifecycle_event_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/lifecycle_event_row"
+      }
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_surface"
+      }
+    },
+    "trust_review": {
+      "$ref": "#/$defs/trust_review"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "nullable_ref": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "lifecycle_phase": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "provisioning",
+        "live",
+        "expiring_soon",
+        "expired",
+        "revoked",
+        "failed",
+        "unknown_phase_provider_owned"
+      ]
+    },
+    "expiry_state": {
+      "type": "string",
+      "enum": [
+        "active_time_bounded",
+        "expiring_soon",
+        "expired",
+        "revoked_before_expiry",
+        "no_expiry_unbounded"
+      ]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "aureline_managed_host",
+        "provider_hosted",
+        "self_hosted_tunnel",
+        "local_loopback",
+        "unknown_host_provider_owned"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "sandboxed_isolated",
+        "sandboxed_network_limited",
+        "runtime_trusted_workspace",
+        "untrusted_remote_content",
+        "unknown_trust_provider_owned"
+      ]
+    },
+    "network_egress": {
+      "type": "string",
+      "enum": [
+        "no_egress",
+        "egress_to_named_targets",
+        "unrestricted_egress",
+        "unknown_egress_provider_owned"
+      ]
+    },
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish"
+      ],
+      "description": "Provider-mode mutation modes admissible for remote preview routes. local_draft is intentionally absent because publishing a route reaches upstream host state."
+    },
+    "blocked_class": {
+      "type": "string",
+      "enum": [
+        "not_blocked",
+        "blocked_no_auth_for_route",
+        "blocked_policy_forbids_remote_preview",
+        "blocked_route_expired",
+        "blocked_route_revoked",
+        "blocked_no_expiry_not_time_bounded",
+        "blocked_untrusted_runtime_review_required",
+        "blocked_host_identity_undisclosed",
+        "blocked_offline_or_disconnected",
+        "blocked_unknown_reason_provider_owned"
+      ]
+    },
+    "lifecycle_event_kind": {
+      "type": "string",
+      "enum": [
+        "provisioned",
+        "went_live",
+        "extended_expiry",
+        "expiry_warning",
+        "expired",
+        "revoked",
+        "failed",
+        "unknown_event_provider_owned"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "route_attribution_missing",
+        "route_expiry_unbounded",
+        "route_expired_or_revoked",
+        "runtime_trust_undisclosed",
+        "host_identity_undisclosed",
+        "trust_narrowing",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "preview_panel",
+        "remote_preview_route_card",
+        "route_lifecycle_sheet",
+        "review_workspace_header",
+        "command_palette",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "expiry_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expiry_state",
+        "ttl_seconds",
+        "expires_at_label",
+        "auto_revoke_on_expiry"
+      ],
+      "properties": {
+        "expiry_state": { "$ref": "#/$defs/expiry_state" },
+        "ttl_seconds": { "type": "integer", "minimum": 0 },
+        "expires_at_label": { "type": "string" },
+        "auto_revoke_on_expiry": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "A time-bounded route MUST carry a positive TTL, an expiry label, and auto-revoke.",
+          "if": {
+            "properties": {
+              "expiry_state": {
+                "enum": [
+                  "active_time_bounded",
+                  "expiring_soon",
+                  "expired",
+                  "revoked_before_expiry"
+                ]
+              }
+            },
+            "required": ["expiry_state"]
+          },
+          "then": {
+            "properties": {
+              "ttl_seconds": { "type": "integer", "minimum": 1 },
+              "expires_at_label": { "$ref": "#/$defs/non_empty_string" },
+              "auto_revoke_on_expiry": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "host_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_class", "host_label", "origin_disclosed"],
+      "properties": {
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "host_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_disclosed": { "const": true }
+      }
+    },
+    "preview_trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_class",
+        "network_egress",
+        "executes_untrusted_code",
+        "runtime_writes_disclosed",
+        "trust_disclosure_label"
+      ],
+      "properties": {
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "network_egress": { "$ref": "#/$defs/network_egress" },
+        "executes_untrusted_code": { "type": "boolean" },
+        "runtime_writes_disclosed": { "const": true },
+        "trust_disclosure_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "route_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_id",
+        "durable_anchor_id",
+        "target_identity_label",
+        "target_run_id",
+        "target_commit_label",
+        "lifecycle_phase",
+        "expiry",
+        "host_identity",
+        "preview_trust",
+        "mutation_mode",
+        "blocked_class",
+        "actor_attribution_label",
+        "audit_row_ref",
+        "attention_reasons",
+        "review_summary",
+        "approval_ticket_ref",
+        "browser_handoff_ref",
+        "deferred_queue_ref",
+        "source_contract_refs"
+      ],
+      "properties": {
+        "route_id": { "$ref": "#/$defs/non_empty_string" },
+        "durable_anchor_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_label": { "$ref": "#/$defs/non_empty_string" },
+        "target_run_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_commit_label": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_phase": { "$ref": "#/$defs/lifecycle_phase" },
+        "expiry": { "$ref": "#/$defs/expiry_disclosure" },
+        "host_identity": { "$ref": "#/$defs/host_identity" },
+        "preview_trust": { "$ref": "#/$defs/preview_trust" },
+        "mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "blocked_class": { "$ref": "#/$defs/blocked_class" },
+        "actor_attribution_label": { "$ref": "#/$defs/non_empty_string" },
+        "audit_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "attention_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "review_summary": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_ref" },
+        "browser_handoff_ref": { "$ref": "#/$defs/nullable_ref" },
+        "deferred_queue_ref": { "$ref": "#/$defs/nullable_ref" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" }
+      },
+      "allOf": [
+        {
+          "description": "An unbounded route MUST be blocked for not being time-bounded.",
+          "if": {
+            "properties": {
+              "expiry": {
+                "properties": {
+                  "expiry_state": { "const": "no_expiry_unbounded" }
+                },
+                "required": ["expiry_state"]
+              }
+            },
+            "required": ["expiry"]
+          },
+          "then": {
+            "properties": {
+              "blocked_class": { "const": "blocked_no_expiry_not_time_bounded" }
+            }
+          }
+        },
+        {
+          "description": "unknown_phase_provider_owned MUST carry at least one attention reason.",
+          "if": {
+            "properties": {
+              "lifecycle_phase": { "const": "unknown_phase_provider_owned" }
+            },
+            "required": ["lifecycle_phase"]
+          },
+          "then": {
+            "properties": {
+              "attention_reasons": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "A blocked route MUST carry at least one attention reason.",
+          "if": {
+            "properties": {
+              "blocked_class": {
+                "not": { "const": "not_blocked" }
+              }
+            },
+            "required": ["blocked_class"]
+          },
+          "then": {
+            "properties": {
+              "attention_reasons": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "publish_now MUST cite an approval_ticket_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "publish_now" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "open_in_provider MUST cite a browser_handoff_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "open_in_provider" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["browser_handoff_ref"]
+          }
+        },
+        {
+          "description": "deferred_publish MUST cite a deferred_queue_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "deferred_publish" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "deferred_queue_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["deferred_queue_ref"]
+          }
+        }
+      ]
+    },
+    "lifecycle_event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_id",
+        "event_id",
+        "event_label",
+        "from_phase",
+        "to_phase",
+        "event_kind",
+        "disclosure_label"
+      ],
+      "properties": {
+        "route_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_label": { "$ref": "#/$defs/non_empty_string" },
+        "from_phase": { "$ref": "#/$defs/lifecycle_phase" },
+        "to_phase": { "$ref": "#/$defs/lifecycle_phase" },
+        "event_kind": { "$ref": "#/$defs/lifecycle_event_kind" },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_lifecycle_phase_explicit",
+        "every_route_time_bounded",
+        "expiry_auto_revoke_enforced",
+        "target_identity_explicit",
+        "host_identity_disclosed",
+        "preview_runtime_trust_disclosed",
+        "network_egress_disclosed",
+        "every_mutating_route_attributable",
+        "audit_row_recorded_for_every_route",
+        "mutation_mode_cites_required_grant",
+        "no_hidden_write_scope",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "route_lifecycle_phase_explicit": { "const": true },
+        "every_route_time_bounded": { "const": true },
+        "expiry_auto_revoke_enforced": { "const": true },
+        "target_identity_explicit": { "const": true },
+        "host_identity_disclosed": { "const": true },
+        "preview_runtime_trust_disclosed": { "const": true },
+        "network_egress_disclosed": { "const": true },
+        "every_mutating_route_attributable": { "const": true },
+        "audit_row_recorded_for_every_route": { "const": true },
+        "mutation_mode_cites_required_grant": { "const": true },
+        "no_hidden_write_scope": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true },
+        "stale_or_underqualified_blocks_promotion": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_panel_shows_lifecycle_phase",
+        "route_card_shows_expiry",
+        "route_card_shows_target_identity",
+        "route_card_shows_host_identity",
+        "route_lifecycle_sheet_shows_trust_disclosure",
+        "review_workspace_header_shows_attribution",
+        "command_palette_shows_route_state",
+        "cli_headless_shows_truth",
+        "support_export_shows_truth",
+        "diagnostics_shows_truth",
+        "help_about_shows_truth",
+        "preview_labs_label_for_unqualified"
+      ],
+      "properties": {
+        "preview_panel_shows_lifecycle_phase": { "const": true },
+        "route_card_shows_expiry": { "const": true },
+        "route_card_shows_target_identity": { "const": true },
+        "route_card_shows_host_identity": { "const": true },
+        "route_lifecycle_sheet_shows_trust_disclosure": { "const": true },
+        "review_workspace_header_shows_attribution": { "const": true },
+        "command_palette_shows_route_state": { "const": true },
+        "cli_headless_shows_truth": { "const": true },
+        "support_export_shows_truth": { "const": true },
+        "diagnostics_shows_truth": { "const": true },
+        "help_about_shows_truth": { "const": true },
+        "preview_labs_label_for_unqualified": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -12,6 +12,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
 pub mod add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows;
+pub mod add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure;
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
@@ -53,6 +54,21 @@ pub use add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputa
     MERGE_QUEUE_READINESS_PIPELINE_RUN_CONTRACT_REF, MERGE_QUEUE_READINESS_RECORD_KIND,
     MERGE_QUEUE_READINESS_SCHEMA_REF, MERGE_QUEUE_READINESS_SCHEMA_VERSION,
     MERGE_QUEUE_READINESS_SUMMARY_REF,
+};
+pub use add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure::{
+    current_remote_preview_route_export, NetworkEgressClass, PreviewRuntimeTrustClass,
+    PreviewRuntimeTrustDisclosure, RemotePreviewRouteArtifactError,
+    RemotePreviewRouteConsumerProjection, RemotePreviewRouteConsumerSurface,
+    RemotePreviewRouteDowngradeTrigger, RemotePreviewRoutePacket, RemotePreviewRoutePacketInput,
+    RemotePreviewRouteProofFreshness, RemotePreviewRouteRow, RemotePreviewRouteTrustReview,
+    RemotePreviewRouteViolation, RouteBlockedClass, RouteExpiryDisclosure, RouteExpiryState,
+    RouteHostClass, RouteHostIdentity, RouteLifecycleEventKind, RouteLifecycleEventRow,
+    RouteLifecyclePhase, RouteMutationMode, REMOTE_PREVIEW_ROUTE_ARTIFACT_REF,
+    REMOTE_PREVIEW_ROUTE_BROWSER_RUNTIME_CONTRACT_REF, REMOTE_PREVIEW_ROUTE_DOC_REF,
+    REMOTE_PREVIEW_ROUTE_FIXTURE_DIR, REMOTE_PREVIEW_ROUTE_PIPELINE_RUN_CONTRACT_REF,
+    REMOTE_PREVIEW_ROUTE_PREVIEW_ROUTE_CONTRACT_REF, REMOTE_PREVIEW_ROUTE_RECORD_KIND,
+    REMOTE_PREVIEW_ROUTE_SCHEMA_REF, REMOTE_PREVIEW_ROUTE_SCHEMA_VERSION,
+    REMOTE_PREVIEW_ROUTE_SUMMARY_REF, REMOTE_PREVIEW_ROUTE_TRUST_CLASS_CONTRACT_REF,
 };
 pub use aureline_navigation::target_model as navigation_target_model;
 pub use change_inspector::{
