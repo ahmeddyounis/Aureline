@@ -137,6 +137,17 @@
 //! presents a pack that does not fit the device, holds offline and mirror
 //! channels to the same signing bar as a direct download, and narrows rather
 //! than hides on stale proof using the frozen M5 downgrade vocabulary.
+//! The provider/model graduation lane exposes one
+//! [`ship_provider_and_model_graduation_packets_rollout_rings_and_kill_switch_or_backout_paths::ProviderModelGraduationPacket`]
+//! object binding, for every provider/model route, its claimed qualification,
+//! the rollout ring it is exposed through, that ring's progress state, the
+//! provider-neutral kill switch that can halt it, and the backout path that
+//! reverses it — refusing any route whose kill switch fails open, keeping a
+//! claimed route's kill switch armed, demanding a verified backout path on any
+//! broad-exposure route, holding general availability to a Stable claim,
+//! narrowing a kill-switched or backed-out route instead of letting it keep
+//! claiming Stable, and narrowing rather than hiding on stale proof using the
+//! frozen M5 downgrade vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -190,6 +201,7 @@ pub mod routing_policy;
 pub mod run_history;
 pub mod ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_runbooks_and_profiles;
 pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
+pub mod ship_provider_and_model_graduation_packets_rollout_rings_and_kill_switch_or_backout_paths;
 pub mod ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
