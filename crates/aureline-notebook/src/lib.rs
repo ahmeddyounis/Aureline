@@ -145,6 +145,19 @@
 //!     [`NotebookShareAndHandoffPacket`] checked-in artifact that downstream
 //!     docs, help, CI, and support surfaces ingest instead of cloning status text.
 //!
+//! 19. The [`ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows`]
+//!     module materializes the typed records that keep notebook teaching flows
+//!     honest about checkpoint preference, sandbox posture, and rollback truth;
+//!     checkpointed execution honest about save-point identity, sandbox state,
+//!     and replay posture; and redaction-before-share honest about what was
+//!     redacted, why, and under what trigger. It produces
+//!     [`NotebookTeachingContinuity`] records,
+//!     [`NotebookCheckpointedExecution`] records,
+//!     [`NotebookRedactionBeforeShare`] records, and the
+//!     [`NotebookTeachingContinuityCheckpointedRedactionPacket`] checked-in
+//!     artifact that downstream docs, help, CI, and support surfaces ingest
+//!     instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -276,6 +289,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_versus_artifact_scope_separation/`.
 //!
+//! The records under
+//! [`ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -304,6 +324,7 @@ pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_confli
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_versus_artifact_scope_separation;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
+pub mod ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
@@ -565,4 +586,20 @@ pub use implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_
     NOTEBOOK_SHARE_HANDOFF_PACKET_JSON, NOTEBOOK_SHARE_HANDOFF_PACKET_PATH,
     NOTEBOOK_SHARE_HANDOFF_PACKET_RECORD_KIND, NOTEBOOK_SHARE_HANDOFF_SCHEMA_VERSION,
     NOTEBOOK_SHARE_SHEET_RECORD_KIND,
+};
+
+pub use ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows::{
+    current_notebook_teaching_continuity_checkpointed_redaction_packet, NotebookCheckpointClass,
+    NotebookCheckpointPreference, NotebookCheckpointedExecution, NotebookCheckpointedExecutionFinding,
+    NotebookRedactionBeforeShare, NotebookRedactionBeforeShareFinding, NotebookRedactionClass,
+    NotebookRedactionTrigger, NotebookRollbackPosture, NotebookSandboxState,
+    NotebookTeachingContinuity, NotebookTeachingContinuityCheckpointedRedactionPacket,
+    NotebookTeachingContinuityCheckpointedRedactionPacketFinding, NotebookTeachingContinuityFinding,
+    NotebookTeachingMode, NOTEBOOK_CHECKPOINTED_EXECUTION_RECORD_KIND,
+    NOTEBOOK_REDACTION_BEFORE_SHARE_RECORD_KIND,
+    NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_JSON,
+    NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_PATH,
+    NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_RECORD_KIND,
+    NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION,
+    NOTEBOOK_TEACHING_CONTINUITY_RECORD_KIND,
 };

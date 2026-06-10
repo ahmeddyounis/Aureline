@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows.schema.json",
+  "title": "Aureline notebook teaching continuity, checkpointed execution, and redaction-before-share flows",
+  "description": "Boundary schema for notebook teaching continuity, checkpointed execution, and redaction-before-share records. Every record that crosses the teaching-continuity/checkpointed-redaction boundary (teaching continuity, checkpointed execution, redaction before share, teaching-continuity/checkpointed-redaction packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_teaching_continuity_record" },
+    { "$ref": "#/$defs/notebook_checkpointed_execution_record" },
+    { "$ref": "#/$defs/notebook_redaction_before_share_record" },
+    { "$ref": "#/$defs/notebook_teaching_continuity_checkpointed_redaction_packet_record" }
+  ],
+  "$defs": {
+    "notebook_teaching_continuity_checkpointed_redaction_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook teaching continuity, checkpointed execution, and redaction-before-share module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_teaching_continuity",
+        "notebook_checkpointed_execution",
+        "notebook_redaction_before_share",
+        "notebook_teaching_continuity_checkpointed_redaction_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (cell id, output id, session id, document id, actor id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "notebook_teaching_mode": {
+      "type": "string",
+      "enum": [
+        "guided_exercise",
+        "demo",
+        "solo_exploration",
+        "classroom",
+        "mentor_session"
+      ],
+      "description": "Frozen teaching-mode vocabulary. Names the pedagogical mode so the teaching surface never silently degrades a guided exercise into unrestricted execution."
+    },
+
+    "notebook_checkpoint_preference": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "manual_checkpoint",
+        "no_checkpoint",
+        "sandbox_only"
+      ],
+      "description": "Frozen checkpoint-preference vocabulary. Names whether the teaching flow prefers auto-checkpoints, manual checkpoints, or no checkpointing so the runtime can align sandbox and save-point behavior with pedagogy."
+    },
+
+    "notebook_checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "manual_checkpoint",
+        "pre_execution",
+        "pre_destructive",
+        "sandbox_boundary"
+      ],
+      "description": "Frozen checkpoint-class vocabulary. Names the kind of execution checkpoint so consumers know whether the save point was created automatically, manually, or at a specific boundary."
+    },
+
+    "notebook_sandbox_state": {
+      "type": "string",
+      "enum": [
+        "sandboxed",
+        "unsandboxed",
+        "sandbox_pending",
+        "sandbox_failed"
+      ],
+      "description": "Frozen sandbox-state vocabulary. Names whether the execution is sandboxed, unsandboxed, pending sandbox creation, or failed to enter a sandbox."
+    },
+
+    "notebook_rollback_posture": {
+      "type": "string",
+      "enum": [
+        "rollback_available",
+        "rollback_expired",
+        "checkpoint_orphaned",
+        "exact_replay_available",
+        "compensating_replay_only"
+      ],
+      "description": "Frozen rollback-posture vocabulary. Names the honest state of a checkpoint so the UI never implies a rollback is exact when it is only approximate or no longer available."
+    },
+
+    "notebook_redaction_class": {
+      "type": "string",
+      "enum": [
+        "output_redacted",
+        "cell_source_redacted",
+        "metadata_redacted",
+        "variable_redacted",
+        "none"
+      ],
+      "description": "Frozen redaction-class vocabulary. Names what category of content was redacted before share so the recipient knows the scope of omission."
+    },
+
+    "notebook_redaction_trigger": {
+      "type": "string",
+      "enum": [
+        "manual_review",
+        "policy_auto",
+        "sensitivity_scan",
+        "recipient_mismatch",
+        "teaching_safety"
+      ],
+      "description": "Frozen redaction-trigger vocabulary. Names why redaction was applied so the UI can show truthful labels instead of generic 'content hidden' language."
+    },
+
+    "notebook_teaching_continuity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version",
+        "teaching_continuity_id",
+        "document_id_ref",
+        "teaching_mode",
+        "checkpoint_preference",
+        "sandbox_required",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_teaching_continuity" },
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version": { "$ref": "#/$defs/notebook_teaching_continuity_checkpointed_redaction_schema_version" },
+        "teaching_continuity_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "teaching_mode": { "$ref": "#/$defs/notebook_teaching_mode" },
+        "checkpoint_preference": { "$ref": "#/$defs/notebook_checkpoint_preference" },
+        "current_step_index": {
+          "type": ["integer", "null"],
+          "description": "Current step index in a guided exercise; null when not applicable."
+        },
+        "total_steps": {
+          "type": ["integer", "null"],
+          "description": "Total step count in a guided exercise; null when not applicable."
+        },
+        "sandbox_required": {
+          "type": "boolean",
+          "description": "Whether the teaching flow requires sandboxed execution."
+        },
+        "sandbox_unavailable_explanation": {
+          "type": ["string", "null"],
+          "description": "Export-safe explanation when sandbox is required but unavailable."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "notebook_checkpointed_execution_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version",
+        "checkpointed_execution_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "checkpoint_class",
+        "sandbox_state",
+        "rollback_posture",
+        "checkpointed_at",
+        "honest_state_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_checkpointed_execution" },
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version": { "$ref": "#/$defs/notebook_teaching_continuity_checkpointed_redaction_schema_version" },
+        "checkpointed_execution_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "checkpoint_class": { "$ref": "#/$defs/notebook_checkpoint_class" },
+        "sandbox_state": { "$ref": "#/$defs/notebook_sandbox_state" },
+        "rollback_posture": { "$ref": "#/$defs/notebook_rollback_posture" },
+        "checkpointed_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "UTC timestamp when the checkpoint was created."
+        },
+        "honest_state_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable honest-state label rendered for this checkpoint."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "notebook_redaction_before_share_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version",
+        "redaction_id",
+        "document_id_ref",
+        "redaction_class",
+        "redaction_trigger",
+        "redaction_explanation",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_redaction_before_share" },
+        "notebook_teaching_continuity_checkpointed_redaction_schema_version": { "$ref": "#/$defs/notebook_teaching_continuity_checkpointed_redaction_schema_version" },
+        "redaction_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_class": { "$ref": "#/$defs/notebook_redaction_class" },
+        "redaction_trigger": { "$ref": "#/$defs/notebook_redaction_trigger" },
+        "redacted_cell_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to the cells whose content was redacted."
+        },
+        "redacted_output_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Opaque refs to the outputs that were redacted."
+        },
+        "redaction_explanation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe explanation of what was redacted and why."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "notebook_teaching_continuity_checkpointed_redaction_packet_record": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "teaching_modes",
+        "checkpoint_preferences",
+        "checkpoint_classes",
+        "sandbox_states",
+        "rollback_postures",
+        "redaction_classes",
+        "redaction_triggers",
+        "example_teaching_continuities",
+        "example_checkpointed_executions",
+        "example_redaction_before_shares",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_teaching_continuity_checkpointed_redaction_schema_version" },
+        "record_kind": { "const": "notebook_teaching_continuity_checkpointed_redaction_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "minLength": 1,
+          "description": "UTC date this packet is current as of."
+        },
+        "teaching_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_teaching_mode" },
+          "description": "Closed vocabulary: every teaching mode declared by this module."
+        },
+        "checkpoint_preferences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_checkpoint_preference" },
+          "description": "Closed vocabulary: every checkpoint preference declared by this module."
+        },
+        "checkpoint_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_checkpoint_class" },
+          "description": "Closed vocabulary: every checkpoint class declared by this module."
+        },
+        "sandbox_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_sandbox_state" },
+          "description": "Closed vocabulary: every sandbox state declared by this module."
+        },
+        "rollback_postures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_rollback_posture" },
+          "description": "Closed vocabulary: every rollback posture declared by this module."
+        },
+        "redaction_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_redaction_class" },
+          "description": "Closed vocabulary: every redaction class declared by this module."
+        },
+        "redaction_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_redaction_trigger" },
+          "description": "Closed vocabulary: every redaction trigger declared by this module."
+        },
+        "example_teaching_continuities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_teaching_continuity_record" },
+          "description": "Worked example teaching-continuity records."
+        },
+        "example_checkpointed_executions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_checkpointed_execution_record" },
+          "description": "Worked example checkpointed-execution records."
+        },
+        "example_redaction_before_shares": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_redaction_before_share_record" },
+          "description": "Worked example redaction-before-share records."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
