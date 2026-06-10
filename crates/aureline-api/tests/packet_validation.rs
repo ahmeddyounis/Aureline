@@ -1,9 +1,11 @@
-//! Integration test: the embedded qualification packet parses and validates.
+//! Integration test: the embedded qualification packets parse and validate.
 
-use aureline_api::current_request_workspace_qualification;
+use aureline_api::{
+    current_request_composer_qualification, current_request_workspace_qualification,
+};
 
 #[test]
-fn embedded_packet_parses() {
+fn embedded_workspace_packet_parses() {
     let packet = current_request_workspace_qualification().expect("embedded packet must parse");
     assert_eq!(packet.schema_version, 1);
     assert!(!packet.surfaces.is_empty());
@@ -13,7 +15,7 @@ fn embedded_packet_parses() {
 }
 
 #[test]
-fn embedded_packet_has_no_violations() {
+fn embedded_workspace_packet_has_no_violations() {
     let packet = current_request_workspace_qualification().expect("embedded packet must parse");
     let violations = packet.validate();
     assert!(
@@ -24,7 +26,36 @@ fn embedded_packet_has_no_violations() {
 }
 
 #[test]
-fn summary_matches_computed() {
+fn embedded_workspace_summary_matches_computed() {
     let packet = current_request_workspace_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_composer_packet_parses() {
+    let packet = current_request_composer_qualification().expect("embedded composer packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.composers.is_empty());
+    assert!(!packet.mutation_review_sheets.is_empty());
+    assert!(!packet.history_lanes.is_empty());
+    assert!(!packet.replay_configs.is_empty());
+    assert!(!packet.redaction_safe_exports.is_empty());
+}
+
+#[test]
+fn embedded_composer_packet_has_no_violations() {
+    let packet = current_request_composer_qualification().expect("embedded composer packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_composer_summary_matches_computed() {
+    let packet = current_request_composer_qualification().expect("embedded composer packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }
