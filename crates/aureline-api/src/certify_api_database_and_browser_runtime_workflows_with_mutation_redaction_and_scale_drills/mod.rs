@@ -380,9 +380,7 @@ impl CertificationQualificationPacket {
             CertificationQualificationViolationKind::Surface,
         );
         collect_ids(
-            self.mutation_drills
-                .iter()
-                .map(|row| row.drill_id.as_str()),
+            self.mutation_drills.iter().map(|row| row.drill_id.as_str()),
             &mut violations,
             CertificationQualificationViolationKind::MutationDrill,
         );
@@ -394,9 +392,7 @@ impl CertificationQualificationPacket {
             CertificationQualificationViolationKind::RedactionDrill,
         );
         collect_ids(
-            self.scale_drills
-                .iter()
-                .map(|row| row.drill_id.as_str()),
+            self.scale_drills.iter().map(|row| row.drill_id.as_str()),
             &mut violations,
             CertificationQualificationViolationKind::ScaleDrill,
         );
@@ -522,11 +518,9 @@ impl CertificationQualificationPacket {
 
         for row in &self.scale_drills {
             if row.rationale.is_empty() {
-                violations.push(
-                    CertificationQualificationViolation::IncompleteScaleDrill {
-                        drill_id: row.drill_id.clone(),
-                    },
-                );
+                violations.push(CertificationQualificationViolation::IncompleteScaleDrill {
+                    drill_id: row.drill_id.clone(),
+                });
             }
         }
 
@@ -653,22 +647,34 @@ impl fmt::Display for CertificationQualificationViolation {
                 write!(f, "mutation drill class {drill_class:?} is not covered")
             }
             Self::IncompleteMutationDrill { drill_id } => {
-                write!(f, "{drill_id} does not project mutation drill truth everywhere")
+                write!(
+                    f,
+                    "{drill_id} does not project mutation drill truth everywhere"
+                )
             }
             Self::MissingRedactionDrillClass { drill_class } => {
                 write!(f, "redaction drill class {drill_class:?} is not covered")
             }
             Self::IncompleteRedactionDrill { drill_id } => {
-                write!(f, "{drill_id} does not project redaction drill truth everywhere")
+                write!(
+                    f,
+                    "{drill_id} does not project redaction drill truth everywhere"
+                )
             }
             Self::MissingScaleDrillClass { drill_class } => {
                 write!(f, "scale drill class {drill_class:?} is not covered")
             }
             Self::IncompleteScaleDrill { drill_id } => {
-                write!(f, "{drill_id} does not project scale drill truth everywhere")
+                write!(
+                    f,
+                    "{drill_id} does not project scale drill truth everywhere"
+                )
             }
             Self::IncompleteUpstreamPacketRef { ref_id } => {
-                write!(f, "{ref_id} does not project upstream packet reference truth everywhere")
+                write!(
+                    f,
+                    "{ref_id} does not project upstream packet reference truth everywhere"
+                )
             }
             Self::SummaryMismatch => write!(f, "summary does not match row state"),
         }

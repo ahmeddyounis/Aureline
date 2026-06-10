@@ -3,12 +3,14 @@
 //! shared trace viewer with synchronized event lanes, bookmarks, and textual fallback,
 //! memory-analysis views, snapshot pairs, retained or allocation diffs, leak-hint
 //! confidence, regression baseline store, baseline selection UX, comparable-environment
-//! guards, and profile-compare cards, threshold or waiver state, and confounder disclosure.
+//! guards, profile-compare cards, threshold or waiver state, confounder disclosure,
+//! and coverage, profile, test, debug, and notebook evidence handoff bars with artifact
+//! lineage.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
-//! surfaces, memory-analysis surfaces, and regression-baseline surfaces attributable
-//! and inspectable.
+//! surfaces, memory-analysis surfaces, regression-baseline surfaces, and evidence-handoff
+//! surfaces attributable and inspectable.
 //!
 //! It exposes the canonical
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
@@ -82,6 +84,19 @@
 //! [`/schemas/perf/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.schema.json`](../../../schemas/perf/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.json`](../../../artifacts/perf/m5/add-memory-analysis-views-snapshot-pairs-retained-or-allocation-diffs-and-leak-hint-confidence.json).
+//!
+//! This crate also exposes the
+//! [`ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage`]
+//! module that pins the coverage, profile, test, debug, and notebook evidence handoff bar,
+//! artifact lineage, capture source, and save/share scope contracts every evidence surface
+//! reads.
+//!
+//! The reviewer-facing contract for evidence handoff bars is at
+//! [`/docs/performance/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.md`](../../../docs/performance/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.schema.json`](../../../schemas/perf/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.json`](../../../artifacts/perf/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
@@ -90,6 +105,7 @@ pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
+pub mod ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
 
 pub use build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards::{
@@ -148,9 +164,21 @@ pub use implement_profile_compare_cards_threshold_or_waiver_state_and_confounder
     ProfileCompareQualificationSummary, ProfileCompareQualificationViolation,
     ProfileCompareQualificationViolationKind, ProfileCompareSurfaceGuardSet,
     ProfileCompareSurfaceKind, ProfileCompareSurfaceQualificationRow, ThresholdState,
-    ThresholdStateRow, WaiverStateRow, WaiverStatus,
-    PROFILE_COMPARE_QUALIFICATION_PACKET_JSON, PROFILE_COMPARE_QUALIFICATION_PACKET_PATH,
-    PROFILE_COMPARE_QUALIFICATION_RECORD_KIND, PROFILE_COMPARE_QUALIFICATION_SCHEMA_VERSION,
+    ThresholdStateRow, WaiverStateRow, WaiverStatus, PROFILE_COMPARE_QUALIFICATION_PACKET_JSON,
+    PROFILE_COMPARE_QUALIFICATION_PACKET_PATH, PROFILE_COMPARE_QUALIFICATION_RECORD_KIND,
+    PROFILE_COMPARE_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage::{
+    current_evidence_handoff_qualification, ArtifactLineageRow, CaptureSourceClass,
+    CaptureSourceRow, EvidenceHandoffBarRow, EvidenceHandoffQualificationLabel,
+    EvidenceHandoffQualificationPacket, EvidenceHandoffQualificationProof,
+    EvidenceHandoffQualificationSummary, EvidenceHandoffQualificationViolation,
+    EvidenceHandoffQualificationViolationKind, EvidenceHandoffSurfaceGuardSet,
+    EvidenceHandoffSurfaceKind, EvidenceHandoffSurfaceQualificationRow, EvidenceKind,
+    LineageState, SaveShareScopeKind, SaveShareScopeRow,
+    EVIDENCE_HANDOFF_QUALIFICATION_PACKET_JSON, EVIDENCE_HANDOFF_QUALIFICATION_PACKET_PATH,
+    EVIDENCE_HANDOFF_QUALIFICATION_RECORD_KIND, EVIDENCE_HANDOFF_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation::{

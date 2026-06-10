@@ -116,7 +116,10 @@ impl ThresholdState {
     /// Returns true when the state allows the comparison to proceed without
     /// blocking.
     pub const fn allows_comparison(self) -> bool {
-        matches!(self, Self::Within | Self::Warning | Self::Waived | Self::Provisional)
+        matches!(
+            self,
+            Self::Within | Self::Warning | Self::Waived | Self::Provisional
+        )
     }
 
     /// Returns true when the state represents a breach (waived or not).
@@ -126,7 +129,10 @@ impl ThresholdState {
 
     /// Returns true when the state should show a warning or breach label.
     pub const fn shows_alert(self) -> bool {
-        matches!(self, Self::Warning | Self::Breach | Self::Waived | Self::Provisional)
+        matches!(
+            self,
+            Self::Warning | Self::Breach | Self::Waived | Self::Provisional
+        )
     }
 }
 
@@ -519,9 +525,11 @@ impl ProfileCompareQualificationPacket {
                 || card.right_capture_ref.trim().is_empty()
                 || card.threshold_state_ref.trim().is_empty()
             {
-                violations.push(ProfileCompareQualificationViolation::IncompleteCompareCard {
-                    card_id: card.card_id.clone(),
-                });
+                violations.push(
+                    ProfileCompareQualificationViolation::IncompleteCompareCard {
+                        card_id: card.card_id.clone(),
+                    },
+                );
             }
             if !card.shows_confounders {
                 violations.push(
@@ -544,9 +552,11 @@ impl ProfileCompareQualificationPacket {
                 || threshold.title.trim().is_empty()
                 || threshold.metric_family.trim().is_empty()
             {
-                violations.push(ProfileCompareQualificationViolation::IncompleteThresholdState {
-                    threshold_id: threshold.threshold_id.clone(),
-                });
+                violations.push(
+                    ProfileCompareQualificationViolation::IncompleteThresholdState {
+                        threshold_id: threshold.threshold_id.clone(),
+                    },
+                );
             }
             if !threshold.shows_threshold_bar {
                 violations.push(
@@ -571,14 +581,18 @@ impl ProfileCompareQualificationPacket {
                 || waiver.waiver_cause.trim().is_empty()
                 || waiver.expiry_proximity.trim().is_empty()
             {
-                violations.push(ProfileCompareQualificationViolation::IncompleteWaiverState {
-                    waiver_id: waiver.waiver_id.clone(),
-                });
+                violations.push(
+                    ProfileCompareQualificationViolation::IncompleteWaiverState {
+                        waiver_id: waiver.waiver_id.clone(),
+                    },
+                );
             }
             if !waiver.shows_expiry {
-                violations.push(ProfileCompareQualificationViolation::WaiverStateMissingExpiry {
-                    waiver_id: waiver.waiver_id.clone(),
-                });
+                violations.push(
+                    ProfileCompareQualificationViolation::WaiverStateMissingExpiry {
+                        waiver_id: waiver.waiver_id.clone(),
+                    },
+                );
             }
         }
 
@@ -611,8 +625,11 @@ impl ProfileCompareQualificationPacket {
         }
 
         // Cross-reference: every compare card must point to a known threshold state.
-        let threshold_id_set: BTreeSet<String> =
-            self.threshold_states.iter().map(|t| t.threshold_id.clone()).collect();
+        let threshold_id_set: BTreeSet<String> = self
+            .threshold_states
+            .iter()
+            .map(|t| t.threshold_id.clone())
+            .collect();
         for card in &self.compare_cards {
             if !threshold_id_set.contains(&card.threshold_state_ref) {
                 violations.push(
@@ -799,7 +816,10 @@ impl fmt::Display for ProfileCompareQualificationViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SchemaVersion { expected, actual } => {
-                write!(f, "schema version mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "schema version mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::RecordKind { expected, actual } => {
                 write!(f, "record kind mismatch: expected {expected}, got {actual}")
@@ -817,10 +837,7 @@ impl fmt::Display for ProfileCompareQualificationViolation {
                 write!(f, "incomplete compare-card row: {card_id}")
             }
             Self::CompareCardMissingConfounders { card_id } => {
-                write!(
-                    f,
-                    "compare-card row {card_id} must show confounders"
-                )
+                write!(f, "compare-card row {card_id} must show confounders")
             }
             Self::IncompleteThresholdState { threshold_id } => {
                 write!(f, "incomplete threshold-state row: {threshold_id}")

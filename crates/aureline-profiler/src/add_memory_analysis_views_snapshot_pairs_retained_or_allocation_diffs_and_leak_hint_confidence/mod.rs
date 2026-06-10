@@ -510,14 +510,18 @@ impl MemoryAnalysisQualificationPacket {
                 });
             }
             if !view.shows_mapping_quality {
-                violations.push(MemoryAnalysisQualificationViolation::ViewMissingMappingQuality {
-                    view_id: view.view_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::ViewMissingMappingQuality {
+                        view_id: view.view_id.clone(),
+                    },
+                );
             }
             if !view.shows_degraded_label {
-                violations.push(MemoryAnalysisQualificationViolation::ViewMissingDegradedLabel {
-                    view_id: view.view_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::ViewMissingDegradedLabel {
+                        view_id: view.view_id.clone(),
+                    },
+                );
             }
         }
 
@@ -534,9 +538,11 @@ impl MemoryAnalysisQualificationPacket {
                 || pair.baseline_snapshot_ref.trim().is_empty()
                 || pair.comparison_snapshot_ref.trim().is_empty()
             {
-                violations.push(MemoryAnalysisQualificationViolation::IncompleteSnapshotPair {
-                    pair_id: pair.pair_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::IncompleteSnapshotPair {
+                        pair_id: pair.pair_id.clone(),
+                    },
+                );
             }
             if !pair.shows_comparison_basis {
                 violations.push(
@@ -567,9 +573,11 @@ impl MemoryAnalysisQualificationPacket {
                 || diff.pair_ref.trim().is_empty()
                 || diff.type_path_or_class.trim().is_empty()
             {
-                violations.push(MemoryAnalysisQualificationViolation::IncompleteRetainedDiff {
-                    diff_id: diff.diff_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::IncompleteRetainedDiff {
+                        diff_id: diff.diff_id.clone(),
+                    },
+                );
             }
             if !diff.shows_mapping_quality {
                 violations.push(
@@ -593,9 +601,11 @@ impl MemoryAnalysisQualificationPacket {
                 || diff.pair_ref.trim().is_empty()
                 || diff.type_path_or_class.trim().is_empty()
             {
-                violations.push(MemoryAnalysisQualificationViolation::IncompleteAllocationDiff {
-                    diff_id: diff.diff_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::IncompleteAllocationDiff {
+                        diff_id: diff.diff_id.clone(),
+                    },
+                );
             }
             if !diff.shows_mapping_quality {
                 violations.push(
@@ -625,15 +635,20 @@ impl MemoryAnalysisQualificationPacket {
                 });
             }
             if !hint.shows_confidence {
-                violations.push(MemoryAnalysisQualificationViolation::LeakHintMissingConfidence {
-                    hint_id: hint.hint_id.clone(),
-                });
+                violations.push(
+                    MemoryAnalysisQualificationViolation::LeakHintMissingConfidence {
+                        hint_id: hint.hint_id.clone(),
+                    },
+                );
             }
         }
 
         // Cross-reference: every view snapshot_pair_ref must point to a known snapshot pair.
-        let pair_id_set: BTreeSet<String> =
-            self.snapshot_pairs.iter().map(|p| p.pair_id.clone()).collect();
+        let pair_id_set: BTreeSet<String> = self
+            .snapshot_pairs
+            .iter()
+            .map(|p| p.pair_id.clone())
+            .collect();
         for view in &self.views {
             if let Some(ref pair_ref) = view.snapshot_pair_ref {
                 if !pair_id_set.contains(pair_ref) {
@@ -893,10 +908,7 @@ impl fmt::Display for MemoryAnalysisQualificationViolation {
                 write!(f, "incomplete snapshot-pair row: {pair_id}")
             }
             Self::SnapshotPairMissingComparisonBasis { pair_id } => {
-                write!(
-                    f,
-                    "snapshot pair {pair_id} must show its comparison basis"
-                )
+                write!(f, "snapshot pair {pair_id} must show its comparison basis")
             }
             Self::SnapshotPairMissingDegradedLabel { pair_id } => {
                 write!(
@@ -908,60 +920,39 @@ impl fmt::Display for MemoryAnalysisQualificationViolation {
                 write!(f, "incomplete retained-diff row: {diff_id}")
             }
             Self::RetainedDiffMissingMappingQuality { diff_id } => {
-                write!(
-                    f,
-                    "retained diff {diff_id} must show its mapping quality"
-                )
+                write!(f, "retained diff {diff_id} must show its mapping quality")
             }
             Self::IncompleteAllocationDiff { diff_id } => {
                 write!(f, "incomplete allocation-diff row: {diff_id}")
             }
             Self::AllocationDiffMissingMappingQuality { diff_id } => {
-                write!(
-                    f,
-                    "allocation diff {diff_id} must show its mapping quality"
-                )
+                write!(f, "allocation diff {diff_id} must show its mapping quality")
             }
             Self::IncompleteLeakHint { hint_id } => {
                 write!(f, "incomplete leak-hint row: {hint_id}")
             }
             Self::LeakHintMissingConfidence { hint_id } => {
-                write!(
-                    f,
-                    "leak hint {hint_id} must show its confidence level"
-                )
+                write!(f, "leak hint {hint_id} must show its confidence level")
             }
-            Self::ViewSnapshotPairRefUnknown {
-                view_id,
-                pair_ref,
-            } => {
+            Self::ViewSnapshotPairRefUnknown { view_id, pair_ref } => {
                 write!(
                     f,
                     "view {view_id} references unknown snapshot pair {pair_ref}"
                 )
             }
-            Self::RetainedDiffPairRefUnknown {
-                diff_id,
-                pair_ref,
-            } => {
+            Self::RetainedDiffPairRefUnknown { diff_id, pair_ref } => {
                 write!(
                     f,
                     "retained diff {diff_id} references unknown snapshot pair {pair_ref}"
                 )
             }
-            Self::AllocationDiffPairRefUnknown {
-                diff_id,
-                pair_ref,
-            } => {
+            Self::AllocationDiffPairRefUnknown { diff_id, pair_ref } => {
                 write!(
                     f,
                     "allocation diff {diff_id} references unknown snapshot pair {pair_ref}"
                 )
             }
-            Self::LeakHintPairRefUnknown {
-                hint_id,
-                pair_ref,
-            } => {
+            Self::LeakHintPairRefUnknown { hint_id, pair_ref } => {
                 write!(
                     f,
                     "leak hint {hint_id} references unknown snapshot pair {pair_ref}"

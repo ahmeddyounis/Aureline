@@ -429,11 +429,9 @@ impl ExplainPlanQualificationPacket {
         }
         for row in &self.freshness_notes {
             if row.engine_version_ref.is_empty() || row.captured_at.is_empty() {
-                violations.push(
-                    ExplainPlanQualificationViolation::IncompleteFreshnessNote {
-                        note_id: row.note_id.clone(),
-                    },
-                );
+                violations.push(ExplainPlanQualificationViolation::IncompleteFreshnessNote {
+                    note_id: row.note_id.clone(),
+                });
             }
             if row.plan_mode == ExplainPlanMode::Estimated && row.implies_execution {
                 violations.push(
@@ -461,7 +459,11 @@ impl ExplainPlanQualificationPacket {
             .iter()
             .map(|row| row.freshness_state)
             .collect();
-        for required_state in [FreshnessState::Current, FreshnessState::Stale, FreshnessState::Unknown] {
+        for required_state in [
+            FreshnessState::Current,
+            FreshnessState::Stale,
+            FreshnessState::Unknown,
+        ] {
             if !freshness_states.contains(&required_state) {
                 violations.push(ExplainPlanQualificationViolation::MissingFreshnessState {
                     freshness_state: required_state,
@@ -523,9 +525,11 @@ impl ExplainPlanQualificationPacket {
             ComparisonOutcome::RollbackRecommended,
         ] {
             if !comparison_outcomes.contains(&required_outcome) {
-                violations.push(ExplainPlanQualificationViolation::MissingComparisonOutcome {
-                    comparison_outcome: required_outcome,
-                });
+                violations.push(
+                    ExplainPlanQualificationViolation::MissingComparisonOutcome {
+                        comparison_outcome: required_outcome,
+                    },
+                );
             }
         }
 
@@ -574,7 +578,8 @@ impl ExplainPlanQualificationPacket {
 ///
 /// Returns the underlying JSON parse error when the embedded artifact no longer
 /// matches the typed model.
-pub fn current_explain_plan_qualification() -> Result<ExplainPlanQualificationPacket, serde_json::Error> {
+pub fn current_explain_plan_qualification(
+) -> Result<ExplainPlanQualificationPacket, serde_json::Error> {
     serde_json::from_str(EXPLAIN_PLAN_QUALIFICATION_PACKET_JSON)
 }
 
@@ -647,7 +652,9 @@ pub enum ExplainPlanQualificationViolation {
     /// Required comparison basis is missing.
     MissingComparisonBasis { comparison_basis: ComparisonBasis },
     /// Required comparison outcome is missing.
-    MissingComparisonOutcome { comparison_outcome: ComparisonOutcome },
+    MissingComparisonOutcome {
+        comparison_outcome: ComparisonOutcome,
+    },
     /// Plan-comparison flow lacks baseline or compared plan ref.
     IncompletePlanComparisonFlow { flow_id: String },
     /// Divergent comparison hides the diff.
@@ -710,7 +717,10 @@ impl fmt::Display for ExplainPlanQualificationViolation {
                 write!(f, "comparison basis {comparison_basis:?} is not covered")
             }
             Self::MissingComparisonOutcome { comparison_outcome } => {
-                write!(f, "comparison outcome {comparison_outcome:?} is not covered")
+                write!(
+                    f,
+                    "comparison outcome {comparison_outcome:?} is not covered"
+                )
             }
             Self::IncompletePlanComparisonFlow { flow_id } => {
                 write!(f, "{flow_id} lacks baseline or compared plan ref")

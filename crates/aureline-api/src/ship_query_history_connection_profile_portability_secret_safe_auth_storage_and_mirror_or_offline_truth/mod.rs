@@ -782,10 +782,7 @@ impl fmt::Display for ShipQueryHistoryQualificationViolation {
                 )
             }
             Self::MissingReplayDriftRisk { replay_drift_risk } => {
-                write!(
-                    f,
-                    "replay drift risk {replay_drift_risk:?} is not covered"
-                )
+                write!(f, "replay drift risk {replay_drift_risk:?} is not covered")
             }
             Self::IncompleteQueryHistoryEntry { entry_id } => {
                 write!(
@@ -793,7 +790,9 @@ impl fmt::Display for ShipQueryHistoryQualificationViolation {
                     "{entry_id} does not project query-history truth everywhere"
                 )
             }
-            Self::MissingPortabilityPosture { portability_posture } => {
+            Self::MissingPortabilityPosture {
+                portability_posture,
+            } => {
                 write!(
                     f,
                     "connection-profile portability posture {portability_posture:?} is not covered"
@@ -818,10 +817,7 @@ impl fmt::Display for ShipQueryHistoryQualificationViolation {
                 )
             }
             Self::SecretSafeAuthRawSecretObserved { storage_id } => {
-                write!(
-                    f,
-                    "{storage_id} observed a raw secret in workspace state"
-                )
+                write!(f, "{storage_id} observed a raw secret in workspace state")
             }
             Self::IncompleteSecretSafeAuthStorage { storage_id } => {
                 write!(
@@ -829,7 +825,9 @@ impl fmt::Display for ShipQueryHistoryQualificationViolation {
                     "{storage_id} does not project auth-storage truth everywhere"
                 )
             }
-            Self::MissingMirrorOrOfflineState { mirror_or_offline_state } => {
+            Self::MissingMirrorOrOfflineState {
+                mirror_or_offline_state,
+            } => {
                 write!(
                     f,
                     "mirror or offline state {mirror_or_offline_state:?} is not covered"

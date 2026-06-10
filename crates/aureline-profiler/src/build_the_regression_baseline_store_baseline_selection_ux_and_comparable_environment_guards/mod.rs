@@ -463,9 +463,11 @@ impl RegressionBaselineQualificationPacket {
                     || !surface.guards.mismatch_warning_visible
                     || !surface.guards.guard_criteria_visible)
             {
-                violations.push(RegressionBaselineQualificationViolation::IncompleteGuardSet {
-                    surface_id: surface.surface_id.clone(),
-                });
+                violations.push(
+                    RegressionBaselineQualificationViolation::IncompleteGuardSet {
+                        surface_id: surface.surface_id.clone(),
+                    },
+                );
             }
         }
 
@@ -484,9 +486,11 @@ impl RegressionBaselineQualificationPacket {
                 || baseline.capture_mode_ref.trim().is_empty()
                 || baseline.storage_location_ref.trim().is_empty()
             {
-                violations.push(RegressionBaselineQualificationViolation::IncompleteBaselineStore {
-                    baseline_id: baseline.baseline_id.clone(),
-                });
+                violations.push(
+                    RegressionBaselineQualificationViolation::IncompleteBaselineStore {
+                        baseline_id: baseline.baseline_id.clone(),
+                    },
+                );
             }
             if !baseline.shows_freshness_state || !baseline.shows_build_identity {
                 violations.push(
@@ -509,7 +513,10 @@ impl RegressionBaselineQualificationPacket {
                 || selection.title.trim().is_empty()
                 || selection.comparison_basis_label.trim().is_empty()
                 || selection.baseline_ref.trim().is_empty()
-                || selection.current_environment_fingerprint_ref.trim().is_empty()
+                || selection
+                    .current_environment_fingerprint_ref
+                    .trim()
+                    .is_empty()
             {
                 violations.push(
                     RegressionBaselineQualificationViolation::IncompleteBaselineSelectionUx {
@@ -808,7 +815,10 @@ impl fmt::Display for RegressionBaselineQualificationViolation {
                 )
             }
             Self::IncompleteEnvironmentFingerprint { fingerprint_id } => {
-                write!(f, "incomplete environment-fingerprint row: {fingerprint_id}")
+                write!(
+                    f,
+                    "incomplete environment-fingerprint row: {fingerprint_id}"
+                )
             }
             Self::BaselineStoreFingerprintRefUnknown {
                 baseline_id,

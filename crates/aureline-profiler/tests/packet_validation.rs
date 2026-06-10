@@ -1,9 +1,10 @@
 //! Integration test: the embedded qualification packets parse and validate.
 
 use aureline_profiler::{
-    current_hotspot_workspace_qualification, current_memory_analysis_qualification,
-    current_profile_compare_qualification, current_profile_launcher_qualification,
-    current_regression_baseline_qualification, current_trace_viewer_qualification,
+    current_evidence_handoff_qualification, current_hotspot_workspace_qualification,
+    current_memory_analysis_qualification, current_profile_compare_qualification,
+    current_profile_launcher_qualification, current_regression_baseline_qualification,
+    current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -434,6 +435,101 @@ fn profile_compare_confounder_severity_blocks_stable_claim_correctly() {
     assert!(!ConfounderSeverity::Minor.blocks_stable_claim());
     assert!(!ConfounderSeverity::Info.blocks_stable_claim());
 }
+
+// --- Evidence handoff packet ---
+
+#[test]
+fn embedded_evidence_handoff_packet_parses() {
+    let packet = current_evidence_handoff_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.handoff_bars.is_empty());
+    assert!(!packet.artifact_lineages.is_empty());
+    assert!(!packet.capture_sources.is_empty());
+    assert!(!packet.save_share_scopes.is_empty());
+}
+
+#[test]
+fn embedded_evidence_handoff_packet_has_no_violations() {
+    let packet = current_evidence_handoff_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_evidence_handoff_summary_matches_computed() {
+    let packet = current_evidence_handoff_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn evidence_handoff_lineage_state_behavior_is_correct() {
+    use aureline_profiler::LineageState;
+
+    assert!(LineageState::ExactMatch.allows_navigation());
+    assert!(LineageState::ProbableMismatch.allows_navigation());
+    assert!(LineageState::SourceOnly.allows_navigation());
+    assert!(!LineageState::ArtifactOnly.allows_navigation());
+    assert!(!LineageState::RestrictedByPolicy.allows_navigation());
+    assert!(!LineageState::Unavailable.allows_navigation());
+
+    assert!(!LineageState::ExactMatch.shows_degraded_label());
+    assert!(LineageState::ProbableMismatch.shows_degraded_label());
+    assert!(LineageState::SourceOnly.shows_degraded_label());
+    assert!(LineageState::ArtifactOnly.shows_degraded_label());
+    assert!(LineageState::RestrictedByPolicy.shows_degraded_label());
+    assert!(LineageState::Unavailable.shows_degraded_label());
+}
+
+#[test]
+fn evidence_handoff_stable_surfaces_have_complete_guards() {
+    let packet = current_evidence_handoff_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.origin_visible,
+                "surface {} must show origin",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.build_id_visible,
+                "surface {} must show build ID",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.commit_visible,
+                "surface {} must show commit",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.capture_source_visible,
+                "surface {} must show capture source",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.save_share_scope_visible,
+                "surface {} must show save/share scope",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.lineage_state_visible,
+                "surface {} must show lineage state",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.lineage_detail_visible,
+                "surface {} must show lineage detail",
+                surface.surface_id
+            );
+        }
+    }
+}
+
+// --- Profile-compare packet (M05-050) ---
 
 #[test]
 fn profile_compare_stable_surfaces_have_complete_guards() {

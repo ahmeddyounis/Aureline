@@ -735,7 +735,10 @@ impl fmt::Display for StagedRowMutationQualificationViolation {
                 write!(f, "rollback scope {rollback_scope:?} is not covered")
             }
             Self::IncompleteRollbackAction { action_id } => {
-                write!(f, "{action_id} does not project rollback action truth everywhere")
+                write!(
+                    f,
+                    "{action_id} does not project rollback action truth everywhere"
+                )
             }
             Self::RollbackToCheckpointMissingRef { action_id } => {
                 write!(
@@ -747,7 +750,10 @@ impl fmt::Display for StagedRowMutationQualificationViolation {
                 write!(f, "checkpoint scope {checkpoint_scope:?} is not covered")
             }
             Self::IncompleteCheckpointAction { action_id } => {
-                write!(f, "{action_id} does not project checkpoint action truth everywhere")
+                write!(
+                    f,
+                    "{action_id} does not project checkpoint action truth everywhere"
+                )
             }
             Self::SummaryMismatch => write!(f, "summary does not match row state"),
         }

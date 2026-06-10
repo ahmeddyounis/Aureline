@@ -446,9 +446,7 @@ impl HandoffQualificationPacket {
             HandoffQualificationViolationKind::ChartHandoff,
         );
         collect_ids(
-            self.ai_handoffs
-                .iter()
-                .map(|row| row.handoff_id.as_str()),
+            self.ai_handoffs.iter().map(|row| row.handoff_id.as_str()),
             &mut violations,
             HandoffQualificationViolationKind::AiHandoff,
         );
@@ -463,18 +461,14 @@ impl HandoffQualificationPacket {
         for surface in &self.surfaces {
             if surface.displayed_label.is_stable() {
                 if surface.qualification_packet.is_none() {
-                    violations.push(
-                        HandoffQualificationViolation::StableSurfaceMissingProof {
-                            surface_id: surface.surface_id.clone(),
-                        },
-                    );
+                    violations.push(HandoffQualificationViolation::StableSurfaceMissingProof {
+                        surface_id: surface.surface_id.clone(),
+                    });
                 }
                 if !surface.guards.all_visible() {
-                    violations.push(
-                        HandoffQualificationViolation::StableSurfaceMissingGuard {
-                            surface_id: surface.surface_id.clone(),
-                        },
-                    );
+                    violations.push(HandoffQualificationViolation::StableSurfaceMissingGuard {
+                        surface_id: surface.surface_id.clone(),
+                    });
                 }
             }
             if !surface.displayed_label.is_stable()
@@ -500,11 +494,9 @@ impl HandoffQualificationPacket {
             NotebookHandoffStateClass::NotebookHandoffBlockedPendingPolicy,
         ] {
             if !notebook_states.contains(&required_state) {
-                violations.push(
-                    HandoffQualificationViolation::MissingNotebookHandoffState {
-                        state: required_state,
-                    },
-                );
+                violations.push(HandoffQualificationViolation::MissingNotebookHandoffState {
+                    state: required_state,
+                });
             }
         }
 
@@ -543,11 +535,9 @@ impl HandoffQualificationPacket {
             ChartHandoffStateClass::ChartHandoffBlockedPendingPolicy,
         ] {
             if !chart_states.contains(&required_state) {
-                violations.push(
-                    HandoffQualificationViolation::MissingChartHandoffState {
-                        state: required_state,
-                    },
-                );
+                violations.push(HandoffQualificationViolation::MissingChartHandoffState {
+                    state: required_state,
+                });
             }
         }
 
@@ -567,11 +557,9 @@ impl HandoffQualificationPacket {
                 );
             }
             if !row.visible_in_ui {
-                violations.push(
-                    HandoffQualificationViolation::ChartHandoffNotVisibleInUi {
-                        handoff_id: row.handoff_id.clone(),
-                    },
-                );
+                violations.push(HandoffQualificationViolation::ChartHandoffNotVisibleInUi {
+                    handoff_id: row.handoff_id.clone(),
+                });
             }
         }
 
@@ -587,11 +575,9 @@ impl HandoffQualificationPacket {
             AiHandoffStateClass::AiHandoffBlockedSecretBoundaryViolation,
         ] {
             if !ai_states.contains(&required_state) {
-                violations.push(
-                    HandoffQualificationViolation::MissingAiHandoffState {
-                        state: required_state,
-                    },
-                );
+                violations.push(HandoffQualificationViolation::MissingAiHandoffState {
+                    state: required_state,
+                });
             }
         }
 
@@ -618,11 +604,9 @@ impl HandoffQualificationPacket {
                 );
             }
             if !row.visible_in_ui {
-                violations.push(
-                    HandoffQualificationViolation::AiHandoffNotVisibleInUi {
-                        handoff_id: row.handoff_id.clone(),
-                    },
-                );
+                violations.push(HandoffQualificationViolation::AiHandoffNotVisibleInUi {
+                    handoff_id: row.handoff_id.clone(),
+                });
             }
         }
 
@@ -638,11 +622,9 @@ impl HandoffQualificationPacket {
             SupportExportPostureClass::SigningEvidenceOnly,
         ] {
             if !export_postures.contains(&required_posture) {
-                violations.push(
-                    HandoffQualificationViolation::MissingSupportExportPosture {
-                        posture: required_posture,
-                    },
-                );
+                violations.push(HandoffQualificationViolation::MissingSupportExportPosture {
+                    posture: required_posture,
+                });
             }
         }
 
@@ -666,11 +648,9 @@ impl HandoffQualificationPacket {
                 );
             }
             if !row.visible_in_ui {
-                violations.push(
-                    HandoffQualificationViolation::SupportExportNotVisibleInUi {
-                        export_id: row.export_id.clone(),
-                    },
-                );
+                violations.push(HandoffQualificationViolation::SupportExportNotVisibleInUi {
+                    export_id: row.export_id.clone(),
+                });
             }
         }
 
@@ -803,10 +783,16 @@ impl fmt::Display for HandoffQualificationViolation {
                 write!(f, "notebook handoff state {state:?} is not covered")
             }
             Self::NotebookHandoffMissingTruncationDisclosure { handoff_id } => {
-                write!(f, "{handoff_id} does not disclose truncation state on notebook handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not disclose truncation state on notebook handoff"
+                )
             }
             Self::NotebookHandoffMissingProvenanceChip { handoff_id } => {
-                write!(f, "{handoff_id} does not preserve provenance chip on notebook handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not preserve provenance chip on notebook handoff"
+                )
             }
             Self::NotebookHandoffNotVisibleInUi { handoff_id } => {
                 write!(f, "{handoff_id} is not visible in UI")
@@ -815,10 +801,16 @@ impl fmt::Display for HandoffQualificationViolation {
                 write!(f, "chart handoff state {state:?} is not covered")
             }
             Self::ChartHandoffMissingTruncationDisclosure { handoff_id } => {
-                write!(f, "{handoff_id} does not disclose truncation state on chart handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not disclose truncation state on chart handoff"
+                )
             }
             Self::ChartHandoffMissingProvenanceChip { handoff_id } => {
-                write!(f, "{handoff_id} does not preserve provenance chip on chart handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not preserve provenance chip on chart handoff"
+                )
             }
             Self::ChartHandoffNotVisibleInUi { handoff_id } => {
                 write!(f, "{handoff_id} is not visible in UI")
@@ -827,13 +819,22 @@ impl fmt::Display for HandoffQualificationViolation {
                 write!(f, "AI handoff state {state:?} is not covered")
             }
             Self::AiHandoffMissingTruncationDisclosure { handoff_id } => {
-                write!(f, "{handoff_id} does not disclose truncation state on AI handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not disclose truncation state on AI handoff"
+                )
             }
             Self::AiHandoffMissingProvenanceChip { handoff_id } => {
-                write!(f, "{handoff_id} does not preserve provenance chip on AI handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not preserve provenance chip on AI handoff"
+                )
             }
             Self::AiHandoffMissingSecretBoundaries { handoff_id } => {
-                write!(f, "{handoff_id} does not enforce secret boundaries on AI handoff")
+                write!(
+                    f,
+                    "{handoff_id} does not enforce secret boundaries on AI handoff"
+                )
             }
             Self::AiHandoffNotVisibleInUi { handoff_id } => {
                 write!(f, "{handoff_id} is not visible in UI")
@@ -842,10 +843,16 @@ impl fmt::Display for HandoffQualificationViolation {
                 write!(f, "support export posture {posture:?} is not covered")
             }
             Self::SupportExportMissingTruncationDisclosure { export_id } => {
-                write!(f, "{export_id} does not disclose truncation state on support export")
+                write!(
+                    f,
+                    "{export_id} does not disclose truncation state on support export"
+                )
             }
             Self::SupportExportMissingProvenanceChip { export_id } => {
-                write!(f, "{export_id} does not preserve provenance chip on support export")
+                write!(
+                    f,
+                    "{export_id} does not preserve provenance chip on support export"
+                )
             }
             Self::SupportExportNotVisibleInUi { export_id } => {
                 write!(f, "{export_id} is not visible in UI")

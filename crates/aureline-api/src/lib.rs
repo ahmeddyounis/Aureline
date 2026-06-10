@@ -164,10 +164,9 @@ pub use ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_sta
 pub use implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows::{
     current_explain_plan_qualification, ComparisonBasis, ComparisonOutcome,
     EngineVersionContextRow, ExplainPlanFreshnessNoteRow, ExplainPlanMode,
-    ExplainPlanQualificationLabel, ExplainPlanQualificationPacket,
-    ExplainPlanQualificationProof, ExplainPlanQualificationSummary,
-    ExplainPlanQualificationViolation, ExplainPlanQualificationViolationKind,
-    ExplainPlanSurfaceGuardSet, ExplainPlanSurfaceKind,
+    ExplainPlanQualificationLabel, ExplainPlanQualificationPacket, ExplainPlanQualificationProof,
+    ExplainPlanQualificationSummary, ExplainPlanQualificationViolation,
+    ExplainPlanQualificationViolationKind, ExplainPlanSurfaceGuardSet, ExplainPlanSurfaceKind,
     ExplainPlanSurfaceQualificationRow, FreshnessState, PlanComparisonFlowRow,
     EXPLAIN_PLAN_QUALIFICATION_PACKET_JSON, EXPLAIN_PLAN_QUALIFICATION_PACKET_PATH,
     EXPLAIN_PLAN_QUALIFICATION_RECORD_KIND, EXPLAIN_PLAN_QUALIFICATION_SCHEMA_VERSION,
