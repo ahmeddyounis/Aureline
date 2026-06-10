@@ -2,7 +2,8 @@
 
 use aureline_profiler::{
     current_hotspot_workspace_qualification, current_memory_analysis_qualification,
-    current_profile_launcher_qualification, current_trace_viewer_qualification,
+    current_profile_launcher_qualification, current_regression_baseline_qualification,
+    current_trace_viewer_qualification,
 };
 
 // --- Profile launcher packet (M05-045) ---
@@ -249,6 +250,112 @@ fn memory_analysis_stable_surfaces_have_complete_guards() {
             assert!(
                 surface.guards.mapping_quality_visible,
                 "surface {} must show mapping quality",
+                surface.surface_id
+            );
+        }
+    }
+}
+
+// --- Regression baseline packet (M05-049) ---
+
+#[test]
+fn embedded_regression_baseline_packet_parses() {
+    let packet = current_regression_baseline_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.baseline_stores.is_empty());
+    assert!(!packet.baseline_selection_uxs.is_empty());
+    assert!(!packet.comparable_environment_guards.is_empty());
+    assert!(!packet.environment_fingerprints.is_empty());
+}
+
+#[test]
+fn embedded_regression_baseline_packet_has_no_violations() {
+    let packet = current_regression_baseline_qualification().expect("embedded packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_regression_baseline_summary_matches_computed() {
+    let packet = current_regression_baseline_qualification().expect("embedded packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn regression_baseline_environment_match_state_warns_correctly() {
+    use aureline_profiler::EnvironmentMatchState;
+
+    assert!(EnvironmentMatchState::Comparable.allows_comparison_with_warning());
+    assert!(EnvironmentMatchState::Partial.allows_comparison_with_warning());
+    assert!(EnvironmentMatchState::Stale.allows_comparison_with_warning());
+    assert!(!EnvironmentMatchState::Mismatch.allows_comparison_with_warning());
+    assert!(!EnvironmentMatchState::Unknown.allows_comparison_with_warning());
+
+    assert!(!EnvironmentMatchState::Comparable.shows_warning());
+    assert!(EnvironmentMatchState::Partial.shows_warning());
+    assert!(EnvironmentMatchState::Mismatch.shows_warning());
+    assert!(!EnvironmentMatchState::Unknown.shows_warning());
+    assert!(EnvironmentMatchState::Stale.shows_warning());
+}
+
+#[test]
+fn regression_baseline_stable_surfaces_have_complete_guards() {
+    let packet = current_regression_baseline_qualification().expect("embedded packet must parse");
+    for surface in &packet.surfaces {
+        if surface.claim_label.is_stable() && surface.promoted_build_surface {
+            assert!(
+                surface.guards.baseline_identity_visible,
+                "surface {} must show baseline identity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.build_identity_visible,
+                "surface {} must show build identity",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.environment_fingerprint_visible,
+                "surface {} must show environment fingerprint",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.capture_mode_visible,
+                "surface {} must show capture mode",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.storage_location_visible,
+                "surface {} must show storage location",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.freshness_state_visible,
+                "surface {} must show freshness state",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.comparison_basis_visible,
+                "surface {} must show comparison basis",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.environment_match_visible,
+                "surface {} must show environment match",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.mismatch_warning_visible,
+                "surface {} must show mismatch warning",
+                surface.surface_id
+            );
+            assert!(
+                surface.guards.guard_criteria_visible,
+                "surface {} must show guard criteria",
                 surface.surface_id
             );
         }

@@ -1,12 +1,14 @@
 //! Profile launcher, attach sheets, capture-mode descriptors, storage-location truth,
 //! hotspot workspace, flamegraph, call tree, mapping-quality labels, source navigation,
 //! shared trace viewer with synchronized event lanes, bookmarks, and textual fallback,
-//! and memory-analysis views, snapshot pairs, retained or allocation diffs, and leak-hint
-//! confidence.
+//! memory-analysis views, snapshot pairs, retained or allocation diffs, leak-hint
+//! confidence, and regression baseline store, baseline selection UX, and comparable-environment
+//! guards.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
-//! surfaces, and memory-analysis surfaces attributable and inspectable.
+//! surfaces, memory-analysis surfaces, and regression-baseline surfaces attributable
+//! and inspectable.
 //!
 //! It exposes the canonical
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
@@ -19,6 +21,18 @@
 //! [`/schemas/perf/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.schema.json`](../../../schemas/perf/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.json`](../../../artifacts/perf/m5/materialize-profile-launcher-and-attach-sheets-capture-mode-descriptors-and-storage-location-truth.json).
+//!
+//! This crate also exposes the
+//! [`build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards`]
+//! module that pins the regression baseline store, baseline selection UX, comparable-environment
+//! guards, and environment fingerprint contracts every regression and comparison surface reads.
+//!
+//! The reviewer-facing contract for regression baselines is at
+//! [`/docs/performance/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.md`](../../../docs/performance/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.schema.json`](../../../schemas/perf/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.json`](../../../artifacts/perf/m5/build-the-regression-baseline-store-baseline-selection-ux-and-comparable-environment-guards.json).
 //!
 //! This crate also exposes the
 //! [`ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation`]
@@ -60,9 +74,22 @@
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
+pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation;
+
+pub use build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards::{
+    current_regression_baseline_qualification, BaselineFreshness, BaselineSelectionKind,
+    BaselineSelectionUxRow, BaselineStoreRow, ComparableEnvironmentGuardRow,
+    EnvironmentFingerprintRow, EnvironmentMatchState, RegressionBaselineQualificationLabel,
+    RegressionBaselineQualificationPacket, RegressionBaselineQualificationProof,
+    RegressionBaselineQualificationSummary, RegressionBaselineQualificationViolation,
+    RegressionBaselineQualificationViolationKind, RegressionBaselineSurfaceGuardSet,
+    RegressionBaselineSurfaceKind, RegressionBaselineSurfaceQualificationRow,
+    REGRESSION_BASELINE_QUALIFICATION_PACKET_JSON, REGRESSION_BASELINE_QUALIFICATION_PACKET_PATH,
+    REGRESSION_BASELINE_QUALIFICATION_RECORD_KIND, REGRESSION_BASELINE_QUALIFICATION_SCHEMA_VERSION,
+};
 
 pub use add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence::{
     current_memory_analysis_qualification, AllocationDiffRow, ComparisonBasis,
