@@ -1,0 +1,453 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/templates/implement-the-signed-template-registry-provenance-or-mirror-support-and-template-health-rows.schema.json",
+  "title": "Aureline signed template registry, provenance/mirror, and template-health rows",
+  "description": "Export-safe packet for the signed template registry. Each row binds one offerable template revision to its registry origin and mirror lineage, signing trust source and signature class, certification and support class, declared freshness, and template-health state and cadence, so the gallery, scaffold preflight, run, recovery, diagnostics, and support surfaces project the same trust, provenance, and health truth instead of inferring it from a mirror's location or collapsing health to a single pass/fail bit. Raw signing keys, certificate material, repository URLs, absolute paths, manifest bodies, hook bodies, secrets, and user-authored template content never cross this boundary; rows carry opaque refs, closed-vocabulary class tokens, content digests by reference, and short reviewable summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "registry_label",
+    "rows",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "signed_template_registry_provenance_and_health_rows"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "registry_label": { "$ref": "#/$defs/non_empty_string" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/registry_row" }
+    },
+    "trust_review": { "$ref": "#/$defs/trust_review" },
+    "consumer_projection": { "$ref": "#/$defs/consumer_projection" },
+    "proof_freshness": { "$ref": "#/$defs/proof_freshness" },
+    "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+    "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "official_origin",
+        "official_mirror",
+        "org_mirror",
+        "community_origin",
+        "extension_provided",
+        "repo_local_generator",
+        "ad_hoc_local_template",
+        "offline_bundle"
+      ]
+    },
+    "trust_source_class": {
+      "type": "string",
+      "enum": [
+        "core_signing_root",
+        "core_signing_root_via_mirror",
+        "org_policy_signing_root",
+        "org_mirror_signing_root",
+        "extension_publisher_signature",
+        "community_channel_signature",
+        "signed_offline_bundle_root",
+        "repo_local_workspace_trust",
+        "local_user_trust_only",
+        "unsigned_user_review_required",
+        "trust_source_unknown_review_required"
+      ]
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "author_signature",
+        "author_and_organization_signature",
+        "organization_signature_only",
+        "managed_only_channel_signature",
+        "quarantined_no_signature"
+      ]
+    },
+    "certification_class": {
+      "type": "string",
+      "enum": [
+        "core_certified",
+        "official_supported",
+        "org_certified",
+        "org_approved",
+        "community_reviewed",
+        "community_unreviewed",
+        "extension_publisher_claimed",
+        "repo_local_unreviewed",
+        "local_only_unreviewed",
+        "deprecated_or_archived",
+        "certification_unknown_review_required"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "officially_supported",
+        "community_supported",
+        "experimental",
+        "legacy_deprecated",
+        "unsupported",
+        "support_unknown"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ]
+    },
+    "health_cadence_class": {
+      "type": "string",
+      "enum": [
+        "on_every_registry_refresh",
+        "daily",
+        "weekly",
+        "per_release_train",
+        "on_template_revision_change",
+        "manual_only",
+        "not_scheduled_review_required"
+      ]
+    },
+    "health_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy_current",
+        "healthy_cached",
+        "stale_but_inspectable",
+        "known_issue_non_blocking",
+        "known_issue_blocks_starter",
+        "validation_failed_blocks_starter",
+        "signature_or_trust_failed_blocks_starter",
+        "health_unknown_review_required"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "signature_unverified",
+        "trust_root_unresolved",
+        "mirror_stale",
+        "mirror_origin_unverifiable",
+        "template_revision_unavailable",
+        "health_check_stale",
+        "validation_failed",
+        "known_issue_blocking",
+        "certification_expired",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "gallery",
+        "preflight",
+        "run_surface",
+        "recovery",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "registry_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "template_id",
+        "template_revision_semver",
+        "registry_entry_ref",
+        "scope_summary",
+        "origin_class",
+        "mirrored_from_origin_class",
+        "mirror_freshness_ref",
+        "declared_freshness_class",
+        "trust_source_class",
+        "trust_root_ref",
+        "signature_class",
+        "certification_class",
+        "support_class",
+        "health_cadence_class",
+        "health_state_class",
+        "health_check_refs",
+        "known_issue_refs",
+        "admitted_for_generation",
+        "downgrade_triggers",
+        "consumer_surfaces"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "template_id": { "$ref": "#/$defs/non_empty_string" },
+        "template_revision_semver": { "$ref": "#/$defs/non_empty_string" },
+        "registry_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_summary": { "$ref": "#/$defs/non_empty_string" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "mirrored_from_origin_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/origin_class" }
+          ]
+        },
+        "mirror_freshness_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "declared_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "trust_source_class": { "$ref": "#/$defs/trust_source_class" },
+        "trust_root_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "certification_class": { "$ref": "#/$defs/certification_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "health_cadence_class": { "$ref": "#/$defs/health_cadence_class" },
+        "health_state_class": { "$ref": "#/$defs/health_state_class" },
+        "health_check_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "known_issue_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "admitted_for_generation": { "type": "boolean" },
+        "downgrade_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "uniqueItems": true
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "Mirror and offline-bundle rows preserve their upstream origin and carry mirror freshness.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["official_mirror", "org_mirror", "offline_bundle"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "mirrored_from_origin_class": { "$ref": "#/$defs/origin_class" },
+              "mirror_freshness_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        },
+        {
+          "description": "Non-local rows cite a trust-root ref.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "not": {
+                  "enum": ["repo_local_generator", "ad_hoc_local_template"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_root_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        },
+        {
+          "description": "Official rows resolve through the core signing root.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["official_origin", "official_mirror"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_source_class": {
+                "enum": ["core_signing_root", "core_signing_root_via_mirror"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Organization mirror rows resolve through organization trust sources.",
+          "if": {
+            "properties": {
+              "origin_class": { "const": "org_mirror" }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_source_class": {
+                "enum": ["org_policy_signing_root", "org_mirror_signing_root"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Repo-local and ad hoc local rows use local trust and cannot claim certification by location.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["repo_local_generator", "ad_hoc_local_template"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_source_class": {
+                "enum": [
+                  "repo_local_workspace_trust",
+                  "local_user_trust_only",
+                  "unsigned_user_review_required"
+                ]
+              },
+              "certification_class": {
+                "enum": ["repo_local_unreviewed", "local_only_unreviewed"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocking health states cannot be admitted for generation.",
+          "if": {
+            "properties": {
+              "health_state_class": {
+                "enum": [
+                  "known_issue_blocks_starter",
+                  "validation_failed_blocks_starter",
+                  "signature_or_trust_failed_blocks_starter",
+                  "health_unknown_review_required"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "admitted_for_generation": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+    "trust_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_provenance_inspectable",
+        "signing_root_verified_before_offer",
+        "mirror_origin_and_freshness_preserved",
+        "no_trust_inferred_from_mirror_location",
+        "signature_and_certification_class_explicit",
+        "health_state_partitioned_from_admission",
+        "known_issues_disclosed_before_generation",
+        "blocking_health_blocks_starter",
+        "no_credential_or_key_material_in_export",
+        "downgrade_narrows_instead_of_hides",
+        "stale_or_underqualified_blocks_promotion"
+      ],
+      "properties": {
+        "template_provenance_inspectable": { "const": true },
+        "signing_root_verified_before_offer": { "const": true },
+        "mirror_origin_and_freshness_preserved": { "const": true },
+        "no_trust_inferred_from_mirror_location": { "const": true },
+        "signature_and_certification_class_explicit": { "const": true },
+        "health_state_partitioned_from_admission": { "const": true },
+        "known_issues_disclosed_before_generation": { "const": true },
+        "blocking_health_blocks_starter": { "const": true },
+        "no_credential_or_key_material_in_export": { "const": true },
+        "downgrade_narrows_instead_of_hides": { "const": true },
+        "stale_or_underqualified_blocks_promotion": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gallery_shows_origin_and_support_class",
+        "gallery_shows_health_state",
+        "preflight_shows_trust_and_freshness",
+        "run_surface_shows_revision_and_certification",
+        "recovery_shows_rollback_and_known_issues",
+        "cli_headless_shows_registry_rows",
+        "support_export_shows_registry_rows",
+        "diagnostics_shows_health_state",
+        "blocked_rows_labeled_not_hidden"
+      ],
+      "properties": {
+        "gallery_shows_origin_and_support_class": { "const": true },
+        "gallery_shows_health_state": { "const": true },
+        "preflight_shows_trust_and_freshness": { "const": true },
+        "run_surface_shows_revision_and_certification": { "const": true },
+        "recovery_shows_rollback_and_known_issues": { "const": true },
+        "cli_headless_shows_registry_rows": { "const": true },
+        "support_export_shows_registry_rows": { "const": true },
+        "diagnostics_shows_health_state": { "const": true },
+        "blocked_rows_labeled_not_hidden": { "const": true }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_freshness_slo_hours",
+        "last_proof_refresh",
+        "auto_narrow_on_stale"
+      ],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}
