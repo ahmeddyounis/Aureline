@@ -2,9 +2,10 @@
 
 use aureline_api::{
     current_database_browser_qualification, current_explain_plan_qualification,
-    current_request_composer_qualification, current_request_workspace_qualification,
-    current_response_viewer_qualification, current_result_grid_qualification,
-    current_staged_row_mutation_qualification, current_statement_safety_qualification,
+    current_handoff_qualification, current_request_composer_qualification,
+    current_request_workspace_qualification, current_response_viewer_qualification,
+    current_result_grid_qualification, current_staged_row_mutation_qualification,
+    current_statement_safety_qualification,
 };
 
 #[test]
@@ -216,6 +217,34 @@ fn embedded_explain_plan_packet_has_no_violations() {
 fn embedded_explain_plan_summary_matches_computed() {
     let packet =
         current_explain_plan_qualification().expect("embedded explain plan packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_handoff_packet_parses() {
+    let packet = current_handoff_qualification().expect("embedded handoff packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.notebook_handoffs.is_empty());
+    assert!(!packet.chart_handoffs.is_empty());
+    assert!(!packet.ai_handoffs.is_empty());
+    assert!(!packet.support_exports.is_empty());
+}
+
+#[test]
+fn embedded_handoff_packet_has_no_violations() {
+    let packet = current_handoff_qualification().expect("embedded handoff packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_handoff_summary_matches_computed() {
+    let packet = current_handoff_qualification().expect("embedded handoff packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
 }
 

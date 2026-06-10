@@ -45,6 +45,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`](../../../artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json).
 //!
+//! This crate also owns the request and database result handoff to notebook,
+//! chart, AI, and support-export surface qualification records. The handoff
+//! boundary schema is
+//! [`/schemas/data/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.schema.json`](../../../schemas/data/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.json`](../../../artifacts/data/m5/integrate-request-and-database-result-handoff-to-notebook-chart-ai-and-support-export-surfaces.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -57,6 +64,7 @@ pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
+pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
 pub mod ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_state_and_row_count_boundary_truth;
@@ -147,6 +155,17 @@ pub use implement_explain_plan_freshness_notes_engine_version_context_and_plan_c
     ExplainPlanSurfaceQualificationRow, FreshnessState, PlanComparisonFlowRow,
     EXPLAIN_PLAN_QUALIFICATION_PACKET_JSON, EXPLAIN_PLAN_QUALIFICATION_PACKET_PATH,
     EXPLAIN_PLAN_QUALIFICATION_RECORD_KIND, EXPLAIN_PLAN_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces::{
+    current_handoff_qualification, AiHandoffRow, AiHandoffStateClass, ChartHandoffRow,
+    ChartHandoffStateClass, HandoffQualificationLabel, HandoffQualificationPacket,
+    HandoffQualificationProof, HandoffQualificationSummary, HandoffQualificationViolation,
+    HandoffQualificationViolationKind, HandoffSurfaceGuardSet, HandoffSurfaceKind,
+    HandoffSurfaceQualificationRow, NotebookHandoffRow, ResultSetOriginClass,
+    SupportExportPostureClass, SupportExportRow,
+    HANDOFF_QUALIFICATION_PACKET_JSON, HANDOFF_QUALIFICATION_PACKET_PATH,
+    HANDOFF_QUALIFICATION_RECORD_KIND, HANDOFF_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{
