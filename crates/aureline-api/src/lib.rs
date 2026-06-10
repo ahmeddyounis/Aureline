@@ -38,6 +38,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json`](../../../artifacts/data/m5/ship-result-grid-virtualization-typed-copy-or-export-filter-and-sort-state-and-row-count-boundary-truth.json).
 //!
+//! This crate also owns the explain-plan freshness notes, engine-version
+//! context, and plan-comparison flow qualification records. The explain-plan
+//! boundary schema is
+//! [`/schemas/data/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.schema.json`](../../../schemas/data/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json`](../../../artifacts/data/m5/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -47,6 +54,7 @@
 
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
+pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
@@ -114,6 +122,18 @@ pub use ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_sta
     TypedExportActionRow, TypeCoercionStateClass, VirtualizationPostureClass,
     RESULT_GRID_QUALIFICATION_PACKET_JSON, RESULT_GRID_QUALIFICATION_PACKET_PATH,
     RESULT_GRID_QUALIFICATION_RECORD_KIND, RESULT_GRID_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows::{
+    current_explain_plan_qualification, ComparisonBasis, ComparisonOutcome,
+    EngineVersionContextRow, ExplainPlanFreshnessNoteRow, ExplainPlanMode,
+    ExplainPlanQualificationLabel, ExplainPlanQualificationPacket,
+    ExplainPlanQualificationProof, ExplainPlanQualificationSummary,
+    ExplainPlanQualificationViolation, ExplainPlanQualificationViolationKind,
+    ExplainPlanSurfaceGuardSet, ExplainPlanSurfaceKind,
+    ExplainPlanSurfaceQualificationRow, FreshnessState, PlanComparisonFlowRow,
+    EXPLAIN_PLAN_QUALIFICATION_PACKET_JSON, EXPLAIN_PLAN_QUALIFICATION_PACKET_PATH,
+    EXPLAIN_PLAN_QUALIFICATION_RECORD_KIND, EXPLAIN_PLAN_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes::{

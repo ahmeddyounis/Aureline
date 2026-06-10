@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/implement-explain-plan-freshness-notes-engine-version-context-and-plan-comparison-flows.schema.json",
+  "title": "Aureline explain-plan freshness notes, engine-version context, and plan-comparison flow packet",
+  "description": "Boundary schema for explain-plan freshness notes, engine-version context, and plan-comparison flows. Raw plan payloads, raw engine versions, raw hostnames, and raw connection strings do not appear in this packet; payloads require explicit drill-down or export review.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "as_of",
+    "release_doc_ref",
+    "help_doc_ref",
+    "schema_ref",
+    "surfaces",
+    "freshness_notes",
+    "engine_version_contexts",
+    "plan_comparison_flows",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "as_of": { "type": "string", "format": "date" },
+    "release_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "help_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "schema_ref": { "$ref": "#/$defs/path_ref" },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/explain_plan_surface_qualification_row" }
+    },
+    "freshness_notes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/explain_plan_freshness_note_row" }
+    },
+    "engine_version_contexts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/engine_version_context_row" }
+    },
+    "plan_comparison_flows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/plan_comparison_flow_row" }
+    },
+    "summary": { "$ref": "#/$defs/explain_plan_qualification_summary" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "reviewable": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+    "explain_plan_qualification_label": {
+      "type": "string",
+      "enum": ["stable", "preview", "labs", "inspect_only", "import_only"]
+    },
+    "explain_plan_surface_kind": {
+      "type": "string",
+      "enum": [
+        "explain_plan_freshness_note",
+        "engine_version_context",
+        "plan_comparison_flow"
+      ]
+    },
+    "explain_plan_mode": {
+      "type": "string",
+      "enum": ["estimated", "actual", "imported_stale"]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["current", "stale", "unknown"]
+    },
+    "comparison_basis": {
+      "type": "string",
+      "enum": [
+        "estimated_vs_actual",
+        "same_query_different_time",
+        "different_query",
+        "imported_vs_live"
+      ]
+    },
+    "comparison_outcome": {
+      "type": "string",
+      "enum": ["equivalent", "divergent", "inconclusive", "rollback_recommended"]
+    },
+    "explain_plan_qualification_proof": {
+      "type": "object",
+      "required": ["packet_id", "packet_ref", "proof_index_ref", "captured_at", "evidence_refs"],
+      "additionalProperties": false,
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_ref": { "$ref": "#/$defs/path_ref" },
+        "proof_index_ref": { "$ref": "#/$defs/path_ref" },
+        "captured_at": { "type": "string", "format": "date" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" }
+        }
+      }
+    },
+    "explain_plan_surface_guard_set": {
+      "type": "object",
+      "required": [
+        "engine_version_visible",
+        "freshness_note_visible",
+        "plan_mode_visible",
+        "stale_import_labeled",
+        "comparison_basis_visible",
+        "comparison_diff_visible",
+        "comparison_rollback_visible",
+        "downgrade_on_mismatch_visible"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "engine_version_visible": { "type": "boolean" },
+        "freshness_note_visible": { "type": "boolean" },
+        "plan_mode_visible": { "type": "boolean" },
+        "stale_import_labeled": { "type": "boolean" },
+        "comparison_basis_visible": { "type": "boolean" },
+        "comparison_diff_visible": { "type": "boolean" },
+        "comparison_rollback_visible": { "type": "boolean" },
+        "downgrade_on_mismatch_visible": { "type": "boolean" }
+      }
+    },
+    "explain_plan_surface_qualification_row": {
+      "type": "object",
+      "required": [
+        "surface_id",
+        "title",
+        "surface_kind",
+        "promoted_build_surface",
+        "claim_label",
+        "displayed_label",
+        "guards",
+        "downgrade_if_missing",
+        "rationale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "surface_kind": { "$ref": "#/$defs/explain_plan_surface_kind" },
+        "promoted_build_surface": { "type": "boolean" },
+        "claim_label": { "$ref": "#/$defs/explain_plan_qualification_label" },
+        "displayed_label": { "$ref": "#/$defs/explain_plan_qualification_label" },
+        "qualification_packet": { "$ref": "#/$defs/explain_plan_qualification_proof" },
+        "guards": { "$ref": "#/$defs/explain_plan_surface_guard_set" },
+        "downgrade_if_missing": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/reviewable" }
+      }
+    },
+    "explain_plan_freshness_note_row": {
+      "type": "object",
+      "required": [
+        "note_id",
+        "plan_mode",
+        "engine_version_ref",
+        "captured_at",
+        "freshness_state",
+        "stale_labeled",
+        "implies_execution",
+        "visible_in_ui"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "note_id": { "$ref": "#/$defs/opaque_id" },
+        "plan_mode": { "$ref": "#/$defs/explain_plan_mode" },
+        "engine_version_ref": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "captured_at": { "type": "string", "maxLength": 120 },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "stale_labeled": { "type": "boolean" },
+        "implies_execution": { "type": "boolean" },
+        "visible_in_ui": { "type": "boolean" }
+      }
+    },
+    "engine_version_context_row": {
+      "type": "object",
+      "required": [
+        "context_id",
+        "engine_family",
+        "version_ref",
+        "version_mismatch_visible",
+        "context_visible_in_plan",
+        "context_visible_in_comparison",
+        "visible_in_ui"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "context_id": { "$ref": "#/$defs/opaque_id" },
+        "engine_family": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "version_ref": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "version_mismatch_visible": { "type": "boolean" },
+        "context_visible_in_plan": { "type": "boolean" },
+        "context_visible_in_comparison": { "type": "boolean" },
+        "visible_in_ui": { "type": "boolean" }
+      }
+    },
+    "plan_comparison_flow_row": {
+      "type": "object",
+      "required": [
+        "flow_id",
+        "comparison_basis",
+        "baseline_plan_ref",
+        "compared_plan_ref",
+        "outcome",
+        "diff_visible",
+        "rollback_visible",
+        "downgrade_on_mismatch",
+        "visible_in_ui"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/opaque_id" },
+        "comparison_basis": { "$ref": "#/$defs/comparison_basis" },
+        "baseline_plan_ref": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "compared_plan_ref": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "outcome": { "$ref": "#/$defs/comparison_outcome" },
+        "diff_visible": { "type": "boolean" },
+        "rollback_visible": { "type": "boolean" },
+        "downgrade_on_mismatch": { "type": "boolean" },
+        "visible_in_ui": { "type": "boolean" }
+      }
+    },
+    "explain_plan_qualification_summary": {
+      "type": "object",
+      "required": [
+        "promoted_surface_count",
+        "stable_surface_count",
+        "narrowed_surface_count",
+        "freshness_note_count",
+        "engine_version_context_count",
+        "plan_comparison_flow_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "promoted_surface_count": { "type": "integer", "minimum": 0 },
+        "stable_surface_count": { "type": "integer", "minimum": 0 },
+        "narrowed_surface_count": { "type": "integer", "minimum": 0 },
+        "freshness_note_count": { "type": "integer", "minimum": 0 },
+        "engine_version_context_count": { "type": "integer", "minimum": 0 },
+        "plan_comparison_flow_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
