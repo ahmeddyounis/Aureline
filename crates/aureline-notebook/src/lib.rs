@@ -65,6 +65,13 @@
 //!    reviewable, and recoverable on the same contracts as build, test, and
 //!    debug work.
 //!
+//! 10. The [`seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet`]
+//!     module seeds the bounded fixture set and heavy-output corpus that keep
+//!     M5 notebook round-trip and output-truth claims evidence-based. It produces
+//!     [`NotebookRoundTripFixture`] records, [`HeavyOutputCorpusEntry`] records,
+//!     and the [`NotebookSupportPacket`] checked-in artifact that downstream
+//!     docs, help, CI, and support surfaces ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -133,6 +140,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories/`.
 //!
+//! The records under
+//! [`seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -159,6 +173,7 @@ pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_label
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
+pub mod seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet;
 pub mod ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
 
@@ -291,6 +306,18 @@ pub use implement_notebook_debugger_support_states_breakpoint_affordances_and_un
     NOTEBOOK_DEBUGGER_SUPPORT_PACKET_PATH, NOTEBOOK_DEBUGGER_SUPPORT_PACKET_RECORD_KIND,
     NOTEBOOK_DEBUGGER_SUPPORT_SCHEMA_VERSION, NOTEBOOK_DEBUGGER_SUPPORT_STATE_RECORD_KIND,
     BREAKPOINT_AFFORDANCE_RECORD_KIND, UNSUPPORTED_STATE_CUE_RECORD_KIND,
+};
+
+pub use seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet::{
+    current_notebook_support_packet, HeavyOutputCorpusEntry, HeavyOutputCorpusEntryFinding,
+    HeavyOutputCorpusSizeBucketClass, HeavyOutputCorpusTrustImplicationClass,
+    HeavyOutputCorpusVirtualizationClass, NotebookRoundTripFixture,
+    NotebookRoundTripFixtureFinding, NotebookRoundTripFixtureKindClass,
+    NotebookSupportFinding, NotebookSupportPacket, NotebookSupportPacketCoverageClass,
+    NotebookSupportPacketFinding, HEAVY_OUTPUT_CORPUS_ENTRY_RECORD_KIND,
+    NOTEBOOK_ROUND_TRIP_FIXTURE_RECORD_KIND, NOTEBOOK_SUPPORT_PACKET_JSON,
+    NOTEBOOK_SUPPORT_PACKET_PATH, NOTEBOOK_SUPPORT_PACKET_RECORD_KIND,
+    NOTEBOOK_SUPPORT_SCHEMA_VERSION,
 };
 
 pub use ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows::{

@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical_notebook_support_packet.schema.json",
+  "title": "Aureline notebook round-trip fixtures, heavy-output corpora, and canonical notebook support packet",
+  "description": "Boundary schema for notebook round-trip fixtures, heavy-output corpora, and the canonical support packet. Every record that crosses this boundary (round-trip fixture, heavy-output corpus entry, packet) projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw attachment bytes, raw output bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_round_trip_fixture_record" },
+    { "$ref": "#/$defs/heavy_output_corpus_entry_record" },
+    { "$ref": "#/$defs/notebook_support_packet_record" }
+  ],
+  "$defs": {
+    "notebook_support_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook support packet module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_round_trip_fixture",
+        "heavy_output_corpus_entry",
+        "notebook_support_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (document id, fixture id, corpus entry id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "notebook_round_trip_fixture_kind_class": {
+      "type": "string",
+      "enum": [
+        "clean_canonical",
+        "attachment_heavy",
+        "metadata_rich",
+        "unknown_namespace_dense",
+        "corrupted_then_repaired",
+        "export_only",
+        "no_kernel_editable",
+        "cell_id_stress"
+      ],
+      "description": "Frozen fixture-kind class. Names the specific round-trip fixture scenario."
+    },
+
+    "heavy_output_corpus_size_bucket_class": {
+      "type": "string",
+      "enum": [
+        "small",
+        "medium",
+        "large",
+        "very_large"
+      ],
+      "description": "Frozen size-bucket class. Distinguishes small, medium, large, and very-large total output sizes."
+    },
+
+    "heavy_output_corpus_trust_implication_class": {
+      "type": "string",
+      "enum": [
+        "trusted_inline",
+        "trusted_virtualized",
+        "sanitized_inline",
+        "sanitized_virtualized",
+        "sandboxed",
+        "blocked"
+      ],
+      "description": "Frozen trust-implication class. Names whether the output is trusted inline, trusted but virtualized, sanitized inline, sanitized and virtualized, sandboxed, or blocked by policy."
+    },
+
+    "heavy_output_corpus_virtualization_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "truncated",
+        "paginated",
+        "externalized",
+        "lazy_loaded"
+      ],
+      "description": "Frozen virtualization class. Names the display strategy applied to heavy outputs."
+    },
+
+    "notebook_support_packet_coverage_class": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial",
+        "fixture_only",
+        "corpus_only"
+      ],
+      "description": "Frozen coverage class. Names whether the packet claims full, partial, fixture-only, or corpus-only coverage."
+    },
+
+    "notebook_round_trip_fixture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_support_schema_version",
+        "fixture_id",
+        "document_id_ref",
+        "fixture_kind_class",
+        "expected_result_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_round_trip_fixture" },
+        "notebook_support_schema_version": { "$ref": "#/$defs/notebook_support_schema_version" },
+        "fixture_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "fixture_kind_class": { "$ref": "#/$defs/notebook_round_trip_fixture_kind_class" },
+        "assertion_kind_class_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "expected_result_class": { "type": "string", "minLength": 1 },
+        "loss_summary": { "type": ["string", "null"], "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "heavy_output_corpus_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_support_schema_version",
+        "corpus_entry_id",
+        "document_id_ref",
+        "size_bucket_class",
+        "output_count",
+        "contains_rich_output",
+        "trust_implication_class",
+        "virtualization_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "heavy_output_corpus_entry" },
+        "notebook_support_schema_version": { "$ref": "#/$defs/notebook_support_schema_version" },
+        "corpus_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "size_bucket_class": { "$ref": "#/$defs/heavy_output_corpus_size_bucket_class" },
+        "output_count": { "type": "integer", "minimum": 1 },
+        "contains_rich_output": { "type": "boolean" },
+        "trust_implication_class": { "$ref": "#/$defs/heavy_output_corpus_trust_implication_class" },
+        "virtualization_class": { "$ref": "#/$defs/heavy_output_corpus_virtualization_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "notebook_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "fixture_kind_classes",
+        "size_bucket_classes",
+        "trust_implication_classes",
+        "virtualization_classes",
+        "coverage_classes",
+        "example_round_trip_fixtures",
+        "example_heavy_output_corpus_entries",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_support_schema_version" },
+        "record_kind": { "const": "notebook_support_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "fixture_kind_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_round_trip_fixture_kind_class" },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "size_bucket_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/heavy_output_corpus_size_bucket_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "trust_implication_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/heavy_output_corpus_trust_implication_class" },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "virtualization_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/heavy_output_corpus_virtualization_class" },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "coverage_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_support_packet_coverage_class" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "example_round_trip_fixtures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_round_trip_fixture_record" }
+        },
+        "example_heavy_output_corpus_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/heavy_output_corpus_entry_record" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
