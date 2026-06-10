@@ -4,8 +4,9 @@
 //! memory-analysis views, snapshot pairs, retained or allocation diffs, leak-hint
 //! confidence, regression baseline store, baseline selection UX, comparable-environment
 //! guards, profile-compare cards, threshold or waiver state, confounder disclosure,
-//! and coverage, profile, test, debug, and notebook evidence handoff bars with artifact
-//! lineage.
+//! coverage, profile, test, debug, and notebook evidence handoff bars with artifact
+//! lineage, and justified replay backend with recording-mode banner, expiry, and cost
+//! posture.
 //!
 //! This crate owns the typed records that keep profile launch and attach surfaces,
 //! capture-mode descriptors, storage-location truth, hotspot surfaces, trace viewer
@@ -16,6 +17,11 @@
 //! [`materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth`]
 //! module that pins the launcher, attach-sheet, capture-mode, and storage-location
 //! contracts every profiler UI, support export, and release reviewer reads.
+//!
+//! This crate also exposes the
+//! [`implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture`]
+//! module that pins the recording-mode banner, replay expiry, and cost posture contracts
+//! every replay surface reads.
 //!
 //! This crate also exposes the
 //! [`implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure`]
@@ -97,12 +103,20 @@
 //! [`/schemas/perf/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.schema.json`](../../../schemas/perf/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.schema.json).
 //! The checked-in stable packet is at
 //! [`/artifacts/perf/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.json`](../../../artifacts/perf/m5/ship-coverage-profile-test-debug-and-notebook-evidence-handoff-bars-with-artifact-lineage.json).
+//!
+//! The reviewer-facing contract for the justified replay backend is at
+//! [`/docs/performance/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.md`](../../../docs/performance/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.md).
+//! The cross-tool boundary schema is at
+//! [`/schemas/perf/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.schema.json`](../../../schemas/perf/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.schema.json).
+//! The checked-in stable packet is at
+//! [`/artifacts/perf/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.json`](../../../artifacts/perf/m5/implement-the-first-justified-replay-backend-with-recording-mode-banner-expiry-and-cost-posture.json).
 
 #![doc(html_root_url = "https://docs.rs/aureline-profiler/0.0.0")]
 
 pub mod add_memory_analysis_views_snapshot_pairs_retained_or_allocation_diffs_and_leak_hint_confidence;
 pub mod build_the_regression_baseline_store_baseline_selection_ux_and_comparable_environment_guards;
 pub mod implement_profile_compare_cards_threshold_or_waiver_state_and_confounder_disclosure;
+pub mod implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture;
 pub mod implement_the_shared_trace_viewer_with_synchronized_event_lanes_bookmarks_and_textual_fallback;
 pub mod materialize_profile_launcher_and_attach_sheets_capture_mode_descriptors_and_storage_location_truth;
 pub mod ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with_artifact_lineage;
@@ -179,6 +193,16 @@ pub use ship_coverage_profile_test_debug_and_notebook_evidence_handoff_bars_with
     LineageState, SaveShareScopeKind, SaveShareScopeRow,
     EVIDENCE_HANDOFF_QUALIFICATION_PACKET_JSON, EVIDENCE_HANDOFF_QUALIFICATION_PACKET_PATH,
     EVIDENCE_HANDOFF_QUALIFICATION_RECORD_KIND, EVIDENCE_HANDOFF_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_the_first_justified_replay_backend_with_recording_mode_banner_expiry_and_cost_posture::{
+    current_replay_qualification, CostPostureClass, RecordingModeBannerRow, RecordingModeState,
+    ReplayCostPostureRow, ReplayExpiryRow, ReplayQualificationLabel, ReplayQualificationPacket,
+    ReplayQualificationProof, ReplayQualificationSummary, ReplayQualificationViolation,
+    ReplayQualificationViolationKind, ReplaySurfaceGuardSet, ReplaySurfaceKind,
+    ReplaySurfaceQualificationRow, ExpiryStatus,
+    REPLAY_QUALIFICATION_PACKET_JSON, REPLAY_QUALIFICATION_PACKET_PATH,
+    REPLAY_QUALIFICATION_RECORD_KIND, REPLAY_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use ship_the_hotspot_workspace_with_flamegraph_call_tree_mapping_quality_labels_and_source_navigation::{
