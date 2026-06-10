@@ -18,6 +18,7 @@ pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
 pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
 pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings;
+pub mod implement_scoped_browser_surfaces_for_docs_and_review_with_handoff_reason_return_path_and_trust_class_disclosu;
 pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
@@ -160,6 +161,22 @@ pub use implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips
     DOCS_PACK_RECALL_ARTIFACT_REF, DOCS_PACK_RECALL_DOC_REF, DOCS_PACK_RECALL_FIXTURE_DIR,
     DOCS_PACK_RECALL_RECORD_KIND, DOCS_PACK_RECALL_SCHEMA_REF, DOCS_PACK_RECALL_SCHEMA_VERSION,
     DOCS_PACK_RECALL_SUMMARY_REF, DOCS_PACK_RECALL_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use implement_scoped_browser_surfaces_for_docs_and_review_with_handoff_reason_return_path_and_trust_class_disclosu::{
+    current_stable_scoped_browser_export,
+    packet_to_input as scoped_browser_packet_to_input, seeded_stable_scoped_browser_input,
+    CapturedVsLive, HandoffCapability, HandoffReason, HandoffReasonKind, ReturnPath, ReturnPathKind,
+    ScopedBrowserArtifactError, ScopedBrowserChipSet, ScopedBrowserConfidence,
+    ScopedBrowserConsumerProjection, ScopedBrowserConsumerSurface, ScopedBrowserDegradation,
+    ScopedBrowserDegradationClass, ScopedBrowserExport, ScopedBrowserExportRow,
+    ScopedBrowserExportScope, ScopedBrowserFindingKind, ScopedBrowserFindingSeverity,
+    ScopedBrowserFreshness, ScopedBrowserLocality, ScopedBrowserPromotionState, ScopedBrowserScope,
+    ScopedBrowserSourceClass, ScopedBrowserSupportExport, ScopedBrowserSurface,
+    ScopedBrowserSurfacesPacket, ScopedBrowserSurfacesPacketInput, ScopedBrowserTrustClass,
+    ScopedBrowserValidationFinding, ScopedBrowserVersionMatch, SCOPED_BROWSER_ARTIFACT_REF,
+    SCOPED_BROWSER_DOC_REF, SCOPED_BROWSER_FIXTURE_DIR, SCOPED_BROWSER_RECORD_KIND,
+    SCOPED_BROWSER_SCHEMA_REF, SCOPED_BROWSER_SCHEMA_VERSION, SCOPED_BROWSER_SUMMARY_REF,
+    SCOPED_BROWSER_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use index::{
     DocsSearchIndex, DocsSearchIndexEntry, DocsSearchQueryResult,
