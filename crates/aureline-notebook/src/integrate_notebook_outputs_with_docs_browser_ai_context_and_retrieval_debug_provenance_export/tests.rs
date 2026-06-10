@@ -298,8 +298,9 @@ fn browser_integration_rejects_empty_output_trust_class_ref() {
     let mut b = sample_browser_integration_inspected();
     b.output_trust_class_ref = "".to_owned();
     let findings = b.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "notebook_output_browser_integration.output_trust_class_ref_required"));
+    assert!(findings.iter().any(
+        |f| f.check_id == "notebook_output_browser_integration.output_trust_class_ref_required"
+    ));
 }
 
 #[test]
@@ -307,8 +308,10 @@ fn ai_context_rejects_missing_redaction_explanation_when_redacted() {
     let mut a = sample_ai_context_redacted();
     a.redaction_explanation = None;
     let findings = a.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "notebook_output_ai_context_integration.redaction_explanation_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id
+            == "notebook_output_ai_context_integration.redaction_explanation_required"));
 }
 
 #[test]
@@ -316,8 +319,10 @@ fn ai_context_rejects_missing_redaction_explanation_when_degraded() {
     let mut a = sample_ai_context_degraded();
     a.redaction_explanation = None;
     let findings = a.validate();
-    assert!(findings.iter().any(|f| f.check_id
-        == "notebook_output_ai_context_integration.redaction_explanation_required"));
+    assert!(findings
+        .iter()
+        .any(|f| f.check_id
+            == "notebook_output_ai_context_integration.redaction_explanation_required"));
 }
 
 #[test]
@@ -458,14 +463,8 @@ fn closed_vocabularies_expose_stable_tokens() {
         "kernel_session_id"
     );
 
-    assert_eq!(
-        NotebookOutputProvenanceFormatClass::Json.as_str(),
-        "json"
-    );
-    assert_eq!(
-        NotebookOutputProvenanceFormatClass::Yaml.as_str(),
-        "yaml"
-    );
+    assert_eq!(NotebookOutputProvenanceFormatClass::Json.as_str(), "json");
+    assert_eq!(NotebookOutputProvenanceFormatClass::Yaml.as_str(), "yaml");
     assert_eq!(
         NotebookOutputProvenanceFormatClass::Packet.as_str(),
         "packet"
@@ -560,9 +559,11 @@ fn packet_validates_clean() {
 
 #[test]
 fn embedded_packet_parses() {
-    let packet =
-        current_notebook_output_integration_packet().expect("embedded packet must parse");
-    assert_eq!(packet.schema_version, NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION);
+    let packet = current_notebook_output_integration_packet().expect("embedded packet must parse");
+    assert_eq!(
+        packet.schema_version,
+        NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION
+    );
     assert_eq!(
         packet.record_kind,
         NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND

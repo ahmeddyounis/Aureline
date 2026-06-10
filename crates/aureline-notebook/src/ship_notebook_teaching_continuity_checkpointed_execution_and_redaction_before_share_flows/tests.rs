@@ -306,11 +306,20 @@ fn redaction_rejects_empty_summary() {
 
 #[test]
 fn closed_vocabularies_expose_stable_tokens() {
-    assert_eq!(NotebookTeachingMode::GuidedExercise.as_str(), "guided_exercise");
+    assert_eq!(
+        NotebookTeachingMode::GuidedExercise.as_str(),
+        "guided_exercise"
+    );
     assert_eq!(NotebookTeachingMode::Demo.as_str(), "demo");
-    assert_eq!(NotebookTeachingMode::SoloExploration.as_str(), "solo_exploration");
+    assert_eq!(
+        NotebookTeachingMode::SoloExploration.as_str(),
+        "solo_exploration"
+    );
     assert_eq!(NotebookTeachingMode::Classroom.as_str(), "classroom");
-    assert_eq!(NotebookTeachingMode::MentorSession.as_str(), "mentor_session");
+    assert_eq!(
+        NotebookTeachingMode::MentorSession.as_str(),
+        "mentor_session"
+    );
 
     assert_eq!(
         NotebookCheckpointPreference::AutoCheckpoint.as_str(),
@@ -320,12 +329,27 @@ fn closed_vocabularies_expose_stable_tokens() {
         NotebookCheckpointPreference::ManualCheckpoint.as_str(),
         "manual_checkpoint"
     );
-    assert_eq!(NotebookCheckpointPreference::NoCheckpoint.as_str(), "no_checkpoint");
-    assert_eq!(NotebookCheckpointPreference::SandboxOnly.as_str(), "sandbox_only");
+    assert_eq!(
+        NotebookCheckpointPreference::NoCheckpoint.as_str(),
+        "no_checkpoint"
+    );
+    assert_eq!(
+        NotebookCheckpointPreference::SandboxOnly.as_str(),
+        "sandbox_only"
+    );
 
-    assert_eq!(NotebookCheckpointClass::AutoCheckpoint.as_str(), "auto_checkpoint");
-    assert_eq!(NotebookCheckpointClass::ManualCheckpoint.as_str(), "manual_checkpoint");
-    assert_eq!(NotebookCheckpointClass::PreExecution.as_str(), "pre_execution");
+    assert_eq!(
+        NotebookCheckpointClass::AutoCheckpoint.as_str(),
+        "auto_checkpoint"
+    );
+    assert_eq!(
+        NotebookCheckpointClass::ManualCheckpoint.as_str(),
+        "manual_checkpoint"
+    );
+    assert_eq!(
+        NotebookCheckpointClass::PreExecution.as_str(),
+        "pre_execution"
+    );
     assert_eq!(
         NotebookCheckpointClass::PreDestructive.as_str(),
         "pre_destructive"
@@ -337,8 +361,14 @@ fn closed_vocabularies_expose_stable_tokens() {
 
     assert_eq!(NotebookSandboxState::Sandboxed.as_str(), "sandboxed");
     assert_eq!(NotebookSandboxState::Unsandboxed.as_str(), "unsandboxed");
-    assert_eq!(NotebookSandboxState::SandboxPending.as_str(), "sandbox_pending");
-    assert_eq!(NotebookSandboxState::SandboxFailed.as_str(), "sandbox_failed");
+    assert_eq!(
+        NotebookSandboxState::SandboxPending.as_str(),
+        "sandbox_pending"
+    );
+    assert_eq!(
+        NotebookSandboxState::SandboxFailed.as_str(),
+        "sandbox_failed"
+    );
 
     assert_eq!(
         NotebookRollbackPosture::RollbackAvailable.as_str(),
@@ -410,8 +440,7 @@ fn packet_validates_clean() {
 
 #[test]
 fn embedded_packet_parses() {
-    let packet =
-        current_notebook_teaching_continuity_checkpointed_redaction_packet();
+    let packet = current_notebook_teaching_continuity_checkpointed_redaction_packet();
     assert_eq!(
         packet.schema_version,
         NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION

@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows.schema.json",
+  "title": "Aureline notebook diff, review, export, collaboration, and experiment certification",
+  "description": "Boundary schema for the M5 notebook certification packet that binds diff/review, export, collaboration, and experiment lineage lanes to qualification states, downgrade rules, rollback paths, and automatic narrowing. Every record that crosses the certification boundary projects through this schema. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Additive-optional fields do not bump the schema_version; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_certification_row_record" },
+    { "$ref": "#/$defs/notebook_certification_packet_record" }
+  ],
+  "$defs": {
+    "notebook_certification_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook certification module. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_certification_row",
+        "notebook_certification_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (packet id, cell id, output id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "notebook_certification_lane_kind": {
+      "type": "string",
+      "enum": ["diff_review", "export", "collaboration", "experiment", "narrowing"],
+      "description": "Frozen certification lane kind vocabulary. Every M5 notebook depth lane must have exactly one row."
+    },
+
+    "notebook_certification_state": {
+      "type": "string",
+      "enum": ["certified_current", "incomplete", "stale", "on_waiver", "blocked", "rule_missing", "narrowed"],
+      "description": "Frozen certification state vocabulary. certified_current may never be implied from prose alone."
+    },
+
+    "notebook_certification_downgrade_reason": {
+      "type": "string",
+      "enum": ["freshness_expired", "packet_missing", "evidence_stale", "rollback_path_missing", "underqualified_sub_lane", "policy_blocked"],
+      "description": "Frozen downgrade reason vocabulary. Names why a lane was narrowed below its claimed label."
+    },
+
+    "notebook_certification_rollback_path_state": {
+      "type": "string",
+      "enum": ["defined", "tested", "exercised", "missing"],
+      "description": "Frozen rollback path state vocabulary. tested or exercised are required for certified_current."
+    },
+
+    "notebook_certification_narrowing_action": {
+      "type": "string",
+      "enum": ["automatic_narrowing", "manual_hold", "emergency_rollback"],
+      "description": "Frozen narrowing action vocabulary. Names the automation that applies when a lane narrows."
+    },
+
+    "notebook_certification_row_record": {
+      "type": "object",
+      "properties": {
+        "record_kind": { "const": "notebook_certification_row" },
+        "notebook_certification_schema_version": { "$ref": "#/$defs/notebook_certification_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "lane_kind": { "$ref": "#/$defs/notebook_certification_lane_kind" },
+        "sub_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "certification_state": { "$ref": "#/$defs/notebook_certification_state" },
+        "rollback_path_state": { "$ref": "#/$defs/notebook_certification_rollback_path_state" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_certification_downgrade_reason" },
+          "description": "Downgrade reasons that narrowed this row, if any."
+        },
+        "narrowing_action": { "$ref": "#/$defs/notebook_certification_narrowing_action" },
+        "freshness_as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this row's evidence is current as of."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "record_kind",
+        "notebook_certification_schema_version",
+        "row_id",
+        "lane_kind",
+        "sub_packet_ref",
+        "certification_state",
+        "rollback_path_state",
+        "narrowing_action",
+        "freshness_as_of",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+
+    "notebook_certification_packet_record": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/notebook_certification_schema_version" },
+        "record_kind": { "const": "notebook_certification_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "as_of": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC date this packet is current as of."
+        },
+        "certification_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_certification_row_record" },
+          "description": "Certification rows for each M5 notebook depth lane. Must contain exactly one row per lane kind."
+        },
+        "example_narrowed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_certification_row_record" },
+          "description": "Worked example narrowed rows showing automatic narrowing."
+        },
+        "downgrade_rules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Human-readable downgrade rules."
+        },
+        "rollback_path": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Human-readable rollback path steps."
+        },
+        "freshness_slo_max_age_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum age in days before the packet is considered stale."
+        },
+        "warn_window_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Days before expiry when a warning is issued."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe summary line."
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "as_of",
+        "certification_rows",
+        "downgrade_rules",
+        "rollback_path",
+        "freshness_slo_max_age_days",
+        "warn_window_days",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

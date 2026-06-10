@@ -172,6 +172,15 @@
 //!     [`NotebookOutputIntegrationPacket`] checked-in artifact that downstream
 //!     docs, help, CI, and support surfaces ingest instead of cloning status text.
 //!
+//! 21. The [`certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows`]
+//!     module materializes the typed certification layer that binds the M5
+//!     notebook depth lanes — diff/review, export, collaboration, and experiment
+//!     lineage — to canonical qualification states, downgrade rules, rollback
+//!     paths, and automatic narrowing actions. It produces
+//!     [`NotebookCertificationRow`] records and the
+//!     [`NotebookCertificationPacket`] checked-in artifact that downstream docs,
+//!     help, CI, and support surfaces ingest instead of cloning status text.
+//!
 //! The records and closed vocabularies under [`runtime_truth`] mirror the
 //! boundary schemas at `/schemas/notebook/kernel_session_summary.schema.json`
 //! and `/schemas/notebook/output_trust_record.schema.json`. Worked fixtures
@@ -317,6 +326,13 @@
 //! Worked fixtures live under
 //! `/fixtures/notebook/m5/integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export/`.
 //!
+//! The records under
+//! [`certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows`]
+//! mirror the boundary schema at
+//! `/schemas/notebook/certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows.schema.json`.
+//! Worked fixtures live under
+//! `/fixtures/notebook/m5/certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows/`.
+//!
 //! The records project the notebook document / kernel-session / output /
 //! widget trust axes already frozen in
 //! `/schemas/notebook/notebook_metadata_aureline.schema.json` and the
@@ -337,6 +353,7 @@
 pub mod add_notebook_aware_search_outline_breadcrumbs_and_cell_target_navigation;
 pub mod add_notebook_comments_stable_cell_or_output_anchors_and_review_workspace_parity;
 pub mod add_notebook_result_comparison_baseline_selection_and_confounder_visibility;
+pub mod certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows;
 pub mod implement_experiment_run_identities_environment_fingerprints_dataset_cards_and_artifact_lineage;
 pub mod implement_kernel_discovery_kernelspec_and_interpreter_resolution_and_environment_fingerprint_inspectors;
 pub mod implement_notebook_collaboration_follow_and_presenter_state_with_live_versus_captured_runtime_disclosure;
@@ -345,9 +362,8 @@ pub mod implement_notebook_merge_flows_base_or_ours_or_theirs_lineage_and_confli
 pub mod implement_notebook_save_repair_and_round_trip_safety_for_metadata_attachments_and_unknown_namespaces;
 pub mod implement_notebook_share_and_handoff_sheets_with_notebook_versus_report_versus_artifact_scope_separation;
 pub mod implement_the_notebook_header_kernel_bar_execution_locus_chips_and_paired_export_state;
-pub mod integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export;
-pub mod ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows;
 pub mod implement_the_notebook_variable_explorer_live_or_snapshot_or_stale_labels_and_typed_export;
+pub mod integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_debug_provenance_export;
 pub mod materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization;
 pub mod materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability;
 pub mod runtime_truth;
@@ -355,6 +371,7 @@ pub mod seed_notebook_round_trip_fixtures_heavy_output_corpora_and_the_canonical
 pub mod ship_cell_aware_diff_metadata_filters_output_include_or_exclude_state_and_raw_json_fallback;
 pub mod ship_notebook_activity_integration_with_task_event_model_activity_center_and_restore_safe_histories;
 pub mod ship_notebook_cell_chrome_run_scope_controls_and_durable_execution_state_rows;
+pub mod ship_notebook_teaching_continuity_checkpointed_execution_and_redaction_before_share_flows;
 pub mod ship_the_notebook_debugger_bridge_frame_to_cell_linkage_and_kernel_restart_consequence_records;
 
 pub use runtime_truth::{
@@ -644,4 +661,14 @@ pub use integrate_notebook_outputs_with_docs_browser_ai_context_and_retrieval_de
     NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND,
     NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION,
     NOTEBOOK_OUTPUT_RETRIEVAL_DEBUG_PROVENANCE_EXPORT_RECORD_KIND,
+};
+
+pub use certify_notebook_diff_review_export_collaboration_and_experiment_packets_and_narrow_unqualified_rows::{
+    current_notebook_certification_packet, CertificationFinding, NotebookCertificationDowngradeReason,
+    NotebookCertificationLaneKind, NotebookCertificationNarrowingAction,
+    NotebookCertificationPacket, NotebookCertificationPacketFinding, NotebookCertificationRollbackPathState,
+    NotebookCertificationRow, NotebookCertificationRowFinding, NotebookCertificationState,
+    NOTEBOOK_CERTIFICATION_PACKET_JSON, NOTEBOOK_CERTIFICATION_PACKET_PATH,
+    NOTEBOOK_CERTIFICATION_PACKET_RECORD_KIND, NOTEBOOK_CERTIFICATION_ROW_RECORD_KIND,
+    NOTEBOOK_CERTIFICATION_SCHEMA_VERSION,
 };

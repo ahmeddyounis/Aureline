@@ -67,7 +67,8 @@ pub const NOTEBOOK_OUTPUT_RETRIEVAL_DEBUG_PROVENANCE_EXPORT_RECORD_KIND: &str =
     "notebook_output_retrieval_debug_provenance_export";
 
 /// Stable record-kind tag for the checked-in [`NotebookOutputIntegrationPacket`].
-pub const NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND: &str = "notebook_output_integration_packet";
+pub const NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND: &str =
+    "notebook_output_integration_packet";
 
 /// Repo-relative path to the checked-in output-integration packet JSON.
 pub const NOTEBOOK_OUTPUT_INTEGRATION_PACKET_PATH: &str =
@@ -298,7 +299,9 @@ impl NotebookOutputDocIntegration {
                 ),
             ));
         }
-        if self.notebook_output_integration_schema_version != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_output_integration_schema_version
+            != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookOutputDocIntegrationFinding::new(
                 "notebook_output_doc_integration.schema_version",
                 subject,
@@ -397,7 +400,9 @@ impl NotebookOutputBrowserIntegration {
                 ),
             ));
         }
-        if self.notebook_output_integration_schema_version != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_output_integration_schema_version
+            != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookOutputBrowserIntegrationFinding::new(
                 "notebook_output_browser_integration.schema_version",
                 subject,
@@ -508,7 +513,9 @@ impl NotebookOutputAiContextIntegration {
                 ),
             ));
         }
-        if self.notebook_output_integration_schema_version != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_output_integration_schema_version
+            != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookOutputAiContextIntegrationFinding::new(
                 "notebook_output_ai_context_integration.schema_version",
                 subject,
@@ -621,7 +628,9 @@ impl NotebookOutputRetrievalDebugProvenanceExport {
                 ),
             ));
         }
-        if self.notebook_output_integration_schema_version != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION {
+        if self.notebook_output_integration_schema_version
+            != NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION
+        {
             findings.push(NotebookOutputRetrievalDebugProvenanceExportFinding::new(
                 "notebook_output_retrieval_debug_provenance_export.schema_version",
                 subject,
@@ -724,7 +733,8 @@ pub struct NotebookOutputIntegrationPacket {
     /// Worked example AI context integrations.
     pub example_ai_context_integrations: Vec<NotebookOutputAiContextIntegration>,
     /// Worked example retrieval-debug provenance exports.
-    pub example_retrieval_debug_provenance_exports: Vec<NotebookOutputRetrievalDebugProvenanceExport>,
+    pub example_retrieval_debug_provenance_exports:
+        Vec<NotebookOutputRetrievalDebugProvenanceExport>,
     /// Export-safe summary line.
     pub summary: String,
 }
@@ -777,14 +787,18 @@ impl NotebookOutputIntegrationPacket {
                 "ai_context_posture_classes must list every variant",
             ));
         }
-        if self.retrieval_debug_posture_classes.len() != NotebookOutputRetrievalDebugPostureClass::ALL.len() {
+        if self.retrieval_debug_posture_classes.len()
+            != NotebookOutputRetrievalDebugPostureClass::ALL.len()
+        {
             findings.push(NotebookOutputIntegrationPacketFinding::new(
                 "notebook_output_integration_packet.retrieval_debug_posture_classes_coverage",
                 subject,
                 "retrieval_debug_posture_classes must list every variant",
             ));
         }
-        if self.runtime_boundary_disclosure_classes.len() != NotebookOutputRuntimeBoundaryDisclosureClass::ALL.len() {
+        if self.runtime_boundary_disclosure_classes.len()
+            != NotebookOutputRuntimeBoundaryDisclosureClass::ALL.len()
+        {
             findings.push(NotebookOutputIntegrationPacketFinding::new(
                 "notebook_output_integration_packet.runtime_boundary_disclosure_classes_coverage",
                 subject,

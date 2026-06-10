@@ -2,22 +2,22 @@
 //! and redaction-before-share flows.
 
 use aureline_notebook::{
-    current_notebook_teaching_continuity_checkpointed_redaction_packet,
-    NotebookCheckpointClass, NotebookCheckpointPreference, NotebookCheckpointedExecution,
-    NotebookRedactionBeforeShare, NotebookRedactionClass, NotebookRedactionTrigger,
-    NotebookRollbackPosture, NotebookSandboxState, NotebookTeachingContinuity,
+    current_notebook_teaching_continuity_checkpointed_redaction_packet, NotebookCheckpointClass,
+    NotebookCheckpointPreference, NotebookCheckpointedExecution, NotebookRedactionBeforeShare,
+    NotebookRedactionClass, NotebookRedactionTrigger, NotebookRollbackPosture,
+    NotebookSandboxState, NotebookTeachingContinuity,
     NotebookTeachingContinuityCheckpointedRedactionPacket, NotebookTeachingMode,
-    NOTEBOOK_CHECKPOINTED_EXECUTION_RECORD_KIND,
-    NOTEBOOK_REDACTION_BEFORE_SHARE_RECORD_KIND,
+    NOTEBOOK_CHECKPOINTED_EXECUTION_RECORD_KIND, NOTEBOOK_REDACTION_BEFORE_SHARE_RECORD_KIND,
     NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_RECORD_KIND,
-    NOTEBOOK_TEACHING_CONTINUITY_RECORD_KIND,
     NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION,
+    NOTEBOOK_TEACHING_CONTINUITY_RECORD_KIND,
 };
 
 #[test]
 fn module_constants_are_consistent() {
     assert_eq!(
-        NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION, 1
+        NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION,
+        1
     );
     assert_eq!(
         NOTEBOOK_TEACHING_CONTINUITY_RECORD_KIND,
@@ -114,8 +114,7 @@ fn packet_roundtrips_through_json() {
 #[test]
 fn embedded_packet_matches_generated_packet() {
     let generated = current_notebook_teaching_continuity_checkpointed_redaction_packet();
-    let embedded =
-        current_notebook_teaching_continuity_checkpointed_redaction_packet();
+    let embedded = current_notebook_teaching_continuity_checkpointed_redaction_packet();
     assert_eq!(generated.schema_version, embedded.schema_version);
     assert_eq!(generated.record_kind, embedded.record_kind);
     assert_eq!(generated.packet_id, embedded.packet_id);
@@ -146,7 +145,10 @@ fn all_redaction_triggers_are_unique() {
     let all = NotebookRedactionTrigger::ALL;
     let mut set = std::collections::HashSet::new();
     for trigger in &all {
-        assert!(set.insert(trigger.as_str()), "duplicate redaction trigger token");
+        assert!(
+            set.insert(trigger.as_str()),
+            "duplicate redaction trigger token"
+        );
     }
     assert_eq!(all.len(), 5);
 }
@@ -157,7 +159,9 @@ fn packet_validate_includes_subrecord_findings() {
     packet.example_teaching_continuities[0].document_id_ref = "".to_owned();
     let findings = packet.validate();
     assert!(
-        findings.iter().any(|f| f.check_id.contains("document_id_ref_required")),
+        findings
+            .iter()
+            .any(|f| f.check_id.contains("document_id_ref_required")),
         "packet validation should surface subrecord findings"
     );
 }

@@ -390,7 +390,8 @@ impl NotebookCheckpointedExecution {
 
         if matches!(
             self.rollback_posture,
-            NotebookRollbackPosture::ExactReplayAvailable | NotebookRollbackPosture::RollbackAvailable
+            NotebookRollbackPosture::ExactReplayAvailable
+                | NotebookRollbackPosture::RollbackAvailable
         ) && matches!(self.sandbox_state, NotebookSandboxState::SandboxFailed)
         {
             findings.push(NotebookCheckpointedExecutionFinding::new(
@@ -543,7 +544,8 @@ impl NotebookTeachingContinuityCheckpointedRedactionPacket {
         let mut findings = Vec::new();
         let subject = self.packet_id.as_str();
 
-        if self.schema_version != NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION {
+        if self.schema_version != NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_SCHEMA_VERSION
+        {
             findings.push(NotebookTeachingContinuityCheckpointedRedactionPacketFinding::new(
                 "notebook_teaching_continuity_checkpointed_redaction_packet.schema_version",
                 subject,
@@ -553,7 +555,9 @@ impl NotebookTeachingContinuityCheckpointedRedactionPacket {
                 ),
             ));
         }
-        if self.record_kind != NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_RECORD_KIND {
+        if self.record_kind
+            != NOTEBOOK_TEACHING_CONTINUITY_CHECKPOINTED_REDACTION_PACKET_RECORD_KIND
+        {
             findings.push(NotebookTeachingContinuityCheckpointedRedactionPacketFinding::new(
                 "notebook_teaching_continuity_checkpointed_redaction_packet.record_kind",
                 subject,

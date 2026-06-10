@@ -2,20 +2,16 @@
 //! context, and retrieval-debug provenance export.
 
 use aureline_notebook::{
-    current_notebook_output_integration_packet,
-    NotebookOutputAiContextIntegration, NotebookOutputAiContextPostureClass,
-    NotebookOutputBrowserIntegration, NotebookOutputBrowserPostureClass,
-    NotebookOutputContextScopeClass, NotebookOutputDocIntegration,
-    NotebookOutputDocPostureClass, NotebookOutputIntegrationPacket,
+    current_notebook_output_integration_packet, NotebookOutputAiContextIntegration,
+    NotebookOutputAiContextPostureClass, NotebookOutputBrowserIntegration,
+    NotebookOutputBrowserPostureClass, NotebookOutputContextScopeClass,
+    NotebookOutputDocIntegration, NotebookOutputDocPostureClass, NotebookOutputIntegrationPacket,
     NotebookOutputProvenanceFieldClass, NotebookOutputProvenanceFormatClass,
-    NotebookOutputRetrievalDebugPostureClass,
-    NotebookOutputRetrievalDebugProvenanceExport,
+    NotebookOutputRetrievalDebugPostureClass, NotebookOutputRetrievalDebugProvenanceExport,
     NotebookOutputRuntimeBoundaryDisclosureClass,
     NOTEBOOK_OUTPUT_AI_CONTEXT_INTEGRATION_RECORD_KIND,
-    NOTEBOOK_OUTPUT_BROWSER_INTEGRATION_RECORD_KIND,
-    NOTEBOOK_OUTPUT_DOC_INTEGRATION_RECORD_KIND,
-    NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND,
-    NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION,
+    NOTEBOOK_OUTPUT_BROWSER_INTEGRATION_RECORD_KIND, NOTEBOOK_OUTPUT_DOC_INTEGRATION_RECORD_KIND,
+    NOTEBOOK_OUTPUT_INTEGRATION_PACKET_RECORD_KIND, NOTEBOOK_OUTPUT_INTEGRATION_SCHEMA_VERSION,
     NOTEBOOK_OUTPUT_RETRIEVAL_DEBUG_PROVENANCE_EXPORT_RECORD_KIND,
 };
 
@@ -148,7 +144,10 @@ fn embedded_packet_matches_parsed_packet() {
     assert_eq!(parsed.packet_id, reparsed.packet_id);
     assert_eq!(parsed.as_of, reparsed.as_of);
     assert_eq!(parsed.doc_posture_classes, reparsed.doc_posture_classes);
-    assert_eq!(parsed.browser_posture_classes, reparsed.browser_posture_classes);
+    assert_eq!(
+        parsed.browser_posture_classes,
+        reparsed.browser_posture_classes
+    );
     assert_eq!(
         parsed.ai_context_posture_classes,
         reparsed.ai_context_posture_classes
@@ -161,10 +160,7 @@ fn embedded_packet_matches_parsed_packet() {
         parsed.runtime_boundary_disclosure_classes,
         reparsed.runtime_boundary_disclosure_classes
     );
-    assert_eq!(
-        parsed.context_scope_classes,
-        reparsed.context_scope_classes
-    );
+    assert_eq!(parsed.context_scope_classes, reparsed.context_scope_classes);
     assert_eq!(
         parsed.provenance_field_classes,
         reparsed.provenance_field_classes
@@ -248,7 +244,9 @@ fn packet_contains_all_runtime_boundary_disclosure_classes() {
     );
     for variant in NotebookOutputRuntimeBoundaryDisclosureClass::ALL {
         assert!(
-            packet.runtime_boundary_disclosure_classes.contains(&variant),
+            packet
+                .runtime_boundary_disclosure_classes
+                .contains(&variant),
             "packet must contain runtime boundary disclosure variant {:?}",
             variant
         );
