@@ -119,6 +119,15 @@
 //! downgrade rules that narrow the claim instead of hiding the mode; it reuses
 //! the frozen M5 AI workflow matrix qualification and downgrade vocabularies so
 //! no certified mode may stay greener than its evidence.
+//! The provider route disclosure lane exposes one
+//! [`materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors::ProviderRouteDisclosurePacket`]
+//! object that materializes the provider/model registry into per-route
+//! inspectors, each binding provider, model, execution mode — local, BYOK, or
+//! managed — locality, region, retention, cost disclosure, tool side-effect
+//! class, and automation authority into one record whose headline mode badge
+//! must agree with where bytes run, that refuses to hide cost, provider, region,
+//! retention, or authority behind generic labels, and that narrows rather than
+//! hides on stale proof using the frozen M5 downgrade vocabulary.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -160,6 +169,7 @@ pub mod implement_a_richer_prompt_composer_with_intent_modes_typed_attachments_c
 pub mod implement_ai_memory_classes_explicit_saved_memory_and_workspace_or_tenant_deletion_and_export_posture;
 pub mod implement_ai_review_findings_ownership_hints_and_review_workspace_integration_with_durable_anchors;
 pub mod implement_branch_or_worktree_agent_lifecycle_side_branch_review_packs_and_merge_back_handoff;
+pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
 pub mod prompt_composer;
 pub mod publish_stable_ai_graduation_packets;
@@ -433,6 +443,18 @@ pub use harden_repo_ai_instructions::{
     HARDEN_REPO_AI_INSTRUCTIONS_KILL_SWITCH_CONTRACT_REF, HARDEN_REPO_AI_INSTRUCTIONS_RECORD_KIND,
     HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_REF, HARDEN_REPO_AI_INSTRUCTIONS_SCHEMA_VERSION,
     HARDEN_REPO_AI_INSTRUCTIONS_SUMMARY_REF, HARDEN_REPO_AI_INSTRUCTIONS_TAINT_CONTRACT_REF,
+};
+pub use materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors::{
+    current_provider_route_disclosure_export, ExecutionModeClass,
+    ProviderRouteDisclosureArtifactError, ProviderRouteDisclosurePacket,
+    ProviderRouteDisclosurePacketInput, ProviderRouteDisclosureProofFreshness,
+    ProviderRouteDisclosureViolation, RouteAutomationAuthorityClass, RouteCostDisclosureClass,
+    RouteDowngradeRule, RouteInspectorRow, RouteLocalityClass, RouteRegionClass,
+    RouteRetentionClass, RouteToolSideEffectClass, PROVIDER_MODEL_REGISTRY_SCHEMA_REF,
+    PROVIDER_ROUTE_DISCLOSURE_ARTIFACT_REF, PROVIDER_ROUTE_DISCLOSURE_DOC_REF,
+    PROVIDER_ROUTE_DISCLOSURE_FIXTURE_DIR, PROVIDER_ROUTE_DISCLOSURE_RECORD_KIND,
+    PROVIDER_ROUTE_DISCLOSURE_SCHEMA_REF, PROVIDER_ROUTE_DISCLOSURE_SCHEMA_VERSION,
+    PROVIDER_ROUTE_DISCLOSURE_SUMMARY_REF,
 };
 pub use memory::{
     current_stable_ai_memory_state_export, AiMemoryStateArtifactError, AiMemoryStatePacket,
