@@ -76,6 +76,20 @@
 //! honestly labeled where not, every continuity row says what stays local and what
 //! requires provider or admin continuity so a degraded managed service never strands
 //! user-owned local work, and stale state is always labeled rather than shown as live.
+//!
+//! Completing the offboarding-depth lane, it owns the usage-export and offboarding
+//! surface in
+//! [`implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho`],
+//! which projects the usage-export packages, the full offboarding export bundles, the
+//! grace-window state for scheduled deletions, and the org-switch semantics per data
+//! class — binding every section to the frozen offboarding-continuity matrix lane. The
+//! surface is read-only and only projects state — an export, a deletion, or an org
+//! switch is applied by the local core, never authored from the surface — a local-first
+//! usage-export and offboarding-package path is always offered as a fallback, export
+//! completeness is proved where claimed or honestly labeled where not, an irreversible
+//! (committed) deletion is labeled rather than shown as still reversible, user-owned
+//! local work is never stranded by offboarding, deletion, or an org switch, and stale
+//! state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -84,5 +98,6 @@ pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_ru
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
+pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
 pub mod ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
