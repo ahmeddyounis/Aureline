@@ -16,7 +16,14 @@
 //! customer-managed and end-to-end-encryption residency claims provable, and
 //! guarantees offboarding never strands user-owned local work. Credential bodies,
 //! raw provider payloads, and raw sync record contents never cross this boundary.
+//!
+//! The crate also owns the concrete read-only companion triage surface in
+//! [`companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff`],
+//! which projects notification triage, review queues, and CI-status cards to
+//! browser and mobile companions with an exact desktop handoff per item and
+//! inherits its per-section qualification from the frozen matrix lanes.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
+pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
