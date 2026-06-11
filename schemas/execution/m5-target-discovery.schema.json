@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/m5-target-discovery.schema.json",
+  "title": "Aureline M5 target-discovery matrix",
+  "description": "Schema for the m5_target_discovery_matrix packet. The packet freezes one discovery row per M5 execution lane that resolves a target (build target, notebook kernel, preview runtime, profiler session, framework generator, request/browser runtime, API runtime, incident or pipeline-linked rerun). Each row names how the target was discovered (discovery path), how thoroughly the discovery was verified, whether the result is exact or approximate, why a previously selected target changed and whether that change was reviewed, the target-graph snapshot state, and whether discovery provenance carried into the consuming action. A non-inheriting confidence gate derives the discovery confidence that may be published: an undiscovered target, low verification, a heuristic fallback, an unreviewed target change, dropped provenance, or a missing target-graph snapshot cannot publish an exact target, and the discovery decision records whether the gate published, narrowed, flagged for review, or withheld it. One row is required per claimed lane so an exact native target never lends its confidence to a heuristic or unverified one, and the recorded published confidence, exactness, decision, and narrowing reasons must equal the recomputed gate decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "discovery_lanes",
+    "discovery_confidences",
+    "discovery_paths",
+    "verification_states",
+    "exactness_labels",
+    "change_triggers",
+    "diff_review_states",
+    "target_graph_states",
+    "provenance_states",
+    "narrowing_reasons",
+    "discovery_decisions",
+    "lanes",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_target_discovery_matrix" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "discovery_lanes": { "type": "array", "items": { "$ref": "#/$defs/discovery_lane" } },
+    "discovery_confidences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/discovery_confidence" }
+    },
+    "discovery_paths": { "type": "array", "items": { "$ref": "#/$defs/discovery_path" } },
+    "verification_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verification_state" }
+    },
+    "exactness_labels": { "type": "array", "items": { "$ref": "#/$defs/exactness" } },
+    "change_triggers": { "type": "array", "items": { "$ref": "#/$defs/change_trigger" } },
+    "diff_review_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diff_review_state" }
+    },
+    "target_graph_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/target_graph_state" }
+    },
+    "provenance_states": { "type": "array", "items": { "$ref": "#/$defs/provenance_state" } },
+    "narrowing_reasons": { "type": "array", "items": { "$ref": "#/$defs/narrowing_reason" } },
+    "discovery_decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/discovery_decision" }
+    },
+    "lanes": { "type": "array", "items": { "$ref": "#/$defs/lane" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "discovery_lane": {
+      "enum": [
+        "build_target",
+        "notebook_kernel",
+        "preview_runtime",
+        "profiler_session",
+        "framework_generator",
+        "request_runtime",
+        "api_runtime",
+        "incident_rerun"
+      ]
+    },
+    "discovery_confidence": {
+      "enum": ["exact", "structured", "imported", "heuristic", "unresolved"]
+    },
+    "discovery_path": {
+      "enum": [
+        "native_adapter",
+        "protocol_backed",
+        "build_event_stream",
+        "structured_import",
+        "heuristic",
+        "undiscovered"
+      ]
+    },
+    "verification_state": {
+      "enum": ["verified", "corroborated", "single_signal", "unverified"]
+    },
+    "exactness": { "enum": ["exact", "approximate"] },
+    "change_trigger": {
+      "enum": [
+        "unchanged",
+        "workspace_changed",
+        "profile_changed",
+        "build_metadata_changed",
+        "managed_runtime_changed",
+        "manual_reselection"
+      ]
+    },
+    "diff_review_state": {
+      "enum": [
+        "not_applicable",
+        "pending_review",
+        "reviewed_accepted",
+        "reviewed_rejected",
+        "auto_applied_unreviewed"
+      ]
+    },
+    "target_graph_state": {
+      "enum": ["snapshotted", "stale_snapshot", "missing_snapshot", "not_applicable"]
+    },
+    "provenance_state": {
+      "enum": ["propagated", "partial", "dropped", "not_applicable"]
+    },
+    "narrowing_reason": {
+      "enum": [
+        "target_unresolved",
+        "low_verification",
+        "heuristic_fallback",
+        "unreviewed_target_change",
+        "provenance_dropped",
+        "missing_graph_snapshot"
+      ]
+    },
+    "discovery_decision": {
+      "enum": ["publish", "narrow", "flag_for_review", "withhold"]
+    },
+    "lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_id",
+        "discovery_lane",
+        "discovery_path",
+        "verification_state",
+        "declared_confidence",
+        "published_confidence",
+        "exactness",
+        "change_trigger",
+        "diff_review_state",
+        "target_graph_state",
+        "provenance_state",
+        "discovery_decision",
+        "selected_target_ref",
+        "target_graph_ref",
+        "provenance_ref",
+        "execution_ref",
+        "support_export_ref",
+        "note"
+      ],
+      "properties": {
+        "lane_id": { "$ref": "#/$defs/non_empty_string" },
+        "discovery_lane": { "$ref": "#/$defs/discovery_lane" },
+        "discovery_path": { "$ref": "#/$defs/discovery_path" },
+        "verification_state": { "$ref": "#/$defs/verification_state" },
+        "declared_confidence": { "$ref": "#/$defs/discovery_confidence" },
+        "published_confidence": { "$ref": "#/$defs/discovery_confidence" },
+        "exactness": { "$ref": "#/$defs/exactness" },
+        "change_trigger": { "$ref": "#/$defs/change_trigger" },
+        "diff_review_state": { "$ref": "#/$defs/diff_review_state" },
+        "target_graph_state": { "$ref": "#/$defs/target_graph_state" },
+        "provenance_state": { "$ref": "#/$defs/provenance_state" },
+        "discovery_decision": { "$ref": "#/$defs/discovery_decision" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        },
+        "selected_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "previous_target_ref": { "type": "string" },
+        "discovery_diff_ref": { "type": "string" },
+        "target_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "execution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_lanes",
+        "lane_count",
+        "exact_lanes",
+        "structured_lanes",
+        "imported_lanes",
+        "heuristic_lanes",
+        "unresolved_lanes",
+        "publishable_lanes",
+        "narrowed_lanes",
+        "flagged_lanes",
+        "withheld_lanes",
+        "approximate_lanes",
+        "changed_lanes",
+        "unreviewed_change_lanes",
+        "low_verification_lanes",
+        "dropped_provenance_lanes",
+        "lanes_with_narrowing_reasons"
+      ],
+      "properties": {
+        "total_lanes": { "type": "integer", "minimum": 0 },
+        "lane_count": { "type": "integer", "minimum": 0 },
+        "exact_lanes": { "type": "integer", "minimum": 0 },
+        "structured_lanes": { "type": "integer", "minimum": 0 },
+        "imported_lanes": { "type": "integer", "minimum": 0 },
+        "heuristic_lanes": { "type": "integer", "minimum": 0 },
+        "unresolved_lanes": { "type": "integer", "minimum": 0 },
+        "publishable_lanes": { "type": "integer", "minimum": 0 },
+        "narrowed_lanes": { "type": "integer", "minimum": 0 },
+        "flagged_lanes": { "type": "integer", "minimum": 0 },
+        "withheld_lanes": { "type": "integer", "minimum": 0 },
+        "approximate_lanes": { "type": "integer", "minimum": 0 },
+        "changed_lanes": { "type": "integer", "minimum": 0 },
+        "unreviewed_change_lanes": { "type": "integer", "minimum": 0 },
+        "low_verification_lanes": { "type": "integer", "minimum": 0 },
+        "dropped_provenance_lanes": { "type": "integer", "minimum": 0 },
+        "lanes_with_narrowing_reasons": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

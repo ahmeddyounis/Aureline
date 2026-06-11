@@ -41,5 +41,14 @@
 //! in CI. The model is metadata-only: every field is a typed state or an opaque
 //! ref. It carries no credential bodies, raw provider payloads, host tokens, or
 //! control-plane secrets.
+//!
+//! The companion [`m5_target_discovery`] module narrows the same execution-truth
+//! discipline to a single question — *how was this target discovered and how certain
+//! is that answer?* — across the M5 lanes that pick build targets, notebook kernels,
+//! preview runtimes, profiler sessions, framework generators, request/browser
+//! runtimes, API runtimes, and incident or pipeline-linked reruns. Its non-inheriting
+//! confidence gate keeps an approximate or heuristic target from masquerading as a
+//! confident exact one and makes target changes reviewable instead of silent.
 
 pub mod m5_build_and_host_governance;
+pub mod m5_target_discovery;
