@@ -310,6 +310,7 @@ pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_imp
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
 pub mod implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance;
 pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
+pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;
 pub mod notebook_and_data_rich_surface_qualification;
@@ -400,6 +401,20 @@ pub use add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_
     StopAction as MaintenanceTruthStopAction, SupportDisclosure,
     TrustTier as MaintenanceTruthTrustTier, MAINTENANCE_TRUTH_JSON, MAINTENANCE_TRUTH_PATH,
     MAINTENANCE_TRUTH_RECORD_KIND, MAINTENANCE_TRUTH_SCHEMA_VERSION,
+};
+
+pub use implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces::{
+    current_field_readiness_register, AutomationState as FieldReadinessAutomationState,
+    AutomationTrigger as FieldReadinessAutomationTrigger,
+    DimensionGrade as FieldReadinessDimensionGrade,
+    DowngradeAutomation as FieldReadinessDowngradeAutomation, FieldReadinessExportProjection,
+    FieldReadinessExportRow, FieldReadinessRegister, FieldReadinessStopRule, FieldReadinessSummary,
+    FieldReadinessSurface, FieldReadinessViolation, NarrowingReason as FieldReadinessNarrowingReason,
+    ReadinessCell, ReadinessDimension, StopAction as FieldReadinessStopAction,
+    SupportDisclosure as FieldReadinessSupportDisclosure, SurfaceKind as FieldReadinessSurfaceKind,
+    SurfaceState as FieldReadinessSurfaceState, TrustTier as FieldReadinessTrustTier,
+    FIELD_READINESS_JSON, FIELD_READINESS_PATH, FIELD_READINESS_RECORD_KIND,
+    FIELD_READINESS_SCHEMA_VERSION,
 };
 
 pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs::{

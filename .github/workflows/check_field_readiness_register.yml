@@ -1,0 +1,75 @@
+# M5 field-readiness register gate.
+#
+# Validates the checked-in field-readiness register: every surface kind
+# (support-bundle schema, feature-family export, field-readiness drill,
+# escalation runbook) binds a stable claim, a readiness scorecard with one cell
+# per dimension (schema coverage, export completeness, drill execution, redaction
+# safety, proof freshness, docs truth), the disclosed support posture and trust
+# tier, an owner-manifest sign-off, and an explicit downgrade-automation record
+# bound to a verified frozen-fallback rollback plan; a surface whose readiness
+# dimension failed or is missing, whose redaction posture is not disclosed, whose
+# packet is stale or missing, whose owner manifest is unsigned, whose
+# frozen-fallback rollback plan is unverified, whose downgrade automation is
+# undefined, or whose waiver expired must drop below the stable cutline; the
+# promotion verdict and summary agree with the firing stop rules. The gate runs
+# the checked-in fixture cases proving those rejections fire. The typed Rust
+# consumer reads the same register, so `cargo test -p aureline-release` enforces
+# the same structural invariants.
+
+name: check_field_readiness_register
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_field_readiness_register.yml"
+      - "artifacts/release/m5/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces.json"
+      - "artifacts/release/captures/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces_validation_capture.json"
+      - "schemas/governance/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces.schema.json"
+      - "docs/m5/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces.md"
+      - "fixtures/release/m5/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces/**"
+      - "crates/aureline-release/src/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-field-readiness-register-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  field_readiness_register:
+    name: M5 Field-Readiness Register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run field-readiness register contract tests
+        run: |
+          cargo test -p aureline-release --test implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-readiness-register-${{ github.run_id }}
+          path: artifacts/release/captures/implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
