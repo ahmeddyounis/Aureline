@@ -318,6 +318,7 @@ pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod preview_designer_publish_surface_qualification;
 pub mod prove_clean_room_rebuild_exact_build_symbolication_release_center_parity_and_mirror_offline_publication_coherence;
+pub mod publish_docs_migration_and_known_limits_packs_for_m5_feature_families;
 pub mod publish_feature_scorecard_and_compatibility_packet_templates_for_every_m5_family;
 pub mod publish_the_m5_admin_policy_story_register_for_notebook_ai_data_companion_and_sync_lanes;
 pub mod publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan;
@@ -457,6 +458,22 @@ pub use ship_release_center_visibility_for_m5_trains_channel_profile_rollout_con
     SurfaceKind as ReleaseVisibilitySurfaceKind, SurfaceState as ReleaseVisibilitySurfaceState,
     TrustTier as ReleaseVisibilityTrustTier, RELEASE_VISIBILITY_JSON, RELEASE_VISIBILITY_PATH,
     RELEASE_VISIBILITY_RECORD_KIND, RELEASE_VISIBILITY_SCHEMA_VERSION,
+};
+
+pub use publish_docs_migration_and_known_limits_packs_for_m5_feature_families::{
+    current_publication_pack_register, AutomationState as FamilyPackAutomationState,
+    AutomationTrigger as FamilyPackAutomationTrigger, DimensionGrade as FamilyPackDimensionGrade,
+    DowngradeAutomation as FamilyPackDowngradeAutomation,
+    NarrowingReason as FamilyPackNarrowingReason,
+    PublicationPackExportProjection as FamilyPackExportProjection,
+    PublicationPackExportRow as FamilyPackExportRow, PublicationPackRegister as FamilyPackRegister,
+    PublicationPackStopRule as FamilyPackStopRule, PublicationPackSummary as FamilyPackSummary,
+    PublicationPackSurface as FamilyPackSurface, PublicationPackViolation as FamilyPackViolation,
+    ReadinessCell as FamilyPackReadinessCell, ReadinessDimension as FamilyPackReadinessDimension,
+    StopAction as FamilyPackStopAction, SupportDisclosure as FamilyPackSupportDisclosure,
+    SurfaceKind as FamilyPackSurfaceKind, SurfaceState as FamilyPackSurfaceState,
+    TrustTier as FamilyPackTrustTier, PUBLICATION_PACK_JSON, PUBLICATION_PACK_PATH,
+    PUBLICATION_PACK_RECORD_KIND, PUBLICATION_PACK_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{
