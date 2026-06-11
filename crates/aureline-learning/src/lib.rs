@@ -12,7 +12,18 @@
     clippy::too_many_arguments
 )]
 
+pub mod m5_feature_family_learning_rails;
 pub mod qualify_learning_mode_guided_tours_and_teaching_sessions;
+
+pub use m5_feature_family_learning_rails::{
+    derive_bundle_verdict, seeded_m5_feature_family_learning_manifest,
+    validate_m5_feature_family_learning, ContextualHelpCardRecord, M5FamilyLearningBundle,
+    M5FeatureFamilyLearningManifest, M5LearningSurfaceFamily, M5LearningValidationError,
+    MirrorParityPosture, CONTEXTUAL_HELP_CARD_RECORD_KIND, M5_FAMILY_LEARNING_BUNDLE_RECORD_KIND,
+    M5_FEATURE_FAMILY_LEARNING_ARTIFACT_REF, M5_FEATURE_FAMILY_LEARNING_DOC_REF,
+    M5_FEATURE_FAMILY_LEARNING_FIXTURE_REF, M5_FEATURE_FAMILY_LEARNING_MANIFEST_RECORD_KIND,
+    M5_FEATURE_FAMILY_LEARNING_SCHEMA_REF, M5_FEATURE_FAMILY_LEARNING_SCHEMA_VERSION,
+};
 
 pub use qualify_learning_mode_guided_tours_and_teaching_sessions::{
     seeded_guided_learning_qualification_corpus, validate_guided_learning_qualification,
