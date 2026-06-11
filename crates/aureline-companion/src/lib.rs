@@ -61,9 +61,25 @@
 //! user rather than resolved silently in the server's favor, customer-managed-key and
 //! end-to-end-encryption claims are proved where claimed or honestly labeled where
 //! not, and stale state is always labeled rather than shown as live.
+//!
+//! Completing the managed-depth lanes, it owns the key/storage selection, residency,
+//! and degraded managed-service continuity surface in
+//! [`add_customer_managed_key_or_storage_selection_flows_region_or_residency_cues_and_degraded_managed_service_cont`],
+//! which projects the customer-managed-key and storage selection flows, the
+//! region/residency cues, and the degraded managed-service continuity rows — binding
+//! the first three sections to the frozen residency-encryption matrix lane and the
+//! continuity section to the offboarding-continuity matrix lane. The surface is
+//! read-only and only projects a selection — a key-custody, storage-location, or
+//! residency change is applied by the local core, never authored from the surface — a
+//! local-only key and local-first storage option are always offered as a fallback,
+//! customer-managed-key and region-residency claims are proved where claimed or
+//! honestly labeled where not, every continuity row says what stays local and what
+//! requires provider or admin continuity so a degraded managed service never strands
+//! user-owned local work, and stale state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
+pub mod add_customer_managed_key_or_storage_selection_flows_region_or_residency_cues_and_degraded_managed_service_cont;
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
