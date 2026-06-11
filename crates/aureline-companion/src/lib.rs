@@ -119,12 +119,28 @@
 //! collaboration-follow is confined to a host-revocable scope, the local core stays
 //! authoritative so a session handoff never strands user-owned local work, and stale
 //! state is always labeled rather than shown as live.
+//!
+//! Capping the lane, it owns the M5 companion certification in
+//! [`certify_companion_incident_sync_residency_encryption_and_offboarding_lanes_on_every_marketed_m5_profile`],
+//! which certifies each of the eight frozen matrix lanes on every marketed M5
+//! profile — local-solo, team-managed, enterprise-managed, browser-companion,
+//! mobile-companion, and air-gapped-offline — binding every claim to the frozen
+//! matrix as its ceiling so no surface stays greener than the certification. A
+//! managed lane is never certified on a profile without a managed plane, a
+//! relay-bound companion lane is never certified on an air-gapped profile, the
+//! local-first incident and offboarding lanes stay certified even air-gapped, every
+//! certified row discloses what stays local and what requires provider or admin
+//! continuity, user-owned local work is never stranded, and the closed downgrade
+//! rules narrow rather than hide on stale proof, an unverified residency or
+//! encryption claim, an unavailable provider or admin plane, or a narrowed upstream
+//! matrix lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
 pub mod add_customer_managed_key_or_storage_selection_flows_region_or_residency_cues_and_degraded_managed_service_cont;
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio;
+pub mod certify_companion_incident_sync_residency_encryption_and_offboarding_lanes_on_every_marketed_m5_profile;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;

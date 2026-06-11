@@ -1,0 +1,91 @@
+# M5 Companion Lane Certification
+
+- Packet: `m5-companion-certification:stable:0001`
+- Label: `M5 Companion Lane Certification On Every Marketed Profile`
+- Lanes: 8 (4 stable)
+- Certified (lane, profile) pairs: 36
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-09T00:00:00Z)
+- Degraded: none
+
+## Lanes
+
+- **companion_notification** (companion): `stable` (matrix baseline `stable`)
+  - Scope: Browser/mobile companion notifications, read-only with no editor authority, certified across the relay-reachable profiles
+  - Profiles:
+    - `local_solo`: stable (general_availability)
+    - `team_managed`: stable (general_availability)
+    - `enterprise_managed`: stable (general_availability)
+    - `browser_companion`: stable (general_availability)
+    - `mobile_companion`: stable (general_availability)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 3 | Evidence refs: 1
+- **companion_review** (companion): `stable` (matrix baseline `stable`)
+  - Scope: Companion review/approve follow-up without authoring edits, certified across the relay-reachable profiles
+  - Profiles:
+    - `local_solo`: stable (general_availability)
+    - `team_managed`: stable (general_availability)
+    - `enterprise_managed`: stable (general_availability)
+    - `browser_companion`: stable (general_availability)
+    - `mobile_companion`: stable (general_availability)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 3 | Evidence refs: 1
+- **companion_session_follow** (companion): `beta` (matrix baseline `beta`)
+  - Scope: Companion session-follow and handoff eligibility, narrowed to read plus handoff, certified across the relay-reachable profiles
+  - Profiles:
+    - `local_solo`: beta (staged_rollout)
+    - `team_managed`: beta (staged_rollout)
+    - `enterprise_managed`: beta (staged_rollout)
+    - `browser_companion`: beta (staged_rollout)
+    - `mobile_companion`: beta (staged_rollout)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 3 | Evidence refs: 1
+- **companion_light_edit** (companion): `preview` (matrix baseline `preview`)
+  - Scope: Companion bounded light-edit relayed to the host for preview/approval, certified across the relay-reachable profiles
+  - Profiles:
+    - `local_solo`: preview (early_access)
+    - `team_managed`: preview (early_access)
+    - `enterprise_managed`: preview (early_access)
+    - `browser_companion`: preview (early_access)
+    - `mobile_companion`: preview (early_access)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 3 | Evidence refs: 1
+- **incident_workspace** (incident): `stable` (matrix baseline `stable`)
+  - Scope: Attributable, local-first incident workspaces certified on every marketed profile including air-gapped
+  - Profiles:
+    - `local_solo`: stable (general_availability)
+    - `team_managed`: stable (general_availability)
+    - `enterprise_managed`: stable (general_availability)
+    - `browser_companion`: stable (general_availability)
+    - `mobile_companion`: stable (general_availability)
+    - `air_gapped_offline`: stable (general_availability)
+  - Downgrade rules: 2 | Evidence refs: 1
+- **managed_sync** (sync): `beta` (matrix baseline `beta`)
+  - Scope: Inspectable managed sync with conflict review, certified only on profiles that provide a managed plane
+  - Profiles:
+    - `local_solo`: not marketed (withheld)
+    - `team_managed`: beta (staged_rollout)
+    - `enterprise_managed`: beta (staged_rollout)
+    - `browser_companion`: not marketed (withheld)
+    - `mobile_companion`: not marketed (withheld)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 3 | Evidence refs: 1
+- **residency_encryption** (residency): `beta` (matrix baseline `beta`)
+  - Scope: Provable customer-managed-key and end-to-end-encryption residency posture, certified only on profiles that provide a managed plane
+  - Profiles:
+    - `local_solo`: not marketed (withheld)
+    - `team_managed`: beta (staged_rollout)
+    - `enterprise_managed`: beta (staged_rollout)
+    - `browser_companion`: not marketed (withheld)
+    - `mobile_companion`: not marketed (withheld)
+    - `air_gapped_offline`: not marketed (withheld)
+  - Downgrade rules: 2 | Evidence refs: 1
+- **offboarding_continuity** (offboarding): `stable` (matrix baseline `stable`)
+  - Scope: Offboarding that never strands user-owned local work, certified on every marketed profile including air-gapped
+  - Profiles:
+    - `local_solo`: stable (general_availability)
+    - `team_managed`: stable (general_availability)
+    - `enterprise_managed`: stable (general_availability)
+    - `browser_companion`: stable (general_availability)
+    - `mobile_companion`: stable (general_availability)
+    - `air_gapped_offline`: stable (general_availability)
+  - Downgrade rules: 2 | Evidence refs: 1
