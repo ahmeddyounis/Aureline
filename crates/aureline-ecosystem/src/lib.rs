@@ -16,12 +16,29 @@
 //!   retyping parity, freshness, or linkage state; and
 //! - stale evidence, narrowed bridge parity, missing evidence, or expired
 //!   certification must automatically narrow the effective parity band.
+//!
+//! The
+//! [`freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix`]
+//! module owns the canonical M5 ecosystem install-governance matrix. It freezes one
+//! row per marketed M5 artifact family — first-party framework packs, docs packs,
+//! local-model packs, signed recipe packs, template artifacts, bridge-backed
+//! packages, side-loaded packages, and mirrored/private-registry variants — each
+//! naming its own source class, runtime origin, compatibility label, permission-
+//! manifest state, activation-budget band, lifecycle state, evidence freshness, and
+//! rollback posture. A non-inheriting promotion gate recomputes the support class a
+//! family may publish, so a family with unverified provenance, stale evidence, an
+//! unreviewed permission expansion, an exceeded activation budget, an unsupported
+//! target, an incomplete rollback, or an active quarantine narrows or fails
+//! promotion automatically instead of inheriting trust from an adjacent first-party
+//! family.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+
+pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
 pub const ECOSYSTEM_COMPATIBILITY_SCORECARD_SCHEMA_VERSION: u32 = 1;
