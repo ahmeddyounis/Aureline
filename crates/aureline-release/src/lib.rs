@@ -313,6 +313,7 @@ pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbo
 pub mod implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance;
 pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
+pub mod m5_truth_surface_evidence_ingestion;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;
 pub mod notebook_and_data_rich_surface_qualification;
@@ -672,6 +673,15 @@ pub use harden_the_critical_dependency_register_fork_replace_log_third_party_imp
     PublicationDecisionRecord as DependencyRegisterPublicationDecisionRecord,
     HARDEN_CRITICAL_DEPENDENCY_REGISTER_JSON, HARDEN_CRITICAL_DEPENDENCY_REGISTER_PATH,
     HARDEN_CRITICAL_DEPENDENCY_REGISTER_RECORD_KIND, HARDEN_CRITICAL_DEPENDENCY_REGISTER_SCHEMA_VERSION,
+};
+
+pub use m5_truth_surface_evidence_ingestion::{
+    current_m5_truth_surface_ingestion, ContradictionRule as TruthIngestContradictionRule,
+    FamilyKind as TruthIngestFamilyKind, IngestPublicationRecord, IngestReason, IngestState,
+    IngestSummary, IngestionRow, IngestionViolation, M5TruthSurfaceIngestion,
+    PostureClass as TruthIngestPostureClass, SourceRefs as TruthIngestSourceRefs, TruthSurface,
+    M5_TRUTH_SURFACE_INGESTION_JSON, M5_TRUTH_SURFACE_INGESTION_PATH,
+    M5_TRUTH_SURFACE_INGESTION_RECORD_KIND, M5_TRUTH_SURFACE_INGESTION_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{

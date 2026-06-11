@@ -1,0 +1,57 @@
+# M5 truth-surface evidence-ingestion gate.
+#
+# Validates that Help/About, service-health, release-center, support-export, and
+# public-truth-pack rows for every M5 feature family reflect the current
+# canonical evidence instead of cloning stale status text.
+
+name: check_m5_truth_surface_ingestion
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_truth_surface_ingestion.yml"
+      - "tools/ci/m5/truth_surface_ingestion_check.py"
+      - "tools/regenerate_m5_truth_surface_ingestion.py"
+      - "schemas/governance/m5_truth_surface_evidence_ingestion.schema.json"
+      - "artifacts/release/m5/m5_truth_surface_evidence_ingestion.json"
+      - "artifacts/release/m5/captures/m5_truth_surface_evidence_ingestion_validation_capture.json"
+      - "artifacts/release/m5/publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan.json"
+      - "docs/m5/help-about-service-health-truth-ingestion.md"
+      - "crates/aureline-release/src/m5_truth_surface_evidence_ingestion/**"
+      - "crates/aureline-release/tests/m5_truth_surface_evidence_ingestion.rs"
+      - "crates/aureline-release/src/bin/aureline_release_m5_truth_surface_evidence_ingestion.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-truth-surface-ingestion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_truth_surface_ingestion:
+    name: M5 truth-surface ingestion
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run truth-surface ingestion gate
+        run: |
+          python3 tools/ci/m5/truth_surface_ingestion_check.py --repo-root .
+
+      - name: Run typed register tests
+        run: |
+          cargo test -p aureline-release --locked m5_truth_surface_evidence_ingestion
