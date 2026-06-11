@@ -1,0 +1,444 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/m5-command-descriptor-diff.schema.json",
+  "title": "Aureline M5 command-parity and discoverability audit",
+  "description": "Boundary schema for the M5 command-parity and discoverability audit emitted by the aureline-shell m5_command_registry module. The audit compares the canonical command descriptor for every registered M5 depth command (notebook, data/API, profiler, trace/replay, docs/browser, template/scaffold, review/pipeline, preview, companion, incident, sync, offboarding) against the projection that each stable discoverability channel reports: command palette, keybinding help, help search, onboarding/tour, CLI/headless, and AI automation. Acceptance: the audit MUST cover the six required channels for every registered command, MUST carry a canonical help anchor, searchable metadata, and a promotion flag, MUST flag any unknown projection on a high-risk command and any pointer-only (custom-pane-only) affordance as a blocker, MUST reject divergent disabled-reason, lifecycle-label, preview-class, automation-suitability, alias, and help-anchor projections, and MUST be usable by the XT-12 learnability matrix without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/command-parity/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/command_parity_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_command_parity_audit_report_record" },
+    { "$ref": "#/$defs/m5_command_parity_support_export_record" }
+  ],
+  "$defs": {
+    "m5_command_parity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 command-parity contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_command_parity:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "feature_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "data_api",
+        "profiler",
+        "trace_replay",
+        "docs_browser",
+        "template_scaffold",
+        "review_pipeline",
+        "preview",
+        "companion",
+        "incident",
+        "sync",
+        "offboarding"
+      ]
+    },
+    "discovery_channel": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "keybinding_help",
+        "help_search",
+        "onboarding_tour",
+        "cli_headless",
+        "ai_automation"
+      ],
+      "description": "One of the six required discoverability channels the audit covers."
+    },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "structured_diff_preview",
+        "destructive_bulk_mutation_preview",
+        "policy_authoring_or_waiver_preview",
+        "irreversible_publish_preview"
+      ]
+    },
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "disabled_reason_mode": {
+      "type": "string",
+      "enum": ["always_invokable", "typed_reason_required_when_unavailable"]
+    },
+    "automation_suitability": {
+      "type": "string",
+      "enum": [
+        "fully_automatable",
+        "preview_then_confirm",
+        "draft_only",
+        "human_only"
+      ]
+    },
+    "coverage_status": {
+      "type": "string",
+      "enum": [
+        "claimed",
+        "explicitly_narrowed",
+        "discoverable_only",
+        "browser_handoff_only",
+        "voice_addressable",
+        "not_surfaced_on_this_client",
+        "custom_pane_only",
+        "unknown_high_risk_gap"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "unknown_high_risk_gap",
+        "pointer_only_affordance",
+        "command_id_drift",
+        "label_drift",
+        "lifecycle_label_drift",
+        "preview_class_drift",
+        "disabled_reason_drift",
+        "automation_suitability_drift",
+        "missing_help_anchor",
+        "alias_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_help_anchor",
+        "missing_search_metadata",
+        "missing_disabled_reason_mode",
+        "command_not_promoted"
+      ]
+    },
+    "command_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "feature_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "help_anchor_ref",
+        "search_keywords",
+        "lifecycle_label",
+        "preview_class",
+        "capability_scope_class",
+        "disabled_reason_mode",
+        "automation_suitability",
+        "canonical_aliases",
+        "promoted_to_stable_graph"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "feature_family": { "$ref": "#/$defs/feature_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "search_keywords": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "disabled_reason_mode": { "$ref": "#/$defs/disabled_reason_mode" },
+        "automation_suitability": { "$ref": "#/$defs/automation_suitability" },
+        "canonical_aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "promoted_to_stable_graph": { "type": "boolean" }
+      }
+    },
+    "channel_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "coverage_status",
+        "projected_command_id",
+        "projected_label_ref",
+        "projected_lifecycle_label",
+        "projected_preview_class",
+        "projected_disabled_reason_mode",
+        "projected_automation_suitability",
+        "projected_help_anchor_ref",
+        "projected_aliases",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/discovery_channel" },
+        "coverage_status": { "$ref": "#/$defs/coverage_status" },
+        "projected_command_id": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_label_ref": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_lifecycle_label": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/lifecycle_label" }]
+        },
+        "projected_preview_class": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/preview_class" }]
+        },
+        "projected_disabled_reason_mode": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/disabled_reason_mode" }]
+        },
+        "projected_automation_suitability": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/automation_suitability" }]
+        },
+        "projected_help_anchor_ref": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "narrowing_reason": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "note": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" }
+      },
+      "additionalProperties": true
+    },
+    "m5_command_parity_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "channels",
+        "blocking_findings",
+        "high_risk"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_command_parity_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/command_descriptor" },
+        "channels": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/channel_projection" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_risk": { "type": "boolean" }
+      }
+    },
+    "channel_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "claimed_rows",
+        "explicitly_narrowed_rows",
+        "discoverable_only_rows",
+        "browser_handoff_only_rows",
+        "voice_addressable_rows",
+        "not_surfaced_on_this_client_rows",
+        "custom_pane_only_rows",
+        "unknown_high_risk_gap_rows"
+      ],
+      "properties": {
+        "channel": { "$ref": "#/$defs/discovery_channel" },
+        "claimed_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "discoverable_only_rows": { "type": "integer", "minimum": 0 },
+        "browser_handoff_only_rows": { "type": "integer", "minimum": 0 },
+        "voice_addressable_rows": { "type": "integer", "minimum": 0 },
+        "not_surfaced_on_this_client_rows": { "type": "integer", "minimum": 0 },
+        "custom_pane_only_rows": { "type": "integer", "minimum": 0 },
+        "unknown_high_risk_gap_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unknown_high_risk_gap",
+        "pointer_only_affordance",
+        "command_id_drift",
+        "label_drift",
+        "lifecycle_label_drift",
+        "preview_class_drift",
+        "disabled_reason_drift",
+        "automation_suitability_drift",
+        "missing_help_anchor",
+        "alias_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_help_anchor",
+        "missing_search_metadata",
+        "missing_disabled_reason_mode",
+        "command_not_promoted"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unknown_high_risk_gap": { "type": "integer", "minimum": 0 },
+        "pointer_only_affordance": { "type": "integer", "minimum": 0 },
+        "command_id_drift": { "type": "integer", "minimum": 0 },
+        "label_drift": { "type": "integer", "minimum": 0 },
+        "lifecycle_label_drift": { "type": "integer", "minimum": 0 },
+        "preview_class_drift": { "type": "integer", "minimum": 0 },
+        "disabled_reason_drift": { "type": "integer", "minimum": 0 },
+        "automation_suitability_drift": { "type": "integer", "minimum": 0 },
+        "missing_help_anchor": { "type": "integer", "minimum": 0 },
+        "alias_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_help_anchor": { "type": "integer", "minimum": 0 },
+        "missing_search_metadata": { "type": "integer", "minimum": 0 },
+        "missing_disabled_reason_mode": { "type": "integer", "minimum": 0 },
+        "command_not_promoted": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "help_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_family", "command_id", "help_anchor_ref"],
+      "properties": {
+        "feature_family": { "$ref": "#/$defs/feature_family" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "help_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "m5_command_parity_audit_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_descriptor_schema_ref",
+        "required_channels",
+        "rows",
+        "channel_coverage",
+        "findings_summary",
+        "help_anchor_index",
+        "registered_command_count",
+        "high_risk_command_count",
+        "channel_rows_checked",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_command_parity_audit_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_channels": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/discovery_channel" },
+          "uniqueItems": true
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/m5_command_parity_row_record" }
+        },
+        "channel_coverage": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/channel_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "help_anchor_index": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/help_anchor_entry" }
+        },
+        "registered_command_count": { "type": "integer", "minimum": 1 },
+        "high_risk_command_count": { "type": "integer", "minimum": 0 },
+        "channel_rows_checked": { "type": "integer", "minimum": 6 },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_command_parity_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_command_parity_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_command_parity_audit_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
