@@ -47,10 +47,21 @@
 //! diff-review, run, rollback/recovery, diagnostics, and support surfaces never let
 //! starter convenience outrun provenance, preview, or rollback, and never present
 //! heuristic or bridge behavior as exact first-party truth.
+//!
+//! It also owns the certified-archetype health-check bundle packet, which binds each
+//! health-check bundle run to its archetype certification class, its pinned
+//! health-check bundle version, its overall health state, its worst stack-diagnostic
+//! severity, whether and how fix-forward guidance is available, its scan freshness,
+//! its support class, and its downgrade banner, so the archetype gallery,
+//! health-check panel, stack-diagnostics, fix-forward guidance, run, diagnostics, and
+//! support surfaces never present an uncertified, heuristic, or bridged health check
+//! as exact first-party certified truth without current certification, support-class,
+//! and downgrade cues.
 
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
+pub mod ship_certified_archetype_health_check_bundles_stack_diagnostics_and_fix_forward_guidance;
 pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;

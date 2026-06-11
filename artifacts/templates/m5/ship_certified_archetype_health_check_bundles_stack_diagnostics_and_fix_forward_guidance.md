@@ -1,0 +1,51 @@
+# Certified-Archetype Health-Check Bundles, Stack Diagnostics, and Fix-Forward Guidance
+
+- Packet: `archetype-health:stable:0001`
+- Label: `Certified-Archetype Health-Check Bundles, Stack Diagnostics, and Fix-Forward Guidance`
+- Rows: 6 (2 admitted for display)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-08T00:00:00Z)
+
+## Rows
+
+- **Rust Axum service** `archetype:framework_pack/rust.axum/service` (service_archetype) v1.8.0 bundle v2.3.0: certified_archetype / exactly_modeled
+  - Health: Every certified health check passed: build, toolchain, dependencies, and config are clean (healthy)
+  - Diagnostics: No stack diagnostics were raised across the certified bundle (no_diagnostics) [8 checks · 0 findings]
+  - Fix-forward: No fix is needed; the project is healthy (no_fix_needed)
+  - Freshness chip: checked · fresh (fresh)
+  - Banner: no_banner
+  - Offered: true
+- **TypeScript Next.js web app** `archetype:framework_pack/ts.next/webapp` (web_app_archetype) v3.1.0 bundle v2.3.0: certified_archetype / exactly_modeled
+  - Health: All checks passed, but two advisories recommend pinning a dev dependency and enabling a lint rule (healthy_with_advisories)
+  - Diagnostics: Two advisory diagnostics were raised; none block the build (advisory) [10 checks · 2 advisories]
+  - Fix-forward: Guided fix-forward steps pin the dependency and enable the lint rule (fix_guided)
+  - Freshness chip: checked · fresh (fresh)
+  - Banner: no_banner
+  - Offered: true
+- **Python FastAPI full-stack (heuristic checks)** `archetype:framework_pack/py.fastapi/fullstack` (full_stack_archetype) v2.0.0 bundle v2.1.0: certified_archetype / heuristic_mapping
+  - Health: A dependency-resolution check degraded; some findings are inferred rather than exactly modeled (degraded)
+  - Diagnostics: One warning diagnostic about a transitive dependency was inferred heuristically (warning) [9 checks · 1 warning]
+  - Fix-forward: Only advisory fix-forward guidance is offered because the finding is heuristic (fix_advisory_only)
+  - Freshness chip: checked · aging (aging)
+  - Banner: support_class_banner
+  - Offered: false
+- **Go Cobra CLI (provisional)** `archetype:framework_pack/go.cobra/cli` (cli_archetype) v0.9.0 bundle v1.0.0: provisional_archetype / support_unknown
+  - Health: The build check failed against the pinned toolchain; the project does not compile (failing)
+  - Diagnostics: One error diagnostic reports a missing module entry in the manifest (error) [6 checks · 1 error]
+  - Fix-forward: An automatic fix-forward adds the missing module entry; the change is previewed before apply (fix_automatic)
+  - Freshness chip: checked · fresh (fresh)
+  - Banner: certification_banner
+  - Offered: false
+- **Rust library (uncertified)** `archetype:framework_pack/rust.lib/uncertified` (library_archetype) v0.2.0 bundle v0.1.0: uncertified_archetype / support_unknown
+  - Health: The health verdict could not be determined; the bundle did not run to completion (health_unknown)
+  - Diagnostics: Stack diagnostics could not be produced for the uncertified archetype (diagnostics_unavailable) [diagnostics unavailable]
+  - Fix-forward: No fix-forward guidance could be produced without a health verdict (fix_unavailable)
+  - Freshness chip: checked · fresh (fresh)
+  - Banner: health_unknown_banner
+  - Offered: false
+- **Node Express service (community, bridged checks)** `archetype:framework_pack/node.express/service` (service_archetype) v1.2.0 bundle v0.5.0: community_archetype / bridge_behavior
+  - Health: A security-audit check degraded; the verdict is bridged from an external health-check tool (degraded)
+  - Diagnostics: One blocking diagnostic reports a known-vulnerable dependency, bridged from an external auditor (blocking) [7 checks · 1 blocking]
+  - Fix-forward: Only advisory fix-forward guidance is offered because the audit is bridged, not first-party (fix_advisory_only)
+  - Freshness chip: checked · rescan available (rescan_available)
+  - Banner: support_class_banner
+  - Offered: false
