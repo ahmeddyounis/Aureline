@@ -79,6 +79,23 @@
 //! loop, or an undeclared exercised capability routes through an exact reason code
 //! with a recovery path rather than a generic performance warning, and downstream
 //! support exports, admin audits, and release evidence project the same vocabulary.
+//!
+//! The [`m5_mirror_and_sideload`] module proves the install-review story holds the
+//! same in mirrored, private-registry, manual-import, and air-gapped lanes as in the
+//! public registry. Each review packet reproduces the full public-registry fact set —
+//! package identity, compatibility, permission, runtime origin, lifecycle, activation,
+//! and rollback — and adds the continuity facts these lanes make visible: publisher
+//! transfer, signing-root and namespace continuity, maintenance/orphan state, mirror
+//! freshness, and provenance reduction. Its review disposition and continuity-signal
+//! set are recomputed from those facts, so a mirror or side-load can never bypass a
+//! permission, compatibility, rollback, publisher-continuity, or quarantine guardrail,
+//! and every packet carries the full backing-ref set so manual-import and air-gapped
+//! reviews stay export-safe. On top of the packets, enterprise policy filters gate the
+//! families by publisher, signing root, runtime origin, capability class, network
+//! class, support class, bridge state, and activation-budget band, with each
+//! evaluation's gate decision recomputed as the stronger of the matched filter effect
+//! and the packet's own review disposition, so policy can tighten but never loosen
+//! admission.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -91,6 +108,7 @@ pub mod m5_activation_budget;
 pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
+pub mod m5_mirror_and_sideload;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
 pub const ECOSYSTEM_COMPATIBILITY_SCORECARD_SCHEMA_VERSION: u32 = 1;
