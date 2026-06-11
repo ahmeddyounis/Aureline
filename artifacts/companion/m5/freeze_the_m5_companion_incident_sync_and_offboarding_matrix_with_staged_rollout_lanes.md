@@ -1,0 +1,57 @@
+# M5 Companion, Incident, Sync, Residency, and Offboarding Matrix
+
+- Packet: `m5-companion-matrix:stable:0001`
+- Label: `M5 Companion, Incident, Sync, Residency, and Offboarding Matrix`
+- Lanes: 8 (4 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-09T00:00:00Z)
+
+## Lanes
+
+- **companion_notification** (companion): `stable` / `general_availability`
+  - Scope: Browser/mobile companion notifications for build, review, and agent events — read-only with no editor authority
+  - Local: Notification source events are computed by the local core and stay inspectable offline.
+  - Staged: Companion push fan-out to paired browser/mobile sessions rolls out per cohort.
+  - Requires continuity: Paired companion delivery requires the companion relay; the local core never depends on it to function.
+  - Rollback: companion_read_only_narrow_scope
+- **companion_review** (companion): `stable` / `general_availability`
+  - Scope: Companion review/approve follow-up: inspect findings and approve or defer pre-staged actions without authoring edits
+  - Local: Review content and decision records are authored and stored by the local core.
+  - Staged: Companion-initiated approvals roll out behind staged cohorts.
+  - Requires continuity: Relaying an approval to a running desktop session requires the companion relay and an active host.
+  - Rollback: companion_read_only_narrow_scope
+- **companion_session_follow** (companion): `beta` / `staged_rollout`
+  - Scope: Companion session-follow and handoff eligibility: observe an active desktop session and resume context, narrow to read plus handoff
+  - Local: Session state and handoff records originate on the local core and survive offline.
+  - Staged: Session-follow streaming is staged per cohort and capability.
+  - Requires continuity: Live follow requires an active host session and the companion relay; eligibility narrows when either is unavailable.
+  - Rollback: companion_read_only_narrow_scope
+- **companion_light_edit** (companion): `preview` / `early_access`
+  - Scope: Companion light-edit: bounded text touch-ups relayed to the host for preview/approval, never a full mobile editor
+  - Local: Edits apply only through the host's local change pipeline with preview and revert.
+  - Staged: Light-edit is early-access behind an explicit capability gate.
+  - Requires continuity: Applying a light-edit requires an active host session and the companion relay; without them it is read-only.
+  - Rollback: staged_reversible_via_rollout
+- **incident_workspace** (incident): `stable` / `general_availability`
+  - Scope: Attributable incident workspaces binding crash trails, evidence spans, and runbook steps to a redacted support bundle preview
+  - Local: Incident evidence, missing-span facts, and runbook records are local-first and inspectable offline.
+  - Staged: Cross-device incident sharing rolls out per cohort.
+  - Requires continuity: Escalation to a managed support channel requires admin continuity; local triage never depends on it.
+  - Rollback: local_core_continues_no_remote_state
+- **managed_sync** (sync): `beta` / `staged_rollout`
+  - Scope: Inspectable managed sync of settings, profile, and device registry with conflict review and no silent server authority
+  - Local: The local core is the source of truth; every synced record stays inspectable and reconcilable offline.
+  - Staged: Managed sync expands per cohort and record class.
+  - Requires continuity: Server-side sync and conflict relay require the sync provider and, for managed tenants, admin continuity.
+  - Rollback: sync_reconciles_to_local_core
+- **residency_encryption** (residency): `beta` / `staged_rollout`
+  - Scope: Provable customer-managed-key and end-to-end-encryption residency posture for managed/synced artifacts, with region pinning
+  - Local: Local-only artifacts never leave the device and carry no residency dependency.
+  - Staged: Customer-managed-key and region pinning roll out per managed tenant.
+  - Requires continuity: End-to-end-encryption and region-residency guarantees require the managed key authority and admin continuity, and are claimed only when verifiable.
+  - Rollback: evidence_preserved_no_revert
+- **offboarding_continuity** (offboarding): `stable` / `general_availability`
+  - Scope: Offboarding that exports user-owned durable artifacts and guarantees the local core keeps working after any managed teardown
+  - Local: User-owned local work and history remain on the device and fully usable after offboarding.
+  - Staged: Bulk managed-export tooling rolls out per cohort.
+  - Requires continuity: Revoking managed/cloud artifacts requires admin continuity; local-core continuity is never gated on it.
+  - Rollback: offboarding_export_preserves_local_work
