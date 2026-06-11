@@ -104,6 +104,7 @@ pub mod learning_mode;
 pub mod learning_tour_alpha;
 pub mod locale_pack_beta;
 pub mod m5_command_registry;
+pub mod m5_component_registry;
 pub mod m5_depth_imports;
 pub mod m5_entry_routes;
 pub mod macros;

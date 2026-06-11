@@ -1,0 +1,442 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-component-state.schema.json",
+  "title": "Aureline M5 component-state and design-token inheritance audit",
+  "description": "Boundary schema for the M5 component-state and design-token inheritance audit emitted by the aureline-shell m5_component_registry module. The audit compares the canonical component-state descriptor for every registered M5 depth surface (notebook cell chrome, result-grid rows, profiler and trace panels, pipeline cards, preview-route badges, docs/browser panes, companion surfaces, sync status, offboarding) against the binding the surface actually renders for each of the nine normalized component states the M5 lanes introduce: loading, cached, stale, partial, policy_blocked, degraded, preview_only, sync_pending, and boundary_handoff. Acceptance: the audit MUST cover the nine required states for every registered surface, MUST carry a canonical shared-registry anchor, an accessibility note, and a registration flag, MUST flag any unknown token binding on a high-salience surface and any ad-hoc local-state styling as a blocker, MUST reject hard-coded theme values, unresolved token fallbacks, color-only cues on high-salience surfaces, and divergent token-group, token-ref, style-provenance, cue-policy, registry-anchor, and override projections, and MUST be usable by the cross-surface hardening matrix without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/theme-token-consumers/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/component_state_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_component_state_audit_report_record" },
+    { "$ref": "#/$defs/m5_component_state_support_export_record" }
+  ],
+  "$defs": {
+    "m5_component_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 component-state contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_component_state:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_chrome",
+        "result_grid_row",
+        "profiler_panel",
+        "trace_panel",
+        "pipeline_card",
+        "preview_route_badge",
+        "docs_browser_pane",
+        "companion_surface",
+        "sync_status_surface",
+        "offboarding_surface"
+      ]
+    },
+    "normalized_state": {
+      "type": "string",
+      "enum": [
+        "loading",
+        "cached",
+        "stale",
+        "partial",
+        "policy_blocked",
+        "degraded",
+        "preview_only",
+        "sync_pending",
+        "boundary_handoff"
+      ],
+      "description": "One of the nine required normalized component states the audit covers."
+    },
+    "token_group": {
+      "type": "string",
+      "enum": [
+        "surface_chrome_tokens",
+        "data_density_tokens",
+        "diagnostic_state_tokens",
+        "pipeline_status_tokens",
+        "preview_badge_tokens",
+        "embedded_surface_tokens",
+        "companion_presence_tokens",
+        "sync_status_tokens",
+        "lifecycle_state_tokens"
+      ]
+    },
+    "style_provenance": {
+      "type": "string",
+      "enum": [
+        "shell_token_inherited",
+        "shell_token_with_declared_override",
+        "extension_contributed",
+        "provider_backed"
+      ]
+    },
+    "semantic_salience": {
+      "type": "string",
+      "enum": [
+        "decorative_only",
+        "informational",
+        "lifecycle_bearing",
+        "trust_bearing",
+        "severity_bearing"
+      ]
+    },
+    "cue_policy": {
+      "type": "string",
+      "enum": ["non_color_cue_required", "color_allowed"]
+    },
+    "accessibility_cue": {
+      "type": "string",
+      "enum": ["icon_and_text", "text_label", "shape_or_pattern", "color_only"]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "binding_status": {
+      "type": "string",
+      "enum": [
+        "inherited",
+        "explicitly_narrowed",
+        "not_applicable",
+        "declared_inheritance_gap",
+        "platform_omitted",
+        "unregistered_local_state",
+        "unknown_token_gap"
+      ],
+      "description": "Binding status a surface reports for one normalized state. Only `inherited` rows are drift-checked; the narrowed statuses require a narrowing_reason; `unregistered_local_state` and `unknown_token_gap` are blockers."
+    },
+    "component_state_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "registry_anchor_ref",
+        "accessibility_note",
+        "token_group",
+        "style_provenance",
+        "semantic_salience",
+        "cue_policy",
+        "lifecycle_label",
+        "documented_overrides",
+        "registered_in_shared_registry"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "registry_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_note": { "$ref": "#/$defs/non_empty_string" },
+        "token_group": { "$ref": "#/$defs/token_group" },
+        "style_provenance": { "$ref": "#/$defs/style_provenance" },
+        "semantic_salience": { "$ref": "#/$defs/semantic_salience" },
+        "cue_policy": { "$ref": "#/$defs/cue_policy" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "documented_overrides": { "$ref": "#/$defs/ref_array" },
+        "registered_in_shared_registry": { "type": "boolean" }
+      }
+    },
+    "state_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "binding_status",
+        "projected_token_group",
+        "projected_token_ref",
+        "projected_style_provenance",
+        "projected_cue_policy",
+        "projected_non_color_cue",
+        "projected_registry_anchor_ref",
+        "applied_overrides",
+        "hardcoded_value",
+        "unresolved_token_fallback",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/normalized_state" },
+        "binding_status": { "$ref": "#/$defs/binding_status" },
+        "projected_token_group": {
+          "oneOf": [{ "$ref": "#/$defs/token_group" }, { "type": "null" }]
+        },
+        "projected_token_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_style_provenance": {
+          "oneOf": [{ "$ref": "#/$defs/style_provenance" }, { "type": "null" }]
+        },
+        "projected_cue_policy": {
+          "oneOf": [{ "$ref": "#/$defs/cue_policy" }, { "type": "null" }]
+        },
+        "projected_non_color_cue": {
+          "oneOf": [{ "$ref": "#/$defs/accessibility_cue" }, { "type": "null" }]
+        },
+        "projected_registry_anchor_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "applied_overrides": { "$ref": "#/$defs/ref_array" },
+        "hardcoded_value": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "unresolved_token_fallback": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unknown_token_gap",
+            "unregistered_local_state",
+            "token_group_drift",
+            "token_ref_drift",
+            "style_provenance_drift",
+            "cue_policy_drift",
+            "color_only_cue",
+            "hardcoded_theme_value",
+            "unresolved_token_fallback",
+            "missing_registry_anchor",
+            "override_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_registry_anchor",
+            "missing_accessibility_note",
+            "missing_non_color_cue_policy",
+            "surface_not_registered"
+          ]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/normalized_state" }
+      }
+    },
+    "state_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "inherited_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "declared_inheritance_gap_rows",
+        "platform_omitted_rows",
+        "unregistered_local_state_rows",
+        "unknown_token_gap_rows"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/normalized_state" },
+        "inherited_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "declared_inheritance_gap_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "unregistered_local_state_rows": { "type": "integer", "minimum": 0 },
+        "unknown_token_gap_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unknown_token_gap",
+        "unregistered_local_state",
+        "token_group_drift",
+        "token_ref_drift",
+        "style_provenance_drift",
+        "cue_policy_drift",
+        "color_only_cue",
+        "hardcoded_theme_value",
+        "unresolved_token_fallback",
+        "missing_registry_anchor",
+        "override_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_registry_anchor",
+        "missing_accessibility_note",
+        "missing_non_color_cue_policy",
+        "surface_not_registered"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unknown_token_gap": { "type": "integer", "minimum": 0 },
+        "unregistered_local_state": { "type": "integer", "minimum": 0 },
+        "token_group_drift": { "type": "integer", "minimum": 0 },
+        "token_ref_drift": { "type": "integer", "minimum": 0 },
+        "style_provenance_drift": { "type": "integer", "minimum": 0 },
+        "cue_policy_drift": { "type": "integer", "minimum": 0 },
+        "color_only_cue": { "type": "integer", "minimum": 0 },
+        "hardcoded_theme_value": { "type": "integer", "minimum": 0 },
+        "unresolved_token_fallback": { "type": "integer", "minimum": 0 },
+        "missing_registry_anchor": { "type": "integer", "minimum": 0 },
+        "override_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_registry_anchor": { "type": "integer", "minimum": 0 },
+        "missing_accessibility_note": { "type": "integer", "minimum": 0 },
+        "missing_non_color_cue_policy": { "type": "integer", "minimum": 0 },
+        "surface_not_registered": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "registry_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_family", "surface_id", "registry_anchor_ref"],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "registry_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "component_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_salience"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_component_state_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_component_state_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/component_state_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/state_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_salience": { "type": "boolean" }
+      }
+    },
+    "m5_component_state_audit_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_states",
+        "rows",
+        "state_coverage",
+        "findings_summary",
+        "registry_anchor_index",
+        "registered_surface_count",
+        "high_salience_surface_count",
+        "state_bindings_checked",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_component_state_audit_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_component_state_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_states": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/normalized_state" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/component_state_row" }
+        },
+        "state_coverage": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/state_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "registry_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/registry_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_salience_surface_count": { "type": "integer", "minimum": 0 },
+        "state_bindings_checked": { "type": "integer", "minimum": 0 },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_component_state_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_component_state_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_component_state_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_component_state_audit_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
