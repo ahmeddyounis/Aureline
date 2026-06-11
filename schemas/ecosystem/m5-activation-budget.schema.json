@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/m5-activation-budget.schema.json",
+  "title": "Aureline M5 activation budget",
+  "description": "Schema for the m5_activation_budget packet. The packet freezes per-session activation cost and exercised-capability truth for marketed M5 artifact families. Each record names the cold/warm activation bucket, the lazy/eager activation trigger, the published activation-budget band, cold-start and memory resource pressure, the restart budget, and the runtime host class, plus per-capability declared-versus-exercised state (declared and exercised, declared but unused, or exercised without being declared). Each record's enforcement-reason set and enforcement action are recomputed from its facts: an over-budget activation or cold start throttles, memory pressure downgrades, an exhausted restart budget pauses, and a crash loop or undeclared exercised capability quarantines; a healthy session takes no_action. Any enforced session names an exact recovery path, and an unimpeded session names none.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "package_kinds",
+    "scopes",
+    "host_classes",
+    "runtime_origins",
+    "activation_budget_bands",
+    "activation_buckets",
+    "activation_triggers",
+    "resource_pressures",
+    "capability_classes",
+    "capability_exercise_states",
+    "enforcement_reasons",
+    "enforcement_actions",
+    "records",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_activation_budget" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "package_kinds": { "type": "array", "items": { "$ref": "#/$defs/package_kind" } },
+    "scopes": { "type": "array", "items": { "$ref": "#/$defs/scope" } },
+    "host_classes": { "type": "array", "items": { "$ref": "#/$defs/host_class" } },
+    "runtime_origins": { "type": "array", "items": { "$ref": "#/$defs/runtime_origin" } },
+    "activation_budget_bands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/activation_budget_band" }
+    },
+    "activation_buckets": { "type": "array", "items": { "$ref": "#/$defs/activation_bucket" } },
+    "activation_triggers": { "type": "array", "items": { "$ref": "#/$defs/activation_trigger" } },
+    "resource_pressures": { "type": "array", "items": { "$ref": "#/$defs/resource_pressure" } },
+    "capability_classes": { "type": "array", "items": { "$ref": "#/$defs/capability_class" } },
+    "capability_exercise_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability_exercise_state" }
+    },
+    "enforcement_reasons": { "type": "array", "items": { "$ref": "#/$defs/enforcement_reason" } },
+    "enforcement_actions": { "type": "array", "items": { "$ref": "#/$defs/enforcement_action" } },
+    "records": { "type": "array", "items": { "$ref": "#/$defs/record" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "package_kind": {
+      "enum": [
+        "first_party_framework_pack",
+        "docs_pack",
+        "local_model_pack",
+        "signed_recipe_pack",
+        "template_artifact",
+        "bridge_backed_package",
+        "side_loaded_package",
+        "mirrored_registry_variant"
+      ]
+    },
+    "scope": { "enum": ["workspace", "profile", "global"] },
+    "host_class": { "enum": ["local", "managed_workspace", "remote_host", "container"] },
+    "runtime_origin": {
+      "enum": [
+        "first_party_signed",
+        "partner_signed",
+        "community_signed",
+        "bridge_runtime",
+        "local_model_runtime",
+        "unsigned_side_loaded"
+      ]
+    },
+    "activation_budget_band": {
+      "enum": [
+        "healthy_under_budget",
+        "approaching_ceiling",
+        "over_budget",
+        "budget_unknown",
+        "not_applicable"
+      ]
+    },
+    "activation_bucket": { "enum": ["cold", "warm"] },
+    "activation_trigger": {
+      "enum": [
+        "eager_on_startup",
+        "on_workspace_open",
+        "on_language_match",
+        "on_command_invoke",
+        "on_view_open",
+        "manual"
+      ]
+    },
+    "resource_pressure": {
+      "enum": ["healthy", "elevated", "over_budget", "unknown", "not_applicable"]
+    },
+    "capability_class": {
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "network_access",
+        "process_spawn",
+        "clipboard_access",
+        "secrets_read",
+        "telemetry_emit",
+        "model_inference",
+        "workspace_settings_write",
+        "background_execution"
+      ]
+    },
+    "capability_exercise_state": {
+      "enum": ["declared_exercised", "declared_unused", "undeclared_exercised"]
+    },
+    "enforcement_reason": {
+      "enum": [
+        "activation_budget_exceeded",
+        "cold_start_budget_exceeded",
+        "memory_budget_exceeded",
+        "restart_budget_exhausted",
+        "crash_loop_detected",
+        "undeclared_capability_exercised"
+      ]
+    },
+    "enforcement_action": {
+      "enum": ["no_action", "throttled", "downgraded", "paused", "quarantined"]
+    },
+    "restart_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_restarts_allowed", "window_restarts_used", "crash_loop_detected"],
+      "properties": {
+        "window_restarts_allowed": { "type": "integer", "minimum": 0 },
+        "window_restarts_used": { "type": "integer", "minimum": 0 },
+        "crash_loop_detected": { "type": "boolean" },
+        "window_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "capability_usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_class", "exercise_state", "evidence_ref"],
+      "properties": {
+        "capability_class": { "$ref": "#/$defs/capability_class" },
+        "exercise_state": { "$ref": "#/$defs/capability_exercise_state" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "listing_ref",
+        "display_label",
+        "governance_family_ref",
+        "package_kind",
+        "scope",
+        "session_ref",
+        "runtime_host_class",
+        "runtime_origin",
+        "activation_bucket",
+        "activation_trigger",
+        "activation_budget_band",
+        "cold_start_pressure",
+        "memory_pressure",
+        "restart_budget",
+        "enforcement_action",
+        "summary"
+      ],
+      "properties": {
+        "record_id": { "$ref": "#/$defs/non_empty_string" },
+        "listing_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "governance_family_ref": { "$ref": "#/$defs/non_empty_string" },
+        "package_kind": { "$ref": "#/$defs/package_kind" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "runtime_host_class": { "$ref": "#/$defs/host_class" },
+        "runtime_origin": { "$ref": "#/$defs/runtime_origin" },
+        "activation_bucket": { "$ref": "#/$defs/activation_bucket" },
+        "activation_trigger": { "$ref": "#/$defs/activation_trigger" },
+        "activation_budget_band": { "$ref": "#/$defs/activation_budget_band" },
+        "cold_start_pressure": { "$ref": "#/$defs/resource_pressure" },
+        "memory_pressure": { "$ref": "#/$defs/resource_pressure" },
+        "restart_budget": { "$ref": "#/$defs/restart_budget" },
+        "declared_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_class" }
+        },
+        "exercised_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_usage" }
+        },
+        "enforcement_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/enforcement_reason" }
+        },
+        "enforcement_action": { "$ref": "#/$defs/enforcement_action" },
+        "recovery_path_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_records",
+        "no_action_records",
+        "throttled_records",
+        "downgraded_records",
+        "paused_records",
+        "quarantined_records",
+        "intervention_records",
+        "over_activation_budget_records",
+        "crash_loop_records",
+        "undeclared_exercised_records",
+        "unused_declared_grant_records",
+        "cold_activation_records",
+        "warm_activation_records",
+        "distinct_package_kinds",
+        "distinct_host_classes"
+      ],
+      "properties": {
+        "total_records": { "type": "integer", "minimum": 0 },
+        "no_action_records": { "type": "integer", "minimum": 0 },
+        "throttled_records": { "type": "integer", "minimum": 0 },
+        "downgraded_records": { "type": "integer", "minimum": 0 },
+        "paused_records": { "type": "integer", "minimum": 0 },
+        "quarantined_records": { "type": "integer", "minimum": 0 },
+        "intervention_records": { "type": "integer", "minimum": 0 },
+        "over_activation_budget_records": { "type": "integer", "minimum": 0 },
+        "crash_loop_records": { "type": "integer", "minimum": 0 },
+        "undeclared_exercised_records": { "type": "integer", "minimum": 0 },
+        "unused_declared_grant_records": { "type": "integer", "minimum": 0 },
+        "cold_activation_records": { "type": "integer", "minimum": 0 },
+        "warm_activation_records": { "type": "integer", "minimum": 0 },
+        "distinct_package_kinds": { "type": "integer", "minimum": 0 },
+        "distinct_host_classes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

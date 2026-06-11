@@ -65,6 +65,20 @@
 //! rather than generic banners, an unconsented removal of protected data or an
 //! irreversible rollback blocks the action, and a clean user-initiated disable stays
 //! directly applicable.
+//!
+//! The [`m5_activation_budget`] module adds the operational dimension: per session,
+//! what each M5 artifact family actually cost to activate and which of its declared
+//! capabilities it actually exercised. Each record names the cold/warm activation
+//! bucket, the lazy/eager activation trigger, the published activation-budget band,
+//! cold-start and memory pressure, the restart budget, and the runtime host class,
+//! and reports per-capability declared-versus-exercised state so an over-grant
+//! (declared but never used) or a policy violation (exercised but never declared) is
+//! explicit. Its enforcement reasons and the action it publishes — throttle,
+//! downgrade, pause, or quarantine — are recomputed from those facts, so an
+//! over-budget activation, memory pressure, an exhausted restart budget, a crash
+//! loop, or an undeclared exercised capability routes through an exact reason code
+//! with a recovery path rather than a generic performance warning, and downstream
+//! support exports, admin audits, and release evidence project the same vocabulary.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -73,6 +87,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
+pub mod m5_activation_budget;
 pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
