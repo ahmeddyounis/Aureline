@@ -45,6 +45,19 @@
 //! pane, CLI/headless rows, support exports, incident packets, and public-truth
 //! surfaces carry the same finding identity, repair-availability reason, and exit
 //! semantics without localized copy changing machine meaning.
+//!
+//! The [`guided_repair_transaction_receipts`] module turns each guided repair
+//! into an auditable repair-transaction receipt. A receipt declares the repair
+//! id, initiating findings, failure family, impacted state classes,
+//! preconditions, disclosed host/boundary, checkpoint (or its explicit absence),
+//! verification plan, and reversal class *before mutation begins*, then records
+//! the staged review/dry-run/checkpoint/apply/verify and (when needed)
+//! rollback-or-compensate outcome. Its terminal completion state distinguishes
+//! fixed, partially repaired, reduced-but-not-resolved, verification-inconclusive,
+//! exact rollback, and compensating rollback instead of a generic
+//! success/failure, and the packet enforces that durable user state is never
+//! reset without a checkpoint or guarded reversal and that a missing checkpoint
+//! never masquerades as easy reversibility.
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
@@ -52,6 +65,7 @@ pub mod extend_project_doctor_probes_finding_codes_and_unsupported_state_reporti
 pub mod finalize_diagnosis_and_evidence_packets_for_wrong_target;
 pub mod finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos;
 pub mod freeze_the_m5_project_doctor_guided_repair_and_container_or_devcontainer_maturity_matrix;
+pub mod guided_repair_transaction_receipts;
 pub mod probe_packs;
 pub mod probes;
 pub mod ship_project_doctor_explainability_panes_evidence_refs_and_cross_surface_parity;

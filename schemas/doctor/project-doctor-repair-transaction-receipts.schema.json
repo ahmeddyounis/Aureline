@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/doctor/project-doctor-repair-transaction-receipts.schema.json",
+  "title": "Aureline Project Doctor guided repair transaction receipts",
+  "description": "Schema for the project_doctor_repair_transaction_receipts packet. Each receipt turns a guided repair into an auditable transaction: it declares the repair id, initiating findings, failure family, impacted state classes, preconditions, disclosed host/boundary, checkpoint (or its explicit absence), verification plan, and reversal class before mutation begins, then records the staged review/dry-run/checkpoint/apply/verify and (when needed) rollback-or-compensate outcome. The terminal completion state distinguishes fixed, partially repaired, reduced-but-not-resolved, verification-inconclusive, exact rollback, and compensating rollback. Two guardrails are pinned: durable user state is never reset without a checkpoint or a guarded irreversible repair offering support paths, and a missing checkpoint never claims clean/snapshot reversibility or an exact rollback. Receipts are read-only and metadata-only and carry no credential bodies or mount/port/tunnel secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "schema_ref",
+    "as_of",
+    "failure_families",
+    "host_boundaries",
+    "checkpoint_kinds",
+    "reversal_classes",
+    "repair_stages",
+    "stage_statuses",
+    "verification_outcomes",
+    "completion_states",
+    "parity_surfaces",
+    "receipts",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "project_doctor_repair_transaction_receipts" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "failure_families": { "type": "array", "items": { "$ref": "#/$defs/failure_family" } },
+    "host_boundaries": { "type": "array", "items": { "$ref": "#/$defs/host_boundary" } },
+    "checkpoint_kinds": { "type": "array", "items": { "$ref": "#/$defs/checkpoint_kind" } },
+    "reversal_classes": { "type": "array", "items": { "$ref": "#/$defs/reversal_class" } },
+    "repair_stages": { "type": "array", "items": { "$ref": "#/$defs/repair_stage" } },
+    "stage_statuses": { "type": "array", "items": { "$ref": "#/$defs/stage_status" } },
+    "verification_outcomes": { "type": "array", "items": { "$ref": "#/$defs/verification_outcome" } },
+    "completion_states": { "type": "array", "items": { "$ref": "#/$defs/completion_state" } },
+    "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+    "receipts": { "type": "array", "items": { "$ref": "#/$defs/receipt" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "failure_family": {
+      "enum": [
+        "notebook_kernel",
+        "request_api",
+        "database_connection",
+        "profiler_replay",
+        "preview_route",
+        "sync_offboarding",
+        "companion_handoff",
+        "incident_packet"
+      ]
+    },
+    "host_boundary": {
+      "enum": [
+        "local_workspace",
+        "remote_host",
+        "container",
+        "devcontainer",
+        "tunnel",
+        "managed_service"
+      ]
+    },
+    "checkpoint_kind": {
+      "enum": ["transactional_snapshot", "filesystem_snapshot", "state_export", "none"]
+    },
+    "reversal_class": {
+      "enum": [
+        "reversible_transactional",
+        "reversible_with_snapshot",
+        "compensating_only",
+        "irreversible_guarded"
+      ]
+    },
+    "repair_stage": {
+      "enum": ["review", "dry_run", "checkpoint", "apply", "verify", "rollback", "compensate"]
+    },
+    "stage_status": {
+      "enum": ["passed", "partial", "failed", "skipped", "inconclusive"]
+    },
+    "verification_outcome": {
+      "enum": ["passed", "failed", "inconclusive"]
+    },
+    "completion_state": {
+      "enum": [
+        "fixed",
+        "partially_repaired",
+        "reduced_but_not_resolved",
+        "verification_inconclusive",
+        "rolled_back_exact",
+        "rolled_back_compensating"
+      ]
+    },
+    "parity_surface": {
+      "enum": [
+        "desktop_receipt",
+        "cli_row",
+        "headless_json",
+        "support_export",
+        "incident_packet",
+        "public_truth"
+      ]
+    },
+    "checkpoint_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "checkpoint_kind"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "checkpoint_kind": { "$ref": "#/$defs/checkpoint_kind" },
+        "checkpoint_ref": { "type": "string" }
+      }
+    },
+    "stage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "note"],
+      "properties": {
+        "stage": { "$ref": "#/$defs/repair_stage" },
+        "status": { "$ref": "#/$defs/stage_status" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "verification_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "outcome"],
+      "properties": {
+        "check_id": { "$ref": "#/$defs/non_empty_string" },
+        "outcome": { "$ref": "#/$defs/verification_outcome" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "repair_id",
+        "failure_family",
+        "initiating_findings",
+        "impacted_state_classes",
+        "preconditions",
+        "host_boundary",
+        "boundary_scope_ref",
+        "mutates_durable_user_state",
+        "checkpoint",
+        "reversal_class",
+        "verification_plan",
+        "stages",
+        "completion_state",
+        "partial_success",
+        "affected_objects",
+        "verification_results",
+        "support_paths",
+        "parity_surfaces",
+        "machine_meaning_keys",
+        "explanation",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "summary"
+      ],
+      "properties": {
+        "receipt_id": { "$ref": "#/$defs/non_empty_string" },
+        "repair_id": { "$ref": "#/$defs/non_empty_string" },
+        "failure_family": { "$ref": "#/$defs/failure_family" },
+        "initiating_findings": { "$ref": "#/$defs/string_array" },
+        "impacted_state_classes": { "$ref": "#/$defs/string_array" },
+        "preconditions": { "$ref": "#/$defs/string_array" },
+        "host_boundary": { "$ref": "#/$defs/host_boundary" },
+        "boundary_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "mutates_durable_user_state": { "type": "boolean" },
+        "checkpoint": { "$ref": "#/$defs/checkpoint_disclosure" },
+        "reversal_class": { "$ref": "#/$defs/reversal_class" },
+        "verification_plan": { "$ref": "#/$defs/string_array" },
+        "stages": { "type": "array", "items": { "$ref": "#/$defs/stage_record" } },
+        "completion_state": { "$ref": "#/$defs/completion_state" },
+        "partial_success": { "type": "boolean" },
+        "affected_objects": { "$ref": "#/$defs/string_array" },
+        "verification_results": { "type": "array", "items": { "$ref": "#/$defs/verification_result" } },
+        "support_paths": { "$ref": "#/$defs/string_array" },
+        "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+        "machine_meaning_keys": { "$ref": "#/$defs/string_array" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "const": "metadata_safe_default" },
+        "raw_private_material_excluded": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_count",
+        "receipts_with_checkpoint",
+        "receipts_without_checkpoint",
+        "durable_state_receipts",
+        "rolled_back_receipts",
+        "cross_surface_stable_receipts",
+        "fixed_receipts",
+        "partially_repaired_receipts",
+        "reduced_receipts",
+        "verification_inconclusive_receipts",
+        "rolled_back_exact_receipts",
+        "rolled_back_compensating_receipts"
+      ],
+      "properties": {
+        "receipt_count": { "type": "integer", "minimum": 0 },
+        "receipts_with_checkpoint": { "type": "integer", "minimum": 0 },
+        "receipts_without_checkpoint": { "type": "integer", "minimum": 0 },
+        "durable_state_receipts": { "type": "integer", "minimum": 0 },
+        "rolled_back_receipts": { "type": "integer", "minimum": 0 },
+        "cross_surface_stable_receipts": { "type": "integer", "minimum": 0 },
+        "fixed_receipts": { "type": "integer", "minimum": 0 },
+        "partially_repaired_receipts": { "type": "integer", "minimum": 0 },
+        "reduced_receipts": { "type": "integer", "minimum": 0 },
+        "verification_inconclusive_receipts": { "type": "integer", "minimum": 0 },
+        "rolled_back_exact_receipts": { "type": "integer", "minimum": 0 },
+        "rolled_back_compensating_receipts": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

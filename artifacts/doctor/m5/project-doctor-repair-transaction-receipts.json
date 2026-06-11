@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "record_kind": "project_doctor_repair_transaction_receipts",
+  "packet_id": "project-doctor-repair-transaction-receipts",
+  "status": "frozen",
+  "overview_page": "docs/doctor/m5/project-doctor-repair-transaction-receipts.md",
+  "schema_ref": "schemas/doctor/project-doctor-repair-transaction-receipts.schema.json",
+  "as_of": "2026-06-11",
+  "failure_families": [
+    "notebook_kernel",
+    "request_api",
+    "database_connection",
+    "profiler_replay",
+    "preview_route",
+    "sync_offboarding",
+    "companion_handoff",
+    "incident_packet"
+  ],
+  "host_boundaries": [
+    "local_workspace",
+    "remote_host",
+    "container",
+    "devcontainer",
+    "tunnel",
+    "managed_service"
+  ],
+  "checkpoint_kinds": [
+    "transactional_snapshot",
+    "filesystem_snapshot",
+    "state_export",
+    "none"
+  ],
+  "reversal_classes": [
+    "reversible_transactional",
+    "reversible_with_snapshot",
+    "compensating_only",
+    "irreversible_guarded"
+  ],
+  "repair_stages": [
+    "review",
+    "dry_run",
+    "checkpoint",
+    "apply",
+    "verify",
+    "rollback",
+    "compensate"
+  ],
+  "stage_statuses": [
+    "passed",
+    "partial",
+    "failed",
+    "skipped",
+    "inconclusive"
+  ],
+  "verification_outcomes": [
+    "passed",
+    "failed",
+    "inconclusive"
+  ],
+  "completion_states": [
+    "fixed",
+    "partially_repaired",
+    "reduced_but_not_resolved",
+    "verification_inconclusive",
+    "rolled_back_exact",
+    "rolled_back_compensating"
+  ],
+  "parity_surfaces": [
+    "desktop_receipt",
+    "cli_row",
+    "headless_json",
+    "support_export",
+    "incident_packet",
+    "public_truth"
+  ],
+  "receipts": [
+    {
+      "receipt_id": "receipt:database_connection:refresh_schema_cache",
+      "repair_id": "repair.database_connection.refresh_schema_cache",
+      "failure_family": "database_connection",
+      "initiating_findings": ["doctor.finding.database_target.schema_mismatch"],
+      "impacted_state_classes": ["cached_schema_metadata", "connection_pool_binding"],
+      "preconditions": ["target_identity_resolved", "connection_reachable"],
+      "host_boundary": "managed_service",
+      "boundary_scope_ref": "database-target:analytics-readonly",
+      "mutates_durable_user_state": false,
+      "checkpoint": {
+        "present": true,
+        "checkpoint_kind": "transactional_snapshot",
+        "checkpoint_ref": "checkpoint:database/schema-cache-2026-06-11"
+      },
+      "reversal_class": "reversible_transactional",
+      "verification_plan": ["reconnect_with_refreshed_schema", "compare_schema_hash"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared schema-cache refresh against the resolved target identity." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run confirmed only cached metadata would change." },
+        { "stage": "checkpoint", "status": "passed", "note": "Captured a transactional snapshot of the cached schema." },
+        { "stage": "apply", "status": "passed", "note": "Refreshed the cached schema inside the transaction." },
+        { "stage": "verify", "status": "passed", "note": "Reconnect and schema-hash checks confirmed the repair." }
+      ],
+      "completion_state": "fixed",
+      "partial_success": false,
+      "affected_objects": ["object:database/cached-schema"],
+      "verification_results": [
+        { "check_id": "reconnect_with_refreshed_schema", "outcome": "passed" },
+        { "check_id": "compare_schema_hash", "outcome": "passed" }
+      ],
+      "support_paths": ["support:export/database-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The cached database schema no longer matched the bound target. A transactionally checkpointed refresh applied and verified cleanly, so the transaction is fixed with a clean undo path still available.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Database schema-cache refresh: transactional checkpoint, applied and verified, completion state fixed."
+    },
+    {
+      "receipt_id": "receipt:notebook_kernel:restore_kernel_session",
+      "repair_id": "repair.notebook_kernel.restore_kernel_session",
+      "failure_family": "notebook_kernel",
+      "initiating_findings": ["doctor.finding.notebook_kernel.session_drift"],
+      "impacted_state_classes": ["kernel_session_state", "execution_variable_namespace"],
+      "preconditions": ["kernelspec_resolved", "runtime_installed"],
+      "host_boundary": "local_workspace",
+      "boundary_scope_ref": "kernel-session:python3-local",
+      "mutates_durable_user_state": true,
+      "checkpoint": {
+        "present": true,
+        "checkpoint_kind": "filesystem_snapshot",
+        "checkpoint_ref": "checkpoint:notebook/kernel-state-2026-06-11"
+      },
+      "reversal_class": "reversible_with_snapshot",
+      "verification_plan": ["restart_kernel", "replay_recorded_cells"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared kernel-session restore with a captured state snapshot." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run mapped the cells that would be replayed." },
+        { "stage": "checkpoint", "status": "passed", "note": "Captured a filesystem snapshot of the kernel session state." },
+        { "stage": "apply", "status": "passed", "note": "Restored the kernel session and replayed recorded cells." },
+        { "stage": "verify", "status": "inconclusive", "note": "Replay produced non-deterministic output the plan could not confirm." }
+      ],
+      "completion_state": "verification_inconclusive",
+      "partial_success": false,
+      "affected_objects": ["object:notebook/kernel-session"],
+      "verification_results": [
+        { "check_id": "restart_kernel", "outcome": "passed" },
+        { "check_id": "replay_recorded_cells", "outcome": "inconclusive" }
+      ],
+      "support_paths": ["support:export/notebook-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The notebook kernel session drifted. A snapshot-checkpointed restore applied, but replay output was non-deterministic, so verification is reported as inconclusive rather than claimed as fixed; the snapshot remains available to undo.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Notebook kernel-session restore: snapshot checkpoint, applied, verification inconclusive."
+    },
+    {
+      "receipt_id": "receipt:preview_route:recapture_route_evidence",
+      "repair_id": "repair.preview_route.recapture_route_evidence",
+      "failure_family": "preview_route",
+      "initiating_findings": ["doctor.finding.preview_route.evidence_stale"],
+      "impacted_state_classes": ["preview_route_binding", "tunnel_scope_record"],
+      "preconditions": ["tunnel_reachable", "route_owner_authorized"],
+      "host_boundary": "tunnel",
+      "boundary_scope_ref": "preview-route:tunnel/8443",
+      "mutates_durable_user_state": false,
+      "checkpoint": {
+        "present": true,
+        "checkpoint_kind": "state_export",
+        "checkpoint_ref": "checkpoint:preview/route-export-2026-06-11"
+      },
+      "reversal_class": "reversible_with_snapshot",
+      "verification_plan": ["probe_route_liveness", "compare_tunnel_scope"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared preview-route evidence recapture with an exported prior state." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run confirmed the tunnel scope that would be rebound." },
+        { "stage": "checkpoint", "status": "passed", "note": "Exported the prior route binding and tunnel scope." },
+        { "stage": "apply", "status": "passed", "note": "Recaptured route evidence and rebound the tunnel scope." },
+        { "stage": "verify", "status": "failed", "note": "Route liveness probe failed after rebinding." },
+        { "stage": "rollback", "status": "passed", "note": "Re-imported the exported prior route binding exactly." }
+      ],
+      "completion_state": "rolled_back_exact",
+      "partial_success": false,
+      "affected_objects": ["object:preview/route-binding"],
+      "verification_results": [
+        { "check_id": "probe_route_liveness", "outcome": "failed" },
+        { "check_id": "compare_tunnel_scope", "outcome": "failed" }
+      ],
+      "support_paths": ["support:export/preview-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The preview route evidence was stale. The recapture applied but failed liveness verification, so the transaction was rolled back exactly to the exported prior binding.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Preview-route recapture: state-export checkpoint, verification failed, rolled back exactly."
+    },
+    {
+      "receipt_id": "receipt:profiler_replay:reattach_instrumentation",
+      "repair_id": "repair.profiler_replay.reattach_instrumentation",
+      "failure_family": "profiler_replay",
+      "initiating_findings": ["doctor.finding.profiler_replay.symbol_store_drift"],
+      "impacted_state_classes": ["symbol_store_index", "replay_capture_buffer"],
+      "preconditions": ["session_attached", "symbol_store_reachable"],
+      "host_boundary": "local_workspace",
+      "boundary_scope_ref": "profiler-session:cpu-2026-06-11",
+      "mutates_durable_user_state": false,
+      "checkpoint": {
+        "present": true,
+        "checkpoint_kind": "transactional_snapshot",
+        "checkpoint_ref": "checkpoint:profiler/symbol-index-2026-06-11"
+      },
+      "reversal_class": "reversible_transactional",
+      "verification_plan": ["resolve_top_frames", "replay_recorded_window"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared symbol-store reattach scoped to the profiler session." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run listed the symbol ranges that would be reindexed." },
+        { "stage": "checkpoint", "status": "passed", "note": "Captured a transactional snapshot of the symbol index." },
+        { "stage": "apply", "status": "partial", "note": "Reindexed reachable symbols; a stripped module could not be resolved." },
+        { "stage": "verify", "status": "passed", "note": "Verified the frames that were reindexed; the stripped module stays unresolved." }
+      ],
+      "completion_state": "partially_repaired",
+      "partial_success": true,
+      "affected_objects": ["object:profiler/symbol-index"],
+      "verification_results": [
+        { "check_id": "resolve_top_frames", "outcome": "passed" },
+        { "check_id": "replay_recorded_window", "outcome": "passed" }
+      ],
+      "support_paths": ["support:export/profiler-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The profiler symbol store drifted. Reattach reindexed reachable symbols but a stripped module remained unresolved, so the transaction is partially repaired with the transactional checkpoint still available.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Profiler symbol-store reattach: transactional checkpoint, applied partially, completion state partially repaired."
+    },
+    {
+      "receipt_id": "receipt:request_api:rebind_environment",
+      "repair_id": "repair.request_api.rebind_environment",
+      "failure_family": "request_api",
+      "initiating_findings": ["doctor.finding.request_api.environment_drift"],
+      "impacted_state_classes": ["request_environment_binding", "auth_authority_reference"],
+      "preconditions": ["environment_resolved", "auth_authority_reachable"],
+      "host_boundary": "remote_host",
+      "boundary_scope_ref": "api-route:staging/orders.send",
+      "mutates_durable_user_state": false,
+      "checkpoint": {
+        "present": false,
+        "checkpoint_kind": "none",
+        "checkpoint_ref": ""
+      },
+      "reversal_class": "compensating_only",
+      "verification_plan": ["replay_authenticated_probe", "compare_environment_binding"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared environment rebind; disclosed that the remote auth authority cannot be checkpointed." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run showed the environment binding that would change." },
+        { "stage": "apply", "status": "passed", "note": "Rebound the request environment to the resolved authority." },
+        { "stage": "verify", "status": "failed", "note": "Authenticated probe still returns reduced scope on the remote host." }
+      ],
+      "completion_state": "reduced_but_not_resolved",
+      "partial_success": true,
+      "affected_objects": ["object:request/environment-binding"],
+      "verification_results": [
+        { "check_id": "replay_authenticated_probe", "outcome": "failed" },
+        { "check_id": "compare_environment_binding", "outcome": "passed" }
+      ],
+      "support_paths": ["support:export/request-repair-receipt", "support:contact/auth-administrator"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The request environment drifted on a remote host that cannot be checkpointed. The rebind applied and improved the binding, but the authenticated probe still returns reduced scope, so the transaction is reduced-but-not-resolved with compensating-only reversal and explicit support paths.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Request/API environment rebind: no checkpoint, compensating-only, reduced but not resolved with support paths."
+    },
+    {
+      "receipt_id": "receipt:sync_offboarding:reconcile_device_registry",
+      "repair_id": "repair.sync_offboarding.reconcile_device_registry",
+      "failure_family": "sync_offboarding",
+      "initiating_findings": ["doctor.finding.sync_device_registry.offboarding_drift"],
+      "impacted_state_classes": ["device_registry_entry", "offboarding_ledger_state"],
+      "preconditions": ["registry_reachable", "offboarding_ticket_open"],
+      "host_boundary": "managed_service",
+      "boundary_scope_ref": "device-registry:workspace-primary",
+      "mutates_durable_user_state": false,
+      "checkpoint": {
+        "present": false,
+        "checkpoint_kind": "none",
+        "checkpoint_ref": ""
+      },
+      "reversal_class": "compensating_only",
+      "verification_plan": ["recompute_registry_consistency", "verify_offboarding_ledger"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared registry reconcile; disclosed the managed registry cannot be snapshotted locally." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run listed the ledger entries that would be reconciled." },
+        { "stage": "apply", "status": "passed", "note": "Reconciled the device registry against the offboarding ledger." },
+        { "stage": "verify", "status": "failed", "note": "Consistency recheck flagged a ledger entry the reconcile mishandled." },
+        { "stage": "compensate", "status": "passed", "note": "Issued a compensating re-enrollment to restore the prior registry entry." }
+      ],
+      "completion_state": "rolled_back_compensating",
+      "partial_success": false,
+      "affected_objects": ["object:sync/device-registry-entry"],
+      "verification_results": [
+        { "check_id": "recompute_registry_consistency", "outcome": "failed" },
+        { "check_id": "verify_offboarding_ledger", "outcome": "failed" }
+      ],
+      "support_paths": ["support:export/sync-repair-receipt", "support:contact/workspace-administrator"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The device registry drifted from the offboarding ledger on a managed service with no local checkpoint. The reconcile applied but failed verification, so a compensating re-enrollment recovered the prior entry; the transaction is reported as a compensating rollback.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Sync device-registry reconcile: no checkpoint, compensating-only, compensating rollback with support paths."
+    },
+    {
+      "receipt_id": "receipt:companion_handoff:reissue_handoff_packet",
+      "repair_id": "repair.companion_handoff.reissue_handoff_packet",
+      "failure_family": "companion_handoff",
+      "initiating_findings": ["doctor.finding.companion_handoff.packet_incomplete"],
+      "impacted_state_classes": ["companion_handoff_manifest", "continuity_reference"],
+      "preconditions": ["companion_session_active", "continuity_reference_resolvable"],
+      "host_boundary": "container",
+      "boundary_scope_ref": "companion-session:handoff-pending",
+      "mutates_durable_user_state": true,
+      "checkpoint": {
+        "present": false,
+        "checkpoint_kind": "none",
+        "checkpoint_ref": ""
+      },
+      "reversal_class": "irreversible_guarded",
+      "verification_plan": ["validate_handoff_manifest", "confirm_continuity_reference"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared handoff re-issue; disclosed the re-issue supersedes the prior packet irreversibly behind an explicit guard." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run rebuilt the manifest the re-issue would publish." },
+        { "stage": "apply", "status": "passed", "note": "Re-issued the handoff packet with a resolved continuity reference." },
+        { "stage": "verify", "status": "passed", "note": "Manifest and continuity-reference checks confirmed the re-issue." }
+      ],
+      "completion_state": "fixed",
+      "partial_success": false,
+      "affected_objects": ["object:companion/handoff-manifest"],
+      "verification_results": [
+        { "check_id": "validate_handoff_manifest", "outcome": "passed" },
+        { "check_id": "confirm_continuity_reference", "outcome": "passed" }
+      ],
+      "support_paths": ["support:export/companion-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The companion handoff packet was incomplete. The re-issue irreversibly supersedes the prior packet, so it ran behind an explicit guard with no claimed checkpoint and support paths offered; it applied and verified cleanly.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Companion handoff re-issue: irreversible-guarded, no checkpoint, applied and verified, completion state fixed."
+    },
+    {
+      "receipt_id": "receipt:incident_packet:reseal_chain_of_custody",
+      "repair_id": "repair.incident_packet.reseal_chain_of_custody",
+      "failure_family": "incident_packet",
+      "initiating_findings": ["doctor.finding.incident_packet.chain_of_custody_drift"],
+      "impacted_state_classes": ["incident_packet_seal", "chain_of_custody_record"],
+      "preconditions": ["packet_present", "custodian_authorized"],
+      "host_boundary": "devcontainer",
+      "boundary_scope_ref": "incident-packet:export-candidate",
+      "mutates_durable_user_state": true,
+      "checkpoint": {
+        "present": false,
+        "checkpoint_kind": "none",
+        "checkpoint_ref": ""
+      },
+      "reversal_class": "irreversible_guarded",
+      "verification_plan": ["verify_packet_integrity", "confirm_chain_of_custody"],
+      "stages": [
+        { "stage": "review", "status": "passed", "note": "Declared chain-of-custody reseal; disclosed that a reseal is irreversible and gated behind an explicit guard." },
+        { "stage": "dry_run", "status": "passed", "note": "Dry run recomputed the integrity record the reseal would write." },
+        { "stage": "apply", "status": "passed", "note": "Resealed the incident packet and rewrote the chain-of-custody record." },
+        { "stage": "verify", "status": "passed", "note": "Integrity and chain-of-custody checks confirmed the reseal." }
+      ],
+      "completion_state": "fixed",
+      "partial_success": false,
+      "affected_objects": ["object:incident/packet-seal"],
+      "verification_results": [
+        { "check_id": "verify_packet_integrity", "outcome": "passed" },
+        { "check_id": "confirm_chain_of_custody", "outcome": "passed" }
+      ],
+      "support_paths": ["support:export/incident-repair-receipt"],
+      "parity_surfaces": ["desktop_receipt", "cli_row", "headless_json", "support_export", "incident_packet", "public_truth"],
+      "machine_meaning_keys": ["repair_id", "failure_family", "completion_state", "reversal_class"],
+      "explanation": "The incident packet chain-of-custody drifted. The reseal irreversibly rewrites the integrity record, so it ran behind an explicit guard with no claimed checkpoint and support paths offered; it applied and verified cleanly.",
+      "redaction_class": "metadata_safe_default",
+      "raw_private_material_excluded": true,
+      "summary": "Incident packet chain-of-custody reseal: irreversible-guarded, no checkpoint, applied and verified, completion state fixed."
+    }
+  ],
+  "summary": {
+    "receipt_count": 8,
+    "receipts_with_checkpoint": 4,
+    "receipts_without_checkpoint": 4,
+    "durable_state_receipts": 3,
+    "rolled_back_receipts": 2,
+    "cross_surface_stable_receipts": 8,
+    "fixed_receipts": 3,
+    "partially_repaired_receipts": 1,
+    "reduced_receipts": 1,
+    "verification_inconclusive_receipts": 1,
+    "rolled_back_exact_receipts": 1,
+    "rolled_back_compensating_receipts": 1
+  }
+}
