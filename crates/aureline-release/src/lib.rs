@@ -268,6 +268,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
+pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod browser_mobile_companion_surface_qualification;
 pub mod claim_publication_manifest;
 pub mod correction_train;
@@ -342,6 +343,18 @@ pub use implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgra
     TrainScorecardRegisterViolation, TrainState, TrainStopRule,
     IMPLEMENT_M5_TRAIN_SCORECARDS_JSON, IMPLEMENT_M5_TRAIN_SCORECARDS_PATH,
     IMPLEMENT_M5_TRAIN_SCORECARDS_RECORD_KIND, IMPLEMENT_M5_TRAIN_SCORECARDS_SCHEMA_VERSION,
+};
+
+pub use add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces::{
+    current_locale_pack_governance_register, AutomationState as LocalePackAutomationState,
+    DimensionGrade as LocalePackDimensionGrade, DowngradeAutomation as LocalePackDowngradeAutomation,
+    DowngradeTrigger as LocalePackDowngradeTrigger, GovernanceCell, GovernanceDimension,
+    LocalePackExportProjection, LocalePackExportRow, LocalePackGovernanceRegister,
+    LocalePackGovernanceSummary, LocalePackLane, LocalePackRegisterViolation, LocalePackStopRule,
+    NarrowingReason as LocalePackNarrowingReason, PackChannel, PackState,
+    StopAction as LocalePackStopAction, TranslationGovernance, TrustTier as LocalePackTrustTier,
+    LOCALE_PACK_GOVERNANCE_JSON, LOCALE_PACK_GOVERNANCE_PATH, LOCALE_PACK_GOVERNANCE_RECORD_KIND,
+    LOCALE_PACK_GOVERNANCE_SCHEMA_VERSION,
 };
 
 pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs::{
