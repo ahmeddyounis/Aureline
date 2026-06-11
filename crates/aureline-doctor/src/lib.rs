@@ -74,9 +74,27 @@
 //! success/failure, and the packet enforces that durable user state is never
 //! reset without a checkpoint or guarded reversal and that a missing checkpoint
 //! never masquerades as easy reversibility.
+//!
+//! The
+//! [`container_engine_summaries_open_in_container_preflights_and_route_time_bound_truth`]
+//! module makes the container and devcontainer boundary legible before a user
+//! reopens, rebuilds, or attaches in an M5 remote-preview or incident workflow.
+//! Each scenario names the active engine class, its reachability, support class,
+//! and certification note; the workspace mode, local/remote/managed boundary
+//! label, and the target identity being rebuilt or attached; an open-in-container
+//! preflight that discloses the definition source, rebuild-versus-reuse decision,
+//! trust-gated lifecycle hooks, extension installs, published ports, writable
+//! mounts, affected services/images, and a non-empty stay-local alternative; and
+//! live/buffered/snapshot log truth with an export-safe time range and redaction
+//! posture. A non-inheriting preflight gate routes an unreachable or
+//! policy-blocked engine to a non-dead-end offer-alternative outcome, and forces
+//! explicit disclosure for an unsupported engine, a trust-gated hook, or any
+//! rebuild/port/mount side effect, so a window is never treated as merely "in a
+//! container" and trust-gated hooks never run silently.
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
+pub mod container_engine_summaries_open_in_container_preflights_and_route_time_bound_truth;
 pub mod extend_project_doctor_probes_finding_codes_and_unsupported_state_reporting_across_feature_lanes;
 pub mod finalize_diagnosis_and_evidence_packets_for_wrong_target;
 pub mod finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos;

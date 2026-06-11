@@ -1,0 +1,603 @@
+{
+  "schema_version": 1,
+  "record_kind": "project_doctor_container_boundary_truth",
+  "packet_id": "project-doctor-container-boundary-truth",
+  "status": "frozen",
+  "overview_page": "docs/doctor/m5/project-doctor-container-boundary-truth.md",
+  "schema_ref": "schemas/doctor/project-doctor-container-boundary-truth.schema.json",
+  "as_of": "2026-06-11",
+  "workflow_surfaces": ["remote_preview", "incident_workflow"],
+  "engine_classes": ["docker", "podman", "devcontainers_cli", "managed_cloud"],
+  "engine_reachabilities": ["reachable", "unreachable", "policy_blocked"],
+  "support_classes": ["certified", "supported", "experimental", "unsupported"],
+  "workspace_modes": ["attached_container", "devcontainer", "remote_managed"],
+  "boundary_labels": ["local", "remote", "managed"],
+  "log_availabilities": ["live", "buffered", "snapshot", "unavailable"],
+  "preflight_decisions": ["proceed_full", "proceed_with_disclosure", "blocked_offer_alternative"],
+  "preflight_reasons": [
+    "none",
+    "engine_unreachable",
+    "policy_blocked",
+    "unsupported_engine",
+    "trust_gated_hooks",
+    "side_effects_require_review"
+  ],
+  "parity_surfaces": [
+    "desktop_sheet",
+    "cli_inspect",
+    "headless_json",
+    "browser_handoff",
+    "support_export",
+    "incident_packet"
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "scenario:remote_preview:attach_running_devcontainer",
+      "surface": "remote_preview",
+      "title": "Attach a preview to an already-built, certified devcontainer",
+      "engine_summary": {
+        "engine_class": "docker",
+        "engine_version_ref": "engine:docker:certified_channel",
+        "reachability": "reachable",
+        "support_class": "certified",
+        "certification_note": "Docker engine certified for preview; no rebuild required.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:container_inspect"]
+      },
+      "workspace_mode": "devcontainer",
+      "boundary_label": "local",
+      "target_ref": "target:devcontainer:preview_web_app",
+      "rebuild_review": {
+        "definition_source": "devcontainer_json",
+        "definition_source_ref": "def:devcontainer_json:preview_web_app",
+        "rebuild_decision": "reuse_existing",
+        "lifecycle_hooks": [],
+        "extension_installs": [],
+        "published_ports": [],
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:workspace_folder", "writable": false }
+        ],
+        "affected_services": [],
+        "affected_images": [],
+        "stay_local_alternative": "Open the preview against the local checkout without attaching the container."
+      },
+      "log_truth": {
+        "availability": "live",
+        "export_time_range_ref": "logrange:remote_preview:attach_running_devcontainer",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Live container log stream is attached read-only and is export-safe over the disclosed range."
+      },
+      "initiating_findings": ["doctor.finding.remote_preview.container_attach_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:attach_running_devcontainer",
+        "escalation_packet_ref": "escalation:remote_preview:attach_running_devcontainer",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.container_attach_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:devcontainer_preview_web_app", "scope:mount:workspace_folder"],
+        "durable_evidence_refs": ["evidence:remote_preview:attach_inspect"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the running certified devcontainer is reused with read-only mounts and no published ports, so the preview attaches without rebuild side effects",
+      "published_preflight_decision": "proceed_full",
+      "published_preflight_reason": "none",
+      "notes": "Headline proceed-full case: reachable certified engine, reuse, no side effects, live export-safe logs."
+    },
+    {
+      "scenario_id": "scenario:remote_preview:rebuild_with_trust_gated_post_create",
+      "surface": "remote_preview",
+      "title": "Rebuild a preview devcontainer that runs a trust-gated postCreate hook",
+      "engine_summary": {
+        "engine_class": "docker",
+        "engine_version_ref": "engine:docker:supported_channel",
+        "reachability": "reachable",
+        "support_class": "supported",
+        "certification_note": "Docker engine supported; rebuild will run lifecycle hooks.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:build_log_tail"]
+      },
+      "workspace_mode": "devcontainer",
+      "boundary_label": "local",
+      "target_ref": "target:devcontainer:preview_api_service",
+      "rebuild_review": {
+        "definition_source": "devcontainer_json",
+        "definition_source_ref": "def:devcontainer_json:preview_api_service",
+        "rebuild_decision": "rebuild",
+        "lifecycle_hooks": [
+          { "kind": "on_create", "command_ref": "hook:on_create:install_toolchain", "trust_gated": false },
+          { "kind": "post_create", "command_ref": "hook:post_create:seed_local_db", "trust_gated": true }
+        ],
+        "extension_installs": ["ext:language_pack", "ext:debugger"],
+        "published_ports": [
+          { "container_port": 8080, "host_port": 8080, "visibility": "local_only" }
+        ],
+        "writable_mounts": [
+          { "kind": "named_volume", "scope_ref": "scope:mount:api_node_modules", "writable": true }
+        ],
+        "affected_services": ["service:preview_api"],
+        "affected_images": ["image:preview_api_base"],
+        "stay_local_alternative": "Run the API preview on the host runtime without rebuilding the container."
+      },
+      "log_truth": {
+        "availability": "buffered",
+        "export_time_range_ref": "logrange:remote_preview:rebuild_with_trust_gated_post_create",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Buffered build and lifecycle logs cover the last rebuild window and are export-safe."
+      },
+      "initiating_findings": ["doctor.finding.remote_preview.rebuild_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:rebuild_with_trust_gated_post_create",
+        "escalation_packet_ref": "escalation:remote_preview:rebuild_with_trust_gated_post_create",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.rebuild_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:devcontainer_preview_api_service", "scope:port:8080", "scope:mount:api_node_modules"],
+        "durable_evidence_refs": ["evidence:remote_preview:rebuild_plan"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the rebuild runs a trust-gated postCreate hook that seeds a local database, so the preflight requires the user to review the hook before it runs",
+      "published_preflight_decision": "proceed_with_disclosure",
+      "published_preflight_reason": "trust_gated_hooks",
+      "notes": "Trust-gated hook forces disclosure; published ports and a writable volume are disclosed in the same sheet."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:rebuild_side_effects_no_trust_hooks",
+      "surface": "incident_workflow",
+      "title": "Rebuild an incident reproduction container with ports and writable mounts",
+      "engine_summary": {
+        "engine_class": "podman",
+        "engine_version_ref": "engine:podman:supported_channel",
+        "reachability": "reachable",
+        "support_class": "supported",
+        "certification_note": "Podman engine supported for incident reproduction.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:image_history"]
+      },
+      "workspace_mode": "attached_container",
+      "boundary_label": "remote",
+      "target_ref": "target:container:incident_repro_env",
+      "rebuild_review": {
+        "definition_source": "dockerfile",
+        "definition_source_ref": "def:dockerfile:incident_repro_env",
+        "rebuild_decision": "rebuild",
+        "lifecycle_hooks": [
+          { "kind": "post_start", "command_ref": "hook:post_start:start_collector", "trust_gated": false }
+        ],
+        "extension_installs": [],
+        "published_ports": [
+          { "container_port": 9090, "host_port": 19090, "visibility": "lan_visible" }
+        ],
+        "writable_mounts": [
+          { "kind": "host_path_bind", "scope_ref": "scope:mount:incident_capture_dir", "writable": true }
+        ],
+        "affected_services": ["service:incident_collector"],
+        "affected_images": ["image:incident_repro"],
+        "stay_local_alternative": "Inspect the captured incident bundle locally without rebuilding the reproduction container."
+      },
+      "log_truth": {
+        "availability": "snapshot",
+        "export_time_range_ref": "logrange:incident_workflow:rebuild_side_effects",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Point-in-time snapshot of the reproduction logs, captured at incident time and export-safe."
+      },
+      "initiating_findings": ["doctor.finding.incident_workflow.repro_rebuild_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:rebuild_side_effects",
+        "escalation_packet_ref": "escalation:incident_workflow:rebuild_side_effects",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.repro_rebuild_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:container_incident_repro_env", "scope:port:19090", "scope:mount:incident_capture_dir"],
+        "durable_evidence_refs": ["evidence:incident_workflow:repro_manifest"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the rebuild publishes a lan-visible port and writes to a host capture directory, so the preflight discloses the side effects for review before rebuilding",
+      "published_preflight_decision": "proceed_with_disclosure",
+      "published_preflight_reason": "side_effects_require_review",
+      "notes": "Side effects without trust-gated hooks: ports and writable host mount drive the disclosure."
+    },
+    {
+      "scenario_id": "scenario:remote_preview:managed_cloud_unsupported_engine",
+      "surface": "remote_preview",
+      "title": "Preview against an unsupported managed-cloud workspace engine",
+      "engine_summary": {
+        "engine_class": "managed_cloud",
+        "engine_version_ref": "engine:managed_cloud:preview_pool",
+        "reachability": "reachable",
+        "support_class": "unsupported",
+        "certification_note": "Managed-cloud engine is unsupported in this build; behavior is best-effort.",
+        "diagnostics_actions": ["diag:managed_status", "diag:region_probe"]
+      },
+      "workspace_mode": "remote_managed",
+      "boundary_label": "managed",
+      "target_ref": "target:managed:preview_workspace_pool",
+      "rebuild_review": {
+        "definition_source": "managed_template",
+        "definition_source_ref": "def:managed_template:preview_pool",
+        "rebuild_decision": "reuse_existing",
+        "lifecycle_hooks": [],
+        "extension_installs": [],
+        "published_ports": [],
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:managed_workspace", "writable": false }
+        ],
+        "affected_services": [],
+        "affected_images": [],
+        "stay_local_alternative": "Open the preview from the local checkout instead of the managed-cloud workspace."
+      },
+      "log_truth": {
+        "availability": "live",
+        "export_time_range_ref": "logrange:remote_preview:managed_cloud_unsupported",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Live managed-workspace logs are attached read-only and remain export-safe."
+      },
+      "initiating_findings": ["doctor.finding.remote_preview.managed_engine_unsupported"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:managed_cloud_unsupported",
+        "escalation_packet_ref": "escalation:remote_preview:managed_cloud_unsupported",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.managed_engine_unsupported"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:managed_preview_workspace_pool", "scope:mount:managed_workspace"],
+        "durable_evidence_refs": ["evidence:remote_preview:managed_status"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the managed-cloud engine is unsupported in this build, so the preview discloses the support class and managed boundary before the user proceeds",
+      "published_preflight_decision": "proceed_with_disclosure",
+      "published_preflight_reason": "unsupported_engine",
+      "notes": "Unsupported engine takes precedence over the (absent) side-effect path; the managed boundary label survives into the preview."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:engine_unreachable_offer_local",
+      "surface": "incident_workflow",
+      "title": "Incident reopen blocked because the container engine is unreachable",
+      "engine_summary": {
+        "engine_class": "docker",
+        "engine_version_ref": "engine:docker:supported_channel",
+        "reachability": "unreachable",
+        "support_class": "supported",
+        "certification_note": "Docker engine did not answer the health probe.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:restart_engine", "diag:open_engine_logs"]
+      },
+      "workspace_mode": "attached_container",
+      "boundary_label": "remote",
+      "target_ref": "target:container:incident_attach_target",
+      "rebuild_review": {
+        "definition_source": "compose_file",
+        "definition_source_ref": "def:compose_file:incident_stack",
+        "rebuild_decision": "rebuild",
+        "lifecycle_hooks": [
+          { "kind": "initialize", "command_ref": "hook:initialize:prepare_volumes", "trust_gated": false }
+        ],
+        "extension_installs": [],
+        "published_ports": [
+          { "container_port": 5432, "host_port": 15432, "visibility": "local_only" }
+        ],
+        "writable_mounts": [
+          { "kind": "named_volume", "scope_ref": "scope:mount:incident_db_volume", "writable": true }
+        ],
+        "affected_services": ["service:incident_db"],
+        "affected_images": ["image:incident_db"],
+        "stay_local_alternative": "Continue the incident review against the exported bundle while the engine is restarted."
+      },
+      "log_truth": {
+        "availability": "unavailable",
+        "export_time_range_ref": "",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "No live or buffered logs while the engine is unreachable; only the prior exported snapshot remains."
+      },
+      "initiating_findings": ["doctor.finding.incident_workflow.engine_unreachable"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:engine_unreachable",
+        "escalation_packet_ref": "escalation:incident_workflow:engine_unreachable",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.engine_unreachable"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:container_incident_attach_target", "scope:port:15432", "scope:mount:incident_db_volume"],
+        "durable_evidence_refs": ["evidence:incident_workflow:engine_probe"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the docker engine did not answer the health probe, so the reopen is blocked and the user is offered engine diagnostics plus a stay-local bundle review instead of a dead-end modal",
+      "published_preflight_decision": "blocked_offer_alternative",
+      "published_preflight_reason": "engine_unreachable",
+      "notes": "Unreachable engine: diagnostics actions and a non-dead-end stay-local alternative are mandatory; logs are unavailable so no export range is claimed."
+    },
+    {
+      "scenario_id": "scenario:remote_preview:policy_blocked_devcontainer_cli",
+      "surface": "remote_preview",
+      "title": "Preview reopen blocked by policy on the devcontainers CLI",
+      "engine_summary": {
+        "engine_class": "devcontainers_cli",
+        "engine_version_ref": "engine:devcontainers_cli:supported_channel",
+        "reachability": "policy_blocked",
+        "support_class": "supported",
+        "certification_note": "Devcontainers CLI is supported but blocked by org policy in this context.",
+        "diagnostics_actions": ["diag:policy_explain", "diag:request_exception"]
+      },
+      "workspace_mode": "devcontainer",
+      "boundary_label": "local",
+      "target_ref": "target:devcontainer:preview_policy_scoped",
+      "rebuild_review": {
+        "definition_source": "devcontainer_json",
+        "definition_source_ref": "def:devcontainer_json:preview_policy_scoped",
+        "rebuild_decision": "rebuild",
+        "lifecycle_hooks": [
+          { "kind": "post_attach", "command_ref": "hook:post_attach:notify_ready", "trust_gated": false }
+        ],
+        "extension_installs": ["ext:preview_helpers"],
+        "published_ports": [
+          { "container_port": 3000, "host_port": 3000, "visibility": "public_tunnel" }
+        ],
+        "writable_mounts": [
+          { "kind": "tmpfs_scratch", "scope_ref": "scope:mount:preview_scratch", "writable": true }
+        ],
+        "affected_services": ["service:preview_frontend"],
+        "affected_images": ["image:preview_frontend"],
+        "stay_local_alternative": "Preview on the local runtime; request a policy exception if the container is required."
+      },
+      "log_truth": {
+        "availability": "unavailable",
+        "export_time_range_ref": "",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Policy blocks attaching to the engine, so no live container logs are available in this context."
+      },
+      "initiating_findings": ["doctor.finding.remote_preview.engine_policy_blocked"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:policy_blocked",
+        "escalation_packet_ref": "escalation:remote_preview:policy_blocked",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.engine_policy_blocked"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:devcontainer_preview_policy_scoped", "scope:tunnel:public_3000", "scope:mount:preview_scratch"],
+        "durable_evidence_refs": ["evidence:remote_preview:policy_decision"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "org policy blocks the devcontainers CLI in this context, so the reopen is blocked with a policy explanation, an exception-request action, and a stay-local preview alternative",
+      "published_preflight_decision": "blocked_offer_alternative",
+      "published_preflight_reason": "policy_blocked",
+      "notes": "Policy-blocked engine: the public-tunnel port would have been disclosed, but the gate blocks first and offers the local alternative."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:attach_running_repro_reuse",
+      "surface": "incident_workflow",
+      "title": "Attach to a running, certified incident reproduction container",
+      "engine_summary": {
+        "engine_class": "podman",
+        "engine_version_ref": "engine:podman:certified_channel",
+        "reachability": "reachable",
+        "support_class": "certified",
+        "certification_note": "Podman engine certified; reproduction container already running.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:container_inspect"]
+      },
+      "workspace_mode": "attached_container",
+      "boundary_label": "local",
+      "target_ref": "target:container:incident_running_repro",
+      "rebuild_review": {
+        "definition_source": "image_reference",
+        "definition_source_ref": "def:image_reference:incident_running_repro",
+        "rebuild_decision": "reuse_existing",
+        "lifecycle_hooks": [],
+        "extension_installs": [],
+        "published_ports": [],
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:repro_workspace", "writable": false }
+        ],
+        "affected_services": [],
+        "affected_images": [],
+        "stay_local_alternative": "Review the incident from the captured logs without attaching to the running container."
+      },
+      "log_truth": {
+        "availability": "snapshot",
+        "export_time_range_ref": "logrange:incident_workflow:attach_running_repro",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Snapshot of the reproduction container logs at attach time, export-safe over the disclosed range."
+      },
+      "initiating_findings": ["doctor.finding.incident_workflow.container_attach_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:attach_running_repro",
+        "escalation_packet_ref": "escalation:incident_workflow:attach_running_repro",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.container_attach_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:container_incident_running_repro", "scope:mount:repro_workspace"],
+        "durable_evidence_refs": ["evidence:incident_workflow:attach_inspect"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the certified reproduction container is already running and is reused with read-only mounts, so the incident attach proceeds without rebuild side effects",
+      "published_preflight_decision": "proceed_full",
+      "published_preflight_reason": "none",
+      "notes": "Second proceed-full case on the incident surface: reachable certified engine, reuse, no side effects."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:experimental_rebuild_ports_only",
+      "surface": "incident_workflow",
+      "title": "Rebuild an experimental incident container that publishes a port",
+      "engine_summary": {
+        "engine_class": "docker",
+        "engine_version_ref": "engine:docker:experimental_channel",
+        "reachability": "reachable",
+        "support_class": "experimental",
+        "certification_note": "Docker engine on the experimental channel; usable with disclosure.",
+        "diagnostics_actions": ["diag:engine_ping", "diag:build_log_tail"]
+      },
+      "workspace_mode": "devcontainer",
+      "boundary_label": "remote",
+      "target_ref": "target:devcontainer:incident_experimental_env",
+      "rebuild_review": {
+        "definition_source": "dockerfile",
+        "definition_source_ref": "def:dockerfile:incident_experimental_env",
+        "rebuild_decision": "rebuild",
+        "lifecycle_hooks": [
+          { "kind": "update_content", "command_ref": "hook:update_content:sync_fixtures", "trust_gated": false }
+        ],
+        "extension_installs": [],
+        "published_ports": [
+          { "container_port": 4317, "host_port": 4317, "visibility": "local_only" }
+        ],
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:experimental_workspace", "writable": false }
+        ],
+        "affected_services": ["service:incident_otel"],
+        "affected_images": ["image:incident_experimental"],
+        "stay_local_alternative": "Reproduce the incident on the local runtime without the experimental container."
+      },
+      "log_truth": {
+        "availability": "buffered",
+        "export_time_range_ref": "logrange:incident_workflow:experimental_rebuild",
+        "redaction_posture": "metadata_safe_default",
+        "truth_note": "Buffered logs cover the experimental rebuild window and are export-safe."
+      },
+      "initiating_findings": ["doctor.finding.incident_workflow.experimental_rebuild_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:experimental_rebuild",
+        "escalation_packet_ref": "escalation:incident_workflow:experimental_rebuild",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.experimental_rebuild_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:target:devcontainer_incident_experimental_env", "scope:port:4317", "scope:mount:experimental_workspace"],
+        "durable_evidence_refs": ["evidence:incident_workflow:experimental_plan"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": [
+        "scenario_id",
+        "surface",
+        "engine_class",
+        "workspace_mode",
+        "preflight_decision"
+      ],
+      "explanation": "the rebuild publishes a local-only telemetry port on an experimental engine, so the preflight discloses the published port and rebuild before proceeding",
+      "published_preflight_decision": "proceed_with_disclosure",
+      "published_preflight_reason": "side_effects_require_review",
+      "notes": "Experimental support class is not unsupported, so the gate falls through to the published-port side effect."
+    }
+  ],
+  "summary": {
+    "scenario_count": 8,
+    "surfaces_covered": 2,
+    "proceed_full_count": 2,
+    "proceed_with_disclosure_count": 4,
+    "blocked_count": 2,
+    "rebuild_count": 5,
+    "trust_gated_hook_count": 1,
+    "engine_unavailable_count": 2,
+    "log_unavailable_count": 2
+  }
+}
