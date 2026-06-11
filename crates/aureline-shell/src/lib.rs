@@ -108,6 +108,7 @@ pub mod m5_appearance_parity;
 pub mod m5_command_registry;
 pub mod m5_component_registry;
 pub mod m5_depth_imports;
+pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
 pub mod m5_notification_routes;
 pub mod macros;

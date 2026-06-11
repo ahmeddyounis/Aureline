@@ -1,0 +1,73 @@
+# M5 embedded-boundary owner/origin, auth, and handoff qualification gate.
+#
+# Validates the checked-in M5 embedded-boundary audit: every M5 depth embedded or
+# provider-owned surface (embedded docs, request/runtime viewers, preview-route
+# panes, marketplace/account surfaces, help-center panes, provider/review panes,
+# companion/browser handoffs, provider-console handoffs) qualifies the eight
+# boundary guarantees Aureline's stable shell already promises (owner/origin
+# disclosure, freshness disclosure, trust-boundary chrome, system-browser auth
+# default, no embedded high-risk approval, return anchor present, handoff reason
+# preserved, and support/export parity) with captured evidence; no qualified
+# guarantee carries a red result (a hidden owner/origin, a hidden freshness
+# stamp, a surface that pretends to be first-party, an embedded primary auth
+# approval, a hidden high-risk embedded approval, a lost return anchor, a dropped
+# handoff reason, or a divergent support clone); no surface invents a
+# feature-local boundary rule outside the governed model; and a marketed
+# guarantee whose evidence is stale or red narrows instead of shipping as
+# implicitly stable. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and that
+# the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_embedded_boundaries
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_embedded_boundaries.yml"
+      - "tools/ci/m5/embedded_boundaries_check.py"
+      - "schemas/help/m5-destination-descriptor-diff.schema.json"
+      - "docs/m5/embedded-boundaries-and-auth.md"
+      - "artifacts/ux/m5/embedded-boundary-audits/**"
+      - "fixtures/ux/m5/webview-auth-handoff/**"
+      - "crates/aureline-shell/src/m5_embedded_boundaries/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_embedded_boundaries.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_embedded_boundaries_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-embedded-boundaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_embedded_boundaries:
+    name: M5 embedded boundaries
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 embedded-boundaries CI gate
+        run: |
+          python3 tools/ci/m5/embedded_boundaries_check.py --repo-root .
+
+      - name: Run M5 embedded-boundaries contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_embedded_boundaries_fixtures

@@ -1,0 +1,517 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/help/m5-destination-descriptor-diff.schema.json",
+  "title": "Aureline M5 embedded-boundary owner/origin, auth, and handoff qualification audit",
+  "description": "Boundary schema for the M5 embedded-boundary qualification audit emitted by the aureline-shell m5_embedded_boundaries module. The audit compares the canonical destination/surface descriptor for every registered M5 depth embedded or provider-owned surface (embedded docs, request/runtime viewers, preview-route panes, marketplace/account surfaces, help-center panes, provider/review panes, companion/browser handoffs, provider-console handoffs) against the qualification result the surface certifies for each of the eight embedded-boundary guarantees the M5 lanes must pass: owner_origin_disclosure, freshness_disclosure, trust_boundary_chrome, system_browser_auth_default, no_embedded_high_risk_approval, return_anchor_present, handoff_reason_preserved, and support_export_parity. Acceptance: the audit MUST cover the eight required guarantees for every registered surface, MUST carry a canonical return anchor, a support note, a declared boundary class, at least one declared handoff target, and a governed-boundary registration flag, MUST require captured evidence (a destination-descriptor ref, a declared boundary class, an owner/origin disclosure, and an evidence-freshness stamp for every qualified guarantee; a freshness disclosure for the freshness guarantee; a trust-chrome outcome for the trust guarantee; an auth-channel outcome for the system-browser guarantee; a high-risk-handling outcome for the no-embedded-approval guarantee; a return-anchor outcome for the return guarantee; a handoff-reason outcome for the handoff guarantee; a support-parity outcome for the support guarantee), MUST flag any red result (a hidden owner/origin, a hidden freshness stamp, a surface that pretends to be first-party, an embedded primary auth approval, a hidden high-risk embedded approval, a lost return anchor, a dropped handoff reason, or a divergent support clone) as a blocker, MUST reject a feature-local boundary rule outside the governed model and a marketed guarantee claimed with no evidence, MUST treat stale evidence on a marketed guarantee as a blocker so release tooling can narrow the row, and MUST be usable by support exports and docs/help without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/webview-auth-handoff/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/embedded_boundaries_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_embedded_boundary_report_record" },
+    { "$ref": "#/$defs/m5_embedded_boundary_support_export_record" }
+  ],
+  "$defs": {
+    "m5_embedded_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 embedded-boundary contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_embedded_boundaries:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "embedded_surface": {
+      "type": "string",
+      "enum": [
+        "embedded_docs",
+        "request_runtime_viewer",
+        "preview_route_pane",
+        "marketplace_account",
+        "help_center_pane",
+        "provider_review_pane",
+        "companion_browser_handoff",
+        "provider_console_handoff"
+      ]
+    },
+    "boundary_guarantee": {
+      "type": "string",
+      "enum": [
+        "owner_origin_disclosure",
+        "freshness_disclosure",
+        "trust_boundary_chrome",
+        "system_browser_auth_default",
+        "no_embedded_high_risk_approval",
+        "return_anchor_present",
+        "handoff_reason_preserved",
+        "support_export_parity"
+      ],
+      "description": "One of the eight required embedded-boundary guarantees the audit covers."
+    },
+    "boundary_aspect": {
+      "type": "string",
+      "enum": ["attribution", "auth", "handoff", "export"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_surface",
+        "missing_evidence"
+      ],
+      "description": "Status a surface reports for one boundary guarantee. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_surface` and `missing_evidence` are blockers."
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "first_party_local",
+        "embedded_webview",
+        "provider_owned",
+        "external_handoff"
+      ]
+    },
+    "owner_origin_disclosure": {
+      "type": "string",
+      "enum": ["owner_origin_disclosed", "owner_origin_hidden"]
+    },
+    "freshness_disclosure": {
+      "type": "string",
+      "enum": ["freshness_shown", "freshness_hidden"]
+    },
+    "trust_chrome": {
+      "type": "string",
+      "enum": ["bounded_attributed", "pretends_first_party"]
+    },
+    "auth_channel": {
+      "type": "string",
+      "enum": ["system_browser_default", "embedded_primary_approval"]
+    },
+    "high_risk_handling": {
+      "type": "string",
+      "enum": ["blocked_or_routed", "embedded_approval_hidden"]
+    },
+    "return_anchor_outcome": {
+      "type": "string",
+      "enum": ["exact_return_resolved", "return_lost", "not_applicable"]
+    },
+    "handoff_reason_outcome": {
+      "type": "string",
+      "enum": ["reason_preserved", "reason_dropped"]
+    },
+    "support_parity": {
+      "type": "string",
+      "enum": ["same_descriptor_reused", "divergent_clone"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "boundary_chrome": {
+      "type": "string",
+      "enum": [
+        "owner_badge",
+        "origin_label",
+        "freshness_stamp",
+        "trust_boundary_frame",
+        "return_anchor_control",
+        "handoff_reason_banner"
+      ]
+    },
+    "handoff_target": {
+      "type": "string",
+      "enum": [
+        "in_product_return",
+        "system_browser",
+        "vendor_portal",
+        "provider_console"
+      ]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "embedded_surface_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "embedded_surface",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "return_anchor_ref",
+        "support_note",
+        "boundary_class",
+        "lifecycle_label",
+        "boundary_chrome",
+        "handoff_targets",
+        "marketed_on_desktop",
+        "routed_through_governed_boundary"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "embedded_surface": { "$ref": "#/$defs/embedded_surface" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_class": { "$ref": "#/$defs/boundary_class" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "boundary_chrome": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_chrome" }
+        },
+        "handoff_targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_target" }
+        },
+        "marketed_on_desktop": { "type": "boolean" },
+        "routed_through_governed_boundary": { "type": "boolean" }
+      }
+    },
+    "boundary_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "aspect",
+        "qualification_status",
+        "marketed_on_guarantee",
+        "projected_descriptor_ref",
+        "projected_boundary_class",
+        "projected_owner_origin",
+        "projected_freshness",
+        "projected_trust_chrome",
+        "projected_auth_channel",
+        "projected_high_risk_handling",
+        "projected_return_anchor",
+        "projected_handoff_reason",
+        "projected_support_parity",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/boundary_guarantee" },
+        "aspect": { "$ref": "#/$defs/boundary_aspect" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_guarantee": { "type": "boolean" },
+        "projected_descriptor_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_boundary_class": {
+          "oneOf": [{ "$ref": "#/$defs/boundary_class" }, { "type": "null" }]
+        },
+        "projected_owner_origin": {
+          "oneOf": [{ "$ref": "#/$defs/owner_origin_disclosure" }, { "type": "null" }]
+        },
+        "projected_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/freshness_disclosure" }, { "type": "null" }]
+        },
+        "projected_trust_chrome": {
+          "oneOf": [{ "$ref": "#/$defs/trust_chrome" }, { "type": "null" }]
+        },
+        "projected_auth_channel": {
+          "oneOf": [{ "$ref": "#/$defs/auth_channel" }, { "type": "null" }]
+        },
+        "projected_high_risk_handling": {
+          "oneOf": [{ "$ref": "#/$defs/high_risk_handling" }, { "type": "null" }]
+        },
+        "projected_return_anchor": {
+          "oneOf": [{ "$ref": "#/$defs/return_anchor_outcome" }, { "type": "null" }]
+        },
+        "projected_handoff_reason": {
+          "oneOf": [{ "$ref": "#/$defs/handoff_reason_outcome" }, { "type": "null" }]
+        },
+        "projected_support_parity": {
+          "oneOf": [{ "$ref": "#/$defs/support_parity" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_surface",
+            "missing_evidence",
+            "missing_descriptor_ref",
+            "owner_origin_hidden",
+            "freshness_hidden",
+            "pretends_first_party",
+            "embedded_primary_auth",
+            "embedded_high_risk_approval",
+            "return_anchor_lost",
+            "handoff_reason_dropped",
+            "support_parity_divergent",
+            "stale_evidence_on_marketed_row",
+            "aspect_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_return_anchor",
+            "missing_support_note",
+            "surface_not_on_governed_boundary",
+            "missing_boundary_chrome",
+            "no_declared_handoff_target"
+          ]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/boundary_guarantee" }
+      }
+    },
+    "guarantee_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_surface_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/boundary_guarantee" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_surface_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_surface",
+        "missing_evidence",
+        "missing_descriptor_ref",
+        "owner_origin_hidden",
+        "freshness_hidden",
+        "pretends_first_party",
+        "embedded_primary_auth",
+        "embedded_high_risk_approval",
+        "return_anchor_lost",
+        "handoff_reason_dropped",
+        "support_parity_divergent",
+        "stale_evidence_on_marketed_row",
+        "aspect_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_return_anchor",
+        "missing_support_note",
+        "surface_not_on_governed_boundary",
+        "missing_boundary_chrome",
+        "no_declared_handoff_target"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_surface": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_descriptor_ref": { "type": "integer", "minimum": 0 },
+        "owner_origin_hidden": { "type": "integer", "minimum": 0 },
+        "freshness_hidden": { "type": "integer", "minimum": 0 },
+        "pretends_first_party": { "type": "integer", "minimum": 0 },
+        "embedded_primary_auth": { "type": "integer", "minimum": 0 },
+        "embedded_high_risk_approval": { "type": "integer", "minimum": 0 },
+        "return_anchor_lost": { "type": "integer", "minimum": 0 },
+        "handoff_reason_dropped": { "type": "integer", "minimum": 0 },
+        "support_parity_divergent": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "aspect_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_return_anchor": { "type": "integer", "minimum": 0 },
+        "missing_support_note": { "type": "integer", "minimum": 0 },
+        "surface_not_on_governed_boundary": { "type": "integer", "minimum": 0 },
+        "missing_boundary_chrome": { "type": "integer", "minimum": 0 },
+        "no_declared_handoff_target": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "return_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["embedded_surface", "surface_id", "return_anchor_ref"],
+      "properties": {
+        "embedded_surface": { "$ref": "#/$defs/embedded_surface" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "guarantee", "reason"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/boundary_guarantee" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "embedded_boundary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_stakes",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_embedded_boundary_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_embedded_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/embedded_surface_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/boundary_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_stakes": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_embedded_boundary_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_guarantees",
+        "rows",
+        "guarantee_coverage",
+        "findings_summary",
+        "return_anchor_index",
+        "registered_surface_count",
+        "high_stakes_surface_count",
+        "marketed_surface_count",
+        "boundary_guarantees_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_embedded_boundary_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_embedded_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_guarantees": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/boundary_guarantee" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/embedded_boundary_row" }
+        },
+        "guarantee_coverage": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/guarantee_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "return_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/return_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_stakes_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "boundary_guarantees_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_embedded_boundary_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_embedded_boundary_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_embedded_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_embedded_boundary_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
