@@ -111,6 +111,24 @@
 //! first-party or bridge-backed family therefore can never publish a support claim
 //! without a current, owned, evidence-linked scorecard, and marketplace badges, docs
 //! badges, release evidence, and support exports consume the same vocabulary.
+//!
+//! The [`m5_ecosystem_certification`] module is the qualification layer that rolls every
+//! ecosystem drill into one decision per marketed M5 ecosystem row. Each entry aggregates
+//! the per-lane evidence the drills produce — marketplace information, install review,
+//! lifecycle state, compatibility label, permission manifest, activation budget,
+//! mirror/private-registry parity, and rollback/quarantine — alongside the family's linked
+//! conformance scorecard, owner, evidence freshness, and supported profiles, and decides
+//! whether that row may publish a marketed claim. The published qualification signals,
+//! disposition, effective support class, and the exact downgrade path are recomputed from
+//! those facts, so a conditional lane narrows to conditionally qualified; a narrowed or
+//! stale lane, stale evidence, or missing supported profiles narrow to downgraded; and a
+//! missing or failed lane, a missing owner, or an uncertified conformance scorecard each
+//! force a disqualified disposition whose effective support class collapses to
+//! unsupported. A mirrored-registry, private-registry, bridge-backed, or side-loaded
+//! source class structurally caps the effective support class even when the row is
+//! otherwise qualified, so a non-public, non-first-party row can never inherit a broader
+//! public-registry or first-party claim, and release evidence, marketplace badges,
+//! docs/help, and support exports all narrow from the same certification packet.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -121,6 +139,7 @@ use serde::{Deserialize, Serialize};
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 pub mod m5_activation_budget;
 pub mod m5_conformance_and_validators;
+pub mod m5_ecosystem_certification;
 pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;

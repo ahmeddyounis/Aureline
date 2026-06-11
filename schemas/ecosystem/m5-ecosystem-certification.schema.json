@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/m5-ecosystem-certification.schema.json",
+  "title": "Aureline M5 ecosystem certification, qualification automation, and downgrade paths",
+  "description": "Schema for the m5_ecosystem_certification packet. The packet is the qualification layer that rolls every M5 ecosystem drill into one decision per marketed ecosystem row. Each entry aggregates the per-lane drill evidence — marketplace information, install review, lifecycle state, compatibility label, permission manifest, activation budget, mirror/private-registry parity, and rollback/quarantine — alongside the family's linked conformance scorecard, owner, evidence freshness, and supported deployment and runtime profiles, and decides whether that row may publish a marketed claim. An entry's qualification signals, qualification disposition, effective support class, and downgrade path are recomputed from its facts: a conditional lane narrows to conditionally_qualified; a narrowed or stale lane, stale evidence, or missing supported profiles narrow to downgraded; and a missing or failed lane, a missing owner, or an uncertified conformance scorecard each force a disqualified disposition whose effective support class collapses to unsupported. A mirrored-registry, private-registry, bridge-backed, or side-loaded source class structurally caps the effective support class even when the row is otherwise qualified, so a non-public, non-first-party row can never inherit a broader public-registry or first-party claim. Release evidence, marketplace badges, docs/help, and support exports consume the same certification index and downgrade report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "package_kinds",
+    "runtime_origins",
+    "support_classes",
+    "evidence_freshness_classes",
+    "source_classes",
+    "certification_lanes",
+    "lane_evidence_states",
+    "qualification_signals",
+    "qualification_dispositions",
+    "entries",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_ecosystem_certification" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "package_kinds": { "type": "array", "items": { "$ref": "#/$defs/package_kind" } },
+    "runtime_origins": { "type": "array", "items": { "$ref": "#/$defs/runtime_origin" } },
+    "support_classes": { "type": "array", "items": { "$ref": "#/$defs/support_class" } },
+    "evidence_freshness_classes": { "type": "array", "items": { "$ref": "#/$defs/evidence_freshness" } },
+    "source_classes": { "type": "array", "items": { "$ref": "#/$defs/source_class" } },
+    "certification_lanes": { "type": "array", "items": { "$ref": "#/$defs/certification_lane" } },
+    "lane_evidence_states": { "type": "array", "items": { "$ref": "#/$defs/lane_evidence_state" } },
+    "qualification_signals": { "type": "array", "items": { "$ref": "#/$defs/qualification_signal" } },
+    "qualification_dispositions": { "type": "array", "items": { "$ref": "#/$defs/qualification_disposition" } },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "package_kind": {
+      "enum": [
+        "first_party_framework_pack",
+        "docs_pack",
+        "local_model_pack",
+        "signed_recipe_pack",
+        "template_artifact",
+        "bridge_backed_package",
+        "side_loaded_package",
+        "mirrored_registry_variant"
+      ]
+    },
+    "runtime_origin": {
+      "enum": [
+        "first_party_signed",
+        "partner_signed",
+        "community_signed",
+        "bridge_runtime",
+        "local_model_runtime",
+        "unsigned_side_loaded"
+      ]
+    },
+    "support_class": {
+      "enum": [
+        "fully_supported",
+        "best_effort_supported",
+        "community_supported",
+        "unsupported"
+      ]
+    },
+    "evidence_freshness": { "enum": ["current", "stale", "expired", "unknown"] },
+    "source_class": {
+      "enum": [
+        "first_party",
+        "partner",
+        "community",
+        "bridge_backed",
+        "side_loaded",
+        "mirrored_registry",
+        "private_registry"
+      ]
+    },
+    "certification_lane": {
+      "enum": [
+        "marketplace_information",
+        "install_review",
+        "lifecycle_state",
+        "compatibility_label",
+        "permission_manifest",
+        "activation_budget",
+        "mirror_private_registry",
+        "rollback_quarantine"
+      ]
+    },
+    "lane_evidence_state": {
+      "enum": ["current", "conditional", "narrowed", "stale", "missing", "failed"]
+    },
+    "qualification_signal": {
+      "enum": [
+        "source_class_capped",
+        "lane_conditional",
+        "lane_narrowed",
+        "lane_stale",
+        "evidence_not_current",
+        "supported_profiles_missing",
+        "owner_missing",
+        "lane_missing",
+        "lane_failed",
+        "conformance_not_certified"
+      ]
+    },
+    "qualification_disposition": {
+      "enum": ["qualified", "conditionally_qualified", "downgraded", "disqualified"]
+    },
+    "lane_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane", "state", "evidence_ref", "summary"],
+      "properties": {
+        "lane": { "$ref": "#/$defs/certification_lane" },
+        "state": { "$ref": "#/$defs/lane_evidence_state" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "from_support_class", "to_support_class", "signals", "requalification_ref"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "from_support_class": { "$ref": "#/$defs/support_class" },
+        "to_support_class": { "$ref": "#/$defs/support_class" },
+        "signals": { "type": "array", "items": { "$ref": "#/$defs/qualification_signal" } },
+        "requalification_ref": { "type": "string" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "display_label",
+        "governance_family_ref",
+        "conformance_scorecard_ref",
+        "package_kind",
+        "source_class",
+        "runtime_origin",
+        "claimed_support_class",
+        "effective_support_class",
+        "evidence_freshness",
+        "conformance_certified",
+        "lane_evidence",
+        "qualification_disposition",
+        "downgrade_path",
+        "release_evidence_ref",
+        "support_export_ref",
+        "summary"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "governance_family_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_scorecard_ref": { "$ref": "#/$defs/non_empty_string" },
+        "package_kind": { "$ref": "#/$defs/package_kind" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "runtime_origin": { "$ref": "#/$defs/runtime_origin" },
+        "claimed_support_class": { "$ref": "#/$defs/support_class" },
+        "effective_support_class": { "$ref": "#/$defs/support_class" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "conformance_certified": { "type": "boolean" },
+        "owner_ref": { "type": "string" },
+        "supported_deployment_profile_refs": { "type": "array", "items": { "type": "string" } },
+        "supported_runtime_profile_refs": { "type": "array", "items": { "type": "string" } },
+        "lane_evidence": { "type": "array", "items": { "$ref": "#/$defs/lane_evidence" } },
+        "caveats": { "type": "array", "items": { "type": "string" } },
+        "qualification_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/qualification_signal" }
+        },
+        "qualification_disposition": { "$ref": "#/$defs/qualification_disposition" },
+        "downgrade_path": { "$ref": "#/$defs/downgrade_path" },
+        "requalification_ref": { "type": "string" },
+        "release_evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_entries",
+        "qualified_entries",
+        "conditionally_qualified_entries",
+        "downgraded_entries",
+        "disqualified_entries",
+        "entries_with_downgrade_applied",
+        "fully_supported_entries",
+        "unsupported_entries",
+        "distinct_package_kinds",
+        "distinct_source_classes",
+        "total_caveats",
+        "total_lane_evidence"
+      ],
+      "properties": {
+        "total_entries": { "type": "integer", "minimum": 0 },
+        "qualified_entries": { "type": "integer", "minimum": 0 },
+        "conditionally_qualified_entries": { "type": "integer", "minimum": 0 },
+        "downgraded_entries": { "type": "integer", "minimum": 0 },
+        "disqualified_entries": { "type": "integer", "minimum": 0 },
+        "entries_with_downgrade_applied": { "type": "integer", "minimum": 0 },
+        "fully_supported_entries": { "type": "integer", "minimum": 0 },
+        "unsupported_entries": { "type": "integer", "minimum": 0 },
+        "distinct_package_kinds": { "type": "integer", "minimum": 0 },
+        "distinct_source_classes": { "type": "integer", "minimum": 0 },
+        "total_caveats": { "type": "integer", "minimum": 0 },
+        "total_lane_evidence": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
