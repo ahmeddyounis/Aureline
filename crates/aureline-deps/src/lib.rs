@@ -28,10 +28,18 @@
 //! owner/runtime context, duplicate/conflict disclosure, and mirror/offline
 //! freshness, and projects the same vocabulary to CLI/headless and
 //! support-export consumers.
+//!
+//! The module [`grouped_update_and_rollback_review`] owns the pre-apply review
+//! of grouped dependency updates. It distinguishes the six grouped-update
+//! intents, renders constraint/conflict cards, lockfile-churn estimates,
+//! native-build/install-script disclosure, registry/auth source, and validation
+//! packs before any mutation leaves review, and links each plan to a durable
+//! rollback checkpoint receipt with revert/open-diff/export-patch recovery.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
 pub mod dependency_security_compliance_export_truth;
+pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
 pub mod package_set_inventory_and_scope_truth;
 
@@ -76,4 +84,20 @@ pub use package_set_inventory_and_scope_truth::{
     PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_JSON, PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_PATH,
     PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_RECORD_KIND,
     PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_SCHEMA_VERSION,
+};
+// `EcosystemClass`, `CredentialMode`, `RegistrySourceClass`, and
+// `ScriptNativeBuildRiskClass` are intentionally not re-exported here: they
+// collide with same-named types above. Reach them via
+// `grouped_update_and_rollback_review::{EcosystemClass, ..}`.
+pub use grouped_update_and_rollback_review::{
+    current_grouped_update_and_rollback_review, CheckpointState, ConflictCard, ConflictClass,
+    GroupedUpdateAndRollbackReview, GroupedUpdateAndRollbackReviewExportProjection,
+    GroupedUpdateAndRollbackReviewExportRow, GroupedUpdateAndRollbackReviewSummary,
+    GroupedUpdateAndRollbackReviewViolation, GroupedUpdateSurfaceContract, LockfileChurnClass,
+    PackageVersionChange, RecoveryAction, RecoveryActionKind, RegistrySource, ReviewDisposition,
+    RollbackCheckpointReceipt, ScriptNativeBuildDisclosure, SurfaceParity, UpdatePlan,
+    UpdatePlanClass, ValidationOutcomeClass, ValidationPackRecommendation,
+    GROUPED_UPDATE_AND_ROLLBACK_REVIEW_JSON, GROUPED_UPDATE_AND_ROLLBACK_REVIEW_PATH,
+    GROUPED_UPDATE_AND_ROLLBACK_REVIEW_RECORD_KIND,
+    GROUPED_UPDATE_AND_ROLLBACK_REVIEW_SCHEMA_VERSION,
 };
