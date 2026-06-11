@@ -1,0 +1,63 @@
+# Framework Generators and Codemods with Preview, Diff, Rollback, and Execution-Context Reuse
+
+- Packet: `generator-run:stable:0001`
+- Label: `Framework Generators and Codemods with Preview, Diff, Rollback, and Execution-Context Reuse`
+- Rows: 6 (2 admitted for display)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-08T00:00:00Z)
+
+## Rows
+
+- **Resource scaffold** `generator:framework_pack/rust.axum/resource` (scaffold_generator) v1.8.0: exactly_modeled
+  - Target: Generates a new resource module, route registration, and test stub under the managed zone
+  - Preview: Every emitted and edited file is previewed before apply (preview_available)
+  - Diff: The full change diff was reviewed and approved before apply (diff_reviewed) [+3 files · +88 / −0]
+  - Rollback: A rollback handle was captured; the run can be fully undone (rollback_available)
+  - Context reuse: A warm framework-pack execution context was reused for the run (context_reused)
+  - Freshness chip: ran · fresh (fresh)
+  - Banner: no_banner
+  - Offered: true
+- **Add model field** `generator:framework_pack/rust.axum/add_field` (codemod) v1.8.0: exactly_modeled
+  - Target: Rewrites the model struct and migration to add one field across two files
+  - Preview: Both edited files are previewed before apply (preview_available)
+  - Diff: The change diff was reviewed and approved before apply (diff_reviewed) [2 files · +14 / −2]
+  - Rollback: A rollback handle was captured for both edited files (rollback_available)
+  - Context reuse: A fresh execution context was created; no warm context was reused (context_fresh)
+  - Freshness chip: ran · fresh (fresh)
+  - Banner: no_banner
+  - Offered: true
+- **Framework migration (heuristic)** `generator:framework_pack/rust.axum/migrate` (migration_codemod) v1.7.0: heuristic_mapping
+  - Target: Migrates router and middleware usage to the new framework version; some rewrites are inferred
+  - Preview: Most edits are previewed, but a few inferred rewrites could not be fully previewed (preview_partial)
+  - Diff: The change diff is computed and awaiting review before apply (diff_pending) [7 files · +120 / −86]
+  - Rollback: Only a partial rollback is possible; some manual edits would not be restored (rollback_partial)
+  - Context reuse: Reuse was requested but the warm context was unavailable; the run fell back to a fresh context (context_reuse_unavailable)
+  - Freshness chip: ran · aging (aging)
+  - Banner: support_class_banner
+  - Offered: false
+- **Extract service** `generator:framework_pack/rust.axum/extract_service` (refactor_generator) v1.8.0: support_unknown
+  - Target: Extracts a service module from a handler, but no rollback handle could be captured for the move
+  - Preview: The change was previewed, but it cannot be safely offered without a rollback handle (preview_available)
+  - Diff: The change diff was computed, but the run is blocked from confident apply (diff_reviewed) [4 files · +60 / −40]
+  - Rollback: No rollback handle could be captured; the run is blocked rather than offered (rollback_unavailable)
+  - Context reuse: A fresh execution context was created for the run (context_fresh)
+  - Freshness chip: ran · fresh (fresh)
+  - Banner: rollback_unavailable_banner
+  - Offered: false
+- **Config scaffold** `generator:framework_pack/rust.axum/config` (config_generator) v1.8.0: support_unknown
+  - Target: Generates framework configuration, but the preview could not be produced for the target environment
+  - Preview: No preview could be produced; the run is blocked rather than applied blind (preview_unavailable)
+  - Diff: No change diff could be produced without a preview (diff_unavailable) [diff unavailable]
+  - Rollback: A rollback handle would be captured, but the run is blocked before apply (rollback_available)
+  - Context reuse: The execution-context-reuse state could not be determined for the blocked run (context_reuse_unknown)
+  - Freshness chip: ran · fresh (fresh)
+  - Banner: preview_unavailable_banner
+  - Offered: false
+- **Lint fix codemod (bridged)** `generator:framework_pack/rust.axum/lint_bridge` (codemod) v0.4.0: bridge_behavior
+  - Target: Applies fixes bridged from an external codemod tool; the run was rolled back after review
+  - Preview: The bridged change was previewed before apply (preview_available)
+  - Diff: The change diff was reviewed, then the run was rolled back (diff_reviewed) [5 files · +18 / −22]
+  - Rollback: The run was rolled back from its captured handle; the working tree was restored (rolled_back)
+  - Context reuse: A fresh execution context was created for the bridged run (context_fresh)
+  - Freshness chip: ran · rescan available (rescan_available)
+  - Banner: support_class_banner
+  - Offered: false

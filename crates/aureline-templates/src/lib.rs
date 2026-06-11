@@ -38,9 +38,19 @@
 //! panel, diff-review, run, diagnostics, and support surfaces never present a
 //! heuristic, bridged, or ungrounded convention as exact first-party truth, and a
 //! suppressed or blocked diagnostic is labeled rather than silently hidden.
+//!
+//! It also owns the framework generator and codemod run packet, which binds each
+//! generator or codemod run to its pinned generator version, whether a preview was
+//! produced, whether the change diff was reviewed, whether the run can be rolled
+//! back, whether a warm execution context was reused, its run-record freshness, its
+//! support class, and its downgrade banner, so the generator gallery, preview pane,
+//! diff-review, run, rollback/recovery, diagnostics, and support surfaces never let
+//! starter convenience outrun provenance, preview, or rollback, and never present
+//! heuristic or bridge behavior as exact first-party truth.
 
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
+pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
 pub mod ship_route_explorers_component_trees_and_app_topology_views_with_authored_generated_runtime_only_truth;
