@@ -1,0 +1,75 @@
+# M5 certification-train register gate.
+#
+# Validates the checked-in M5 certification-train register: every surface kind
+# (feature-family certification, qualification packet, compatibility report,
+# evidence index) binds a stable claim, a readiness scorecard with one cell per
+# dimension (scorecard completeness, qualification currency, compatibility
+# currency, Help/About truth, proof freshness, locale parity), the disclosed
+# support posture and trust tier, an owner-manifest sign-off, and an explicit
+# downgrade-automation record bound to a verified frozen-fallback rollback plan; a
+# surface whose readiness dimension failed or is missing, whose redaction posture
+# is not disclosed, whose packet is stale or missing, whose owner manifest is
+# unsigned, whose frozen-fallback rollback plan is unverified, whose downgrade
+# automation is undefined, or whose waiver expired must drop below the stable
+# cutline; the promotion verdict and summary agree with the firing stop rules. The
+# gate runs the checked-in fixture cases proving those rejections fire. The typed
+# Rust consumer reads the same register, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_m5_cert_train_register
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_cert_train_register.yml"
+      - "artifacts/release/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.json"
+      - "artifacts/release/captures/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index_validation_capture.json"
+      - "schemas/governance/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.schema.json"
+      - "docs/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.md"
+      - "fixtures/release/m5/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index/**"
+      - "crates/aureline-release/src/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-cert-train-register-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_cert_train_register:
+    name: M5 Certification-Train Register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 certification-train register contract tests
+        run: |
+          cargo test -p aureline-release --test certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-cert-train-register-${{ github.run_id }}
+          path: artifacts/release/captures/certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

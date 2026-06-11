@@ -287,6 +287,7 @@
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod browser_mobile_companion_surface_qualification;
+pub mod certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index;
 pub mod claim_publication_manifest;
 pub mod correction_train;
 pub mod finalize_benchmark_lab_automation_corpus_governance_and_public_benchmark_publication_pack;
@@ -474,6 +475,21 @@ pub use publish_docs_migration_and_known_limits_packs_for_m5_feature_families::{
     SurfaceKind as FamilyPackSurfaceKind, SurfaceState as FamilyPackSurfaceState,
     TrustTier as FamilyPackTrustTier, PUBLICATION_PACK_JSON, PUBLICATION_PACK_PATH,
     PUBLICATION_PACK_RECORD_KIND, PUBLICATION_PACK_SCHEMA_VERSION,
+};
+
+pub use certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index::{
+    current_m5_cert_train_register, AutomationState as CertTrainAutomationState,
+    AutomationTrigger as CertTrainAutomationTrigger, DimensionGrade as CertTrainDimensionGrade,
+    DowngradeAutomation as CertTrainDowngradeAutomation,
+    M5CertTrainExportProjection as CertTrainExportProjection,
+    M5CertTrainExportRow as CertTrainExportRow, M5CertTrainRegister as CertTrainRegister,
+    M5CertTrainStopRule as CertTrainStopRule, M5CertTrainSummary as CertTrainSummary,
+    M5CertTrainSurface as CertTrainSurface, M5CertTrainViolation as CertTrainViolation,
+    NarrowingReason as CertTrainNarrowingReason, ReadinessCell as CertTrainReadinessCell,
+    ReadinessDimension as CertTrainReadinessDimension, StopAction as CertTrainStopAction,
+    SupportDisclosure as CertTrainSupportDisclosure, SurfaceKind as CertTrainSurfaceKind,
+    SurfaceState as CertTrainSurfaceState, TrustTier as CertTrainTrustTier, M5_CERT_TRAIN_JSON,
+    M5_CERT_TRAIN_PATH, M5_CERT_TRAIN_RECORD_KIND, M5_CERT_TRAIN_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{
