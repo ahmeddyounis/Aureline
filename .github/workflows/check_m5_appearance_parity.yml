@@ -1,0 +1,70 @@
+# M5 appearance-and-density qualification gate.
+#
+# Validates the checked-in M5 appearance-parity audit: every M5 depth surface
+# (notebook cell chrome, result-grid rows, profiler and trace panels, pipeline
+# cards, preview-route badges, docs/browser panes, companion surfaces, sync
+# status, offboarding) qualifies the eight appearance rows Aureline already
+# claims (dark/light/high-contrast theme, compact/standard/comfortable density,
+# reduced motion, and live appearance change) with captured evidence; no
+# qualified row carries a red result (contrast below threshold, focus not
+# visible, lost state semantics, a failed keyboard or screen-reader check, a
+# lost reopen target, a hidden boundary cue, an un-downgraded motion treatment,
+# or a corrupted live change); no surface paints its own appearance outside the
+# shared appearance-session model; and a marketed row whose evidence is stale or
+# red narrows instead of shipping as implicitly stable. The typed Rust consumer
+# mints the same audit, so `cargo test -p aureline-shell` enforces the same
+# structural invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_appearance_parity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_appearance_parity.yml"
+      - "tools/ci/m5/appearance_parity_check.py"
+      - "schemas/ux/m5-appearance-qualification.schema.json"
+      - "docs/m5/appearance-and-density-parity.md"
+      - "artifacts/ux/m5/appearance-parity/**"
+      - "fixtures/ux/m5/dark-light-hc-density-reduced-motion/**"
+      - "crates/aureline-shell/src/m5_appearance_parity/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_appearance_parity.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_appearance_parity_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-appearance-parity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_appearance_parity:
+    name: M5 appearance parity
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 appearance-parity CI gate
+        run: |
+          python3 tools/ci/m5/appearance_parity_check.py --repo-root .
+
+      - name: Run M5 appearance-parity contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_appearance_parity_fixtures

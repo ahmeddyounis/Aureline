@@ -1,0 +1,493 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-appearance-qualification.schema.json",
+  "title": "Aureline M5 appearance and density qualification audit",
+  "description": "Boundary schema for the M5 appearance-and-density qualification audit emitted by the aureline-shell m5_appearance_parity module. The audit compares the canonical appearance descriptor for every registered M5 depth surface (notebook cell chrome, result-grid rows, profiler and trace panels, pipeline cards, preview-route badges, docs/browser panes, companion surfaces, sync status, offboarding) against the qualification result the surface certifies for each of the eight appearance rows the M5 lanes must pass: theme_dark, theme_light, theme_high_contrast, density_compact, density_standard, density_comfortable, reduced_motion, and live_appearance_change. Acceptance: the audit MUST cover the eight required rows for every registered surface, MUST carry a canonical appearance anchor, an accessibility note, and an appearance-session registration flag, MUST require captured evidence (a screenshot pack, focus visibility, preserved state semantics, and keyboard/screen-reader checks for every qualified row; a contrast result for the theme rows; a motion downgrade for reduced_motion; intact layout for live_appearance_change), MUST flag any red result (contrast below threshold, focus not visible, lost state semantics, a failed keyboard or screen-reader check, a lost reopen target, a hidden high-risk boundary cue, an un-downgraded motion treatment, or a corrupted live appearance change) as a blocker, MUST reject ad-hoc local appearance outside the shared appearance-session model and a marketed row claimed with no evidence, MUST treat stale evidence on a marketed row as a blocker so release tooling can narrow the row, and MUST be usable by the cross-surface hardening matrix and release-center packets without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/dark-light-hc-density-reduced-motion/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/appearance_parity_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_appearance_qualification_report_record" },
+    { "$ref": "#/$defs/m5_appearance_qualification_support_export_record" }
+  ],
+  "$defs": {
+    "m5_appearance_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 appearance contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_appearance_parity:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_chrome",
+        "result_grid_row",
+        "profiler_panel",
+        "trace_panel",
+        "pipeline_card",
+        "preview_route_badge",
+        "docs_browser_pane",
+        "companion_surface",
+        "sync_status_surface",
+        "offboarding_surface"
+      ]
+    },
+    "appearance_row": {
+      "type": "string",
+      "enum": [
+        "theme_dark",
+        "theme_light",
+        "theme_high_contrast",
+        "density_compact",
+        "density_standard",
+        "density_comfortable",
+        "reduced_motion",
+        "live_appearance_change"
+      ],
+      "description": "One of the eight required appearance rows the audit covers."
+    },
+    "appearance_dimension": {
+      "type": "string",
+      "enum": ["theme", "density", "motion", "live_change"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_appearance",
+        "missing_evidence"
+      ],
+      "description": "Status a surface reports for one appearance row. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_appearance` and `missing_evidence` are blockers."
+    },
+    "contrast_result": {
+      "type": "string",
+      "enum": ["meets_aa", "meets_aaa", "not_color_dependent", "below_threshold"]
+    },
+    "focus_visibility": {
+      "type": "string",
+      "enum": ["visible_focus_ring", "not_visible"]
+    },
+    "motion_treatment": {
+      "type": "string",
+      "enum": ["animated", "reduced", "static"]
+    },
+    "state_semantics": {
+      "type": "string",
+      "enum": ["preserved", "lost"]
+    },
+    "check_outcome": {
+      "type": "string",
+      "enum": ["pass", "fail", "not_run"]
+    },
+    "reopen_affordance": {
+      "type": "string",
+      "enum": ["exact_target_preserved", "lost", "not_applicable"]
+    },
+    "boundary_cue": {
+      "type": "string",
+      "enum": ["present", "hidden", "not_applicable"]
+    },
+    "layout_integrity": {
+      "type": "string",
+      "enum": ["intact", "corrupted"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "semantic_salience": {
+      "type": "string",
+      "enum": [
+        "decorative_only",
+        "informational",
+        "lifecycle_bearing",
+        "trust_bearing",
+        "severity_bearing"
+      ]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "appearance_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "appearance_anchor_ref",
+        "accessibility_note",
+        "semantic_salience",
+        "lifecycle_label",
+        "marketed_on_desktop_rows",
+        "registered_on_appearance_session"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "appearance_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_note": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_salience": { "$ref": "#/$defs/semantic_salience" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "marketed_on_desktop_rows": { "type": "boolean" },
+        "registered_on_appearance_session": { "type": "boolean" }
+      }
+    },
+    "appearance_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "dimension",
+        "qualification_status",
+        "marketed_on_row",
+        "projected_screenshot_pack_ref",
+        "projected_contrast_result",
+        "projected_focus_visibility",
+        "projected_motion_treatment",
+        "projected_state_semantics",
+        "projected_keyboard_check",
+        "projected_screen_reader_check",
+        "projected_reopen_affordance",
+        "projected_boundary_cue",
+        "projected_layout_integrity",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/appearance_row" },
+        "dimension": { "$ref": "#/$defs/appearance_dimension" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_row": { "type": "boolean" },
+        "projected_screenshot_pack_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_contrast_result": {
+          "oneOf": [{ "$ref": "#/$defs/contrast_result" }, { "type": "null" }]
+        },
+        "projected_focus_visibility": {
+          "oneOf": [{ "$ref": "#/$defs/focus_visibility" }, { "type": "null" }]
+        },
+        "projected_motion_treatment": {
+          "oneOf": [{ "$ref": "#/$defs/motion_treatment" }, { "type": "null" }]
+        },
+        "projected_state_semantics": {
+          "oneOf": [{ "$ref": "#/$defs/state_semantics" }, { "type": "null" }]
+        },
+        "projected_keyboard_check": {
+          "oneOf": [{ "$ref": "#/$defs/check_outcome" }, { "type": "null" }]
+        },
+        "projected_screen_reader_check": {
+          "oneOf": [{ "$ref": "#/$defs/check_outcome" }, { "type": "null" }]
+        },
+        "projected_reopen_affordance": {
+          "oneOf": [{ "$ref": "#/$defs/reopen_affordance" }, { "type": "null" }]
+        },
+        "projected_boundary_cue": {
+          "oneOf": [{ "$ref": "#/$defs/boundary_cue" }, { "type": "null" }]
+        },
+        "projected_layout_integrity": {
+          "oneOf": [{ "$ref": "#/$defs/layout_integrity" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_appearance",
+            "missing_evidence",
+            "missing_screenshot_pack",
+            "contrast_below_threshold",
+            "focus_not_visible",
+            "state_semantics_lost",
+            "reopen_target_lost",
+            "boundary_cue_hidden",
+            "motion_not_downgraded",
+            "keyboard_check_failed",
+            "screen_reader_check_failed",
+            "live_change_layout_corruption",
+            "live_change_focus_loss",
+            "live_change_state_corruption",
+            "stale_evidence_on_marketed_row",
+            "dimension_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_appearance_anchor",
+            "missing_accessibility_note",
+            "surface_not_on_appearance_session"
+          ]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/appearance_row" }
+      }
+    },
+    "row_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_appearance_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/appearance_row" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_appearance_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_appearance",
+        "missing_evidence",
+        "missing_screenshot_pack",
+        "contrast_below_threshold",
+        "focus_not_visible",
+        "state_semantics_lost",
+        "reopen_target_lost",
+        "boundary_cue_hidden",
+        "motion_not_downgraded",
+        "keyboard_check_failed",
+        "screen_reader_check_failed",
+        "live_change_layout_corruption",
+        "live_change_focus_loss",
+        "live_change_state_corruption",
+        "stale_evidence_on_marketed_row",
+        "dimension_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_appearance_anchor",
+        "missing_accessibility_note",
+        "surface_not_on_appearance_session"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_appearance": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_screenshot_pack": { "type": "integer", "minimum": 0 },
+        "contrast_below_threshold": { "type": "integer", "minimum": 0 },
+        "focus_not_visible": { "type": "integer", "minimum": 0 },
+        "state_semantics_lost": { "type": "integer", "minimum": 0 },
+        "reopen_target_lost": { "type": "integer", "minimum": 0 },
+        "boundary_cue_hidden": { "type": "integer", "minimum": 0 },
+        "motion_not_downgraded": { "type": "integer", "minimum": 0 },
+        "keyboard_check_failed": { "type": "integer", "minimum": 0 },
+        "screen_reader_check_failed": { "type": "integer", "minimum": 0 },
+        "live_change_layout_corruption": { "type": "integer", "minimum": 0 },
+        "live_change_focus_loss": { "type": "integer", "minimum": 0 },
+        "live_change_state_corruption": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "dimension_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_appearance_anchor": { "type": "integer", "minimum": 0 },
+        "missing_accessibility_note": { "type": "integer", "minimum": 0 },
+        "surface_not_on_appearance_session": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "appearance_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_family", "surface_id", "appearance_anchor_ref"],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "appearance_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "row", "reason"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/appearance_row" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "appearance_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_salience",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_appearance_qualification_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_appearance_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/appearance_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/appearance_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_salience": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_appearance_qualification_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_rows",
+        "rows",
+        "row_coverage",
+        "findings_summary",
+        "appearance_anchor_index",
+        "registered_surface_count",
+        "high_salience_surface_count",
+        "marketed_surface_count",
+        "appearance_rows_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_appearance_qualification_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_appearance_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_rows": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/appearance_row" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_qualification_row" }
+        },
+        "row_coverage": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/row_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "appearance_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/appearance_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_salience_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "appearance_rows_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_appearance_qualification_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_appearance_qualification_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_appearance_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_appearance_qualification_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
