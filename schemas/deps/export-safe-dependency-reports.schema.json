@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deps/export-safe-dependency-reports.schema.json",
+  "title": "Aureline export-safe dependency reports",
+  "description": "Schema for the export_safe_dependency_reports packet. The packet emits advisory, vulnerability, license, notice, and SBOM report rows labeled with a verified/asserted/mirrored/incomplete claim class tied to source and freshness, keeps mirror/auth/offline connectivity explicit so an empty report never reads as a clean 'no findings' claim, and declares documented, open, redaction-safe export formats so SBOM/license/advisory exports stay attributable and machine-readable without leaking private registry URLs or secrets by default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "report_context",
+    "connectivity",
+    "report_kinds",
+    "claim_classes",
+    "source_classes",
+    "freshness_classes",
+    "connectivity_states",
+    "empty_result_reasons",
+    "report_scope_kinds",
+    "export_format_kinds",
+    "redaction_postures",
+    "export_formats",
+    "rows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "export_safe_dependency_reports" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "report_context": { "$ref": "#/$defs/report_context" },
+    "connectivity": { "$ref": "#/$defs/connectivity" },
+    "report_kinds": { "type": "array", "items": { "$ref": "#/$defs/report_kind" } },
+    "claim_classes": { "type": "array", "items": { "$ref": "#/$defs/claim_class" } },
+    "source_classes": { "type": "array", "items": { "$ref": "#/$defs/source_class" } },
+    "freshness_classes": { "type": "array", "items": { "$ref": "#/$defs/freshness_class" } },
+    "connectivity_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/connectivity_state" }
+    },
+    "empty_result_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/empty_result_reason" }
+    },
+    "report_scope_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/report_scope_kind" }
+    },
+    "export_format_kinds": { "type": "array", "items": { "$ref": "#/$defs/export_format" } },
+    "redaction_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_posture" }
+    },
+    "export_formats": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/export_format_descriptor" }
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/report_row" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "report_kind": {
+      "enum": ["advisory", "vulnerability", "license", "notice", "sbom"]
+    },
+    "claim_class": {
+      "enum": ["verified", "asserted", "mirrored", "incomplete"]
+    },
+    "source_class": {
+      "enum": ["local_analysis", "imported_feed", "enterprise_mirror", "stale_snapshot"]
+    },
+    "freshness_class": {
+      "enum": ["current", "stale", "snapshot_only", "unknown"]
+    },
+    "connectivity_state": {
+      "enum": ["online", "mirror_only", "auth_required", "air_gapped", "offline_snapshot"]
+    },
+    "empty_result_reason": {
+      "enum": [
+        "genuinely_empty",
+        "mirror_stale",
+        "auth_required",
+        "snapshot_only",
+        "feed_unreachable"
+      ]
+    },
+    "report_scope_kind": {
+      "enum": ["full_repo", "selected_manifests", "slice"]
+    },
+    "export_format": {
+      "enum": ["spdx_json", "cyclonedx_json", "sarif", "json", "csv", "markdown"]
+    },
+    "redaction_posture": {
+      "enum": ["redacted_by_default", "opt_in_disclosure"]
+    },
+    "report_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_id",
+        "workspace_scope_ref",
+        "lockfile_fingerprint",
+        "scope_kind"
+      ],
+      "properties": {
+        "build_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lockfile_fingerprint": { "$ref": "#/$defs/non_empty_string" },
+        "scope_kind": { "$ref": "#/$defs/report_scope_kind" },
+        "manifests_in_scope": { "$ref": "#/$defs/string_array" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" }
+      }
+    },
+    "connectivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connectivity_state", "empty_result_reason", "note"],
+      "properties": {
+        "connectivity_state": { "$ref": "#/$defs/connectivity_state" },
+        "empty_result_reason": { "$ref": "#/$defs/empty_result_reason" },
+        "last_known_good_at": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "export_format_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "open_standard",
+        "machine_readable",
+        "redaction_posture",
+        "redacts_registry_urls",
+        "redacts_secrets",
+        "media_type",
+        "note"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/export_format" },
+        "open_standard": { "type": "boolean" },
+        "machine_readable": { "type": "boolean" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "redacts_registry_urls": { "type": "boolean" },
+        "redacts_secrets": { "type": "boolean" },
+        "media_type": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "report_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "report_kind",
+        "title",
+        "subject_ref",
+        "claim_class",
+        "source_class",
+        "freshness_class",
+        "source_ref",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "report_kind": { "$ref": "#/$defs/report_kind" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "open_details_ref": { "$ref": "#/$defs/non_empty_string" },
+        "export_formats": { "type": "array", "items": { "$ref": "#/$defs/export_format" } },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "advisory_rows",
+        "vulnerability_rows",
+        "license_rows",
+        "notice_rows",
+        "sbom_rows",
+        "verified_rows",
+        "asserted_rows",
+        "mirrored_rows",
+        "incomplete_rows",
+        "total_export_formats",
+        "machine_readable_formats",
+        "redacted_by_default_formats"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "advisory_rows": { "type": "integer", "minimum": 0 },
+        "vulnerability_rows": { "type": "integer", "minimum": 0 },
+        "license_rows": { "type": "integer", "minimum": 0 },
+        "notice_rows": { "type": "integer", "minimum": 0 },
+        "sbom_rows": { "type": "integer", "minimum": 0 },
+        "verified_rows": { "type": "integer", "minimum": 0 },
+        "asserted_rows": { "type": "integer", "minimum": 0 },
+        "mirrored_rows": { "type": "integer", "minimum": 0 },
+        "incomplete_rows": { "type": "integer", "minimum": 0 },
+        "total_export_formats": { "type": "integer", "minimum": 0 },
+        "machine_readable_formats": { "type": "integer", "minimum": 0 },
+        "redacted_by_default_formats": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

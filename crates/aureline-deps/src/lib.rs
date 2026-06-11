@@ -35,10 +35,20 @@
 //! native-build/install-script disclosure, registry/auth source, and validation
 //! packs before any mutation leaves review, and links each plan to a durable
 //! rollback checkpoint receipt with revert/open-diff/export-patch recovery.
+//!
+//! The module [`export_safe_dependency_reports`] owns the export-safe advisory,
+//! vulnerability, license, notice, and SBOM report lane. It labels every report
+//! row with a verified/asserted/mirrored/incomplete claim class tied to its
+//! source and freshness, keeps mirror/auth/offline reality explicit so an empty
+//! report never reads as a clean "no findings" claim, and declares documented,
+//! open, redaction-safe export formats so SBOM/license/advisory exports stay
+//! attributable and machine-readable without leaking private registry URLs or
+//! secrets by default.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
 pub mod dependency_security_compliance_export_truth;
+pub mod export_safe_dependency_reports;
 pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
 pub mod package_set_inventory_and_scope_truth;
@@ -100,4 +110,16 @@ pub use grouped_update_and_rollback_review::{
     GROUPED_UPDATE_AND_ROLLBACK_REVIEW_JSON, GROUPED_UPDATE_AND_ROLLBACK_REVIEW_PATH,
     GROUPED_UPDATE_AND_ROLLBACK_REVIEW_RECORD_KIND,
     GROUPED_UPDATE_AND_ROLLBACK_REVIEW_SCHEMA_VERSION,
+};
+// `FreshnessClass` is intentionally not re-exported here: it collides with the
+// same-named type above. Reach it via
+// `export_safe_dependency_reports::FreshnessClass`.
+pub use export_safe_dependency_reports::{
+    current_export_safe_dependency_reports, ClaimClass, ConnectivityDisclosure, ConnectivityState,
+    EmptyResultReason, ExportFormat, ExportFormatDescriptor, ExportSafeDependencyReports,
+    ExportSafeDependencyReportsExportProjection, ExportSafeDependencyReportsExportRow,
+    ExportSafeDependencyReportsSummary, ExportSafeDependencyReportsViolation, RedactionPosture,
+    ReportContext, ReportKind, ReportRow, ReportScopeKind, SourceClass,
+    EXPORT_SAFE_DEPENDENCY_REPORTS_JSON, EXPORT_SAFE_DEPENDENCY_REPORTS_PATH,
+    EXPORT_SAFE_DEPENDENCY_REPORTS_RECORD_KIND, EXPORT_SAFE_DEPENDENCY_REPORTS_SCHEMA_VERSION,
 };
