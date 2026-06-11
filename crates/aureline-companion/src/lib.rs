@@ -90,6 +90,21 @@
 //! (committed) deletion is labeled rather than shown as still reversible, user-owned
 //! local work is never stranded by offboarding, deletion, or an org switch, and stale
 //! state is always labeled rather than shown as live.
+//!
+//! Capping the M5 lane, it owns the companion-safe redaction, local-core continuity, and
+//! offline packet-flow surface in
+//! [`ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes`],
+//! which ties the companion, incident, and support lanes together around three guarantees:
+//! every record that crosses a companion, support, or incident boundary is redaction-safe
+//! (no raw payload body crosses, and a redaction is proved where claimed or labeled where
+//! not), the local core stays authoritative and its capabilities keep working offline, and
+//! the support and incident packets that flow out assemble and replay offline from the local
+//! core — binding the redaction section to the frozen companion-notification matrix lane, the
+//! incident-packet section to the incident-workspace lane, and the continuity and
+//! support-packet sections to the offboarding-continuity lane. The surface is read-only, a
+//! local-first packet path is always offered so a degraded provider never strands the support
+//! or incident workflow, incident packets stay attributable or are honestly labeled, and
+//! stale state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -99,5 +114,6 @@ pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_des
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho;
+pub mod ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes;
 pub mod ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
