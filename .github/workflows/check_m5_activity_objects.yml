@@ -1,0 +1,72 @@
+# M5 durable activity-object qualification gate.
+#
+# Validates the checked-in M5 durable activity-object audit: every M5 depth job
+# family (notebook runs, query runs, result-grid exports, profiler captures,
+# replay sessions, pipeline actions, preview routes, sync state changes,
+# offboarding jobs, incident packets) qualifies the eight durable-attention
+# guarantees Aureline's stable shell already promises (activity-center landing,
+# exact-target reopen, reopen after focus loss / restart / degraded provider,
+# differentiated lifecycle action semantics, support-export identity, and
+# companion fanout honesty) with captured evidence; no qualified guarantee
+# carries a red result (a lost reopen target, toast-only truth, a lost reopen
+# after focus loss / restart / degraded provider, collapsed lifecycle actions, a
+# reconstructed export identity, or a silent fanout failure); no family invents a
+# parallel history model outside the shared activity center; and a marketed
+# guarantee whose evidence is stale or red narrows instead of shipping as
+# implicitly stable. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and that
+# the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_activity_objects
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_activity_objects.yml"
+      - "tools/ci/m5/activity_objects_check.py"
+      - "schemas/ux/m5-activity-object.schema.json"
+      - "docs/m5/durable-progress-and-reopen.md"
+      - "artifacts/ux/m5/durable-attention-packets/**"
+      - "fixtures/ux/m5/activity-center/**"
+      - "crates/aureline-shell/src/m5_activity_objects/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_activity_objects.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_activity_objects_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-activity-objects-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_activity_objects:
+    name: M5 activity objects
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 activity-objects CI gate
+        run: |
+          python3 tools/ci/m5/activity_objects_check.py --repo-root .
+
+      - name: Run M5 activity-objects contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_activity_objects_fixtures

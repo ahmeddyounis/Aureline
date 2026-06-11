@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-activity-object.schema.json",
+  "title": "Aureline M5 durable activity-object qualification audit",
+  "description": "Boundary schema for the M5 durable activity-object qualification audit emitted by the aureline-shell m5_activity_objects module. The audit compares the canonical activity-object descriptor for every registered M5 depth job family (notebook runs, query runs, result-grid exports, profiler captures, replay sessions, pipeline actions, preview routes, sync state changes, offboarding jobs, incident packets) against the qualification result the family certifies for each of the eight durable-attention guarantees the M5 lanes must pass: activity_center_landing, exact_target_reopen, reopen_after_focus_loss, reopen_after_restart, reopen_after_degraded_provider, lifecycle_action_semantics, support_export_identity, and companion_fanout_honesty. Acceptance: the audit MUST cover the eight required guarantees for every registered family, MUST carry a canonical exact-target reopen anchor, a support note, and an activity-center registration flag, MUST require captured evidence (a durable attention packet, durable not toast-only truth, and an evidence-freshness stamp for every qualified guarantee; a reopen outcome for the reopen guarantees; a survival outcome for the focus-loss, restart, and degraded-provider guarantees; differentiated action semantics for the lifecycle guarantee; a stable export identity for the support-export guarantee; an honest fanout label for the companion guarantee), MUST flag any red result (a lost reopen target, toast-only truth, a lost reopen after focus loss/restart/degraded provider, collapsed lifecycle actions, a reconstructed export identity, or a silent fanout failure) as a blocker, MUST reject an ad-hoc parallel history model outside the shared activity center and a marketed guarantee claimed with no evidence, MUST treat stale evidence on a marketed guarantee as a blocker so release tooling can narrow the row, and MUST be usable by support exports and companion fanout without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/activity-center/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/activity_objects_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_activity_object_report_record" },
+    { "$ref": "#/$defs/m5_activity_object_support_export_record" }
+  ],
+  "$defs": {
+    "m5_activity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 activity-object contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_activity_objects:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "job_family": {
+      "type": "string",
+      "enum": [
+        "notebook_run",
+        "query_run",
+        "result_grid_export",
+        "profiler_capture",
+        "replay_session",
+        "pipeline_action",
+        "preview_route",
+        "sync_state_change",
+        "offboarding_job",
+        "incident_packet"
+      ]
+    },
+    "durable_guarantee": {
+      "type": "string",
+      "enum": [
+        "activity_center_landing",
+        "exact_target_reopen",
+        "reopen_after_focus_loss",
+        "reopen_after_restart",
+        "reopen_after_degraded_provider",
+        "lifecycle_action_semantics",
+        "support_export_identity",
+        "companion_fanout_honesty"
+      ],
+      "description": "One of the eight required durable-attention guarantees the audit covers."
+    },
+    "durable_aspect": {
+      "type": "string",
+      "enum": ["landing", "reopen", "lifecycle", "export"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_history",
+        "missing_evidence"
+      ],
+      "description": "Status a family reports for one durable guarantee. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_history` and `missing_evidence` are blockers."
+    },
+    "reopen_outcome": {
+      "type": "string",
+      "enum": ["exact_target_resolved", "target_lost", "not_applicable"]
+    },
+    "toast_independence": {
+      "type": "string",
+      "enum": ["durable", "toast_only"]
+    },
+    "survival_outcome": {
+      "type": "string",
+      "enum": ["survives", "lost"]
+    },
+    "action_semantics": {
+      "type": "string",
+      "enum": ["differentiated", "collapsed"]
+    },
+    "export_identity": {
+      "type": "string",
+      "enum": ["stable_reference", "reconstructed"]
+    },
+    "fanout_honesty": {
+      "type": "string",
+      "enum": ["honestly_labeled", "silent_failure"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "activity_action": {
+      "type": "string",
+      "enum": ["dismiss", "mute", "snooze", "acknowledge", "resolve", "reopen"]
+    },
+    "semantic_salience": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "lifecycle_bearing",
+        "review_bearing",
+        "risk_bearing"
+      ]
+    },
+    "family_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "activity_object_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "job_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "reopen_anchor_ref",
+        "support_note",
+        "semantic_salience",
+        "lifecycle_label",
+        "supported_actions",
+        "marketed_on_desktop",
+        "registered_on_activity_center"
+      ],
+      "properties": {
+        "family_id": { "$ref": "#/$defs/non_empty_string" },
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_salience": { "$ref": "#/$defs/semantic_salience" },
+        "lifecycle_label": { "$ref": "#/$defs/family_lifecycle" },
+        "supported_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activity_action" }
+        },
+        "marketed_on_desktop": { "type": "boolean" },
+        "registered_on_activity_center": { "type": "boolean" }
+      }
+    },
+    "durable_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "aspect",
+        "qualification_status",
+        "marketed_on_guarantee",
+        "projected_durable_packet_ref",
+        "projected_reopen_outcome",
+        "projected_toast_independence",
+        "projected_survival",
+        "projected_action_semantics",
+        "projected_export_identity",
+        "projected_fanout_honesty",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/durable_guarantee" },
+        "aspect": { "$ref": "#/$defs/durable_aspect" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_guarantee": { "type": "boolean" },
+        "projected_durable_packet_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_reopen_outcome": {
+          "oneOf": [{ "$ref": "#/$defs/reopen_outcome" }, { "type": "null" }]
+        },
+        "projected_toast_independence": {
+          "oneOf": [{ "$ref": "#/$defs/toast_independence" }, { "type": "null" }]
+        },
+        "projected_survival": {
+          "oneOf": [{ "$ref": "#/$defs/survival_outcome" }, { "type": "null" }]
+        },
+        "projected_action_semantics": {
+          "oneOf": [{ "$ref": "#/$defs/action_semantics" }, { "type": "null" }]
+        },
+        "projected_export_identity": {
+          "oneOf": [{ "$ref": "#/$defs/export_identity" }, { "type": "null" }]
+        },
+        "projected_fanout_honesty": {
+          "oneOf": [{ "$ref": "#/$defs/fanout_honesty" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_history",
+            "missing_evidence",
+            "missing_durable_packet",
+            "toast_only_truth",
+            "reopen_target_lost",
+            "reopen_lost_after_focus_loss",
+            "reopen_lost_after_restart",
+            "reopen_lost_under_degraded_provider",
+            "lifecycle_actions_collapsed",
+            "export_identity_reconstructed",
+            "fanout_failure_silent",
+            "stale_evidence_on_marketed_row",
+            "aspect_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_reopen_anchor",
+            "missing_support_note",
+            "family_not_on_activity_center",
+            "missing_lifecycle_actions"
+          ]
+        },
+        "family_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/durable_guarantee" }
+      }
+    },
+    "guarantee_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_history_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/durable_guarantee" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_history_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_history",
+        "missing_evidence",
+        "missing_durable_packet",
+        "toast_only_truth",
+        "reopen_target_lost",
+        "reopen_lost_after_focus_loss",
+        "reopen_lost_after_restart",
+        "reopen_lost_under_degraded_provider",
+        "lifecycle_actions_collapsed",
+        "export_identity_reconstructed",
+        "fanout_failure_silent",
+        "stale_evidence_on_marketed_row",
+        "aspect_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_reopen_anchor",
+        "missing_support_note",
+        "family_not_on_activity_center",
+        "missing_lifecycle_actions"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_history": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_durable_packet": { "type": "integer", "minimum": 0 },
+        "toast_only_truth": { "type": "integer", "minimum": 0 },
+        "reopen_target_lost": { "type": "integer", "minimum": 0 },
+        "reopen_lost_after_focus_loss": { "type": "integer", "minimum": 0 },
+        "reopen_lost_after_restart": { "type": "integer", "minimum": 0 },
+        "reopen_lost_under_degraded_provider": { "type": "integer", "minimum": 0 },
+        "lifecycle_actions_collapsed": { "type": "integer", "minimum": 0 },
+        "export_identity_reconstructed": { "type": "integer", "minimum": 0 },
+        "fanout_failure_silent": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "aspect_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_reopen_anchor": { "type": "integer", "minimum": 0 },
+        "missing_support_note": { "type": "integer", "minimum": 0 },
+        "family_not_on_activity_center": { "type": "integer", "minimum": 0 },
+        "missing_lifecycle_actions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reopen_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_family", "family_id", "reopen_anchor_ref"],
+      "properties": {
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "family_id": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family_id", "guarantee", "reason"],
+      "properties": {
+        "family_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/durable_guarantee" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "activity_object_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_salience",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_activity_object_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_activity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/activity_object_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/durable_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_salience": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_activity_object_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_guarantees",
+        "rows",
+        "guarantee_coverage",
+        "findings_summary",
+        "reopen_anchor_index",
+        "registered_family_count",
+        "high_salience_family_count",
+        "marketed_family_count",
+        "durable_guarantees_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_activity_object_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_activity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_guarantees": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/durable_guarantee" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/activity_object_row" }
+        },
+        "guarantee_coverage": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/guarantee_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "reopen_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_anchor_entry" }
+        },
+        "registered_family_count": { "type": "integer", "minimum": 0 },
+        "high_salience_family_count": { "type": "integer", "minimum": 0 },
+        "marketed_family_count": { "type": "integer", "minimum": 0 },
+        "durable_guarantees_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_activity_object_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_activity_object_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_activity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_activity_object_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
