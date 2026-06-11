@@ -108,9 +108,26 @@
 //! revoked or expired route collapses to a snapshot-only share, a policy-blocked
 //! route offers a non-dead-end alternative, and a tunnel can never behave like a
 //! durable silent share.
+//!
+//! The
+//! [`certify_doctor_repair_container_maturity_on_all_claimed_m5_profiles`]
+//! module lifts the cell-level maturity matrix to a release-control certification
+//! over every marketed M5 *product profile* — notebook, request/API, database,
+//! profiler, remote preview, sync, companion, and incident. Each profile row pins
+//! its own Doctor, guided-repair, and container/devcontainer maturities, the
+//! freshness of its qualification packet, its diagnosis-latency state, its engine
+//! reachability, and its container-boundary proof, and a non-inheriting promotion
+//! gate publishes a qualification no input can exceed: a stale, diagnosis-latency
+//! red, repair-underqualified, engine-blocked, or boundary-proof-missing profile
+//! is narrowed to provisional or underqualified, or fails promotion outright.
+//! Because each profile's published qualification, certification decision, and
+//! recomputed narrowing reasons are validated against the gate, release and
+//! public-truth tooling can prove that underqualified profiles narrow before
+//! publication and that no profile inherits trust from an adjacent certified one.
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
+pub mod certify_doctor_repair_container_maturity_on_all_claimed_m5_profiles;
 pub mod container_engine_summaries_open_in_container_preflights_and_route_time_bound_truth;
 pub mod extend_project_doctor_probes_finding_codes_and_unsupported_state_reporting_across_feature_lanes;
 pub mod finalize_diagnosis_and_evidence_packets_for_wrong_target;
