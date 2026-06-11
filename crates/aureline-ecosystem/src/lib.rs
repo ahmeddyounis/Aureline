@@ -40,6 +40,16 @@
 //! enterprise mirror, private registry, and manual-import discovery flows. Its
 //! disclosure level is recomputed from each row's facts so reduced provenance widens
 //! warnings rather than collapsing fields.
+//!
+//! The [`m5_install_review`] module turns install and update from a generic download
+//! action into one reviewed change model. Each sheet compares a package's current
+//! effective revision with the proposed one and makes permission deltas, transitive
+//! capability widening, runtime-origin and host-class changes, publisher continuity,
+//! compatibility-floor regressions, restart/open-work implications, and a rollback
+//! plan explicit on one surface. Its commit disposition is recomputed from those
+//! facts, so newly widened permissions, a changed publisher, or a changed runtime
+//! origin always force the unified review sheet rather than a one-click commit, and
+//! workspace-, profile-, and global-scope actions stay visibly distinct.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -48,6 +58,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
+pub mod m5_install_review;
 pub mod m5_marketplace_fact_views;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
