@@ -57,9 +57,21 @@
 //! support surfaces never present an uncertified, heuristic, or bridged health check
 //! as exact first-party certified truth without current certification, support-class,
 //! and downgrade cues.
+//!
+//! It also owns the richer framework-pack lane catalog packet, which binds each
+//! framework pack — across the Jupyter-adjacency, Terraform, Kubernetes, FastAPI,
+//! Nest, Rails, Laravel, and Flutter lanes — to its lane domain, its header
+//! provenance, its pinned pack and generator versions, its freshness chip, its
+//! capability and support class, its authored/generated/runtime-only origin truth,
+//! its archetype health state, and its downgrade banner, so the gallery, pack
+//! header, run, diff-review, diagnostics, and support surfaces never let a deeper
+//! long-tail of lanes present heuristic, bridged, or runtime-observed structure as
+//! exact first-party truth without current support-class, origin-truth, health, and
+//! downgrade cues.
 
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
+pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
