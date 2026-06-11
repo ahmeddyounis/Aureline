@@ -1,0 +1,75 @@
+# M5 release-center visibility register gate.
+#
+# Validates the checked-in release-center visibility register: every surface kind
+# (release-center view, channel rollout control, profile rollout control,
+# narrow-or-broaden decision) binds a stable claim, a readiness scorecard with one
+# cell per dimension (visibility coverage, rollout-control safety, decision
+# auditability, redaction safety, proof freshness, docs truth), the disclosed
+# rollout posture and trust tier, an owner-manifest sign-off, and an explicit
+# downgrade-automation record bound to a verified frozen-fallback rollback plan; a
+# surface whose readiness dimension failed or is missing, whose redaction posture
+# is not disclosed, whose packet is stale or missing, whose owner manifest is
+# unsigned, whose frozen-fallback rollback plan is unverified, whose downgrade
+# automation is undefined, or whose waiver expired must drop below the stable
+# cutline; the promotion verdict and summary agree with the firing stop rules. The
+# gate runs the checked-in fixture cases proving those rejections fire. The typed
+# Rust consumer reads the same register, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_release_center_visibility_register
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_release_center_visibility_register.yml"
+      - "artifacts/release/m5/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions.json"
+      - "artifacts/release/captures/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions_validation_capture.json"
+      - "schemas/governance/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions.schema.json"
+      - "docs/m5/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions.md"
+      - "fixtures/release/m5/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions/**"
+      - "crates/aureline-release/src/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-release-center-visibility-register-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release_center_visibility_register:
+    name: M5 Release-Center Visibility Register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run release-center visibility register contract tests
+        run: |
+          cargo test -p aureline-release --test ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-center-visibility-register-${{ github.run_id }}
+          path: artifacts/release/captures/ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

@@ -328,6 +328,7 @@ pub mod release_center_model;
 pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
 pub mod ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards;
 pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
+pub mod ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_embedded_surface_boundary_truth;
@@ -440,6 +441,22 @@ pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_pr
     SurfaceState as FitnessSurfaceState,
     TrustTier as FitnessSurfaceTrustTier, FITNESS_SURFACE_JSON, FITNESS_SURFACE_PATH,
     FITNESS_SURFACE_RECORD_KIND, FITNESS_SURFACE_SCHEMA_VERSION,
+};
+
+pub use ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions::{
+    current_release_visibility_register, AutomationState as ReleaseVisibilityAutomationState,
+    AutomationTrigger as ReleaseVisibilityAutomationTrigger,
+    DimensionGrade as ReleaseVisibilityDimensionGrade,
+    DowngradeAutomation as ReleaseVisibilityDowngradeAutomation,
+    NarrowingReason as ReleaseVisibilityNarrowingReason, ReadinessCell as ReleaseVisibilityReadinessCell,
+    ReadinessDimension as ReleaseVisibilityReadinessDimension, ReleaseVisibilityExportProjection,
+    ReleaseVisibilityExportRow, ReleaseVisibilityRegister, ReleaseVisibilityStopRule,
+    ReleaseVisibilitySummary, ReleaseVisibilitySurface, ReleaseVisibilityViolation,
+    StopAction as ReleaseVisibilityStopAction,
+    SupportDisclosure as ReleaseVisibilitySupportDisclosure,
+    SurfaceKind as ReleaseVisibilitySurfaceKind, SurfaceState as ReleaseVisibilitySurfaceState,
+    TrustTier as ReleaseVisibilityTrustTier, RELEASE_VISIBILITY_JSON, RELEASE_VISIBILITY_PATH,
+    RELEASE_VISIBILITY_RECORD_KIND, RELEASE_VISIBILITY_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{
