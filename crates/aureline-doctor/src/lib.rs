@@ -91,6 +91,23 @@
 //! explicit disclosure for an unsupported engine, a trust-gated hook, or any
 //! rebuild/port/mount side effect, so a window is never treated as merely "in a
 //! container" and trust-gated hooks never run silently.
+//!
+//! The
+//! [`ship_published_port_or_tunnel_revocation_writable_mount_and_lifecycle_script_disclosure_and_browser_or_companion_handoff`]
+//! module keeps a container route's share truth first-class once it leaves the
+//! preflight: every published port or tunnel stays inspectable and revocable with
+//! an explicit audience scope, a time bound (never unbounded), a policy posture,
+//! and a first-class revocation path; every reopen carries its writable-mount and
+//! lifecycle/install-script disclosure across reopen, attach, rebuild, export, and
+//! support flows instead of collapsing into undocumented side effects; and every
+//! browser or companion handoff is attributed to its owner/origin, engine,
+//! target, route, and service plus its live-versus-snapshot freshness and
+//! revocation visibility rather than a flattened opaque URL. A non-inheriting
+//! handoff gate publishes each scenario's posture from its own policy posture,
+//! revocation state, audience scope, write scope, and disclosed mutation, so a
+//! revoked or expired route collapses to a snapshot-only share, a policy-blocked
+//! route offers a non-dead-end alternative, and a tunnel can never behave like a
+//! durable silent share.
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
@@ -104,4 +121,5 @@ pub mod m5_diagnosis_latency_recovery_ladders_and_support_parity;
 pub mod probe_packs;
 pub mod probes;
 pub mod ship_project_doctor_explainability_panes_evidence_refs_and_cross_surface_parity;
+pub mod ship_published_port_or_tunnel_revocation_writable_mount_and_lifecycle_script_disclosure_and_browser_or_companion_handoff;
 pub mod stabilize_project_doctor_probes_finding_codes_explainability_and;

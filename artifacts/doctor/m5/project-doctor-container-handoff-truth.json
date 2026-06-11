@@ -1,0 +1,765 @@
+{
+  "schema_version": 1,
+  "record_kind": "project_doctor_container_handoff_truth",
+  "packet_id": "project-doctor-container-handoff-truth",
+  "status": "frozen",
+  "overview_page": "docs/doctor/m5/project-doctor-container-handoff-truth.md",
+  "schema_ref": "schemas/doctor/project-doctor-container-handoff-truth.schema.json",
+  "as_of": "2026-06-11",
+  "workflow_surfaces": ["remote_preview", "incident_workflow", "companion_follow"],
+  "engine_classes": ["docker", "podman", "devcontainers_cli", "managed_cloud"],
+  "boundary_labels": ["local", "remote", "managed"],
+  "route_kinds": ["published_port", "tunnel"],
+  "audience_scopes": ["local_only", "lan", "authenticated_team", "org", "public"],
+  "policy_postures": ["policy_allowed", "policy_restricted", "policy_blocked"],
+  "time_bound_classes": ["session_bound", "time_boxed", "deadline"],
+  "revocation_states": ["active", "expired", "revoked"],
+  "handoff_channels": ["browser", "companion"],
+  "handoff_livenesses": ["live", "snapshot"],
+  "handoff_mutation_scopes": ["read_only", "bounded_write"],
+  "handoff_postures": ["share_live", "share_with_disclosure", "share_snapshot_only", "blocked_offer_alternative"],
+  "handoff_reasons": [
+    "none",
+    "audience_public",
+    "policy_restricted",
+    "bounded_write_requires_approval",
+    "environment_mutation_disclosed",
+    "route_expired",
+    "route_revoked",
+    "policy_blocked"
+  ],
+  "disclosure_flows": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+  "parity_surfaces": [
+    "desktop_sheet",
+    "cli_inspect",
+    "headless_json",
+    "browser_handoff",
+    "companion_handoff",
+    "support_export",
+    "incident_packet"
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "scenario:remote_preview:team_port_live_share",
+      "surface": "remote_preview",
+      "title": "Live browser preview of a team-scoped published port",
+      "engine_class": "docker",
+      "boundary_label": "local",
+      "route": {
+        "route_kind": "published_port",
+        "route_id": "route:remote_preview:team_web_port",
+        "target_ref": "target:devcontainer:preview_web_app",
+        "target_service_ref": "service:preview_web",
+        "container_port": 5173,
+        "host_port": 5173,
+        "audience_scope": "authenticated_team",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Team-scoped preview port is allowed by policy for authenticated members.",
+        "time_bound": {
+          "class": "time_boxed",
+          "expires_at_ref": "expiry:remote_preview:team_web_port",
+          "max_lifetime_note": "Auto-expires after the rolling preview window unless re-published."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:remote_preview:team_web_port",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:workspace_folder", "writable": false }
+        ],
+        "lifecycle_scripts": [
+          { "kind": "post_create", "command_ref": "script:post_create:print_ready", "trust_gated": false, "writes_outside_container": false }
+        ],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount and a benign postCreate notice; no environment mutation."
+      },
+      "handoff": {
+        "channel": "browser",
+        "handoff_id": "handoff:remote_preview:team_web_port",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:local_workspace:preview_web_app",
+        "engine_class": "docker",
+        "target_ref": "target:devcontainer:preview_web_app",
+        "route_id": "route:remote_preview:team_web_port",
+        "target_service_ref": "service:preview_web",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Open the preview against the local checkout without publishing the port.",
+      "initiating_findings": ["doctor.finding.remote_preview.preview_port_published"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:team_web_port",
+        "escalation_packet_ref": "escalation:remote_preview:team_web_port",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.preview_port_published"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:route:team_web_port", "scope:target:preview_web_app", "scope:port:5173"],
+        "durable_evidence_refs": ["evidence:remote_preview:port_publish_record"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "an active team-scoped port with a time bound and a revocation path backs a read-only live browser handoff, so the preview shares live without extra disclosure",
+      "published_handoff_posture": "share_live",
+      "published_handoff_reason": "none",
+      "notes": "Headline share-live case: active, policy-allowed, team-scoped, read-only, live, no environment mutation."
+    },
+    {
+      "scenario_id": "scenario:companion_follow:public_tunnel_disclosed",
+      "surface": "companion_follow",
+      "title": "Companion follow of a public tunnel with audience disclosure",
+      "engine_class": "docker",
+      "boundary_label": "remote",
+      "route": {
+        "route_kind": "tunnel",
+        "route_id": "route:companion_follow:public_demo_tunnel",
+        "target_ref": "target:container:demo_service",
+        "target_service_ref": "service:demo_frontend",
+        "container_port": 3000,
+        "host_port": 13000,
+        "audience_scope": "public",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Public tunnel allowed by policy for a time-boxed external demo.",
+        "time_bound": {
+          "class": "deadline",
+          "expires_at_ref": "expiry:companion_follow:public_demo_tunnel",
+          "max_lifetime_note": "Expires at the demo deadline; cannot be silently extended."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:companion_follow:public_demo_tunnel",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:demo_workspace", "writable": false }
+        ],
+        "lifecycle_scripts": [],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount only; no lifecycle or install scripts run."
+      },
+      "handoff": {
+        "channel": "companion",
+        "handoff_id": "handoff:companion_follow:public_demo_tunnel",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:remote_host:demo_service",
+        "engine_class": "docker",
+        "target_ref": "target:container:demo_service",
+        "route_id": "route:companion_follow:public_demo_tunnel",
+        "target_service_ref": "service:demo_frontend",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Follow the demo locally without exposing a public tunnel.",
+      "initiating_findings": ["doctor.finding.companion_follow.public_tunnel_published"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:companion_follow:public_demo_tunnel",
+        "escalation_packet_ref": "escalation:companion_follow:public_demo_tunnel",
+        "preserved_finding_ids": ["doctor.finding.companion_follow.public_tunnel_published"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:tunnel:public_demo_tunnel", "scope:target:demo_service", "scope:port:13000"],
+        "durable_evidence_refs": ["evidence:companion_follow:tunnel_publish_record"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the tunnel is reachable publicly, so the companion handoff discloses the public audience scope, the deadline expiry, and the revocation path before following",
+      "published_handoff_posture": "share_with_disclosure",
+      "published_handoff_reason": "audience_public",
+      "notes": "Public audience forces disclosure; the deadline time bound and revocation path stay first-class on the companion surface."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:repro_port_with_env_mutation",
+      "surface": "incident_workflow",
+      "title": "Incident reproduction port with writable mount and trust-gated install script",
+      "engine_class": "podman",
+      "boundary_label": "remote",
+      "route": {
+        "route_kind": "published_port",
+        "route_id": "route:incident_workflow:repro_collector_port",
+        "target_ref": "target:container:incident_repro_env",
+        "target_service_ref": "service:incident_collector",
+        "container_port": 9090,
+        "host_port": 19090,
+        "audience_scope": "lan",
+        "policy_posture": "policy_allowed",
+        "policy_note": "LAN-visible collector port allowed for incident reproduction.",
+        "time_bound": {
+          "class": "session_bound",
+          "expires_at_ref": "expiry:incident_workflow:repro_collector_port",
+          "max_lifetime_note": "Bound to the incident session; closes when the session ends."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:incident_workflow:repro_collector_port",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "host_path_bind", "scope_ref": "scope:mount:incident_capture_dir", "writable": true }
+        ],
+        "lifecycle_scripts": [
+          { "kind": "install_script", "command_ref": "script:install:fetch_repro_deps", "trust_gated": true, "writes_outside_container": true }
+        ],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Writable host capture directory plus a trust-gated install script that writes outside the container."
+      },
+      "handoff": {
+        "channel": "browser",
+        "handoff_id": "handoff:incident_workflow:repro_collector_port",
+        "owner_ref": "owner:incident_commander",
+        "origin_ref": "origin:remote_host:incident_repro_env",
+        "engine_class": "podman",
+        "target_ref": "target:container:incident_repro_env",
+        "route_id": "route:incident_workflow:repro_collector_port",
+        "target_service_ref": "service:incident_collector",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Inspect the captured incident bundle locally without publishing the collector port.",
+      "initiating_findings": ["doctor.finding.incident_workflow.repro_port_published"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:repro_collector_port",
+        "escalation_packet_ref": "escalation:incident_workflow:repro_collector_port",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.repro_port_published"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:route:repro_collector_port", "scope:mount:incident_capture_dir", "scope:port:19090"],
+        "durable_evidence_refs": ["evidence:incident_workflow:repro_env_manifest"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the reopen mounts a writable host capture directory and runs a trust-gated install script that writes outside the container, so the handoff discloses the environment mutation before sharing",
+      "published_handoff_posture": "share_with_disclosure",
+      "published_handoff_reason": "environment_mutation_disclosed",
+      "notes": "Writable mount and trust-gated install-script disclosure drive the disclosure even though the audience is only LAN-scoped."
+    },
+    {
+      "scenario_id": "scenario:remote_preview:bounded_write_companion_channel",
+      "surface": "remote_preview",
+      "title": "Companion bounded-write channel over a team tunnel with approval gating",
+      "engine_class": "devcontainers_cli",
+      "boundary_label": "local",
+      "route": {
+        "route_kind": "tunnel",
+        "route_id": "route:remote_preview:team_edit_tunnel",
+        "target_ref": "target:devcontainer:preview_editor",
+        "target_service_ref": "service:preview_editor",
+        "container_port": 8443,
+        "host_port": 18443,
+        "audience_scope": "authenticated_team",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Team tunnel allowed; write actions require explicit approval.",
+        "time_bound": {
+          "class": "time_boxed",
+          "expires_at_ref": "expiry:remote_preview:team_edit_tunnel",
+          "max_lifetime_note": "Time-boxed editing window; expires automatically."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:remote_preview:team_edit_tunnel",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "named_volume", "scope_ref": "scope:mount:editor_state", "writable": false }
+        ],
+        "lifecycle_scripts": [
+          { "kind": "post_attach", "command_ref": "script:post_attach:announce_editor", "trust_gated": false, "writes_outside_container": false }
+        ],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only editor-state volume; the write channel is in the handoff, not the mounts."
+      },
+      "handoff": {
+        "channel": "companion",
+        "handoff_id": "handoff:remote_preview:team_edit_tunnel",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:local_workspace:preview_editor",
+        "engine_class": "devcontainers_cli",
+        "target_ref": "target:devcontainer:preview_editor",
+        "route_id": "route:remote_preview:team_edit_tunnel",
+        "target_service_ref": "service:preview_editor",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "bounded_write",
+        "approval_gated": true
+      },
+      "stay_local_alternative": "Edit on the local runtime without opening a companion write channel.",
+      "initiating_findings": ["doctor.finding.remote_preview.companion_write_requested"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:team_edit_tunnel",
+        "escalation_packet_ref": "escalation:remote_preview:team_edit_tunnel",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.companion_write_requested"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:tunnel:team_edit_tunnel", "scope:target:preview_editor", "scope:port:18443"],
+        "durable_evidence_refs": ["evidence:remote_preview:write_approval_record"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the companion handoff carries a bounded write channel, so each write requires explicit approval and the handoff discloses the gated write scope before following",
+      "published_handoff_posture": "share_with_disclosure",
+      "published_handoff_reason": "bounded_write_requires_approval",
+      "notes": "Bounded write takes precedence over the team audience; the write channel is approval-gated, never unrestricted."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:revoked_port_snapshot_only",
+      "surface": "incident_workflow",
+      "title": "Revoked org-scoped incident port reduced to a snapshot handoff",
+      "engine_class": "docker",
+      "boundary_label": "remote",
+      "route": {
+        "route_kind": "published_port",
+        "route_id": "route:incident_workflow:org_dashboard_port",
+        "target_ref": "target:container:incident_dashboard",
+        "target_service_ref": "service:incident_dashboard",
+        "container_port": 8080,
+        "host_port": 18080,
+        "audience_scope": "org",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Org dashboard port was allowed but has since been revoked by the owner.",
+        "time_bound": {
+          "class": "time_boxed",
+          "expires_at_ref": "expiry:incident_workflow:org_dashboard_port",
+          "max_lifetime_note": "Was time-boxed; revoked before expiry."
+        },
+        "revocation": {
+          "state": "revoked",
+          "revocation_action_ref": "revoke:incident_workflow:org_dashboard_port",
+          "revoked_evidence_ref": "evidence:incident_workflow:org_dashboard_port_revoked"
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:dashboard_workspace", "writable": false }
+        ],
+        "lifecycle_scripts": [],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount; the route itself has been revoked."
+      },
+      "handoff": {
+        "channel": "browser",
+        "handoff_id": "handoff:incident_workflow:org_dashboard_port",
+        "owner_ref": "owner:incident_commander",
+        "origin_ref": "origin:remote_host:incident_dashboard",
+        "engine_class": "docker",
+        "target_ref": "target:container:incident_dashboard",
+        "route_id": "route:incident_workflow:org_dashboard_port",
+        "target_service_ref": "service:incident_dashboard",
+        "liveness": "snapshot",
+        "captured_at_ref": "capture:incident_workflow:org_dashboard_port",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Review the captured dashboard snapshot from the incident bundle instead of the live port.",
+      "initiating_findings": ["doctor.finding.incident_workflow.route_revoked"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:org_dashboard_port",
+        "escalation_packet_ref": "escalation:incident_workflow:org_dashboard_port",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.route_revoked"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:route:org_dashboard_port", "scope:target:incident_dashboard", "scope:port:18080"],
+        "durable_evidence_refs": ["evidence:incident_workflow:org_dashboard_port_revoked"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the org dashboard port was revoked by its owner, so the browser handoff is reduced to a labeled snapshot that shows the revocation state instead of a live opaque share",
+      "published_handoff_posture": "share_snapshot_only",
+      "published_handoff_reason": "route_revoked",
+      "notes": "Revoked route collapses to a snapshot-only share; revocation visibility and revocation evidence are mandatory."
+    },
+    {
+      "scenario_id": "scenario:companion_follow:expired_managed_tunnel_snapshot",
+      "surface": "companion_follow",
+      "title": "Expired managed-cloud tunnel reduced to a companion snapshot",
+      "engine_class": "managed_cloud",
+      "boundary_label": "managed",
+      "route": {
+        "route_kind": "tunnel",
+        "route_id": "route:companion_follow:managed_review_tunnel",
+        "target_ref": "target:managed:review_workspace",
+        "target_service_ref": "service:managed_review",
+        "container_port": 443,
+        "host_port": 8443,
+        "audience_scope": "public",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Managed review tunnel was public for a deadline window that has now elapsed.",
+        "time_bound": {
+          "class": "deadline",
+          "expires_at_ref": "expiry:companion_follow:managed_review_tunnel",
+          "max_lifetime_note": "Deadline elapsed; the tunnel is no longer live."
+        },
+        "revocation": {
+          "state": "expired",
+          "revocation_action_ref": "revoke:companion_follow:managed_review_tunnel",
+          "revoked_evidence_ref": "evidence:companion_follow:managed_review_tunnel_expired"
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "tmpfs_scratch", "scope_ref": "scope:mount:review_scratch", "writable": false }
+        ],
+        "lifecycle_scripts": [],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only scratch mount; the managed tunnel has expired."
+      },
+      "handoff": {
+        "channel": "companion",
+        "handoff_id": "handoff:companion_follow:managed_review_tunnel",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:managed_workspace:review_workspace",
+        "engine_class": "managed_cloud",
+        "target_ref": "target:managed:review_workspace",
+        "route_id": "route:companion_follow:managed_review_tunnel",
+        "target_service_ref": "service:managed_review",
+        "liveness": "snapshot",
+        "captured_at_ref": "capture:companion_follow:managed_review_tunnel",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Re-publish a fresh time-boxed tunnel or review the captured snapshot from the bundle.",
+      "initiating_findings": ["doctor.finding.companion_follow.route_expired"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:companion_follow:managed_review_tunnel",
+        "escalation_packet_ref": "escalation:companion_follow:managed_review_tunnel",
+        "preserved_finding_ids": ["doctor.finding.companion_follow.route_expired"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:tunnel:managed_review_tunnel", "scope:target:review_workspace", "scope:port:8443"],
+        "durable_evidence_refs": ["evidence:companion_follow:managed_review_tunnel_expired"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the managed-cloud tunnel passed its deadline and expired, so the companion handoff is a labeled snapshot showing the expiry rather than a durable opaque link",
+      "published_handoff_posture": "share_snapshot_only",
+      "published_handoff_reason": "route_expired",
+      "notes": "Expiry beats the public audience: a dead route is always snapshot-only on the managed boundary."
+    },
+    {
+      "scenario_id": "scenario:remote_preview:policy_blocked_public_tunnel",
+      "surface": "remote_preview",
+      "title": "Public preview tunnel blocked by policy with a local alternative",
+      "engine_class": "devcontainers_cli",
+      "boundary_label": "local",
+      "route": {
+        "route_kind": "tunnel",
+        "route_id": "route:remote_preview:blocked_public_tunnel",
+        "target_ref": "target:devcontainer:preview_frontend",
+        "target_service_ref": "service:preview_frontend",
+        "container_port": 3000,
+        "host_port": 13001,
+        "audience_scope": "public",
+        "policy_posture": "policy_blocked",
+        "policy_note": "Org policy blocks public tunnels from this workspace context.",
+        "time_bound": {
+          "class": "time_boxed",
+          "expires_at_ref": "expiry:remote_preview:blocked_public_tunnel",
+          "max_lifetime_note": "Would have been time-boxed had policy allowed it."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:remote_preview:blocked_public_tunnel",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:frontend_workspace", "writable": false }
+        ],
+        "lifecycle_scripts": [],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount; the public tunnel is blocked before it is opened."
+      },
+      "handoff": {
+        "channel": "browser",
+        "handoff_id": "handoff:remote_preview:blocked_public_tunnel",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:local_workspace:preview_frontend",
+        "engine_class": "devcontainers_cli",
+        "target_ref": "target:devcontainer:preview_frontend",
+        "route_id": "route:remote_preview:blocked_public_tunnel",
+        "target_service_ref": "service:preview_frontend",
+        "liveness": "snapshot",
+        "captured_at_ref": "capture:remote_preview:blocked_public_tunnel",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Preview on the local runtime, or request a policy exception for a scoped tunnel.",
+      "initiating_findings": ["doctor.finding.remote_preview.tunnel_policy_blocked"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:remote_preview:blocked_public_tunnel",
+        "escalation_packet_ref": "escalation:remote_preview:blocked_public_tunnel",
+        "preserved_finding_ids": ["doctor.finding.remote_preview.tunnel_policy_blocked"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:tunnel:blocked_public_tunnel", "scope:target:preview_frontend", "scope:port:13001"],
+        "durable_evidence_refs": ["evidence:remote_preview:policy_block_decision"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "org policy blocks public tunnels from this context, so the share is blocked with a policy explanation and a stay-local preview alternative instead of a dead-end modal",
+      "published_handoff_posture": "blocked_offer_alternative",
+      "published_handoff_reason": "policy_blocked",
+      "notes": "Policy-blocked route takes precedence over the public audience; a non-dead-end alternative is mandatory."
+    },
+    {
+      "scenario_id": "scenario:incident_workflow:policy_restricted_lan_port",
+      "surface": "incident_workflow",
+      "title": "Policy-restricted LAN incident port narrowed with disclosure",
+      "engine_class": "podman",
+      "boundary_label": "local",
+      "route": {
+        "route_kind": "published_port",
+        "route_id": "route:incident_workflow:restricted_metrics_port",
+        "target_ref": "target:container:incident_metrics",
+        "target_service_ref": "service:incident_metrics",
+        "container_port": 4317,
+        "host_port": 14317,
+        "audience_scope": "lan",
+        "policy_posture": "policy_restricted",
+        "policy_note": "Policy restricts the metrics port to the LAN audience with mandatory disclosure.",
+        "time_bound": {
+          "class": "session_bound",
+          "expires_at_ref": "expiry:incident_workflow:restricted_metrics_port",
+          "max_lifetime_note": "Session-bound; closes with the incident session."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:incident_workflow:restricted_metrics_port",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:metrics_workspace", "writable": false }
+        ],
+        "lifecycle_scripts": [
+          { "kind": "post_start", "command_ref": "script:post_start:start_metrics", "trust_gated": false, "writes_outside_container": false }
+        ],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount and a benign metrics-start script; no external writes."
+      },
+      "handoff": {
+        "channel": "browser",
+        "handoff_id": "handoff:incident_workflow:restricted_metrics_port",
+        "owner_ref": "owner:incident_commander",
+        "origin_ref": "origin:local_workspace:incident_metrics",
+        "engine_class": "podman",
+        "target_ref": "target:container:incident_metrics",
+        "route_id": "route:incident_workflow:restricted_metrics_port",
+        "target_service_ref": "service:incident_metrics",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Read the metrics from the incident bundle without publishing the port to the LAN.",
+      "initiating_findings": ["doctor.finding.incident_workflow.metrics_port_restricted"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:incident_workflow:restricted_metrics_port",
+        "escalation_packet_ref": "escalation:incident_workflow:restricted_metrics_port",
+        "preserved_finding_ids": ["doctor.finding.incident_workflow.metrics_port_restricted"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:route:restricted_metrics_port", "scope:target:incident_metrics", "scope:port:14317"],
+        "durable_evidence_refs": ["evidence:incident_workflow:metrics_policy_decision"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "policy restricts the metrics port to a LAN audience with mandatory disclosure, so the handoff shares only after the narrowed scope and expiry are reviewed",
+      "published_handoff_posture": "share_with_disclosure",
+      "published_handoff_reason": "policy_restricted",
+      "notes": "Policy-restricted (not blocked) route shares with disclosure; the audience stays capped at LAN."
+    },
+    {
+      "scenario_id": "scenario:companion_follow:local_only_port_live_share",
+      "surface": "companion_follow",
+      "title": "Companion follow of a localhost-only port",
+      "engine_class": "docker",
+      "boundary_label": "local",
+      "route": {
+        "route_kind": "published_port",
+        "route_id": "route:companion_follow:local_only_devserver",
+        "target_ref": "target:container:dev_server",
+        "target_service_ref": "service:dev_server",
+        "container_port": 8000,
+        "host_port": 8000,
+        "audience_scope": "local_only",
+        "policy_posture": "policy_allowed",
+        "policy_note": "Localhost-only port; not reachable beyond this host.",
+        "time_bound": {
+          "class": "session_bound",
+          "expires_at_ref": "expiry:companion_follow:local_only_devserver",
+          "max_lifetime_note": "Session-bound localhost port; closes with the session."
+        },
+        "revocation": {
+          "state": "active",
+          "revocation_action_ref": "revoke:companion_follow:local_only_devserver",
+          "revoked_evidence_ref": ""
+        }
+      },
+      "environment_disclosure": {
+        "writable_mounts": [
+          { "kind": "workspace_bind", "scope_ref": "scope:mount:dev_workspace", "writable": false }
+        ],
+        "lifecycle_scripts": [],
+        "disclosure_persists_in": ["reopen", "attach", "rebuild", "export", "support_bundle"],
+        "disclosure_note": "Read-only workspace mount only; no lifecycle or install scripts run."
+      },
+      "handoff": {
+        "channel": "companion",
+        "handoff_id": "handoff:companion_follow:local_only_devserver",
+        "owner_ref": "owner:current_user",
+        "origin_ref": "origin:local_workspace:dev_server",
+        "engine_class": "docker",
+        "target_ref": "target:container:dev_server",
+        "route_id": "route:companion_follow:local_only_devserver",
+        "target_service_ref": "service:dev_server",
+        "liveness": "live",
+        "captured_at_ref": "",
+        "revocation_visible": true,
+        "mutation_scope": "read_only",
+        "approval_gated": false
+      },
+      "stay_local_alternative": "Keep following from the local desktop window without the companion handoff.",
+      "initiating_findings": ["doctor.finding.companion_follow.local_port_published"],
+      "support_linkage": {
+        "bundle_manifest_ref": "bundle:companion_follow:local_only_devserver",
+        "escalation_packet_ref": "escalation:companion_follow:local_only_devserver",
+        "preserved_finding_ids": ["doctor.finding.companion_follow.local_port_published"],
+        "preserved_repair_ids": [],
+        "preserved_scope_refs": ["scope:route:local_only_devserver", "scope:target:dev_server", "scope:port:8000"],
+        "durable_evidence_refs": ["evidence:companion_follow:local_port_record"],
+        "redaction_class": "metadata_safe_default",
+        "raw_private_material_excluded": true,
+        "overcapture_excluded": true
+      },
+      "parity_surfaces": [
+        "desktop_sheet",
+        "cli_inspect",
+        "headless_json",
+        "browser_handoff",
+        "companion_handoff",
+        "support_export",
+        "incident_packet"
+      ],
+      "machine_meaning_keys": ["scenario_id", "surface", "engine_class", "route_kind", "handoff_posture"],
+      "explanation": "the port is bound to localhost only and read-only, with a time bound and revocation path, so the companion follow shares live without extra disclosure",
+      "published_handoff_posture": "share_live",
+      "published_handoff_reason": "none",
+      "notes": "Second share-live case on the companion surface: local-only audience, read-only, live, no environment mutation."
+    }
+  ],
+  "summary": {
+    "scenario_count": 9,
+    "surfaces_covered": 3,
+    "share_live_count": 2,
+    "share_with_disclosure_count": 4,
+    "share_snapshot_only_count": 2,
+    "blocked_count": 1,
+    "tunnel_count": 4,
+    "public_audience_count": 3,
+    "revoked_or_expired_count": 2,
+    "bounded_write_count": 1
+  }
+}
