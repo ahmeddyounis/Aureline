@@ -105,11 +105,26 @@
 //! local-first packet path is always offered so a degraded provider never strands the support
 //! or incident workflow, incident packets stay attributable or are honestly labeled, and
 //! stale state is always labeled rather than shown as live.
+//!
+//! Extending the companion lane into session continuity, it owns the remote-preview,
+//! session-handoff, light-remote-edit, and scoped collaboration-follow surface in
+//! [`add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio`],
+//! which lets a browser or mobile companion remotely preview and hand off an active
+//! desktop session, perform a single bounded light remote edit, and follow a
+//! collaborator within a host-revocable shared scope — binding the remote-preview-handoff
+//! surface to the frozen companion-session-follow matrix lane, the light-remote-edit
+//! surface to the companion-light-edit lane, and the collaboration-follow surface to the
+//! companion-review lane. The preview and collaboration-follow surfaces are read-only,
+//! only the bounded light-remote-edit surface may write through a host-approved relay,
+//! collaboration-follow is confined to a host-revocable scope, the local core stays
+//! authoritative so a session handoff never strands user-owned local work, and stale
+//! state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
 pub mod add_customer_managed_key_or_storage_selection_flows_region_or_residency_cues_and_degraded_managed_service_cont;
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
+pub mod add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
