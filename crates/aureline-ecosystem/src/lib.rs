@@ -96,6 +96,21 @@
 //! evaluation's gate decision recomputed as the stronger of the matched filter effect
 //! and the packet's own review disposition, so policy can tighten but never loosen
 //! admission.
+//!
+//! The [`m5_conformance_and_validators`] module makes the new M5 artifact families
+//! certifiable through the same conformance, compatibility, and reference-workspace
+//! evidence model that already governs stable extension claims. Each scorecard carries
+//! one conformance label from the stable Native/Bridge/Partial/Unsupported/Retest-pending
+//! vocabulary, the validator diagnostics an author must clear — each with a stable code,
+//! severity, domain, message, and remediation — and the owner, archetype, and
+//! reference-workspace linkage a support claim rides on. The certification disposition,
+//! signal set, and effective support class are recomputed from those facts, so stale
+//! evidence, a missing owner, an unlinked archetype or reference workspace, missing
+//! conformance evidence, a validator failure, or a retest-pending label each force an
+//! uncertified disposition whose effective support class collapses to unsupported. A
+//! first-party or bridge-backed family therefore can never publish a support claim
+//! without a current, owned, evidence-linked scorecard, and marketplace badges, docs
+//! badges, release evidence, and support exports consume the same vocabulary.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -105,6 +120,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 pub mod m5_activation_budget;
+pub mod m5_conformance_and_validators;
 pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
