@@ -1,0 +1,80 @@
+# M5 dependency-intelligence, package-health, and code-quality parity matrix gate.
+#
+# Validates the checked-in parity matrix: every dependency/package and
+# quality/scanner lane binds a stable claim, an explicit claim class, a
+# deployment-profile posture, a compatibility/downgrade rule, a scorecard
+# (proof, compatibility, admin/policy, rollback path), a proof packet with
+# freshness SLO, owner sign-off, and hard/soft dependency edges; a lane whose
+# scorecard is incomplete, whose packet is stale or missing, whose waiver
+# expired, whose owner sign-off is absent, or whose upstream hard dependency is
+# narrowed must drop below the stable cutline; the promotion verdict and summary
+# agree with the firing stop rules. The gate runs the checked-in fixture cases
+# proving those rejections fire. The typed Rust consumer reads the same matrix,
+# so `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_dependency_quality_parity_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_dependency_quality_parity_matrix.yml"
+      - "artifacts/release/m5/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.json"
+      - "artifacts/release/captures/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix_validation_capture.json"
+      - "schemas/governance/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.schema.json"
+      - "docs/m5/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.md"
+      - "fixtures/release/m5/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix/**"
+      - "tools/regenerate_freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.py"
+      - "crates/aureline-release/src/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-dependency-quality-parity-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_dependency_quality_parity_matrix:
+    name: M5 Dependency/Quality Parity Matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Confirm the matrix matches its regenerator
+        run: |
+          python3 tools/regenerate_freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.py
+          git diff --exit-code -- \
+            artifacts/release/m5/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix.json \
+            artifacts/release/captures/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix_validation_capture.json \
+            fixtures/release/m5/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix
+
+      - name: Run M5 dependency/quality parity matrix contract tests
+        run: |
+          cargo test -p aureline-release --test freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-dependency-quality-parity-matrix-${{ github.run_id }}
+          path: artifacts/release/captures/freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
