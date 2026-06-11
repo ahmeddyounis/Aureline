@@ -55,6 +55,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
+pub mod materialize_artifact_family_quality_governance;
 pub mod packages;
 pub mod preview_drift;
 pub mod profiler_trace_replay_regression_qualification;
