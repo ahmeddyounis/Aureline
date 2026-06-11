@@ -49,6 +49,18 @@
 //! the frozen incident-workspace matrix lane, with an exact desktop handoff per item
 //! and a local-first fallback that keeps every external handoff from stranding the
 //! user when provider continuity is unavailable.
+//!
+//! Moving from the incident lanes to the managed-depth lanes, it owns the managed
+//! sync maturity surface in
+//! [`ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage`],
+//! which projects the managed sync snapshot classes, the conflict review queue, the
+//! device registry, and the end-to-end encrypted storage posture — binding the first
+//! three sections to the frozen managed-sync matrix lane and the encrypted-storage
+//! section to the residency-encryption matrix lane. Managed sync stays inspectable
+//! and reconcilable to the authoritative local core, conflicts are reviewed by the
+//! user rather than resolved silently in the server's favor, customer-managed-key and
+//! end-to-end-encryption claims are proved where claimed or honestly labeled where
+//! not, and stale state is always labeled rather than shown as live.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
@@ -56,4 +68,5 @@ pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_ru
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
+pub mod ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
