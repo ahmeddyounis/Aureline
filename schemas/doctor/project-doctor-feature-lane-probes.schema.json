@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/doctor/project-doctor-feature-lane-probes.schema.json",
+  "title": "Aureline Project Doctor feature-lane probes",
+  "description": "Schema for the project_doctor_feature_lane_probes packet. The packet extends Project Doctor to the M5 feature lanes (notebook kernel, request/API, database target, profiler/replay, preview route, sync/device registry, companion handoff, incident packet). It pins one read-only probe family per lane that names the lane's stable finding-code prefix, supported finding codes, supported diagnosis states, and supported affected-scope kinds; and a set of findings that each carry a stable finding code, an explicit diagnosis state, a confidence class, an affected scope, evidence refs, optional repair-candidate ids, and a first actionable explanation. Diagnosis is read-only by construction (there is no mutating posture), unsupported/partial/stale/policy-blocked/target-mismatch states must carry an explicit non-generic detail code rather than a generic 'unavailable' string, and a lane that emits no repair candidates may not attach any.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "schema_ref",
+    "as_of",
+    "lanes",
+    "diagnosis_states",
+    "severity_classes",
+    "confidence_classes",
+    "scope_kinds",
+    "read_only_postures",
+    "render_surfaces",
+    "families",
+    "findings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "project_doctor_feature_lane_probes" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "lanes": { "type": "array", "items": { "$ref": "#/$defs/lane" } },
+    "diagnosis_states": { "type": "array", "items": { "$ref": "#/$defs/diagnosis_state" } },
+    "severity_classes": { "type": "array", "items": { "$ref": "#/$defs/severity_class" } },
+    "confidence_classes": { "type": "array", "items": { "$ref": "#/$defs/confidence_class" } },
+    "scope_kinds": { "type": "array", "items": { "$ref": "#/$defs/scope_kind" } },
+    "read_only_postures": { "type": "array", "items": { "$ref": "#/$defs/read_only_posture" } },
+    "render_surfaces": { "type": "array", "items": { "$ref": "#/$defs/render_surface" } },
+    "families": { "type": "array", "items": { "$ref": "#/$defs/family" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "lane": {
+      "enum": [
+        "notebook_kernel",
+        "request_api",
+        "database_target",
+        "profiler_replay",
+        "preview_route",
+        "sync_device_registry",
+        "companion_handoff",
+        "incident_packet"
+      ]
+    },
+    "diagnosis_state": {
+      "enum": ["healthy", "partial", "stale", "unsupported", "policy_blocked", "target_mismatch"]
+    },
+    "severity_class": {
+      "enum": ["info", "degraded", "blocking", "unsupported"]
+    },
+    "confidence_class": {
+      "enum": [
+        "observed_authoritative",
+        "observed_with_gap",
+        "inferred_from_evidence",
+        "unknown_requires_probe"
+      ]
+    },
+    "scope_kind": {
+      "enum": [
+        "kernel_engine",
+        "api_route",
+        "database_target",
+        "profiler_session",
+        "preview_route",
+        "device_registry",
+        "companion_session",
+        "incident_packet"
+      ]
+    },
+    "read_only_posture": {
+      "enum": ["read_only_no_mutation", "metadata_local_evidence_only"]
+    },
+    "render_surface": {
+      "enum": ["ui_finding_card", "cli_finding_row", "support_export_row", "headless_json_row"]
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "lane",
+        "finding_code_prefix",
+        "read_only_posture",
+        "headless_supported",
+        "emits_repair_candidates",
+        "supported_finding_codes",
+        "supported_states",
+        "supported_scope_kinds",
+        "summary"
+      ],
+      "properties": {
+        "family_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "finding_code_prefix": { "$ref": "#/$defs/non_empty_string" },
+        "read_only_posture": { "$ref": "#/$defs/read_only_posture" },
+        "headless_supported": { "type": "boolean" },
+        "emits_repair_candidates": { "type": "boolean" },
+        "supported_finding_codes": { "$ref": "#/$defs/string_array" },
+        "supported_states": { "type": "array", "items": { "$ref": "#/$defs/diagnosis_state" } },
+        "supported_scope_kinds": { "type": "array", "items": { "$ref": "#/$defs/scope_kind" } },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_ref"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/scope_kind" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_code",
+        "lane",
+        "family_ref",
+        "diagnosis_state",
+        "severity_class",
+        "confidence_class",
+        "state_detail_code",
+        "affected_scope",
+        "evidence_refs",
+        "first_action",
+        "render_surfaces",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/non_empty_string" },
+        "finding_code": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "family_ref": { "$ref": "#/$defs/non_empty_string" },
+        "diagnosis_state": { "$ref": "#/$defs/diagnosis_state" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "state_detail_code": { "type": "string" },
+        "affected_scope": { "$ref": "#/$defs/affected_scope" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "repair_candidate_ids": { "$ref": "#/$defs/string_array" },
+        "first_action": { "$ref": "#/$defs/non_empty_string" },
+        "render_surfaces": { "type": "array", "items": { "$ref": "#/$defs/render_surface" } },
+        "redaction_class": { "const": "metadata_safe_default" },
+        "raw_private_material_excluded": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_count",
+        "family_count",
+        "finding_count",
+        "healthy_findings",
+        "partial_findings",
+        "stale_findings",
+        "unsupported_findings",
+        "policy_blocked_findings",
+        "target_mismatch_findings",
+        "findings_with_repair_candidates",
+        "cross_context_stable_findings"
+      ],
+      "properties": {
+        "lane_count": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "finding_count": { "type": "integer", "minimum": 0 },
+        "healthy_findings": { "type": "integer", "minimum": 0 },
+        "partial_findings": { "type": "integer", "minimum": 0 },
+        "stale_findings": { "type": "integer", "minimum": 0 },
+        "unsupported_findings": { "type": "integer", "minimum": 0 },
+        "policy_blocked_findings": { "type": "integer", "minimum": 0 },
+        "target_mismatch_findings": { "type": "integer", "minimum": 0 },
+        "findings_with_repair_candidates": { "type": "integer", "minimum": 0 },
+        "cross_context_stable_findings": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
