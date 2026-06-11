@@ -235,6 +235,21 @@
 //! cutline and never inherits an adjacent qualified family — while the seven family kinds, the
 //! eight qualification dimensions, and the release-blocking family set all stay fully covered,
 //! so shiproom and release tooling can fail promotion directly from the manifest.
+//! The implement-per-feature-scorecards module is the per-train qualification layer that
+//! sits beside the depth-claim manifest: where the manifest speaks for the depth claim each
+//! M5 feature *family* publishes, this register speaks for the per-feature *scorecard*, the
+//! *owner manifest*, and the explicit *rollback/downgrade automation* every M5 feature train
+//! carries. For every M5 train it records one scorecard binding the train to the stable claim
+//! it backs, a scorecard of one cell per axis (functionality, performance, accessibility,
+//! compatibility, localization, support readiness), an owner-manifest sign-off, and a
+//! rollback/downgrade automation record bound to a verified rollback plan and the trigger and
+//! floor it narrows to, so a train whose scorecard axis failed or is missing, whose proof
+//! packet aged out or is missing, whose owner manifest is unsigned, whose rollback plan is
+//! unverified, whose downgrade automation is undefined, whose waiver expired, or whose backing
+//! claim is itself below the cutline narrows below the launch cutline and never inherits an
+//! adjacent qualified train — while the seven train kinds, the six scorecard axes, and the
+//! release-blocking train set all stay fully covered, so shiproom and release tooling can fail
+//! promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -260,6 +275,7 @@ pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgr
 pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
+pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;
 pub mod notebook_and_data_rich_surface_qualification;
@@ -299,6 +315,17 @@ pub use freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualificat
     QualificationState as DepthClaimQualificationState, FREEZE_M5_DEPTH_CLAIM_MANIFEST_JSON,
     FREEZE_M5_DEPTH_CLAIM_MANIFEST_PATH, FREEZE_M5_DEPTH_CLAIM_MANIFEST_RECORD_KIND,
     FREEZE_M5_DEPTH_CLAIM_MANIFEST_SCHEMA_VERSION,
+};
+
+pub use implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains::{
+    current_m5_train_scorecard_register, AutomationState as TrainAutomationState,
+    DowngradeAutomation, DowngradeTrigger, NarrowingReason as TrainScorecardNarrowingReason,
+    ScoreGrade, ScorecardAxis, ScorecardCell, StopAction as TrainScorecardStopAction, TrainKind,
+    TrainScorecard, TrainScorecardExportProjection,
+    TrainScorecardExportRow, TrainScorecardRegister, TrainScorecardRegisterSummary,
+    TrainScorecardRegisterViolation, TrainState, TrainStopRule,
+    IMPLEMENT_M5_TRAIN_SCORECARDS_JSON, IMPLEMENT_M5_TRAIN_SCORECARDS_PATH,
+    IMPLEMENT_M5_TRAIN_SCORECARDS_RECORD_KIND, IMPLEMENT_M5_TRAIN_SCORECARDS_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{

@@ -1,0 +1,72 @@
+# M5 per-train scorecard register gate.
+#
+# Validates the checked-in M5 per-train scorecard register: every M5 feature
+# train binds a stable claim, a per-feature scorecard with one cell per axis
+# (functionality, performance, accessibility, compatibility, localization,
+# support readiness), an owner-manifest sign-off, and an explicit
+# rollback/downgrade automation record bound to a verified rollback plan; a
+# train whose scorecard axis failed or is missing, whose packet is stale or
+# missing, whose owner manifest is unsigned, whose rollback plan is unverified,
+# whose downgrade automation is undefined, or whose waiver expired must drop
+# below the stable cutline; the promotion verdict and summary agree with the
+# firing stop rules. The gate runs the checked-in fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same register, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_train_scorecards
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_train_scorecards.yml"
+      - "artifacts/release/m5/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains.json"
+      - "artifacts/release/captures/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains_validation_capture.json"
+      - "schemas/governance/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains.schema.json"
+      - "docs/m5/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains.md"
+      - "fixtures/release/m5/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains/**"
+      - "crates/aureline-release/src/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-train-scorecards-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_train_scorecards:
+    name: M5 Per-Train Scorecards
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 per-train scorecard register contract tests
+        run: |
+          cargo test -p aureline-release --test implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-train-scorecards-${{ github.run_id }}
+          path: artifacts/release/captures/implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
