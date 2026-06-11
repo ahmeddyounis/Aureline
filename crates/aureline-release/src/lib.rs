@@ -291,6 +291,7 @@ pub mod harden_certified_reference_workspaces_archetype_pass_matrices_and_downgr
 pub mod harden_docs_help_about_and_service_health_truth;
 pub mod harden_the_critical_dependency_register_fork_replace_log_third_party_import_manifest_and_reuse_spdx_notice_coverage;
 pub mod harden_the_release_artifact_graph_with_one_build_identity_provenance_sbom_notices_attestation_and_mirror_parity;
+pub mod implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance;
 pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
 pub mod maintenance_control_packet;
 pub mod mixed_version_compatibility_and_skew_governance;
@@ -343,6 +344,18 @@ pub use implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgra
     TrainScorecardRegisterViolation, TrainState, TrainStopRule,
     IMPLEMENT_M5_TRAIN_SCORECARDS_JSON, IMPLEMENT_M5_TRAIN_SCORECARDS_PATH,
     IMPLEMENT_M5_TRAIN_SCORECARDS_RECORD_KIND, IMPLEMENT_M5_TRAIN_SCORECARDS_SCHEMA_VERSION,
+};
+
+pub use implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance::{
+    current_feature_train_compatibility_register, ChangeFreezeGuidance, CompatibilityCell,
+    CompatibilityDimension, DimensionGrade as FeatureTrainDimensionGrade, FeatureTrainCompatibilityRegister,
+    FeatureTrainCompatibilitySummary, FeatureTrainExportProjection, FeatureTrainExportRow,
+    FeatureTrainLane, FeatureTrainRegisterViolation, FeatureTrainStopRule,
+    FreezeState, FreezeTrigger, NarrowingReason as FeatureTrainNarrowingReason, ProviderSupportWindow,
+    StopAction as FeatureTrainStopAction, TrainChannel, TrainState as FeatureTrainState,
+    TrustTier as FeatureTrainTrustTier,
+    FEATURE_TRAIN_COMPATIBILITY_JSON, FEATURE_TRAIN_COMPATIBILITY_PATH,
+    FEATURE_TRAIN_COMPATIBILITY_RECORD_KIND, FEATURE_TRAIN_COMPATIBILITY_SCHEMA_VERSION,
 };
 
 pub use add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces::{

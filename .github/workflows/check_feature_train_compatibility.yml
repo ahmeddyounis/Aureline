@@ -1,0 +1,75 @@
+# Feature-train compatibility register gate.
+#
+# Validates the checked-in feature-train compatibility register: every train
+# channel (core platform, AI assistant, collaboration, extensions) binds a stable
+# claim, a compatibility-report scorecard with one cell per dimension (forward
+# compatibility, backward compatibility, schema versioning, provider support
+# window, deprecation policy, change-freeze adherence), the disclosed provider-
+# family support window and trust tier, an owner-manifest sign-off, and an explicit
+# change-freeze guidance record bound to a verified frozen-fallback plan; a lane
+# whose compatibility dimension failed or is missing, whose end-of-support window
+# is not disclosed, whose packet is stale or missing, whose owner manifest is
+# unsigned, whose frozen-fallback plan is unverified, whose change-freeze guidance
+# is undefined, or whose waiver expired must drop below the stable cutline; the
+# promotion verdict and summary agree with the firing stop rules. The gate runs the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same register, so `cargo test -p aureline-release` enforces the same
+# structural invariants.
+
+name: check_feature_train_compatibility
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_feature_train_compatibility.yml"
+      - "artifacts/release/m5/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance.json"
+      - "artifacts/release/captures/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance_validation_capture.json"
+      - "schemas/governance/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance.schema.json"
+      - "docs/m5/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance.md"
+      - "fixtures/release/m5/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance/**"
+      - "crates/aureline-release/src/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-feature-train-compatibility-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  feature_train_compatibility:
+    name: Feature-Train Compatibility
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run feature-train compatibility register contract tests
+        run: |
+          cargo test -p aureline-release --test implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feature-train-compatibility-${{ github.run_id }}
+          path: artifacts/release/captures/implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
