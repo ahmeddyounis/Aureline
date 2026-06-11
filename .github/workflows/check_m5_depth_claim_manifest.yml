@@ -1,0 +1,72 @@
+# M5 depth-claim manifest gate.
+#
+# Validates the checked-in M5 depth-claim manifest: every M5 feature family binds
+# a stable depth claim, a qualification matrix with one cell per qualification
+# dimension (scorecard, compatibility, proof freshness, generated-artifact
+# lineage, locale parity, support-packet currency, accessibility, downgrade
+# automation), a proof packet with freshness SLO, and owner sign-off; a family
+# whose qualification matrix is incomplete, whose packet is stale or missing,
+# whose lineage is absent, whose locale parity drifted, whose support packet
+# lags, whose waiver expired, or whose owner sign-off is absent must drop below
+# the stable cutline; the promotion verdict and summary agree with the firing
+# stop rules. The gate runs the checked-in fixture cases proving those rejections
+# fire. The typed Rust consumer reads the same manifest, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_depth_claim_manifest
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_depth_claim_manifest.yml"
+      - "artifacts/release/m5/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix.json"
+      - "artifacts/release/captures/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix_validation_capture.json"
+      - "schemas/governance/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix.schema.json"
+      - "docs/m5/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix.md"
+      - "fixtures/release/m5/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix/**"
+      - "crates/aureline-release/src/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-depth-claim-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_depth_claim_manifest:
+    name: M5 Depth-Claim Manifest
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 depth-claim manifest contract tests
+        run: |
+          cargo test -p aureline-release --test freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-depth-claim-manifest-${{ github.run_id }}
+          path: artifacts/release/captures/freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

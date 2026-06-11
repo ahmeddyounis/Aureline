@@ -223,6 +223,18 @@
 //! notebook/data-rich/ai-adjacent/framework/review/companion/managed-depth family kinds
 //! and the release-blocking family set both stay fully covered, so shiproom and release
 //! tooling can fail promotion directly from the register.
+//! The freeze-the-m5-depth-claim-manifest module is the depth-claim freeze that closes the
+//! M5 qualification loop: for every M5 feature family it records one feature-family packet
+//! binding the family to the stable depth claim it backs and to a qualification matrix of one
+//! cell per dimension — scorecard, compatibility, proof freshness, generated-artifact lineage,
+//! locale parity, support-packet currency, accessibility, and downgrade automation — so a
+//! family whose proof packet aged out or is missing, whose lineage is absent, whose locale
+//! parity drifted, whose support packet lags shipped behavior, whose accessibility is unsigned,
+//! whose downgrade automation is undefined, whose waiver expired, whose owner sign-off is
+//! missing, or whose backing depth claim is itself below the cutline narrows below the launch
+//! cutline and never inherits an adjacent qualified family — while the seven family kinds, the
+//! eight qualification dimensions, and the release-blocking family set all stay fully covered,
+//! so shiproom and release tooling can fail promotion directly from the manifest.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -237,6 +249,7 @@ pub mod finalize_ime_grapheme_bidi_unicode_high_contrast_zoom_density_pseudoloc_
 pub mod finalize_qualification_packets_for_optional_surfaces_and_enforce;
 pub mod finalize_release_packet_freshness_slos_shiproom_dashboards_and_proof_index_export_for_procurement_and_support;
 pub mod finalize_security_response_advisory_cve_ghsa_publication_emergency_disable_and_mirror_offline_drills;
+pub mod freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix;
 pub mod freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph;
 pub mod freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules;
 pub mod generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains;
@@ -277,6 +290,16 @@ pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
 pub mod support_class_ledger;
 pub mod voice_and_dictation_surface_qualification;
+
+pub use freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix::{
+    current_m5_depth_claim_manifest, DepthClaimExportProjection, DepthClaimExportRow,
+    DepthClaimManifest, DepthClaimManifestSummary, DepthClaimManifestViolation, DepthStopAction,
+    DepthStopRule, FamilyKind, FamilyPacket, NarrowingReason as DepthClaimNarrowingReason,
+    PacketState, QualificationCell, QualificationDimension,
+    QualificationState as DepthClaimQualificationState, FREEZE_M5_DEPTH_CLAIM_MANIFEST_JSON,
+    FREEZE_M5_DEPTH_CLAIM_MANIFEST_PATH, FREEZE_M5_DEPTH_CLAIM_MANIFEST_RECORD_KIND,
+    FREEZE_M5_DEPTH_CLAIM_MANIFEST_SCHEMA_VERSION,
+};
 
 pub use claim_publication_manifest::{
     current_claim_publication_manifest, ClaimDowngradeRule, ClaimNarrowingReason,
