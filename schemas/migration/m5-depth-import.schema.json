@@ -1,0 +1,490 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/m5-depth-import.schema.json",
+  "title": "Aureline M5 depth-import migration & compatibility contracts",
+  "description": "Boundary schema for the migration-center coverage, importer diffs, and compatibility truth of the M5-adjacent artifact families: notebook handoff artifacts, request and schema bundles, database query/session exports, profiler or trace captures, signed template/scaffold manifests, and companion/export packets. Freezes one m5_depth_import_row_record and one m5_depth_import_report_record so the diff-first, checkpointed importer outcomes, disclosed continuity scope, compatibility notes, and bridge requirements stay stable across migration center, docs, help, support, and issue-template projections. Reuses the canonical interop outcome and fidelity vocabularies from schemas/migration/importer_outcome.schema.json and crates/aureline-shell/src/import/diff_review.rs. See docs/m5/migration-depth-lanes.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_depth_import_row_record" },
+    { "$ref": "#/$defs/m5_depth_import_report_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Redaction-aware free text. Carries no credential body, raw provider payload, file path, or artifact content."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "migration:m5_depth_import:v1"
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "notebook_handoff",
+        "request_schema_bundle",
+        "database_query_session_export",
+        "profiler_trace_capture",
+        "template_scaffold_manifest",
+        "companion_export_packet"
+      ],
+      "description": "Closed set of M5-adjacent artifact families covered by this lane."
+    },
+    "interop_outcome": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported"
+      ],
+      "description": "Controlled importer outcome vocabulary, identical to migration-center interop_result_state."
+    },
+    "fidelity_class": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"],
+      "description": "Canonical migration fidelity ladder reused from the import diff-review model."
+    },
+    "continuity_scope": {
+      "type": "string",
+      "enum": [
+        "native",
+        "partial_mapping",
+        "inspect_only",
+        "bridge",
+        "export_bundle",
+        "unsupported"
+      ],
+      "description": "Disclosed support posture. Only 'native' may be presented as parity; every other scope keeps continuity explicit on the compatibility packet and in-product review sheets."
+    },
+    "bridge_surface_class": {
+      "type": "string",
+      "enum": [
+        "runtime_bridge",
+        "request_translator",
+        "schema_translator",
+        "capability_layer",
+        "other"
+      ]
+    },
+    "bridge_installation_posture": {
+      "type": "string",
+      "enum": [
+        "already_present",
+        "required_before_use",
+        "recommended",
+        "policy_blocked",
+        "unavailable"
+      ]
+    },
+    "bridge_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bridge_ref", "bridge_surface_class", "installation_posture", "note"],
+      "properties": {
+        "bridge_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bridge_surface_class": { "$ref": "#/$defs/bridge_surface_class" },
+        "installation_posture": { "$ref": "#/$defs/bridge_installation_posture" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Bridge requirement details for rows that cannot claim native parity."
+    },
+    "known_deviation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deviation_id", "summary", "recoverable"],
+      "properties": {
+        "deviation_id": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "recoverable": { "type": "boolean" }
+      },
+      "description": "One disclosed deviation from native parity, surfaced before apply."
+    },
+    "restore_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_id", "restore_path", "protected_domains"],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "restore_path": { "$ref": "#/$defs/redaction_aware_text" },
+        "protected_domains": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Pre-apply checkpoint and restore path protecting a mutating apply."
+    },
+    "outcome_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+        "total_rows"
+      ],
+      "properties": {
+        "imported": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "manual_review": { "type": "integer", "minimum": 0 },
+        "bridge_required": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "total_rows": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Explicit grouped counts for the six controlled outcome states. bridge_required and unsupported remain present even when their count is zero."
+    },
+    "class_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["covered_classes", "total_required_classes", "native_parity_classes"],
+      "properties": {
+        "covered_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" }
+        },
+        "total_required_classes": { "type": "integer", "minimum": 0 },
+        "native_parity_classes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "m5_depth_import_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "artifact_class",
+        "title",
+        "source_artifact_ref",
+        "outcome",
+        "fidelity",
+        "continuity_scope",
+        "mutates_durable_state",
+        "known_deviations",
+        "docs_help_refs",
+        "narrative"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_depth_import_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "title": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_object_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "outcome": { "$ref": "#/$defs/interop_outcome" },
+        "fidelity": { "$ref": "#/$defs/fidelity_class" },
+        "continuity_scope": { "$ref": "#/$defs/continuity_scope" },
+        "mutates_durable_state": { "type": "boolean" },
+        "restore_checkpoint": {
+          "oneOf": [
+            { "$ref": "#/$defs/restore_checkpoint" },
+            { "type": "null" }
+          ],
+          "description": "Required (non-null) whenever mutates_durable_state is true."
+        },
+        "bridge_requirement": {
+          "oneOf": [
+            { "$ref": "#/$defs/bridge_requirement" },
+            { "type": "null" }
+          ],
+          "description": "Required (non-null) whenever outcome = bridge_required."
+        },
+        "compatibility_note": {
+          "oneOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Required (non-null) for any continuity_scope other than native."
+        },
+        "known_deviations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/known_deviation" }
+        },
+        "docs_help_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "narrative": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "mutates_durable_state": { "const": true } },
+            "required": ["mutates_durable_state"]
+          },
+          "then": {
+            "properties": { "restore_checkpoint": { "$ref": "#/$defs/restore_checkpoint" } },
+            "required": ["restore_checkpoint"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "bridge_required" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": { "bridge_requirement": { "$ref": "#/$defs/bridge_requirement" } },
+            "required": ["bridge_requirement"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "continuity_scope": {
+                "enum": ["partial_mapping", "inspect_only", "bridge", "export_bundle", "unsupported"]
+              }
+            },
+            "required": ["continuity_scope"]
+          },
+          "then": {
+            "properties": { "compatibility_note": { "$ref": "#/$defs/redaction_aware_text" } },
+            "required": ["compatibility_note"]
+          }
+        }
+      ],
+      "description": "One durable importer-diff row for an M5-adjacent artifact family. The row stays stable in preview, post-apply review, docs, support handoff, and issue-template export."
+    },
+    "m5_depth_import_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "headline",
+        "preview_before_apply",
+        "rows",
+        "outcome_summary",
+        "class_coverage",
+        "every_apply_reversible",
+        "no_overclaimed_parity",
+        "no_raw_artifact_content",
+        "compatibility_report_refs",
+        "readiness_review_refs",
+        "docs_help_refs",
+        "export_refs",
+        "support_packet_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_depth_import_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/redaction_aware_text" },
+        "preview_before_apply": { "type": "boolean" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/m5_depth_import_row_record" }
+        },
+        "outcome_summary": { "$ref": "#/$defs/outcome_summary" },
+        "class_coverage": { "$ref": "#/$defs/class_coverage_summary" },
+        "every_apply_reversible": { "type": "boolean" },
+        "no_overclaimed_parity": { "type": "boolean" },
+        "no_raw_artifact_content": { "type": "boolean" },
+        "compatibility_report_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "readiness_review_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rows": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "outcome": { "enum": ["bridge_required", "unsupported"] }
+                  },
+                  "required": ["outcome"]
+                }
+              }
+            },
+            "required": ["rows"]
+          },
+          "then": {
+            "properties": {
+              "export_refs": { "minItems": 1 },
+              "support_packet_refs": { "minItems": 1 }
+            },
+            "required": ["export_refs", "support_packet_refs"]
+          }
+        }
+      ],
+      "description": "Migration-center compatibility report for the M5 depth-import lane, read by migration center, docs, help, support handoff, and machine-readable exports."
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "m5_depth_import_row_record",
+      "schema_version": 1,
+      "shared_contract_ref": "migration:m5_depth_import:v1",
+      "row_id": "m5-depth-import-row:profiler-trace-capture",
+      "artifact_class": "profiler_trace_capture",
+      "title": "Profiler or trace capture import",
+      "source_artifact_ref": "source:profiler_trace_capture",
+      "target_object_ref": "aureline:profiler:inspected_capture",
+      "outcome": "manual_review",
+      "fidelity": "partial",
+      "continuity_scope": "inspect_only",
+      "mutates_durable_state": false,
+      "restore_checkpoint": null,
+      "bridge_requirement": null,
+      "compatibility_note": "Captured traces open in an inspect-only viewer; Aureline does not re-run or re-symbolicate the capture, so the import does not mutate durable state.",
+      "known_deviations": [
+        {
+          "deviation_id": "deviation:profiler.resymbolication",
+          "summary": "Re-symbolication and re-capture are not performed; symbols already present in the capture are shown as-is.",
+          "recoverable": false
+        }
+      ],
+      "docs_help_refs": [
+        "docs/m5/migration-depth-lanes.md#profiler-trace-capture"
+      ],
+      "narrative": "A captured trace is opened inspect-only for review. Because nothing durable is written, there is no checkpoint to restore; the row is flagged for manual review so the user decides whether to keep the inspected capture."
+    },
+    {
+      "record_kind": "m5_depth_import_report_record",
+      "schema_version": 1,
+      "shared_contract_ref": "migration:m5_depth_import:v1",
+      "report_id": "migration:m5_depth_import:v1:example",
+      "headline": "Diff-first, checkpointed migration coverage and compatibility truth for the M5 depth-import artifact families.",
+      "preview_before_apply": true,
+      "rows": [
+        {
+          "record_kind": "m5_depth_import_row_record",
+          "schema_version": 1,
+          "shared_contract_ref": "migration:m5_depth_import:v1",
+          "row_id": "m5-depth-import-row:notebook-handoff",
+          "artifact_class": "notebook_handoff",
+          "title": "Notebook handoff import",
+          "source_artifact_ref": "source:notebook_handoff_bundle",
+          "target_object_ref": "aureline:notebook:imported_document",
+          "outcome": "imported",
+          "fidelity": "translated",
+          "continuity_scope": "native",
+          "mutates_durable_state": true,
+          "restore_checkpoint": {
+            "checkpoint_id": "checkpoint:notebook-handoff",
+            "restore_path": "Restore from the pre-apply notebook checkpoint to revert the imported document.",
+            "protected_domains": ["notebook_documents"]
+          },
+          "bridge_requirement": null,
+          "compatibility_note": null,
+          "known_deviations": [
+            {
+              "deviation_id": "deviation:notebook.kernel_state",
+              "summary": "Live kernel state and execution counts are not part of the handoff; the imported document opens without a running kernel.",
+              "recoverable": true
+            }
+          ],
+          "docs_help_refs": [
+            "docs/m5/migration-depth-lanes.md#notebook-handoff"
+          ],
+          "narrative": "Notebook cells, outputs, and attachment refs translate into a native imported document."
+        },
+        {
+          "record_kind": "m5_depth_import_row_record",
+          "schema_version": 1,
+          "shared_contract_ref": "migration:m5_depth_import:v1",
+          "row_id": "m5-depth-import-row:companion-export-packet",
+          "artifact_class": "companion_export_packet",
+          "title": "Companion or export packet import",
+          "source_artifact_ref": "source:companion_export_packet",
+          "target_object_ref": null,
+          "outcome": "unsupported",
+          "fidelity": "unsupported",
+          "continuity_scope": "export_bundle",
+          "mutates_durable_state": false,
+          "restore_checkpoint": null,
+          "bridge_requirement": null,
+          "compatibility_note": "Companion export packets are preserved as a re-exportable bundle for offline review; Aureline does not import them as a live companion session.",
+          "known_deviations": [],
+          "docs_help_refs": [
+            "docs/m5/migration-depth-lanes.md#companion-export-packet"
+          ],
+          "narrative": "Companion export packets have no native import target, so the migration center keeps them as an export bundle and says so plainly."
+        }
+      ],
+      "outcome_summary": {
+        "imported": 1,
+        "mapped": 0,
+        "skipped": 0,
+        "manual_review": 0,
+        "bridge_required": 0,
+        "unsupported": 1,
+        "total_rows": 2
+      },
+      "class_coverage": {
+        "covered_classes": ["notebook_handoff", "companion_export_packet"],
+        "total_required_classes": 6,
+        "native_parity_classes": 1
+      },
+      "every_apply_reversible": true,
+      "no_overclaimed_parity": true,
+      "no_raw_artifact_content": true,
+      "compatibility_report_refs": [
+        "artifacts/compat/m5/migration-reports/m5_depth_import_report.md"
+      ],
+      "readiness_review_refs": [
+        "readiness-review:m5:depth_import_compatibility"
+      ],
+      "docs_help_refs": [
+        "docs/m5/migration-depth-lanes.md"
+      ],
+      "export_refs": [
+        "support_bundle.m5_depth_import_report"
+      ],
+      "support_packet_refs": [
+        "support_packet.m5_depth_import_review.default"
+      ],
+      "generated_at": "2026-06-11T00:00:00Z"
+    }
+  ]
+}

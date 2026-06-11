@@ -103,6 +103,7 @@ pub mod learnability_glossary_stable;
 pub mod learning_mode;
 pub mod learning_tour_alpha;
 pub mod locale_pack_beta;
+pub mod m5_depth_imports;
 pub mod m5_entry_routes;
 pub mod macros;
 pub mod managed_boundary;
