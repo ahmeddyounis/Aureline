@@ -250,6 +250,21 @@
 //! adjacent qualified train — while the seven train kinds, the six scorecard axes, and the
 //! release-blocking train set all stay fully covered, so shiproom and release tooling can fail
 //! promotion directly from the register.
+//! The ship-generated-artifact-lineage module is the lineage-truth layer for generated
+//! outputs: where the train scorecard register speaks for each feature train, this register
+//! speaks for the *lineage surface* every generated-artifact family exposes — scaffolded,
+//! AI-generated, notebook-derived, and preview-derived outputs. For every family it records one
+//! surface binding the family to the stable claim it backs, a lineage scorecard of one cell per
+//! dimension (provenance, inputs, generator identity, transform, reproducibility, disclosure),
+//! the disclosed artifact provenance and trust tier, an owner-manifest sign-off, and a
+//! rollback/downgrade automation record bound to a verified rollback plan, so a surface whose
+//! lineage dimension failed or is missing, whose artifact is not labeled as generated, whose
+//! proof packet aged out or is missing, whose owner manifest is unsigned, whose rollback plan is
+//! unverified, whose downgrade automation is undefined, whose waiver expired, or whose backing
+//! claim is itself below the cutline narrows below the launch cutline and never inherits an
+//! adjacent traced surface — while the four generator kinds, the six lineage dimensions, and the
+//! release-blocking surface set all stay fully covered, so shiproom and release tooling can fail
+//! promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -291,6 +306,7 @@ pub mod publish_the_m5_storage_retention_export_and_offboarding_matrix_for_new_d
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
+pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_embedded_surface_boundary_truth;
@@ -326,6 +342,18 @@ pub use implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgra
     TrainScorecardRegisterViolation, TrainState, TrainStopRule,
     IMPLEMENT_M5_TRAIN_SCORECARDS_JSON, IMPLEMENT_M5_TRAIN_SCORECARDS_PATH,
     IMPLEMENT_M5_TRAIN_SCORECARDS_RECORD_KIND, IMPLEMENT_M5_TRAIN_SCORECARDS_SCHEMA_VERSION,
+};
+
+pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs::{
+    current_generated_artifact_lineage_register, AutomationState as LineageAutomationState,
+    DimensionGrade, DowngradeAutomation as LineageDowngradeAutomation,
+    DowngradeTrigger as LineageDowngradeTrigger, GeneratedArtifactLineageRegister,
+    GeneratedArtifactLineageSummary, GeneratorKind, LineageCell, LineageDimension,
+    LineageExportProjection, LineageExportRow, LineageProvenance, LineageRegisterViolation,
+    LineageState, LineageStopRule, LineageSurface, NarrowingReason as LineageNarrowingReason,
+    StopAction as LineageStopAction, TrustTier, GENERATED_ARTIFACT_LINEAGE_JSON,
+    GENERATED_ARTIFACT_LINEAGE_PATH, GENERATED_ARTIFACT_LINEAGE_RECORD_KIND,
+    GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{
