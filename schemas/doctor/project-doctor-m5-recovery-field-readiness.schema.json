@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/doctor/project-doctor-m5-recovery-field-readiness.schema.json",
+  "title": "Aureline Project Doctor M5 recovery field-readiness packet",
+  "description": "Schema for the project_doctor_m5_recovery_field_readiness packet. Each scenario seeds one blocked-user situation in one M5 recovery lane (notebook kernel, request/API, database target, profiler/replay, remote preview, sync/device-registry, companion handoff, incident packet) and pins the initiating findings, the chosen recovery-ladder rung, a per-percentile first-actionable diagnosis-latency budget (p90 is the headline) and its observed corpus measurements, corpus freshness, and a metadata-safe support-bundle/escalation linkage that preserves finding ids, repair ids, scope, and durable evidence without overcapturing content. A non-inheriting promotion gate publishes each scenario's promotion action and narrowing reason from its own drill outcome, freshness, latency state, and escalation completeness, so a stale corpus, a breached p90 budget, missing evidence, or an unhanded-off drill narrows or blocks that scenario automatically. Records are read-only and metadata-only and carry no credential bodies or mount/port/tunnel secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "schema_ref",
+    "as_of",
+    "recovery_lanes",
+    "recovery_rungs",
+    "latency_percentiles",
+    "drill_outcomes",
+    "promotion_actions",
+    "narrowing_reasons",
+    "parity_surfaces",
+    "scenarios",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "project_doctor_m5_recovery_field_readiness" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "recovery_lanes": { "type": "array", "items": { "$ref": "#/$defs/recovery_lane" } },
+    "recovery_rungs": { "type": "array", "items": { "$ref": "#/$defs/recovery_rung" } },
+    "latency_percentiles": { "type": "array", "items": { "$ref": "#/$defs/latency_percentile" } },
+    "drill_outcomes": { "type": "array", "items": { "$ref": "#/$defs/drill_outcome" } },
+    "promotion_actions": { "type": "array", "items": { "$ref": "#/$defs/promotion_action" } },
+    "narrowing_reasons": { "type": "array", "items": { "$ref": "#/$defs/narrowing_reason" } },
+    "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "recovery_lane": {
+      "enum": [
+        "notebook_kernel",
+        "request_api",
+        "database_target",
+        "profiler_replay",
+        "preview_route",
+        "sync_device_registry",
+        "companion_handoff",
+        "incident_packet"
+      ]
+    },
+    "recovery_rung": {
+      "enum": [
+        "safe_mode",
+        "quarantine",
+        "open_without_restore",
+        "cache_index_repair",
+        "restricted_reopen",
+        "typed_repair"
+      ]
+    },
+    "latency_percentile": { "enum": ["p50", "p90", "p95"] },
+    "drill_outcome": {
+      "enum": ["diagnosed_and_handed_off", "diagnosed_not_handed_off", "not_diagnosed"]
+    },
+    "promotion_action": {
+      "enum": ["publish_full", "narrow_to_advisory", "block_promotion"]
+    },
+    "narrowing_reason": {
+      "enum": [
+        "none",
+        "stale_corpus",
+        "latency_breached",
+        "evidence_missing",
+        "drill_not_handed_off",
+        "drill_not_diagnosed"
+      ]
+    },
+    "parity_surface": {
+      "enum": [
+        "desktop_pane",
+        "cli_row",
+        "headless_json",
+        "support_export",
+        "incident_packet",
+        "public_truth"
+      ]
+    },
+    "latency_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["percentile", "target_ms", "yellow_ms", "red_ms"],
+      "properties": {
+        "percentile": { "$ref": "#/$defs/latency_percentile" },
+        "target_ms": { "type": "integer", "minimum": 1 },
+        "yellow_ms": { "type": "integer", "minimum": 1 },
+        "red_ms": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "observed_latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["percentile", "observed_ms"],
+      "properties": {
+        "percentile": { "$ref": "#/$defs/latency_percentile" },
+        "observed_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "support_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_manifest_ref",
+        "escalation_packet_ref",
+        "preserved_finding_ids",
+        "preserved_repair_ids",
+        "preserved_scope_refs",
+        "durable_evidence_refs",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "overcapture_excluded"
+      ],
+      "properties": {
+        "bundle_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "escalation_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preserved_finding_ids": { "$ref": "#/$defs/string_array" },
+        "preserved_repair_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "preserved_scope_refs": { "$ref": "#/$defs/string_array" },
+        "durable_evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "redaction_class": { "const": "metadata_safe_default" },
+        "raw_private_material_excluded": { "const": true },
+        "overcapture_excluded": { "const": true }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "lane",
+        "title",
+        "initiating_findings",
+        "recovery_rung",
+        "repair_id",
+        "first_actionable_latency_budgets",
+        "observed_latencies",
+        "corpus_run_at",
+        "corpus_age_days",
+        "freshness_window_days",
+        "drill_outcome",
+        "support_linkage",
+        "parity_surfaces",
+        "machine_meaning_keys",
+        "explanation",
+        "published_promotion_action",
+        "published_narrowing_reason",
+        "notes"
+      ],
+      "properties": {
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/recovery_lane" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "initiating_findings": { "$ref": "#/$defs/string_array" },
+        "recovery_rung": { "$ref": "#/$defs/recovery_rung" },
+        "repair_id": { "type": ["string", "null"], "minLength": 1 },
+        "first_actionable_latency_budgets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/latency_budget" }
+        },
+        "observed_latencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/observed_latency" }
+        },
+        "corpus_run_at": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_age_days": { "type": "integer", "minimum": 0 },
+        "freshness_window_days": { "type": "integer", "minimum": 1 },
+        "drill_outcome": { "$ref": "#/$defs/drill_outcome" },
+        "support_linkage": { "$ref": "#/$defs/support_linkage" },
+        "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+        "machine_meaning_keys": { "$ref": "#/$defs/string_array" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "published_promotion_action": { "$ref": "#/$defs/promotion_action" },
+        "published_narrowing_reason": { "$ref": "#/$defs/narrowing_reason" },
+        "notes": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_count",
+        "lanes_covered",
+        "published_full_count",
+        "narrowed_count",
+        "blocked_count",
+        "stale_corpus_count",
+        "latency_breached_count",
+        "diagnosed_and_handed_off_count",
+        "typed_repair_count"
+      ],
+      "properties": {
+        "scenario_count": { "type": "integer", "minimum": 0 },
+        "lanes_covered": { "type": "integer", "minimum": 0 },
+        "published_full_count": { "type": "integer", "minimum": 0 },
+        "narrowed_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "stale_corpus_count": { "type": "integer", "minimum": 0 },
+        "latency_breached_count": { "type": "integer", "minimum": 0 },
+        "diagnosed_and_handed_off_count": { "type": "integer", "minimum": 0 },
+        "typed_repair_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
