@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/doctor/project-doctor-explainability-parity.schema.json",
+  "title": "Aureline Project Doctor explainability panes and cross-surface parity",
+  "description": "Schema for the project_doctor_explainability_parity packet. The packet turns each Project Doctor finding into an explainability pane that exposes the stable finding code, the probe id and version that produced it, the evidence refs that back it, the affected scope, and why a candidate repair is or is not available. Each pane names a repair-availability class (an available candidate with a reversal class, or an explicit non-generic block reason), a canonical CLI exit class derived from its diagnosis state, the surfaces it renders on, and the locale-invariant machine-meaning keys that may never change with localized prose. Diagnosis is read-only and metadata-only: a healthy pane carries no repair candidate and no block reason, and an available repair always names a real reversal class.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "schema_ref",
+    "as_of",
+    "diagnosis_states",
+    "repair_availabilities",
+    "reversal_classes",
+    "cli_exit_classes",
+    "parity_surfaces",
+    "panes",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "project_doctor_explainability_parity" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "diagnosis_states": { "type": "array", "items": { "$ref": "#/$defs/diagnosis_state" } },
+    "repair_availabilities": { "type": "array", "items": { "$ref": "#/$defs/repair_availability" } },
+    "reversal_classes": { "type": "array", "items": { "$ref": "#/$defs/reversal_class" } },
+    "cli_exit_classes": { "type": "array", "items": { "$ref": "#/$defs/cli_exit_class" } },
+    "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+    "panes": { "type": "array", "items": { "$ref": "#/$defs/pane" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "diagnosis_state": {
+      "enum": ["healthy", "partial", "stale", "unsupported", "policy_blocked", "target_mismatch"]
+    },
+    "repair_availability": {
+      "enum": [
+        "available",
+        "not_applicable_healthy",
+        "blocked_unsupported_context",
+        "blocked_managed_policy",
+        "blocked_partial_evidence",
+        "blocked_reversal_unproven"
+      ]
+    },
+    "reversal_class": {
+      "enum": [
+        "reversible_transactional",
+        "reversible_with_snapshot",
+        "irreversible_guarded",
+        "not_applicable"
+      ]
+    },
+    "cli_exit_class": {
+      "enum": ["ok_healthy", "advisory_findings", "blocked", "unsupported", "policy_denied"]
+    },
+    "parity_surface": {
+      "enum": [
+        "desktop_pane",
+        "cli_row",
+        "headless_json",
+        "support_export",
+        "incident_packet",
+        "public_truth"
+      ]
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_ref"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/non_empty_string" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "finding_code",
+        "probe_id",
+        "probe_version",
+        "diagnosis_state",
+        "affected_scope",
+        "evidence_refs",
+        "repair_availability",
+        "reversal_class",
+        "cli_exit_class",
+        "parity_surfaces",
+        "machine_meaning_keys",
+        "explanation",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "summary"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/non_empty_string" },
+        "finding_code": { "$ref": "#/$defs/non_empty_string" },
+        "probe_id": { "$ref": "#/$defs/non_empty_string" },
+        "probe_version": { "$ref": "#/$defs/non_empty_string" },
+        "diagnosis_state": { "$ref": "#/$defs/diagnosis_state" },
+        "affected_scope": { "$ref": "#/$defs/affected_scope" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "repair_availability": { "$ref": "#/$defs/repair_availability" },
+        "repair_candidate_id": { "type": "string" },
+        "repair_unavailable_reason_code": { "type": "string" },
+        "reversal_class": { "$ref": "#/$defs/reversal_class" },
+        "cli_exit_class": { "$ref": "#/$defs/cli_exit_class" },
+        "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+        "machine_meaning_keys": { "$ref": "#/$defs/string_array" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "const": "metadata_safe_default" },
+        "raw_private_material_excluded": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_count",
+        "healthy_panes",
+        "panes_with_available_repair",
+        "panes_with_blocked_repair",
+        "cross_surface_stable_panes",
+        "exit_ok_panes",
+        "exit_advisory_panes",
+        "exit_blocked_panes",
+        "exit_unsupported_panes",
+        "exit_policy_denied_panes"
+      ],
+      "properties": {
+        "pane_count": { "type": "integer", "minimum": 0 },
+        "healthy_panes": { "type": "integer", "minimum": 0 },
+        "panes_with_available_repair": { "type": "integer", "minimum": 0 },
+        "panes_with_blocked_repair": { "type": "integer", "minimum": 0 },
+        "cross_surface_stable_panes": { "type": "integer", "minimum": 0 },
+        "exit_ok_panes": { "type": "integer", "minimum": 0 },
+        "exit_advisory_panes": { "type": "integer", "minimum": 0 },
+        "exit_blocked_panes": { "type": "integer", "minimum": 0 },
+        "exit_unsupported_panes": { "type": "integer", "minimum": 0 },
+        "exit_policy_denied_panes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

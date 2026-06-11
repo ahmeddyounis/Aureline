@@ -34,6 +34,17 @@
 //! desktop, CLI/headless, and support surfaces, and keeps unsupported, partial,
 //! stale, policy-blocked, and target-mismatch states reported explicitly instead
 //! of collapsed into generic "unavailable" copy.
+//!
+//! The
+//! [`ship_project_doctor_explainability_panes_evidence_refs_and_cross_surface_parity`]
+//! module turns each finding into an inspectable explainability pane that exposes
+//! the finding code, the probe id and version, the evidence refs, the affected
+//! scope, and — the central addition — *why a candidate repair is or is not
+//! available*. Each pane pins a canonical CLI exit class derived from its
+//! diagnosis state and the locale-invariant machine-meaning keys, so the desktop
+//! pane, CLI/headless rows, support exports, incident packets, and public-truth
+//! surfaces carry the same finding identity, repair-availability reason, and exit
+//! semantics without localized copy changing machine meaning.
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
@@ -43,4 +54,5 @@ pub mod finalize_the_doctor_accuracy_corpus_diagnosis_latency_slos;
 pub mod freeze_the_m5_project_doctor_guided_repair_and_container_or_devcontainer_maturity_matrix;
 pub mod probe_packs;
 pub mod probes;
+pub mod ship_project_doctor_explainability_panes_evidence_refs_and_cross_surface_parity;
 pub mod stabilize_project_doctor_probes_finding_codes_explainability_and;
