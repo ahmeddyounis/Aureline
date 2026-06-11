@@ -1,0 +1,74 @@
+# M5 maintenance-truth register gate.
+#
+# Validates the checked-in maintenance-truth register: every lane kind (backport
+# rule, hotfix rule, proof-freshness automation, Help/About truth) binds a stable
+# claim, a maintenance scorecard with one cell per dimension (backport policy,
+# hotfix policy, proof freshness, evidence expiry, Help/About truth, docs truth),
+# the disclosed support posture and trust tier, an owner-manifest sign-off, and an
+# explicit downgrade-automation record bound to a verified frozen-fallback
+# rollback plan; a lane whose maintenance dimension failed or is missing, whose
+# Help/About truth is not disclosed, whose packet is stale or missing, whose owner
+# manifest is unsigned, whose frozen-fallback rollback plan is unverified, whose
+# downgrade automation is undefined, or whose waiver expired must drop below the
+# stable cutline; the promotion verdict and summary agree with the firing stop
+# rules. The gate runs the checked-in fixture cases proving those rejections fire.
+# The typed Rust consumer reads the same register, so `cargo test -p
+# aureline-release` enforces the same structural invariants.
+
+name: check_maintenance_truth_register
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_maintenance_truth_register.yml"
+      - "artifacts/release/m5/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes.json"
+      - "artifacts/release/captures/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes_validation_capture.json"
+      - "schemas/governance/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes.schema.json"
+      - "docs/m5/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes.md"
+      - "fixtures/release/m5/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes/**"
+      - "crates/aureline-release/src/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-maintenance-truth-register-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  maintenance_truth_register:
+    name: M5 Maintenance-Truth Register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run maintenance-truth register contract tests
+        run: |
+          cargo test -p aureline-release --test add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maintenance-truth-register-${{ github.run_id }}
+          path: artifacts/release/captures/add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

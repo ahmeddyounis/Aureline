@@ -265,9 +265,26 @@
 //! adjacent traced surface — while the four generator kinds, the six lineage dimensions, and the
 //! release-blocking surface set all stay fully covered, so shiproom and release tooling can fail
 //! promotion directly from the register.
+//! The add-backport-and-hotfix-rules module is the post-release maintenance-truth layer beside
+//! those gates: where the train scorecard register speaks for each feature train, this register
+//! speaks for the *maintenance-truth lane* every lane kind exposes — the supported-line backport
+//! rule, the emergency hotfix rule, the proof-freshness/evidence-expiry automation, and the
+//! Help/About truth surface those lanes publish. For every lane it records one entry binding the
+//! lane to the stable claim it backs, a maintenance scorecard of one cell per dimension (backport
+//! policy, hotfix policy, proof freshness, evidence expiry, Help/About truth, and docs truth),
+//! the disclosed support posture and maintainer trust tier, an owner-manifest sign-off, and a
+//! rollback/downgrade automation record bound to a verified frozen-fallback rollback plan, so a
+//! lane whose maintenance dimension failed or is missing, whose Help/About truth is undisclosed,
+//! whose proof packet aged out or is missing, whose owner manifest is unsigned, whose rollback
+//! plan is unverified, whose downgrade automation is undefined, whose waiver expired, or whose
+//! backing claim is itself below the cutline narrows below the launch cutline and never inherits
+//! an adjacent certified lane — while the four lane kinds, the six maintenance dimensions, and the
+//! release-blocking lane set all stay fully covered, so shiproom and release tooling can fail
+//! promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
+pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod browser_mobile_companion_surface_qualification;
 pub mod claim_publication_manifest;
@@ -369,6 +386,20 @@ pub use add_community_locale_pack_lifecycle_translation_governance_and_parity_au
     StopAction as LocalePackStopAction, TranslationGovernance, TrustTier as LocalePackTrustTier,
     LOCALE_PACK_GOVERNANCE_JSON, LOCALE_PACK_GOVERNANCE_PATH, LOCALE_PACK_GOVERNANCE_RECORD_KIND,
     LOCALE_PACK_GOVERNANCE_SCHEMA_VERSION,
+};
+
+pub use add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes::{
+    current_maintenance_truth_register, AutomationState as MaintenanceTruthAutomationState,
+    AutomationTrigger as MaintenanceTruthAutomationTrigger,
+    DimensionGrade as MaintenanceTruthDimensionGrade,
+    DowngradeAutomation as MaintenanceTruthDowngradeAutomation, LaneKind as MaintenanceLaneKind,
+    LaneState as MaintenanceLaneState, MaintenanceCell, MaintenanceDimension,
+    MaintenanceTruthExportProjection, MaintenanceTruthExportRow, MaintenanceTruthLane,
+    MaintenanceTruthRegister, MaintenanceTruthStopRule, MaintenanceTruthSummary,
+    MaintenanceTruthViolation, NarrowingReason as MaintenanceTruthNarrowingReason,
+    StopAction as MaintenanceTruthStopAction, SupportDisclosure,
+    TrustTier as MaintenanceTruthTrustTier, MAINTENANCE_TRUTH_JSON, MAINTENANCE_TRUTH_PATH,
+    MAINTENANCE_TRUTH_RECORD_KIND, MAINTENANCE_TRUTH_SCHEMA_VERSION,
 };
 
 pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs::{
