@@ -30,9 +30,19 @@
 //! awareness surfaces are read-only, only a single bounded light-edit surface may
 //! write through a host-approved relay, and stale state is always labeled rather
 //! than shown as live.
+//!
+//! Building further, it owns the incident workspace surface in
+//! [`add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets`],
+//! which projects the incident workspace header card, the ordered evidence
+//! timeline (including first-class missing spans), the read-only resource slices,
+//! and the runbook packets to the incident workspace, desktop panel, diagnostics,
+//! support exports, and Help/About — every section read-only and inheriting its
+//! qualification from the frozen incident-workspace matrix lane, with attribution
+//! preserved or honestly narrowed and an exact desktop handoff per item.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
+pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
