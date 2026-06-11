@@ -109,6 +109,7 @@ pub mod m5_command_registry;
 pub mod m5_component_registry;
 pub mod m5_depth_imports;
 pub mod m5_entry_routes;
+pub mod m5_notification_routes;
 pub mod macros;
 pub mod managed_boundary;
 pub mod managed_truth;

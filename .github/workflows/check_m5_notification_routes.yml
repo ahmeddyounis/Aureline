@@ -1,0 +1,72 @@
+# M5 notification privacy, quiet-hours, and badge qualification gate.
+#
+# Validates the checked-in M5 notification-route audit: every M5 depth
+# notification source (notebook runs, data/API runs, pipeline actions, profiler
+# captures, preview routes, companion summaries, incident packets, sync state
+# changes, offboarding jobs) qualifies the nine notification guarantees
+# Aureline's stable shell already promises (privacy classification, lock-screen
+# privacy, payload minimization, quiet-hours policy, admin suppression,
+# root-cause dedupe, badge semantics, exact-target reopen, and companion fanout
+# honesty) with captured evidence; no qualified guarantee carries a red result
+# (a lock-screen leak, a secret-bearing payload, a bypassed quiet-hours window,
+# an overridden admin suppression, a duplicate flood, a raw-event badge counter,
+# a lost reopen target, or a silent fanout failure); no source invents a
+# feature-local notification rule that bypasses the governed router; and a
+# marketed guarantee whose evidence is stale or red narrows instead of shipping
+# as implicitly stable. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and
+# that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_notification_routes
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_notification_routes.yml"
+      - "tools/ci/m5/notification_routes_check.py"
+      - "schemas/ux/m5-notification-envelope-diff.schema.json"
+      - "docs/m5/notification-privacy-and-badges.md"
+      - "artifacts/ux/m5/quiet-hours-and-privacy/**"
+      - "fixtures/ux/m5/notification-dedupe/**"
+      - "crates/aureline-shell/src/m5_notification_routes/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_notification_routes.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_notification_routes_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-notification-routes-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_notification_routes:
+    name: M5 notification routes
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 notification-routes CI gate
+        run: |
+          python3 tools/ci/m5/notification_routes_check.py --repo-root .
+
+      - name: Run M5 notification-routes contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_notification_routes_fixtures

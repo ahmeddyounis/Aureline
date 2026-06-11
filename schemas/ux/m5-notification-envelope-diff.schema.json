@@ -1,0 +1,525 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-notification-envelope-diff.schema.json",
+  "title": "Aureline M5 notification privacy, quiet-hours, and badge qualification audit",
+  "description": "Boundary schema for the M5 notification-route qualification audit emitted by the aureline-shell m5_notification_routes module. The audit compares the canonical notification-source descriptor for every registered M5 depth notification source (notebook runs, data/API runs, pipeline actions, profiler captures, preview routes, companion summaries, incident packets, sync state changes, offboarding jobs) against the qualification result the source certifies for each of the nine notification guarantees the M5 lanes must pass: privacy_classification, lock_screen_privacy, payload_minimization, quiet_hours_policy, admin_suppression, root_cause_dedupe, badge_semantics, exact_target_reopen, and companion_fanout_honesty. Acceptance: the audit MUST cover the nine required guarantees for every registered source, MUST carry a canonical exact-target reopen anchor, a support note, a declared privacy class, at least one declared fanout channel, and a governed-router registration flag, MUST require captured evidence (a notification-envelope ref, a declared privacy class, a lock-screen disclosure, and an evidence-freshness stamp for every qualified guarantee; a payload-minimization outcome for the payload guarantee; a quiet-hours outcome for the quiet-hours guarantee; an admin-suppression outcome for the admin guarantee; a dedupe outcome for the dedupe guarantee; a badge outcome for the badge guarantee; a reopen outcome for the reopen guarantee; an honest fanout label for the companion guarantee), MUST flag any red result (a lock-screen leak, a secret-bearing payload, a bypassed quiet-hours window, an overridden admin suppression, a duplicate flood, a raw-event badge counter, a lost reopen target, or a silent fanout failure) as a blocker, MUST reject a feature-local notification rule outside the governed router and a marketed guarantee claimed with no evidence, MUST treat stale evidence on a marketed guarantee as a blocker so release tooling can narrow the row, and MUST be usable by support exports and companion fanout without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/notification-dedupe/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/notification_routes_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_notification_route_report_record" },
+    { "$ref": "#/$defs/m5_notification_route_support_export_record" }
+  ],
+  "$defs": {
+    "m5_notification_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 notification-route contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_notification_routes:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "notification_source": {
+      "type": "string",
+      "enum": [
+        "notebook_run",
+        "data_api_run",
+        "pipeline_action",
+        "profiler_capture",
+        "preview_route",
+        "companion_summary",
+        "incident_packet",
+        "sync_state_change",
+        "offboarding_job"
+      ]
+    },
+    "notification_guarantee": {
+      "type": "string",
+      "enum": [
+        "privacy_classification",
+        "lock_screen_privacy",
+        "payload_minimization",
+        "quiet_hours_policy",
+        "admin_suppression",
+        "root_cause_dedupe",
+        "badge_semantics",
+        "exact_target_reopen",
+        "companion_fanout_honesty"
+      ],
+      "description": "One of the nine required notification guarantees the audit covers."
+    },
+    "notification_aspect": {
+      "type": "string",
+      "enum": ["privacy", "suppression", "dedupe", "routing"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_rule",
+        "missing_evidence"
+      ],
+      "description": "Status a source reports for one notification guarantee. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_rule` and `missing_evidence` are blockers."
+    },
+    "notification_privacy_class": {
+      "type": "string",
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "lock_screen_disclosure": {
+      "type": "string",
+      "enum": ["summary_only", "leaks_detail"]
+    },
+    "payload_disclosure": {
+      "type": "string",
+      "enum": ["enums_only", "carries_secret_body"]
+    },
+    "quiet_hours_outcome": {
+      "type": "string",
+      "enum": ["respected", "bypassed"]
+    },
+    "admin_suppression_outcome": {
+      "type": "string",
+      "enum": ["honored", "overridden"]
+    },
+    "dedupe_outcome": {
+      "type": "string",
+      "enum": ["coalesced_by_root_cause", "floods_duplicates"]
+    },
+    "badge_outcome": {
+      "type": "string",
+      "enum": ["durable_count_class", "raw_event_fanout"]
+    },
+    "reopen_outcome": {
+      "type": "string",
+      "enum": ["exact_target_resolved", "target_lost", "not_applicable"]
+    },
+    "fanout_honesty": {
+      "type": "string",
+      "enum": ["honestly_labeled", "silent_failure"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "suppression_control": {
+      "type": "string",
+      "enum": [
+        "quiet_hours",
+        "admin_suppress",
+        "mute",
+        "snooze",
+        "lock_screen_summary",
+        "bounded_summary_fallback"
+      ]
+    },
+    "notification_channel": {
+      "type": "string",
+      "enum": [
+        "desktop_toast",
+        "native_os_notification",
+        "activity_center_row",
+        "companion_summary"
+      ]
+    },
+    "source_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "notification_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "notification_source",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "reopen_anchor_ref",
+        "support_note",
+        "privacy_class",
+        "lifecycle_label",
+        "suppression_controls",
+        "fanout_channels",
+        "marketed_on_desktop",
+        "routed_through_governed_router"
+      ],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "notification_source": { "$ref": "#/$defs/notification_source" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" },
+        "privacy_class": { "$ref": "#/$defs/notification_privacy_class" },
+        "lifecycle_label": { "$ref": "#/$defs/source_lifecycle" },
+        "suppression_controls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_control" }
+        },
+        "fanout_channels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notification_channel" }
+        },
+        "marketed_on_desktop": { "type": "boolean" },
+        "routed_through_governed_router": { "type": "boolean" }
+      }
+    },
+    "notification_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "aspect",
+        "qualification_status",
+        "marketed_on_guarantee",
+        "projected_envelope_ref",
+        "projected_privacy_class",
+        "projected_lock_screen",
+        "projected_payload_disclosure",
+        "projected_quiet_hours",
+        "projected_admin_suppression",
+        "projected_dedupe",
+        "projected_badge",
+        "projected_reopen_outcome",
+        "projected_fanout_honesty",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/notification_guarantee" },
+        "aspect": { "$ref": "#/$defs/notification_aspect" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_guarantee": { "type": "boolean" },
+        "projected_envelope_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_privacy_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notification_privacy_class" },
+            { "type": "null" }
+          ]
+        },
+        "projected_lock_screen": {
+          "oneOf": [{ "$ref": "#/$defs/lock_screen_disclosure" }, { "type": "null" }]
+        },
+        "projected_payload_disclosure": {
+          "oneOf": [{ "$ref": "#/$defs/payload_disclosure" }, { "type": "null" }]
+        },
+        "projected_quiet_hours": {
+          "oneOf": [{ "$ref": "#/$defs/quiet_hours_outcome" }, { "type": "null" }]
+        },
+        "projected_admin_suppression": {
+          "oneOf": [
+            { "$ref": "#/$defs/admin_suppression_outcome" },
+            { "type": "null" }
+          ]
+        },
+        "projected_dedupe": {
+          "oneOf": [{ "$ref": "#/$defs/dedupe_outcome" }, { "type": "null" }]
+        },
+        "projected_badge": {
+          "oneOf": [{ "$ref": "#/$defs/badge_outcome" }, { "type": "null" }]
+        },
+        "projected_reopen_outcome": {
+          "oneOf": [{ "$ref": "#/$defs/reopen_outcome" }, { "type": "null" }]
+        },
+        "projected_fanout_honesty": {
+          "oneOf": [{ "$ref": "#/$defs/fanout_honesty" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_rule",
+            "missing_evidence",
+            "missing_envelope_ref",
+            "lock_screen_leak",
+            "secret_bearing_payload",
+            "quiet_hours_bypassed",
+            "admin_suppression_overridden",
+            "duplicate_flood",
+            "badge_raw_event_fanout",
+            "reopen_target_lost",
+            "fanout_failure_silent",
+            "stale_evidence_on_marketed_row",
+            "aspect_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_reopen_anchor",
+            "missing_support_note",
+            "source_not_on_governed_router",
+            "missing_suppression_controls",
+            "no_declared_channel"
+          ]
+        },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/notification_guarantee" }
+      }
+    },
+    "guarantee_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_rule_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/notification_guarantee" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_rule_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_rule",
+        "missing_evidence",
+        "missing_envelope_ref",
+        "lock_screen_leak",
+        "secret_bearing_payload",
+        "quiet_hours_bypassed",
+        "admin_suppression_overridden",
+        "duplicate_flood",
+        "badge_raw_event_fanout",
+        "reopen_target_lost",
+        "fanout_failure_silent",
+        "stale_evidence_on_marketed_row",
+        "aspect_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_reopen_anchor",
+        "missing_support_note",
+        "source_not_on_governed_router",
+        "missing_suppression_controls",
+        "no_declared_channel"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_rule": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_envelope_ref": { "type": "integer", "minimum": 0 },
+        "lock_screen_leak": { "type": "integer", "minimum": 0 },
+        "secret_bearing_payload": { "type": "integer", "minimum": 0 },
+        "quiet_hours_bypassed": { "type": "integer", "minimum": 0 },
+        "admin_suppression_overridden": { "type": "integer", "minimum": 0 },
+        "duplicate_flood": { "type": "integer", "minimum": 0 },
+        "badge_raw_event_fanout": { "type": "integer", "minimum": 0 },
+        "reopen_target_lost": { "type": "integer", "minimum": 0 },
+        "fanout_failure_silent": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "aspect_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_reopen_anchor": { "type": "integer", "minimum": 0 },
+        "missing_support_note": { "type": "integer", "minimum": 0 },
+        "source_not_on_governed_router": { "type": "integer", "minimum": 0 },
+        "missing_suppression_controls": { "type": "integer", "minimum": 0 },
+        "no_declared_channel": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reopen_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notification_source", "source_id", "reopen_anchor_ref"],
+      "properties": {
+        "notification_source": { "$ref": "#/$defs/notification_source" },
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "guarantee", "reason"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/notification_guarantee" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "notification_route_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_stakes",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_notification_route_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_notification_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/notification_source_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/notification_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_stakes": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_notification_route_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_guarantees",
+        "rows",
+        "guarantee_coverage",
+        "findings_summary",
+        "reopen_anchor_index",
+        "registered_source_count",
+        "high_stakes_source_count",
+        "marketed_source_count",
+        "notification_guarantees_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_notification_route_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_notification_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_guarantees": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/notification_guarantee" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/notification_route_row" }
+        },
+        "guarantee_coverage": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/guarantee_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "reopen_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_anchor_entry" }
+        },
+        "registered_source_count": { "type": "integer", "minimum": 0 },
+        "high_stakes_source_count": { "type": "integer", "minimum": 0 },
+        "marketed_source_count": { "type": "integer", "minimum": 0 },
+        "notification_guarantees_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_notification_route_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_notification_route_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_notification_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_notification_route_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
