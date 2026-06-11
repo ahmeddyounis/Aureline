@@ -308,6 +308,7 @@ pub mod publish_the_m5_storage_retention_export_and_offboarding_matrix_for_new_d
 pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
+pub mod ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards;
 pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
@@ -380,6 +381,19 @@ pub use ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_not
     StopAction as LineageStopAction, TrustTier, GENERATED_ARTIFACT_LINEAGE_JSON,
     GENERATED_ARTIFACT_LINEAGE_PATH, GENERATED_ARTIFACT_LINEAGE_RECORD_KIND,
     GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards::{
+    current_fitness_surface_register, AutomationState as FitnessAutomationState,
+    AutomationTrigger as FitnessAutomationTrigger, CorpusProvenance,
+    DimensionGrade as FitnessDimensionGrade, DowngradeAutomation as FitnessDowngradeAutomation,
+    FitnessCell, FitnessDimension, FitnessSurfaceExportProjection, FitnessSurfaceExportRow,
+    FitnessSurfaceLane, FitnessSurfaceRegister, FitnessSurfaceStopRule, FitnessSurfaceSummary,
+    FitnessSurfaceViolation, NarrowingReason as FitnessSurfaceNarrowingReason,
+    StopAction as FitnessSurfaceStopAction, SurfaceKind as FitnessSurfaceKind,
+    SurfaceState as FitnessSurfaceState,
+    TrustTier as FitnessSurfaceTrustTier, FITNESS_SURFACE_JSON, FITNESS_SURFACE_PATH,
+    FITNESS_SURFACE_RECORD_KIND, FITNESS_SURFACE_SCHEMA_VERSION,
 };
 
 pub use claim_publication_manifest::{

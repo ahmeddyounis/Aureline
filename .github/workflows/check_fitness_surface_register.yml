@@ -1,0 +1,75 @@
+# M5 fitness-surface register gate.
+#
+# Validates the checked-in fitness-surface register: every surface kind (benchmark
+# corpus, reference workspace, fitness dashboard, fitness function) binds a stable
+# claim, a fitness scorecard with one cell per dimension (corpus lineage, baseline
+# coverage, threshold calibration, regression guard, accessibility audit, docs
+# truth), the disclosed corpus provenance and trust tier, an owner-manifest
+# sign-off, and an explicit downgrade-automation record bound to a verified
+# frozen-fallback rollback plan; a lane whose fitness dimension failed or is
+# missing, whose generated-artifact provenance is not disclosed, whose packet is
+# stale or missing, whose owner manifest is unsigned, whose frozen-fallback
+# rollback plan is unverified, whose downgrade automation is undefined, or whose
+# waiver expired must drop below the stable cutline; the promotion verdict and
+# summary agree with the firing stop rules. The gate runs the checked-in fixture
+# cases proving those rejections fire. The typed Rust consumer reads the same
+# register, so `cargo test -p aureline-release` enforces the same structural
+# invariants.
+
+name: check_fitness_surface_register
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_fitness_surface_register.yml"
+      - "artifacts/release/m5/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards.json"
+      - "artifacts/release/captures/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards_validation_capture.json"
+      - "schemas/governance/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards.schema.json"
+      - "docs/m5/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards.md"
+      - "fixtures/release/m5/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards/**"
+      - "crates/aureline-release/src/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-fitness-surface-register-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fitness_surface_register:
+    name: M5 Fitness-Surface Register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run fitness-surface register contract tests
+        run: |
+          cargo test -p aureline-release --test ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitness-surface-register-${{ github.run_id }}
+          path: artifacts/release/captures/ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
