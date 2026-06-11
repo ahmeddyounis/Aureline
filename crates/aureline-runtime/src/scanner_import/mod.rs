@@ -56,6 +56,10 @@ pub const RELEASE_PACKET_RECORD_KIND: &str = "scanner_import_release_packet";
 /// Stable record-kind tag for scanner CI/local parity views.
 pub const CI_LOCAL_PARITY_VIEW_RECORD_KIND: &str = "scanner_ci_local_parity_view";
 
+/// Stable record-kind tag for imported scanner pipeline-viewer projections.
+pub const PIPELINE_VIEWER_PROJECTION_RECORD_KIND: &str =
+    "imported_scanner_pipeline_viewer_projection";
+
 /// Error returned while normalizing a scanner import.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScannerImportError {
@@ -752,6 +756,21 @@ impl ScannerImportSessionAlpha {
     /// Builds a CI/local parity view that keeps evidence source kinds distinct.
     pub fn ci_local_parity_view(&self) -> ScannerCiLocalParityView {
         ScannerCiLocalParityView::from_session(self)
+    }
+
+    /// Builds a pipeline-viewer projection for imported scanner evidence.
+    ///
+    /// Pipeline viewer rows thread the same diff-scoped findings, suppressions,
+    /// and baseline shifts that review and support surfaces use, but they never
+    /// claim the imported run is a live local analyzer: every row stays read-only,
+    /// source-labeled, freshness-labeled, and carries the per-finding parity state
+    /// so a pipeline stage cannot silently treat a stale or unmapped import as
+    /// current truth.
+    pub fn pipeline_viewer_projection(
+        &self,
+        pipeline_stage_ref: impl Into<String>,
+    ) -> ScannerImportPipelineViewerProjection {
+        ScannerImportPipelineViewerProjection::from_session(self, pipeline_stage_ref)
     }
 
     /// Returns true when the packet blocks exact delta or local-analysis claims.
@@ -1985,6 +2004,146 @@ impl ScannerParityComparisonStateClass {
             Self::DistinctSourceNotComparable => "distinct_source_not_comparable",
         }
     }
+}
+
+/// Pipeline-viewer projection for imported scanner sessions.
+///
+/// This projection is consumed by the pipeline/run viewer surface so an imported
+/// scan can appear alongside live pipeline evidence without being mistaken for a
+/// live local analyzer. It preserves source class, freshness, delta compatibility,
+/// and per-finding parity state, and keeps every row inspect-only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerImportPipelineViewerProjection {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version.
+    pub scanner_import_schema_version: u32,
+    /// Stable pipeline-viewer projection id.
+    pub projection_id: String,
+    /// Source import session ref.
+    pub import_session_ref: String,
+    /// Pipeline stage or run ref this projection is rendered into.
+    pub pipeline_stage_ref: String,
+    /// Delta packet ref backing the projection.
+    pub diagnostic_delta_packet_ref: String,
+    /// Source format class used by the import.
+    pub source_format_class: ScannerSourceFormatClass,
+    /// Source class for the imported scanner run.
+    pub source_class: ScannerImportSourceClass,
+    /// Imported payload freshness state.
+    pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Delta compatibility class.
+    pub compatibility_class: ScannerDeltaCompatibilityClass,
+    /// Delta counts projected into the pipeline viewer.
+    pub delta_counts: ScannerDeltaCounts,
+    /// Count of imported findings.
+    pub imported_finding_count: usize,
+    /// Count of locally confirmed findings.
+    pub locally_confirmed_count: usize,
+    /// Count of rows that remain read-only.
+    pub read_only_count: usize,
+    /// True because the pipeline viewer never treats imported rows as live truth.
+    pub imported_evidence_only: bool,
+    /// True when exact delta claims are blocked.
+    pub exact_delta_claim_blocked: bool,
+    /// Raw-payload backlink policy visible to pipeline-viewer consumers.
+    pub raw_payload_backlink_policy: ScannerRawPayloadBacklinkPolicy,
+    /// Pipeline-viewer rows.
+    pub rows: Vec<ScannerImportPipelineViewerRow>,
+    /// Redaction posture for the projection.
+    pub redaction_class: RedactionClass,
+    /// Export-safe projection summary.
+    pub export_safe_summary: String,
+}
+
+impl ScannerImportPipelineViewerProjection {
+    /// Builds a pipeline-viewer projection from a normalized scanner import session.
+    pub fn from_session(
+        session: &ScannerImportSessionAlpha,
+        pipeline_stage_ref: impl Into<String>,
+    ) -> Self {
+        let rows = session
+            .findings
+            .iter()
+            .map(|finding| ScannerImportPipelineViewerRow {
+                finding_id: finding.finding_id.clone(),
+                diagnostic_id: finding.diagnostic_id.clone(),
+                rule_id_ref: finding.rule_id_ref.clone(),
+                severity_class: finding.severity_class,
+                truth_class: finding.truth_class,
+                fidelity_state_class: finding.fidelity_state_class,
+                delta_state_class: finding.delta_state_class,
+                parity_state_class: parity_state_for(session, finding),
+                remap_state_class: finding.anchor.remap_state_class,
+                import_freshness_class: session.import_freshness_class,
+                local_confirmation_ref: finding.local_confirmation_ref.clone(),
+                read_only: finding.read_only,
+                export_safe_summary: finding.export_safe_summary.clone(),
+            })
+            .collect::<Vec<_>>();
+        Self {
+            record_kind: PIPELINE_VIEWER_PROJECTION_RECORD_KIND.to_owned(),
+            scanner_import_schema_version: SCANNER_IMPORT_ALPHA_SCHEMA_VERSION,
+            projection_id: format!(
+                "pipeline_viewer:scanner_import:{}",
+                sanitize_ref(&session.import_id)
+            ),
+            import_session_ref: session.import_id.clone(),
+            pipeline_stage_ref: pipeline_stage_ref.into(),
+            diagnostic_delta_packet_ref: session.delta_packet.delta_packet_id.clone(),
+            source_format_class: ScannerSourceFormatClass::from_media_type(&session.media_type),
+            source_class: session.source_class,
+            import_freshness_class: session.import_freshness_class,
+            compatibility_class: session.delta_packet.compatibility_class,
+            delta_counts: session.delta_packet.delta_counts.clone(),
+            imported_finding_count: session.findings.len(),
+            locally_confirmed_count: session
+                .findings
+                .iter()
+                .filter(|finding| finding.truth_class == ScannerFindingTruthClass::LocallyConfirmed)
+                .count(),
+            read_only_count: session.findings.iter().filter(|finding| finding.read_only).count(),
+            imported_evidence_only: true,
+            exact_delta_claim_blocked: session.blocks_exact_delta_claims(),
+            raw_payload_backlink_policy: session.raw_payload_backlink_policy,
+            rows,
+            redaction_class: session.redaction_class,
+            export_safe_summary:
+                "Pipeline-viewer projection threads imported delta, suppression, and baseline-shift rows as read-only imported evidence labeled by source, freshness, and parity state."
+                    .into(),
+        }
+    }
+}
+
+/// One pipeline-viewer row for an imported scanner finding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScannerImportPipelineViewerRow {
+    /// Stable imported finding id.
+    pub finding_id: String,
+    /// Diagnostic bus id.
+    pub diagnostic_id: String,
+    /// Rule id ref.
+    pub rule_id_ref: String,
+    /// Normalized severity class.
+    pub severity_class: DiagnosticSeverityClass,
+    /// Imported-vs-live truth class.
+    pub truth_class: ScannerFindingTruthClass,
+    /// Fidelity state for the finding.
+    pub fidelity_state_class: ScannerFindingFidelityClass,
+    /// Delta state for the finding.
+    pub delta_state_class: ScannerFindingDeltaState,
+    /// Parity comparison state for the finding in this pipeline stage.
+    pub parity_state_class: ScannerParityComparisonStateClass,
+    /// Anchor remap state.
+    pub remap_state_class: DiagnosticAnchorRemapStateClass,
+    /// Freshness state of the import that produced this row.
+    pub import_freshness_class: ScannerImportFreshnessClass,
+    /// Local confirmation ref, when present.
+    pub local_confirmation_ref: Option<String>,
+    /// True when the imported row is read-only.
+    pub read_only: bool,
+    /// Export-safe row summary.
+    pub export_safe_summary: String,
 }
 
 /// Normalizes a structured scanner JSON payload into an imported session.

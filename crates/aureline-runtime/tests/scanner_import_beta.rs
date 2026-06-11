@@ -11,7 +11,7 @@ use aureline_runtime::scanner_import::{
     ScannerFindingDeltaState, ScannerFindingFidelityClass, ScannerFindingTruthClass,
     ScannerImportDeploymentProfileClass, ScannerImportFreshnessClass, ScannerImportRequest,
     ScannerImportSourceClass, ScannerParityComparisonStateClass, ScannerRawPayloadBacklinkPolicy,
-    ScannerSourceFormatClass,
+    ScannerSourceFormatClass, PIPELINE_VIEWER_PROJECTION_RECORD_KIND,
 };
 use serde::Deserialize;
 
@@ -130,6 +130,27 @@ fn sarif_import_projects_review_cli_support_and_release_labels() {
     assert!(release.imported_findings_read_only);
     assert!(release.exact_delta_claim_blocked);
     assert!(release.parity_note.contains("imported labels"));
+
+    let pipeline = session.pipeline_viewer_projection("pipeline:stage:quality_scan");
+    assert_eq!(pipeline.record_kind, PIPELINE_VIEWER_PROJECTION_RECORD_KIND);
+    assert_eq!(pipeline.pipeline_stage_ref, "pipeline:stage:quality_scan");
+    assert_eq!(pipeline.rows.len(), 5);
+    assert_eq!(pipeline.imported_finding_count, 5);
+    assert_eq!(pipeline.read_only_count, 5);
+    assert!(pipeline.imported_evidence_only);
+    assert!(pipeline.exact_delta_claim_blocked);
+    assert!(pipeline.rows.iter().all(|row| row.read_only));
+    // The pipeline viewer threads delta and parity state without claiming live truth.
+    assert!(pipeline
+        .rows
+        .iter()
+        .any(|row| row.delta_state_class == ScannerFindingDeltaState::Unmapped));
+    assert!(pipeline.rows.iter().any(|row| {
+        row.parity_state_class == ScannerParityComparisonStateClass::ParityGapAnchorMapping
+    }));
+    let serialized_pipeline =
+        serde_json::to_string(&pipeline).expect("pipeline viewer projection serializes");
+    assert!(!serialized_pipeline.contains("src/payments"));
 }
 
 #[test]

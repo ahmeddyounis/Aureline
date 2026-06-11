@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/quality/scanner-import-quality-parity.schema.json",
+  "title": "Aureline scanner-import quality-parity packet",
+  "description": "Schema for the scanner_import_quality_parity_record packet. The packet states, for the whole M5 imported code-quality (SARIF/scanner) lane, which product surfaces ingest imported scanner truth and what each guarantees, which parity states are first-class rather than hidden caveats, and the promotion gate that cannot waive delta compatibility, export-safe artifacts, or downgrade behavior. It embeds no raw scanner bodies, raw source, raw paths, provider payloads, or secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "source_format_classes",
+    "surfaces",
+    "parity_states",
+    "promotion_gate",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "scanner_import_quality_parity_record" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "source_format_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source_format_class" }
+    },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/surface_parity" }
+    },
+    "parity_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/parity_state_row" }
+    },
+    "promotion_gate": { "$ref": "#/$defs/promotion_gate" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "source_format_class": {
+      "enum": ["sarif_2_1_0", "structured_scanner_json"]
+    },
+    "surface_class": {
+      "enum": [
+        "problems",
+        "review_workspace",
+        "pipeline_viewer",
+        "support_bundle",
+        "release_packet",
+        "ci_local_parity",
+        "cli"
+      ]
+    },
+    "downgrade_behavior_class": {
+      "enum": [
+        "keep_imported_read_only_labeled",
+        "block_exact_delta_claim",
+        "require_local_confirmation",
+        "redact_raw_payload",
+        "block_promotion"
+      ]
+    },
+    "parity_state_class": {
+      "enum": [
+        "comparable",
+        "comparable_requires_local_confirmation",
+        "parity_gap_stale_imported",
+        "parity_gap_unmapped_rule",
+        "parity_gap_rule_pack_mismatch",
+        "parity_gap_profile_mismatch",
+        "unsupported_scanner_family",
+        "distinct_source_not_comparable"
+      ]
+    },
+    "surface_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "surface_label",
+        "record_kind_ref",
+        "source_labeled",
+        "freshness_labeled",
+        "baseline_compatible",
+        "imported_read_only",
+        "threads_diff_scoped_findings",
+        "threads_suppressions",
+        "threads_baseline_shifts",
+        "downgrade_behaviors",
+        "summary"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "record_kind_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_labeled": { "type": "boolean" },
+        "freshness_labeled": { "type": "boolean" },
+        "baseline_compatible": { "type": "boolean" },
+        "imported_read_only": { "type": "boolean" },
+        "threads_diff_scoped_findings": { "type": "boolean" },
+        "threads_suppressions": { "type": "boolean" },
+        "threads_baseline_shifts": { "type": "boolean" },
+        "downgrade_behaviors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_behavior_class" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "parity_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parity_state_class",
+        "is_gap",
+        "blocks_exact_delta",
+        "blocks_promotion",
+        "summary"
+      ],
+      "properties": {
+        "parity_state_class": { "$ref": "#/$defs/parity_state_class" },
+        "is_gap": { "type": "boolean" },
+        "blocks_exact_delta": { "type": "boolean" },
+        "blocks_promotion": { "type": "boolean" },
+        "remediation_action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "promotion_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_id",
+        "requires_delta_compatibility",
+        "requires_export_safe_artifacts",
+        "requires_downgrade_behavior",
+        "requires_signed_import_on_restricted_profiles",
+        "promotable",
+        "blocking_reasons",
+        "summary"
+      ],
+      "properties": {
+        "gate_id": { "$ref": "#/$defs/non_empty_string" },
+        "requires_delta_compatibility": { "type": "boolean", "const": true },
+        "requires_export_safe_artifacts": { "type": "boolean", "const": true },
+        "requires_downgrade_behavior": { "type": "boolean", "const": true },
+        "requires_signed_import_on_restricted_profiles": {
+          "type": "boolean",
+          "const": true
+        },
+        "promotable": { "type": "boolean" },
+        "blocking_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_surfaces",
+        "source_labeled_surfaces",
+        "freshness_labeled_surfaces",
+        "baseline_compatible_surfaces",
+        "read_only_surfaces",
+        "total_parity_states",
+        "gap_states",
+        "promotion_blocking_states"
+      ],
+      "properties": {
+        "total_surfaces": { "type": "integer", "minimum": 0 },
+        "source_labeled_surfaces": { "type": "integer", "minimum": 0 },
+        "freshness_labeled_surfaces": { "type": "integer", "minimum": 0 },
+        "baseline_compatible_surfaces": { "type": "integer", "minimum": 0 },
+        "read_only_surfaces": { "type": "integer", "minimum": 0 },
+        "total_parity_states": { "type": "integer", "minimum": 0 },
+        "gap_states": { "type": "integer", "minimum": 0 },
+        "promotion_blocking_states": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

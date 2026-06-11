@@ -72,6 +72,7 @@ pub mod resource_governor;
 pub mod run_lineage;
 pub mod sandbox;
 pub mod scanner_import;
+pub mod scanner_import_quality_parity;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod stabilize_debugger_host_and_adapter_negotiation;
