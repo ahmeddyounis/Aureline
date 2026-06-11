@@ -50,6 +50,21 @@
 //! facts, so newly widened permissions, a changed publisher, or a changed runtime
 //! origin always force the unified review sheet rather than a one-click commit, and
 //! workspace-, profile-, and global-scope actions stay visibly distinct.
+//!
+//! The [`m5_lifecycle_actions`] module freezes what happens to a package *after*
+//! install: disable-for-workspace, disable-globally, uninstall, rollback,
+//! quarantine, re-enable, and registry-status transitions (revoked, yanked,
+//! deprecated, publisher-transferred) modeled as distinct reviewed actions. Each
+//! record names what already-open views and background work do — keep running
+//! temporarily, stop immediately, or convert to placeholders at the next activation
+//! boundary — which user-owned data classes survive, and the last-known-good
+//! rollback target with its compatibility note, so rollback and restore are never
+//! implied to be risk free. Its review reasons and action disposition are recomputed
+//! from those facts, so crash-loop, integrity-failure, performance-budget,
+//! moderation, policy, and registry events route through explicit lifecycle states
+//! rather than generic banners, an unconsented removal of protected data or an
+//! irreversible rollback blocks the action, and a clean user-initiated disable stays
+//! directly applicable.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -59,6 +74,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 pub mod m5_install_review;
+pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
