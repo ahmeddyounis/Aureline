@@ -20,11 +20,20 @@
 //! package-manager mutation contract. It keeps browser/search, manifest-scope,
 //! registry/mirror auth, operation review, grouped-update, support-export, and
 //! recovery surfaces on one typed vocabulary.
+//!
+//! The module [`package_set_inventory_and_scope_truth`] owns the monorepo
+//! package-set inventory, dependency-tree, and manifest/workset scope contract.
+//! It keeps whole-workspace, selected-manifest, and workset/slice scopes
+//! distinct, preserves stable package identity, converged/diverged state,
+//! owner/runtime context, duplicate/conflict disclosure, and mirror/offline
+//! freshness, and projects the same vocabulary to CLI/headless and
+//! support-export consumers.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
 pub mod dependency_security_compliance_export_truth;
 pub mod package_mutation_and_registry_review;
+pub mod package_set_inventory_and_scope_truth;
 
 pub use dependency_security_compliance_export_truth::{
     current_dependency_security_compliance_export_truth, AdvisoryFreshnessClass, AdvisoryRow,
@@ -53,4 +62,18 @@ pub use package_mutation_and_registry_review::{
     ValidationPack, WritePosture, PACKAGE_MUTATION_AND_REGISTRY_REVIEW_JSON,
     PACKAGE_MUTATION_AND_REGISTRY_REVIEW_PATH, PACKAGE_MUTATION_AND_REGISTRY_REVIEW_RECORD_KIND,
     PACKAGE_MUTATION_AND_REGISTRY_REVIEW_SCHEMA_VERSION,
+};
+// `EcosystemClass` and `DependencyRelationClass` are intentionally not
+// re-exported here: they collide with the same-named types above. Reach them
+// via `package_set_inventory_and_scope_truth::{EcosystemClass, ..}`.
+pub use package_set_inventory_and_scope_truth::{
+    current_package_set_inventory_and_scope_truth, ConvergenceState, DependencyEdgeRow,
+    DuplicateConflictClass, FreshnessState, ManifestVersionClaim, OpenEscape, OpenEscapeKind,
+    PackageInventoryRow, PackageSetInventoryAndScopeTruth,
+    PackageSetInventoryAndScopeTruthExportProjection, PackageSetInventoryAndScopeTruthExportRow,
+    PackageSetInventoryAndScopeTruthSummary, PackageSetInventoryAndScopeTruthViolation,
+    RuntimeClass, ScopeKind, ScopeSurfaceContract, ScopeView,
+    PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_JSON, PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_PATH,
+    PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_RECORD_KIND,
+    PACKAGE_SET_INVENTORY_AND_SCOPE_TRUTH_SCHEMA_VERSION,
 };
