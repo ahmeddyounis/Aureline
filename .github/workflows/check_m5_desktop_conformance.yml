@@ -1,0 +1,72 @@
+# M5 desktop-platform, multi-window, power-state, and handoff qualification gate.
+#
+# Validates the checked-in M5 desktop-conformance audit: every M5 depth surface
+# (notebook cell chrome, result-grid rows, profiler and trace panels, pipeline
+# cards, preview-route badges, docs/browser panes, companion surfaces, sync
+# status, offboarding, incident packets) qualifies the nine desktop scenario
+# rows Aureline's stable shell already promises (multi-window, multi-monitor,
+# mixed-DPI, suspend/resume, battery saver, thermal pressure, deep link, file
+# association, and system-open return) with captured evidence; no qualified row
+# carries a red result (a lost reopen target, broken layout continuity,
+# corrupted interruption safety, a misleading placeholder, a lost authority
+# context, un-throttled background work, a dropped handoff reason, or a hidden
+# high-risk boundary cue); no surface drives an ad-hoc local window/restore path
+# outside the governed platform-conformance harness; and a marketed row whose
+# evidence is stale or red narrows instead of shipping as implicitly stable. The
+# typed Rust consumer mints the same audit, so `cargo test -p aureline-shell`
+# enforces the same structural invariants and that the fixtures are bit-for-bit
+# equal to the seed.
+
+name: check_m5_desktop_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_desktop_conformance.yml"
+      - "tools/ci/m5/desktop_conformance_check.py"
+      - "schemas/platform/m5-surface-desktop-qualification.schema.json"
+      - "docs/m5/desktop-and-handoff-parity.md"
+      - "artifacts/ux/m5/desktop-conformance/**"
+      - "fixtures/platform/m5_depth_surfaces/**"
+      - "crates/aureline-shell/src/m5_desktop_conformance/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_desktop_conformance.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_desktop_conformance_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-desktop-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_desktop_conformance:
+    name: M5 desktop conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 desktop-conformance CI gate
+        run: |
+          python3 tools/ci/m5/desktop_conformance_check.py --repo-root .
+
+      - name: Run M5 desktop-conformance contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_desktop_conformance_fixtures

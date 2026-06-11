@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-surface-desktop-qualification.schema.json",
+  "title": "Aureline M5 surface desktop and handoff qualification audit",
+  "description": "Boundary schema for the M5 desktop-and-handoff qualification audit emitted by the aureline-shell m5_desktop_conformance module. The audit compares the canonical desktop descriptor for every registered M5 depth surface (notebook cell chrome, result-grid rows, profiler and trace panels, pipeline cards, preview-route badges, docs/browser panes, companion surfaces, sync status, offboarding, incident packets) against the qualification result the surface certifies for each of the nine desktop scenario rows the M5 lanes must pass: multi_window, multi_monitor, mixed_dpi, suspend_resume, battery_saver, thermal_pressure, deep_link, file_association, and system_open_return. Acceptance: the audit MUST cover the nine required rows for every registered surface, MUST carry a canonical reopen anchor, a continuity note, at least one claimed desktop profile, and a platform-conformance registration flag, MUST require captured evidence (an evidence pack, reopen fidelity, layout continuity, interruption safety, and placeholder honesty for every qualified row; a background-adaptation result on the power rows; a handoff-reason and authority-context result on the handoff rows), MUST flag any red result (a lost reopen target, broken layout continuity, corrupted interruption safety, a misleading placeholder, a lost authority context, un-throttled background work, a dropped handoff reason, or a hidden high-risk boundary cue) as a blocker, MUST reject an ad-hoc local window/restore path outside the shared platform-conformance harness and a marketed row claimed with no evidence, MUST treat stale evidence on a marketed row as a blocker so release tooling can narrow the row on the affected profiles, and MUST be usable by the cross-surface hardening matrix and release-center packets without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/platform/m5_depth_surfaces/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/desktop_conformance_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_desktop_qualification_report_record" },
+    { "$ref": "#/$defs/m5_desktop_qualification_support_export_record" }
+  ],
+  "$defs": {
+    "m5_desktop_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 desktop contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_desktop_conformance:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_chrome",
+        "result_grid_row",
+        "profiler_panel",
+        "trace_panel",
+        "pipeline_card",
+        "preview_route_badge",
+        "docs_browser_pane",
+        "companion_surface",
+        "sync_status_surface",
+        "offboarding_surface",
+        "incident_packet"
+      ]
+    },
+    "desktop_profile": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "desktop_row": {
+      "type": "string",
+      "enum": [
+        "multi_window",
+        "multi_monitor",
+        "mixed_dpi",
+        "suspend_resume",
+        "battery_saver",
+        "thermal_pressure",
+        "deep_link",
+        "file_association",
+        "system_open_return"
+      ],
+      "description": "One of the nine required desktop scenario rows the audit covers."
+    },
+    "desktop_dimension": {
+      "type": "string",
+      "enum": ["window_topology", "power_state", "handoff"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_platform_path",
+        "missing_evidence"
+      ],
+      "description": "Status a surface reports for one scenario row. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_platform_path` and `missing_evidence` are blockers."
+    },
+    "reopen_fidelity": {
+      "type": "string",
+      "enum": ["exact_target_preserved", "lost", "not_applicable"]
+    },
+    "layout_continuity": {
+      "type": "string",
+      "enum": ["preserved", "broken"]
+    },
+    "interruption_safety": {
+      "type": "string",
+      "enum": ["safe", "corrupted"]
+    },
+    "placeholder_honesty": {
+      "type": "string",
+      "enum": ["honest", "misleading", "not_applicable"]
+    },
+    "authority_context": {
+      "type": "string",
+      "enum": ["preserved", "lost", "not_applicable"]
+    },
+    "background_adaptation": {
+      "type": "string",
+      "enum": ["throttled_before_corruption", "not_throttled", "not_applicable"]
+    },
+    "handoff_reason": {
+      "type": "string",
+      "enum": ["preserved", "dropped", "not_applicable"]
+    },
+    "boundary_cue": {
+      "type": "string",
+      "enum": ["present", "hidden", "not_applicable"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "semantic_salience": {
+      "type": "string",
+      "enum": [
+        "decorative_only",
+        "informational",
+        "lifecycle_bearing",
+        "trust_bearing",
+        "severity_bearing"
+      ]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "desktop_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "reopen_anchor_ref",
+        "continuity_note",
+        "semantic_salience",
+        "lifecycle_label",
+        "claimed_desktop_profiles",
+        "marketed_on_desktop_rows",
+        "registered_on_platform_conformance"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_salience": { "$ref": "#/$defs/semantic_salience" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "claimed_desktop_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/desktop_profile" }
+        },
+        "marketed_on_desktop_rows": { "type": "boolean" },
+        "registered_on_platform_conformance": { "type": "boolean" }
+      }
+    },
+    "desktop_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "dimension",
+        "qualification_status",
+        "marketed_on_row",
+        "projected_evidence_pack_ref",
+        "projected_reopen_fidelity",
+        "projected_layout_continuity",
+        "projected_interruption_safety",
+        "projected_placeholder_honesty",
+        "projected_authority_context",
+        "projected_background_adaptation",
+        "projected_handoff_reason",
+        "projected_boundary_cue",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/desktop_row" },
+        "dimension": { "$ref": "#/$defs/desktop_dimension" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_row": { "type": "boolean" },
+        "projected_evidence_pack_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_reopen_fidelity": {
+          "oneOf": [{ "$ref": "#/$defs/reopen_fidelity" }, { "type": "null" }]
+        },
+        "projected_layout_continuity": {
+          "oneOf": [{ "$ref": "#/$defs/layout_continuity" }, { "type": "null" }]
+        },
+        "projected_interruption_safety": {
+          "oneOf": [{ "$ref": "#/$defs/interruption_safety" }, { "type": "null" }]
+        },
+        "projected_placeholder_honesty": {
+          "oneOf": [{ "$ref": "#/$defs/placeholder_honesty" }, { "type": "null" }]
+        },
+        "projected_authority_context": {
+          "oneOf": [{ "$ref": "#/$defs/authority_context" }, { "type": "null" }]
+        },
+        "projected_background_adaptation": {
+          "oneOf": [{ "$ref": "#/$defs/background_adaptation" }, { "type": "null" }]
+        },
+        "projected_handoff_reason": {
+          "oneOf": [{ "$ref": "#/$defs/handoff_reason" }, { "type": "null" }]
+        },
+        "projected_boundary_cue": {
+          "oneOf": [{ "$ref": "#/$defs/boundary_cue" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_platform_path",
+            "missing_evidence",
+            "missing_evidence_pack",
+            "reopen_target_lost",
+            "layout_continuity_broken",
+            "interruption_unsafe",
+            "placeholder_misleading",
+            "authority_context_lost",
+            "background_not_throttled",
+            "handoff_reason_dropped",
+            "boundary_cue_hidden",
+            "stale_evidence_on_marketed_row",
+            "dimension_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_reopen_anchor",
+            "missing_continuity_note",
+            "missing_claimed_profiles",
+            "surface_not_on_platform_conformance"
+          ]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/desktop_row" }
+      }
+    },
+    "row_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_platform_path_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/desktop_row" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_platform_path_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_platform_path",
+        "missing_evidence",
+        "missing_evidence_pack",
+        "reopen_target_lost",
+        "layout_continuity_broken",
+        "interruption_unsafe",
+        "placeholder_misleading",
+        "authority_context_lost",
+        "background_not_throttled",
+        "handoff_reason_dropped",
+        "boundary_cue_hidden",
+        "stale_evidence_on_marketed_row",
+        "dimension_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_reopen_anchor",
+        "missing_continuity_note",
+        "missing_claimed_profiles",
+        "surface_not_on_platform_conformance"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_platform_path": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_evidence_pack": { "type": "integer", "minimum": 0 },
+        "reopen_target_lost": { "type": "integer", "minimum": 0 },
+        "layout_continuity_broken": { "type": "integer", "minimum": 0 },
+        "interruption_unsafe": { "type": "integer", "minimum": 0 },
+        "placeholder_misleading": { "type": "integer", "minimum": 0 },
+        "authority_context_lost": { "type": "integer", "minimum": 0 },
+        "background_not_throttled": { "type": "integer", "minimum": 0 },
+        "handoff_reason_dropped": { "type": "integer", "minimum": 0 },
+        "boundary_cue_hidden": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "dimension_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_reopen_anchor": { "type": "integer", "minimum": 0 },
+        "missing_continuity_note": { "type": "integer", "minimum": 0 },
+        "missing_claimed_profiles": { "type": "integer", "minimum": 0 },
+        "surface_not_on_platform_conformance": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reopen_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_family", "surface_id", "reopen_anchor_ref"],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "row", "reason"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/desktop_row" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "desktop_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_salience",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_desktop_qualification_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_desktop_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/desktop_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/desktop_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_salience": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_desktop_qualification_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_rows",
+        "claimed_desktop_profiles",
+        "rows",
+        "row_coverage",
+        "findings_summary",
+        "reopen_anchor_index",
+        "registered_surface_count",
+        "high_salience_surface_count",
+        "marketed_surface_count",
+        "desktop_rows_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_desktop_qualification_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_desktop_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_rows": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/desktop_row" }
+        },
+        "claimed_desktop_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/desktop_profile" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/desktop_qualification_row" }
+        },
+        "row_coverage": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/row_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "reopen_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_salience_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "desktop_rows_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_desktop_qualification_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_desktop_qualification_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_desktop_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_desktop_qualification_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
