@@ -1,0 +1,68 @@
+# M5 closeout certification gate.
+#
+# Validates the checked-in M5 certification matrix: every marketed M5 surface ends
+# the milestone with an explicit, evidence-backed state -- qualified, narrowed, or
+# held back -- across the switching (onboarding/migration, first-useful-work,
+# command discoverability), visual-system (component-state, appearance),
+# durable-attention (durable-attention routes, notification privacy), and
+# embedded-boundary (embedded boundary, desktop conformance, accessibility/i18n)
+# dimensions. The matrix ingests the canonical feature-family register, so no
+# surface can advertise a wider claim than its packet permits; every bound evidence
+# artifact must exist; a qualified surface has no open cell and no narrowing reason;
+# a below-cutline surface always explains itself; no above-cutline surface carries a
+# forbidden v1-shell dependency (toast-only long-running truth, theme-only state
+# meaning, a hidden onboarding gap, or an embedded high-risk approval path); and the
+# publication decision holds final widening while any release-blocking surface is
+# below the cutline. The gate replays the checked-in negative fixtures to prove
+# those rejections still fire, and confirms the matrix, capture, evidence index, and
+# narrowing report are byte-for-byte what the regenerator emits.
+
+name: check_m5_xt12_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_xt12_certification.yml"
+      - "tools/ci/m5/xt12_certification_check.py"
+      - "tools/regenerate_xt12_certification_matrix.py"
+      - "tools/xt12_certification_lib.py"
+      - "schemas/governance/m5_xt12_certification_matrix.schema.json"
+      - "artifacts/release/m5/xt12-qualification-matrix.json"
+      - "artifacts/release/m5/captures/xt12-qualification-matrix_validation_capture.json"
+      - "artifacts/release/m5/xt12-evidence-index.md"
+      - "artifacts/release/m5/xt12-narrowing-report.md"
+      - "artifacts/release/m5/publish_the_m5_feature_family_register_owner_map_and_proof_corpus_plan.json"
+      - "docs/m5/xt12-certification.md"
+      - "fixtures/release/m5/xt12-promotion/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-xt12-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_xt12_certification:
+    name: M5 closeout certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependencies
+        run: |
+          python3 -m pip install --quiet jsonschema
+
+      - name: Run M5 closeout certification gate
+        run: |
+          python3 tools/ci/m5/xt12_certification_check.py --repo-root .
