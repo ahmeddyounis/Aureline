@@ -1,0 +1,74 @@
+# M5 accessibility, IME/bidi, pseudolocalization, locale-fallback, and
+# translated-help qualification gate.
+#
+# Validates the checked-in M5 inclusive-depth audit: every M5 depth surface
+# (notebook cells, result-grid rows, pipeline/log views, profiler timelines,
+# guided tours, docs/help panes, companion surfaces, query consoles,
+# preview-route panes, glossary panels, support packets) qualifies the nine
+# inclusive scenario rows Aureline's stable shell already promises (keyboard
+# reachability, screen-reader narration, high zoom, IME composition, grapheme
+# correctness, bidi direction, pseudolocalization, locale fallback, and
+# translated-help parity) with captured evidence; no qualified row carries a red
+# result (a keyboard trap, silent or misannounced narration, a hidden focus
+# indicator, corrupted text, broken IME composition, leaking bidi, clipped zoom
+# content, a lost locale parity, or a hidden suspicious-content cue); no surface
+# drives an ad-hoc local accessibility/locale path outside the governed
+# inclusive-conformance harness; and a marketed row whose evidence is stale or
+# red narrows instead of shipping as implicitly accessible or implicitly
+# localized. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and
+# that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_inclusive_depth
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_inclusive_depth.yml"
+      - "tools/ci/m5/inclusive_depth_check.py"
+      - "schemas/a11y/m5-depth-qualification.schema.json"
+      - "docs/m5/accessibility-and-locale-depth.md"
+      - "artifacts/a11y/m5_depth_surfaces/**"
+      - "fixtures/a11y/m5_ime_bidi_pseudoloc/**"
+      - "crates/aureline-shell/src/m5_inclusive_depth/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_inclusive_depth.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_inclusive_depth_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-inclusive-depth-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_inclusive_depth:
+    name: M5 inclusive depth
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 inclusive-depth CI gate
+        run: |
+          python3 tools/ci/m5/inclusive_depth_check.py --repo-root .
+
+      - name: Run M5 inclusive-depth contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_inclusive_depth_fixtures

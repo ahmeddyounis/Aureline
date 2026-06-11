@@ -111,6 +111,7 @@ pub mod m5_depth_imports;
 pub mod m5_desktop_conformance;
 pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
+pub mod m5_inclusive_depth;
 pub mod m5_notification_routes;
 pub mod macros;
 pub mod managed_boundary;

@@ -1,0 +1,515 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/a11y/m5-depth-qualification.schema.json",
+  "title": "Aureline M5 accessibility and locale depth qualification audit",
+  "description": "Boundary schema for the M5 accessibility-and-locale qualification audit emitted by the aureline-shell m5_inclusive_depth module. The audit compares the canonical inclusive descriptor for every registered M5 depth surface (notebook cells, result-grid rows, pipeline/log views, profiler timelines, guided tours, docs/help panes, companion surfaces, query consoles, preview-route panes, glossary panels, support packets) against the qualification result the surface certifies for each of the nine inclusive scenario rows the M5 lanes must pass: keyboard_reachability, screen_reader_narration, high_zoom, ime_composition, grapheme_correctness, bidi_direction, pseudolocalization, locale_fallback, and translated_help_parity. Acceptance: the audit MUST cover the nine required rows for every registered surface, MUST carry a canonical locale/narration anchor, an inclusive note, at least one claimed locale, and an inclusive-conformance registration flag, MUST require captured evidence (an evidence pack, keyboard reachability, screen-reader narration, focus visibility, and text correctness for every qualified row; an IME-composition result on the IME row; a bidi-isolation result on the bidi row; a zoom-reflow result on the high-zoom row; a locale-parity result on the localization rows), MUST flag any red result (a keyboard trap, silent or misannounced narration, a hidden focus indicator, corrupted text, broken IME composition, leaking bidi, clipped zoom content, a lost locale parity, or a hidden suspicious-content cue) as a blocker, MUST reject an ad-hoc local accessibility/locale path outside the shared inclusive-conformance harness and a marketed row claimed with no evidence, MUST treat stale evidence on a marketed row as a blocker so release tooling can narrow the row on the affected locales, and MUST be usable by the cross-surface hardening matrix and release-center packets without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/a11y/m5_ime_bidi_pseudoloc/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/inclusive_depth_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_inclusive_depth_report_record" },
+    { "$ref": "#/$defs/m5_inclusive_depth_support_export_record" }
+  ],
+  "$defs": {
+    "m5_inclusive_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 inclusive contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_inclusive_depth:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell",
+        "result_grid_row",
+        "pipeline_log_view",
+        "profiler_timeline",
+        "guided_tour",
+        "docs_help_pane",
+        "companion_surface",
+        "query_console",
+        "preview_route_pane",
+        "glossary_panel",
+        "support_packet"
+      ]
+    },
+    "inclusive_locale": {
+      "type": "string",
+      "enum": ["en", "ar", "ja", "de"]
+    },
+    "inclusive_row": {
+      "type": "string",
+      "enum": [
+        "keyboard_reachability",
+        "screen_reader_narration",
+        "high_zoom",
+        "ime_composition",
+        "grapheme_correctness",
+        "bidi_direction",
+        "pseudolocalization",
+        "locale_fallback",
+        "translated_help_parity"
+      ],
+      "description": "One of the nine required inclusive scenario rows the audit covers."
+    },
+    "inclusive_dimension": {
+      "type": "string",
+      "enum": ["interaction", "text", "localization"]
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "locale_omitted",
+        "declared_capture_gap",
+        "unqualified_local_a11y_path",
+        "missing_evidence"
+      ],
+      "description": "Status a surface reports for one scenario row. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_local_a11y_path` and `missing_evidence` are blockers."
+    },
+    "keyboard_reachability": {
+      "type": "string",
+      "enum": ["reachable", "trapped", "not_applicable"]
+    },
+    "narration": {
+      "type": "string",
+      "enum": ["narrated", "silent", "misannounced"]
+    },
+    "focus_visibility": {
+      "type": "string",
+      "enum": ["visible", "hidden"]
+    },
+    "text_correctness": {
+      "type": "string",
+      "enum": ["correct", "corrupted"]
+    },
+    "ime_composition": {
+      "type": "string",
+      "enum": ["preserved", "broken", "not_applicable"]
+    },
+    "bidi_isolation": {
+      "type": "string",
+      "enum": ["isolated", "leaking", "not_applicable"]
+    },
+    "zoom_reflow": {
+      "type": "string",
+      "enum": ["reflowed", "clipped", "not_applicable"]
+    },
+    "locale_parity": {
+      "type": "string",
+      "enum": ["parity", "silent_english_fallback", "mismatched", "not_applicable"]
+    },
+    "suspicious_content_cue": {
+      "type": "string",
+      "enum": ["present", "hidden", "not_applicable"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "semantic_salience": {
+      "type": "string",
+      "enum": [
+        "decorative_only",
+        "informational",
+        "lifecycle_bearing",
+        "trust_bearing",
+        "severity_bearing"
+      ]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "inclusive_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_family",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "locale_anchor_ref",
+        "inclusive_note",
+        "semantic_salience",
+        "lifecycle_label",
+        "claimed_locales",
+        "marketed_on_inclusive_rows",
+        "registered_on_inclusive_harness"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "locale_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "inclusive_note": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_salience": { "$ref": "#/$defs/semantic_salience" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "claimed_locales": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inclusive_locale" }
+        },
+        "marketed_on_inclusive_rows": { "type": "boolean" },
+        "registered_on_inclusive_harness": { "type": "boolean" }
+      }
+    },
+    "inclusive_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "dimension",
+        "qualification_status",
+        "marketed_on_row",
+        "projected_evidence_pack_ref",
+        "projected_keyboard_reachability",
+        "projected_narration",
+        "projected_focus_visibility",
+        "projected_text_correctness",
+        "projected_ime_composition",
+        "projected_bidi_isolation",
+        "projected_zoom_reflow",
+        "projected_locale_parity",
+        "projected_suspicious_content_cue",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/inclusive_row" },
+        "dimension": { "$ref": "#/$defs/inclusive_dimension" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_row": { "type": "boolean" },
+        "projected_evidence_pack_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_keyboard_reachability": {
+          "oneOf": [{ "$ref": "#/$defs/keyboard_reachability" }, { "type": "null" }]
+        },
+        "projected_narration": {
+          "oneOf": [{ "$ref": "#/$defs/narration" }, { "type": "null" }]
+        },
+        "projected_focus_visibility": {
+          "oneOf": [{ "$ref": "#/$defs/focus_visibility" }, { "type": "null" }]
+        },
+        "projected_text_correctness": {
+          "oneOf": [{ "$ref": "#/$defs/text_correctness" }, { "type": "null" }]
+        },
+        "projected_ime_composition": {
+          "oneOf": [{ "$ref": "#/$defs/ime_composition" }, { "type": "null" }]
+        },
+        "projected_bidi_isolation": {
+          "oneOf": [{ "$ref": "#/$defs/bidi_isolation" }, { "type": "null" }]
+        },
+        "projected_zoom_reflow": {
+          "oneOf": [{ "$ref": "#/$defs/zoom_reflow" }, { "type": "null" }]
+        },
+        "projected_locale_parity": {
+          "oneOf": [{ "$ref": "#/$defs/locale_parity" }, { "type": "null" }]
+        },
+        "projected_suspicious_content_cue": {
+          "oneOf": [{ "$ref": "#/$defs/suspicious_content_cue" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_local_a11y_path",
+            "missing_evidence",
+            "missing_evidence_pack",
+            "keyboard_unreachable",
+            "narration_silent",
+            "narration_misannounced",
+            "focus_indicator_hidden",
+            "text_corrupted",
+            "ime_composition_broken",
+            "bidi_leaking",
+            "zoom_content_clipped",
+            "locale_parity_lost",
+            "suspicious_content_hidden",
+            "stale_evidence_on_marketed_row",
+            "dimension_drift",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_locale_anchor",
+            "missing_inclusive_note",
+            "missing_claimed_locales",
+            "surface_not_on_inclusive_harness"
+          ]
+        },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/inclusive_row" }
+      }
+    },
+    "row_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "locale_omitted_rows",
+        "declared_capture_gap_rows",
+        "unqualified_local_a11y_path_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "row": { "$ref": "#/$defs/inclusive_row" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "locale_omitted_rows": { "type": "integer", "minimum": 0 },
+        "declared_capture_gap_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_local_a11y_path_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_local_a11y_path",
+        "missing_evidence",
+        "missing_evidence_pack",
+        "keyboard_unreachable",
+        "narration_silent",
+        "narration_misannounced",
+        "focus_indicator_hidden",
+        "text_corrupted",
+        "ime_composition_broken",
+        "bidi_leaking",
+        "zoom_content_clipped",
+        "locale_parity_lost",
+        "suspicious_content_hidden",
+        "stale_evidence_on_marketed_row",
+        "dimension_drift",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_locale_anchor",
+        "missing_inclusive_note",
+        "missing_claimed_locales",
+        "surface_not_on_inclusive_harness"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_local_a11y_path": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_evidence_pack": { "type": "integer", "minimum": 0 },
+        "keyboard_unreachable": { "type": "integer", "minimum": 0 },
+        "narration_silent": { "type": "integer", "minimum": 0 },
+        "narration_misannounced": { "type": "integer", "minimum": 0 },
+        "focus_indicator_hidden": { "type": "integer", "minimum": 0 },
+        "text_corrupted": { "type": "integer", "minimum": 0 },
+        "ime_composition_broken": { "type": "integer", "minimum": 0 },
+        "bidi_leaking": { "type": "integer", "minimum": 0 },
+        "zoom_content_clipped": { "type": "integer", "minimum": 0 },
+        "locale_parity_lost": { "type": "integer", "minimum": 0 },
+        "suspicious_content_hidden": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "dimension_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_locale_anchor": { "type": "integer", "minimum": 0 },
+        "missing_inclusive_note": { "type": "integer", "minimum": 0 },
+        "missing_claimed_locales": { "type": "integer", "minimum": 0 },
+        "surface_not_on_inclusive_harness": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "locale_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_family", "surface_id", "locale_anchor_ref"],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "locale_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "row", "reason"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "row": { "$ref": "#/$defs/inclusive_row" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "inclusive_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "high_salience",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_inclusive_depth_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_inclusive_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/inclusive_descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/inclusive_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_salience": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "m5_inclusive_depth_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_rows",
+        "claimed_locales",
+        "rows",
+        "row_coverage",
+        "findings_summary",
+        "locale_anchor_index",
+        "registered_surface_count",
+        "high_salience_surface_count",
+        "marketed_surface_count",
+        "inclusive_rows_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_inclusive_depth_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_inclusive_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_rows": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/inclusive_row" }
+        },
+        "claimed_locales": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inclusive_locale" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inclusive_qualification_row" }
+        },
+        "row_coverage": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/row_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "locale_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locale_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_salience_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "inclusive_rows_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_inclusive_depth_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_inclusive_depth_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_inclusive_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_inclusive_depth_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
