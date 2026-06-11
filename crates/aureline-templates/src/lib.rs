@@ -68,10 +68,19 @@
 //! long-tail of lanes present heuristic, bridged, or runtime-observed structure as
 //! exact first-party truth without current support-class, origin-truth, health, and
 //! downgrade cues.
+//!
+//! Finally, it owns the M5 certification packet, which certifies every claimed M5
+//! template, scaffold, framework-pack, and archetype-health *profile* on the
+//! mainline branch — binding each profile to a certification verdict, the upstream
+//! evidence packet that backs the claim, the downgrade triggers that can narrow it,
+//! a rollback posture, and proof freshness — and aggregates the per-profile verdicts
+//! into a single promotion verdict, so CI or release tooling can fail promotion or
+//! narrow the claim automatically instead of shipping greener than the evidence.
 
 pub mod add_convention_diagnostics_confidence_labels_suppressibility_and_proving_file_disclosure;
 pub mod add_generation_diff_review_rollback_or_delete_generated_recovery_and_managed_zone_honesty;
 pub mod add_richer_framework_packs_for_jupyter_terraform_kubernetes_fastapi_nestjs_rails_laravel_and_flutter;
+pub mod certify_the_template_registry_scaffold_planner_framework_packs_and_archetype_health_bundles_on_every_claimed_m5_profile;
 pub mod implement_framework_generators_or_codemods_with_preview_diff_rollback_and_execution_context_reuse;
 pub mod implement_framework_pack_headers_pack_version_or_freshness_chips_and_capability_or_downgrade_banners;
 pub mod implement_the_signed_template_registry_provenance_or_mirror_support_and_template_health_rows;
