@@ -1287,7 +1287,11 @@ impl M5DesktopQualificationReport {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 

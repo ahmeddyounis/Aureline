@@ -211,10 +211,10 @@ fn automation_suitability_drift_blocks() {
         .expect("ai automation channel present");
     projection.projected_automation_suitability = Some(M5AutomationSuitability::FullyAutomatable);
     let rebuilt = build_m5_command_parity_row(row.descriptor.clone(), row.channels.clone());
-    assert!(rebuilt
-        .blocking_findings
-        .iter()
-        .any(|f| matches!(f, M5ParityBlockingFinding::AutomationSuitabilityDrift { .. })));
+    assert!(rebuilt.blocking_findings.iter().any(|f| matches!(
+        f,
+        M5ParityBlockingFinding::AutomationSuitabilityDrift { .. }
+    )));
 }
 
 #[test]
@@ -241,9 +241,9 @@ fn missing_narrowing_reason_blocks() {
 #[test]
 fn missing_required_channel_blocks_validation() {
     let mut report = seeded_m5_command_parity_audit();
-    report.rows[0].channels.retain(|projection| {
-        projection.channel != M5DiscoveryChannel::CliHeadless
-    });
+    report.rows[0]
+        .channels
+        .retain(|projection| projection.channel != M5DiscoveryChannel::CliHeadless);
     let result = validate_m5_command_parity_audit(&report);
     assert!(result.is_err());
 }

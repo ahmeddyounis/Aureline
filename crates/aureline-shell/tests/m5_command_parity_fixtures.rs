@@ -130,8 +130,8 @@ fn published_report_md_matches_seeded_rendering() {
 fn published_doc_links_every_channel_and_artifact() {
     let doc_path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ux/m5/command_parity_audit.md");
-    let body = std::fs::read_to_string(&doc_path)
-        .expect("published command_parity_audit doc must exist");
+    let body =
+        std::fs::read_to_string(&doc_path).expect("published command_parity_audit doc must exist");
     for required in M5DiscoveryChannel::required_channels() {
         assert!(
             body.contains(required.as_str()),

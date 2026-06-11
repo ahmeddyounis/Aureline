@@ -44,6 +44,18 @@
 //! open, redaction-safe export formats so SBOM/license/advisory exports stay
 //! attributable and machine-readable without leaking private registry URLs or
 //! secrets by default.
+//!
+//! The module [`package_review_cross_surface_integration`] carries
+//! dependency/package cards from the desktop dependency workspace into
+//! framework-pack health bundles, review workspaces, incident bundles, and
+//! companion-safe inspect views. It pins the write authority each surface may
+//! carry — only desktop mutates, review workspaces stage, and framework-pack,
+//! incident, companion, and browser surfaces stay inspect-only — preserves
+//! package identity, support class, source label, advisory freshness, and the
+//! live-versus-imported finding truth across surfaces, and binds each
+//! cross-surface handoff back to its originating card so identity, update
+//! class, and review state stay stable across desktop reopen, browser handoff,
+//! and companion follow-up.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -51,6 +63,7 @@ pub mod dependency_security_compliance_export_truth;
 pub mod export_safe_dependency_reports;
 pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
+pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
 
 pub use dependency_security_compliance_export_truth::{
@@ -122,4 +135,15 @@ pub use export_safe_dependency_reports::{
     ReportContext, ReportKind, ReportRow, ReportScopeKind, SourceClass,
     EXPORT_SAFE_DEPENDENCY_REPORTS_JSON, EXPORT_SAFE_DEPENDENCY_REPORTS_PATH,
     EXPORT_SAFE_DEPENDENCY_REPORTS_RECORD_KIND, EXPORT_SAFE_DEPENDENCY_REPORTS_SCHEMA_VERSION,
+};
+pub use package_review_cross_surface_integration::{
+    current_package_review_cross_surface_integration, AdvisoryFreshness, DependencyCard,
+    FindingTruth, HandoffContinuityRow, ManifestScopeKind, PackageEcosystem, PackageIdentity,
+    PackageReviewCrossSurfaceIntegration, PackageReviewCrossSurfaceIntegrationExportProjection,
+    PackageReviewCrossSurfaceIntegrationExportRow, PackageReviewCrossSurfaceIntegrationSummary,
+    PackageReviewCrossSurfaceIntegrationViolation, ReviewState, SourceLabel, SupportClass,
+    SurfaceClass, TransitionKind, UpdateClass, WriteAuthority,
+    PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_JSON, PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_PATH,
+    PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_RECORD_KIND,
+    PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_SCHEMA_VERSION,
 };

@@ -76,7 +76,8 @@ pub const M5_COMMAND_PARITY_SCHEMA_VERSION: u32 = 1;
 pub const M5_COMMAND_PARITY_SHARED_CONTRACT_REF: &str = "shell:m5_command_parity:v1";
 
 /// Stable record kind for [`M5CommandParityAuditReport`] payloads.
-pub const M5_COMMAND_PARITY_REPORT_RECORD_KIND: &str = "shell_m5_command_parity_audit_report_record";
+pub const M5_COMMAND_PARITY_REPORT_RECORD_KIND: &str =
+    "shell_m5_command_parity_audit_report_record";
 
 /// Stable record kind for [`M5CommandParityRow`] payloads.
 pub const M5_COMMAND_PARITY_ROW_RECORD_KIND: &str = "shell_m5_command_parity_row_record";
@@ -1598,9 +1599,11 @@ pub fn validate_m5_command_parity_audit(
             }
         }
         if row.descriptor.descriptor_revision_ref.trim().is_empty() {
-            errors.push(M5CommandParityValidationError::MissingDescriptorRevisionRef {
-                command_id: row.descriptor.command_id.clone(),
-            });
+            errors.push(
+                M5CommandParityValidationError::MissingDescriptorRevisionRef {
+                    command_id: row.descriptor.command_id.clone(),
+                },
+            );
         }
         for finding in &row.blocking_findings {
             errors.push(M5CommandParityValidationError::BlockingFindingPresent {
@@ -1959,7 +1962,9 @@ const COMMAND_SEEDS: &[CommandSeed] = &[
                 channel: M5DiscoveryChannel::CliHeadless,
                 coverage_status: M5CoverageStatus::ExplicitlyNarrowed,
                 narrowing_reason: Some("ui_only_handoff_requires_local_session"),
-                note: Some("Handoff is surfaced for discoverability; the route needs a live UI session."),
+                note: Some(
+                    "Handoff is surfaced for discoverability; the route needs a live UI session.",
+                ),
                 projected_aliases: &[],
             },
             ChannelSeed {
@@ -2112,7 +2117,11 @@ fn build_row_from_seed(seed: &CommandSeed) -> M5CommandParityRow {
         descriptor_revision_ref: seed.descriptor_revision_ref.to_owned(),
         primary_label_ref: seed.primary_label_ref.to_owned(),
         help_anchor_ref: seed.help_anchor_ref.to_owned(),
-        search_keywords: seed.search_keywords.iter().map(|s| (*s).to_owned()).collect(),
+        search_keywords: seed
+            .search_keywords
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         lifecycle_label: seed.lifecycle_label,
         preview_class: seed.preview_class,
         capability_scope_class: seed.capability_scope_class,

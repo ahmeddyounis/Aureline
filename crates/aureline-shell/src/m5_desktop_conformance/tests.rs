@@ -118,7 +118,10 @@ fn reopen_anchor_index_covers_every_surface() {
             .iter()
             .find(|entry| entry.surface_id == surface.descriptor.surface_id)
             .expect("every surface must have a reopen-anchor entry");
-        assert_eq!(entry.reopen_anchor_ref, surface.descriptor.reopen_anchor_ref);
+        assert_eq!(
+            entry.reopen_anchor_ref,
+            surface.descriptor.reopen_anchor_ref
+        );
         assert!(!entry.reopen_anchor_ref.is_empty());
     }
 }
@@ -148,7 +151,9 @@ fn qualified_topology_binding(row: M5DesktopRow) -> M5DesktopBinding {
         dimension: row.canonical_dimension(),
         qualification_status: M5DesktopQualificationStatus::Qualified,
         marketed_on_row: true,
-        projected_evidence_pack_ref: Some("drill:surface:sync.status_surface:multi_window".to_owned()),
+        projected_evidence_pack_ref: Some(
+            "drill:surface:sync.status_surface:multi_window".to_owned(),
+        ),
         projected_reopen_fidelity: Some(M5ReopenFidelity::ExactTargetPreserved),
         projected_layout_continuity: Some(M5LayoutContinuity::Preserved),
         projected_interruption_safety: Some(M5InterruptionSafety::Safe),
@@ -350,10 +355,10 @@ fn missing_narrowing_reason_blocks() {
         .expect("declared capture gap binding present");
     binding.narrowing_reason = None;
     let rebuilt = build_m5_desktop_row(surface.descriptor.clone(), surface.bindings.clone());
-    assert!(rebuilt.blocking_findings.iter().any(|f| matches!(
-        f,
-        M5DesktopBlockingFinding::MissingNarrowingReason { .. }
-    )));
+    assert!(rebuilt
+        .blocking_findings
+        .iter()
+        .any(|f| matches!(f, M5DesktopBlockingFinding::MissingNarrowingReason { .. })));
 }
 
 #[test]
