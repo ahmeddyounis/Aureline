@@ -39,10 +39,21 @@
 //! support exports, and Help/About — every section read-only and inheriting its
 //! qualification from the frozen incident-workspace matrix lane, with attribution
 //! preserved or honestly narrowed and an exact desktop handoff per item.
+//!
+//! Building on the incident workspace, it owns the runbook execution surface in
+//! [`implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth`],
+//! which projects the per-step runbook execution rows, the first-class deviation
+//! notes that record every departure from the runbook, the export bundles that
+//! package an incident for sharing, and the browser or vendor-console handoff to an
+//! external surface — every section read-only and inheriting its qualification from
+//! the frozen incident-workspace matrix lane, with an exact desktop handoff per item
+//! and a local-first fallback that keeps every external handoff from stranding the
+//! user when provider continuity is unavailable.
 
 #![doc(html_root_url = "https://docs.rs/aureline-companion/0.0.0")]
 
 pub mod add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets;
 pub mod companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff;
 pub mod freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes;
+pub mod implement_runbook_execution_rows_deviation_notes_export_bundles_and_browser_or_vendor_console_handoff_truth;
 pub mod ship_session_follow_and_incident_awareness_surfaces_with_bounded_read_write_scope_and_stale_state_honesty;
