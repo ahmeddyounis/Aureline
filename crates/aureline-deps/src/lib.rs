@@ -56,10 +56,22 @@
 //! cross-surface handoff back to its originating card so identity, update
 //! class, and review state stay stable across desktop reopen, browser handoff,
 //! and companion follow-up.
+//!
+//! The module [`ecosystem_qualification_certification`] owns the per-ecosystem
+//! certification matrix. It certifies, for every marketed ecosystem and every
+//! qualification lane — dependency intelligence, package review, code quality,
+//! and imported-scanner maturity — whether the lane carries a current
+//! qualification packet and proof corpus of its own, and runs a non-inheriting
+//! promotion gate that narrows any stale, mirror-blocked, scanner-underqualified,
+//! or evidence-missing row before publication. Because each row's published
+//! maturity and narrowing action are validated against the recomputed gate
+//! decision, release/public-truth surfaces can prove underqualified rows narrow
+//! automatically instead of inheriting trust from an adjacent lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
 pub mod dependency_security_compliance_export_truth;
+pub mod ecosystem_qualification_certification;
 pub mod export_safe_dependency_reports;
 pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
@@ -146,4 +158,17 @@ pub use package_review_cross_surface_integration::{
     PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_JSON, PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_PATH,
     PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_RECORD_KIND,
     PACKAGE_REVIEW_CROSS_SURFACE_INTEGRATION_SCHEMA_VERSION,
+};
+// `SupportClass` is intentionally not re-exported here: it collides with the
+// same-named type above. Reach it via
+// `ecosystem_qualification_certification::SupportClass`.
+pub use ecosystem_qualification_certification::{
+    current_ecosystem_qualification_certification, BlockingReason, CertificationFreshness,
+    ClaimedEcosystem, EcosystemQualificationCertification,
+    EcosystemQualificationCertificationExportProjection,
+    EcosystemQualificationCertificationExportRow, EcosystemQualificationCertificationSummary,
+    EcosystemQualificationCertificationViolation, MaturityClass, NarrowingAction,
+    QualificationLane, QualificationRow, ECOSYSTEM_QUALIFICATION_CERTIFICATION_JSON,
+    ECOSYSTEM_QUALIFICATION_CERTIFICATION_PATH, ECOSYSTEM_QUALIFICATION_CERTIFICATION_RECORD_KIND,
+    ECOSYSTEM_QUALIFICATION_CERTIFICATION_SCHEMA_VERSION,
 };
