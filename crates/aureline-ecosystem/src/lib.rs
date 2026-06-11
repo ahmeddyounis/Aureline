@@ -31,6 +31,15 @@
 //! target, an incomplete rollback, or an active quarantine narrows or fails
 //! promotion automatically instead of inheriting trust from an adjacent first-party
 //! family.
+//!
+//! The [`m5_marketplace_fact_views`] module projects that governance truth into the
+//! marketplace presentation layer: source-aware result rows, per-listing detail fact
+//! grids, and side-by-side compare views that keep package kind, source class,
+//! lifecycle state, support class, evidence freshness, runtime origin, bridge/native
+//! state, and mirror/private-registry posture explicit across the public registry,
+//! enterprise mirror, private registry, and manual-import discovery flows. Its
+//! disclosure level is recomputed from each row's facts so reduced provenance widens
+//! warnings rather than collapsing fields.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -39,6 +48,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
+pub mod m5_marketplace_fact_views;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
 pub const ECOSYSTEM_COMPATIBILITY_SCORECARD_SCHEMA_VERSION: u32 = 1;
