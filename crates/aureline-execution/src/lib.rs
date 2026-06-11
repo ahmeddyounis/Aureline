@@ -49,6 +49,18 @@
 //! runtimes, API runtimes, and incident or pipeline-linked reruns. Its non-inheriting
 //! confidence gate keeps an approximate or heuristic target from masquerading as a
 //! confident exact one and makes target changes reviewable instead of silent.
+//!
+//! The companion [`m5_host_boundary`] module narrows the same discipline to a third
+//! question — *where did this work actually run, and how certain is that answer?* —
+//! across the M5 lanes that can cross from the local shell to a remote, container,
+//! managed-workspace, browser-bridge, or service-plane host. It pins one closed
+//! [`m5_host_boundary::HostKind`] vocabulary, carries an execution-origin receipt and
+//! host-boundary context strip per lane, and runs every lane through a non-inheriting
+//! attribution gate so a missing receipt, a bridged or reconnecting connection, a
+//! stale context, an unbound host, or a broken export continuity narrows, flags, or
+//! withholds the published origin instead of letting a browser, companion, preview,
+//! or managed surface imply that work ran locally.
 
 pub mod m5_build_and_host_governance;
+pub mod m5_host_boundary;
 pub mod m5_target_discovery;
