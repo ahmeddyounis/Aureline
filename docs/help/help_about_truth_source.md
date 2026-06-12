@@ -39,6 +39,14 @@ is the checked source for infrastructure `displayed_posture`,
 [`/docs/help/infrastructure-surface-qualification.md`](./infrastructure-surface-qualification.md)
 is the help-facing summary over that same row set.
 
+Runtime-continuity, restore, and terminal-governance depth follows the same
+rule:
+[`/artifacts/runtime/runtime-continuity-surface-qualification/support_export.json`](../../artifacts/runtime/runtime-continuity-surface-qualification/support_export.json)
+is the checked source for runtime-continuity `displayed_label`,
+`narrow_reasons`, and packet refs, and
+[`/docs/help/runtime-continuity-surface-qualification.md`](./runtime-continuity-surface-qualification.md)
+is the help-facing summary over that same row set.
+
 ## What the seed surface guarantees
 
 The surface is a thin projection over upstream truth — no surface in the

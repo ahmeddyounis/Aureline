@@ -71,6 +71,7 @@ pub mod request_workspace_contracts;
 pub mod rerun;
 pub mod resource_governor;
 pub mod run_lineage;
+pub mod runtime_continuity_surface_qualification;
 pub mod sandbox;
 pub mod scanner_import;
 pub mod scanner_import_quality_parity;
@@ -754,6 +755,24 @@ pub use run_lineage::{
     RERUN_REVIEW_SHEET_RECORD_KIND, RUN_ARTIFACT_DETAIL_SHEET_RECORD_KIND,
     RUN_HISTORY_SUPPORT_EXPORT_RECORD_KIND, RUN_LINEAGE_SCHEMA_VERSION,
     RUN_SUMMARY_CARD_RECORD_KIND,
+};
+pub use runtime_continuity_surface_qualification::{
+    current_runtime_continuity_surface_qualification_export,
+    seeded_runtime_continuity_surface_qualification_packet,
+    EvidenceCurrency as RuntimeContinuityEvidenceCurrency, RuntimeContinuityEvidenceConsumer,
+    RuntimeContinuityEvidenceConsumerBinding, RuntimeContinuityEvidenceIndexEntry,
+    RuntimeContinuityLabel, RuntimeContinuityNarrowReason, RuntimeContinuityProfile,
+    RuntimeContinuityProofClass, RuntimeContinuitySurfaceQualificationArtifactError,
+    RuntimeContinuitySurfaceQualificationPacket, RuntimeContinuitySurfaceQualificationPacketInput,
+    RuntimeContinuitySurfaceQualificationViolation,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_ARTIFACT_REF,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_DOC_REF,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_FIXTURE_DIR,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_HELP_REF,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_RECORD_KIND,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_SCHEMA_REF,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_SCHEMA_VERSION,
+    RUNTIME_CONTINUITY_SURFACE_QUALIFICATION_SUMMARY_REF,
 };
 pub use sandbox::{
     current_stable_sandbox_profile_packet, current_stable_sandbox_profile_packet_input,
