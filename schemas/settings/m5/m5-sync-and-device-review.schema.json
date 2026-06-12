@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/m5/m5-sync-and-device-review.schema.json",
+  "title": "Aureline M5 sync-and-device review",
+  "description": "Boundary schema for the governed sync-and-device review record that brings M5-added feature families (notebooks, data/API, profiler, extension bundles, companion) into a field-aware sync and device-participation model. Each family ships a schema-backed scope bundle with a payload schema version, capability dependencies, redaction mode, source device/profile, and local/remote revision sets. Divergences are field-aware conflicts (same-key divergent, policy-locked, missing-capability, machine-only, delete-versus-modify, stale-remote) whose disposition never auto-applies a remote value; trust-widening fields are blocked and require explicit review. The record also exposes the pause/resume/revoke/forget/rotate device-action audit trail and the offline/stale-remote/blocked-apply/E2EE-unavailable/local-only drill set, and derives a fail-closed trust ceiling that withholds a fully-synced claim when a bundle is local-authoritative or review-blocked.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "summary",
+    "scope_bundles",
+    "device_actions",
+    "drills",
+    "surface_truth",
+    "family_coverage",
+    "conflict_class_coverage",
+    "redaction_mode_coverage",
+    "trust_widening_coverage",
+    "device_action_coverage",
+    "drill_coverage",
+    "pillars",
+    "trust_qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_sync_and_device_review_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "settings:m5_sync_and_device_review:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "scope_bundles": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/scope_bundle" }
+    },
+    "device_actions": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/device_action_record" }
+    },
+    "drills": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/drill" }
+    },
+    "surface_truth": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/surface_truth_row" }
+    },
+    "family_coverage": { "type": "array", "items": { "$ref": "#/$defs/family" } },
+    "conflict_class_coverage": { "type": "array", "items": { "$ref": "#/$defs/conflict_class" } },
+    "redaction_mode_coverage": { "type": "array", "items": { "$ref": "#/$defs/redaction_mode" } },
+    "trust_widening_coverage": { "type": "array", "items": { "$ref": "#/$defs/trust_widening_class" } },
+    "device_action_coverage": { "type": "array", "items": { "$ref": "#/$defs/device_action" } },
+    "drill_coverage": { "type": "array", "items": { "$ref": "#/$defs/drill_kind" } },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "trust_qualification": { "$ref": "#/$defs/trust_qualification" }
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://[^/]+/.+"
+    },
+    "family": {
+      "type": "string",
+      "enum": ["notebooks", "data_api", "profiler", "extension_bundles", "companion"]
+    },
+    "redaction_mode": {
+      "type": "string",
+      "enum": ["none", "redact_secrets", "machine_local_excluded", "fully_local_only"]
+    },
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "same_key_divergent",
+        "policy_locked",
+        "missing_capability",
+        "machine_only",
+        "delete_versus_modify",
+        "stale_remote"
+      ]
+    },
+    "conflict_disposition": {
+      "type": "string",
+      "enum": [
+        "local_authoritative_kept",
+        "awaiting_field_review",
+        "remote_apply_blocked",
+        "remote_applied_after_review"
+      ]
+    },
+    "trust_widening_class": {
+      "type": "string",
+      "enum": ["trust_elevation", "extension_permission", "ai_egress", "managed_entitlement"]
+    },
+    "device_action": {
+      "type": "string",
+      "enum": ["pause", "resume", "revoke", "forget", "rotate"]
+    },
+    "device_participation_state": {
+      "type": "string",
+      "enum": ["active", "paused", "revoked", "forgotten", "rotating"]
+    },
+    "device_class": {
+      "type": "string",
+      "enum": ["desktop", "laptop", "companion", "headless", "managed"]
+    },
+    "drill_kind": {
+      "type": "string",
+      "enum": [
+        "offline",
+        "stale_remote",
+        "blocked_sync_apply",
+        "e2ee_unavailable",
+        "local_only_fallback"
+      ]
+    },
+    "sync_transport_state": {
+      "type": "string",
+      "enum": [
+        "online_encrypted",
+        "offline",
+        "stale_remote",
+        "e2ee_unavailable",
+        "policy_blocked",
+        "local_only"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["desktop_settings", "cli_inspect", "docs_help", "support_export"]
+    },
+    "bundle_sync_trust": {
+      "type": "string",
+      "enum": ["synced", "local_authoritative", "review_blocked"]
+    },
+    "claim_class": {
+      "type": "string",
+      "enum": ["fully_synced", "narrowed_local_authoritative", "unsupported"]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "families_incomplete",
+        "scope_bundle_untyped",
+        "conflict_not_field_aware",
+        "device_action_unaudited",
+        "local_fallback_dishonest",
+        "trust_widening_ungated",
+        "bundle_trust_below_synced",
+        "surface_truth_incomplete"
+      ]
+    },
+    "revision_sets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_revision_ref"],
+      "properties": {
+        "local_revision_ref": { "$ref": "#/$defs/canonical_ref" },
+        "remote_revision_ref": { "$ref": "#/$defs/canonical_ref" },
+        "last_common_revision_ref": { "$ref": "#/$defs/canonical_ref" }
+      }
+    },
+    "capability_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_ref", "present_locally", "narrows_apply"],
+      "properties": {
+        "capability_ref": { "$ref": "#/$defs/canonical_ref" },
+        "present_locally": { "type": "boolean" },
+        "narrows_apply": { "type": "boolean" }
+      }
+    },
+    "field_conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "class",
+        "disposition",
+        "local_value_ref",
+        "requires_explicit_review",
+        "detail"
+      ],
+      "properties": {
+        "field_path": { "type": "string", "minLength": 1 },
+        "class": { "$ref": "#/$defs/conflict_class" },
+        "disposition": { "$ref": "#/$defs/conflict_disposition" },
+        "local_value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "remote_value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "widens_trust": { "$ref": "#/$defs/trust_widening_class" },
+        "requires_explicit_review": { "type": "boolean" },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scope_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "family",
+        "title",
+        "bundle_schema_version",
+        "redaction_mode",
+        "source_device_ref",
+        "source_profile_ref",
+        "revisions",
+        "capability_dependencies",
+        "local_authoritative",
+        "remote_synced",
+        "conflicts"
+      ],
+      "properties": {
+        "bundle_id": { "type": "string", "minLength": 1 },
+        "family": { "$ref": "#/$defs/family" },
+        "title": { "type": "string", "minLength": 1 },
+        "bundle_schema_version": { "type": "integer", "minimum": 1 },
+        "redaction_mode": { "$ref": "#/$defs/redaction_mode" },
+        "source_device_ref": { "$ref": "#/$defs/canonical_ref" },
+        "source_profile_ref": { "$ref": "#/$defs/canonical_ref" },
+        "revisions": { "$ref": "#/$defs/revision_sets" },
+        "capability_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_dependency" }
+        },
+        "local_authoritative": { "const": true },
+        "remote_synced": { "type": "boolean" },
+        "conflicts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field_conflict" }
+        }
+      }
+    },
+    "device_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_ref",
+        "device_class",
+        "action",
+        "audit_ref",
+        "actor_ref",
+        "participation_after",
+        "local_state_intact",
+        "detail"
+      ],
+      "properties": {
+        "device_ref": { "$ref": "#/$defs/canonical_ref" },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "action": { "$ref": "#/$defs/device_action" },
+        "audit_ref": { "$ref": "#/$defs/canonical_ref" },
+        "actor_ref": { "$ref": "#/$defs/canonical_ref" },
+        "participation_after": { "$ref": "#/$defs/device_participation_state" },
+        "local_state_intact": { "const": true },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "transport_state",
+        "local_authoritative",
+        "local_state_labeled",
+        "expected_signal",
+        "recovery_path"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/drill_kind" },
+        "transport_state": { "$ref": "#/$defs/sync_transport_state" },
+        "local_authoritative": { "const": true },
+        "local_state_labeled": { "const": true },
+        "expected_signal": { "type": "string", "minLength": 1 },
+        "recovery_path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "surface_truth_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "consumes_shared_record",
+        "shows_scope_bundles",
+        "shows_field_conflicts",
+        "shows_device_actions",
+        "shows_local_only_fallback"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "consumes_shared_record": { "type": "boolean" },
+        "shows_scope_bundles": { "type": "boolean" },
+        "shows_field_conflicts": { "type": "boolean" },
+        "shows_device_actions": { "type": "boolean" },
+        "shows_local_only_fallback": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "families_complete",
+        "scope_bundles_typed",
+        "conflicts_field_aware",
+        "device_actions_audited",
+        "local_fallback_honest",
+        "trust_widening_gated",
+        "surface_truth_complete"
+      ],
+      "properties": {
+        "families_complete": { "type": "boolean" },
+        "scope_bundles_typed": { "type": "boolean" },
+        "conflicts_field_aware": { "type": "boolean" },
+        "device_actions_audited": { "type": "boolean" },
+        "local_fallback_honest": { "type": "boolean" },
+        "trust_widening_gated": { "type": "boolean" },
+        "surface_truth_complete": { "type": "boolean" }
+      }
+    },
+    "trust_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_class",
+        "effective_trust_ceiling",
+        "qualifies_fully_synced",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "effective_trust_ceiling": { "$ref": "#/$defs/bundle_sync_trust" },
+        "qualifies_fully_synced": { "type": "boolean" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        }
+      }
+    }
+  }
+}

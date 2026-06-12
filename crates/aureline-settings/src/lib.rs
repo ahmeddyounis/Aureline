@@ -41,6 +41,7 @@ pub mod keybindings;
 pub mod locale_beta;
 pub mod m5_effective_settings;
 pub mod m5_portable_state_and_restore;
+pub mod m5_sync_and_device_review;
 pub mod repair_review;
 pub mod resolver;
 pub mod schema;
@@ -132,6 +133,16 @@ pub use m5_portable_state_and_restore::{
     PortableRestoreQualification, PortableStateRestoreScenario, RestoreProvenanceCard,
     M5_PORTABLE_STATE_RESTORE_RECORD_KIND, M5_PORTABLE_STATE_RESTORE_SCHEMA_VERSION,
     M5_PORTABLE_STATE_RESTORE_SHARED_CONTRACT_REF,
+};
+pub use m5_sync_and_device_review::{
+    m5_sync_and_device_review_corpus, BundleSyncTrust, ConflictClass, ConflictDisposition,
+    DeviceAction, DeviceActionRecord, DeviceClass,
+    DeviceParticipationState as SyncDeviceParticipationState, DrillKind, FieldConflict,
+    M5SyncAndDeviceReview, M5SyncAndDeviceReviewInput, M5SyncAndDeviceReviewScenario,
+    RedactionMode, ScopeCapabilityDependency, ScopeRevisionSets, SyncDrill, SyncReviewClaim,
+    SyncReviewPillars, SyncReviewQualification, SyncScopeBundle, SyncScopeFamily,
+    SyncTransportState, TrustWideningClass, M5_SYNC_AND_DEVICE_REVIEW_RECORD_KIND,
+    M5_SYNC_AND_DEVICE_REVIEW_SCHEMA_VERSION, M5_SYNC_AND_DEVICE_REVIEW_SHARED_CONTRACT_REF,
 };
 pub use repair_review::{
     build_repair_plan, project_review_sheet,
