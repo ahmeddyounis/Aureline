@@ -10,6 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
 pub mod cluster_context_and_live_resource;
+pub mod plan_and_validation_viewers;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
@@ -20,6 +21,15 @@ pub use cluster_context_and_live_resource::{
     CLUSTER_LIVE_RESOURCE_DOC_REF, CLUSTER_LIVE_RESOURCE_FIXTURE_DIR,
     CLUSTER_LIVE_RESOURCE_PACKET_RECORD_KIND, CLUSTER_LIVE_RESOURCE_SCHEMA_REF,
     CLUSTER_LIVE_RESOURCE_SCHEMA_VERSION,
+};
+pub use plan_and_validation_viewers::{
+    seeded_plan_and_validation_viewer_packet, validate_plan_and_validation_viewer_packet,
+    PlanAndValidationViewerPacket, PlanAndValidationViewerValidationReport,
+    PlanValidationToolIdentity, PlanValidationViewerKind, PlanValidationViewerRecord,
+    PlanValidationViewerResult, ViewerAuthoritySourceClass, ViewerConsumerJoin,
+    ViewerConsumerSurface, ViewerFollowUpGate, PLAN_AND_VALIDATION_VIEWER_DOC_REF,
+    PLAN_AND_VALIDATION_VIEWER_FIXTURE_DIR, PLAN_AND_VALIDATION_VIEWER_PACKET_RECORD_KIND,
+    PLAN_AND_VALIDATION_VIEWER_SCHEMA_REF, PLAN_AND_VALIDATION_VIEWER_SCHEMA_VERSION,
 };
 pub use source_intelligence_and_resource_relationships::{
     seeded_source_intelligence_object_packet, validate_object_packet,
