@@ -15,6 +15,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
+pub mod m5_install_and_portability_governance;
 pub mod ownership_audit;
 pub mod profile_cards;
 pub mod repair_verify;
@@ -126,4 +127,20 @@ pub use stabilize_portable_install_side_by_side_channels_updater::{
     STABILIZE_PORTABLE_INSTALL_PAGE_RECORD_KIND, STABILIZE_PORTABLE_INSTALL_SCHEMA_VERSION,
     STABILIZE_PORTABLE_INSTALL_SHARED_CONTRACT_REF,
     STABILIZE_PORTABLE_INSTALL_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_install_and_portability_governance::{
+    current_m5_install_portability_governance_matrix, AdmissionOutcome, AuthRecoveryPosture,
+    ChannelRing, ConsumerSurface, DowngradePath, DowngradeReason, EffectiveSettingScope,
+    InstallAssurance, InstallConfigLane, InstallConfigRow, InstallConsumerBinding, InstallMode,
+    InstallTopologySupport, InstallVerification, LocalContinuity,
+    M5InstallPortabilityGovernanceExportProjection, M5InstallPortabilityGovernanceExportRow,
+    M5InstallPortabilityGovernanceMatrix, M5InstallPortabilityGovernanceSummary,
+    M5InstallPortabilityGovernanceSupportExport, M5InstallPortabilityGovernanceViolation,
+    PortableExportClass, PortableStateFreshness, StateRootClass, SyncDeviceState,
+    M5_INSTALL_PORTABILITY_GOVERNANCE_ARTIFACT_DOC_REF, M5_INSTALL_PORTABILITY_GOVERNANCE_DOC_REF,
+    M5_INSTALL_PORTABILITY_GOVERNANCE_FIXTURE_DIR, M5_INSTALL_PORTABILITY_GOVERNANCE_JSON,
+    M5_INSTALL_PORTABILITY_GOVERNANCE_PATH, M5_INSTALL_PORTABILITY_GOVERNANCE_RECORD_KIND,
+    M5_INSTALL_PORTABILITY_GOVERNANCE_SCHEMA_REF, M5_INSTALL_PORTABILITY_GOVERNANCE_SCHEMA_VERSION,
+    M5_INSTALL_PORTABILITY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
