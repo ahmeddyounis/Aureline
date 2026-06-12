@@ -89,9 +89,25 @@
 //! never letting it silently replace live state. Fallback reasons and health receipts join
 //! into support bundles, issue reports, and release evidence so field triage can see how the
 //! product actually sourced execution truth.
+//!
+//! The capstone [`m5_execution_certification`] module graduates the lane-level matrices
+//! above into one qualification report. It certifies each M5 execution and ops-adjacent
+//! depth lane — build-intelligence, target-context discovery, host-boundary,
+//! managed-workspace lifecycle, cluster-context, mutation/handoff review, and
+//! live-resource context — against the canonical packet it draws evidence from
+//! ([`m5_execution_certification::CertifiedLane::source_packet`]) and runs each through a
+//! non-inheriting certification gate so stale evidence, partial profile coverage, a
+//! regressed drill, or unverified attestation narrows the lane to a narrower
+//! deployment-profile or lifecycle label, or withdraws it from publication, rather than
+//! letting it graduate to a blanket "managed ready" or "remote parity" claim by inertia.
+//! Because every row also carries release-evidence, help/service-health, docs-badge, and
+//! support-export refs, those surfaces ingest the same certification packet instead of
+//! parallel spreadsheets, so an underqualified managed-workspace, cluster-context, or
+//! live-resource lane cannot stay green in one surface while it is downgraded in another.
 
 pub mod m5_adapter_parity_and_health;
 pub mod m5_build_and_host_governance;
+pub mod m5_execution_certification;
 pub mod m5_host_boundary;
 pub mod m5_mutation_and_handoff_review;
 pub mod m5_target_discovery;
