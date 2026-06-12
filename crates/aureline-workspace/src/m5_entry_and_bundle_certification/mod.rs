@@ -1,0 +1,1485 @@
+//! Canonical M5 entry-and-bundle certification report: the single qualification packet that
+//! graduates the workflow-bundle, source-acquisition, project-open, project-import,
+//! session-resume, recent-work, and workspace-admission switching lanes only where their
+//! evidence is current and provable, and automatically narrows the rest to a smaller label
+//! before publication.
+//!
+//! This packet is the certification layer above the
+//! [`crate::m5_entry_and_bundle_governance`] matrix. It does not re-derive each lane's truth —
+//! it ingests the governance packet's published label for the lane
+//! ([`CertificationRow::governance_claim`]), runs the per-lane qualification drills
+//! ([`CertificationDrill`]) the certification suite owns, scores how fresh the certification
+//! evidence is ([`EvidenceFreshness`]), and publishes the certification label
+//! ([`EntryAssurance`]) no input can exceed.
+//!
+//! The certification gate is non-inheriting and fail-closed. The published label is the
+//! weakest ceiling implied by the governance claim, the certification evidence freshness, and
+//! the drill outcomes, so a governance-narrowed lane, stale or missing certification evidence,
+//! or an unproven, narrowed, or failed drill all narrow or withhold the certified label
+//! automatically rather than leaving a lane green by inertia. A lane that declared a stronger
+//! label than the gate permits has its published label lowered and its
+//! [`CertificationDowngradeReason`]s and [`CertificationDowngradePath`] recomputed; all are
+//! validated against the gate so a downgrade can never be asserted or hidden by hand. This is
+//! the guardrail the spec demands: no blanket "best-in-class onboarding" or "one-click project
+//! entry" label survives without per-lane qualification, freshness, and a downgrade path.
+//!
+//! Because every required consumer surface — start center, migration center, help/About,
+//! release center, docs/help, and support export — binds to this one packet via a
+//! [`CertificationConsumerBinding`] that must ingest the packet, preserve its labels, and
+//! narrow with it, a lane narrowed here cannot stay authoritative on a start-center tile, a
+//! migration banner, a docs badge, or a support export. Each binding is stamped with the active
+//! scope snapshot so support and evidence packets can reconstruct the scope the certification
+//! answered.
+//!
+//! The packet is checked in at `artifacts/workspace/m5/m5-entry-and-bundle-certification.json`
+//! and embedded here. It is metadata-only: every field is a typed state, a count, or an opaque
+//! ref, and it carries no credential bodies, raw provider payloads, or workspace contents.
+
+use std::collections::BTreeSet;
+use std::error::Error;
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+use crate::m5_entry_and_bundle_governance::{AdmissionOutcome, EntryAssurance, EntryBundleLane};
+
+/// Supported M5 entry-and-bundle certification report schema version.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag for the packet.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_RECORD_KIND: &str =
+    "m5_entry_and_bundle_certification_report";
+
+/// Repo-relative path to the checked-in packet.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_PATH: &str =
+    "artifacts/workspace/m5/m5-entry-and-bundle-certification.json";
+
+/// Repo-relative path to the JSON Schema validating the packet.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_REF: &str =
+    "schemas/workspace/m5-entry-and-bundle-certification.schema.json";
+
+/// Repo-relative path to the companion document.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_DOC_REF: &str =
+    "docs/workspace/m5/m5-entry-and-bundle-certification.md";
+
+/// Repo-relative path to the human-readable reviewer artifact.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_ARTIFACT_DOC_REF: &str =
+    "artifacts/workspace/m5/m5-entry-and-bundle-certification.md";
+
+/// Repo-relative path to the fixture corpus directory.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_FIXTURE_DIR: &str =
+    "fixtures/workspace/m5/m5-entry-and-bundle-certification";
+
+/// Repo-relative path to the upstream entry-and-bundle governance matrix this packet certifies.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF: &str =
+    "artifacts/workspace/m5/m5-entry-and-bundle-governance.json";
+
+/// Embedded checked-in packet JSON.
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../artifacts/workspace/m5/m5-entry-and-bundle-certification.json"
+));
+
+/// A qualification drill the certification suite runs for every claimed M5 entry/bundle lane.
+///
+/// A lane is never certified above [`EntryAssurance::Withheld`] unless every required drill ran
+/// and passed cleanly; an unproven, narrowed, or failed drill narrows or withholds the certified
+/// label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificationDrill {
+    /// Project-entry first-useful-work routing drill.
+    ProjectEntry,
+    /// Recent-work registry resolve-and-restore drill.
+    RecentWork,
+    /// Distinct clone/open/import/resume source-acquisition verb drill.
+    SourceAcquisition,
+    /// Bundle install/update/remove diff-and-rollback drill.
+    BundleLifecycle,
+    /// Workspace-admission detection and trust-routing drill.
+    Admission,
+    /// Keyboard, list/table, and screen-reader accessibility drill.
+    Accessibility,
+    /// Automatic claim-narrowing and recovery downgrade drill.
+    Downgrade,
+}
+
+impl CertificationDrill {
+    /// Every required drill, in declaration order.
+    pub const ALL: [Self; 7] = [
+        Self::ProjectEntry,
+        Self::RecentWork,
+        Self::SourceAcquisition,
+        Self::BundleLifecycle,
+        Self::Admission,
+        Self::Accessibility,
+        Self::Downgrade,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProjectEntry => "project_entry",
+            Self::RecentWork => "recent_work",
+            Self::SourceAcquisition => "source_acquisition",
+            Self::BundleLifecycle => "bundle_lifecycle",
+            Self::Admission => "admission",
+            Self::Accessibility => "accessibility",
+            Self::Downgrade => "downgrade",
+        }
+    }
+}
+
+/// The outcome of one qualification drill.
+///
+/// Ordered by [`DrillOutcome::label_ceiling`]: a passed drill backs a verified label, a narrowed
+/// drill caps at bounded, and a failed or not-run drill withholds the lane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DrillOutcome {
+    /// The drill ran and passed cleanly.
+    Passed,
+    /// The drill ran but only proved the lane for a narrower slice.
+    Narrowed,
+    /// The drill ran and failed.
+    Failed,
+    /// The drill did not run; the lane is unproven.
+    NotRun,
+}
+
+impl DrillOutcome {
+    /// Every drill outcome, in declaration order.
+    pub const ALL: [Self; 4] = [Self::Passed, Self::Narrowed, Self::Failed, Self::NotRun];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::Narrowed => "narrowed",
+            Self::Failed => "failed",
+            Self::NotRun => "not_run",
+        }
+    }
+
+    /// Highest certification label this outcome permits a lane to publish.
+    pub const fn label_ceiling(self) -> EntryAssurance {
+        match self {
+            Self::Passed => EntryAssurance::Verified,
+            Self::Narrowed => EntryAssurance::Bounded,
+            Self::Failed | Self::NotRun => EntryAssurance::Withheld,
+        }
+    }
+
+    /// Whether the outcome narrows the lane to a slice.
+    pub const fn is_narrowed(self) -> bool {
+        matches!(self, Self::Narrowed)
+    }
+
+    /// Whether the outcome leaves the lane unproven (failed or never run).
+    pub const fn is_unproven(self) -> bool {
+        matches!(self, Self::Failed | Self::NotRun)
+    }
+
+    /// Whether the drill ran at all, so it must carry an evidence ref.
+    pub const fn was_run(self) -> bool {
+        !matches!(self, Self::NotRun)
+    }
+}
+
+/// How fresh the certification evidence backing a lane is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceFreshness {
+    /// The certification evidence is current.
+    Current,
+    /// The certification evidence is aging but in tolerance; caps at bounded.
+    Aging,
+    /// The certification evidence is expired; caps at retest-pending.
+    Expired,
+    /// The certification evidence is missing; caps at withheld.
+    Missing,
+}
+
+impl EvidenceFreshness {
+    /// Every freshness state, in declaration order.
+    pub const ALL: [Self; 4] = [Self::Current, Self::Aging, Self::Expired, Self::Missing];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Current => "current",
+            Self::Aging => "aging",
+            Self::Expired => "expired",
+            Self::Missing => "missing",
+        }
+    }
+
+    /// Highest certification label this freshness state permits a lane to publish.
+    pub const fn label_ceiling(self) -> EntryAssurance {
+        match self {
+            Self::Current => EntryAssurance::Verified,
+            Self::Aging => EntryAssurance::Bounded,
+            Self::Expired => EntryAssurance::RetestPending,
+            Self::Missing => EntryAssurance::Withheld,
+        }
+    }
+
+    /// Whether this state raises the [`CertificationDowngradeReason::EvidenceStale`] trigger.
+    pub const fn is_stale_trigger(self) -> bool {
+        !matches!(self, Self::Current)
+    }
+}
+
+/// A headline reason the certification gate narrows a lane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificationDowngradeReason {
+    /// The upstream governance matrix already narrowed the lane below verified.
+    GovernanceNarrowed,
+    /// The certification evidence is aging, expired, or missing.
+    EvidenceStale,
+    /// At least one qualification drill proved the lane only for a narrower slice.
+    DrillNarrowed,
+    /// At least one qualification drill failed or never ran.
+    DrillFailed,
+}
+
+impl CertificationDowngradeReason {
+    /// Every downgrade reason, in declaration order.
+    pub const ALL: [Self; 4] = [
+        Self::GovernanceNarrowed,
+        Self::EvidenceStale,
+        Self::DrillNarrowed,
+        Self::DrillFailed,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GovernanceNarrowed => "governance_narrowed",
+            Self::EvidenceStale => "evidence_stale",
+            Self::DrillNarrowed => "drill_narrowed",
+            Self::DrillFailed => "drill_failed",
+        }
+    }
+}
+
+/// The exact recovery path surfaced when a lane's certified label is narrowed or withheld.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificationDowngradePath {
+    /// Rerun the failed, not-run, or narrowed qualification drills.
+    RerunDrills,
+    /// Refresh the aging, expired, or missing certification evidence.
+    RefreshEvidence,
+    /// Adopt the governance matrix's narrowing rather than re-asserting a broader label.
+    AdoptGovernanceNarrowing,
+    /// Withhold the lane from publication.
+    WithholdRow,
+    /// No downgrade is needed; only valid when the lane is certified verified.
+    #[serde(rename = "none")]
+    NoneNeeded,
+}
+
+impl CertificationDowngradePath {
+    /// Every downgrade path, in declaration order.
+    pub const ALL: [Self; 5] = [
+        Self::RerunDrills,
+        Self::RefreshEvidence,
+        Self::AdoptGovernanceNarrowing,
+        Self::WithholdRow,
+        Self::NoneNeeded,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RerunDrills => "rerun_drills",
+            Self::RefreshEvidence => "refresh_evidence",
+            Self::AdoptGovernanceNarrowing => "adopt_governance_narrowing",
+            Self::WithholdRow => "withhold_row",
+            Self::NoneNeeded => "none",
+        }
+    }
+
+    /// Whether this is a real recovery path the lane owner can take.
+    pub const fn is_offered(self) -> bool {
+        !matches!(self, Self::NoneNeeded)
+    }
+}
+
+/// A downstream surface that must ingest this certification packet and narrow with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificationConsumerSurface {
+    /// Start center entry and template-gallery tiles.
+    StartCenter,
+    /// Migration center switching banners and import lanes.
+    MigrationCenter,
+    /// Help and About product-surface copy.
+    HelpAbout,
+    /// Release center evidence and proof index.
+    ReleaseCenter,
+    /// Docs and help/service-health surface.
+    DocsHelp,
+    /// Support export bundle.
+    SupportExport,
+}
+
+impl CertificationConsumerSurface {
+    /// Every required consumer surface, in declaration order.
+    pub const REQUIRED: [Self; 6] = [
+        Self::StartCenter,
+        Self::MigrationCenter,
+        Self::HelpAbout,
+        Self::ReleaseCenter,
+        Self::DocsHelp,
+        Self::SupportExport,
+    ];
+
+    /// Stable token recorded in the packet.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::StartCenter => "start_center",
+            Self::MigrationCenter => "migration_center",
+            Self::HelpAbout => "help_about",
+            Self::ReleaseCenter => "release_center",
+            Self::DocsHelp => "docs_help",
+            Self::SupportExport => "support_export",
+        }
+    }
+}
+
+/// The outcome of one qualification drill, with its evidence ref and capture time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CertificationDrillResult {
+    /// Drill this result records.
+    pub drill: CertificationDrill,
+    /// Outcome of the drill.
+    pub outcome: DrillOutcome,
+    /// Ref to the drill's evidence; required whenever the drill ran.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_ref: Option<String>,
+    /// Capture timestamp for the drill run.
+    pub checked_at: String,
+}
+
+impl CertificationDrillResult {
+    /// Whether the result carries the evidence ref its outcome requires.
+    pub fn has_required_evidence(&self) -> bool {
+        if self.outcome.was_run() {
+            self.evidence_ref
+                .as_ref()
+                .is_some_and(|r| !r.trim().is_empty())
+        } else {
+            true
+        }
+    }
+}
+
+/// One certification row for a claimed M5 entry/bundle switching lane.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CertificationRow {
+    /// Stable certification-row id.
+    pub row_id: String,
+    /// Entry/bundle switching lane this row certifies.
+    pub lane: EntryBundleLane,
+    /// Owner accountable for the row's evidence and conformance.
+    pub owner: String,
+    /// Assurance label the upstream governance matrix published for this lane.
+    ///
+    /// The certification gate can only narrow from here; it never re-broadens a
+    /// governance-narrowed lane.
+    pub governance_claim: EntryAssurance,
+    /// How fresh the certification evidence backing this row is.
+    pub evidence_freshness: EvidenceFreshness,
+    /// Per-drill outcomes; one result per required drill.
+    #[serde(default)]
+    pub drill_results: Vec<CertificationDrillResult>,
+    /// Label the row's own evidence asserts, before the gate.
+    pub declared_label: EntryAssurance,
+    /// Label actually published after the gate narrows the row.
+    ///
+    /// Must equal [`CertificationRow::effective_label`].
+    pub published_label: EntryAssurance,
+    /// Decision the gate takes; must equal the recomputed decision.
+    pub certification_decision: AdmissionOutcome,
+    /// Headline downgrade reasons; must equal the recomputed set.
+    #[serde(default)]
+    pub downgrade_reasons: Vec<CertificationDowngradeReason>,
+    /// Recovery path surfaced when the label is narrowed or withheld.
+    pub downgrade_path: CertificationDowngradePath,
+    /// Profiles or slices this row still certifies.
+    #[serde(default)]
+    pub supported_profiles: Vec<String>,
+    /// Caveats attached to the published label.
+    #[serde(default)]
+    pub caveats: Vec<String>,
+    /// Fields whose evidence is stale, missing, or narrowing the label.
+    #[serde(default)]
+    pub stale_or_missing_fields: Vec<String>,
+    /// Ref to the upstream governance packet this row certifies.
+    pub governance_packet_ref: String,
+    /// Ref to the governance lane row this certification row narrows from.
+    pub governance_row_ref: String,
+    /// Ref to the entry-conformance suite backing the row.
+    pub conformance_ref: String,
+    /// Ref to the row's supporting evidence.
+    pub evidence_ref: String,
+    /// Active scope snapshot the certification answered, stamped for replay.
+    pub scope_snapshot_ref: String,
+    /// Ref to the machine-readable certification receipt.
+    pub certification_receipt_ref: String,
+    /// Reviewer-facing note.
+    pub note: String,
+}
+
+impl CertificationRow {
+    /// The label the row's own evidence asserted, before gate narrowing.
+    pub fn capability_floor(&self) -> EntryAssurance {
+        self.declared_label
+    }
+
+    /// Highest label the drills permit, the weakest ceiling across every required drill.
+    ///
+    /// A missing required drill caps the row at withheld, so an incompletely drilled row can
+    /// never read as certified.
+    pub fn drill_ceiling(&self) -> EntryAssurance {
+        let mut ceiling = EntryAssurance::Verified;
+        for drill in CertificationDrill::ALL {
+            let outcome = self
+                .drill_results
+                .iter()
+                .find(|r| r.drill == drill)
+                .map(|r| r.outcome.label_ceiling())
+                .unwrap_or(EntryAssurance::Withheld);
+            ceiling = ceiling.min(outcome);
+        }
+        ceiling
+    }
+
+    /// The label the gate permits this row to publish.
+    ///
+    /// Lowers the declared label to the weakest ceiling implied by the governance claim, the
+    /// certification evidence freshness, and the drill outcomes, so a governance-narrowed lane,
+    /// stale evidence, or an unproven, narrowed, or failed drill can never publish a verified
+    /// label.
+    pub fn effective_label(&self) -> EntryAssurance {
+        self.capability_floor()
+            .min(self.governance_claim)
+            .min(self.evidence_freshness.label_ceiling())
+            .min(self.drill_ceiling())
+    }
+
+    /// Whether any required drill proved the row only for a narrower slice.
+    pub fn has_narrowed_drill(&self) -> bool {
+        self.drill_results.iter().any(|r| r.outcome.is_narrowed())
+    }
+
+    /// Whether any required drill failed or never ran.
+    pub fn has_unproven_drill(&self) -> bool {
+        CertificationDrill::ALL.iter().any(|&drill| {
+            self.drill_results
+                .iter()
+                .find(|r| r.drill == drill)
+                .map(|r| r.outcome.is_unproven())
+                .unwrap_or(true)
+        })
+    }
+
+    /// The headline downgrade reasons recomputed from the row's observed states.
+    pub fn computed_downgrade_reasons(&self) -> Vec<CertificationDowngradeReason> {
+        let mut reasons = Vec::new();
+        if self.governance_claim.rank() < EntryAssurance::Verified.rank() {
+            reasons.push(CertificationDowngradeReason::GovernanceNarrowed);
+        }
+        if self.evidence_freshness.is_stale_trigger() {
+            reasons.push(CertificationDowngradeReason::EvidenceStale);
+        }
+        if self.has_narrowed_drill() {
+            reasons.push(CertificationDowngradeReason::DrillNarrowed);
+        }
+        if self.has_unproven_drill() {
+            reasons.push(CertificationDowngradeReason::DrillFailed);
+        }
+        reasons
+    }
+
+    /// The recovery path the gate must record, derived from the row's observed states.
+    ///
+    /// Ordered by severity: a withheld row points at withhold, an unproven or narrowed drill
+    /// points at a drill rerun, stale evidence points at a refresh, a governance-only narrowing
+    /// points at adopting that narrowing, and a clean row needs nothing.
+    pub fn computed_downgrade_path(&self) -> CertificationDowngradePath {
+        if self.effective_label() == EntryAssurance::Withheld {
+            CertificationDowngradePath::WithholdRow
+        } else if self.has_unproven_drill() || self.has_narrowed_drill() {
+            CertificationDowngradePath::RerunDrills
+        } else if self.evidence_freshness.is_stale_trigger() {
+            CertificationDowngradePath::RefreshEvidence
+        } else if self.governance_claim.rank() < EntryAssurance::Verified.rank() {
+            CertificationDowngradePath::AdoptGovernanceNarrowing
+        } else {
+            CertificationDowngradePath::NoneNeeded
+        }
+    }
+
+    /// The decision the gate must record, derived from the effective label.
+    pub fn required_decision(&self) -> AdmissionOutcome {
+        AdmissionOutcome::for_assurance(self.effective_label())
+    }
+
+    /// Whether the row publishes a clean verified certification.
+    pub fn is_certified(&self) -> bool {
+        self.effective_label() == EntryAssurance::Verified
+    }
+
+    /// Whether the gate narrowed the published label below what the row declared.
+    pub fn is_downgraded(&self) -> bool {
+        self.effective_label().rank() < self.capability_floor().rank()
+    }
+
+    /// Whether the row covers every required drill exactly once.
+    pub fn covers_all_drills(&self) -> bool {
+        let mut seen = BTreeSet::new();
+        for result in &self.drill_results {
+            seen.insert(result.drill);
+        }
+        CertificationDrill::ALL.iter().all(|d| seen.contains(d))
+            && self.drill_results.len() == CertificationDrill::ALL.len()
+    }
+
+    /// Whether the row carries its own non-empty governance, conformance, evidence, scope, and
+    /// receipt refs.
+    pub fn has_required_evidence(&self) -> bool {
+        !self.governance_packet_ref.trim().is_empty()
+            && !self.governance_row_ref.trim().is_empty()
+            && !self.conformance_ref.trim().is_empty()
+            && !self.evidence_ref.trim().is_empty()
+            && !self.scope_snapshot_ref.trim().is_empty()
+            && !self.certification_receipt_ref.trim().is_empty()
+    }
+
+    /// Whether the stored published label, decision, reasons, and path all agree with the
+    /// recomputed gate.
+    pub fn gate_consistent(&self) -> bool {
+        self.published_label == self.effective_label()
+            && self.certification_decision == self.required_decision()
+            && self.downgrade_reasons == self.computed_downgrade_reasons()
+            && self.downgrade_path == self.computed_downgrade_path()
+    }
+}
+
+/// One binding wiring a downstream surface to this certification packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CertificationConsumerBinding {
+    /// Consumer surface this binding wires.
+    pub consumer_surface: CertificationConsumerSurface,
+    /// Stable binding ref.
+    pub binding_ref: String,
+    /// Certification packet id this surface ingests.
+    pub certification_packet_id_ref: String,
+    /// Active scope snapshot stamped on the binding for replay.
+    pub scope_snapshot_ref: String,
+    /// True when the surface ingests this certification packet rather than a parallel sheet.
+    pub ingests_certification_packet: bool,
+    /// True when the surface preserves the published labels verbatim.
+    pub preserves_published_labels: bool,
+    /// True when the surface preserves the recovery paths verbatim.
+    pub preserves_downgrade_paths: bool,
+    /// True when the surface narrows automatically as rows are downgraded.
+    pub narrows_on_downgrade: bool,
+    /// True when raw private material is excluded from the binding.
+    pub raw_private_material_excluded: bool,
+}
+
+impl CertificationConsumerBinding {
+    fn preserves_truth_for(&self, packet_id: &str) -> bool {
+        self.certification_packet_id_ref == packet_id
+            && self.ingests_certification_packet
+            && self.preserves_published_labels
+            && self.preserves_downgrade_paths
+            && self.narrows_on_downgrade
+            && self.raw_private_material_excluded
+            && !self.binding_ref.trim().is_empty()
+            && !self.scope_snapshot_ref.trim().is_empty()
+    }
+}
+
+/// Summary counts carried by the packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct M5EntryBundleCertificationSummary {
+    /// Total certification rows.
+    pub total_rows: usize,
+    /// Number of claimed lanes.
+    pub lane_count: usize,
+    /// Rows certified verified.
+    pub certified_rows: usize,
+    /// Rows narrowed to a bounded label.
+    pub bounded_rows: usize,
+    /// Rows narrowed to a retest-pending label.
+    pub retest_pending_rows: usize,
+    /// Rows withheld from publication.
+    pub withheld_rows: usize,
+    /// Rows whose published label was downgraded below what they declared.
+    pub downgraded_rows: usize,
+    /// Rows carrying at least one downgrade reason.
+    pub rows_with_downgrade_reasons: usize,
+    /// Rows whose certification evidence is aging, expired, or missing.
+    pub stale_evidence_rows: usize,
+    /// Rows with at least one narrowed, failed, or not-run drill.
+    pub rows_with_imperfect_drills: usize,
+}
+
+/// A redaction-safe export row projected from a certification row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5EntryBundleCertificationExportRow {
+    /// Certification-row id.
+    pub row_id: String,
+    /// Lane token.
+    pub lane: String,
+    /// Owner accountable for the row.
+    pub owner: String,
+    /// Governance-claim token the row narrows from.
+    pub governance_claim: String,
+    /// Evidence-freshness token.
+    pub evidence_freshness: String,
+    /// Declared-label token.
+    pub declared_label: String,
+    /// Published-label token.
+    pub published_label: String,
+    /// Certification-decision token.
+    pub certification_decision: String,
+    /// Downgrade-reason tokens.
+    pub downgrade_reasons: Vec<String>,
+    /// Downgrade-path token.
+    pub downgrade_path: String,
+    /// Supported profiles or slices.
+    pub supported_profiles: Vec<String>,
+    /// Caveats attached to the published label.
+    pub caveats: Vec<String>,
+    /// Fields whose evidence is stale or missing.
+    pub stale_or_missing_fields: Vec<String>,
+    /// Governance-packet ref this row certifies.
+    pub governance_packet_ref: String,
+    /// Scope snapshot the certification answered.
+    pub scope_snapshot_ref: String,
+    /// Certification-receipt ref.
+    pub certification_receipt_ref: String,
+    /// Whether the row publishes a verified certification.
+    pub certified: bool,
+    /// Whether the published label was downgraded below the declared label.
+    pub downgraded: bool,
+    /// Human-readable summary.
+    pub summary: String,
+}
+
+/// A redaction-safe export projection of the packet — the canonical certification index
+/// downstream surfaces render instead of restating each row's label by hand.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5EntryBundleCertificationExportProjection {
+    /// Packet id this projection was produced from.
+    pub packet_id: String,
+    /// Packet as-of date.
+    pub as_of: String,
+    /// Projected rows.
+    pub rows: Vec<M5EntryBundleCertificationExportRow>,
+    /// Whether every row's published label and decision agree with the gate.
+    pub all_rows_gate_consistent: bool,
+    /// Rows that publish a verified certification.
+    pub certified_count: usize,
+    /// Rows the gate narrowed or withheld.
+    pub narrowed_count: usize,
+    /// Rows the gate withheld entirely.
+    pub withheld_count: usize,
+}
+
+/// The typed M5 entry-and-bundle certification report packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct M5EntryBundleCertificationReport {
+    /// Packet schema version.
+    pub schema_version: u32,
+    /// Record-kind discriminator.
+    pub record_kind: String,
+    /// Stable packet identifier.
+    pub packet_id: String,
+    /// Lifecycle status of this packet.
+    pub status: String,
+    /// Human-readable companion document.
+    pub overview_page: String,
+    /// UTC date this snapshot is current as of.
+    pub as_of: String,
+    /// Ref to the upstream entry-and-bundle governance matrix this report certifies.
+    pub governance_packet_ref: String,
+    /// Claimed lanes; one row per lane.
+    pub lanes: Vec<EntryBundleLane>,
+    /// Closed certification-label vocabulary.
+    pub certification_labels: Vec<EntryAssurance>,
+    /// Closed drill vocabulary.
+    pub drills: Vec<CertificationDrill>,
+    /// Closed drill-outcome vocabulary.
+    pub drill_outcomes: Vec<DrillOutcome>,
+    /// Closed evidence-freshness vocabulary.
+    pub evidence_freshness_states: Vec<EvidenceFreshness>,
+    /// Closed certification-decision vocabulary.
+    pub certification_decisions: Vec<AdmissionOutcome>,
+    /// Closed downgrade-path vocabulary.
+    pub downgrade_paths: Vec<CertificationDowngradePath>,
+    /// Closed downgrade-reason vocabulary.
+    pub downgrade_reasons: Vec<CertificationDowngradeReason>,
+    /// Closed consumer-surface vocabulary.
+    pub consumer_surfaces: Vec<CertificationConsumerSurface>,
+    /// Certification rows, one per claimed lane.
+    #[serde(default)]
+    pub rows: Vec<CertificationRow>,
+    /// Consumer bindings, one per required surface.
+    #[serde(default)]
+    pub consumer_bindings: Vec<CertificationConsumerBinding>,
+    /// Summary counts.
+    pub summary: M5EntryBundleCertificationSummary,
+}
+
+impl M5EntryBundleCertificationReport {
+    /// Returns the row for a claimed lane.
+    pub fn row(&self, lane: EntryBundleLane) -> Option<&CertificationRow> {
+        self.rows.iter().find(|r| r.lane == lane)
+    }
+
+    /// Rows that publish a verified certification.
+    pub fn certified_rows(&self) -> impl Iterator<Item = &CertificationRow> {
+        self.rows.iter().filter(|r| r.is_certified())
+    }
+
+    /// Rows the gate narrowed or withheld in any way.
+    pub fn narrowed_rows(&self) -> impl Iterator<Item = &CertificationRow> {
+        self.rows
+            .iter()
+            .filter(|r| r.required_decision().is_narrowed())
+    }
+
+    /// Rows the gate withheld entirely.
+    pub fn withheld_rows(&self) -> impl Iterator<Item = &CertificationRow> {
+        self.rows
+            .iter()
+            .filter(|r| r.required_decision() == AdmissionOutcome::Refuse)
+    }
+
+    /// Whether a consumer binding preserves this packet for the given surface.
+    pub fn has_binding_for(&self, surface: CertificationConsumerSurface) -> bool {
+        self.consumer_bindings
+            .iter()
+            .any(|b| b.consumer_surface == surface && b.preserves_truth_for(&self.packet_id))
+    }
+
+    /// Whether every row's stored published label, decision, reasons, and path agree with the
+    /// recomputed gate.
+    pub fn all_rows_gate_consistent(&self) -> bool {
+        self.rows.iter().all(|r| r.gate_consistent())
+    }
+
+    /// Recomputes the summary block from the rows.
+    pub fn computed_summary(&self) -> M5EntryBundleCertificationSummary {
+        let count_published = |label: EntryAssurance| {
+            self.rows
+                .iter()
+                .filter(|r| r.published_label == label)
+                .count()
+        };
+        M5EntryBundleCertificationSummary {
+            total_rows: self.rows.len(),
+            lane_count: self.lanes.len(),
+            certified_rows: count_published(EntryAssurance::Verified),
+            bounded_rows: count_published(EntryAssurance::Bounded),
+            retest_pending_rows: count_published(EntryAssurance::RetestPending),
+            withheld_rows: count_published(EntryAssurance::Withheld),
+            downgraded_rows: self.rows.iter().filter(|r| r.is_downgraded()).count(),
+            rows_with_downgrade_reasons: self
+                .rows
+                .iter()
+                .filter(|r| !r.downgrade_reasons.is_empty())
+                .count(),
+            stale_evidence_rows: self
+                .rows
+                .iter()
+                .filter(|r| r.evidence_freshness.is_stale_trigger())
+                .count(),
+            rows_with_imperfect_drills: self
+                .rows
+                .iter()
+                .filter(|r| r.has_narrowed_drill() || r.has_unproven_drill())
+                .count(),
+        }
+    }
+
+    /// Produces the certification index downstream surfaces — start center, migration center,
+    /// help/About, release center, docs/help, and support exports — render instead of restating
+    /// each row's certification by hand.
+    pub fn export_projection(&self) -> M5EntryBundleCertificationExportProjection {
+        let rows = self
+            .rows
+            .iter()
+            .map(|r| M5EntryBundleCertificationExportRow {
+                row_id: r.row_id.clone(),
+                lane: r.lane.as_str().to_owned(),
+                owner: r.owner.clone(),
+                governance_claim: r.governance_claim.as_str().to_owned(),
+                evidence_freshness: r.evidence_freshness.as_str().to_owned(),
+                declared_label: r.declared_label.as_str().to_owned(),
+                published_label: r.published_label.as_str().to_owned(),
+                certification_decision: r.certification_decision.as_str().to_owned(),
+                downgrade_reasons: r
+                    .downgrade_reasons
+                    .iter()
+                    .map(|x| x.as_str().to_owned())
+                    .collect(),
+                downgrade_path: r.downgrade_path.as_str().to_owned(),
+                supported_profiles: r.supported_profiles.clone(),
+                caveats: r.caveats.clone(),
+                stale_or_missing_fields: r.stale_or_missing_fields.clone(),
+                governance_packet_ref: r.governance_packet_ref.clone(),
+                scope_snapshot_ref: r.scope_snapshot_ref.clone(),
+                certification_receipt_ref: r.certification_receipt_ref.clone(),
+                certified: r.is_certified(),
+                downgraded: r.is_downgraded(),
+                summary: format!(
+                    "{}: governance {}, evidence {}, declared {}, published {} ({}), recovery {}",
+                    r.lane.as_str(),
+                    r.governance_claim.as_str(),
+                    r.evidence_freshness.as_str(),
+                    r.declared_label.as_str(),
+                    r.published_label.as_str(),
+                    r.certification_decision.as_str(),
+                    r.downgrade_path.as_str()
+                ),
+            })
+            .collect();
+        M5EntryBundleCertificationExportProjection {
+            packet_id: self.packet_id.clone(),
+            as_of: self.as_of.clone(),
+            rows,
+            all_rows_gate_consistent: self.all_rows_gate_consistent(),
+            certified_count: self.certified_rows().count(),
+            narrowed_count: self.narrowed_rows().count(),
+            withheld_count: self.withheld_rows().count(),
+        }
+    }
+
+    /// Builds an export-safe support packet preserving the exact certification report.
+    pub fn support_export(
+        &self,
+        export_id: impl Into<String>,
+        exported_at: impl Into<String>,
+    ) -> M5EntryBundleCertificationSupportExport {
+        M5EntryBundleCertificationSupportExport {
+            record_kind: M5_ENTRY_BUNDLE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_VERSION,
+            export_id: export_id.into(),
+            certification_packet_id_ref: self.packet_id.clone(),
+            exported_at: exported_at.into(),
+            raw_private_material_excluded: true,
+            certification_report: self.clone(),
+        }
+    }
+
+    /// Validates the packet, returning every violation found.
+    pub fn validate(&self) -> Vec<M5EntryBundleCertificationViolation> {
+        let mut violations = Vec::new();
+        self.validate_envelope(&mut violations);
+
+        let claimed: BTreeSet<EntryBundleLane> = self.lanes.iter().copied().collect();
+
+        let mut seen_ids = BTreeSet::new();
+        let mut seen_lanes = BTreeSet::new();
+        for row in &self.rows {
+            if !seen_ids.insert(row.row_id.clone()) {
+                violations.push(M5EntryBundleCertificationViolation::DuplicateRowId {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if !seen_lanes.insert(row.lane) {
+                violations.push(M5EntryBundleCertificationViolation::DuplicateLaneRow {
+                    lane: row.lane.as_str(),
+                });
+            }
+            if !claimed.contains(&row.lane) {
+                violations.push(M5EntryBundleCertificationViolation::UnclaimedLaneRow {
+                    row_id: row.row_id.clone(),
+                    lane: row.lane.as_str(),
+                });
+            }
+            self.validate_row(row, &mut violations);
+        }
+
+        // Every claimed lane must carry its own row, so a lane never inherits a certification
+        // from an adjacent one.
+        for &lane in &self.lanes {
+            if !seen_lanes.contains(&lane) {
+                violations.push(M5EntryBundleCertificationViolation::MissingLaneRow {
+                    lane: lane.as_str(),
+                });
+            }
+        }
+
+        // Every required consumer surface must bind to this packet and narrow with it, so a
+        // narrowed row cannot stay green on a downstream surface by inertia.
+        for surface in CertificationConsumerSurface::REQUIRED {
+            if !self.has_binding_for(surface) {
+                violations.push(
+                    M5EntryBundleCertificationViolation::MissingConsumerBinding {
+                        surface: surface.as_str(),
+                    },
+                );
+            }
+        }
+        for binding in &self.consumer_bindings {
+            if !binding.preserves_truth_for(&self.packet_id) {
+                violations.push(M5EntryBundleCertificationViolation::ConsumerBindingDrift {
+                    binding_ref: binding.binding_ref.clone(),
+                });
+            }
+        }
+
+        if self.summary != self.computed_summary() {
+            violations.push(M5EntryBundleCertificationViolation::SummaryMismatch);
+        }
+
+        violations
+    }
+
+    fn validate_envelope(&self, violations: &mut Vec<M5EntryBundleCertificationViolation>) {
+        if self.schema_version != M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_VERSION {
+            violations.push(
+                M5EntryBundleCertificationViolation::UnsupportedSchemaVersion {
+                    actual: self.schema_version,
+                },
+            );
+        }
+        if self.record_kind != M5_ENTRY_BUNDLE_CERTIFICATION_RECORD_KIND {
+            violations.push(M5EntryBundleCertificationViolation::UnsupportedRecordKind {
+                actual: self.record_kind.clone(),
+            });
+        }
+        for (field, value) in [
+            ("packet_id", &self.packet_id),
+            ("status", &self.status),
+            ("overview_page", &self.overview_page),
+            ("as_of", &self.as_of),
+            ("governance_packet_ref", &self.governance_packet_ref),
+        ] {
+            if value.trim().is_empty() {
+                violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                    id: "<packet>".to_owned(),
+                    field_name: field,
+                });
+            }
+        }
+        if self.governance_packet_ref != M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF {
+            violations.push(
+                M5EntryBundleCertificationViolation::GovernancePacketMismatch {
+                    expected: M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF,
+                },
+            );
+        }
+        for (field, ok) in [
+            ("lanes", self.lanes == EntryBundleLane::ALL.to_vec()),
+            (
+                "certification_labels",
+                self.certification_labels == EntryAssurance::ALL.to_vec(),
+            ),
+            ("drills", self.drills == CertificationDrill::ALL.to_vec()),
+            (
+                "drill_outcomes",
+                self.drill_outcomes == DrillOutcome::ALL.to_vec(),
+            ),
+            (
+                "evidence_freshness_states",
+                self.evidence_freshness_states == EvidenceFreshness::ALL.to_vec(),
+            ),
+            (
+                "certification_decisions",
+                self.certification_decisions == AdmissionOutcome::ALL.to_vec(),
+            ),
+            (
+                "downgrade_paths",
+                self.downgrade_paths == CertificationDowngradePath::ALL.to_vec(),
+            ),
+            (
+                "downgrade_reasons",
+                self.downgrade_reasons == CertificationDowngradeReason::ALL.to_vec(),
+            ),
+            (
+                "consumer_surfaces",
+                self.consumer_surfaces == CertificationConsumerSurface::REQUIRED.to_vec(),
+            ),
+        ] {
+            if !ok {
+                violations
+                    .push(M5EntryBundleCertificationViolation::ClosedVocabularyMismatch { field });
+            }
+        }
+    }
+
+    fn validate_row(
+        &self,
+        row: &CertificationRow,
+        violations: &mut Vec<M5EntryBundleCertificationViolation>,
+    ) {
+        for (field, value) in [
+            ("row_id", &row.row_id),
+            ("owner", &row.owner),
+            ("governance_packet_ref", &row.governance_packet_ref),
+            ("governance_row_ref", &row.governance_row_ref),
+            ("conformance_ref", &row.conformance_ref),
+            ("evidence_ref", &row.evidence_ref),
+            ("scope_snapshot_ref", &row.scope_snapshot_ref),
+            ("certification_receipt_ref", &row.certification_receipt_ref),
+            ("note", &row.note),
+        ] {
+            if value.trim().is_empty() {
+                violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                    id: row.row_id.clone(),
+                    field_name: field,
+                });
+            }
+        }
+
+        // The row must certify the canonical governance packet, so a certification never
+        // narrows from a packet other than the matrix it claims to gate.
+        if row.governance_packet_ref != M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF {
+            violations.push(
+                M5EntryBundleCertificationViolation::GovernancePacketMismatch {
+                    expected: M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF,
+                },
+            );
+        }
+
+        // The row must cover every required drill exactly once, so an incompletely drilled row
+        // is never certified by omission.
+        if !row.covers_all_drills() {
+            violations.push(
+                M5EntryBundleCertificationViolation::IncompleteDrillCoverage {
+                    row_id: row.row_id.clone(),
+                },
+            );
+        }
+        for result in &row.drill_results {
+            if result.checked_at.trim().is_empty() {
+                violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                    id: row.row_id.clone(),
+                    field_name: "drill_results.checked_at",
+                });
+            }
+            if !result.has_required_evidence() {
+                violations.push(M5EntryBundleCertificationViolation::DrillMissingEvidence {
+                    row_id: row.row_id.clone(),
+                    drill: result.drill.as_str(),
+                });
+            }
+        }
+
+        let mut seen_reasons = BTreeSet::new();
+        for reason in &row.downgrade_reasons {
+            if !seen_reasons.insert(*reason) {
+                violations.push(
+                    M5EntryBundleCertificationViolation::DuplicateDowngradeReason {
+                        row_id: row.row_id.clone(),
+                        reason: reason.as_str(),
+                    },
+                );
+            }
+        }
+
+        // The published label must equal the gate's recomputed ceiling, so a
+        // governance-narrowed, stale, or under-drilled row can never read as certified.
+        let effective = row.effective_label();
+        if row.published_label != effective {
+            violations.push(M5EntryBundleCertificationViolation::OverstatedLabel {
+                row_id: row.row_id.clone(),
+                published: row.published_label.as_str(),
+                computed: effective.as_str(),
+            });
+        }
+
+        // The published label may never exceed the governance claim, the cornerstone of the
+        // non-inheritance guarantee: a certification never re-broadens a governance-narrowed
+        // lane.
+        if row.published_label.rank() > row.governance_claim.rank() {
+            violations.push(M5EntryBundleCertificationViolation::ExceedsGovernance {
+                row_id: row.row_id.clone(),
+                published: row.published_label.as_str(),
+                governance: row.governance_claim.as_str(),
+            });
+        }
+
+        let required = row.required_decision();
+        if row.certification_decision != required {
+            violations.push(M5EntryBundleCertificationViolation::DecisionMismatch {
+                row_id: row.row_id.clone(),
+                declared: row.certification_decision.as_str(),
+                required: required.as_str(),
+            });
+        }
+
+        let computed = row.computed_downgrade_reasons();
+        if row.downgrade_reasons != computed {
+            violations.push(
+                M5EntryBundleCertificationViolation::DowngradeReasonsMismatch {
+                    row_id: row.row_id.clone(),
+                },
+            );
+        }
+
+        let computed_path = row.computed_downgrade_path();
+        if row.downgrade_path != computed_path {
+            violations.push(M5EntryBundleCertificationViolation::DowngradePathMismatch {
+                row_id: row.row_id.clone(),
+                declared: row.downgrade_path.as_str(),
+                required: computed_path.as_str(),
+            });
+        }
+
+        // A narrowed or withheld row must offer a real recovery path, list a caveat, and name
+        // what is stale, so a degraded row never drops its recovery semantics or hides why it
+        // narrowed.
+        if row.certification_decision.is_narrowed() {
+            if !row.downgrade_path.is_offered() {
+                violations.push(M5EntryBundleCertificationViolation::MissingDowngradePath {
+                    row_id: row.row_id.clone(),
+                });
+            }
+            if row.caveats.is_empty() {
+                violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                    id: row.row_id.clone(),
+                    field_name: "caveats",
+                });
+            }
+            if row.stale_or_missing_fields.is_empty() {
+                violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                    id: row.row_id.clone(),
+                    field_name: "stale_or_missing_fields",
+                });
+            }
+        }
+
+        // A row that still certifies a publishable label must name at least one supported
+        // profile or slice.
+        if row.published_label != EntryAssurance::Withheld && row.supported_profiles.is_empty() {
+            violations.push(M5EntryBundleCertificationViolation::EmptyField {
+                id: row.row_id.clone(),
+                field_name: "supported_profiles",
+            });
+        }
+
+        // A certified row must be genuinely whole-provable: the governance claim is verified,
+        // the evidence is current, every drill passed, the declared label is verified, and
+        // nothing narrows it. This is the guardrail against a blanket 'best-in-class onboarding'
+        // or 'one-click project entry' badge over an unproven lane.
+        if row.is_certified()
+            && (row.governance_claim != EntryAssurance::Verified
+                || row.evidence_freshness != EvidenceFreshness::Current
+                || row.drill_ceiling() != EntryAssurance::Verified
+                || row.capability_floor() != EntryAssurance::Verified
+                || !row.downgrade_reasons.is_empty()
+                || !row.caveats.is_empty()
+                || !row.stale_or_missing_fields.is_empty()
+                || row.downgrade_path.is_offered())
+        {
+            violations.push(M5EntryBundleCertificationViolation::CertifiedRowNotWhole {
+                row_id: row.row_id.clone(),
+            });
+        }
+    }
+}
+
+/// A validation violation for the M5 entry-and-bundle certification packet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum M5EntryBundleCertificationViolation {
+    /// The packet carries an unsupported schema version.
+    UnsupportedSchemaVersion {
+        /// Version found in the packet.
+        actual: u32,
+    },
+    /// The packet carries an unsupported record kind.
+    UnsupportedRecordKind {
+        /// Record kind found in the packet.
+        actual: String,
+    },
+    /// A closed vocabulary or pinned value is not canonical.
+    ClosedVocabularyMismatch {
+        /// Offending field.
+        field: &'static str,
+    },
+    /// A required field is empty.
+    EmptyField {
+        /// Row or packet id.
+        id: String,
+        /// Field name.
+        field_name: &'static str,
+    },
+    /// A certification-row id appears more than once.
+    DuplicateRowId {
+        /// Duplicate row id.
+        row_id: String,
+    },
+    /// A claimed lane carries more than one row.
+    DuplicateLaneRow {
+        /// Lane token.
+        lane: &'static str,
+    },
+    /// A claimed lane has no row.
+    MissingLaneRow {
+        /// Lane token.
+        lane: &'static str,
+    },
+    /// A row covers a lane the packet does not claim.
+    UnclaimedLaneRow {
+        /// Row id.
+        row_id: String,
+        /// Lane token.
+        lane: &'static str,
+    },
+    /// A row or the packet binds to a governance packet other than the canonical one.
+    GovernancePacketMismatch {
+        /// Expected governance-packet path.
+        expected: &'static str,
+    },
+    /// A row does not cover every required drill exactly once.
+    IncompleteDrillCoverage {
+        /// Row id.
+        row_id: String,
+    },
+    /// A drill that ran carries no evidence ref.
+    DrillMissingEvidence {
+        /// Row id.
+        row_id: String,
+        /// Drill token.
+        drill: &'static str,
+    },
+    /// A row lists a downgrade reason more than once.
+    DuplicateDowngradeReason {
+        /// Row id.
+        row_id: String,
+        /// Reason token.
+        reason: &'static str,
+    },
+    /// A row publishes a label beyond what the gate computes.
+    OverstatedLabel {
+        /// Row id.
+        row_id: String,
+        /// Published label token.
+        published: &'static str,
+        /// Computed effective label token.
+        computed: &'static str,
+    },
+    /// A row publishes a label above the upstream governance claim.
+    ExceedsGovernance {
+        /// Row id.
+        row_id: String,
+        /// Published label token.
+        published: &'static str,
+        /// Governance claim token.
+        governance: &'static str,
+    },
+    /// A row's decision disagrees with its gate decision.
+    DecisionMismatch {
+        /// Row id.
+        row_id: String,
+        /// Declared decision token.
+        declared: &'static str,
+        /// Required decision token.
+        required: &'static str,
+    },
+    /// A row's downgrade reasons disagree with the recomputed reasons.
+    DowngradeReasonsMismatch {
+        /// Row id.
+        row_id: String,
+    },
+    /// A row's downgrade path disagrees with the recomputed path.
+    DowngradePathMismatch {
+        /// Row id.
+        row_id: String,
+        /// Declared path token.
+        declared: &'static str,
+        /// Required path token.
+        required: &'static str,
+    },
+    /// A narrowed or withheld row offers no recovery path.
+    MissingDowngradePath {
+        /// Row id.
+        row_id: String,
+    },
+    /// A certified row still narrows a state or carries a downgrade reason.
+    CertifiedRowNotWhole {
+        /// Row id.
+        row_id: String,
+    },
+    /// A required consumer surface has no binding.
+    MissingConsumerBinding {
+        /// Surface token.
+        surface: &'static str,
+    },
+    /// A consumer binding drops or remints certification truth.
+    ConsumerBindingDrift {
+        /// Binding ref.
+        binding_ref: String,
+    },
+    /// The summary counts disagree with the rows.
+    SummaryMismatch,
+}
+
+impl fmt::Display for M5EntryBundleCertificationViolation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedSchemaVersion { actual } => {
+                write!(f, "unsupported packet schema_version {actual}")
+            }
+            Self::UnsupportedRecordKind { actual } => {
+                write!(f, "unsupported packet record_kind {actual}")
+            }
+            Self::ClosedVocabularyMismatch { field } => {
+                write!(f, "packet {field} is not the canonical value")
+            }
+            Self::EmptyField { id, field_name } => {
+                write!(f, "{id} has empty field {field_name}")
+            }
+            Self::DuplicateRowId { row_id } => write!(f, "duplicate row id {row_id}"),
+            Self::DuplicateLaneRow { lane } => {
+                write!(f, "duplicate row for lane {lane}")
+            }
+            Self::MissingLaneRow { lane } => {
+                write!(f, "missing row for claimed lane {lane}")
+            }
+            Self::UnclaimedLaneRow { row_id, lane } => {
+                write!(f, "row {row_id} covers unclaimed lane {lane}")
+            }
+            Self::GovernancePacketMismatch { expected } => {
+                write!(
+                    f,
+                    "governance_packet_ref must be the canonical governance packet {expected}"
+                )
+            }
+            Self::IncompleteDrillCoverage { row_id } => {
+                write!(f, "row {row_id} does not cover every required drill once")
+            }
+            Self::DrillMissingEvidence { row_id, drill } => {
+                write!(f, "row {row_id} drill {drill} ran without an evidence ref")
+            }
+            Self::DuplicateDowngradeReason { row_id, reason } => {
+                write!(f, "row {row_id} repeats downgrade reason {reason}")
+            }
+            Self::OverstatedLabel {
+                row_id,
+                published,
+                computed,
+            } => write!(
+                f,
+                "row {row_id} publishes label {published} but the gate computes {computed}"
+            ),
+            Self::ExceedsGovernance {
+                row_id,
+                published,
+                governance,
+            } => write!(
+                f,
+                "row {row_id} publishes label {published} above governance claim {governance}"
+            ),
+            Self::DecisionMismatch {
+                row_id,
+                declared,
+                required,
+            } => write!(
+                f,
+                "row {row_id} records decision {declared} but the gate requires {required}"
+            ),
+            Self::DowngradeReasonsMismatch { row_id } => {
+                write!(f, "row {row_id} downgrade reasons disagree with the gate")
+            }
+            Self::DowngradePathMismatch {
+                row_id,
+                declared,
+                required,
+            } => write!(
+                f,
+                "row {row_id} records recovery {declared} but the gate requires {required}"
+            ),
+            Self::MissingDowngradePath { row_id } => {
+                write!(
+                    f,
+                    "row {row_id} is narrowed or withheld but offers no recovery path"
+                )
+            }
+            Self::CertifiedRowNotWhole { row_id } => {
+                write!(
+                    f,
+                    "row {row_id} is certified but narrows a state or carries a downgrade reason"
+                )
+            }
+            Self::MissingConsumerBinding { surface } => {
+                write!(f, "missing consumer binding for surface {surface}")
+            }
+            Self::ConsumerBindingDrift { binding_ref } => {
+                write!(
+                    f,
+                    "binding {binding_ref} does not preserve certification truth"
+                )
+            }
+            Self::SummaryMismatch => write!(f, "packet summary counts disagree with the rows"),
+        }
+    }
+}
+
+impl Error for M5EntryBundleCertificationViolation {}
+
+/// Stable record-kind tag for [`M5EntryBundleCertificationSupportExport`].
+pub const M5_ENTRY_BUNDLE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND: &str =
+    "m5_entry_and_bundle_certification_support_export";
+
+/// Support-export wrapper preserving the certification report verbatim for support and evidence
+/// packets.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5EntryBundleCertificationSupportExport {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable export id.
+    pub export_id: String,
+    /// Packet id preserved by the export.
+    pub certification_packet_id_ref: String,
+    /// Export timestamp.
+    pub exported_at: String,
+    /// True when raw private material is excluded.
+    pub raw_private_material_excluded: bool,
+    /// Exact certification report preserved by the export.
+    pub certification_report: M5EntryBundleCertificationReport,
+}
+
+impl M5EntryBundleCertificationSupportExport {
+    /// Whether the export preserves the same packet id and a clean report.
+    pub fn is_export_safe(&self) -> bool {
+        self.record_kind == M5_ENTRY_BUNDLE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND
+            && self.schema_version == M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_VERSION
+            && self.certification_packet_id_ref == self.certification_report.packet_id
+            && self.raw_private_material_excluded
+            && self.certification_report.validate().is_empty()
+    }
+}
+
+/// Loads the embedded M5 entry-and-bundle certification report packet.
+///
+/// # Errors
+///
+/// Returns a JSON parse error when the checked-in packet no longer matches
+/// [`M5EntryBundleCertificationReport`].
+pub fn current_m5_entry_bundle_certification_report(
+) -> Result<M5EntryBundleCertificationReport, serde_json::Error> {
+    serde_json::from_str(M5_ENTRY_BUNDLE_CERTIFICATION_JSON)
+}
+
+#[cfg(test)]
+mod tests;

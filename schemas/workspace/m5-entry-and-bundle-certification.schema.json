@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-entry-and-bundle-certification.schema.json",
+  "title": "Aureline M5 entry-and-bundle certification report",
+  "description": "Schema for the m5_entry_and_bundle_certification_report packet. The packet is the certification layer above the m5_entry_and_bundle_governance matrix: it freezes one certification row per claimed M5 switching/entry lane (workflow-bundle, source-acquisition, project-open, project-import, session-resume, recent-work, workspace-admission), records the governance assurance label the row narrows from, how fresh the certification evidence is (current, aging, expired, missing), and the per-drill outcomes (passed, narrowed, failed, not-run) for the project-entry, recent-work, source-acquisition, bundle-lifecycle, admission, accessibility, and downgrade drills, then publishes the certification label (verified, bounded, retest_pending, withheld) no input can exceed. A non-inheriting, fail-closed gate derives the published label as the weakest ceiling implied by the governance claim, the evidence freshness, and the drill outcomes, so a governance-narrowed lane, stale or missing evidence, or an unproven, narrowed, or failed drill narrows or withholds the row automatically; the published label may never exceed the governance claim, every claimed lane carries exactly one row, and the recorded label, decision, downgrade reasons, and recovery path must equal the recomputed gate. Every required consumer surface (start-center, migration-center, help-about, release-center, docs-help, support-export) binds to this one packet and must ingest it, preserve its labels and recovery paths, and narrow with it, so a row narrowed here cannot stay green downstream by inertia.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "governance_packet_ref",
+    "lanes",
+    "certification_labels",
+    "drills",
+    "drill_outcomes",
+    "evidence_freshness_states",
+    "certification_decisions",
+    "downgrade_paths",
+    "downgrade_reasons",
+    "consumer_surfaces",
+    "rows",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_entry_and_bundle_certification_report" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "governance_packet_ref": {
+      "const": "artifacts/workspace/m5/m5-entry-and-bundle-governance.json"
+    },
+    "lanes": { "type": "array", "items": { "$ref": "#/$defs/lane" } },
+    "certification_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/label" }
+    },
+    "drills": { "type": "array", "items": { "$ref": "#/$defs/drill" } },
+    "drill_outcomes": { "type": "array", "items": { "$ref": "#/$defs/drill_outcome" } },
+    "evidence_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_freshness" }
+    },
+    "certification_decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "downgrade_paths": { "type": "array", "items": { "$ref": "#/$defs/downgrade_path" } },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "lane": {
+      "enum": [
+        "workflow_bundle",
+        "source_acquisition",
+        "project_open",
+        "project_import",
+        "session_resume",
+        "recent_work",
+        "workspace_admission"
+      ]
+    },
+    "label": {
+      "enum": ["verified", "bounded", "retest_pending", "withheld"]
+    },
+    "drill": {
+      "enum": [
+        "project_entry",
+        "recent_work",
+        "source_acquisition",
+        "bundle_lifecycle",
+        "admission",
+        "accessibility",
+        "downgrade"
+      ]
+    },
+    "drill_outcome": {
+      "enum": ["passed", "narrowed", "failed", "not_run"]
+    },
+    "evidence_freshness": {
+      "enum": ["current", "aging", "expired", "missing"]
+    },
+    "decision": {
+      "enum": ["admit_full", "admit_bounded", "admit_retest", "refuse"]
+    },
+    "downgrade_path": {
+      "enum": [
+        "rerun_drills",
+        "refresh_evidence",
+        "adopt_governance_narrowing",
+        "withhold_row",
+        "none"
+      ]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "governance_narrowed",
+        "evidence_stale",
+        "drill_narrowed",
+        "drill_failed"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "start_center",
+        "migration_center",
+        "help_about",
+        "release_center",
+        "docs_help",
+        "support_export"
+      ]
+    },
+    "drill_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill", "outcome", "checked_at"],
+      "properties": {
+        "drill": { "$ref": "#/$defs/drill" },
+        "outcome": { "$ref": "#/$defs/drill_outcome" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "checked_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "lane",
+        "owner",
+        "governance_claim",
+        "evidence_freshness",
+        "drill_results",
+        "declared_label",
+        "published_label",
+        "certification_decision",
+        "downgrade_path",
+        "governance_packet_ref",
+        "governance_row_ref",
+        "conformance_ref",
+        "evidence_ref",
+        "scope_snapshot_ref",
+        "certification_receipt_ref",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "governance_claim": { "$ref": "#/$defs/label" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "drill_results": { "type": "array", "items": { "$ref": "#/$defs/drill_result" } },
+        "declared_label": { "$ref": "#/$defs/label" },
+        "published_label": { "$ref": "#/$defs/label" },
+        "certification_decision": { "$ref": "#/$defs/decision" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "downgrade_path": { "$ref": "#/$defs/downgrade_path" },
+        "supported_profiles": { "$ref": "#/$defs/string_array" },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "stale_or_missing_fields": { "$ref": "#/$defs/string_array" },
+        "governance_packet_ref": {
+          "const": "artifacts/workspace/m5/m5-entry-and-bundle-governance.json"
+        },
+        "governance_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "certification_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "certification_packet_id_ref",
+        "scope_snapshot_ref",
+        "ingests_certification_packet",
+        "preserves_published_labels",
+        "preserves_downgrade_paths",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "certification_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_certification_packet": { "type": "boolean" },
+        "preserves_published_labels": { "type": "boolean" },
+        "preserves_downgrade_paths": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "lane_count",
+        "certified_rows",
+        "bounded_rows",
+        "retest_pending_rows",
+        "withheld_rows",
+        "downgraded_rows",
+        "rows_with_downgrade_reasons",
+        "stale_evidence_rows",
+        "rows_with_imperfect_drills"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "lane_count": { "type": "integer", "minimum": 0 },
+        "certified_rows": { "type": "integer", "minimum": 0 },
+        "bounded_rows": { "type": "integer", "minimum": 0 },
+        "retest_pending_rows": { "type": "integer", "minimum": 0 },
+        "withheld_rows": { "type": "integer", "minimum": 0 },
+        "downgraded_rows": { "type": "integer", "minimum": 0 },
+        "rows_with_downgrade_reasons": { "type": "integer", "minimum": 0 },
+        "stale_evidence_rows": { "type": "integer", "minimum": 0 },
+        "rows_with_imperfect_drills": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

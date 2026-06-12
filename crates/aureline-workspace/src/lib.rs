@@ -31,6 +31,7 @@ pub mod local_history_export_replay_lineage;
 pub mod m5_admission_and_routing;
 pub mod m5_bundle_review_and_rollback;
 pub mod m5_bundle_scorecards;
+pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;
@@ -215,6 +216,28 @@ pub use m5_admission_and_routing::{
     M5_ADMISSION_AND_ROUTING_FIXTURE_DIR, M5_ADMISSION_AND_ROUTING_JSON,
     M5_ADMISSION_AND_ROUTING_PATH, M5_ADMISSION_AND_ROUTING_RECORD_KIND,
     M5_ADMISSION_AND_ROUTING_SCHEMA_REF, M5_ADMISSION_AND_ROUTING_SCHEMA_VERSION,
+};
+
+pub use m5_entry_and_bundle_certification::{
+    current_m5_entry_bundle_certification_report,
+    CertificationConsumerBinding as EntryBundleCertificationConsumerBinding,
+    CertificationConsumerSurface as EntryBundleCertificationConsumerSurface,
+    CertificationDowngradePath as EntryBundleCertificationDowngradePath,
+    CertificationDowngradeReason as EntryBundleCertificationDowngradeReason,
+    CertificationDrill as EntryBundleCertificationDrill,
+    CertificationDrillResult as EntryBundleCertificationDrillResult,
+    CertificationRow as EntryBundleCertificationRow,
+    DrillOutcome as EntryBundleCertificationDrillOutcome,
+    EvidenceFreshness as EntryBundleCertificationEvidenceFreshness,
+    M5EntryBundleCertificationExportProjection, M5EntryBundleCertificationExportRow,
+    M5EntryBundleCertificationReport, M5EntryBundleCertificationSummary,
+    M5EntryBundleCertificationSupportExport, M5EntryBundleCertificationViolation,
+    M5_ENTRY_BUNDLE_CERTIFICATION_ARTIFACT_DOC_REF, M5_ENTRY_BUNDLE_CERTIFICATION_DOC_REF,
+    M5_ENTRY_BUNDLE_CERTIFICATION_FIXTURE_DIR, M5_ENTRY_BUNDLE_CERTIFICATION_GOVERNANCE_PACKET_REF,
+    M5_ENTRY_BUNDLE_CERTIFICATION_JSON, M5_ENTRY_BUNDLE_CERTIFICATION_PATH,
+    M5_ENTRY_BUNDLE_CERTIFICATION_RECORD_KIND, M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_REF,
+    M5_ENTRY_BUNDLE_CERTIFICATION_SCHEMA_VERSION,
+    M5_ENTRY_BUNDLE_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use m5_entry_and_bundle_governance::{
