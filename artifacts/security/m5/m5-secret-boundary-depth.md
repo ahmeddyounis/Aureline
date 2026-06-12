@@ -44,7 +44,18 @@ The packet-wide summary now proves coverage for:
 - `pause_forwarding`, `stop_using_secret`, and `drop_delegated_identity`
 - `missing`, `expired`, `revoked`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
 - `ca_untrusted`, `bundle_stale`, `pin_mismatch`, `rotation_required`, `credential_revoked`, `ssh_host_key_unknown`, `ssh_host_key_mismatch`, `client_certificate_required`, `client_certificate_expired`, `browser_handoff_return_lost`, and `device_code_renewal_required` as typed repairable changes
+- `profiles`, `workflow_bundles`, `portable_state_packages`, `recipes`, `support_bundles`, `ai_evidence_packets`, `incident_exports`, and `offboarding_exports` as governed artifact export families
+- `raw_tokens`, `private_keys`, `refresh_tokens`, `ambient_delegated_credentials`, and `raw_handle_ids` as omission classes that every governed export family proves explicitly
 - export-safe workflow-history rows and durable-activity rows derived from the same credential-lineage event ids used by support export
+
+## Artifact-Family Export Rules
+
+Every governed artifact family now carries one packet-backed export rule proving:
+
+- credential aliases, handle classes, source labels, and consumer identity survive export;
+- raw tokens, private keys, refresh tokens, ambient delegated credentials, and raw handle ids do not;
+- omission markers and export-safety banners are explicit rather than implied; and
+- import, restore, replay, rerun, and offboarding flows stop at a typed rebind step instead of pretending the original secret crossed the boundary.
 
 ## Row Summary
 

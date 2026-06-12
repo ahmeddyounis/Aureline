@@ -462,6 +462,130 @@ impl SecretBoundaryExportPostureClass {
     }
 }
 
+/// Artifact family that must preserve handle-first metadata while excluding raw
+/// secret material in export, import, replay, or restore flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryArtifactFamilyClass {
+    /// Portable profile exports and profile handoff packets.
+    Profiles,
+    /// Workflow-bundle manifests and review/install handoffs.
+    WorkflowBundles,
+    /// Portable-state packages and restore previews.
+    PortableStatePackages,
+    /// Recipe exports, shared recipe packs, and replay packets.
+    Recipes,
+    /// Support bundles and support-export packets.
+    SupportBundles,
+    /// AI evidence packets, rerun reviews, and support-linked AI exports.
+    AiEvidencePackets,
+    /// Incident exports and incident-workspace handoff packets.
+    IncidentExports,
+    /// Offboarding exports and profile-roaming deletion packets.
+    OffboardingExports,
+}
+
+impl SecretBoundaryArtifactFamilyClass {
+    /// Every required artifact family in canonical order.
+    pub const ALL: [Self; 8] = [
+        Self::Profiles,
+        Self::WorkflowBundles,
+        Self::PortableStatePackages,
+        Self::Recipes,
+        Self::SupportBundles,
+        Self::AiEvidencePackets,
+        Self::IncidentExports,
+        Self::OffboardingExports,
+    ];
+
+    /// Stable token recorded in packets and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Profiles => "profiles",
+            Self::WorkflowBundles => "workflow_bundles",
+            Self::PortableStatePackages => "portable_state_packages",
+            Self::Recipes => "recipes",
+            Self::SupportBundles => "support_bundles",
+            Self::AiEvidencePackets => "ai_evidence_packets",
+            Self::IncidentExports => "incident_exports",
+            Self::OffboardingExports => "offboarding_exports",
+        }
+    }
+}
+
+/// Redaction-default material class that a portable export rule must omit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryOmittedMaterialClass {
+    /// Raw bearer tokens, API tokens, or literal password values.
+    RawTokens,
+    /// Private keys, raw SSH keys, and equivalent signing private material.
+    PrivateKeys,
+    /// Refresh tokens or session-refresh secrets.
+    RefreshTokens,
+    /// Ambient delegated, forwarded, or service-issued credentials.
+    AmbientDelegatedCredentials,
+    /// Raw credential-handle ids or vault object ids not safe for export.
+    RawHandleIds,
+}
+
+impl SecretBoundaryOmittedMaterialClass {
+    /// Every required omitted material class.
+    pub const ALL: [Self; 5] = [
+        Self::RawTokens,
+        Self::PrivateKeys,
+        Self::RefreshTokens,
+        Self::AmbientDelegatedCredentials,
+        Self::RawHandleIds,
+    ];
+
+    /// Stable token recorded in packets and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RawTokens => "raw_tokens",
+            Self::PrivateKeys => "private_keys",
+            Self::RefreshTokens => "refresh_tokens",
+            Self::AmbientDelegatedCredentials => "ambient_delegated_credentials",
+            Self::RawHandleIds => "raw_handle_ids",
+        }
+    }
+}
+
+/// Artifact-family export rule proving what survives export and how replay or
+/// import repairs the missing secret boundary safely.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryArtifactExportRule {
+    /// Artifact family covered by this rule.
+    pub artifact_family: SecretBoundaryArtifactFamilyClass,
+    /// Repo-relative ref for the first implementing surface.
+    pub source_ref: String,
+    /// Export posture the family publishes.
+    pub export_posture: SecretBoundaryExportPostureClass,
+    /// `true` when credential aliases survive export.
+    pub preserves_credential_aliases: bool,
+    /// `true` when handle classes survive export.
+    pub preserves_handle_classes: bool,
+    /// `true` when source labels survive export.
+    pub preserves_source_labels: bool,
+    /// `true` when a consumer identity or acting-identity class survives export.
+    pub preserves_consumer_identity: bool,
+    /// Reviewable omission marker shown when raw material is removed.
+    pub omission_marker_label: String,
+    /// Reviewable export-safety banner shown before export or replay.
+    pub omission_banner: String,
+    /// Material classes that never cross the default export boundary.
+    pub omitted_material_classes: Vec<SecretBoundaryOmittedMaterialClass>,
+    /// `true` when import must stop for a typed rebind.
+    pub requires_typed_rebind_on_import: bool,
+    /// `true` when replay, restore, or rerun must stop for a typed rebind.
+    pub requires_typed_rebind_on_replay: bool,
+    /// Bounded action the user takes to rebind safely.
+    pub rebind_action_label: String,
+    /// Export-safe explanation of what failed and why raw material was not reused.
+    pub rebind_failure_label: String,
+}
+
 /// Owner responsible for the typed repair path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1470,10 +1594,13 @@ impl SecretBoundaryExportSafetyBanner {
             summary: summary.into(),
             excluded_exports: vec![
                 "profiles".to_owned(),
+                "workflow bundles".to_owned(),
                 "support bundles".to_owned(),
-                "handoff packets".to_owned(),
                 "recipes".to_owned(),
-                "portable workspace exports".to_owned(),
+                "portable-state packages".to_owned(),
+                "ai evidence packets".to_owned(),
+                "incident exports".to_owned(),
+                "offboarding exports".to_owned(),
             ],
             raw_secret_values_included: false,
         }
@@ -1638,6 +1765,10 @@ pub struct SecretBoundarySummary {
     pub health_state_tokens_present: Vec<String>,
     /// Repairable change tokens present in the packet.
     pub repairable_change_tokens_present: Vec<String>,
+    /// Artifact-family tokens present in the packet.
+    pub artifact_family_tokens_present: Vec<String>,
+    /// Omitted material tokens present in the packet.
+    pub omitted_material_tokens_present: Vec<String>,
     /// `true` when the packet excludes raw secret bodies.
     pub raw_secret_values_excluded: bool,
     /// `true` when the packet excludes raw handle ids.
@@ -1674,6 +1805,8 @@ pub struct M5SecretBoundaryDepthPacket {
     pub surface_rows: Vec<SecretBoundarySurfaceRow>,
     /// Required consumer projections.
     pub consumer_projections: Vec<SecretBoundaryConsumerProjection>,
+    /// Cross-artifact export rules for secret-bearing families.
+    pub artifact_export_rules: Vec<SecretBoundaryArtifactExportRule>,
     /// Recomputed packet summary.
     pub summary: SecretBoundarySummary,
 }
@@ -1691,6 +1824,8 @@ impl M5SecretBoundaryDepthPacket {
         let mut parity_tokens: BTreeSet<String> = BTreeSet::new();
         let mut health_tokens: BTreeSet<String> = BTreeSet::new();
         let mut repairable_change_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut artifact_family_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut omitted_material_tokens: BTreeSet<String> = BTreeSet::new();
 
         for row in &self.surface_rows {
             domain_tokens.insert(row.domain.as_str().to_owned());
@@ -1716,6 +1851,12 @@ impl M5SecretBoundaryDepthPacket {
         for projection in &self.consumer_projections {
             consumer_tokens.insert(projection.surface.as_str().to_owned());
         }
+        for rule in &self.artifact_export_rules {
+            artifact_family_tokens.insert(rule.artifact_family.as_str().to_owned());
+            for omitted in &rule.omitted_material_classes {
+                omitted_material_tokens.insert(omitted.as_str().to_owned());
+            }
+        }
 
         SecretBoundarySummary {
             surface_count: self.surface_rows.len(),
@@ -1729,6 +1870,8 @@ impl M5SecretBoundaryDepthPacket {
             projection_parity_tokens_present: parity_tokens.into_iter().collect(),
             health_state_tokens_present: health_tokens.into_iter().collect(),
             repairable_change_tokens_present: repairable_change_tokens.into_iter().collect(),
+            artifact_family_tokens_present: artifact_family_tokens.into_iter().collect(),
+            omitted_material_tokens_present: omitted_material_tokens.into_iter().collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
         }
@@ -1758,6 +1901,52 @@ impl M5SecretBoundaryDepthPacket {
         }
         if self.source_contract_refs.is_empty() {
             violations.push(M5SecretBoundaryDepthViolation::MissingSourceContracts);
+        }
+        let mut seen_artifact_families = BTreeSet::new();
+        for rule in &self.artifact_export_rules {
+            seen_artifact_families.insert(rule.artifact_family);
+            if !rule.preserves_credential_aliases
+                || !rule.preserves_handle_classes
+                || !rule.preserves_source_labels
+                || !rule.preserves_consumer_identity
+            {
+                violations.push(M5SecretBoundaryDepthViolation::IncompleteArtifactExportRule(
+                    rule.artifact_family,
+                ));
+            }
+            if rule.omission_marker_label.trim().is_empty()
+                || rule.omission_banner.trim().is_empty()
+                || rule.rebind_action_label.trim().is_empty()
+                || rule.rebind_failure_label.trim().is_empty()
+                || (!rule.requires_typed_rebind_on_import
+                    && !rule.requires_typed_rebind_on_replay)
+            {
+                violations.push(M5SecretBoundaryDepthViolation::ArtifactRuleMissingBannerOrRebind(
+                    rule.artifact_family,
+                ));
+            }
+            let omitted = rule
+                .omitted_material_classes
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>();
+            for required in SecretBoundaryOmittedMaterialClass::ALL {
+                if !omitted.contains(&required) {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::ArtifactRuleMissingOmittedMaterial(
+                            rule.artifact_family,
+                            required,
+                        ),
+                    );
+                }
+            }
+        }
+        for family in SecretBoundaryArtifactFamilyClass::ALL {
+            if !seen_artifact_families.contains(&family) {
+                violations.push(M5SecretBoundaryDepthViolation::MissingArtifactExportRule(
+                    family,
+                ));
+            }
         }
 
         let mut row_ids = BTreeSet::new();
@@ -2047,6 +2236,32 @@ impl M5SecretBoundaryDepthPacket {
             }
         }
 
+        for family in SecretBoundaryArtifactFamilyClass::ALL {
+            if !self
+                .summary
+                .artifact_family_tokens_present
+                .iter()
+                .any(|token| token == family.as_str())
+            {
+                violations.push(M5SecretBoundaryDepthViolation::MissingRequiredArtifactFamily(
+                    family,
+                ));
+            }
+        }
+
+        for material in SecretBoundaryOmittedMaterialClass::ALL {
+            if !self
+                .summary
+                .omitted_material_tokens_present
+                .iter()
+                .any(|token| token == material.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredOmittedMaterial(material),
+                );
+            }
+        }
+
         if self.summary != self.recompute_summary() {
             violations.push(M5SecretBoundaryDepthViolation::SummaryMismatch);
         }
@@ -2108,6 +2323,8 @@ pub struct SecretBoundarySupportExport {
     pub vocabulary_ref: String,
     /// Support-export row summaries.
     pub rows: Vec<SecretBoundarySupportExportRow>,
+    /// Artifact-family export rules preserved by support export.
+    pub artifact_export_rules: Vec<SecretBoundaryArtifactExportRule>,
     /// Project Doctor finding codes preserved by the export.
     pub doctor_finding_codes: Vec<String>,
     /// Credential-lineage events preserved by the export.
@@ -2163,6 +2380,7 @@ impl SecretBoundarySupportExport {
                 .iter()
                 .map(SecretBoundarySupportExportRow::from_surface_row)
                 .collect(),
+            artifact_export_rules: packet.artifact_export_rules.clone(),
             doctor_finding_codes: doctor_finding_codes.into_iter().collect(),
             lineage_events: lineage_bundles
                 .iter()
@@ -2597,6 +2815,21 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingConsumerProjection(SecretBoundaryConsumerSurface),
     /// A consumer projection drifted from the matrix id or vocabulary ref.
     ConsumerProjectionDrift(SecretBoundaryConsumerSurface),
+    /// One required artifact export family had no rule coverage.
+    MissingArtifactExportRule(SecretBoundaryArtifactFamilyClass),
+    /// An artifact rule omitted alias, handle-class, source-label, or consumer-identity retention.
+    IncompleteArtifactExportRule(SecretBoundaryArtifactFamilyClass),
+    /// An artifact rule omitted one required omitted-material class.
+    ArtifactRuleMissingOmittedMaterial(
+        SecretBoundaryArtifactFamilyClass,
+        SecretBoundaryOmittedMaterialClass,
+    ),
+    /// An artifact rule omitted its banner, omission marker, or typed rebind copy.
+    ArtifactRuleMissingBannerOrRebind(SecretBoundaryArtifactFamilyClass),
+    /// A required artifact-family token was not represented anywhere in the packet.
+    MissingRequiredArtifactFamily(SecretBoundaryArtifactFamilyClass),
+    /// A required omitted-material token was not represented anywhere in the packet.
+    MissingRequiredOmittedMaterial(SecretBoundaryOmittedMaterialClass),
     /// A required consumer-identity token was not represented anywhere.
     MissingRequiredConsumerIdentity(SecretBoundaryConsumerIdentityClass),
     /// A required projection-control token was not represented anywhere.
@@ -2733,6 +2966,37 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "consumer projection {} drifted from matrix_id or vocabulary_ref",
                 surface.as_str()
+            ),
+            Self::MissingArtifactExportRule(family) => write!(
+                f,
+                "artifact export rule {} is missing from the packet",
+                family.as_str()
+            ),
+            Self::IncompleteArtifactExportRule(family) => write!(
+                f,
+                "artifact export rule {} must preserve aliases, handle classes, source labels, and consumer identity",
+                family.as_str()
+            ),
+            Self::ArtifactRuleMissingOmittedMaterial(family, material) => write!(
+                f,
+                "artifact export rule {} must omit {} by default",
+                family.as_str(),
+                material.as_str()
+            ),
+            Self::ArtifactRuleMissingBannerOrRebind(family) => write!(
+                f,
+                "artifact export rule {} must declare an omission banner, omission marker, and typed rebind copy",
+                family.as_str()
+            ),
+            Self::MissingRequiredArtifactFamily(family) => write!(
+                f,
+                "packet must cover the {} artifact family",
+                family.as_str()
+            ),
+            Self::MissingRequiredOmittedMaterial(material) => write!(
+                f,
+                "packet must cover the {} omitted material class",
+                material.as_str()
             ),
             Self::MissingRequiredConsumerIdentity(identity) => write!(
                 f,
@@ -2885,6 +3149,35 @@ fn workflow_dependency(
     SecretBoundaryWorkflowDependency {
         workflow_ref: workflow_ref.to_owned(),
         workflow_label: workflow_label.to_owned(),
+    }
+}
+
+fn artifact_export_rule(
+    artifact_family: SecretBoundaryArtifactFamilyClass,
+    source_ref: &str,
+    export_posture: SecretBoundaryExportPostureClass,
+    omission_marker_label: &str,
+    omission_banner: &str,
+    requires_typed_rebind_on_import: bool,
+    requires_typed_rebind_on_replay: bool,
+    rebind_action_label: &str,
+    rebind_failure_label: &str,
+) -> SecretBoundaryArtifactExportRule {
+    SecretBoundaryArtifactExportRule {
+        artifact_family,
+        source_ref: source_ref.to_owned(),
+        export_posture,
+        preserves_credential_aliases: true,
+        preserves_handle_classes: true,
+        preserves_source_labels: true,
+        preserves_consumer_identity: true,
+        omission_marker_label: omission_marker_label.to_owned(),
+        omission_banner: omission_banner.to_owned(),
+        omitted_material_classes: SecretBoundaryOmittedMaterialClass::ALL.to_vec(),
+        requires_typed_rebind_on_import,
+        requires_typed_rebind_on_replay,
+        rebind_action_label: rebind_action_label.to_owned(),
+        rebind_failure_label: rebind_failure_label.to_owned(),
     }
 }
 
@@ -4298,6 +4591,97 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
         },
     ];
 
+    let artifact_export_rules = vec![
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::Profiles,
+            "crates/aureline-workspace/src/profiles/mod.rs",
+            SecretBoundaryExportPostureClass::AliasOnly,
+            "Portable profile exported without raw secret material; rebind required on import.",
+            "Sensitive values excluded: profile exports keep credential aliases, handle classes, source labels, and acting identity only.",
+            true,
+            false,
+            "Bind a new credential handle for this profile",
+            "Profile import refused to deserialize prior secret material; a fresh handle bind is required.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::WorkflowBundles,
+            "crates/aureline-workspace/src/m5_workflow_bundle_manifests/mod.rs",
+            SecretBoundaryExportPostureClass::MetadataOnly,
+            "Workflow bundle exported with credential metadata only; rebind required before install.",
+            "Sensitive values excluded: workflow bundles keep credential aliases, handle classes, source labels, and consumer identity only.",
+            true,
+            false,
+            "Review bundle auth bindings before install",
+            "Bundle install refused to reuse exported secret material; review and bind current handles first.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::PortableStatePackages,
+            "crates/aureline-workspace/src/state_packages/mod.rs",
+            SecretBoundaryExportPostureClass::MetadataOnly,
+            "Portable-state package omits raw secret material and live authority; rebind required on restore.",
+            "Sensitive values excluded: portable-state packages keep credential aliases, handle classes, source labels, and consumer identity only.",
+            true,
+            true,
+            "Rebind the required authority before restore",
+            "Restore paused because the exported package preserved only handle metadata; raw authority did not travel.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::Recipes,
+            "crates/aureline-ai/src/implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay/mod.rs",
+            SecretBoundaryExportPostureClass::RedactedSupportExport,
+            "Recipe export omitted raw credentials; rebind required before replay.",
+            "Sensitive values excluded: recipe exports keep credential aliases, handle classes, source labels, and consumer identity only.",
+            true,
+            true,
+            "Rebind recipe credentials before replay",
+            "Recipe replay refused to reuse exported secret material; a new handle or delegated grant must be chosen.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::SupportBundles,
+            "crates/aureline-support/src/export_review/mod.rs",
+            SecretBoundaryExportPostureClass::RedactedSupportExport,
+            "Support bundle exported with omission markers for secret material.",
+            "Sensitive values excluded: support bundles keep credential aliases, handle classes, source labels, and consumer identity only.",
+            false,
+            true,
+            "Open the typed repair or rebind flow",
+            "Support replay keeps the omission visible and requires a fresh bind before any credentialed action resumes.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::AiEvidencePackets,
+            "crates/aureline-ai/src/finalize_ai_evidence_packets/mod.rs",
+            SecretBoundaryExportPostureClass::RedactedSupportExport,
+            "AI evidence packet exported with redaction evidence and typed rebind posture.",
+            "Sensitive values excluded: AI evidence packets keep credential aliases, handle classes, source labels, and consumer identity only.",
+            false,
+            true,
+            "Rerun with reviewed credential bindings",
+            "Replay is incomplete because the evidence packet preserved only handle metadata; raw credentials were intentionally omitted.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::IncidentExports,
+            "crates/aureline-support/src/incident_workspace/mod.rs",
+            SecretBoundaryExportPostureClass::RedactedSupportExport,
+            "Incident export omitted secret-bearing material and preserved the missing-span marker.",
+            "Sensitive values excluded: incident exports keep credential aliases, handle classes, source labels, and consumer identity only.",
+            true,
+            true,
+            "Rebind credentials in the incident workspace",
+            "Incident replay stops at a typed rebind step; the original secret material was never serialized into the export.",
+        ),
+        artifact_export_rule(
+            SecretBoundaryArtifactFamilyClass::OffboardingExports,
+            "crates/aureline-settings/src/stabilize_profile_sync_snapshot_backup_restore/model.rs",
+            SecretBoundaryExportPostureClass::MetadataOnly,
+            "Offboarding export omitted secret-bearing material and preserved bind requirements.",
+            "Sensitive values excluded: offboarding exports keep credential aliases, handle classes, source labels, and consumer identity only.",
+            true,
+            false,
+            "Bind replacement credentials on the destination device",
+            "Offboarding import refused to deserialize prior secret material; only rebind-safe metadata crossed the boundary.",
+        ),
+    ];
+
     let mut packet = M5SecretBoundaryDepthPacket {
         record_kind: M5_SECRET_BOUNDARY_DEPTH_RECORD_KIND.to_owned(),
         schema_version: M5_SECRET_BOUNDARY_DEPTH_SCHEMA_VERSION,
@@ -4312,6 +4696,12 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
         source_contract_refs: vec![
             "artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json".to_owned(),
             "artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json".to_owned(),
+            "crates/aureline-workspace/src/profiles/mod.rs".to_owned(),
+            "crates/aureline-workspace/src/m5_workflow_bundle_manifests/mod.rs".to_owned(),
+            "crates/aureline-workspace/src/state_packages/mod.rs".to_owned(),
+            "crates/aureline-support/src/export_review/mod.rs".to_owned(),
+            "crates/aureline-ai/src/finalize_ai_evidence_packets/mod.rs".to_owned(),
+            "crates/aureline-settings/src/stabilize_profile_sync_snapshot_backup_restore/model.rs".to_owned(),
             "crates/aureline-provider/src/account_scope/mod.rs".to_owned(),
             "crates/aureline-provider/src/route_resolution/mod.rs".to_owned(),
             "crates/aureline-review/src/add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure/mod.rs".to_owned(),
@@ -4319,6 +4709,7 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
         ],
         surface_rows,
         consumer_projections,
+        artifact_export_rules,
         summary: SecretBoundarySummary {
             surface_count: 0,
             domain_tokens_present: Vec::new(),
@@ -4331,6 +4722,8 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             projection_parity_tokens_present: Vec::new(),
             health_state_tokens_present: Vec::new(),
             repairable_change_tokens_present: Vec::new(),
+            artifact_family_tokens_present: Vec::new(),
+            omitted_material_tokens_present: Vec::new(),
             raw_secret_values_excluded: false,
             raw_handle_ids_excluded: false,
         },

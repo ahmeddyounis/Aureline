@@ -86,6 +86,23 @@ fn every_required_consumer_projection_is_present() {
 }
 
 #[test]
+fn every_required_artifact_export_rule_is_present() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let present: BTreeSet<_> = packet
+        .artifact_export_rules
+        .iter()
+        .map(|row| row.artifact_family)
+        .collect();
+    for family in SecretBoundaryArtifactFamilyClass::ALL {
+        assert!(
+            present.contains(&family),
+            "missing artifact export rule for {}",
+            family.as_str()
+        );
+    }
+}
+
+#[test]
 fn every_row_covers_every_deployment_profile() {
     let packet = seeded_m5_secret_boundary_depth_packet();
     for row in &packet.surface_rows {
@@ -178,10 +195,42 @@ fn support_export_preserves_doctor_and_support_lineage() {
     assert!(!export.lineage_events.is_empty());
     assert!(!export.workflow_history_rows.is_empty());
     assert!(!export.activity_rows.is_empty());
+    assert_eq!(
+        export.artifact_export_rules,
+        packet.artifact_export_rules,
+        "support export must preserve canonical artifact export rules"
+    );
     assert!(export
         .rows
         .iter()
         .all(|row| !row.repairable_states.is_empty()));
+}
+
+#[test]
+fn summary_tracks_artifact_families_and_omitted_material_classes() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    for family in SecretBoundaryArtifactFamilyClass::ALL {
+        assert!(
+            packet
+                .summary
+                .artifact_family_tokens_present
+                .iter()
+                .any(|token| token == family.as_str()),
+            "missing artifact family {}",
+            family.as_str()
+        );
+    }
+    for omitted in SecretBoundaryOmittedMaterialClass::ALL {
+        assert!(
+            packet
+                .summary
+                .omitted_material_tokens_present
+                .iter()
+                .any(|token| token == omitted.as_str()),
+            "missing omitted material {}",
+            omitted.as_str()
+        );
+    }
 }
 
 #[test]
@@ -220,6 +269,19 @@ fn missing_consumer_projection_fails_validation() {
     assert!(packet.validate().contains(
         &M5SecretBoundaryDepthViolation::MissingConsumerProjection(
             SecretBoundaryConsumerSurface::Diagnostics
+        )
+    ));
+}
+
+#[test]
+fn missing_artifact_export_rule_fails_validation() {
+    let mut packet = seeded_m5_secret_boundary_depth_packet();
+    packet
+        .artifact_export_rules
+        .retain(|row| row.artifact_family != SecretBoundaryArtifactFamilyClass::AiEvidencePackets);
+    assert!(packet.validate().contains(
+        &M5SecretBoundaryDepthViolation::MissingArtifactExportRule(
+            SecretBoundaryArtifactFamilyClass::AiEvidencePackets
         )
     ));
 }

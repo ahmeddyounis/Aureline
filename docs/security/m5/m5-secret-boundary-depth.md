@@ -138,3 +138,47 @@ Repair owners:
 - Support export must preserve row ids, consumer identities, projection modes, projection controls, repairable states, workflow-history lineage, durable-activity lineage, Project Doctor finding codes, and support-bundle lineage while excluding raw secret values and raw handle ids.
 - Workflow history and durable activity must project the same export-safe event ids, impacted workflows, and next safe repair or rebind action for rotation, revoke, rebind, and policy-denied projection outcomes.
 - Release/public-truth surfaces may publish only checked row ids and summary vocabulary; they may not widen a row with custom prose.
+
+## Artifact Export Rules
+
+The packet now carries one export rule per artifact family so export, import,
+restore, replay, rerun, and offboarding surfaces do not invent credential copy
+behavior locally.
+
+Covered families:
+
+- `profiles`
+- `workflow_bundles`
+- `portable_state_packages`
+- `recipes`
+- `support_bundles`
+- `ai_evidence_packets`
+- `incident_exports`
+- `offboarding_exports`
+
+Each rule MUST preserve:
+
+- credential aliases
+- handle classes
+- source labels
+- consumer identity or acting-identity class
+
+Each rule MUST omit by default:
+
+- `raw_tokens`
+- `private_keys`
+- `refresh_tokens`
+- `ambient_delegated_credentials`
+- `raw_handle_ids`
+
+Each rule MUST expose:
+
+- an omission marker label
+- an export-safety banner
+- a typed rebind action label
+- a typed rebind failure label explaining why raw material was not reused
+
+Import/replay rules:
+
+- profile, workflow-bundle, portable-state, recipe, incident, and offboarding imports MUST stop at a typed rebind step rather than claiming the original secret crossed the boundary.
+- support-bundle and AI-evidence replay MUST preserve omission markers and require a fresh reviewed bind before any credentialed action resumes.
