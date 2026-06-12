@@ -46,6 +46,7 @@
 
 pub mod alpha;
 pub mod beta;
+pub mod deferred_publish;
 pub mod git_review;
 pub mod restore_job;
 

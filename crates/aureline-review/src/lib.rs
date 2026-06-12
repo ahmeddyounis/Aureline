@@ -36,6 +36,7 @@ pub mod review_pack_evaluator_and_local_ci_parity;
 pub mod review_pack_parity_harness;
 pub mod ship_ai_review_evidence_finding_cards_and_review_pack_integration_with_change_objects;
 pub mod ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_and_side_effect_review;
+pub mod ship_deferred_publish_queue_recovery_packets;
 pub mod ship_browser_provider_handoff_continuity_for_review_ci_logs_and_artifact_deep_links;
 pub mod ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
@@ -390,6 +391,29 @@ pub use ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_a
     RERUN_CANCEL_FIXTURE_DIR, RERUN_CANCEL_PIPELINE_RUN_CONTRACT_REF, RERUN_CANCEL_RECORD_KIND,
     RERUN_CANCEL_RUN_CONTROL_CONTRACT_REF, RERUN_CANCEL_SCHEMA_REF, RERUN_CANCEL_SCHEMA_VERSION,
     RERUN_CANCEL_SUMMARY_REF, RERUN_CANCEL_TRUST_CLASS_CONTRACT_REF,
+};
+pub use ship_deferred_publish_queue_recovery_packets::{
+    canonical_deferred_publish_queue_recovery_packet,
+    canonical_source_contract_refs as deferred_publish_queue_recovery_canonical_source_contract_refs,
+    current_deferred_publish_queue_recovery_export, DeferredPublishActionClass,
+    DeferredPublishActionRoute, DeferredPublishActivityProjectionRow,
+    DeferredPublishBlockReasonClass, DeferredPublishConflictPolicyClass,
+    DeferredPublishDependencySummary, DeferredPublishFreshnessRequirementClass,
+    DeferredPublishLifecycleState, DeferredPublishLocalPacketKind,
+    DeferredPublishLocalPacketRow, DeferredPublishQueueRecoveryArtifactError,
+    DeferredPublishQueueRecoveryPacket, DeferredPublishQueueRecoveryViolation,
+    DeferredPublishQueueRow, DeferredPublishRecoveryConsumerProjection,
+    DeferredPublishRecoveryProofFreshness, DeferredPublishRecoverySupportExport,
+    DeferredPublishRecoveryTrustReview, DeferredPublishRetryPostureClass,
+    DeferredPublishSupportExportRow, DEFERRED_PUBLISH_QUEUE_RECOVERY_ARTIFACT_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_DOC_REF, DEFERRED_PUBLISH_QUEUE_RECOVERY_FIXTURE_DIR,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_MUTATION_REVIEW_CONTRACT_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_QUEUE_CONTRACT_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_RECORD_KIND, DEFERRED_PUBLISH_QUEUE_RECOVERY_SCHEMA_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_SCHEMA_VERSION,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_SCOPE_REVIEW_CONTRACT_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_SUMMARY_REF, DEFERRED_PUBLISH_QUEUE_RECOVERY_SYNC_CONTRACT_REF,
+    DEFERRED_PUBLISH_QUEUE_RECOVERY_TRANSITION_CONTRACT_REF,
 };
 pub use ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews::{
     canonical_source_contract_refs as work_item_mutation_review_canonical_source_contract_refs,
