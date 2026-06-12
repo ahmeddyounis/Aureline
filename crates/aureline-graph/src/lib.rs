@@ -15,6 +15,7 @@ pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 pub mod m5_graph_governance;
+pub mod m5_impact_query;
 pub mod m5_topology_identity;
 pub mod m5_workset_scope;
 pub mod navigation_target_truth_packet;
@@ -108,6 +109,16 @@ pub use m5_graph_governance::{
     M5_GRAPH_GOVERNANCE_FIXTURE_DIR, M5_GRAPH_GOVERNANCE_JSON, M5_GRAPH_GOVERNANCE_PATH,
     M5_GRAPH_GOVERNANCE_RECORD_KIND, M5_GRAPH_GOVERNANCE_SCHEMA_REF,
     M5_GRAPH_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use m5_impact_query::{
+    current_m5_impact_query_packet, AffectedObject, EvidenceClassSummary, ImpactConsumerBinding,
+    ImpactConsumerSurface, ImpactQueryResult, ImpactResultClass as ImpactQueryResultClass,
+    M5ImpactQueryExportProjection, M5ImpactQueryExportRow, M5ImpactQueryPacket,
+    M5ImpactQuerySummary, M5ImpactQueryViolation, RemediationAction, M5_IMPACT_QUERY_DOC_REF,
+    M5_IMPACT_QUERY_FIXTURE_DIR, M5_IMPACT_QUERY_GOVERNANCE_MATRIX_REF, M5_IMPACT_QUERY_JSON,
+    M5_IMPACT_QUERY_PATH, M5_IMPACT_QUERY_RECORD_KIND, M5_IMPACT_QUERY_SCHEMA_REF,
+    M5_IMPACT_QUERY_SCHEMA_VERSION, M5_IMPACT_QUERY_SCOPE_PACKET_REF,
+    M5_IMPACT_QUERY_TOPOLOGY_PACKET_REF,
 };
 pub use m5_topology_identity::{
     current_m5_topology_identity_packet, ContractBadge, M5TopologyIdentityExportProjection,
