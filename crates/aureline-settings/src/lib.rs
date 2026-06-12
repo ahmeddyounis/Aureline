@@ -39,6 +39,7 @@ pub mod finalize_settings_definition_registry;
 pub mod inspector;
 pub mod keybindings;
 pub mod locale_beta;
+pub mod m5_effective_settings;
 pub mod m5_portable_state_and_restore;
 pub mod repair_review;
 pub mod resolver;
@@ -114,6 +115,15 @@ pub use keybindings::{
     KEYBINDING_SETTINGS_SCHEMA_VERSION,
 };
 pub use locale_beta::project_locale_beta_settings_panel;
+pub use m5_effective_settings::{
+    m5_effective_settings_corpus, EffectiveSettingsClaim, EffectiveSettingsPillars,
+    EffectiveSettingsQualification, HighImpactClass, LifecycleDependencyKind,
+    M5EffectiveSettingRow, M5EffectiveSettingsCertification, M5EffectiveSettingsInput,
+    M5EffectiveSettingsScenario, M5SettingFamily, PolicyLockState, RowTrust,
+    ScopeExplicitWritePreview, ShadowReason, ShadowedCandidate, WinningValue, WriteEffect,
+    M5_EFFECTIVE_SETTINGS_RECORD_KIND, M5_EFFECTIVE_SETTINGS_SCHEMA_VERSION,
+    M5_EFFECTIVE_SETTINGS_SHARED_CONTRACT_REF,
+};
 pub use m5_portable_state_and_restore::{
     portable_state_restore_corpus, ExclusionReason, M5PortableStateRestoreCertification,
     M5PortableStateRestoreInput, MigrationLabel, MissingDependencyKind,

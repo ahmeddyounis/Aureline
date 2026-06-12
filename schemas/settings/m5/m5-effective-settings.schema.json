@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/m5/m5-effective-settings.schema.json",
+  "title": "Aureline M5 effective-settings certification",
+  "description": "Boundary schema for the governed effective-settings record that brings M5-added settings families (notebooks, data/API, profiler, bundle, sync, companion) into parity with the stable resolver. Each row names a stable setting id, the winning value and the scope that won, the shadow chain that lost, the restart posture, the validation state, and any lifecycle-sensitive dependency marker. High-impact rows carry scope-explicit, checkpointed write previews; policy-locked rows can never preview a write that would silently win. The record derives a fail-closed trust ceiling that withholds a fully-active claim when a row is locked, narrowed, or read from a stale schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "summary",
+    "setting_rows",
+    "surface_truth",
+    "family_coverage",
+    "restart_posture_coverage",
+    "validation_state_coverage",
+    "lifecycle_dependency_coverage",
+    "high_impact_coverage",
+    "pillars",
+    "trust_qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_effective_settings_certification_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "settings:m5_effective_settings:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "setting_rows": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/setting_row" }
+    },
+    "surface_truth": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/surface_truth_row" }
+    },
+    "family_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/family" }
+    },
+    "restart_posture_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restart_posture" }
+    },
+    "validation_state_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_state" }
+    },
+    "lifecycle_dependency_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_dependency_kind" }
+    },
+    "high_impact_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/high_impact_class" }
+    },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "trust_qualification": { "$ref": "#/$defs/trust_qualification" }
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://[^/]+/.+"
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_override",
+        "admin_policy_narrowing"
+      ]
+    },
+    "family": {
+      "type": "string",
+      "enum": ["notebooks", "data_api", "profiler", "bundle", "sync", "companion"]
+    },
+    "restart_posture": {
+      "type": "string",
+      "enum": [
+        "no_restart",
+        "reload_view",
+        "reload_workspace",
+        "restart_extensions",
+        "restart_process"
+      ]
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": ["valid", "coerced_to_default", "out_of_range", "schema_stale"]
+    },
+    "high_impact_class": {
+      "type": "string",
+      "enum": [
+        "trust_boundary",
+        "ai_network_egress",
+        "extension_behavior",
+        "remote_exposure",
+        "destructive_automation"
+      ]
+    },
+    "lifecycle_dependency_kind": {
+      "type": "string",
+      "enum": ["missing_capability", "labs_or_preview_dependent"]
+    },
+    "shadow_reason": {
+      "type": "string",
+      "enum": ["lower_precedence", "policy_narrowed", "validation_rejected"]
+    },
+    "write_effect": {
+      "type": "string",
+      "enum": ["becomes_winning_value", "shadowed_by_policy", "denied_by_lock"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["settings_ui", "cli_inspect", "help_links", "policy_explainer", "support_bundle"]
+    },
+    "row_trust": {
+      "type": "string",
+      "enum": ["active", "narrowed", "withheld"]
+    },
+    "claim_class": {
+      "type": "string",
+      "enum": ["fully_active", "narrowed_active", "unsupported"]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "families_incomplete",
+        "shadow_chain_implicit",
+        "high_impact_uncheckpointed",
+        "lifecycle_dependency_hidden",
+        "validation_dishonest",
+        "row_trust_below_active",
+        "surface_truth_incomplete"
+      ]
+    },
+    "winning_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "value_ref", "display"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope" },
+        "value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "display": { "type": "string", "minLength": 1 }
+      }
+    },
+    "shadowed_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "value_ref", "reason"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope" },
+        "value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "reason": { "$ref": "#/$defs/shadow_reason" }
+      }
+    },
+    "policy_lock_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locked"],
+      "properties": {
+        "locked": { "type": "boolean" },
+        "policy_ref": { "$ref": "#/$defs/canonical_ref" }
+      }
+    },
+    "lifecycle_dependency_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "depends_on_ref", "narrows_behavior", "recovery_hint", "visible"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/lifecycle_dependency_kind" },
+        "depends_on_ref": { "$ref": "#/$defs/canonical_ref" },
+        "narrows_behavior": { "type": "string", "minLength": 1 },
+        "recovery_hint": { "type": "string", "minLength": 1 },
+        "visible": { "type": "boolean" }
+      }
+    },
+    "write_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_scope",
+        "current_value_ref",
+        "proposed_value_ref",
+        "effective_after_write",
+        "restart_posture_after",
+        "requires_confirmation",
+        "rollback_checkpoint_ref"
+      ],
+      "properties": {
+        "target_scope": { "$ref": "#/$defs/scope" },
+        "current_value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "proposed_value_ref": { "$ref": "#/$defs/canonical_ref" },
+        "effective_after_write": { "$ref": "#/$defs/write_effect" },
+        "restart_posture_after": { "$ref": "#/$defs/restart_posture" },
+        "requires_confirmation": { "type": "boolean" },
+        "rollback_checkpoint_ref": { "type": "string" }
+      }
+    },
+    "setting_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setting_id",
+        "family",
+        "title",
+        "winning_value",
+        "shadow_chain",
+        "restart_posture",
+        "validation_state",
+        "policy_lock"
+      ],
+      "properties": {
+        "setting_id": { "type": "string", "minLength": 1 },
+        "family": { "$ref": "#/$defs/family" },
+        "title": { "type": "string", "minLength": 1 },
+        "winning_value": { "$ref": "#/$defs/winning_value" },
+        "shadow_chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shadowed_candidate" }
+        },
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "validation_state": { "$ref": "#/$defs/validation_state" },
+        "policy_lock": { "$ref": "#/$defs/policy_lock_state" },
+        "lifecycle_dependency": { "$ref": "#/$defs/lifecycle_dependency_marker" },
+        "high_impact_class": { "$ref": "#/$defs/high_impact_class" },
+        "write_preview": { "$ref": "#/$defs/write_preview" }
+      }
+    },
+    "surface_truth_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "consumes_shared_record",
+        "shows_winning_scope",
+        "shows_shadow_chain",
+        "shows_restart_posture",
+        "shows_lifecycle_dependency",
+        "shows_write_preview"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "consumes_shared_record": { "type": "boolean" },
+        "shows_winning_scope": { "type": "boolean" },
+        "shows_shadow_chain": { "type": "boolean" },
+        "shows_restart_posture": { "type": "boolean" },
+        "shows_lifecycle_dependency": { "type": "boolean" },
+        "shows_write_preview": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "families_complete",
+        "shadow_chains_explicit",
+        "high_impact_checkpointed",
+        "lifecycle_dependencies_visible",
+        "validation_honest",
+        "surface_truth_complete"
+      ],
+      "properties": {
+        "families_complete": { "type": "boolean" },
+        "shadow_chains_explicit": { "type": "boolean" },
+        "high_impact_checkpointed": { "type": "boolean" },
+        "lifecycle_dependencies_visible": { "type": "boolean" },
+        "validation_honest": { "type": "boolean" },
+        "surface_truth_complete": { "type": "boolean" }
+      }
+    },
+    "trust_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_class",
+        "effective_trust_ceiling",
+        "qualifies_fully_active",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "effective_trust_ceiling": { "$ref": "#/$defs/row_trust" },
+        "qualifies_fully_active": { "type": "boolean" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        }
+      }
+    }
+  }
+}
