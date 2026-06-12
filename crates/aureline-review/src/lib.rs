@@ -22,6 +22,7 @@ pub mod finalize_git_and_review_support_export_packets_timeline;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix;
+pub mod freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_continuity_matrix;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
@@ -171,6 +172,34 @@ pub use finalize_migration_rollback_checkpoints_diff_review_and_retained::{
     MIGRATION_ROLLBACK_CHECKPOINT_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_PACKET_RECORD_KIND,
     MIGRATION_ROLLBACK_DIFF_REVIEW_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
     MIGRATION_SUPPORT_EXPORT_PACKET_RECORD_KIND, RETAINED_DIAGNOSTIC_RECORD_KIND,
+};
+pub use freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_continuity_matrix::{
+    canonical_consumer_projection as m5_provider_workitem_governance_canonical_consumer_projection,
+    canonical_m5_provider_workitem_governance,
+    canonical_source_contract_refs as m5_provider_workitem_governance_canonical_source_contract_refs,
+    current_stable_m5_provider_workitem_governance_export, ActingIdentityClass,
+    ActingIdentityVocabularyRow, EffectiveScopeClass, M5ProviderWorkItemGovernanceArtifactError,
+    M5ProviderWorkItemGovernanceConsumerProjection,
+    M5ProviderWorkItemGovernanceConsumerSurface, M5ProviderWorkItemGovernanceDegradation,
+    M5ProviderWorkItemGovernanceDowngradeTrigger,
+    M5ProviderWorkItemGovernanceEvidenceRequirement, M5ProviderWorkItemGovernanceLane,
+    M5ProviderWorkItemGovernanceLaneRow, M5ProviderWorkItemGovernancePacket,
+    M5ProviderWorkItemGovernancePacketInput, M5ProviderWorkItemGovernanceProofFreshness,
+    M5ProviderWorkItemGovernanceQualificationClass,
+    M5ProviderWorkItemGovernanceRollbackPosture, M5ProviderWorkItemGovernanceTrustReview,
+    M5ProviderWorkItemGovernanceViolation, ProviderTruthStateClass,
+    ProviderTruthStateVocabularyRow, ProviderWorkItemObjectClass,
+    ProviderWorkItemObjectVocabularyRow, M5_PROVIDER_WORKITEM_COMPANION_CONTRACT_REF,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_ARTIFACT_REF,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_DOC_REF, M5_PROVIDER_WORKITEM_GOVERNANCE_FIXTURE_DIR,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_RECORD_KIND,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_SCHEMA_REF,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_SCHEMA_VERSION,
+    M5_PROVIDER_WORKITEM_GOVERNANCE_SUMMARY_REF, M5_PROVIDER_WORKITEM_HANDOFF_CONTRACT_REF,
+    M5_PROVIDER_WORKITEM_INCIDENT_CONTRACT_REF, M5_PROVIDER_WORKITEM_LINKAGE_CONTRACT_REF,
+    M5_PROVIDER_WORKITEM_PROVIDER_LINK_CONTRACT_REF,
+    M5_PROVIDER_WORKITEM_PUBLISH_LATER_CONTRACT_REF,
+    M5_PROVIDER_WORKITEM_TRANSITION_CONTRACT_REF,
 };
 pub use freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix::{
     current_stable_m5_review_ci_preview_matrix_export, M5ReviewCiPreviewConsumerSurface,
