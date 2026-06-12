@@ -16,6 +16,7 @@
 
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod m5_install_and_portability_governance;
+pub mod m5_install_diagnostics;
 pub mod ownership_audit;
 pub mod profile_cards;
 pub mod repair_verify;
@@ -143,4 +144,18 @@ pub use m5_install_and_portability_governance::{
     M5_INSTALL_PORTABILITY_GOVERNANCE_PATH, M5_INSTALL_PORTABILITY_GOVERNANCE_RECORD_KIND,
     M5_INSTALL_PORTABILITY_GOVERNANCE_SCHEMA_REF, M5_INSTALL_PORTABILITY_GOVERNANCE_SCHEMA_VERSION,
     M5_INSTALL_PORTABILITY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_install_diagnostics::{
+    current_m5_install_update_diagnostics, ArtifactDiagnosticRow, DiagnosticDrill,
+    DiagnosticIncident, DiagnosticNarrowReason, DiagnosticRecoveryPath, DiagnosticRoot,
+    DiagnosticsConsumer, DiagnosticsConsumerBinding, M5ArtifactFamily,
+    M5InstallDiagnosticsExportProjection, M5InstallDiagnosticsExportRow,
+    M5InstallDiagnosticsSummary, M5InstallDiagnosticsSupportExport, M5InstallDiagnosticsViolation,
+    M5InstallUpdateDiagnostics, RollbackTargetState, RootCategory, RootRole, RootSensitivity,
+    UpdaterOwner, VerificationFreshness, M5_INSTALL_DIAGNOSTICS_ARTIFACT_DOC_REF,
+    M5_INSTALL_DIAGNOSTICS_DOC_REF, M5_INSTALL_DIAGNOSTICS_FIXTURE_DIR,
+    M5_INSTALL_DIAGNOSTICS_JSON, M5_INSTALL_DIAGNOSTICS_PATH, M5_INSTALL_DIAGNOSTICS_RECORD_KIND,
+    M5_INSTALL_DIAGNOSTICS_SCHEMA_REF, M5_INSTALL_DIAGNOSTICS_SCHEMA_VERSION,
+    M5_INSTALL_DIAGNOSTICS_SUPPORT_EXPORT_RECORD_KIND,
 };
