@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
-    current_queue_session_terminal_governance_packet, GovernanceFindingKind,
+    current_queue_session_terminal_governance_packet, ActivityJobStateClass, GovernanceFindingKind,
     GovernancePromotionState, GovernanceSupportClass, GovernedJobKind, GovernedWorkloadClass,
     QueueSessionTerminalGovernancePacket, QueueSessionTerminalGovernanceRowClass,
     BACKGROUND_QUEUE_CONTRACT_DOC_REF, CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF,
@@ -352,4 +352,57 @@ fn checked_in_packet_validates_and_covers_every_required_class() {
         .validation_findings
         .iter()
         .all(|finding| finding.finding_kind != GovernanceFindingKind::PromotionStateMismatch));
+}
+
+#[test]
+fn checked_in_packet_ships_activity_rows_and_scheduler_lane_rows() {
+    let packet = current_queue_session_terminal_governance_packet();
+    assert_eq!(packet.activity_job_rows.len(), 10);
+    assert_eq!(packet.scheduler_lane_rows.len(), 5);
+
+    let observed_states: BTreeSet<&str> = packet.activity_state_tokens().into_iter().collect();
+    for state in ActivityJobStateClass::REQUIRED {
+        assert!(
+            observed_states.contains(state.as_str()),
+            "activity state {} must be covered",
+            state.as_str()
+        );
+    }
+    for workload in GovernedWorkloadClass::REQUIRED {
+        assert!(
+            packet
+                .activity_job_rows
+                .iter()
+                .any(|row| row.workload_class == workload),
+            "activity row coverage missing for workload {}",
+            workload.as_str()
+        );
+    }
+    for scheduler_row in &packet.scheduler_lane_rows {
+        assert!(
+            !scheduler_row.activity_row_refs.is_empty(),
+            "scheduler lane {} must reference activity rows",
+            scheduler_row.queue_lane_token
+        );
+        assert!(
+            !scheduler_row.inspect_ref.is_empty(),
+            "scheduler lane {} must carry an inspect ref",
+            scheduler_row.queue_lane_token
+        );
+    }
+    for activity_row in &packet.activity_job_rows {
+        assert!(
+            !activity_row.job_identity_refs.is_empty(),
+            "activity row {} must cite at least one governed job id",
+            activity_row.row_id
+        );
+        assert!(
+            !activity_row.exact_target_reopen_ref.is_empty()
+                && !activity_row.exact_target_identity_ref.is_empty()
+                && !activity_row.inspect_ref.is_empty()
+                && !activity_row.next_action_ref.is_empty(),
+            "activity row {} must carry exact reopen, inspect, and next-action refs",
+            activity_row.row_id
+        );
+    }
 }

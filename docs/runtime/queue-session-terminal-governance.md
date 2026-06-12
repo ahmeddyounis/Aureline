@@ -23,6 +23,13 @@ and the reviewer matrix is
   `no_hidden_rerun_class`, and an opaque `restore_anchor_ref`.
 - Terminal boundary: `terminal_boundary_class`,
   `clipboard_posture_class`, and an opaque `boundary_ref`.
+- Durable activity rows: `activity_job_rows` publish stable `job_identity_refs`,
+  `queue_lane_class`, state-specific pause/stall/resume truth, queue age,
+  retry posture, the next action, and exact-target reopen plus inspect refs for
+  each governed workload.
+- Scheduler lane rows: `scheduler_lane_rows` publish per-lane queue depth,
+  oldest queued age, collapse count, retry-state rollup, last checkpoint
+  metadata, and the durable activity rows currently attributed to the lane.
 - Downgrade posture: `known_limit_class`, `downgrade_rule_class`,
   `support_class`, and `disclosure_ref` whenever a row narrows below stable.
 
@@ -37,6 +44,10 @@ and the reviewer matrix is
   context refs that invalidate stale work.
 - Workloads that cross a runtime boundary must also publish one terminal
   boundary row; generic desktop continuity is not enough.
+- Every governed workload must also publish one durable activity row so the
+  activity center, diagnostics, runtime inspectors, and support bundles reopen
+  the same exact object and preserve the same queue/checkpoint truth after
+  focus loss.
 - Protected interaction stays reserved. Background-heavy workloads may not
   consume `hot_path_interactive_budget`; they must run in explicit queue
   budgets such as `foreground_task_budget`, `knowledge_refresh_budget`,
@@ -47,6 +58,25 @@ and the reviewer matrix is
   policy outcome rather than relying on local heuristics or generic copy.
 - Support export, release evidence, and docs/help reuse the same runtime
   vocabulary; they do not paraphrase boundary or restore semantics locally.
+
+## Durable Activity States
+
+- The packet must cover `queued`, `running`, `paused_by_user`,
+  `paused_by_policy`, `paused_by_power_thermal`, `stalled_error`, `resumed`,
+  `cancelled`, and `superseded`.
+- `paused_by_user`, `paused_by_policy`, and `paused_by_power_thermal` are
+  intentionally distinct. They are not collapsed into one generic paused state.
+- `stalled_error` remains reviewable and must point at checkpoint-based retry
+  or inspect detail instead of silently becoming `failed` or `paused`.
+
+## Scheduler Inspector Rules
+
+- Every required queue lane publishes one scheduler row with queue depth, oldest
+  age, collapse count, retry-state rollup, and last checkpoint metadata.
+- Scheduler rows and durable activity rows quote the same lane and job
+  identities the governance rows admit; support export preserves the packet
+  verbatim so operator/support views do not reconstruct scheduler state from
+  logs or ad hoc summaries.
 
 ## Downgrade Rules
 

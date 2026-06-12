@@ -31,3 +31,10 @@ surfaces governed by `aureline-runtime`.
 - `placeholder_only`, `evidence_only`, and `transcript_only` are restore
   outcomes, not silent failures. Each must keep the surrounding layout and a
   recovery path visible.
+- Durable activity rows also cover the full M5 state split:
+  `queued`, `running`, `paused_by_user`, `paused_by_policy`,
+  `paused_by_power_thermal`, `stalled_error`, `resumed`, `cancelled`, and
+  `superseded`.
+- Scheduler inspector rows reuse the same packet and publish per-lane queue
+  depth, oldest age, collapse count, retry-state rollup, and last checkpoint
+  metadata so activity center and support bundles read one scheduler truth.

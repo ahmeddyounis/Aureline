@@ -33,6 +33,9 @@ use crate::queue_governor_and_admission_control::{
     CollapsePolicy as QueueCollapsePolicy, InitiatingSource as QueueInitiatingSource,
     QueueJobScope, StalenessPolicy as QueueStalenessPolicy,
 };
+use crate::resource_governor::{
+    seeded_resource_governor_snapshot, CheckpointMetadata, QueueLane as GovernorQueueLane,
+};
 
 /// Stable record-kind tag for [`QueueSessionTerminalGovernancePacket`].
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND: &str =
@@ -41,6 +44,14 @@ pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND: &str =
 /// Stable record-kind tag for [`QueueSessionTerminalGovernanceSupportExport`].
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND: &str =
     "queue_session_terminal_governance_support_export";
+
+/// Stable record-kind tag for M5 activity job rows.
+pub const QUEUE_SESSION_TERMINAL_ACTIVITY_JOB_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_activity_job_row";
+
+/// Stable record-kind tag for M5 scheduler lane rows.
+pub const QUEUE_SESSION_TERMINAL_SCHEDULER_LANE_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_scheduler_lane_row";
 
 /// Integer schema version for the governance packet.
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION: u32 = 1;
@@ -1068,6 +1079,18 @@ pub enum FindingKind {
     MissingRequiredTerminalBoundaryCoverage,
     /// Packet no longer covers every required clipboard posture class.
     MissingRequiredClipboardPostureCoverage,
+    /// Packet no longer covers every required durable activity state.
+    MissingRequiredActivityStateCoverage,
+    /// One covered workload has no durable activity row.
+    MissingActivityJobRow,
+    /// Activity row cites a job identity ref that the queue rows do not own.
+    UnknownActivityJobIdentityRef,
+    /// Activity row lane disagrees with the workload's queue-admission lane.
+    ActivityJobRowLaneDrift,
+    /// Activity row omitted a required reopen, inspect, or next-action ref.
+    MissingActivityActionRef,
+    /// Packet no longer covers every required scheduler lane row.
+    MissingSchedulerLaneCoverage,
     /// Raw source material crossed the boundary.
     RawSourceMaterialPresent,
     /// Secrets crossed the boundary.
@@ -1138,6 +1161,14 @@ impl FindingKind {
             Self::MissingRequiredClipboardPostureCoverage => {
                 "missing_required_clipboard_posture_coverage"
             }
+            Self::MissingRequiredActivityStateCoverage => {
+                "missing_required_activity_state_coverage"
+            }
+            Self::MissingActivityJobRow => "missing_activity_job_row",
+            Self::UnknownActivityJobIdentityRef => "unknown_activity_job_identity_ref",
+            Self::ActivityJobRowLaneDrift => "activity_job_row_lane_drift",
+            Self::MissingActivityActionRef => "missing_activity_action_ref",
+            Self::MissingSchedulerLaneCoverage => "missing_scheduler_lane_coverage",
             Self::RawSourceMaterialPresent => "raw_source_material_present",
             Self::SecretsPresent => "secrets_present",
             Self::AmbientAuthorityPresent => "ambient_authority_present",
@@ -1256,6 +1287,202 @@ impl QueueSessionTerminalGovernanceRow {
     }
 }
 
+/// Durable M5 activity-job states projected by the queue/activity inspector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityJobStateClass {
+    /// The job is queued and waiting on admission or an existing checkpoint.
+    Queued,
+    /// The job is actively progressing.
+    Running,
+    /// The job is paused by direct user intent.
+    PausedByUser,
+    /// The job is paused by policy, admin posture, or capability narrowing.
+    PausedByPolicy,
+    /// The job is paused by power-saver or thermal protection.
+    PausedByPowerThermal,
+    /// The job stalled on an error or bounded dependency failure.
+    StalledError,
+    /// The job resumed from an admitted checkpoint.
+    Resumed,
+    /// The job was cancelled and remains reviewable.
+    Cancelled,
+    /// The job was superseded by a newer authoritative job.
+    Superseded,
+}
+
+impl ActivityJobStateClass {
+    /// Every durable activity state the checked-in packet must cover.
+    pub const REQUIRED: [Self; 9] = [
+        Self::Queued,
+        Self::Running,
+        Self::PausedByUser,
+        Self::PausedByPolicy,
+        Self::PausedByPowerThermal,
+        Self::StalledError,
+        Self::Resumed,
+        Self::Cancelled,
+        Self::Superseded,
+    ];
+
+    /// Returns the stable token used in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::PausedByUser => "paused_by_user",
+            Self::PausedByPolicy => "paused_by_policy",
+            Self::PausedByPowerThermal => "paused_by_power_thermal",
+            Self::StalledError => "stalled_error",
+            Self::Resumed => "resumed",
+            Self::Cancelled => "cancelled",
+            Self::Superseded => "superseded",
+        }
+    }
+}
+
+/// Next-step posture surfaced by one durable activity row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityNextActionClass {
+    /// Inspect the queue or job detail without replaying side effects.
+    InspectQueue,
+    /// Resume the same admitted job identity.
+    ResumeJob,
+    /// Review policy or trust posture before retry.
+    ReviewPolicy,
+    /// Wait for power or thermal recovery.
+    WaitForPowerThermalRecovery,
+    /// Retry from the last admitted checkpoint.
+    RetryFromCheckpoint,
+    /// Open the exact durable target this row refers to.
+    ReopenTarget,
+    /// Open the successor that superseded this row.
+    OpenReplacement,
+    /// Open evidence or history without restarting the job.
+    OpenEvidence,
+}
+
+impl ActivityNextActionClass {
+    /// Returns the stable token used in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::InspectQueue => "inspect_queue",
+            Self::ResumeJob => "resume_job",
+            Self::ReviewPolicy => "review_policy",
+            Self::WaitForPowerThermalRecovery => "wait_for_power_thermal_recovery",
+            Self::RetryFromCheckpoint => "retry_from_checkpoint",
+            Self::ReopenTarget => "reopen_target",
+            Self::OpenReplacement => "open_replacement",
+            Self::OpenEvidence => "open_evidence",
+        }
+    }
+}
+
+/// Retry-state rollup shown on one scheduler lane row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SchedulerLaneRetryStateClass {
+    /// No queued retry budget is currently active on this lane.
+    NoRetryPending,
+    /// The lane carries local retry budget state.
+    LocalRetryBudgetTracked,
+    /// The lane carries provider retry budget state.
+    ProviderRetryBudgetTracked,
+    /// The lane requires reauthorization before retry.
+    ReauthorizeBeforeRetry,
+    /// The lane requires explicit manual review before retry.
+    ManualReviewBeforeRetry,
+}
+
+impl SchedulerLaneRetryStateClass {
+    /// Returns the stable token used in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoRetryPending => "no_retry_pending",
+            Self::LocalRetryBudgetTracked => "local_retry_budget_tracked",
+            Self::ProviderRetryBudgetTracked => "provider_retry_budget_tracked",
+            Self::ReauthorizeBeforeRetry => "reauthorize_before_retry",
+            Self::ManualReviewBeforeRetry => "manual_review_before_retry",
+        }
+    }
+}
+
+/// Durable job row projected to queue/activity inspector surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionActivityJobRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Stable row identity.
+    pub row_id: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Primary concrete job kind backing the row.
+    pub primary_job_kind: GovernedJobKind,
+    /// Stable job identities quoted by the row.
+    pub job_identity_refs: Vec<String>,
+    /// Stable queue lane token.
+    pub queue_lane_class: QueueLaneClass,
+    /// Durable job state.
+    pub state_class: ActivityJobStateClass,
+    /// Stable state token.
+    pub state_token: String,
+    /// Reviewable state reason.
+    pub state_reason: String,
+    /// Queue age in whole seconds.
+    pub queue_age_seconds: u64,
+    /// Human-readable queue age label.
+    pub queue_age_label: String,
+    /// Retry posture inherited from the queue row.
+    pub retry_class: RetryClass,
+    /// Next durable action exposed by the row.
+    pub next_action_class: ActivityNextActionClass,
+    /// Stable next-action target.
+    pub next_action_ref: String,
+    /// Exact-target reopen route.
+    pub exact_target_reopen_ref: String,
+    /// Exact target identity preserved by reopen.
+    pub exact_target_identity_ref: String,
+    /// Inspector/detail route for the row.
+    pub inspect_ref: String,
+    /// Last checkpoint metadata when the job is queued, paused, resumed, or stalled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_checkpoint: Option<CheckpointMetadata>,
+}
+
+/// Scheduler-lane row projected to queue/activity inspector surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionSchedulerLaneRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Queue lane covered by the row.
+    pub queue_lane_class: QueueLaneClass,
+    /// Stable lane token.
+    pub queue_lane_token: String,
+    /// Current queue depth for the lane.
+    pub queue_depth: u32,
+    /// Oldest queued age in whole seconds when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oldest_age_seconds: Option<u64>,
+    /// Human-readable oldest age label.
+    pub oldest_age_label: String,
+    /// Total collapsed job count.
+    pub collapse_count: u32,
+    /// Retry-state rollup for the lane.
+    pub retry_state_class: SchedulerLaneRetryStateClass,
+    /// Stable retry-state token.
+    pub retry_state_token: String,
+    /// Last checkpoint metadata surfaced by the scheduler.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_checkpoint: Option<CheckpointMetadata>,
+    /// Durable activity rows currently attributed to the lane.
+    pub activity_row_refs: Vec<String>,
+    /// Workloads currently attributed to the lane.
+    pub workload_classes: Vec<GovernedWorkloadClass>,
+    /// Inspectable scheduler truth source.
+    pub inspect_ref: String,
+}
+
 /// Consumer projection that must preserve this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueSessionTerminalGovernanceConsumerProjection {
@@ -1316,6 +1543,12 @@ pub struct QueueSessionTerminalGovernancePacketInput {
     /// Governance rows.
     #[serde(default)]
     pub rows: Vec<QueueSessionTerminalGovernanceRow>,
+    /// Durable activity-job rows projected from the same queue truth.
+    #[serde(default)]
+    pub activity_job_rows: Vec<QueueSessionActivityJobRow>,
+    /// Scheduler lane rows projected from the same queue truth.
+    #[serde(default)]
+    pub scheduler_lane_rows: Vec<QueueSessionSchedulerLaneRow>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
     pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
@@ -1343,6 +1576,12 @@ pub struct QueueSessionTerminalGovernancePacket {
     /// Governance rows.
     #[serde(default)]
     pub rows: Vec<QueueSessionTerminalGovernanceRow>,
+    /// Durable activity-job rows projected from the same queue truth.
+    #[serde(default)]
+    pub activity_job_rows: Vec<QueueSessionActivityJobRow>,
+    /// Scheduler lane rows projected from the same queue truth.
+    #[serde(default)]
+    pub scheduler_lane_rows: Vec<QueueSessionSchedulerLaneRow>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
     pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
@@ -1367,6 +1606,8 @@ impl QueueSessionTerminalGovernancePacket {
             generated_at: input.generated_at,
             covered_workloads: input.covered_workloads,
             rows: input.rows,
+            activity_job_rows: input.activity_job_rows,
+            scheduler_lane_rows: input.scheduler_lane_rows,
             consumer_projections: input.consumer_projections,
             source_contract_refs: input.source_contract_refs,
             promotion_state: PromotionState::Stable,
@@ -1446,6 +1687,26 @@ impl QueueSessionTerminalGovernancePacket {
             set.insert(row.clipboard_posture_class);
         }
         set.into_iter().map(ClipboardPostureClass::as_str).collect()
+    }
+
+    /// Returns the unique durable activity-state tokens observed across rows.
+    pub fn activity_state_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.activity_job_rows {
+            set.insert(row.state_class);
+        }
+        set.into_iter().map(ActivityJobStateClass::as_str).collect()
+    }
+
+    /// Returns the unique scheduler retry-state tokens observed across rows.
+    pub fn scheduler_retry_state_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.scheduler_lane_rows {
+            set.insert(row.retry_state_class);
+        }
+        set.into_iter()
+            .map(SchedulerLaneRetryStateClass::as_str)
+            .collect()
     }
 
     /// Returns true when the packet preserves a projection for the surface.
@@ -1873,6 +2134,130 @@ impl QueueSessionTerminalGovernancePacket {
             }
         }
 
+        let known_job_identity_refs = self
+            .rows
+            .iter()
+            .filter(|row| matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission))
+            .flat_map(|row| {
+                row.job_identities
+                    .iter()
+                    .map(|identity| identity.job_identity_ref.as_str())
+            })
+            .collect::<BTreeSet<_>>();
+        for workload in GovernedWorkloadClass::REQUIRED {
+            if !self
+                .activity_job_rows
+                .iter()
+                .any(|row| row.workload_class == workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingActivityJobRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} is missing a durable activity row",
+                        workload.as_str()
+                    ),
+                ));
+            }
+        }
+        for state in ActivityJobStateClass::REQUIRED {
+            if !self
+                .activity_job_rows
+                .iter()
+                .any(|row| row.state_class == state)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredActivityStateCoverage,
+                    FindingSeverity::Blocker,
+                    format!("activity state {} is not covered", state.as_str()),
+                ));
+            }
+        }
+        for activity_row in &self.activity_job_rows {
+            if activity_row.row_id.trim().is_empty()
+                || activity_row.state_reason.trim().is_empty()
+                || activity_row.next_action_ref.trim().is_empty()
+                || activity_row.exact_target_reopen_ref.trim().is_empty()
+                || activity_row.exact_target_identity_ref.trim().is_empty()
+                || activity_row.inspect_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingActivityActionRef,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "activity row {} omits a required reopen, inspect, or next-action ref",
+                        activity_row.row_id
+                    ),
+                ));
+            }
+            if activity_row.job_identity_refs.is_empty() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::UnknownActivityJobIdentityRef,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "activity row {} carries no job identity refs",
+                        activity_row.row_id
+                    ),
+                ));
+            }
+            for job_identity_ref in &activity_row.job_identity_refs {
+                if !known_job_identity_refs.contains(job_identity_ref.as_str()) {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::UnknownActivityJobIdentityRef,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "activity row {} cites unknown job identity {}",
+                            activity_row.row_id, job_identity_ref
+                        ),
+                    ));
+                }
+            }
+            if let Some(queue_row) = self.rows.iter().find(|row| {
+                row.workload_class == activity_row.workload_class
+                    && matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
+            }) {
+                if queue_row.queue_lane_class != activity_row.queue_lane_class {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::ActivityJobRowLaneDrift,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "activity row {} drifts from workload {} queue lane",
+                            activity_row.row_id,
+                            activity_row.workload_class.as_str()
+                        ),
+                    ));
+                }
+            }
+        }
+        for lane in QueueLaneClass::REQUIRED {
+            if !self
+                .scheduler_lane_rows
+                .iter()
+                .any(|row| row.queue_lane_class == lane)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingSchedulerLaneCoverage,
+                    FindingSeverity::Blocker,
+                    format!("scheduler lane {} is not covered", lane.as_str()),
+                ));
+            }
+        }
+        for lane_row in &self.scheduler_lane_rows {
+            if lane_row.activity_row_refs.is_empty()
+                || lane_row.workload_classes.is_empty()
+                || lane_row.inspect_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingSchedulerLaneCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "scheduler lane {} omits activity coverage or inspect refs",
+                        lane_row.queue_lane_token
+                    ),
+                ));
+            }
+        }
+
         for queue_lane in QueueLaneClass::REQUIRED {
             if !self.rows.iter().any(|row| {
                 matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
@@ -2291,6 +2676,272 @@ fn downgrade_row(
     row.evidence_class = EvidenceClass::DocsDisclosureEvidence;
     row.disclosure_ref = Some(format!("disclosure:{}", workload.as_str()));
     row
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ActivityRowSeed {
+    workload_class: GovernedWorkloadClass,
+    primary_job_kind: GovernedJobKind,
+    state_class: ActivityJobStateClass,
+    next_action_class: ActivityNextActionClass,
+    state_reason: &'static str,
+    exact_target_identity_ref: &'static str,
+}
+
+fn stable_activity_row_seeds() -> [ActivityRowSeed; 10] {
+    [
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::NotebookSession,
+            primary_job_kind: GovernedJobKind::NotebookCellExecution,
+            state_class: ActivityJobStateClass::Queued,
+            next_action_class: ActivityNextActionClass::InspectQueue,
+            state_reason:
+                "Notebook execution is queued behind the current interactive checkpoint and preserves the exact cell/run target.",
+            exact_target_identity_ref: "target:notebook:training:run",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::DataQueryConsole,
+            primary_job_kind: GovernedJobKind::DataRequestCollectionRun,
+            state_class: ActivityJobStateClass::Running,
+            next_action_class: ActivityNextActionClass::ReopenTarget,
+            state_reason:
+                "The query session is actively running against its current remote request context.",
+            exact_target_identity_ref: "target:data:orders:query_session",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::PipelineRun,
+            primary_job_kind: GovernedJobKind::PipelineLogPull,
+            state_class: ActivityJobStateClass::StalledError,
+            next_action_class: ActivityNextActionClass::RetryFromCheckpoint,
+            state_reason:
+                "Provider-backed pipeline refresh stalled on a bounded remote failure and can resume from the last admitted checkpoint.",
+            exact_target_identity_ref: "target:pipeline:deploy_run",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::PreviewRoute,
+            primary_job_kind: GovernedJobKind::PreviewDevServer,
+            state_class: ActivityJobStateClass::PausedByPowerThermal,
+            next_action_class: ActivityNextActionClass::WaitForPowerThermalRecovery,
+            state_reason:
+                "Preview warm-up is paused by power and thermal protection to preserve protected-path latency.",
+            exact_target_identity_ref: "target:preview:webapp:route",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::ProfilerCapture,
+            primary_job_kind: GovernedJobKind::ProfilerCapture,
+            state_class: ActivityJobStateClass::Cancelled,
+            next_action_class: ActivityNextActionClass::OpenEvidence,
+            state_reason:
+                "Profiler capture was cancelled explicitly and remains reviewable through its durable evidence packet.",
+            exact_target_identity_ref: "target:profiler:startup_capture",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::DocsRecall,
+            primary_job_kind: GovernedJobKind::DocsPackRefresh,
+            state_class: ActivityJobStateClass::Resumed,
+            next_action_class: ActivityNextActionClass::ReopenTarget,
+            state_reason:
+                "Docs recall resumed from the last admitted refresh boundary instead of rescanning from zero.",
+            exact_target_identity_ref: "target:docs:rust:recall_session",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::SyncOffboardingFlow,
+            primary_job_kind: GovernedJobKind::SyncOffboardingExport,
+            state_class: ActivityJobStateClass::PausedByPolicy,
+            next_action_class: ActivityNextActionClass::ReviewPolicy,
+            state_reason:
+                "Offboarding export is paused by policy until export scope and retention posture are re-reviewed.",
+            exact_target_identity_ref: "target:sync:offboarding_export",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::CompanionHandoff,
+            primary_job_kind: GovernedJobKind::CompanionHandoffPackage,
+            state_class: ActivityJobStateClass::PausedByUser,
+            next_action_class: ActivityNextActionClass::ResumeJob,
+            state_reason:
+                "The companion handoff package is paused by explicit user choice and can resume under the same durable identity.",
+            exact_target_identity_ref: "target:companion:handoff_packet",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            primary_job_kind: GovernedJobKind::IncidentRecoveryWorkspaceRefresh,
+            state_class: ActivityJobStateClass::Superseded,
+            next_action_class: ActivityNextActionClass::OpenReplacement,
+            state_reason:
+                "A newer incident workspace refresh superseded this row; the history remains durable and links to the successor.",
+            exact_target_identity_ref: "target:incident:sev1:workspace",
+        },
+        ActivityRowSeed {
+            workload_class: GovernedWorkloadClass::InfrastructureSession,
+            primary_job_kind: GovernedJobKind::InfrastructureOverlayProbe,
+            state_class: ActivityJobStateClass::Running,
+            next_action_class: ActivityNextActionClass::ReopenTarget,
+            state_reason:
+                "Infrastructure overlay refresh is running with boundary-labelled reconnect and inspect affordances.",
+            exact_target_identity_ref: "target:infra:cluster-a:overlay_session",
+        },
+    ]
+}
+
+fn format_age_label(seconds: Option<u64>) -> String {
+    match seconds {
+        Some(seconds) if seconds >= 60 => format!("{}m {}s", seconds / 60, seconds % 60),
+        Some(seconds) => format!("{seconds}s"),
+        None => "n/a".to_owned(),
+    }
+}
+
+fn governor_lane_for(queue_lane_class: QueueLaneClass) -> GovernorQueueLane {
+    match queue_lane_class {
+        QueueLaneClass::Foreground => GovernorQueueLane::Foreground,
+        QueueLaneClass::InteractiveBackground => GovernorQueueLane::InteractiveBackground,
+        QueueLaneClass::Maintenance => GovernorQueueLane::Maintenance,
+        QueueLaneClass::ProviderOverlay => GovernorQueueLane::ProviderOverlay,
+        QueueLaneClass::UploadReplication => GovernorQueueLane::UploadReplication,
+        QueueLaneClass::NotApplicable => GovernorQueueLane::Foreground,
+    }
+}
+
+fn retry_state_for_lane(rows: &[QueueSessionActivityJobRow]) -> SchedulerLaneRetryStateClass {
+    if rows
+        .iter()
+        .any(|row| matches!(row.retry_class, RetryClass::ManualRequeueOnly))
+    {
+        SchedulerLaneRetryStateClass::ManualReviewBeforeRetry
+    } else if rows
+        .iter()
+        .any(|row| matches!(row.retry_class, RetryClass::ReconnectAfterReauth))
+    {
+        SchedulerLaneRetryStateClass::ReauthorizeBeforeRetry
+    } else if rows
+        .iter()
+        .any(|row| matches!(row.retry_class, RetryClass::ProviderRetryBudget))
+    {
+        SchedulerLaneRetryStateClass::ProviderRetryBudgetTracked
+    } else if rows
+        .iter()
+        .any(|row| matches!(row.retry_class, RetryClass::LocalRetryBudget))
+    {
+        SchedulerLaneRetryStateClass::LocalRetryBudgetTracked
+    } else {
+        SchedulerLaneRetryStateClass::NoRetryPending
+    }
+}
+
+fn build_activity_job_rows(
+    rows: &[QueueSessionTerminalGovernanceRow],
+) -> Vec<QueueSessionActivityJobRow> {
+    let scheduler_snapshot = seeded_resource_governor_snapshot(
+        "resource-governor:snapshot:queue-session-terminal-governance",
+        "workspace:runtime-governance",
+        "profile:runtime-governance",
+        "2026-06-12T00:00:00Z",
+    );
+    stable_activity_row_seeds()
+        .into_iter()
+        .map(|seed| {
+            let queue_row = rows
+                .iter()
+                .find(|row| {
+                    row.workload_class == seed.workload_class
+                        && matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
+                })
+                .expect("stable packet must include a queue row per workload");
+            let lane_state = scheduler_snapshot
+                .lane_states
+                .iter()
+                .find(|lane| lane.lane == governor_lane_for(queue_row.queue_lane_class))
+                .expect("stable packet must include a scheduler lane per queue lane");
+            let mut ordered_job_identity_refs = queue_row
+                .job_identities
+                .iter()
+                .map(|identity| identity.job_identity_ref.clone())
+                .collect::<Vec<_>>();
+            if let Some(index) = queue_row
+                .job_identities
+                .iter()
+                .position(|identity| identity.job_kind == seed.primary_job_kind)
+            {
+                ordered_job_identity_refs.swap(0, index);
+            }
+            QueueSessionActivityJobRow {
+                record_kind: QUEUE_SESSION_TERMINAL_ACTIVITY_JOB_ROW_RECORD_KIND.to_owned(),
+                row_id: format!("activity:{}", seed.workload_class.as_str()),
+                workload_class: seed.workload_class,
+                primary_job_kind: seed.primary_job_kind,
+                job_identity_refs: ordered_job_identity_refs,
+                queue_lane_class: queue_row.queue_lane_class,
+                state_class: seed.state_class,
+                state_token: seed.state_class.as_str().to_owned(),
+                state_reason: seed.state_reason.to_owned(),
+                queue_age_seconds: lane_state.oldest_age_seconds.unwrap_or_default().round() as u64,
+                queue_age_label: format_age_label(
+                    lane_state
+                        .oldest_age_seconds
+                        .map(|seconds| seconds.round() as u64),
+                ),
+                retry_class: queue_row.retry_class,
+                next_action_class: seed.next_action_class,
+                next_action_ref: format!(
+                    "action:{}:{}",
+                    seed.workload_class.as_str(),
+                    seed.next_action_class.as_str()
+                ),
+                exact_target_reopen_ref: format!(
+                    "reopen:{}:{}",
+                    seed.workload_class.as_str(),
+                    seed.primary_job_kind.as_str()
+                ),
+                exact_target_identity_ref: seed.exact_target_identity_ref.to_owned(),
+                inspect_ref: format!("inspect:{}", seed.workload_class.as_str()),
+                last_checkpoint: lane_state.checkpoint.clone(),
+            }
+        })
+        .collect()
+}
+
+fn build_scheduler_lane_rows(
+    activity_job_rows: &[QueueSessionActivityJobRow],
+) -> Vec<QueueSessionSchedulerLaneRow> {
+    let scheduler_snapshot = seeded_resource_governor_snapshot(
+        "resource-governor:snapshot:queue-session-terminal-governance",
+        "workspace:runtime-governance",
+        "profile:runtime-governance",
+        "2026-06-12T00:00:00Z",
+    );
+    QueueLaneClass::REQUIRED
+        .into_iter()
+        .map(|queue_lane_class| {
+            let lane_state = scheduler_snapshot
+                .lane_states
+                .iter()
+                .find(|lane| lane.lane == governor_lane_for(queue_lane_class))
+                .expect("stable packet must include a scheduler lane per queue lane");
+            let lane_rows = activity_job_rows
+                .iter()
+                .filter(|row| row.queue_lane_class == queue_lane_class)
+                .cloned()
+                .collect::<Vec<_>>();
+            let retry_state_class = retry_state_for_lane(&lane_rows);
+            QueueSessionSchedulerLaneRow {
+                record_kind: QUEUE_SESSION_TERMINAL_SCHEDULER_LANE_ROW_RECORD_KIND.to_owned(),
+                queue_lane_class,
+                queue_lane_token: queue_lane_class.as_str().to_owned(),
+                queue_depth: lane_state.lane_depth,
+                oldest_age_seconds: lane_state.oldest_age_seconds.map(|age| age.round() as u64),
+                oldest_age_label: format_age_label(
+                    lane_state.oldest_age_seconds.map(|age| age.round() as u64),
+                ),
+                collapse_count: lane_state.collapse_count,
+                retry_state_class,
+                retry_state_token: retry_state_class.as_str().to_owned(),
+                last_checkpoint: lane_state.checkpoint.clone(),
+                activity_row_refs: lane_rows.iter().map(|row| row.row_id.clone()).collect(),
+                workload_classes: lane_rows.iter().map(|row| row.workload_class).collect(),
+                inspect_ref: format!("inspect:scheduler:{}", queue_lane_class.as_str()),
+            }
+        })
+        .collect()
 }
 
 fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
@@ -2755,6 +3406,8 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             DowngradeRuleClass::AutoBlockOnMissingEvidence,
         ),
     ];
+    let activity_job_rows = build_activity_job_rows(&rows);
+    let scheduler_lane_rows = build_scheduler_lane_rows(&activity_job_rows);
     let consumer_projections = ConsumerSurface::REQUIRED
         .into_iter()
         .map(stable_projection)
@@ -2765,6 +3418,8 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
         generated_at: "2026-06-12T00:00:00Z".to_owned(),
         covered_workloads,
         rows,
+        activity_job_rows,
+        scheduler_lane_rows,
         consumer_projections,
         source_contract_refs: vec![
             QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF.to_owned(),
