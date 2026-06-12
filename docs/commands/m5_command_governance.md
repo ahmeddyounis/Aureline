@@ -1,6 +1,6 @@
 ## M5 command governance
 
-This contract defines the export-safe packet that proves preview, disabled-reason, and approval parity for the M5 depth-surface commands across:
+This contract defines the export-safe packet that proves command-result, preview, disabled-reason, approval, activity-center, and export parity for the M5 depth-surface commands across:
 
 - desktop
 - CLI
@@ -9,16 +9,20 @@ This contract defines the export-safe packet that proves preview, disabled-reaso
 - extensions
 - browser / companion handoff
 
-The packet is emitted by [`aureline_commands::m5_command_governance`] and is seeded from the canonical merged command registry in `artifacts/commands/command_registry_seed.yaml` plus `artifacts/commands/m5_command_registry_seed.yaml`.
+The packet is emitted by [`aureline_commands::m5_command_governance`] and is seeded from the canonical merged command registry in `artifacts/commands/command_registry_seed.yaml` plus `artifacts/commands/m5_command_registry_seed.yaml`. Durable activity joins reuse the checked M5 activity-object audit in `fixtures/ux/m5/activity-center/report.json` so command-result rows point at the same exact-target reopen anchors and support-export identity that the shell activity center already publishes.
 
 ### Required invariants
 
 - Every M5 command has a row for all six required routes.
 - High-risk or approval-gated M5 commands declare `preview_gate_metadata` in the registry entry.
 - Every route preserves the descriptor-owned preview class, approval posture, and no-bypass contract.
+- Every command row carries one canonical result-packet governance record with the shared invocation schema, result schema, outcome vocabulary, and export posture.
+- Canonical outcomes cover `success`, `partial_success`, `cancelled`, `superseded`, `denied`, `degraded`, and `failed`.
+- Long-running or exact-target-reopen rows join the M5 activity-object contract and preserve the shell-owned reopen anchor instead of inventing a surface-local history object.
+- Commands that claim rollback or checkpoint posture preserve those refs in the result contract and keep the release/support joins stable.
 - Denial and approval packets preserve `actor_ref`, `target_ref`, `trust_epoch_ref`, and `rollout_state_ref`.
 - Copy-safe command introspection stays descriptor-backed: `Copy command ID`, `Copy CLI form`, `Add to recipe`, and `Why not automatable?` are projected from the same command truth.
-- Every exported denial, preview, and approval packet is support-safe.
+- Copy-safe summaries, raw packet export refs, support-export case refs, and release-evidence refs stay export-safe and reusable.
 
 ### Generated artifacts
 

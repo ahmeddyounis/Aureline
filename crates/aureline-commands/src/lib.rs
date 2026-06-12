@@ -150,15 +150,17 @@ pub use invocation::{
 pub use m5_command_governance::{
     current_m5_command_governance_export, seeded_m5_command_governance_packet,
     validate_m5_command_governance_packet, M5ApprovalModelClass, M5ApprovalParityPacketRecord,
+    M5CommandOutcomeProjectionRow,
     M5CommandGovernancePacket, M5CommandGovernanceRow, M5CommandGovernanceSummary,
     M5CommandGovernanceSupportExport, M5CommandGovernanceValidationError,
     M5CopySafeIntrospectionRecord, M5DisabledReasonFamilyClass, M5DisabledReasonPacketRecord,
-    M5GovernanceSurfaceClass, M5InvocationPreviewParityRecord, M5RoutePostureClass,
-    M5SurfaceGovernanceRow, M5_COMMAND_GOVERNANCE_DOC_REF, M5_COMMAND_GOVERNANCE_FIXTURE_DIR,
-    M5_COMMAND_GOVERNANCE_PACKET_ID, M5_COMMAND_GOVERNANCE_RECORD_KIND,
-    M5_COMMAND_GOVERNANCE_SCHEMA_REF, M5_COMMAND_GOVERNANCE_SCHEMA_VERSION,
-    M5_COMMAND_GOVERNANCE_SUMMARY_REF, M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
-    M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_REF,
+    M5GovernanceSurfaceClass, M5InvocationPreviewParityRecord, M5ResultArtifactProjectionRecord,
+    M5ResultExecutionProfileClass, M5ResultOutcomeClass, M5ResultPacketGovernanceRecord,
+    M5RoutePostureClass, M5SurfaceGovernanceRow, M5_COMMAND_GOVERNANCE_DOC_REF,
+    M5_COMMAND_GOVERNANCE_FIXTURE_DIR, M5_COMMAND_GOVERNANCE_PACKET_ID,
+    M5_COMMAND_GOVERNANCE_RECORD_KIND, M5_COMMAND_GOVERNANCE_SCHEMA_REF,
+    M5_COMMAND_GOVERNANCE_SCHEMA_VERSION, M5_COMMAND_GOVERNANCE_SUMMARY_REF,
+    M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID, M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_REF,
 };
 pub use publish_capability_route_inspector::{
     current_capability_route_inspector_export, CapabilityRouteInspectorArtifactError,

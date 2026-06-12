@@ -82,6 +82,102 @@ fn seeded_packet_keeps_copy_safe_why_not_automatable_reason_in_sync() {
 }
 
 #[test]
+fn seeded_packet_covers_every_canonical_result_outcome() {
+    let packet = seeded_m5_command_governance_packet();
+    for row in &packet.rows {
+        for required in M5ResultOutcomeClass::required_coverage() {
+            assert!(
+                row.result_packet_governance
+                    .outcome_rows
+                    .iter()
+                    .any(|outcome| outcome.outcome_class == required),
+                "{} missing {}",
+                row.command_id,
+                required.as_str()
+            );
+        }
+    }
+}
+
+#[test]
+fn durable_or_mutating_rows_preserve_result_export_truth() {
+    let packet = seeded_m5_command_governance_packet();
+    for row in &packet.rows {
+        let result = &row.result_packet_governance;
+        if result.durable_truth_required {
+            assert!(result.preserves_copy_safe_summary, "{}", row.command_id);
+            assert!(result.preserves_raw_packet_export, "{}", row.command_id);
+            assert!(result.joins_support_export, "{}", row.command_id);
+            assert!(result.joins_release_evidence, "{}", row.command_id);
+        }
+    }
+}
+
+#[test]
+fn activity_joined_rows_reuse_the_m5_activity_contract() {
+    let packet = seeded_m5_command_governance_packet();
+    for row in packet
+        .rows
+        .iter()
+        .filter(|row| row.result_packet_governance.joins_activity_center)
+    {
+        assert_eq!(
+            row.result_packet_governance
+                .activity_shared_contract_ref
+                .as_deref(),
+            Some("shell:m5_activity_objects:v1"),
+            "{}",
+            row.command_id
+        );
+        assert!(row
+            .result_packet_governance
+            .artifacts
+            .activity_join_ref
+            .as_deref()
+            .is_some_and(|value| value.starts_with("activity:")));
+        assert!(row
+            .result_packet_governance
+            .artifacts
+            .exact_target_reopen_ref
+            .as_deref()
+            .is_some_and(|value| value.starts_with("activity:reopen:")));
+    }
+}
+
+#[test]
+fn rollback_and_checkpoint_requirements_follow_preview_gate_posture() {
+    let packet = seeded_m5_command_governance_packet();
+
+    let offboarding = packet
+        .rows
+        .iter()
+        .find(|row| row.command_id == "cmd:offboarding.export_and_wipe")
+        .expect("offboarding row must exist");
+    assert!(offboarding
+        .result_packet_governance
+        .artifacts
+        .rollback_handle_required);
+    assert!(offboarding
+        .result_packet_governance
+        .artifacts
+        .checkpoint_ref_required);
+
+    let sync = packet
+        .rows
+        .iter()
+        .find(|row| row.command_id == "cmd:sync.push_workspace_state")
+        .expect("sync row must exist");
+    assert!(!sync
+        .result_packet_governance
+        .artifacts
+        .rollback_handle_required);
+    assert!(sync
+        .result_packet_governance
+        .artifacts
+        .checkpoint_ref_required);
+}
+
+#[test]
 fn support_export_quotes_packet_and_command_ids() {
     let packet = seeded_m5_command_governance_packet();
     let export = M5CommandGovernanceSupportExport::from_packet(
@@ -94,6 +190,12 @@ fn support_export_quotes_packet_and_command_ids() {
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.command_id));
         assert!(export.case_ids.contains(&row.command_revision_ref));
+        for outcome in &row.result_packet_governance.outcome_rows {
+            assert!(export.case_ids.contains(&outcome.export_safe_summary_ref));
+            assert!(export.case_ids.contains(&outcome.raw_packet_export_ref));
+            assert!(export.case_ids.contains(&outcome.support_export_case_ref));
+            assert!(export.case_ids.contains(&outcome.release_evidence_ref));
+        }
     }
 }
 
