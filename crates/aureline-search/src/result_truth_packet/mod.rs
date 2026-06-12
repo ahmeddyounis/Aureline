@@ -38,6 +38,7 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_provider::WorkItemObjectRowRecord;
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag for [`SearchResultTruthPacket`].
@@ -727,6 +728,9 @@ pub struct SearchResultTruthRow {
     pub action_binding: SearchActionBinding,
     /// Display title preserved verbatim in product copy.
     pub display_title: String,
+    /// Optional linked work-item row when the search result represents or opens tracked work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linked_work_item_row: Option<WorkItemObjectRowRecord>,
     /// True when raw query text, source bodies, secrets, and weights are excluded.
     pub raw_boundary_material_excluded: bool,
     /// Capture timestamp for this row.
@@ -1348,6 +1352,7 @@ pub fn current_stable_search_result_truth_packet(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aureline_provider::{project_work_item_object_row, seeded_work_item_transition_beta_page};
 
     fn sample_result_ref(label: FactLabelClass) -> SearchResultRef {
         SearchResultRef {
@@ -1408,9 +1413,15 @@ mod tests {
             ranking_reason: sample_ranking_reason(label),
             action_binding: sample_action_binding(fallback),
             display_title: format!("Sample row {}", label.as_str()),
+            linked_work_item_row: None,
             raw_boundary_material_excluded: true,
             captured_at: "2026-05-26T12:00:00Z".to_owned(),
         }
+    }
+
+    fn sample_work_item_row() -> WorkItemObjectRowRecord {
+        let page = seeded_work_item_transition_beta_page();
+        project_work_item_object_row(&page.detail_records[0])
     }
 
     fn sample_projection(
@@ -1497,6 +1508,26 @@ mod tests {
         );
         assert!(packet.validation_findings.is_empty());
         assert_eq!(packet.fact_label_tokens(), vec!["exact"]);
+    }
+
+    #[test]
+    fn search_rows_can_embed_shared_work_item_row_truth() {
+        let mut input = baseline_input("packet:m4:result_truth:work_item_row");
+        input.rows[0].result_ref.result_kind = ResultKindClass::ImportedArtifact;
+        input.rows[0].linked_work_item_row = Some(sample_work_item_row());
+
+        let packet = SearchResultTruthPacket::materialize(input);
+        assert!(
+            packet.validation_findings.is_empty(),
+            "{:?}",
+            packet.validation_findings
+        );
+        let linked = packet.rows[0]
+            .linked_work_item_row
+            .as_ref()
+            .expect("linked work-item row");
+        assert_eq!(linked.canonical_id, "AUR-241");
+        assert_eq!(linked.primary_state_label, "provider_in_progress");
     }
 
     #[test]

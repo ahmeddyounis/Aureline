@@ -68,6 +68,33 @@ fn companion_is_read_only() {
 }
 
 #[test]
+fn canonical_surface_reuses_shared_work_item_rows() {
+    let packet = packet();
+    assert!(packet
+        .notification_triage
+        .iter()
+        .all(|item| item.linked_work_item_row.is_some()));
+    assert!(packet
+        .review_queue
+        .iter()
+        .all(|item| item.linked_work_item_row.is_some()));
+    let incident = packet
+        .notification_triage
+        .iter()
+        .find(|item| item.category == CompanionNotificationCategory::Incident)
+        .expect("incident notification");
+    let row = incident
+        .linked_work_item_row
+        .as_ref()
+        .expect("incident row projection");
+    assert_eq!(row.canonical_id, "INC-246");
+    assert_eq!(
+        row.object_class,
+        aureline_provider::WorkItemObjectClass::IncidentReport
+    );
+}
+
+#[test]
 fn missing_section_fails_validation() {
     let mut packet = packet();
     packet

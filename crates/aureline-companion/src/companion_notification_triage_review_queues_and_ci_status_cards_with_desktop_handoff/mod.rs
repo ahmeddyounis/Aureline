@@ -47,6 +47,9 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_provider::{
+    project_work_item_object_row, seeded_work_item_transition_beta_page, WorkItemObjectRowRecord,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::freeze_the_m5_companion_incident_sync_and_offboarding_matrix_with_staged_rollout_lanes::{
@@ -461,6 +464,9 @@ pub struct CompanionNotificationItem {
     pub headline: String,
     /// Ref to the originating local-core event. Carries no payload body.
     pub source_event_ref: String,
+    /// Optional linked work-item row reused from the shared provider vocabulary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linked_work_item_row: Option<WorkItemObjectRowRecord>,
     /// Always true: the companion never authors from a notification.
     pub read_only: bool,
     /// Exact desktop handoff.
@@ -482,6 +488,9 @@ pub struct CompanionReviewQueueItem {
     pub summary: String,
     /// Ref to the originating evidence. Carries no payload body.
     pub evidence_ref: String,
+    /// Optional linked work-item row reused from the shared provider vocabulary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linked_work_item_row: Option<WorkItemObjectRowRecord>,
     /// Exact desktop handoff.
     pub handoff: CompanionDesktopHandoff,
 }
@@ -1201,6 +1210,16 @@ fn handoff(
     }
 }
 
+fn seeded_work_item_row(canonical_id: &str) -> WorkItemObjectRowRecord {
+    let page = seeded_work_item_transition_beta_page();
+    let detail = page
+        .detail_records
+        .iter()
+        .find(|record| record.canonical_id == canonical_id)
+        .unwrap_or(&page.detail_records[0]);
+    project_work_item_object_row(detail)
+}
+
 /// Canonical notification triage items.
 pub fn canonical_notification_triage() -> Vec<CompanionNotificationItem> {
     use CompanionHandoffTarget as Target;
@@ -1216,6 +1235,7 @@ pub fn canonical_notification_triage() -> Vec<CompanionNotificationItem> {
             triage_state: State::Unread,
             headline: "Build failed on the active workspace".to_owned(),
             source_event_ref: "event:build:0001".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("AUR-241")),
             read_only: true,
             handoff: handoff(Target::CiPipeline, "handoff:ci-pipeline:0001", false),
         },
@@ -1226,6 +1246,7 @@ pub fn canonical_notification_triage() -> Vec<CompanionNotificationItem> {
             triage_state: State::Triaged,
             headline: "Review requested on a pending change".to_owned(),
             source_event_ref: "event:review:0002".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("AUR-245")),
             read_only: true,
             handoff: handoff(Target::ReviewPanel, "handoff:review-panel:0002", true),
         },
@@ -1236,6 +1257,7 @@ pub fn canonical_notification_triage() -> Vec<CompanionNotificationItem> {
             triage_state: State::Unread,
             headline: "Agent run finished and is awaiting review".to_owned(),
             source_event_ref: "event:agent:0003".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("TASK-17")),
             read_only: true,
             handoff: handoff(Target::AgentSession, "handoff:agent-session:0003", true),
         },
@@ -1246,6 +1268,7 @@ pub fn canonical_notification_triage() -> Vec<CompanionNotificationItem> {
             triage_state: State::EscalatedToDesktop,
             headline: "Incident raised from a crash trail".to_owned(),
             source_event_ref: "event:incident:0004".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("INC-246")),
             read_only: true,
             handoff: handoff(
                 Target::IncidentWorkspace,
@@ -1271,6 +1294,7 @@ pub fn canonical_review_queue() -> Vec<CompanionReviewQueueItem> {
             decision_authority: Authority::ApproveOrDefer,
             summary: "Agent change set staged for approval".to_owned(),
             evidence_ref: "evidence:agent-change:0001".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("TASK-17")),
             handoff: handoff(Target::FileLocation, "handoff:file-location:0001", true),
         },
         CompanionReviewQueueItem {
@@ -1280,6 +1304,7 @@ pub fn canonical_review_queue() -> Vec<CompanionReviewQueueItem> {
             decision_authority: Authority::ApproveOrDefer,
             summary: "Diff awaiting review".to_owned(),
             evidence_ref: "evidence:diff:0002".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("AUR-241")),
             handoff: handoff(Target::ReviewPanel, "handoff:review-panel:r0002", true),
         },
         CompanionReviewQueueItem {
@@ -1289,6 +1314,7 @@ pub fn canonical_review_queue() -> Vec<CompanionReviewQueueItem> {
             decision_authority: Authority::EscalateOnly,
             summary: "Approval request deferred to the desktop host".to_owned(),
             evidence_ref: "evidence:approval:0003".to_owned(),
+            linked_work_item_row: Some(seeded_work_item_row("INC-246")),
             handoff: handoff(Target::ReviewPanel, "handoff:review-panel:r0003", true),
         },
     ]

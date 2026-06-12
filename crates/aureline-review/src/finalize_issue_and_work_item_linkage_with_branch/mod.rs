@@ -45,6 +45,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use aureline_provider::WorkItemObjectRowRecord;
 use serde::{Deserialize, Serialize};
 
 use crate::stabilize_review_workspace_anchors_stale_base_labels_approval::ReviewStabilizationPacket;
@@ -193,6 +194,9 @@ pub struct WorkItemDetailSurfaceInput {
     pub detail_surface_id: String,
     /// Ref to the provider work-item detail record.
     pub provider_work_item_detail_record_id_ref: String,
+    /// Shared provider-owned work-item row vocabulary projected from the detail record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub object_row: Option<WorkItemObjectRowRecord>,
     /// Canonical provider-owned ID visible to the user.
     pub canonical_provider_id: String,
     /// Provider-owned opaque object ID.
@@ -436,6 +440,9 @@ pub struct WorkItemDetailSurfaceRecord {
     pub linkage_finalization_id_ref: String,
     /// Ref to the provider work-item detail record.
     pub provider_work_item_detail_record_id_ref: String,
+    /// Shared provider-owned work-item row vocabulary projected from the detail record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub object_row: Option<WorkItemObjectRowRecord>,
     /// Canonical provider-owned ID visible to the user.
     pub canonical_provider_id: String,
     /// Provider-owned opaque object ID.
@@ -1271,6 +1278,7 @@ fn detail_surface_record(
         provider_work_item_detail_record_id_ref: input
             .provider_work_item_detail_record_id_ref
             .clone(),
+        object_row: input.object_row.clone(),
         canonical_provider_id: input.canonical_provider_id.clone(),
         provider_owned_id: input.provider_owned_id.clone(),
         write_mode_disclosure_class: input.write_mode_disclosure_class.clone(),
@@ -2012,6 +2020,12 @@ fn derive_blocked_reasons(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aureline_provider::{project_work_item_object_row, seeded_work_item_transition_beta_page};
+
+    fn sample_object_row() -> WorkItemObjectRowRecord {
+        let page = seeded_work_item_transition_beta_page();
+        project_work_item_object_row(&page.detail_records[0])
+    }
 
     #[test]
     fn constants_are_nonempty() {
@@ -2032,6 +2046,7 @@ mod tests {
             detail_surfaces: vec![WorkItemDetailSurfaceInput {
                 detail_surface_id: "detail:001".to_string(),
                 provider_work_item_detail_record_id_ref: "provider:detail:001".to_string(),
+                object_row: Some(sample_object_row()),
                 canonical_provider_id: "AUR-001".to_string(),
                 provider_owned_id: "provider:issue:001".to_string(),
                 write_mode_disclosure_class: "full_edit".to_string(),
@@ -2087,6 +2102,7 @@ mod tests {
             detail_surfaces: vec![WorkItemDetailSurfaceInput {
                 detail_surface_id: "detail:001".to_string(),
                 provider_work_item_detail_record_id_ref: "provider:detail:001".to_string(),
+                object_row: Some(sample_object_row()),
                 canonical_provider_id: "AUR-001".to_string(),
                 provider_owned_id: "provider:issue:001".to_string(),
                 write_mode_disclosure_class: "full_edit".to_string(),
@@ -2142,6 +2158,7 @@ mod tests {
             detail_surfaces: vec![WorkItemDetailSurfaceInput {
                 detail_surface_id: "detail:001".to_string(),
                 provider_work_item_detail_record_id_ref: "provider:detail:001".to_string(),
+                object_row: Some(sample_object_row()),
                 canonical_provider_id: "AUR-001".to_string(),
                 provider_owned_id: "provider:issue:001".to_string(),
                 write_mode_disclosure_class: "full_edit".to_string(),

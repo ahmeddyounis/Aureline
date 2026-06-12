@@ -253,6 +253,17 @@ pub use work_item_sync::{
     WORK_ITEM_SYNC_BETA_SHARED_CONTRACT_REF, WORK_ITEM_SYNC_BETA_SUPPORT_EXPORT_RECORD_KIND,
     WORK_ITEM_SYNC_BETA_VALIDATION_REPORT_RECORD_KIND,
 };
+pub use work_items::object_rows::{
+    project_work_item_object_row, relation_identity_refs, seeded_work_item_object_rows_packet,
+    WorkItemLinkStateClass, WorkItemObjectRowRecord, WorkItemObjectRowsPacket,
+    WorkItemObjectRowsViolation, WorkItemProviderChip, WorkItemRelationFreshnessClass,
+    WorkItemRelationKindClass, WorkItemRelationSourceClass, WorkItemRelationStrip,
+    WorkItemRelationStripItem, WorkItemSyncScopeClass, WORK_ITEM_OBJECT_ROWS_ARTIFACT_REF,
+    WORK_ITEM_OBJECT_ROWS_DOC_REF, WORK_ITEM_OBJECT_ROWS_FIXTURE_DIR,
+    WORK_ITEM_OBJECT_ROWS_PACKET_RECORD_KIND, WORK_ITEM_OBJECT_ROWS_SCHEMA_REF,
+    WORK_ITEM_OBJECT_ROWS_SCHEMA_VERSION, WORK_ITEM_OBJECT_ROWS_SUMMARY_REF,
+    WORK_ITEM_OBJECT_ROW_RECORD_KIND,
+};
 pub use work_items::{
     audit_work_item_transition_beta_page, seeded_work_item_transition_beta_page,
     validate_work_item_transition_beta_page, AuthoritySourceClass, ChangeIntentClass,

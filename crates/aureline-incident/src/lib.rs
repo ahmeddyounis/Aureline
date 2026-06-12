@@ -14,6 +14,7 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_crash::{CrashIncidentTrail, SymbolicationState};
+use aureline_provider::WorkItemObjectRowRecord;
 use aureline_support::bundle::{
     ActionPolicySourceContext, ActionReconstructionSeed, ActionabilityImpactClass, ActorClass,
     BuildIdentity, DiagnosisLatencyMeasurementProjection, DiagnosisLatencyMeasurementState,
@@ -1045,6 +1046,8 @@ pub struct IncidentWorkspacePacket {
     pub runbook_packets: Vec<IncidentRunbookPacket>,
     /// Linked support-bundle manifests and previews.
     pub support_bundle_links: Vec<IncidentSupportBundleLink>,
+    /// Linked provider-backed work-item rows reused by incident cards and detail surfaces.
+    pub linked_work_item_rows: Vec<WorkItemObjectRowRecord>,
     /// Redaction-safe notes.
     pub notes: String,
 }
@@ -1366,6 +1369,7 @@ pub struct IncidentWorkspaceBuilder {
     diagnosis_latency_measurements: DiagnosisLatencyMeasurements,
     runbook_packets: Vec<IncidentRunbookPacket>,
     support_bundle_links: Vec<IncidentSupportBundleLink>,
+    linked_work_item_rows: Vec<WorkItemObjectRowRecord>,
     notes: String,
 }
 
@@ -1393,6 +1397,7 @@ impl IncidentWorkspaceBuilder {
             diagnosis_latency_measurements: DiagnosisLatencyMeasurements::default(),
             runbook_packets: Vec::new(),
             support_bundle_links: Vec::new(),
+            linked_work_item_rows: Vec::new(),
             notes: "Incident workspace packet is read-mostly; mutating actions stay in runbook and action-ledger refs.".into(),
         }
     }
@@ -1583,6 +1588,12 @@ impl IncidentWorkspaceBuilder {
         self
     }
 
+    /// Adds one linked provider-backed work-item row.
+    pub fn add_linked_work_item_row(&mut self, row: WorkItemObjectRowRecord) -> &mut Self {
+        self.linked_work_item_rows.push(row);
+        self
+    }
+
     /// Builds the incident workspace packet.
     pub fn build(self) -> IncidentWorkspacePacket {
         let span_coverage =
@@ -1612,6 +1623,7 @@ impl IncidentWorkspaceBuilder {
             diagnosis_latency_scorecard,
             runbook_packets: self.runbook_packets,
             support_bundle_links: self.support_bundle_links,
+            linked_work_item_rows: self.linked_work_item_rows,
             notes: self.notes,
         }
     }

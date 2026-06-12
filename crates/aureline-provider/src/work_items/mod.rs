@@ -8,6 +8,8 @@
 //! shell surfaces read the same authority, freshness, local-draft, queued, and
 //! offline-capture truth.
 
+pub mod object_rows;
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
@@ -1024,6 +1026,12 @@ pub struct EngineeringArtifactRelations {
     /// Validation evidence refs.
     #[serde(default)]
     pub linked_validation_evidence_record_id_refs: Vec<String>,
+    /// Linked run or pipeline refs surfaced on relation strips.
+    #[serde(default)]
+    pub linked_run_record_id_refs: Vec<String>,
+    /// Linked incident workspace refs surfaced on relation strips.
+    #[serde(default)]
+    pub linked_incident_workspace_record_id_refs: Vec<String>,
     /// Publish-preview class.
     pub publish_preview_class: PublishPreviewClass,
     /// Provider consequence preview ref.
@@ -1802,6 +1810,8 @@ pub struct WorkItemDetailSupportSummary {
     pub provider_descriptor_ref: String,
     /// Provider family.
     pub provider_family: ProviderFamily,
+    /// Provider-side work-item object class.
+    pub object_class: WorkItemObjectClass,
     /// Project or space ref.
     pub project_or_space_ref: String,
     /// Canonical work-item id.
@@ -1816,6 +1826,12 @@ pub struct WorkItemDetailSupportSummary {
     pub write_authority_class: WriteAuthorityClass,
     /// Actor class Aureline was acting as.
     pub acting_as: ProviderActorClass,
+    /// Export-safe sync scope class for the row.
+    pub sync_scope_class: object_rows::WorkItemSyncScopeClass,
+    /// Export-safe relation-link state for the row.
+    pub link_state_class: object_rows::WorkItemLinkStateClass,
+    /// Export-safe relation identity refs.
+    pub relation_identity_refs: Vec<String>,
     /// Draft/queued/published posture.
     pub publish_posture: WorkItemPublishPostureClass,
     /// Export-safe summary.
@@ -1828,6 +1844,7 @@ impl From<&WorkItemDetailRecord> for WorkItemDetailSupportSummary {
             detail_id: record.detail_id.clone(),
             provider_descriptor_ref: record.provider_descriptor_ref.clone(),
             provider_family: record.provider_family,
+            object_class: record.target_object_identity.object_class,
             project_or_space_ref: record.project_or_space_ref.clone(),
             canonical_id: record.canonical_id.clone(),
             row_posture_class: record.row_posture_class,
@@ -1835,6 +1852,13 @@ impl From<&WorkItemDetailRecord> for WorkItemDetailSupportSummary {
             freshness_class: record.freshness_class,
             write_authority_class: record.write_authority_class,
             acting_as: record.acting_as,
+            sync_scope_class: object_rows::WorkItemSyncScopeClass::from_detail(record),
+            link_state_class: object_rows::WorkItemLinkStateClass::from_relations(
+                &record.engineering_artifact_relations,
+            ),
+            relation_identity_refs: object_rows::relation_identity_refs(
+                &record.engineering_artifact_relations,
+            ),
             publish_posture: record.publish_posture(),
             summary: record.support_export_summary.clone(),
         }
@@ -3105,7 +3129,7 @@ fn seeded_detail_records() -> Vec<WorkItemDetailRecord> {
             WorkItemAuthorityClass::LocalDraftNoProviderObject,
             WorkItemFreshnessClass::LocalDraftNeverPublished,
             WriteAuthorityClass::WriteAdmissibleLocalDraftOnlyNoProviderPath,
-            "LOCAL-17",
+            "TASK-17",
             "local:work_item:17",
             Some("work_items:transition_packet:local-draft"),
             None,
@@ -3131,7 +3155,7 @@ fn seeded_detail_records() -> Vec<WorkItemDetailRecord> {
             WorkItemAuthorityClass::ImportedHandoffEvidenceOnly,
             WorkItemFreshnessClass::ImportedSnapshotNoRefreshPath,
             WriteAuthorityClass::WriteBlockedImportedEvidenceOnlyNoProviderPath,
-            "AUR-246",
+            "INC-246",
             "provider:issue:246",
             None,
             Some("work_items:offline_handoff:imported-evidence"),
@@ -3157,6 +3181,11 @@ fn detail_record(
 ) -> WorkItemDetailRecord {
     let policy_block_ref = (row_posture_class == WorkItemRowPostureClass::PolicyBlocked)
         .then(|| "policy:block:work-item-write".to_string());
+    let object_class = match detail_id {
+        "work_items:detail:local-draft" => WorkItemObjectClass::TaskOrSubtask,
+        "work_items:detail:offline-captured" => WorkItemObjectClass::IncidentReport,
+        _ => WorkItemObjectClass::IssueOrWorkItem,
+    };
     WorkItemDetailRecord {
         record_kind: WORK_ITEM_DETAIL_RECORD_KIND.to_string(),
         schema_version: WORK_ITEM_TRANSITION_BETA_SCHEMA_VERSION,
@@ -3169,7 +3198,7 @@ fn detail_record(
         canonical_id: canonical_id.to_string(),
         title_label: format!("Reviewable work-item title for {canonical_id}"),
         target_object_identity: WorkItemObjectIdentity {
-            object_class: WorkItemObjectClass::IssueOrWorkItem,
+            object_class,
             provider_side_id: provider_side_id.to_string(),
             provider_host: "provider:host:issue-primary".to_string(),
             tenant_or_org_scope: "provider:tenant:aureline".to_string(),
@@ -3184,6 +3213,14 @@ fn detail_record(
                     WorkItemRowPostureClass::LocalDraft => "draft_new",
                     WorkItemRowPostureClass::Queued => "queued_for_triage",
                     WorkItemRowPostureClass::OfflineCaptured => "imported_snapshot",
+                    WorkItemRowPostureClass::ProviderAuthoritative
+                        if object_class == WorkItemObjectClass::IssueOrWorkItem =>
+                    {
+                        "provider_in_progress"
+                    }
+                    WorkItemRowPostureClass::CachedStale => "provider_blocked_waiting_validation",
+                    WorkItemRowPostureClass::ReadOnly => "provider_ready_for_review",
+                    WorkItemRowPostureClass::PolicyBlocked => "provider_ready_for_publish",
                     _ => "provider_triaged",
                 }
                 .to_string(),
@@ -3233,6 +3270,10 @@ fn detail_record(
             validation_evidence_class: ValidationEvidenceClass::LinkedReviewEvaluationResult,
             linked_validation_evidence_record_id_refs: vec![
                 "vcs:review_evaluation_result:work-item".to_string(),
+            ],
+            linked_run_record_id_refs: vec!["ci:run:work-item:preview".to_string()],
+            linked_incident_workspace_record_id_refs: vec![
+                "incident:workspace:work-item:preview".to_string()
             ],
             publish_preview_class: if queue_ref.is_some() {
                 PublishPreviewClass::PublishPreviewPinnedPublishLaterQueueRecord

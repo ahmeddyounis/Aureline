@@ -14,6 +14,7 @@ use aureline_incident::{
     SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD, SUPPORT_ITEM_INCIDENT_MISSING_SPANS,
     SUPPORT_RUNBOOK_PACKET_SCHEMA_REF,
 };
+use aureline_provider::{project_work_item_object_row, seeded_work_item_transition_beta_page};
 use aureline_support::bundle::{
     ActionPolicySourceContext, ActionabilityImpactClass, DiagnosticDataClass, HighRiskContentClass,
     PreviewItemSeed, RedactionState, SizeEstimate, SupportBundlePreview,
@@ -176,6 +177,14 @@ fn incident_workspace() -> aureline_incident::IncidentWorkspacePacket {
     ));
     builder.attach_crash_trail(&crash_trail_missing_symbolication());
     builder.attach_support_bundle_preview(&support_preview());
+    let provider_page = seeded_work_item_transition_beta_page();
+    builder.add_linked_work_item_row(project_work_item_object_row(
+        provider_page
+            .detail_records
+            .iter()
+            .find(|record| record.canonical_id == "INC-246")
+            .expect("incident work-item row"),
+    ));
     builder.add_missing_span(
         MissingSpan::new(
             "missing-span:trace:renderer:startup",
@@ -210,6 +219,8 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
     let kinds = evidence_kinds(&packet.evidence_attachments);
     assert!(kinds.contains(&IncidentEvidenceKind::LogSlice));
     assert!(kinds.contains(&IncidentEvidenceKind::TaskHistory));
+    assert_eq!(packet.linked_work_item_rows.len(), 1);
+    assert_eq!(packet.linked_work_item_rows[0].canonical_id, "INC-246");
 }
 
 #[test]
