@@ -79,6 +79,7 @@ use crate::badges::target_origin::{
 use crate::embedded::boundary_card::{
     FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState,
 };
+use crate::m5_rollout_governance::seeded_m5_rollout_governance_render_summary;
 
 /// Stable record-kind tag carried in serialized help/about payloads.
 pub const HELP_ABOUT_SURFACE_RECORD_KIND: &str = "help_about_surface_record";
@@ -102,6 +103,7 @@ pub enum HelpAboutSectionId {
     InstallMode,
     ClientScope,
     DocsHelpTruth,
+    M5RolloutTruth,
     ServiceHealth,
     Provenance,
     CommunityHandoff,
@@ -116,6 +118,7 @@ impl HelpAboutSectionId {
             Self::InstallMode => "install_mode",
             Self::ClientScope => "client_scope",
             Self::DocsHelpTruth => "docs_help_truth",
+            Self::M5RolloutTruth => "m5_rollout_truth",
             Self::ServiceHealth => "service_health",
             Self::Provenance => "provenance",
             Self::CommunityHandoff => "community_handoff",
@@ -130,6 +133,7 @@ impl HelpAboutSectionId {
             Self::InstallMode => "Install mode",
             Self::ClientScope => "Client scope",
             Self::DocsHelpTruth => "Docs and help truth",
+            Self::M5RolloutTruth => "M5 rollout truth",
             Self::ServiceHealth => "Service health",
             Self::Provenance => "Provenance",
             Self::CommunityHandoff => "Community handoff",
@@ -952,6 +956,29 @@ pub struct HelpAboutDocsHelpTruthSection {
     pub source_missing: bool,
 }
 
+/// One M5 rollout-governance row rendered on Help/About.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HelpAboutM5RolloutRow {
+    pub command_id: String,
+    pub display_label: String,
+    pub effective_state_label: String,
+    pub rollout_scope: String,
+    pub owner_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_kill_switch_source: Option<String>,
+    pub help_about_projection_ref: String,
+    pub settings_projection_ref: String,
+}
+
+/// M5 rollout-governance section rendered on Help/About.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HelpAboutM5RolloutSection {
+    pub row_count: usize,
+    pub active_kill_switch_row_count: usize,
+    pub narrowed_row_count: usize,
+    pub rows: Vec<HelpAboutM5RolloutRow>,
+}
+
 /// One service-health row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HelpAboutServiceHealthRow {
@@ -1126,6 +1153,7 @@ pub struct HelpAboutSurface {
     pub install_mode: HelpAboutInstallModeSection,
     pub client_scope: HelpAboutClientScopeSection,
     pub docs_help_truth: HelpAboutDocsHelpTruthSection,
+    pub m5_rollout_truth: HelpAboutM5RolloutSection,
     pub service_health: HelpAboutServiceHealthSection,
     pub provenance: HelpAboutProvenanceSection,
     pub community_handoff: HelpAboutCommunityHandoffSection,
@@ -1152,6 +1180,7 @@ impl HelpAboutSurface {
             project_install_mode(release_channel_class_token, build_identity);
         let client_scope_section = project_client_scope(execution_context);
         let docs_help_truth_section = project_docs_help_truth(docs_source_truth);
+        let m5_rollout_truth_section = project_m5_rollout_truth();
         let service_health_section = project_service_health();
         let provenance_section = project_provenance();
         let community_handoff_section = project_community_handoff();
@@ -1195,6 +1224,7 @@ impl HelpAboutSurface {
             install_mode: install_mode_section,
             client_scope: client_scope_section,
             docs_help_truth: docs_help_truth_section,
+            m5_rollout_truth: m5_rollout_truth_section,
             service_health: service_health_section,
             provenance: provenance_section,
             community_handoff: community_handoff_section,
@@ -1317,6 +1347,28 @@ impl HelpAboutSurface {
             if let Some(refed) = &self.docs_help_truth.running_build_identity_ref {
                 out.push_str(&format!("  Running build identity ref: {refed}\n"));
             }
+        }
+        out.push('\n');
+
+        out.push_str(&format!(
+            "[{}]\n  Rows: {}\n  Active kill switches: {}\n  Narrowed rows: {}\n",
+            HelpAboutSectionId::M5RolloutTruth.heading(),
+            self.m5_rollout_truth.row_count,
+            self.m5_rollout_truth.active_kill_switch_row_count,
+            self.m5_rollout_truth.narrowed_row_count,
+        ));
+        for row in &self.m5_rollout_truth.rows {
+            out.push_str(&format!(
+                "  - {} ({})\n      state={} scope={} owner={} kill_switch={} help_ref={} settings_ref={}\n",
+                row.display_label,
+                row.command_id,
+                row.effective_state_label,
+                row.rollout_scope,
+                row.owner_ref,
+                row.active_kill_switch_source.as_deref().unwrap_or("none"),
+                row.help_about_projection_ref,
+                row.settings_projection_ref,
+            ));
         }
         out.push('\n');
 
@@ -1580,6 +1632,31 @@ fn project_docs_help_truth(source: Option<&SourceTruthRecord>) -> HelpAboutDocsH
             honesty_marker_present: true,
             source_missing: true,
         },
+    }
+}
+
+fn project_m5_rollout_truth() -> HelpAboutM5RolloutSection {
+    let summary = seeded_m5_rollout_governance_render_summary();
+    let rows = summary
+        .rows
+        .into_iter()
+        .map(|row| HelpAboutM5RolloutRow {
+            command_id: row.command_id,
+            display_label: row.display_label,
+            effective_state_label: row.effective_state_label,
+            rollout_scope: format!("{} / {}", row.rollout_ring, row.cohort),
+            owner_ref: row.owner_ref,
+            active_kill_switch_source: row.active_kill_switch_source,
+            help_about_projection_ref: row.help_about_projection_ref,
+            settings_projection_ref: row.settings_projection_ref,
+        })
+        .collect::<Vec<_>>();
+
+    HelpAboutM5RolloutSection {
+        row_count: rows.len(),
+        active_kill_switch_row_count: summary.active_kill_switch_row_count,
+        narrowed_row_count: summary.narrowed_row_count,
+        rows,
     }
 }
 

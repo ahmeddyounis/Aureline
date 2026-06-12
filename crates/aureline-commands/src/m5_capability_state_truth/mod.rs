@@ -23,6 +23,7 @@ use crate::m5_command_governance::{
     seeded_m5_command_governance_packet, M5CommandGovernancePacket, M5CommandGovernanceRow,
     M5GovernanceSurfaceClass,
 };
+use crate::m5_rollout_inventory::{M5RolloutStateClass, M5_ROLLOUT_INVENTORY_PACKET_REF};
 use crate::registry::seeded_registry;
 
 #[cfg(test)]
@@ -62,6 +63,7 @@ pub const M5_CAPABILITY_STATE_TRUTH_SUPPORT_EXPORT_ID: &str =
 
 const GENERATED_AT: &str = "2026-06-12T00:00:00Z";
 const SOURCE_PACKET_REF: &str = "artifacts/commands/m5_command_governance/support_export.json";
+const SOURCE_ROLLOUT_INVENTORY_REF: &str = M5_ROLLOUT_INVENTORY_PACKET_REF;
 const SOURCE_LIFECYCLE_VOCAB_REF: &str =
     "docs/adr/0011-capability-lifecycle-and-dependency-markers.md";
 const SOURCE_PROJECTION_MATRIX_REF: &str =
@@ -449,6 +451,8 @@ pub struct M5CapabilityStateTruthPacket {
     pub doc_ref: String,
     /// Upstream command-governance source ref.
     pub source_packet_ref: String,
+    /// Upstream rollout inventory source ref.
+    pub source_rollout_inventory_ref: String,
     /// Lifecycle vocabulary source ref.
     pub lifecycle_vocabulary_ref: String,
     /// Projection-matrix source ref.
@@ -599,7 +603,10 @@ pub struct M5CapabilityStateTruthSupportExport {
 impl M5CapabilityStateTruthSupportExport {
     /// Builds a deterministic support-export wrapper from a packet.
     pub fn from_packet(support_export_id: String, packet: M5CapabilityStateTruthPacket) -> Self {
-        let mut case_ids = vec![packet.packet_id.clone()];
+        let mut case_ids = vec![
+            packet.packet_id.clone(),
+            packet.source_rollout_inventory_ref.clone(),
+        ];
         for definition in &packet.state_definitions {
             case_ids.push(definition.detail_ref.clone());
         }
@@ -761,22 +768,28 @@ fn state_definitions() -> Vec<M5CapabilityStateDefinitionRow> {
 }
 
 fn declared_state_class(row: &M5CommandGovernanceRow) -> M5CapabilityStateClass {
-    match row.lifecycle_disclosure.lifecycle_state.as_str() {
-        "stable" | "lts_facing" => M5CapabilityStateClass::Stable,
-        "deprecated" => M5CapabilityStateClass::Deprecated,
-        "preview" => M5CapabilityStateClass::Preview,
-        "labs" => M5CapabilityStateClass::Labs,
-        _ => M5CapabilityStateClass::Beta,
+    match row.rollout_governance.declared_state_class {
+        M5RolloutStateClass::Labs => M5CapabilityStateClass::Labs,
+        M5RolloutStateClass::Preview => M5CapabilityStateClass::Preview,
+        M5RolloutStateClass::Beta => M5CapabilityStateClass::Beta,
+        M5RolloutStateClass::Stable => M5CapabilityStateClass::Stable,
+        M5RolloutStateClass::Deprecated => M5CapabilityStateClass::Deprecated,
+        M5RolloutStateClass::DisabledByPolicy => M5CapabilityStateClass::DisabledByPolicy,
+        M5RolloutStateClass::RetestPending => M5CapabilityStateClass::RetestPending,
+        M5RolloutStateClass::Removed => M5CapabilityStateClass::Removed,
     }
 }
 
 fn effective_state_class(row: &M5CommandGovernanceRow) -> M5CapabilityStateClass {
-    match row.command_id.as_str() {
-        "cmd:preview.open_live_preview" => M5CapabilityStateClass::Labs,
-        "cmd:trace_replay.replay_session" => M5CapabilityStateClass::Preview,
-        "cmd:sync.push_workspace_state" => M5CapabilityStateClass::DisabledByPolicy,
-        "cmd:docs_browser.open_external" => M5CapabilityStateClass::RetestPending,
-        _ => declared_state_class(row),
+    match row.rollout_governance.effective_state_class {
+        M5RolloutStateClass::Labs => M5CapabilityStateClass::Labs,
+        M5RolloutStateClass::Preview => M5CapabilityStateClass::Preview,
+        M5RolloutStateClass::Beta => M5CapabilityStateClass::Beta,
+        M5RolloutStateClass::Stable => M5CapabilityStateClass::Stable,
+        M5RolloutStateClass::Deprecated => M5CapabilityStateClass::Deprecated,
+        M5RolloutStateClass::DisabledByPolicy => M5CapabilityStateClass::DisabledByPolicy,
+        M5RolloutStateClass::RetestPending => M5CapabilityStateClass::RetestPending,
+        M5RolloutStateClass::Removed => M5CapabilityStateClass::Removed,
     }
 }
 
@@ -882,7 +895,7 @@ impl CommandGovernanceRowExt for M5CommandGovernanceRow {
 }
 
 fn owner_ref(row: &M5CommandGovernanceRow) -> String {
-    format!("owner:m5-capability-state:{}", row.canonical_verb)
+    row.rollout_governance.owner_ref.clone()
 }
 
 fn capability_row_id(row: &M5CommandGovernanceRow) -> String {
@@ -1137,6 +1150,7 @@ pub fn seeded_m5_capability_state_truth_packet() -> M5CapabilityStateTruthPacket
         schema_ref: M5_CAPABILITY_STATE_TRUTH_SCHEMA_REF.to_string(),
         doc_ref: M5_CAPABILITY_STATE_TRUTH_DOC_REF.to_string(),
         source_packet_ref: SOURCE_PACKET_REF.to_string(),
+        source_rollout_inventory_ref: SOURCE_ROLLOUT_INVENTORY_REF.to_string(),
         lifecycle_vocabulary_ref: SOURCE_LIFECYCLE_VOCAB_REF.to_string(),
         projection_matrix_ref: SOURCE_PROJECTION_MATRIX_REF.to_string(),
         state_definitions,

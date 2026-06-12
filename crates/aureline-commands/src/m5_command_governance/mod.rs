@@ -22,6 +22,10 @@ use serde::{Deserialize, Serialize};
 use crate::automation::{labels_include, why_not_automatable_reason, ControlledAutomationLabel};
 use crate::descriptor::{CommandAlias, CommandOriginMetadata};
 use crate::enablement::DisabledReasonRecord;
+use crate::m5_rollout_inventory::{
+    current_m5_rollout_inventory_export, M5RolloutInventoryPacket, M5RolloutInventoryRow,
+    M5RolloutStateClass, M5_ROLLOUT_INVENTORY_PACKET_REF,
+};
 use crate::registry::{seeded_registry, CommandRegistryEntryRecord};
 
 #[cfg(test)]
@@ -60,24 +64,6 @@ pub const M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID: &str =
 
 const GENERATED_AT: &str = "2026-06-12T00:00:00Z";
 const SOURCE_REGISTRY_REF: &str = "artifacts/commands/m5_command_registry_seed.yaml";
-
-const M5_COMMAND_IDS: &[&str] = &[
-    "cmd:notebook.run_all_cells",
-    "cmd:data_api.send_request",
-    "cmd:profiler.start_capture",
-    "cmd:trace_replay.replay_session",
-    "cmd:docs_browser.open_external",
-    "cmd:template_scaffold.scaffold_project",
-    "cmd:review_pipeline.run_pipeline",
-    "cmd:preview.open_live_preview",
-    "cmd:companion.handoff_session",
-    "cmd:incident.open_incident",
-    "cmd:sync.push_workspace_state",
-    "cmd:offboarding.export_and_wipe",
-    "cmd:secret_broker.open_credential_review",
-    "cmd:secret_broker.open_credential_rotation",
-    "cmd:infrastructure.reconcile_workspace",
-];
 
 static ACTIVITY_REPORT_PROJECTION: OnceLock<ActivityReportProjection> = OnceLock::new();
 
@@ -668,6 +654,8 @@ pub struct M5CommandGovernanceRow {
     pub origin_disclosure: M5CommandOriginDisclosureRecord,
     /// Lifecycle and rollout disclosure for this command.
     pub lifecycle_disclosure: M5LifecycleDisclosureRecord,
+    /// Shared rollout inventory row that governs owner/cohort/expiry/kill-switch truth.
+    pub rollout_governance: M5RolloutInventoryRow,
     /// Stable alias, deprecation, and replacement metadata.
     pub alias_records: Vec<M5AliasLifecycleRecord>,
     /// Controlled or descriptor-native automation labels.
@@ -721,6 +709,10 @@ pub struct M5CommandGovernanceSummary {
     pub deprecated_alias_count: usize,
     /// Number of browser/companion routes that must hand off to desktop.
     pub browser_handoff_command_count: usize,
+    /// Number of rows with an active kill switch.
+    pub active_kill_switch_command_count: usize,
+    /// Number of rows narrowed below stable wording.
+    pub narrowed_rollout_command_count: usize,
     /// Number of total findings.
     pub finding_count: usize,
 }
@@ -742,6 +734,8 @@ pub struct M5CommandGovernancePacket {
     pub doc_ref: String,
     /// Source registry ref.
     pub source_registry_ref: String,
+    /// Shared rollout inventory ref.
+    pub source_rollout_inventory_ref: String,
     /// Ordered governance rows.
     pub rows: Vec<M5CommandGovernanceRow>,
     /// Roll-up counts.
@@ -812,14 +806,20 @@ impl M5CommandGovernancePacket {
             self.summary.browser_handoff_command_count
         ));
         out.push_str(&format!(
+            "| Active kill-switch rows | {} |\n",
+            self.summary.active_kill_switch_command_count
+        ));
+        out.push_str(&format!(
+            "| Narrowed rollout rows | {} |\n",
+            self.summary.narrowed_rollout_command_count
+        ));
+        out.push_str(&format!(
             "| Findings | {} |\n\n",
             self.summary.finding_count
         ));
 
-        out.push_str(
-            "| Command | Source | Lifecycle | Result profile | Activity join | Aliases | Findings |\n",
-        );
-        out.push_str("|---|---|---|---|---|---|---|\n");
+        out.push_str("| Command | Source | Lifecycle | Ring/cohort | Result profile | Activity join | Aliases | Findings |\n");
+        out.push_str("|---|---|---|---|---|---|---|---|\n");
         for row in &self.rows {
             let findings = if row.finding_codes.is_empty() {
                 "none".to_string()
@@ -837,10 +837,12 @@ impl M5CommandGovernancePacket {
                     .join(", ")
             };
             out.push_str(&format!(
-                "| `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | `{}` |\n",
+                "| `{}` | `{}` | `{}` | `{}` / `{}` | `{}` | `{}` | `{}` | `{}` |\n",
                 row.command_id,
                 row.origin_disclosure.source_display_label,
                 row.lifecycle_disclosure.stability_label,
+                row.rollout_governance.rollout_ring,
+                row.rollout_governance.cohort,
                 result.execution_profile_class.as_str(),
                 if result.joins_activity_center {
                     "joined"
@@ -876,13 +878,22 @@ pub struct M5CommandGovernanceSupportExport {
 impl M5CommandGovernanceSupportExport {
     /// Builds a deterministic support-export wrapper from a packet.
     pub fn from_packet(support_export_id: String, packet: M5CommandGovernancePacket) -> Self {
-        let mut case_ids = vec![packet.packet_id.clone()];
+        let mut case_ids = vec![
+            packet.packet_id.clone(),
+            packet.source_rollout_inventory_ref.clone(),
+        ];
         for row in &packet.rows {
             case_ids.push(row.command_id.clone());
             case_ids.push(row.command_revision_ref.clone());
             case_ids.push(row.capability_class_ref.clone());
             case_ids.push(row.lifecycle_disclosure.lifecycle_ref.clone());
             case_ids.push(row.lifecycle_disclosure.rollout_state_ref.clone());
+            case_ids.push(row.rollout_governance.capability_id.clone());
+            case_ids.push(row.rollout_governance.owner_ref.clone());
+            case_ids.extend(row.rollout_governance.affected_capability_ids.iter().cloned());
+            for source in &row.rollout_governance.kill_switches {
+                case_ids.push(source.source_ref.clone());
+            }
             case_ids.push(row.origin_disclosure.runtime_origin_ref.clone());
             if let Some(reference) = row.origin_disclosure.source_ref.clone() {
                 case_ids.push(reference);
@@ -1241,6 +1252,10 @@ fn route_posture_for_surface(
     entry: &CommandRegistryEntryRecord,
     surface: M5GovernanceSurfaceClass,
 ) -> M5RoutePostureClass {
+    if rollout_row_for_command(entry).effective_state_class == M5RolloutStateClass::DisabledByPolicy
+    {
+        return M5RoutePostureClass::DiagnosticsRequired;
+    }
     match surface {
         M5GovernanceSurfaceClass::Desktop => descriptor_posture(entry),
         M5GovernanceSurfaceClass::Cli => {
@@ -1375,23 +1390,29 @@ fn origin_disclosure(entry: &CommandRegistryEntryRecord) -> M5CommandOriginDiscl
     }
 }
 
-fn stability_label(lifecycle_state: &str) -> &'static str {
-    match lifecycle_state {
-        "deprecated" => "Deprecated",
-        "stable" => "Stable",
-        "lts_facing" => "LTS",
-        "beta" => "Beta",
-        "preview" => "Preview",
-        _ => "Experimental",
-    }
+fn rollout_inventory() -> M5RolloutInventoryPacket {
+    current_m5_rollout_inventory_export().expect("checked M5 rollout inventory validates")
 }
 
-fn experiment_state(entry: &CommandRegistryEntryRecord) -> &'static str {
-    match entry.descriptor.lifecycle_state.as_str() {
-        "deprecated" => "migration_window",
-        "stable" | "lts_facing" => "not_experiment_gated",
-        _ => "channel_visible",
-    }
+fn rollout_row_for_command(entry: &CommandRegistryEntryRecord) -> M5RolloutInventoryRow {
+    rollout_inventory()
+        .rows
+        .into_iter()
+        .find(|row| row.command_id == entry.descriptor.command_id)
+        .unwrap_or_else(|| {
+            panic!(
+                "M5 rollout inventory row for command {} must exist",
+                entry.descriptor.command_id
+            )
+        })
+}
+
+fn stability_label(rollout_row: &M5RolloutInventoryRow) -> &'static str {
+    rollout_row.effective_state_class.display_label()
+}
+
+fn experiment_state(rollout_row: &M5RolloutInventoryRow) -> &'static str {
+    rollout_row.promotion_state.as_str()
 }
 
 fn lifecycle_ref(entry: &CommandRegistryEntryRecord) -> String {
@@ -1402,15 +1423,16 @@ fn lifecycle_ref(entry: &CommandRegistryEntryRecord) -> String {
 }
 
 fn lifecycle_disclosure(entry: &CommandRegistryEntryRecord) -> M5LifecycleDisclosureRecord {
+    let rollout_row = rollout_row_for_command(entry);
     M5LifecycleDisclosureRecord {
         lifecycle_state: entry.descriptor.lifecycle_state.clone(),
         support_class: entry.descriptor.support_class.clone(),
         release_channel: entry.descriptor.release_channel.clone(),
         freshness_class: entry.descriptor.declared_freshness_class.clone(),
-        stability_label: stability_label(&entry.descriptor.lifecycle_state).to_string(),
-        experiment_state: experiment_state(entry).to_string(),
+        stability_label: stability_label(&rollout_row).to_string(),
+        experiment_state: experiment_state(&rollout_row).to_string(),
         lifecycle_ref: lifecycle_ref(entry),
-        rollout_state_ref: rollout_state_ref(entry),
+        rollout_state_ref: rollout_row.rollout_state_ref.clone(),
         deprecation_notice_ref: (entry.descriptor.lifecycle_state == "deprecated").then(|| {
             format!(
                 "docs:{}:deprecation",
@@ -1554,10 +1576,7 @@ fn trust_epoch_ref(entry: &CommandRegistryEntryRecord) -> String {
 }
 
 fn rollout_state_ref(entry: &CommandRegistryEntryRecord) -> String {
-    format!(
-        "rollout:{}:{}",
-        entry.descriptor.release_channel, entry.descriptor.lifecycle_state
-    )
+    rollout_row_for_command(entry).rollout_state_ref
 }
 
 fn route_runtime_origin_class(surface: M5GovernanceSurfaceClass) -> &'static str {
@@ -2115,6 +2134,7 @@ fn build_surface_row(
 fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
     let result_packet_governance = build_result_packet_governance(entry);
     let alias_records = alias_records(entry);
+    let rollout_governance = rollout_row_for_command(entry);
     let surface_rows = M5GovernanceSurfaceClass::required_coverage()
         .into_iter()
         .map(|surface| build_surface_row(entry, surface))
@@ -2123,6 +2143,18 @@ fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
     let mut finding_codes = Vec::new();
     if high_risk && entry.preview_gate_metadata.is_none() {
         finding_codes.push("missing_preview_gate_metadata".to_string());
+    }
+    if !rollout_governance.no_hidden_flag_rule_satisfied {
+        finding_codes.push("hidden_flag_rule_failed".to_string());
+    }
+    if !rollout_governance.stable_claim_allowed {
+        finding_codes.push(format!(
+            "rollout_narrowed:{}",
+            rollout_governance.effective_state_class.as_str()
+        ));
+    }
+    if rollout_governance.active_kill_switches().first().is_some() {
+        finding_codes.push("active_kill_switch".to_string());
     }
 
     M5CommandGovernanceRow {
@@ -2137,6 +2169,7 @@ fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
         ai_tool_surfacing_class: entry.descriptor.ai_tool_surfacing_class.clone(),
         origin_disclosure: origin_disclosure(entry),
         lifecycle_disclosure: lifecycle_disclosure(entry),
+        rollout_governance,
         alias_records,
         automation_labels: if entry.descriptor.automation_labels.is_empty() {
             entry.automation_labels.clone()
@@ -2155,12 +2188,19 @@ fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
 
 /// Builds the seeded M5 command-governance packet from the canonical registry.
 pub fn seeded_m5_command_governance_packet() -> M5CommandGovernancePacket {
-    let rows = M5_COMMAND_IDS
+    let rollout_inventory = rollout_inventory();
+    let rows = rollout_inventory
+        .rows
         .iter()
-        .map(|command_id| {
+        .map(|rollout_row| {
             seeded_registry()
-                .get(command_id)
-                .unwrap_or_else(|| panic!("M5 governance command {command_id} must exist"))
+                .get(&rollout_row.command_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "M5 governance command {} must exist",
+                        rollout_row.command_id
+                    )
+                })
         })
         .map(build_row)
         .collect::<Vec<_>>();
@@ -2228,6 +2268,14 @@ pub fn seeded_m5_command_governance_packet() -> M5CommandGovernancePacket {
                 })
             })
             .count(),
+        active_kill_switch_command_count: rows
+            .iter()
+            .filter(|row| !row.rollout_governance.active_kill_switches().is_empty())
+            .count(),
+        narrowed_rollout_command_count: rows
+            .iter()
+            .filter(|row| !row.rollout_governance.stable_claim_allowed)
+            .count(),
         finding_count: rows.iter().map(|row| row.finding_codes.len()).sum(),
     };
 
@@ -2239,6 +2287,7 @@ pub fn seeded_m5_command_governance_packet() -> M5CommandGovernancePacket {
         schema_ref: M5_COMMAND_GOVERNANCE_SCHEMA_REF.to_string(),
         doc_ref: M5_COMMAND_GOVERNANCE_DOC_REF.to_string(),
         source_registry_ref: SOURCE_REGISTRY_REF.to_string(),
+        source_rollout_inventory_ref: M5_ROLLOUT_INVENTORY_PACKET_REF.to_string(),
         rows,
         summary,
     }
@@ -2289,7 +2338,17 @@ pub fn validate_m5_command_governance_packet(
             || row.lifecycle_disclosure.rollout_state_ref.trim().is_empty()
             || row.lifecycle_disclosure.stability_label.trim().is_empty()
             || row.capability_class_ref.trim().is_empty()
+            || row.rollout_governance.owner_ref.trim().is_empty()
+            || row.rollout_governance.cohort.trim().is_empty()
+            || row.rollout_governance.rollout_ring.trim().is_empty()
         {
+            errors.push(
+                M5CommandGovernanceValidationError::MissingProvenanceDisclosure {
+                    command_id: row.command_id.clone(),
+                },
+            );
+        }
+        if row.rollout_governance.kill_switches.is_empty() {
             errors.push(
                 M5CommandGovernanceValidationError::MissingProvenanceDisclosure {
                     command_id: row.command_id.clone(),

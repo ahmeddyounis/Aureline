@@ -139,6 +139,14 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert!(!surface.docs_help_truth.honesty_marker_present);
     assert!(!surface.docs_help_truth.source_missing);
 
+    assert_eq!(surface.m5_rollout_truth.row_count, 15);
+    assert!(surface.m5_rollout_truth.active_kill_switch_row_count >= 1);
+    assert!(surface
+        .m5_rollout_truth
+        .rows
+        .iter()
+        .any(|row| row.command_id == "cmd:sync.push_workspace_state"));
+
     // Service-health and provenance rows are seed placeholders.
     assert_eq!(surface.service_health.rows.len(), 4);
     for row in &surface.service_health.rows {
@@ -265,6 +273,7 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert!(plaintext.contains("[Install mode]"));
     assert!(plaintext.contains("[Client scope]"));
     assert!(plaintext.contains("[Docs and help truth]"));
+    assert!(plaintext.contains("[M5 rollout truth]"));
     assert!(plaintext.contains("[Service health]"));
     assert!(plaintext.contains("[Provenance]"));
     assert!(plaintext.contains("[Community handoff]"));

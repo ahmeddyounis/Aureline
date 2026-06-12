@@ -7,3 +7,4 @@
 
 pub mod experiments_inventory;
 pub mod imported;
+pub mod m5_rollout_inventory;

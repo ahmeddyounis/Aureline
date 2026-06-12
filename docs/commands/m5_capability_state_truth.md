@@ -18,6 +18,11 @@ the seeded M5 command-governance packet rather than inventing a second source of
 truth, so lifecycle state, rollout refs, and route metadata stay aligned with
 the command-owned parity packet.
 
+The command-governance packet itself now quotes the shared M5 rollout inventory
+in `artifacts/commands/m5_rollout_inventory/packet.json`, so owner, cohort,
+expiry, promotion, and kill-switch posture flow into the capability-state
+packet from the same checked source.
+
 ### Required invariants
 
 - The packet carries canonical state definitions for `Labs`, `Preview`, `Beta`,

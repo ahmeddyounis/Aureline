@@ -113,7 +113,12 @@ fn seeded_packet_exposes_origin_lifecycle_and_alias_disclosure() {
         docs_browser.origin_disclosure.source_display_label,
         "Extension"
     );
-    assert_eq!(docs_browser.lifecycle_disclosure.stability_label, "Beta");
+    assert_eq!(docs_browser.lifecycle_disclosure.stability_label, "RetestPending");
+    assert_eq!(
+        docs_browser.rollout_governance.effective_state_class,
+        M5RolloutStateClass::RetestPending
+    );
+    assert_eq!(docs_browser.rollout_governance.owner_ref, "@ahmeddyounis");
     assert_eq!(docs_browser.alias_records.len(), 1);
     assert_eq!(docs_browser.alias_records[0].alias_state, "active");
     assert!(docs_browser.surface_rows.iter().all(|surface| surface
@@ -263,11 +268,16 @@ fn support_export_quotes_packet_and_command_ids() {
     );
 
     assert_eq!(export.packet, packet);
+    assert!(export
+        .case_ids
+        .contains(&export.packet.source_rollout_inventory_ref));
     assert!(export.case_ids.contains(&packet.packet_id));
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.command_id));
         assert!(export.case_ids.contains(&row.command_revision_ref));
         assert!(export.case_ids.contains(&row.capability_class_ref));
+        assert!(export.case_ids.contains(&row.rollout_governance.capability_id));
+        assert!(export.case_ids.contains(&row.rollout_governance.owner_ref));
         assert!(export
             .case_ids
             .contains(&row.lifecycle_disclosure.lifecycle_ref));

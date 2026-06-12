@@ -26,6 +26,7 @@ pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod m5_capability_state_truth;
 pub mod m5_command_governance;
+pub mod m5_rollout_inventory;
 pub mod publish_capability_route_inspector;
 pub mod registry;
 pub mod stabilize_client_origin_route_class;
@@ -175,6 +176,19 @@ pub use m5_command_governance::{
     M5_COMMAND_GOVERNANCE_SCHEMA_REF, M5_COMMAND_GOVERNANCE_SCHEMA_VERSION,
     M5_COMMAND_GOVERNANCE_SUMMARY_REF, M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
     M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_REF,
+};
+pub use m5_rollout_inventory::{
+    current_m5_rollout_inventory_export, rollout_inventory_row,
+    seeded_m5_rollout_inventory_packet, validate_m5_rollout_inventory_packet,
+    M5KillSwitchSourceClass, M5PromotionStateClass, M5RolloutConsumerSurfaceClass,
+    M5RolloutInventoryPacket, M5RolloutInventoryRow, M5RolloutInventorySummary,
+    M5RolloutInventorySupportExport, M5RolloutInventoryValidationError,
+    M5RolloutKillSwitchRecord, M5RolloutStateClass, M5RolloutSurfaceDisclosureRecord,
+    M5_ROLLOUT_INVENTORY_DOC_REF, M5_ROLLOUT_INVENTORY_FIXTURE_DIR,
+    M5_ROLLOUT_INVENTORY_PACKET_ID, M5_ROLLOUT_INVENTORY_PACKET_REF,
+    M5_ROLLOUT_INVENTORY_RECORD_KIND, M5_ROLLOUT_INVENTORY_SCHEMA_REF,
+    M5_ROLLOUT_INVENTORY_SCHEMA_VERSION, M5_ROLLOUT_INVENTORY_SUMMARY_REF,
+    M5_ROLLOUT_INVENTORY_SUPPORT_EXPORT_ID, M5_ROLLOUT_INVENTORY_SUPPORT_EXPORT_REF,
 };
 pub use publish_capability_route_inspector::{
     current_capability_route_inspector_export, CapabilityRouteInspectorArtifactError,
