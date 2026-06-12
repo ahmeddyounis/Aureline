@@ -121,5 +121,10 @@ fn packet_projects_m5_secret_boundary_state() {
     assert_eq!(states.len(), 1);
     assert_eq!(states[0].matrix_row_id, "m5.secret.registry.package_auth");
     assert!(states[0].vault_picker.is_some());
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        "registry_client"
+    );
+    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }

@@ -400,6 +400,135 @@ impl SecretBoundaryConsumerSurface {
     }
 }
 
+/// Concrete consumer identity that used a credential handle, delegated grant,
+/// or remote-vault projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryConsumerIdentityClass {
+    /// A local request, task, or workflow initiated the secret use directly.
+    LocalWorkflow,
+    /// A remote helper or helper-backed runtime consumed the projected
+    /// authority.
+    RemoteHelper,
+    /// A registry client consumed the projected authority.
+    RegistryClient,
+    /// A database connector or live database session consumed the projected
+    /// authority.
+    DatabaseConnector,
+    /// A preview publisher or remote-preview route consumer used the projected
+    /// authority.
+    PreviewPublisher,
+    /// A cluster or infrastructure connector consumed the projected authority.
+    ClusterConnector,
+    /// A companion handoff or companion follow surface consumed the projected
+    /// authority.
+    CompanionHandoff,
+    /// A service-issued delegate consumed the authority on the user's behalf.
+    ServiceIssuedDelegate,
+}
+
+impl SecretBoundaryConsumerIdentityClass {
+    /// Every required consumer identity in canonical order.
+    pub const ALL: [Self; 8] = [
+        Self::LocalWorkflow,
+        Self::RemoteHelper,
+        Self::RegistryClient,
+        Self::DatabaseConnector,
+        Self::PreviewPublisher,
+        Self::ClusterConnector,
+        Self::CompanionHandoff,
+        Self::ServiceIssuedDelegate,
+    ];
+
+    /// Stable token recorded in the packet and support/export projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalWorkflow => "local_workflow",
+            Self::RemoteHelper => "remote_helper",
+            Self::RegistryClient => "registry_client",
+            Self::DatabaseConnector => "database_connector",
+            Self::PreviewPublisher => "preview_publisher",
+            Self::ClusterConnector => "cluster_connector",
+            Self::CompanionHandoff => "companion_handoff",
+            Self::ServiceIssuedDelegate => "service_issued_delegate",
+        }
+    }
+}
+
+/// Bounded control that stops projection or delegated use without deleting
+/// unrelated local state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryProjectionControlClass {
+    /// Pause forwarding of a local credential into a remote boundary.
+    PauseForwarding,
+    /// Stop using the current secret or handle for downstream actions.
+    StopUsingSecret,
+    /// Drop the delegated identity while preserving local continuity.
+    DropDelegatedIdentity,
+}
+
+impl SecretBoundaryProjectionControlClass {
+    /// Every required projection control in canonical order.
+    pub const ALL: [Self; 3] = [
+        Self::PauseForwarding,
+        Self::StopUsingSecret,
+        Self::DropDelegatedIdentity,
+    ];
+
+    /// Stable token recorded in the packet and support/export projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::PauseForwarding => "pause_forwarding",
+            Self::StopUsingSecret => "stop_using_secret",
+            Self::DropDelegatedIdentity => "drop_delegated_identity",
+        }
+    }
+}
+
+/// Handle-safe outcome recorded by consumer receipts and projection-mode audit
+/// rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryUseAuditResultClass {
+    /// The consumer used the projected authority successfully.
+    Used,
+    /// Forwarding is intentionally paused.
+    ForwardingPaused,
+    /// Secret use was intentionally stopped.
+    SecretUseStopped,
+    /// Delegated identity use was intentionally dropped.
+    DelegatedIdentityDropped,
+    /// The authority expired before use could continue.
+    Expired,
+    /// The authority was revoked before use could continue.
+    Revoked,
+    /// Policy blocked the attempted use.
+    PolicyBlocked,
+    /// The backing store, vault, or trust path was unavailable.
+    Unavailable,
+    /// No usable source was configured for the attempted use.
+    NotConfigured,
+}
+
+impl SecretBoundaryUseAuditResultClass {
+    /// Stable token recorded in consumer receipts and support/export
+    /// projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Used => "used",
+            Self::ForwardingPaused => "forwarding_paused",
+            Self::SecretUseStopped => "secret_use_stopped",
+            Self::DelegatedIdentityDropped => "delegated_identity_dropped",
+            Self::Expired => "expired",
+            Self::Revoked => "revoked",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::Unavailable => "unavailable",
+            Self::NotConfigured => "not_configured",
+        }
+    }
+}
+
 /// Stable secret-class vocabulary reused by prompts, credential rows, pickers,
 /// delegated rows, and export-safe summaries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -473,6 +602,31 @@ impl SecretBoundaryHealthStateClass {
             Self::RemoteVaultUnavailable => "remote_vault_unavailable",
             Self::Missing => "missing",
             Self::NotConfigured => "not_configured",
+        }
+    }
+}
+
+/// Maps a credential-health posture onto the handle-safe audit result used by
+/// receipts and projection-mode audit rows.
+pub const fn secret_boundary_use_audit_result_for_health(
+    health_state: SecretBoundaryHealthStateClass,
+) -> SecretBoundaryUseAuditResultClass {
+    match health_state {
+        SecretBoundaryHealthStateClass::Healthy
+        | SecretBoundaryHealthStateClass::ExpiringSoon => SecretBoundaryUseAuditResultClass::Used,
+        SecretBoundaryHealthStateClass::Expired => SecretBoundaryUseAuditResultClass::Expired,
+        SecretBoundaryHealthStateClass::Revoked => SecretBoundaryUseAuditResultClass::Revoked,
+        SecretBoundaryHealthStateClass::Unavailable
+        | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+        | SecretBoundaryHealthStateClass::Missing => SecretBoundaryUseAuditResultClass::Unavailable,
+        SecretBoundaryHealthStateClass::PolicyBlocked => {
+            SecretBoundaryUseAuditResultClass::PolicyBlocked
+        }
+        SecretBoundaryHealthStateClass::ForwardingPaused => {
+            SecretBoundaryUseAuditResultClass::ForwardingPaused
+        }
+        SecretBoundaryHealthStateClass::NotConfigured => {
+            SecretBoundaryUseAuditResultClass::NotConfigured
         }
     }
 }
@@ -612,6 +766,41 @@ pub struct SecretBoundaryDeclinePath {
     pub still_works_summary: String,
 }
 
+/// Typed control shown on delegated, forwarded, remote-vault, and companion
+/// rows so users can stop projection without deleting unrelated local state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryProjectionControl {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Control class.
+    pub control_class: SecretBoundaryProjectionControlClass,
+    /// Reviewable user action label.
+    pub action_label: String,
+    /// Export-safe note describing what remains local after the control runs.
+    pub preserved_local_state: String,
+}
+
+impl SecretBoundaryProjectionControl {
+    /// Builds one standard projection control bound to the shared vocabulary.
+    pub fn new(
+        matrix_row_id: impl Into<String>,
+        control_class: SecretBoundaryProjectionControlClass,
+        action_label: impl Into<String>,
+        preserved_local_state: impl Into<String>,
+    ) -> Self {
+        Self {
+            matrix_row_id: matrix_row_id.into(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            control_class,
+            action_label: action_label.into(),
+            preserved_local_state: preserved_local_state.into(),
+        }
+    }
+}
+
 /// Shared secret-access prompt shown before a credential-bearing action uses
 /// a handle, delegated identity, browser handoff, or vault fetch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -737,8 +926,129 @@ pub struct SecretBoundaryDelegatedCredentialRow {
     pub expires_at: Option<String>,
     /// Policy or operator owner label.
     pub policy_owner_label: String,
-    /// Stop-forwarding or revoke action label.
-    pub stop_forwarding_action_label: String,
+    /// Bounded controls that pause forwarding, stop secret use, or drop
+    /// delegated identity without deleting unrelated local state.
+    pub projection_controls: Vec<SecretBoundaryProjectionControl>,
+}
+
+/// Receipt that records which actor and which consumer used a handle-safe
+/// authority boundary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryConsumerIdentityReceipt {
+    /// Stable receipt id safe for export.
+    pub receipt_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Actor class Aureline acted as.
+    pub actor_identity: SecretBoundaryActingIdentityClass,
+    /// Consumer identity that used the authority.
+    pub consumer_identity: SecretBoundaryConsumerIdentityClass,
+    /// Issuer, broker, or operator label safe for export.
+    pub issuer_label: String,
+    /// Target boundary label safe for export.
+    pub target_boundary_label: String,
+    /// Credential mode in use.
+    pub credential_mode: SecretBoundaryCredentialMode,
+    /// Projection mode in use.
+    pub projection_mode: SecretBoundaryProjectionMode,
+    /// Storage class in use.
+    pub storage_class: SecretBoundaryStorageClass,
+    /// Handle-safe result of the use.
+    pub result: SecretBoundaryUseAuditResultClass,
+}
+
+impl SecretBoundaryConsumerIdentityReceipt {
+    /// Builds one consumer-identity receipt bound to the shared vocabulary.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        receipt_id: impl Into<String>,
+        matrix_row_id: impl Into<String>,
+        actor_identity: SecretBoundaryActingIdentityClass,
+        consumer_identity: SecretBoundaryConsumerIdentityClass,
+        issuer_label: impl Into<String>,
+        target_boundary_label: impl Into<String>,
+        credential_mode: SecretBoundaryCredentialMode,
+        projection_mode: SecretBoundaryProjectionMode,
+        storage_class: SecretBoundaryStorageClass,
+        result: SecretBoundaryUseAuditResultClass,
+    ) -> Self {
+        Self {
+            receipt_id: receipt_id.into(),
+            matrix_row_id: matrix_row_id.into(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            actor_identity,
+            consumer_identity,
+            issuer_label: issuer_label.into(),
+            target_boundary_label: target_boundary_label.into(),
+            credential_mode,
+            projection_mode,
+            storage_class,
+            result,
+        }
+    }
+}
+
+/// Audit row that records the active projection mode, consumer identity, and
+/// available bounded stop/pause/drop controls for one surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryProjectionModeAudit {
+    /// Stable audit row id safe for export.
+    pub audit_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Actor class Aureline acted as.
+    pub actor_identity: SecretBoundaryActingIdentityClass,
+    /// Consumer identity that used the authority.
+    pub consumer_identity: SecretBoundaryConsumerIdentityClass,
+    /// Issuer, broker, or operator label safe for export.
+    pub issuer_label: String,
+    /// Target boundary label safe for export.
+    pub target_boundary_label: String,
+    /// Projection mode currently in effect.
+    pub projection_mode: SecretBoundaryProjectionMode,
+    /// Handle-safe result of the current or most recent projection.
+    pub result: SecretBoundaryUseAuditResultClass,
+    /// Repair owner responsible when the projection cannot continue.
+    pub repair_owner: SecretBoundaryRepairOwnerClass,
+    /// Bounded controls available on this projection.
+    pub available_controls: Vec<SecretBoundaryProjectionControlClass>,
+}
+
+impl SecretBoundaryProjectionModeAudit {
+    /// Builds one projection-mode audit row bound to the shared vocabulary.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        audit_id: impl Into<String>,
+        matrix_row_id: impl Into<String>,
+        actor_identity: SecretBoundaryActingIdentityClass,
+        consumer_identity: SecretBoundaryConsumerIdentityClass,
+        issuer_label: impl Into<String>,
+        target_boundary_label: impl Into<String>,
+        projection_mode: SecretBoundaryProjectionMode,
+        result: SecretBoundaryUseAuditResultClass,
+        repair_owner: SecretBoundaryRepairOwnerClass,
+        available_controls: Vec<SecretBoundaryProjectionControlClass>,
+    ) -> Self {
+        Self {
+            audit_id: audit_id.into(),
+            matrix_row_id: matrix_row_id.into(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            actor_identity,
+            consumer_identity,
+            issuer_label: issuer_label.into(),
+            target_boundary_label: target_boundary_label.into(),
+            projection_mode,
+            result,
+            repair_owner,
+            available_controls,
+        }
+    }
 }
 
 /// Export-safety banner shared by M5 credential-bearing surfaces.
@@ -776,6 +1086,10 @@ pub struct SecretBoundarySurfaceState {
     /// Optional delegated-credential row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegated_credential_row: Option<SecretBoundaryDelegatedCredentialRow>,
+    /// Consumer-identity receipt for the active or most recent handle-safe use.
+    pub consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt,
+    /// Projection-mode audit for the active or most recent handle-safe use.
+    pub projection_mode_audit: SecretBoundaryProjectionModeAudit,
     /// Per-profile parity rows reused by product and diagnostics.
     pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
     /// Shared export-safety banner.
@@ -826,8 +1140,12 @@ pub struct SecretBoundarySurfaceRow {
     pub storage_classes: Vec<SecretBoundaryStorageClass>,
     /// Acting identities the surface may assume.
     pub acting_identities: Vec<SecretBoundaryActingIdentityClass>,
+    /// Concrete consumers that may use the projected authority.
+    pub consumer_identities: Vec<SecretBoundaryConsumerIdentityClass>,
     /// Trust-store dependencies the surface must disclose.
     pub trust_store_dependencies: Vec<SecretBoundaryTrustStoreDependencyClass>,
+    /// Bounded stop/pause/drop controls the surface must preserve.
+    pub projection_control_classes: Vec<SecretBoundaryProjectionControlClass>,
     /// Deployment-profile parity rows for the surface.
     pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
     /// Export posture for the surface.
@@ -870,8 +1188,14 @@ pub struct SecretBoundarySummary {
     pub domain_tokens_present: Vec<String>,
     /// Default credential-mode tokens present in the matrix.
     pub default_credential_mode_tokens_present: Vec<String>,
+    /// Projection-mode tokens present in the matrix.
+    pub projection_mode_tokens_present: Vec<String>,
     /// Consumer surface tokens present in the packet.
     pub consumer_surface_tokens_present: Vec<String>,
+    /// Concrete consumer-identity tokens present in the matrix.
+    pub consumer_identity_tokens_present: Vec<String>,
+    /// Projection-control tokens present in the matrix.
+    pub projection_control_tokens_present: Vec<String>,
     /// Deployment profile tokens present in the packet.
     pub deployment_profile_tokens_present: Vec<String>,
     /// Projection-parity tokens present in the packet.
@@ -923,7 +1247,10 @@ impl M5SecretBoundaryDepthPacket {
     pub fn recompute_summary(&self) -> SecretBoundarySummary {
         let mut domain_tokens: BTreeSet<String> = BTreeSet::new();
         let mut mode_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut projection_mode_tokens: BTreeSet<String> = BTreeSet::new();
         let mut consumer_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut consumer_identity_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut projection_control_tokens: BTreeSet<String> = BTreeSet::new();
         let mut profile_tokens: BTreeSet<String> = BTreeSet::new();
         let mut parity_tokens: BTreeSet<String> = BTreeSet::new();
         let mut health_tokens: BTreeSet<String> = BTreeSet::new();
@@ -931,6 +1258,15 @@ impl M5SecretBoundaryDepthPacket {
         for row in &self.surface_rows {
             domain_tokens.insert(row.domain.as_str().to_owned());
             mode_tokens.insert(row.default_credential_mode.as_str().to_owned());
+            for projection_mode in &row.projection_modes {
+                projection_mode_tokens.insert(projection_mode.as_str().to_owned());
+            }
+            for consumer_identity in &row.consumer_identities {
+                consumer_identity_tokens.insert(consumer_identity.as_str().to_owned());
+            }
+            for control in &row.projection_control_classes {
+                projection_control_tokens.insert(control.as_str().to_owned());
+            }
             for profile_row in &row.profile_parity_rows {
                 profile_tokens.insert(profile_row.deployment_profile.as_str().to_owned());
                 parity_tokens.insert(profile_row.projection_parity.as_str().to_owned());
@@ -945,7 +1281,10 @@ impl M5SecretBoundaryDepthPacket {
             surface_count: self.surface_rows.len(),
             domain_tokens_present: domain_tokens.into_iter().collect(),
             default_credential_mode_tokens_present: mode_tokens.into_iter().collect(),
+            projection_mode_tokens_present: projection_mode_tokens.into_iter().collect(),
             consumer_surface_tokens_present: consumer_tokens.into_iter().collect(),
+            consumer_identity_tokens_present: consumer_identity_tokens.into_iter().collect(),
+            projection_control_tokens_present: projection_control_tokens.into_iter().collect(),
             deployment_profile_tokens_present: profile_tokens.into_iter().collect(),
             projection_parity_tokens_present: parity_tokens.into_iter().collect(),
             health_state_tokens_present: health_tokens.into_iter().collect(),
@@ -1015,8 +1354,18 @@ impl M5SecretBoundaryDepthPacket {
                     row.matrix_row_id.clone(),
                 ));
             }
+            if row.consumer_identities.is_empty() {
+                violations.push(M5SecretBoundaryDepthViolation::MissingConsumerIdentities(
+                    row.matrix_row_id.clone(),
+                ));
+            }
             if row.trust_store_dependencies.is_empty() {
                 violations.push(M5SecretBoundaryDepthViolation::MissingTrustDependencies(
+                    row.matrix_row_id.clone(),
+                ));
+            }
+            if row.projection_control_classes.is_empty() {
+                violations.push(M5SecretBoundaryDepthViolation::MissingProjectionControls(
                     row.matrix_row_id.clone(),
                 ));
             }
@@ -1038,6 +1387,38 @@ impl M5SecretBoundaryDepthPacket {
             {
                 violations.push(
                     M5SecretBoundaryDepthViolation::NotConfiguredWithoutLocalSafeDisclosure(
+                        row.matrix_row_id.clone(),
+                    ),
+                );
+            }
+            if row
+                .acting_identities
+                .contains(&SecretBoundaryActingIdentityClass::ForwardedLocalCredential)
+                && !row
+                    .projection_control_classes
+                    .contains(&SecretBoundaryProjectionControlClass::PauseForwarding)
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::ForwardedIdentityMissingPauseControl(
+                        row.matrix_row_id.clone(),
+                    ),
+                );
+            }
+            if row.acting_identities.iter().any(|identity| {
+                matches!(
+                    identity,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential
+                        | SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+                )
+            }) && !row.projection_control_classes.iter().any(|control| {
+                matches!(
+                    control,
+                    SecretBoundaryProjectionControlClass::StopUsingSecret
+                        | SecretBoundaryProjectionControlClass::DropDelegatedIdentity
+                )
+            }) {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::DelegatedIdentityMissingStopOrDropControl(
                         row.matrix_row_id.clone(),
                     ),
                 );
@@ -1133,6 +1514,32 @@ impl M5SecretBoundaryDepthPacket {
             }
         }
 
+        for identity in SecretBoundaryConsumerIdentityClass::ALL {
+            if !self
+                .summary
+                .consumer_identity_tokens_present
+                .iter()
+                .any(|token| token == identity.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredConsumerIdentity(identity),
+                );
+            }
+        }
+
+        for control in SecretBoundaryProjectionControlClass::ALL {
+            if !self
+                .summary
+                .projection_control_tokens_present
+                .iter()
+                .any(|token| token == control.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredProjectionControl(control),
+                );
+            }
+        }
+
         if self.summary != self.recompute_summary() {
             violations.push(M5SecretBoundaryDepthViolation::SummaryMismatch);
         }
@@ -1225,6 +1632,12 @@ pub struct SecretBoundarySupportExportRow {
     pub domain_token: String,
     /// Default credential-mode token.
     pub default_credential_mode_token: String,
+    /// Projection-mode tokens preserved for lineage/audit review.
+    pub projection_mode_tokens: Vec<String>,
+    /// Consumer-identity tokens preserved for lineage/audit review.
+    pub consumer_identity_tokens: Vec<String>,
+    /// Projection-control tokens preserved for lineage/audit review.
+    pub projection_control_tokens: Vec<String>,
     /// Export posture token.
     pub export_posture_token: String,
     /// Repair owner token.
@@ -1240,6 +1653,21 @@ impl SecretBoundarySupportExportRow {
             matrix_row_id: row.matrix_row_id.clone(),
             domain_token: row.domain.as_str().to_owned(),
             default_credential_mode_token: row.default_credential_mode.as_str().to_owned(),
+            projection_mode_tokens: row
+                .projection_modes
+                .iter()
+                .map(|mode| mode.as_str().to_owned())
+                .collect(),
+            consumer_identity_tokens: row
+                .consumer_identities
+                .iter()
+                .map(|identity| identity.as_str().to_owned())
+                .collect(),
+            projection_control_tokens: row
+                .projection_control_classes
+                .iter()
+                .map(|control| control.as_str().to_owned())
+                .collect(),
             export_posture_token: row.export_posture.as_str().to_owned(),
             repair_owner_token: row.repair_owner.as_str().to_owned(),
             profile_parity_rows: row.profile_parity_rows.clone(),
@@ -1274,8 +1702,12 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingStorageClasses(String),
     /// A row omitted every acting identity.
     MissingActingIdentities(String),
+    /// A row omitted every consumer identity.
+    MissingConsumerIdentities(String),
     /// A row omitted every trust-store dependency.
     MissingTrustDependencies(String),
+    /// A row omitted every projection control class.
+    MissingProjectionControls(String),
     /// A row omitted per-profile parity.
     MissingProfileParity(String),
     /// A row omitted one required deployment profile.
@@ -1294,12 +1726,20 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingRepairOrContinuityNote(String),
     /// A `not_configured` row omitted a local-safe metadata path.
     NotConfiguredWithoutLocalSafeDisclosure(String),
+    /// A forwarded credential path omitted the pause-forwarding control.
+    ForwardedIdentityMissingPauseControl(String),
+    /// A delegated or service-issued path omitted a stop/drop control.
+    DelegatedIdentityMissingStopOrDropControl(String),
     /// One required domain had no coverage.
     MissingDomainCoverage(SecretBoundarySurfaceDomain),
     /// One required consumer projection was absent.
     MissingConsumerProjection(SecretBoundaryConsumerSurface),
     /// A consumer projection drifted from the matrix id or vocabulary ref.
     ConsumerProjectionDrift(SecretBoundaryConsumerSurface),
+    /// A required consumer-identity token was not represented anywhere.
+    MissingRequiredConsumerIdentity(SecretBoundaryConsumerIdentityClass),
+    /// A required projection-control token was not represented anywhere.
+    MissingRequiredProjectionControl(SecretBoundaryProjectionControlClass),
     /// A required health-state token was not represented anywhere in the packet.
     MissingRequiredHealthState(SecretBoundaryHealthStateClass),
     /// The checked summary diverged from the recomputed summary.
@@ -1330,11 +1770,17 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
             Self::MissingActingIdentities(row) => {
                 write!(f, "row {row} must declare at least one acting identity")
             }
+            Self::MissingConsumerIdentities(row) => {
+                write!(f, "row {row} must declare at least one consumer identity")
+            }
             Self::MissingTrustDependencies(row) => {
                 write!(
                     f,
                     "row {row} must declare at least one trust-store dependency"
                 )
+            }
+            Self::MissingProjectionControls(row) => {
+                write!(f, "row {row} must declare at least one projection control")
             }
             Self::MissingProfileParity(row) => {
                 write!(f, "row {row} must declare per-profile parity rows")
@@ -1377,6 +1823,14 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "row {row} uses not_configured without a local-safe metadata disclosure"
             ),
+            Self::ForwardedIdentityMissingPauseControl(row) => write!(
+                f,
+                "row {row} forwards local credentials without a pause_forwarding control"
+            ),
+            Self::DelegatedIdentityMissingStopOrDropControl(row) => write!(
+                f,
+                "row {row} uses delegated/service-issued identity without stop/drop control"
+            ),
             Self::MissingDomainCoverage(domain) => {
                 write!(f, "domain {} is missing from the matrix", domain.as_str())
             }
@@ -1389,6 +1843,16 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "consumer projection {} drifted from matrix_id or vocabulary_ref",
                 surface.as_str()
+            ),
+            Self::MissingRequiredConsumerIdentity(identity) => write!(
+                f,
+                "packet must cover the {} consumer identity",
+                identity.as_str()
+            ),
+            Self::MissingRequiredProjectionControl(control) => write!(
+                f,
+                "packet must cover the {} projection control",
+                control.as_str()
             ),
             Self::MissingRequiredHealthState(state) => write!(
                 f,
@@ -1430,6 +1894,16 @@ pub fn seeded_secret_boundary_profile_parity_rows(
         .find(|row| row.matrix_row_id == matrix_row_id)
         .map(|row| row.profile_parity_rows)
         .unwrap_or_default()
+}
+
+/// Returns the canonical surface row for one matrix row id.
+pub fn seeded_secret_boundary_surface_row(
+    matrix_row_id: &str,
+) -> Option<SecretBoundarySurfaceRow> {
+    seeded_m5_secret_boundary_depth_packet()
+        .surface_rows
+        .into_iter()
+        .find(|row| row.matrix_row_id == matrix_row_id)
 }
 
 fn profile_parity_row(
@@ -1490,11 +1964,13 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::LocalWorkflow],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
             ],
+            projection_control_classes: vec![SecretBoundaryProjectionControlClass::StopUsingSecret],
             profile_parity_rows: vec![
                 profile_parity_row(
                     "m5.secret.request_workspace.send_http",
@@ -1572,10 +2048,12 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::LocalWorkflow],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
             ],
+            projection_control_classes: vec![SecretBoundaryProjectionControlClass::StopUsingSecret],
             profile_parity_rows: vec![
                 profile_parity_row(
                     "m5.secret.request_workspace.history_replay",
@@ -1654,10 +2132,15 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::DatabaseConnector],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -1738,10 +2221,15 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::DatabaseConnector],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -1822,10 +2310,16 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -1909,11 +2403,17 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -1992,10 +2492,16 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::InstallationAppGrant,
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::RegistryClient],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2072,9 +2578,15 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::PreviewPublisher],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2157,11 +2669,17 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::ClusterConnector],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::KnownHosts,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2237,9 +2755,15 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::LocalOnlyHandle,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::CompanionHandoff],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2319,11 +2843,17 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::RemoteHelper],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::KnownHosts,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2403,10 +2933,16 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryActingIdentityClass::DelegatedCredential,
                 SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
             ],
+            consumer_identities: vec![SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate],
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
+            ],
+            projection_control_classes: vec![
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                SecretBoundaryProjectionControlClass::StopUsingSecret,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
             ],
             profile_parity_rows: vec![
                 profile_parity_row(
@@ -2524,7 +3060,10 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             surface_count: 0,
             domain_tokens_present: Vec::new(),
             default_credential_mode_tokens_present: Vec::new(),
+            projection_mode_tokens_present: Vec::new(),
             consumer_surface_tokens_present: Vec::new(),
+            consumer_identity_tokens_present: Vec::new(),
+            projection_control_tokens_present: Vec::new(),
             deployment_profile_tokens_present: Vec::new(),
             projection_parity_tokens_present: Vec::new(),
             health_state_tokens_present: Vec::new(),

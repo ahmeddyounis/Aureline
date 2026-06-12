@@ -63,6 +63,19 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_auth::{
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::companion_notification_triage_review_queues_and_ci_status_cards_with_desktop_handoff::{
@@ -954,6 +967,108 @@ impl CompanionContinuitySurfacePacket {
         serde_json::to_string_pretty(self).expect("companion continuity packet serializes")
     }
 
+    /// Projects the shared M5 secret-boundary state for the companion
+    /// session-handoff lane.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(item) = self.remote_preview.first() else {
+            return Vec::new();
+        };
+
+        let matrix_row_id = "m5.secret.companion.session_handoff";
+        let target_label = format!("Companion handoff {}", item.source_session_ref);
+        let health_state = companion_secret_health_state(item.freshness);
+        let projection_controls = companion_projection_controls(matrix_row_id);
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
+        let workflows = vec![
+            companion_secret_workflow("workflow:companion.follow", "Resume companion follow"),
+            companion_secret_workflow("workflow:companion.handoff", "Return to desktop session"),
+        ];
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Stay read-only on companion".to_owned(),
+            still_works_summary:
+                "Declining keeps read-only follow state and exact desktop handoff instructions available."
+                    .to_owned(),
+        };
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: matrix_row_id.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: matrix_row_id.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Companion session handoff".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                target_workflow_label: target_label.clone(),
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                credential_mode: SecretBoundaryCredentialMode::BrowserHandoff,
+                projection_mode: SecretBoundaryProjectionMode::BrowserHandoff,
+                lifetime_label: "Companion handoff session".to_owned(),
+                expires_at: None,
+                dependent_workflows: workflows.clone(),
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: matrix_row_id.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Companion handoff credential state".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                source_class: SecretBoundaryCredentialMode::BrowserHandoff,
+                target_boundary_label: target_label.clone(),
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                projection_mode: SecretBoundaryProjectionMode::BrowserHandoff,
+                health_state,
+                expires_at: None,
+                rotate_action_label: "Refresh companion handoff".to_owned(),
+                revoke_action_label: "Revoke companion handoff".to_owned(),
+                test_action_label: "Test companion handoff".to_owned(),
+                dependent_workflows: workflows,
+                decline_path,
+            },
+            vault_picker: None,
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: matrix_row_id.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class: SecretBoundaryDelegatedUseClass::ForwardedLocalCredential,
+                target_host_or_workspace_label: target_label.clone(),
+                expires_at: None,
+                policy_owner_label: "Desktop companion session".to_owned(),
+                projection_controls: projection_controls.clone(),
+            }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{matrix_row_id}:consumer-receipt"),
+                matrix_row_id,
+                SecretBoundaryActingIdentityClass::DelegatedCredential,
+                SecretBoundaryConsumerIdentityClass::CompanionHandoff,
+                "Desktop companion session",
+                target_label.clone(),
+                SecretBoundaryCredentialMode::BrowserHandoff,
+                SecretBoundaryProjectionMode::BrowserHandoff,
+                SecretBoundaryStorageClass::SessionOnly,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{matrix_row_id}:projection-audit"),
+                matrix_row_id,
+                SecretBoundaryActingIdentityClass::DelegatedCredential,
+                SecretBoundaryConsumerIdentityClass::CompanionHandoff,
+                "Desktop companion session",
+                target_label,
+                SecretBoundaryProjectionMode::BrowserHandoff,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::User,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                matrix_row_id,
+                "Raw companion handoff tokens, callback payloads, and relay secrets stay excluded from support bundles and handoff descriptors.",
+            ),
+        }]
+    }
+
     /// Surfaces currently publishable (Stable, Beta, or Preview) and not withheld.
     pub fn publishable_surfaces(
         &self,
@@ -1124,6 +1239,55 @@ impl CompanionContinuitySurfacePacket {
 
         out
     }
+}
+
+fn companion_secret_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn companion_secret_health_state(
+    freshness: CompanionContinuityFreshness,
+) -> SecretBoundaryHealthStateClass {
+    match freshness {
+        CompanionContinuityFreshness::Live | CompanionContinuityFreshness::Cached => {
+            SecretBoundaryHealthStateClass::Healthy
+        }
+        CompanionContinuityFreshness::Stale => SecretBoundaryHealthStateClass::Expired,
+        CompanionContinuityFreshness::Unknown => SecretBoundaryHealthStateClass::Missing,
+    }
+}
+
+fn companion_projection_controls(
+    matrix_row_id: &str,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Read-only follow state and exact desktop handoff instructions remain available.";
+    vec![
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause companion credential forwarding",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::StopUsingSecret,
+            "Stop using companion handoff secret",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop companion delegated identity",
+            local_safe_note,
+        ),
+    ]
 }
 
 /// Errors emitted when reading the checked-in companion continuity export.

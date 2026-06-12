@@ -63,11 +63,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows, SecretBoundaryCredentialMode,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
     SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
-    SecretBoundaryProjectionMode, SecretBoundarySecretAccessPrompt,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
     SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
     SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
@@ -1151,6 +1155,9 @@ impl ManagedWorkspaceLifecyclePage {
                 "Repair managed runtime auth or host proof",
             ),
         ];
+        let health_state = managed_runtime_health_state(record);
+        let projection_controls = managed_runtime_projection_controls();
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
 
         vec![SecretBoundarySurfaceState {
             matrix_row_id: "m5.secret.managed.workspace_runtime".to_owned(),
@@ -1178,7 +1185,7 @@ impl ManagedWorkspaceLifecyclePage {
                 target_boundary_label: target_label.clone(),
                 storage_class: SecretBoundaryStorageClass::RemoteVault,
                 projection_mode: SecretBoundaryProjectionMode::RemoteVaultFetch,
-                health_state: managed_runtime_health_state(record),
+                health_state,
                 expires_at: record.expiry_timing_ref.clone(),
                 rotate_action_label: "Rotate managed runtime lease".to_owned(),
                 revoke_action_label: "Revoke managed runtime credential".to_owned(),
@@ -1194,8 +1201,35 @@ impl ManagedWorkspaceLifecyclePage {
                 target_host_or_workspace_label: target_label,
                 expires_at: record.expiry_timing_ref.clone(),
                 policy_owner_label: "Managed workspace control plane".to_owned(),
-                stop_forwarding_action_label: "Pause managed runtime auth".to_owned(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                "m5.secret.managed.workspace_runtime:consumer-receipt",
+                "m5.secret.managed.workspace_runtime",
+                SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                SecretBoundaryConsumerIdentityClass::RemoteHelper,
+                "Managed workspace control plane",
+                format!("Managed workspace {}", record.target_identity_ref),
+                SecretBoundaryCredentialMode::RemoteVaultFetch,
+                SecretBoundaryProjectionMode::RemoteVaultFetch,
+                SecretBoundaryStorageClass::RemoteVault,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                "m5.secret.managed.workspace_runtime:projection-audit",
+                "m5.secret.managed.workspace_runtime",
+                SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                SecretBoundaryConsumerIdentityClass::RemoteHelper,
+                "Managed workspace control plane",
+                format!("Managed workspace {}", record.target_identity_ref),
+                SecretBoundaryProjectionMode::RemoteVaultFetch,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::RemoteOperator,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 "m5.secret.managed.workspace_runtime",
             ),
@@ -1205,6 +1239,31 @@ impl ManagedWorkspaceLifecyclePage {
             ),
         }]
     }
+}
+
+fn managed_runtime_projection_controls() -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Local editing and bounded lifecycle review remain available while managed auth is closed.";
+    vec![
+        SecretBoundaryProjectionControl::new(
+            "m5.secret.managed.workspace_runtime",
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause managed runtime auth",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            "m5.secret.managed.workspace_runtime",
+            SecretBoundaryProjectionControlClass::StopUsingSecret,
+            "Stop using managed runtime secret",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            "m5.secret.managed.workspace_runtime",
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop managed runtime delegate",
+            local_safe_note,
+        ),
+    ]
 }
 
 fn managed_runtime_workflow(

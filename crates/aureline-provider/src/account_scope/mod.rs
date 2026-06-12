@@ -50,15 +50,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -1280,6 +1283,8 @@ impl AccountScopeBetaPage {
         let storage_class = account_scope_storage_class(auth_source);
         let projection_mode = account_scope_projection_mode(auth_source);
         let secret_class = account_scope_secret_class(auth_source);
+        let actor_identity = account_scope_actor_identity(delegated.is_some(), installation.is_some());
+        let consumer_identity = SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate;
         let delegated_use_class = if delegated.is_some() {
             SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
         } else if installation.is_some() {
@@ -1303,6 +1308,12 @@ impl AccountScopeBetaPage {
             account_scope_workflow("workflow:provider.scope.inspect", "Inspect provider scope"),
             account_scope_workflow("workflow:provider.scope.repair", "Repair scope or delegated identity"),
         ];
+        let projection_controls = account_scope_projection_controls(
+            PROVIDER_SCOPE_MATRIX_ROW_ID,
+            delegated.is_some(),
+            installation.is_some(),
+        );
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
 
         vec![SecretBoundarySurfaceState {
             matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
@@ -1327,7 +1338,7 @@ impl AccountScopeBetaPage {
                 display_label: "Provider scope credential state".to_owned(),
                 secret_class,
                 source_class: credential_mode,
-                target_boundary_label: target_label,
+                target_boundary_label: target_label.clone(),
                 storage_class,
                 projection_mode,
                 health_state,
@@ -1346,8 +1357,35 @@ impl AccountScopeBetaPage {
                 target_host_or_workspace_label: display_label,
                 expires_at,
                 policy_owner_label,
-                stop_forwarding_action_label: "Stop delegated provider scope".to_owned(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{PROVIDER_SCOPE_MATRIX_ROW_ID}:consumer-receipt"),
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                "Provider scope registry",
+                target_label.clone(),
+                credential_mode,
+                projection_mode,
+                storage_class,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{PROVIDER_SCOPE_MATRIX_ROW_ID}:projection-audit"),
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                "Provider scope registry",
+                target_label,
+                projection_mode,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::ProviderOperator,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PROVIDER_SCOPE_MATRIX_ROW_ID,
             ),
@@ -1367,6 +1405,51 @@ fn account_scope_workflow(
         workflow_ref: workflow_ref.into(),
         workflow_label: workflow_label.into(),
     }
+}
+
+fn account_scope_actor_identity(
+    delegated_present: bool,
+    installation_present: bool,
+) -> SecretBoundaryActingIdentityClass {
+    if delegated_present {
+        SecretBoundaryActingIdentityClass::DelegatedCredential
+    } else if installation_present {
+        SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+    } else {
+        SecretBoundaryActingIdentityClass::HumanAccount
+    }
+}
+
+fn account_scope_projection_controls(
+    matrix_row_id: &str,
+    delegated_present: bool,
+    installation_present: bool,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Scope inspection, drift review, and local draft fallback remain available.";
+    let mut controls = vec![SecretBoundaryProjectionControl::new(
+        matrix_row_id,
+        SecretBoundaryProjectionControlClass::StopUsingSecret,
+        "Stop provider scope auth",
+        local_safe_note,
+    )];
+    if delegated_present || installation_present {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop delegated provider scope",
+            local_safe_note,
+        ));
+    }
+    if installation_present {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause forwarded provider scope",
+            local_safe_note,
+        ));
+    }
+    controls
 }
 
 fn account_scope_picker_state() -> SecretBoundaryVaultPickerState {

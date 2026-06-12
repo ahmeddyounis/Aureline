@@ -6,15 +6,18 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -778,12 +781,16 @@ fn request_surface_state(
     let projection_mode = request_projection_mode(auth_source.auth_mode);
     let secret_class = request_secret_class(auth_source.auth_mode);
     let health_state = request_health_state(auth_source.auth_mode);
+    let actor_identity = request_actor_identity(auth_source.auth_mode);
+    let consumer_identity = SecretBoundaryConsumerIdentityClass::LocalWorkflow;
     let target_label = format!("{} {}", document.method_kind, document.path_template);
     let decline_path = SecretBoundaryDeclinePath {
         decline_label: "Continue local-only".to_owned(),
         still_works_summary: decline_summary.to_owned(),
     };
     let delegated_credential_row = request_delegated_row(matrix_row_id, auth_source);
+    let audit_result = secret_boundary_use_audit_result_for_health(health_state);
+    let available_controls = request_projection_controls(matrix_row_id, auth_source.auth_mode);
 
     SecretBoundarySurfaceState {
         matrix_row_id: matrix_row_id.to_owned(),
@@ -821,6 +828,33 @@ fn request_surface_state(
         },
         vault_picker: Some(request_picker_state(matrix_row_id, auth_source)),
         delegated_credential_row,
+        consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+            format!("{matrix_row_id}:consumer-receipt"),
+            matrix_row_id,
+            actor_identity,
+            consumer_identity,
+            "Workspace or provider policy",
+            format!("{requester_label} / {}", document.path_template),
+            credential_mode,
+            projection_mode,
+            storage_class,
+            audit_result,
+        ),
+        projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+            format!("{matrix_row_id}:projection-audit"),
+            matrix_row_id,
+            actor_identity,
+            consumer_identity,
+            "Workspace or provider policy",
+            format!("{requester_label} / {}", document.path_template),
+            projection_mode,
+            audit_result,
+            SecretBoundaryRepairOwnerClass::User,
+            available_controls
+                .iter()
+                .map(|control| control.control_class)
+                .collect(),
+        ),
         profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
         export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
             matrix_row_id,
@@ -912,8 +946,50 @@ fn request_delegated_row(
         target_host_or_workspace_label: "Request workspace".to_owned(),
         expires_at: request_expires_at(auth_source.auth_mode),
         policy_owner_label: "Workspace or provider policy".to_owned(),
-        stop_forwarding_action_label: "Stop delegated request auth".to_owned(),
+        projection_controls: request_projection_controls(matrix_row_id, auth_source.auth_mode),
     })
+}
+
+fn request_actor_identity(auth_mode: AuthSourceMode) -> SecretBoundaryActingIdentityClass {
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity => SecretBoundaryActingIdentityClass::DelegatedCredential,
+        AuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+        }
+        _ => SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+    }
+}
+
+fn request_projection_controls(
+    matrix_row_id: &str,
+    auth_mode: AuthSourceMode,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Editing, effective-request review, and metadata-only history remain available locally.";
+    let mut controls = vec![SecretBoundaryProjectionControl::new(
+        matrix_row_id,
+        SecretBoundaryProjectionControlClass::StopUsingSecret,
+        "Stop using request auth",
+        local_safe_note,
+    )];
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity => controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop delegated request identity",
+            local_safe_note,
+        )),
+        AuthSourceMode::ManagedServiceIdentity => {
+            controls.push(SecretBoundaryProjectionControl::new(
+                matrix_row_id,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+                "Drop managed request delegate",
+                local_safe_note,
+            ));
+        }
+        _ => {}
+    }
+    controls
 }
 
 fn request_secret_class(auth_mode: AuthSourceMode) -> SecretBoundarySecretClass {

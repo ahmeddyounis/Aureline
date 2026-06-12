@@ -67,6 +67,7 @@ than relocating it.
 |---------------------|-----------------------------|------|
 | `aureline-auth`     | `crates/aureline-auth/`     | Auth, secret-broker, approval, credential-state, and M5 secret-boundary contracts. |
 | `aureline-api`      | `crates/aureline-api/`      | Request-workspace, response, result-grid, and API/data-tooling contract packets. |
+| `aureline-companion`| `crates/aureline-companion/`| Companion continuity, handoff, sync, incident, and support-facing contract packets. |
 | `aureline-data`     | `crates/aureline-data/`     | Database and notebook-adjacent data-tooling qualification packets. |
 | `aureline-infra`    | `crates/aureline-infra/`    | Infrastructure target-context, connector, and control-plane boundary packets. |
 | `aureline-provider` | `crates/aureline-provider/` | Provider, registry, delegated-scope, and route-resolution contract packets. |

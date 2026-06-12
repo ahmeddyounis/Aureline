@@ -400,6 +400,11 @@ fn page_projects_m5_secret_boundary_state() {
         "m5.secret.managed.workspace_runtime"
     );
     assert_eq!(states[0].profile_parity_rows.len(), 4);
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        "remote_helper"
+    );
+    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }
 

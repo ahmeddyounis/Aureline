@@ -32,15 +32,18 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -820,6 +823,12 @@ impl StableProviderAccountInstallGrantRegistryPacket {
             } else {
                 return Vec::new();
             };
+        let actor_identity = if grant.is_some() {
+            SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+        } else {
+            SecretBoundaryActingIdentityClass::HumanAccount
+        };
+        let consumer_identity = SecretBoundaryConsumerIdentityClass::RegistryClient;
 
         let decline_path = SecretBoundaryDeclinePath {
             decline_label: "Continue with local dependency review".to_owned(),
@@ -831,6 +840,9 @@ impl StableProviderAccountInstallGrantRegistryPacket {
             registry_workflow("workflow:registry.install", "Authenticate install or restore"),
             registry_workflow("workflow:registry.publish", "Authenticate publish or queue"),
         ];
+        let projection_controls =
+            registry_projection_controls(REGISTRY_AUTH_MATRIX_ROW_ID, grant.is_some());
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
 
         vec![SecretBoundarySurfaceState {
             matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
@@ -902,8 +914,35 @@ impl StableProviderAccountInstallGrantRegistryPacket {
                 target_host_or_workspace_label: display_label,
                 expires_at: None,
                 policy_owner_label: "Registry or release operator".to_owned(),
-                stop_forwarding_action_label: "Stop registry auth reuse".to_owned(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{REGISTRY_AUTH_MATRIX_ROW_ID}:consumer-receipt"),
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                "Registry or release operator",
+                "Registry host auth",
+                credential_mode,
+                SecretBoundaryProjectionMode::RequestHeader,
+                storage_class,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{REGISTRY_AUTH_MATRIX_ROW_ID}:projection-audit"),
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                "Registry or release operator",
+                "Registry host auth",
+                SecretBoundaryProjectionMode::RequestHeader,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::User,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 REGISTRY_AUTH_MATRIX_ROW_ID,
             ),
@@ -919,6 +958,37 @@ impl StableProviderAccountInstallGrantRegistryPacket {
         !self.support_export.raw_url_export_allowed
             && !self.support_export.raw_provider_payload_export_allowed
     }
+}
+
+fn registry_projection_controls(
+    matrix_row_id: &str,
+    grant_present: bool,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Lockfile review, offline handoff, and metadata-only registry inspection remain available.";
+    let mut controls = vec![
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause forwarded registry credential",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::StopUsingSecret,
+            "Stop registry auth reuse",
+            local_safe_note,
+        ),
+    ];
+    if grant_present {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop delegated registry identity",
+            local_safe_note,
+        ));
+    }
+    controls
 }
 
 // ---------------------------------------------------------------------------

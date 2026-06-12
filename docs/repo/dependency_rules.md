@@ -64,6 +64,7 @@ M5 surface packets:
 |---------------------|---------------|
 | `aureline-auth`     | (no additional internal deps in this lane) |
 | `aureline-api`      | `aureline-auth` |
+| `aureline-companion`| `aureline-auth` |
 | `aureline-data`     | `aureline-auth` |
 | `aureline-infra`    | `aureline-auth` |
 | `aureline-provider` | `aureline-auth`, `aureline-support` |

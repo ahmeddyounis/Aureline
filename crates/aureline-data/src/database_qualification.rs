@@ -5,15 +5,18 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -867,12 +870,16 @@ fn database_surface_state(
     let projection_mode = database_projection_mode(row.auth_source_mode);
     let secret_class = database_secret_class(row.auth_source_mode);
     let health_state = database_health_state(row.auth_source_mode, row.write_posture);
+    let actor_identity = database_actor_identity(row.auth_source_mode);
+    let consumer_identity = SecretBoundaryConsumerIdentityClass::DatabaseConnector;
     let decline_path = SecretBoundaryDeclinePath {
         decline_label: "Stay local-only".to_owned(),
         still_works_summary: decline_summary.to_owned(),
     };
     let target_label = format!("{} on {}", row.engine, row.current_database_or_schema_ref);
     let delegated_credential_row = database_delegated_row(matrix_row_id, row);
+    let audit_result = secret_boundary_use_audit_result_for_health(health_state);
+    let available_controls = database_projection_controls(matrix_row_id, row);
 
     SecretBoundarySurfaceState {
         matrix_row_id: matrix_row_id.to_owned(),
@@ -910,6 +917,33 @@ fn database_surface_state(
         },
         vault_picker: Some(database_picker_state(matrix_row_id, row)),
         delegated_credential_row,
+        consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+            format!("{matrix_row_id}:consumer-receipt"),
+            matrix_row_id,
+            actor_identity,
+            consumer_identity,
+            "Data or platform operator",
+            format!("{} / {}", requester_label, row.target_identity_ref),
+            credential_mode,
+            projection_mode,
+            storage_class,
+            audit_result,
+        ),
+        projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+            format!("{matrix_row_id}:projection-audit"),
+            matrix_row_id,
+            actor_identity,
+            consumer_identity,
+            "Data or platform operator",
+            format!("{} / {}", requester_label, row.target_identity_ref),
+            projection_mode,
+            audit_result,
+            SecretBoundaryRepairOwnerClass::DataOperator,
+            available_controls
+                .iter()
+                .map(|control| control.control_class)
+                .collect(),
+        ),
         profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
         export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
             matrix_row_id,
@@ -999,8 +1033,64 @@ fn database_delegated_row(
         target_host_or_workspace_label: row.target_identity_ref.clone(),
         expires_at: database_expires_at(row.auth_source_mode),
         policy_owner_label: "Data or platform operator".to_owned(),
-        stop_forwarding_action_label: "Stop delegated DB auth".to_owned(),
+        projection_controls: database_projection_controls(matrix_row_id, row),
     })
+}
+
+fn database_actor_identity(
+    auth_mode: DatabaseAuthSourceMode,
+) -> SecretBoundaryActingIdentityClass {
+    match auth_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity => {
+            SecretBoundaryActingIdentityClass::DelegatedCredential
+        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+        }
+        _ => SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+    }
+}
+
+fn database_projection_controls(
+    matrix_row_id: &str,
+    row: &DatabaseConnectionCorpusRow,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Schema inspection, statement review, and imported-result browsing remain available.";
+    let mut controls = vec![SecretBoundaryProjectionControl::new(
+        matrix_row_id,
+        SecretBoundaryProjectionControlClass::StopUsingSecret,
+        "Stop using database credential",
+        local_safe_note,
+    )];
+    match row.auth_source_mode {
+        DatabaseAuthSourceMode::SecretBrokerHandle => controls.push(
+            SecretBoundaryProjectionControl::new(
+                matrix_row_id,
+                SecretBoundaryProjectionControlClass::PauseForwarding,
+                "Pause forwarded DB credential",
+                local_safe_note,
+            ),
+        ),
+        DatabaseAuthSourceMode::DelegatedIdentity => controls.push(
+            SecretBoundaryProjectionControl::new(
+                matrix_row_id,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+                "Drop delegated DB identity",
+                local_safe_note,
+            ),
+        ),
+        DatabaseAuthSourceMode::ManagedServiceIdentity => controls.push(
+            SecretBoundaryProjectionControl::new(
+                matrix_row_id,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+                "Drop managed DB delegate",
+                local_safe_note,
+            ),
+        ),
+        _ => {}
+    }
+    controls
 }
 
 fn database_secret_class(auth_mode: DatabaseAuthSourceMode) -> SecretBoundarySecretClass {

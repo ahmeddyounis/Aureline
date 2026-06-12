@@ -84,6 +84,11 @@ fn packet_projects_m5_secret_boundary_states() {
         states[1].matrix_row_id,
         "m5.secret.database.query_history_portability"
     );
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        "database_connector"
+    );
+    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }
 

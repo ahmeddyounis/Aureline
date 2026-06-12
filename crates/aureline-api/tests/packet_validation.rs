@@ -53,6 +53,11 @@ fn workspace_packet_projects_m5_secret_boundary_states() {
         states[0].secret_access_prompt.vocabulary_ref,
         "docs/security/m5/m5-secret-boundary-depth.md#shared-vocabulary"
     );
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        "local_workflow"
+    );
+    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }
 

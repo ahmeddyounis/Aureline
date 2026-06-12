@@ -199,5 +199,10 @@ fn seeded_page_projects_m5_secret_boundary_state() {
         "m5.secret.provider_model.route_resolution"
     );
     assert!(states[0].delegated_credential_row.is_some());
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        "service_issued_delegate"
+    );
+    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }

@@ -125,6 +125,28 @@ fn summary_tracks_required_degraded_states() {
 }
 
 #[test]
+fn summary_tracks_required_consumer_identities_and_projection_controls() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let consumer_tokens = &packet.summary.consumer_identity_tokens_present;
+    for identity in SecretBoundaryConsumerIdentityClass::ALL {
+        assert!(
+            consumer_tokens.iter().any(|token| token == identity.as_str()),
+            "missing consumer identity {}",
+            identity.as_str()
+        );
+    }
+
+    let control_tokens = &packet.summary.projection_control_tokens_present;
+    for control in SecretBoundaryProjectionControlClass::ALL {
+        assert!(
+            control_tokens.iter().any(|token| token == control.as_str()),
+            "missing projection control {}",
+            control.as_str()
+        );
+    }
+}
+
+#[test]
 fn duplicate_row_id_fails_validation() {
     let mut packet = seeded_m5_secret_boundary_depth_packet();
     packet.surface_rows[1].matrix_row_id = packet.surface_rows[0].matrix_row_id.clone();
@@ -164,5 +186,19 @@ fn forwarding_paused_requires_forwarded_local_parity() {
     assert!(packet.validate().iter().any(|violation| matches!(
         violation,
         M5SecretBoundaryDepthViolation::ForwardingPausedParityDrift(_, _)
+    )));
+}
+
+#[test]
+fn forwarded_identity_requires_pause_control() {
+    let mut packet = seeded_m5_secret_boundary_depth_packet();
+    packet.surface_rows[0]
+        .projection_control_classes
+        .retain(|control| *control != SecretBoundaryProjectionControlClass::PauseForwarding);
+    packet.surface_rows[0].acting_identities =
+        vec![SecretBoundaryActingIdentityClass::ForwardedLocalCredential];
+    assert!(packet.validate().iter().any(|violation| matches!(
+        violation,
+        M5SecretBoundaryDepthViolation::ForwardedIdentityMissingPauseControl(_)
     )));
 }

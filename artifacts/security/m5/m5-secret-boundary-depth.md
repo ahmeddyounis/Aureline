@@ -25,8 +25,10 @@ Every row carries:
 - four deployment-profile parity rows
 - allowed credential modes
 - projection modes
+- consumer identities
 - storage classes
 - acting identity classes
+- bounded projection controls
 - per-profile bounded next actions
 - trust-store dependencies
 - export posture
@@ -37,6 +39,8 @@ The packet-wide summary now proves coverage for:
 
 - `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline`
 - `local_handle`, `forwarded_local_credential`, `remote_vault_fetch`, `session_only_secret`, `delegated_identity`, and `missing`
+- `local_workflow`, `remote_helper`, `registry_client`, `database_connector`, `preview_publisher`, `cluster_connector`, `companion_handoff`, `service_issued_delegate`
+- `pause_forwarding`, `stop_using_secret`, and `drop_delegated_identity`
 - `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
 
 ## Row Summary
@@ -60,5 +64,5 @@ The packet-wide summary now proves coverage for:
 
 - `docs_help` must quote the checked `matrix_id`, row ids, and shared vocabulary.
 - `diagnostics` must show row ids, acting identity, and repair owner before downstream failure details.
-- `support_export` must preserve row ids, default modes, per-profile parity rows, export posture, and repair owner while excluding raw secret values and raw handle ids.
+- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, per-profile parity rows, export posture, and repair owner while excluding raw secret values and raw handle ids.
 - `release_public_truth` must publish only checked matrix ids, row ids, and summary vocabulary.

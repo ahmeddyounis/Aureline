@@ -9,15 +9,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -485,6 +488,8 @@ impl InfraBoundaryPacket {
         let storage_class = infra_storage_class(self.environment_context.issuance_source.as_str());
         let projection_mode = infra_projection_mode(review.connector_class);
         let health_state = infra_health_state(review.connector_class, review.action_posture);
+        let actor_identity = infra_actor_identity(review.connector_class);
+        let consumer_identity = SecretBoundaryConsumerIdentityClass::ClusterConnector;
         let target_label = format!(
             "{} / {}",
             self.environment_context.provider, self.environment_context.account_subscription_project
@@ -499,6 +504,9 @@ impl InfraBoundaryPacket {
             infra_workflow("workflow:infra.inspect", "Inspect target context"),
             infra_workflow("workflow:infra.live", "Connect live infra or control-plane action"),
         ];
+        let projection_controls =
+            infra_projection_controls(INFRA_CONNECTOR_MATRIX_ROW_ID, review.connector_class);
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
 
         vec![SecretBoundarySurfaceState {
             matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
@@ -583,8 +591,43 @@ impl InfraBoundaryPacket {
                 target_host_or_workspace_label: target_label,
                 expires_at: self.environment_context.expiry.clone(),
                 policy_owner_label: self.environment_context.execution_context_profile.clone(),
-                stop_forwarding_action_label: "Stop connector credential projection".to_owned(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{INFRA_CONNECTOR_MATRIX_ROW_ID}:consumer-receipt"),
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                self.environment_context.execution_context_profile.clone(),
+                format!(
+                    "{} / {}",
+                    self.environment_context.provider,
+                    self.environment_context.account_subscription_project
+                ),
+                credential_mode,
+                projection_mode,
+                storage_class,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{INFRA_CONNECTOR_MATRIX_ROW_ID}:projection-audit"),
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                self.environment_context.execution_context_profile.clone(),
+                format!(
+                    "{} / {}",
+                    self.environment_context.provider,
+                    self.environment_context.account_subscription_project
+                ),
+                projection_mode,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::RemoteOperator,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 INFRA_CONNECTOR_MATRIX_ROW_ID,
             ),
@@ -604,6 +647,47 @@ fn infra_workflow(
         workflow_ref: workflow_ref.into(),
         workflow_label: workflow_label.into(),
     }
+}
+
+fn infra_actor_identity(connector_class: ConnectorClass) -> SecretBoundaryActingIdentityClass {
+    match connector_class {
+        ConnectorClass::AgentMediatedLive | ConnectorClass::ProviderConsoleOverlay => {
+            SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+        }
+        ConnectorClass::CliMediated => SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+        ConnectorClass::StaticFileOnly => SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+    }
+}
+
+fn infra_projection_controls(
+    matrix_row_id: &str,
+    connector_class: ConnectorClass,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Manifest inspection, drift review, and policy explanation remain local-safe.";
+    let mut controls = vec![SecretBoundaryProjectionControl::new(
+        matrix_row_id,
+        SecretBoundaryProjectionControlClass::StopUsingSecret,
+        "Stop connector secret use",
+        local_safe_note,
+    )];
+    match connector_class {
+        ConnectorClass::CliMediated => controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause forwarded connector credential",
+            local_safe_note,
+        )),
+        ConnectorClass::AgentMediatedLive | ConnectorClass::ProviderConsoleOverlay => controls
+            .push(SecretBoundaryProjectionControl::new(
+                matrix_row_id,
+                SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+                "Drop delegated connector identity",
+                local_safe_note,
+            )),
+        ConnectorClass::StaticFileOnly => {}
+    }
+    controls
 }
 
 fn infra_credential_mode(handle_class: &str) -> SecretBoundaryCredentialMode {

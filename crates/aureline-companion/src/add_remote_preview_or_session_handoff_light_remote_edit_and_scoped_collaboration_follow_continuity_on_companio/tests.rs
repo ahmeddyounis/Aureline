@@ -56,6 +56,26 @@ fn canonical_surface_handoffs_are_exact() {
 }
 
 #[test]
+fn canonical_surface_projects_m5_secret_boundary_state() {
+    let packet = packet();
+    let states = packet.secret_boundary_states();
+    assert_eq!(states.len(), 1);
+    assert_eq!(
+        states[0].matrix_row_id,
+        "m5.secret.companion.session_handoff"
+    );
+    assert_eq!(
+        states[0].consumer_identity_receipt.consumer_identity,
+        SecretBoundaryConsumerIdentityClass::CompanionHandoff
+    );
+    assert_eq!(
+        states[0].projection_mode_audit.projection_mode,
+        SecretBoundaryProjectionMode::BrowserHandoff
+    );
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}
+
+#[test]
 fn read_only_surfaces_never_write() {
     let packet = packet();
     assert!(packet

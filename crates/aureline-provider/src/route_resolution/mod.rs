@@ -33,15 +33,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -968,6 +971,8 @@ impl RouteResolutionBetaPage {
         let secret_class = provider_route_secret_class(row.grant.auth_source);
         let health_state =
             provider_route_health_state(row.grant.auth_source, row.route_degraded_state);
+        let actor_identity = provider_route_actor_identity(row.grant.acting_identity_class);
+        let consumer_identity = SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate;
         let target_label = format!(
             "{} via {}",
             row.display_label, row.route.transport_label
@@ -978,6 +983,9 @@ impl RouteResolutionBetaPage {
                 "Declining keeps cached metadata, route review, and local draft or publish-later fallback available."
                     .to_owned(),
         };
+        let projection_controls =
+            provider_route_projection_controls(PROVIDER_ROUTE_MATRIX_ROW_ID, row);
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
 
         vec![SecretBoundarySurfaceState {
             matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
@@ -1033,8 +1041,35 @@ impl RouteResolutionBetaPage {
                 target_host_or_workspace_label: row.route.target_identity_ref.clone(),
                 expires_at: row.freshness.stale_after.clone(),
                 policy_owner_label: row.owner.owner_label.clone(),
-                stop_forwarding_action_label: "Stop routed provider auth".to_owned(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{PROVIDER_ROUTE_MATRIX_ROW_ID}:consumer-receipt"),
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                row.owner.owner_label.clone(),
+                row.route.target_identity_ref.clone(),
+                credential_mode,
+                projection_mode,
+                storage_class,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{PROVIDER_ROUTE_MATRIX_ROW_ID}:projection-audit"),
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                row.owner.owner_label.clone(),
+                row.route.target_identity_ref.clone(),
+                projection_mode,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::ProviderOperator,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PROVIDER_ROUTE_MATRIX_ROW_ID,
             ),
@@ -1054,6 +1089,57 @@ fn provider_route_workflow(
         workflow_ref: workflow_ref.into(),
         workflow_label: workflow_label.into(),
     }
+}
+
+fn provider_route_actor_identity(
+    acting_identity: ActingIdentityClass,
+) -> SecretBoundaryActingIdentityClass {
+    match acting_identity {
+        ActingIdentityClass::ConnectedAccount => SecretBoundaryActingIdentityClass::HumanAccount,
+        ActingIdentityClass::InstallationGrant => {
+            SecretBoundaryActingIdentityClass::InstallationAppGrant
+        }
+        ActingIdentityClass::DelegatedCredential => {
+            SecretBoundaryActingIdentityClass::DelegatedCredential
+        }
+    }
+}
+
+fn provider_route_projection_controls(
+    matrix_row_id: &str,
+    row: &RouteResolutionRow,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Cached metadata, route review, and local draft or publish-later fallback remain available.";
+    let mut controls = vec![SecretBoundaryProjectionControl::new(
+        matrix_row_id,
+        SecretBoundaryProjectionControlClass::StopUsingSecret,
+        "Stop routed provider auth",
+        local_safe_note,
+    )];
+    if matches!(
+        row.grant.acting_identity_class,
+        ActingIdentityClass::DelegatedCredential | ActingIdentityClass::InstallationGrant
+    ) {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop delegated provider route",
+            local_safe_note,
+        ));
+    }
+    if matches!(
+        row.owner.owner_class,
+        RouteOwnerClass::ManagedPolicyAuthority | RouteOwnerClass::TunnelSessionOwner
+    ) {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause forwarded provider credential",
+            local_safe_note,
+        ));
+    }
+    controls
 }
 
 fn provider_route_picker_state() -> SecretBoundaryVaultPickerState {

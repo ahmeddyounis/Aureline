@@ -24,15 +24,18 @@
 //!   under what auth/expiry posture?".
 
 use aureline_auth::{
-    seeded_secret_boundary_profile_parity_rows,
-    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
-    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
-    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
-    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
-    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
-    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
-    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
-    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
+    SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
+    SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -819,6 +822,8 @@ impl RouteObject {
         let storage_class = route_storage_class(self.auth.auth_source_class);
         let projection_mode = route_projection_mode(self.auth.auth_source_class);
         let health_state = route_health_state(self.auth.auth_source_class, self.lifecycle_state);
+        let actor_identity = route_actor_identity(self.auth.auth_source_class);
+        let consumer_identity = SecretBoundaryConsumerIdentityClass::PreviewPublisher;
         let target_label = format!(
             "{} / {}",
             self.source.service_label, self.controlled_exposure_label.as_str()
@@ -829,6 +834,12 @@ impl RouteObject {
                 "Declining keeps local preview, route review, and exact desktop handoff instructions available."
                     .to_owned(),
         };
+        let projection_controls =
+            route_projection_controls(PREVIEW_ROUTE_MATRIX_ROW_ID, self.auth.auth_source_class);
+        let audit_result = secret_boundary_use_audit_result_for_health(health_state);
+        let issuer_label = review
+            .map(|review| review.summary.clone())
+            .unwrap_or_else(|| self.revocation.summary.clone());
 
         SecretBoundarySurfaceState {
             matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
@@ -877,11 +888,36 @@ impl RouteObject {
                 delegated_use_class: route_delegated_use(self.auth.auth_source_class),
                 target_host_or_workspace_label: self.host_identity.workspace_identity_ref.clone(),
                 expires_at: self.expiry.expires_at.clone(),
-                policy_owner_label: review
-                    .map(|review| review.summary.clone())
-                    .unwrap_or_else(|| self.revocation.summary.clone()),
-                stop_forwarding_action_label: "Stop preview route exposure".to_owned(),
+                policy_owner_label: issuer_label.clone(),
+                projection_controls: projection_controls.clone(),
             }),
+            consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt::new(
+                format!("{PREVIEW_ROUTE_MATRIX_ROW_ID}:consumer-receipt"),
+                PREVIEW_ROUTE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                issuer_label.clone(),
+                self.host_identity.workspace_identity_ref.clone(),
+                credential_mode,
+                projection_mode,
+                storage_class,
+                audit_result,
+            ),
+            projection_mode_audit: SecretBoundaryProjectionModeAudit::new(
+                format!("{PREVIEW_ROUTE_MATRIX_ROW_ID}:projection-audit"),
+                PREVIEW_ROUTE_MATRIX_ROW_ID,
+                actor_identity,
+                consumer_identity,
+                issuer_label,
+                self.host_identity.workspace_identity_ref.clone(),
+                projection_mode,
+                audit_result,
+                SecretBoundaryRepairOwnerClass::RemoteOperator,
+                projection_controls
+                    .iter()
+                    .map(|control| control.control_class)
+                    .collect(),
+            ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PREVIEW_ROUTE_MATRIX_ROW_ID,
             ),
@@ -891,6 +927,57 @@ impl RouteObject {
             ),
         }
     }
+}
+
+fn route_actor_identity(auth_source: AuthSourceClass) -> SecretBoundaryActingIdentityClass {
+    match auth_source {
+        AuthSourceClass::OrganizationSso
+        | AuthSourceClass::ExternalAuthPassthrough
+        | AuthSourceClass::ApprovalTicketRequired => {
+            SecretBoundaryActingIdentityClass::DelegatedCredential
+        }
+        AuthSourceClass::MachineToMachineAllowlist => {
+            SecretBoundaryActingIdentityClass::ServiceIssuedAuthority
+        }
+        _ => SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+    }
+}
+
+fn route_projection_controls(
+    matrix_row_id: &str,
+    auth_source: AuthSourceClass,
+) -> Vec<SecretBoundaryProjectionControl> {
+    let local_safe_note =
+        "Local preview, route review, and exact desktop handoff instructions remain available.";
+    let mut controls = vec![
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::PauseForwarding,
+            "Pause forwarded preview credential",
+            local_safe_note,
+        ),
+        SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::StopUsingSecret,
+            "Stop preview route exposure",
+            local_safe_note,
+        ),
+    ];
+    if matches!(
+        auth_source,
+        AuthSourceClass::OrganizationSso
+            | AuthSourceClass::ExternalAuthPassthrough
+            | AuthSourceClass::ApprovalTicketRequired
+            | AuthSourceClass::MachineToMachineAllowlist
+    ) {
+        controls.push(SecretBoundaryProjectionControl::new(
+            matrix_row_id,
+            SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
+            "Drop delegated preview identity",
+            local_safe_note,
+        ));
+    }
+    controls
 }
 
 fn route_workflow(
