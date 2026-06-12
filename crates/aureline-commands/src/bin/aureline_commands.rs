@@ -2,10 +2,20 @@ use aureline_commands::alpha::alpha_command_registry;
 use aureline_commands::automation::current_safe_automation_qualification_export;
 use aureline_commands::finalize_command_parity::current_finalize_command_parity_export;
 use aureline_commands::harden_high_risk_command::current_high_risk_command_hardening_export;
+use aureline_commands::m5_command_governance::{
+    current_m5_command_governance_export, M5CommandGovernanceSupportExport,
+    M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
+};
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::stabilize_command_discoverability_records_alias_history::current_command_discoverability_export;
 
 fn main() {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if let Some(rendered) = maybe_render_m5_command_governance(&args) {
+        print!("{rendered}");
+        return;
+    }
+
     let registry = seeded_registry();
     let alpha_registry = alpha_command_registry();
 
@@ -273,6 +283,27 @@ fn main() {
     push_json_array(&mut out, &required_surfaces);
     out.push_str("\n  }\n}\n");
     print!("{out}");
+}
+
+fn maybe_render_m5_command_governance(args: &[String]) -> Option<String> {
+    if args.first().map(String::as_str) != Some("m5-command-governance") {
+        return None;
+    }
+
+    let packet = current_m5_command_governance_export()
+        .expect("checked M5 command-governance export validates");
+    let mode = args.get(1).map(String::as_str).unwrap_or("json");
+    Some(match mode {
+        "summary" | "summary-md" => packet.render_markdown(),
+        "support-export" => {
+            serde_json::to_string_pretty(&M5CommandGovernanceSupportExport::from_packet(
+                M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID.to_string(),
+                packet,
+            ))
+            .expect("support export must serialize")
+        }
+        _ => serde_json::to_string_pretty(&packet).expect("packet must serialize"),
+    })
 }
 
 fn push_json_array(out: &mut String, values: &[String]) {

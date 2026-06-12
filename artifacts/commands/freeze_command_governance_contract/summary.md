@@ -1,8 +1,8 @@
 # Command Governance Contract
 
 - Packet: `command-governance-contract:stable:0001`
-- Feature families: 10 (7 narrowed below Stable)
-- Surface rows: 60 (37 narrowed below Stable)
+- Feature families: 11 (8 narrowed below Stable)
+- Surface rows: 66 (43 narrowed below Stable)
 - Descriptor fields: 8
 - Invocation-session fields: 8
 - Result-packet fields: 8

@@ -24,6 +24,7 @@ pub mod freeze_command_governance_contract;
 pub mod harden_ai_and_command_support_export_parity_audit;
 pub mod harden_high_risk_command;
 pub mod invocation;
+pub mod m5_command_governance;
 pub mod publish_capability_route_inspector;
 pub mod registry;
 pub mod stabilize_client_origin_route_class;
@@ -145,6 +146,19 @@ pub use harden_high_risk_command::{
 };
 pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
+};
+pub use m5_command_governance::{
+    current_m5_command_governance_export, seeded_m5_command_governance_packet,
+    validate_m5_command_governance_packet, M5ApprovalModelClass, M5ApprovalParityPacketRecord,
+    M5CommandGovernancePacket, M5CommandGovernanceRow, M5CommandGovernanceSummary,
+    M5CommandGovernanceSupportExport, M5CommandGovernanceValidationError,
+    M5CopySafeIntrospectionRecord, M5DisabledReasonFamilyClass, M5DisabledReasonPacketRecord,
+    M5GovernanceSurfaceClass, M5InvocationPreviewParityRecord, M5RoutePostureClass,
+    M5SurfaceGovernanceRow, M5_COMMAND_GOVERNANCE_DOC_REF, M5_COMMAND_GOVERNANCE_FIXTURE_DIR,
+    M5_COMMAND_GOVERNANCE_PACKET_ID, M5_COMMAND_GOVERNANCE_RECORD_KIND,
+    M5_COMMAND_GOVERNANCE_SCHEMA_REF, M5_COMMAND_GOVERNANCE_SCHEMA_VERSION,
+    M5_COMMAND_GOVERNANCE_SUMMARY_REF, M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
+    M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_REF,
 };
 pub use publish_capability_route_inspector::{
     current_capability_route_inspector_export, CapabilityRouteInspectorArtifactError,
