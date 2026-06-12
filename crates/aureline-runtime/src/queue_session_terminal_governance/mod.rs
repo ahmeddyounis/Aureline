@@ -1,0 +1,2236 @@
+//! Queue, restore-continuity, and terminal-boundary governance packet.
+//!
+//! This module freezes one metadata-only contract for background-heavy,
+//! restorable, and terminal-adjacent runtime surfaces. It does not implement
+//! scheduling, restore, or PTY behavior directly; it publishes the shared
+//! vocabulary that notebook, data, pipeline, preview, profiler, docs-recall,
+//! sync/offboarding, companion, incident, and infrastructure surfaces project
+//! into activity rows, restore summaries, terminal chrome, support export,
+//! release evidence, and docs/help.
+//!
+//! A stable workload row is only valid when it names:
+//!
+//! - one canonical queue identity bundle: lane, collapse key, budget domain,
+//!   checkpoint policy, retry posture, cancellation posture, and an opaque
+//!   queue identity ref;
+//! - one restore continuity bundle: restore fidelity, no-hidden-rerun class,
+//!   and an opaque restore anchor ref;
+//! - one explicit terminal-boundary bundle when the workload crosses an
+//!   execution boundary: boundary class, clipboard posture, and an opaque
+//!   boundary ref;
+//! - one downgrade rule so stale queue metadata, restore fidelity, or boundary
+//!   proof narrows the claim instead of inheriting adjacent stable truth.
+//!
+//! The packet is intentionally metadata-only. Raw commands, transcript bodies,
+//! provider payloads, credentials, and ambient authority never cross this
+//! boundary.
+
+use std::collections::BTreeSet;
+
+use serde::{Deserialize, Serialize};
+
+/// Stable record-kind tag for [`QueueSessionTerminalGovernancePacket`].
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND: &str =
+    "queue_session_terminal_governance_packet";
+
+/// Stable record-kind tag for [`QueueSessionTerminalGovernanceSupportExport`].
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND: &str =
+    "queue_session_terminal_governance_support_export";
+
+/// Integer schema version for the governance packet.
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION: u32 = 1;
+
+/// Repo-relative schema reference for the governance packet.
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF: &str =
+    "schemas/runtime/queue-session-terminal-governance.schema.json";
+
+/// Repo-relative contract document reference.
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF: &str =
+    "docs/runtime/queue-session-terminal-governance.md";
+
+/// Repo-relative reviewer matrix artifact reference.
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF: &str =
+    "artifacts/runtime/queue-session-terminal-governance.md";
+
+/// Repo-relative fixture corpus directory.
+pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR: &str =
+    "fixtures/runtime/queue_session_terminal_governance";
+
+/// Runtime workload class governed by this contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernedWorkloadClass {
+    /// Notebook execution surfaces and restored kernel-linked sessions.
+    NotebookSession,
+    /// Data and query-console execution surfaces.
+    DataQueryConsole,
+    /// Pipeline execution and run-review surfaces.
+    PipelineRun,
+    /// Preview routes and attached preview runtimes.
+    PreviewRoute,
+    /// Profiler capture and replay surfaces.
+    ProfilerCapture,
+    /// Docs browser recall and captured recall surfaces.
+    DocsRecall,
+    /// Sync, export, and offboarding continuity flows.
+    SyncOffboardingFlow,
+    /// Companion handoff surfaces.
+    CompanionHandoff,
+    /// Incident workspace and shared recovery surfaces.
+    IncidentWorkspace,
+    /// Infrastructure and terminal-heavy runbook sessions.
+    InfrastructureSession,
+}
+
+impl GovernedWorkloadClass {
+    /// Every workload the checked-in packet must cover.
+    pub const REQUIRED: [Self; 10] = [
+        Self::NotebookSession,
+        Self::DataQueryConsole,
+        Self::PipelineRun,
+        Self::PreviewRoute,
+        Self::ProfilerCapture,
+        Self::DocsRecall,
+        Self::SyncOffboardingFlow,
+        Self::CompanionHandoff,
+        Self::IncidentWorkspace,
+        Self::InfrastructureSession,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotebookSession => "notebook_session",
+            Self::DataQueryConsole => "data_query_console",
+            Self::PipelineRun => "pipeline_run",
+            Self::PreviewRoute => "preview_route",
+            Self::ProfilerCapture => "profiler_capture",
+            Self::DocsRecall => "docs_recall",
+            Self::SyncOffboardingFlow => "sync_offboarding_flow",
+            Self::CompanionHandoff => "companion_handoff",
+            Self::IncidentWorkspace => "incident_workspace",
+            Self::InfrastructureSession => "infrastructure_session",
+        }
+    }
+
+    /// Returns true when the workload must carry a terminal-boundary row.
+    pub const fn requires_terminal_boundary(self) -> bool {
+        matches!(
+            self,
+            Self::NotebookSession
+                | Self::DataQueryConsole
+                | Self::PipelineRun
+                | Self::PreviewRoute
+                | Self::CompanionHandoff
+                | Self::IncidentWorkspace
+                | Self::InfrastructureSession
+        )
+    }
+}
+
+/// Queue lane vocabulary admitted by the governance packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QueueLaneClass {
+    /// User-visible foreground requests.
+    Foreground,
+    /// Coalescible interactive background work.
+    InteractiveBackground,
+    /// Deferred maintenance work.
+    Maintenance,
+    /// Remote or provider overlay work with separate retry budgets.
+    ProviderOverlay,
+    /// Upload, replication, and export work.
+    UploadReplication,
+    /// Row does not bind a queue lane.
+    NotApplicable,
+}
+
+impl QueueLaneClass {
+    /// Every queue lane the packet must expose.
+    pub const REQUIRED: [Self; 5] = [
+        Self::Foreground,
+        Self::InteractiveBackground,
+        Self::Maintenance,
+        Self::ProviderOverlay,
+        Self::UploadReplication,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Foreground => "foreground",
+            Self::InteractiveBackground => "interactive_background",
+            Self::Maintenance => "maintenance",
+            Self::ProviderOverlay => "provider_overlay",
+            Self::UploadReplication => "upload_replication",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Row class frozen by the governance packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernanceRowClass {
+    /// Headline continuity-quality row for one workload.
+    ContinuityQuality,
+    /// Queue identity and fairness row for one workload.
+    QueueIdentityAdmission,
+    /// Restore continuity row for one workload.
+    RestoreContinuityAdmission,
+    /// Terminal-boundary and clipboard row for one workload.
+    TerminalBoundaryAdmission,
+    /// Automatic narrowing or blocking rule for one workload.
+    DowngradeRule,
+}
+
+impl GovernanceRowClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ContinuityQuality => "continuity_quality",
+            Self::QueueIdentityAdmission => "queue_identity_admission",
+            Self::RestoreContinuityAdmission => "restore_continuity_admission",
+            Self::TerminalBoundaryAdmission => "terminal_boundary_admission",
+            Self::DowngradeRule => "downgrade_rule",
+        }
+    }
+
+    /// Returns true when the row class binds queue metadata.
+    pub const fn requires_queue_fields(self) -> bool {
+        matches!(self, Self::QueueIdentityAdmission)
+    }
+
+    /// Returns true when the row class binds restore metadata.
+    pub const fn requires_restore_fields(self) -> bool {
+        matches!(self, Self::RestoreContinuityAdmission)
+    }
+
+    /// Returns true when the row class binds terminal-boundary metadata.
+    pub const fn requires_terminal_fields(self) -> bool {
+        matches!(self, Self::TerminalBoundaryAdmission)
+    }
+}
+
+/// Support posture applied to one row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SupportClass {
+    /// Row may be projected on stable surfaces.
+    Stable,
+    /// Row is intentionally narrowed below stable.
+    StableBelow,
+    /// Row is beta only.
+    BetaOnly,
+    /// Row is preview only.
+    PreviewOnly,
+    /// Row names an unsupported gap.
+    Unsupported,
+    /// Row has no support posture bound.
+    SupportUnbound,
+}
+
+impl SupportClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stable => "stable",
+            Self::StableBelow => "stable_below",
+            Self::BetaOnly => "beta_only",
+            Self::PreviewOnly => "preview_only",
+            Self::Unsupported => "unsupported",
+            Self::SupportUnbound => "support_unbound",
+        }
+    }
+
+    /// Returns true when the support class is fully bound.
+    pub const fn is_bound(self) -> bool {
+        !matches!(self, Self::SupportUnbound)
+    }
+
+    /// Returns true when the row must cite a disclosure reference.
+    pub const fn requires_disclosure(self) -> bool {
+        !matches!(self, Self::Stable)
+    }
+}
+
+/// Collapse-key vocabulary for queued work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollapseKeyClass {
+    /// Collapse by workspace, slice, and target scope.
+    WorkspaceSliceTarget,
+    /// Collapse by session or surface identity plus target scope.
+    SessionSurfaceTarget,
+    /// Collapse by provider route and target scope.
+    ProviderRouteTarget,
+    /// Collapse by export destination and artifact class.
+    ArtifactDestinationTarget,
+    /// Collapse by handoff subject and destination class.
+    HandoffSubject,
+    /// Row does not bind a collapse key.
+    NotApplicable,
+}
+
+impl CollapseKeyClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WorkspaceSliceTarget => "workspace_slice_target",
+            Self::SessionSurfaceTarget => "session_surface_target",
+            Self::ProviderRouteTarget => "provider_route_target",
+            Self::ArtifactDestinationTarget => "artifact_destination_target",
+            Self::HandoffSubject => "handoff_subject",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Budget-domain vocabulary for queued work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BudgetDomainClass {
+    /// CPU, memory, and disposable disk cache budget.
+    CpuMemoryDisk,
+    /// Network, remote provider, or API quota budget.
+    NetworkProviderQuota,
+    /// Battery and thermal budget.
+    BatteryThermal,
+    /// Reserved interactive budget that background work may not borrow.
+    ProtectedInteractiveReserve,
+    /// Durable evidence or storage budget.
+    DurableStorage,
+    /// Optional-service or auxiliary-provider budget.
+    OptionalServiceQuota,
+    /// Row does not bind a budget domain.
+    NotApplicable,
+}
+
+impl BudgetDomainClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CpuMemoryDisk => "cpu_memory_disk",
+            Self::NetworkProviderQuota => "network_provider_quota",
+            Self::BatteryThermal => "battery_thermal",
+            Self::ProtectedInteractiveReserve => "protected_interactive_reserve",
+            Self::DurableStorage => "durable_storage",
+            Self::OptionalServiceQuota => "optional_service_quota",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Checkpoint-policy vocabulary for queued work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckpointPolicyClass {
+    /// No checkpoint exists beyond an explicit user-visible rerun.
+    NoneDeclared,
+    /// Resume from item boundaries.
+    ItemBoundary,
+    /// Resume from time boundaries.
+    TimeBoundary,
+    /// Resume from explicit phase boundaries.
+    ExplicitPhaseBoundary,
+    /// Resume from chunk boundaries.
+    ResumableChunkBoundary,
+    /// Row does not bind a checkpoint policy.
+    NotApplicable,
+}
+
+impl CheckpointPolicyClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoneDeclared => "none_declared",
+            Self::ItemBoundary => "item_boundary",
+            Self::TimeBoundary => "time_boundary",
+            Self::ExplicitPhaseBoundary => "explicit_phase_boundary",
+            Self::ResumableChunkBoundary => "resumable_chunk_boundary",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Retry vocabulary for queued work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetryClass {
+    /// No automatic retry occurs.
+    NoneDeclared,
+    /// Local retry budget applies.
+    LocalRetryBudget,
+    /// Separate provider retry budget applies.
+    ProviderRetryBudget,
+    /// Reauthorize or reconnect before retry.
+    ReconnectAfterReauth,
+    /// Manual review is required before requeue.
+    ManualRequeueOnly,
+    /// Row does not bind a retry posture.
+    NotApplicable,
+}
+
+impl RetryClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoneDeclared => "none_declared",
+            Self::LocalRetryBudget => "local_retry_budget",
+            Self::ProviderRetryBudget => "provider_retry_budget",
+            Self::ReconnectAfterReauth => "reconnect_after_reauth",
+            Self::ManualRequeueOnly => "manual_requeue_only",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Cancellation vocabulary for queued work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CancellationClass {
+    /// Immediate cancellation is safe.
+    ImmediateAbortSafe,
+    /// A checkpoint is written before cancellation completes.
+    CheckpointThenCancel,
+    /// Cancellation completes after the active phase.
+    CancelAfterPhase,
+    /// Cleanup runs before cancellation completes.
+    CleanupThenCancel,
+    /// Rollback or compensation runs before cancellation completes.
+    RollbackThenCancel,
+    /// Row does not bind a cancellation posture.
+    NotApplicable,
+}
+
+impl CancellationClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ImmediateAbortSafe => "immediate_abort_safe",
+            Self::CheckpointThenCancel => "checkpoint_then_cancel",
+            Self::CancelAfterPhase => "cancel_after_phase",
+            Self::CleanupThenCancel => "cleanup_then_cancel",
+            Self::RollbackThenCancel => "rollback_then_cancel",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Restore-fidelity vocabulary for session continuity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RestoreFidelityClass {
+    /// Exact restore with live context preserved.
+    ExactRestore,
+    /// Compatible restore with declared adjustments.
+    CompatibleRestore,
+    /// Layout and surrounding context restored.
+    LayoutOnly,
+    /// Transcript or durable history restored without live execution.
+    TranscriptOnly,
+    /// Evidence, links, and provenance survived.
+    EvidenceOnly,
+    /// Placeholder card preserved the slot and recovery path.
+    PlaceholderOnly,
+    /// Row does not bind restore fidelity.
+    NotApplicable,
+}
+
+impl RestoreFidelityClass {
+    /// Every restore fidelity class the packet must expose.
+    pub const REQUIRED: [Self; 6] = [
+        Self::ExactRestore,
+        Self::CompatibleRestore,
+        Self::LayoutOnly,
+        Self::TranscriptOnly,
+        Self::EvidenceOnly,
+        Self::PlaceholderOnly,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactRestore => "exact_restore",
+            Self::CompatibleRestore => "compatible_restore",
+            Self::LayoutOnly => "layout_only",
+            Self::TranscriptOnly => "transcript_only",
+            Self::EvidenceOnly => "evidence_only",
+            Self::PlaceholderOnly => "placeholder_only",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// No-hidden-rerun vocabulary for restore continuity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NoHiddenRerunClass {
+    /// Live continuity is preserved without widening authority.
+    LiveContinuityPreserved,
+    /// Metadata is rebound but execution stays stopped.
+    MetadataOnlyResume,
+    /// Transcript survives, but no command reruns.
+    TranscriptPreservedNoRerun,
+    /// Reconnect review is required before execution resumes.
+    ReconnectReviewRequired,
+    /// Reauthorization is required before execution resumes.
+    ReauthorizeBeforeResume,
+    /// Explicit rerun is the only path back to execution.
+    ExplicitRerunOnly,
+    /// Manual review blocks any resume path.
+    BlockedUntilManualReview,
+    /// Row does not bind a no-hidden-rerun posture.
+    NotApplicable,
+}
+
+impl NoHiddenRerunClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LiveContinuityPreserved => "live_continuity_preserved",
+            Self::MetadataOnlyResume => "metadata_only_resume",
+            Self::TranscriptPreservedNoRerun => "transcript_preserved_no_rerun",
+            Self::ReconnectReviewRequired => "reconnect_review_required",
+            Self::ReauthorizeBeforeResume => "reauthorize_before_resume",
+            Self::ExplicitRerunOnly => "explicit_rerun_only",
+            Self::BlockedUntilManualReview => "blocked_until_manual_review",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Terminal-boundary vocabulary preserved by this packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalBoundaryClass {
+    /// Local machine execution boundary.
+    Local,
+    /// Remote host or helper boundary.
+    Remote,
+    /// Container or devcontainer boundary.
+    Container,
+    /// Managed workspace or hosted runtime boundary.
+    Managed,
+    /// Shared-control boundary with distinct viewer and writer roles.
+    SharedControl,
+    /// Policy-blocked boundary where terminal authority is withheld.
+    PolicyBlocked,
+    /// Row does not bind a terminal boundary.
+    NotApplicable,
+}
+
+impl TerminalBoundaryClass {
+    /// Every terminal-boundary class the packet must expose.
+    pub const REQUIRED: [Self; 6] = [
+        Self::Local,
+        Self::Remote,
+        Self::Container,
+        Self::Managed,
+        Self::SharedControl,
+        Self::PolicyBlocked,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Remote => "remote",
+            Self::Container => "container",
+            Self::Managed => "managed",
+            Self::SharedControl => "shared_control",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Clipboard and paste posture vocabulary for terminal-boundary rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClipboardPostureClass {
+    /// Local clipboard stays local and direct.
+    LocalDirect,
+    /// Bracketed paste and high-risk review are active.
+    BracketedPasteReview,
+    /// Remote clipboard bridging requires review.
+    RemoteBridgeReview,
+    /// Shared control requires an explicit input grant.
+    SharedControlGrantRequired,
+    /// Only metadata or hashes may be exported by default.
+    MetadataOnlyExport,
+    /// Policy denied the action and surfaces a safe alternative.
+    PolicyDeniedSafeAlternative,
+    /// Row does not bind clipboard posture.
+    NotApplicable,
+}
+
+impl ClipboardPostureClass {
+    /// Every clipboard posture class the packet must expose.
+    pub const REQUIRED: [Self; 6] = [
+        Self::LocalDirect,
+        Self::BracketedPasteReview,
+        Self::RemoteBridgeReview,
+        Self::SharedControlGrantRequired,
+        Self::MetadataOnlyExport,
+        Self::PolicyDeniedSafeAlternative,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalDirect => "local_direct",
+            Self::BracketedPasteReview => "bracketed_paste_review",
+            Self::RemoteBridgeReview => "remote_bridge_review",
+            Self::SharedControlGrantRequired => "shared_control_grant_required",
+            Self::MetadataOnlyExport => "metadata_only_export",
+            Self::PolicyDeniedSafeAlternative => "policy_denied_safe_alternative",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Evidence class backing one governance row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceClass {
+    /// Automated functional or contract tests back the row.
+    AutomatedFunctionalEvidence,
+    /// Design review or UX validation backs the row.
+    DesignQaEvidence,
+    /// Failure and recovery drills back the row.
+    FailureRecoveryDrillEvidence,
+    /// Security or privacy review backs the row.
+    SecurityPrivacyReviewEvidence,
+    /// Release evidence review backs the row.
+    ReleaseEvidenceReview,
+    /// Schema and fixture corpus coverage back the row.
+    SchemaFixtureEvidence,
+    /// Docs disclosure alone backs a narrowed row.
+    DocsDisclosureEvidence,
+    /// Row has no bound evidence class.
+    EvidenceUnbound,
+}
+
+impl EvidenceClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AutomatedFunctionalEvidence => "automated_functional_evidence",
+            Self::DesignQaEvidence => "design_qa_evidence",
+            Self::FailureRecoveryDrillEvidence => "failure_recovery_drill_evidence",
+            Self::SecurityPrivacyReviewEvidence => "security_privacy_review_evidence",
+            Self::ReleaseEvidenceReview => "release_evidence_review",
+            Self::SchemaFixtureEvidence => "schema_fixture_evidence",
+            Self::DocsDisclosureEvidence => "docs_disclosure_evidence",
+            Self::EvidenceUnbound => "evidence_unbound",
+        }
+    }
+
+    /// Returns true when the evidence class is fully bound.
+    pub const fn is_bound(self) -> bool {
+        !matches!(self, Self::EvidenceUnbound)
+    }
+}
+
+/// Known-limit vocabulary attached to a governance row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KnownLimitClass {
+    /// No known limit beyond the canonical contract.
+    NoneDeclared,
+    /// Queue metadata is a subset-only claim.
+    QueueMetadataSubsetOnly,
+    /// Restore fidelity remains placeholder or evidence biased.
+    RestorePlaceholderOnly,
+    /// Terminal boundary is only partially proven.
+    TerminalBoundarySubsetOnly,
+    /// Policy review is still pending for the row.
+    PolicyReviewPending,
+    /// Imported evidence exists without live continuity proof.
+    ImportedEvidenceOnly,
+    /// Row has no known-limit class bound.
+    LimitUnbound,
+}
+
+impl KnownLimitClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoneDeclared => "none_declared",
+            Self::QueueMetadataSubsetOnly => "queue_metadata_subset_only",
+            Self::RestorePlaceholderOnly => "restore_placeholder_only",
+            Self::TerminalBoundarySubsetOnly => "terminal_boundary_subset_only",
+            Self::PolicyReviewPending => "policy_review_pending",
+            Self::ImportedEvidenceOnly => "imported_evidence_only",
+            Self::LimitUnbound => "limit_unbound",
+        }
+    }
+
+    /// Returns true when the known-limit class is fully bound.
+    pub const fn is_bound(self) -> bool {
+        !matches!(self, Self::LimitUnbound)
+    }
+
+    /// Returns true when the row must cite a disclosure reference.
+    pub const fn requires_disclosure(self) -> bool {
+        !matches!(self, Self::NoneDeclared | Self::LimitUnbound)
+    }
+}
+
+/// Downgrade-rule vocabulary attached to a governance row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DowngradeRuleClass {
+    /// No downgrade automation is required for the row.
+    None,
+    /// Narrow when queue metadata or collapse identity goes stale.
+    AutoNarrowOnQueueMetadataStale,
+    /// Narrow when restore fidelity or no-hidden-rerun proof goes stale.
+    AutoNarrowOnRestoreFidelityStale,
+    /// Narrow when terminal-boundary or clipboard proof goes stale.
+    AutoNarrowOnTerminalBoundaryStale,
+    /// Narrow when checkpoint proof is missing or expired.
+    AutoNarrowOnMissingCheckpointProof,
+    /// Narrow when the retry budget is exhausted.
+    AutoNarrowOnRetryBudgetExhausted,
+    /// Block when required evidence is missing.
+    AutoBlockOnMissingEvidence,
+    /// Manual review remains required.
+    ManualOnlyPendingReview,
+    /// Row has no downgrade-rule class bound.
+    AutomationUnbound,
+}
+
+impl DowngradeRuleClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::AutoNarrowOnQueueMetadataStale => "auto_narrow_on_queue_metadata_stale",
+            Self::AutoNarrowOnRestoreFidelityStale => "auto_narrow_on_restore_fidelity_stale",
+            Self::AutoNarrowOnTerminalBoundaryStale => "auto_narrow_on_terminal_boundary_stale",
+            Self::AutoNarrowOnMissingCheckpointProof => "auto_narrow_on_missing_checkpoint_proof",
+            Self::AutoNarrowOnRetryBudgetExhausted => "auto_narrow_on_retry_budget_exhausted",
+            Self::AutoBlockOnMissingEvidence => "auto_block_on_missing_evidence",
+            Self::ManualOnlyPendingReview => "manual_only_pending_review",
+            Self::AutomationUnbound => "automation_unbound",
+        }
+    }
+
+    /// Returns true when the automation class is fully bound.
+    pub const fn is_bound(self) -> bool {
+        !matches!(self, Self::AutomationUnbound)
+    }
+
+    /// Returns true when the row must cite a disclosure reference.
+    pub const fn requires_disclosure(self) -> bool {
+        !matches!(self, Self::None | Self::AutomationUnbound)
+    }
+}
+
+/// Confidence class attached to one row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfidenceClass {
+    /// High confidence backs the row.
+    High,
+    /// Medium confidence narrows the row.
+    Medium,
+    /// Low confidence leaves the row under explicit review.
+    Low,
+}
+
+impl ConfidenceClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::High => "high",
+            Self::Medium => "medium",
+            Self::Low => "low",
+        }
+    }
+}
+
+/// Consumer surface that must preserve this packet verbatim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConsumerSurface {
+    /// Activity-center rows and background-work summaries.
+    ActivityCenter,
+    /// Restore summary, placeholder, and crash-recovery surfaces.
+    RestoreSummary,
+    /// Terminal header and boundary-detail surfaces.
+    TerminalHeader,
+    /// Runtime-heavy notebook, query, preview, or incident surfaces.
+    RuntimeSurface,
+    /// Support export and support preview surfaces.
+    SupportExport,
+    /// Release proof index surfaces.
+    ReleaseProofIndex,
+    /// Docs/help surfaces.
+    DocsHelp,
+    /// Conformance dashboard or reviewer matrix surfaces.
+    ConformanceDashboard,
+}
+
+impl ConsumerSurface {
+    /// Every consumer projection the packet must preserve.
+    pub const REQUIRED: [Self; 8] = [
+        Self::ActivityCenter,
+        Self::RestoreSummary,
+        Self::TerminalHeader,
+        Self::RuntimeSurface,
+        Self::SupportExport,
+        Self::ReleaseProofIndex,
+        Self::DocsHelp,
+        Self::ConformanceDashboard,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ActivityCenter => "activity_center",
+            Self::RestoreSummary => "restore_summary",
+            Self::TerminalHeader => "terminal_header",
+            Self::RuntimeSurface => "runtime_surface",
+            Self::SupportExport => "support_export",
+            Self::ReleaseProofIndex => "release_proof_index",
+            Self::DocsHelp => "docs_help",
+            Self::ConformanceDashboard => "conformance_dashboard",
+        }
+    }
+}
+
+/// Promotion state derived from packet validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromotionState {
+    /// Packet may project stable truth.
+    Stable,
+    /// Packet narrows below stable.
+    NarrowedBelowStable,
+    /// Packet blocks stable publication.
+    BlocksStable,
+}
+
+impl PromotionState {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stable => "stable",
+            Self::NarrowedBelowStable => "narrowed_below_stable",
+            Self::BlocksStable => "blocks_stable",
+        }
+    }
+}
+
+/// Severity attached to one validation finding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingSeverity {
+    /// Informational finding.
+    Info,
+    /// Warning-level finding.
+    Warning,
+    /// Blocker-level finding.
+    Blocker,
+}
+
+/// Closed validation-finding vocabulary for this packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingKind {
+    /// Record kind does not match the frozen tag.
+    WrongRecordKind,
+    /// Schema version does not match the frozen schema.
+    WrongSchemaVersion,
+    /// Packet or row identity is missing.
+    MissingIdentity,
+    /// One required workload is missing entirely.
+    MissingWorkloadCoverage,
+    /// Stable workload lacks its queue identity row.
+    MissingQueueIdentityAdmission,
+    /// Stable workload lacks its restore continuity row.
+    MissingRestoreContinuityAdmission,
+    /// Stable workload lacks its terminal boundary row.
+    MissingTerminalBoundaryAdmission,
+    /// Stable workload lacks its downgrade rule row.
+    MissingDowngradeRule,
+    /// Row has no bound support class.
+    MissingSupportClass,
+    /// Row has no bound known-limit class.
+    MissingKnownLimit,
+    /// Row has no bound downgrade rule class.
+    MissingDowngradeRuleClass,
+    /// Row has no bound evidence class.
+    MissingEvidenceClass,
+    /// Stable row claims a missing binding.
+    StableWithUnboundBinding,
+    /// Narrowed or unsupported row lacks a disclosure reference.
+    NarrowedRowMissingDisclosureRef,
+    /// Known limit lacks a disclosure reference.
+    KnownLimitMissingDisclosureRef,
+    /// Downgrade rule lacks a disclosure reference.
+    DowngradeRuleMissingDisclosureRef,
+    /// Row carries no evidence references.
+    MissingEvidenceRefs,
+    /// Queue row omitted required queue fields.
+    QueueFieldNotApplicable,
+    /// Non-queue row bound queue-only fields.
+    QueueFieldNotPermittedOnRowClass,
+    /// Restore row omitted required restore fields.
+    RestoreFieldNotApplicable,
+    /// Non-restore row bound restore-only fields.
+    RestoreFieldNotPermittedOnRowClass,
+    /// Terminal row omitted required terminal fields.
+    TerminalFieldNotApplicable,
+    /// Non-terminal row bound terminal-only fields.
+    TerminalFieldNotPermittedOnRowClass,
+    /// Packet no longer covers every required queue lane.
+    MissingRequiredQueueLaneCoverage,
+    /// Packet no longer covers every required restore fidelity class.
+    MissingRequiredRestoreFidelityCoverage,
+    /// Packet no longer covers every required terminal boundary class.
+    MissingRequiredTerminalBoundaryCoverage,
+    /// Packet no longer covers every required clipboard posture class.
+    MissingRequiredClipboardPostureCoverage,
+    /// Raw source material crossed the boundary.
+    RawSourceMaterialPresent,
+    /// Secrets crossed the boundary.
+    SecretsPresent,
+    /// Ambient authority crossed the boundary.
+    AmbientAuthorityPresent,
+    /// Required consumer projection is missing.
+    MissingConsumerProjection,
+    /// Consumer projection does not preserve packet truth.
+    ConsumerProjectionDrift,
+    /// Consumer projection collapsed workload vocabulary.
+    WorkloadVocabularyCollapsed,
+    /// Consumer projection collapsed lane vocabulary.
+    LaneVocabularyCollapsed,
+    /// Consumer projection collapsed row-class vocabulary.
+    RowClassVocabularyCollapsed,
+    /// Consumer projection collapsed restore vocabulary.
+    RestoreVocabularyCollapsed,
+    /// Consumer projection collapsed terminal-boundary vocabulary.
+    TerminalBoundaryVocabularyCollapsed,
+    /// Consumer projection collapsed clipboard vocabulary.
+    ClipboardVocabularyCollapsed,
+    /// Stored promotion state disagrees with derived findings.
+    PromotionStateMismatch,
+}
+
+impl FindingKind {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingWorkloadCoverage => "missing_workload_coverage",
+            Self::MissingQueueIdentityAdmission => "missing_queue_identity_admission",
+            Self::MissingRestoreContinuityAdmission => "missing_restore_continuity_admission",
+            Self::MissingTerminalBoundaryAdmission => "missing_terminal_boundary_admission",
+            Self::MissingDowngradeRule => "missing_downgrade_rule",
+            Self::MissingSupportClass => "missing_support_class",
+            Self::MissingKnownLimit => "missing_known_limit",
+            Self::MissingDowngradeRuleClass => "missing_downgrade_rule_class",
+            Self::MissingEvidenceClass => "missing_evidence_class",
+            Self::StableWithUnboundBinding => "stable_with_unbound_binding",
+            Self::NarrowedRowMissingDisclosureRef => "narrowed_row_missing_disclosure_ref",
+            Self::KnownLimitMissingDisclosureRef => "known_limit_missing_disclosure_ref",
+            Self::DowngradeRuleMissingDisclosureRef => "downgrade_rule_missing_disclosure_ref",
+            Self::MissingEvidenceRefs => "missing_evidence_refs",
+            Self::QueueFieldNotApplicable => "queue_field_not_applicable",
+            Self::QueueFieldNotPermittedOnRowClass => "queue_field_not_permitted_on_row_class",
+            Self::RestoreFieldNotApplicable => "restore_field_not_applicable",
+            Self::RestoreFieldNotPermittedOnRowClass => "restore_field_not_permitted_on_row_class",
+            Self::TerminalFieldNotApplicable => "terminal_field_not_applicable",
+            Self::TerminalFieldNotPermittedOnRowClass => {
+                "terminal_field_not_permitted_on_row_class"
+            }
+            Self::MissingRequiredQueueLaneCoverage => "missing_required_queue_lane_coverage",
+            Self::MissingRequiredRestoreFidelityCoverage => {
+                "missing_required_restore_fidelity_coverage"
+            }
+            Self::MissingRequiredTerminalBoundaryCoverage => {
+                "missing_required_terminal_boundary_coverage"
+            }
+            Self::MissingRequiredClipboardPostureCoverage => {
+                "missing_required_clipboard_posture_coverage"
+            }
+            Self::RawSourceMaterialPresent => "raw_source_material_present",
+            Self::SecretsPresent => "secrets_present",
+            Self::AmbientAuthorityPresent => "ambient_authority_present",
+            Self::MissingConsumerProjection => "missing_consumer_projection",
+            Self::ConsumerProjectionDrift => "consumer_projection_drift",
+            Self::WorkloadVocabularyCollapsed => "workload_vocabulary_collapsed",
+            Self::LaneVocabularyCollapsed => "lane_vocabulary_collapsed",
+            Self::RowClassVocabularyCollapsed => "row_class_vocabulary_collapsed",
+            Self::RestoreVocabularyCollapsed => "restore_vocabulary_collapsed",
+            Self::TerminalBoundaryVocabularyCollapsed => "terminal_boundary_vocabulary_collapsed",
+            Self::ClipboardVocabularyCollapsed => "clipboard_vocabulary_collapsed",
+            Self::PromotionStateMismatch => "promotion_state_mismatch",
+        }
+    }
+}
+
+/// One validation finding emitted by packet validation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValidationFinding {
+    /// Stable finding token.
+    pub finding_kind: FindingKind,
+    /// Finding severity.
+    pub severity: FindingSeverity,
+    /// Human-readable detail.
+    pub message: String,
+}
+
+impl ValidationFinding {
+    /// Returns a new validation finding.
+    pub fn new(
+        finding_kind: FindingKind,
+        severity: FindingSeverity,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            finding_kind,
+            severity,
+            message: message.into(),
+        }
+    }
+}
+
+/// One governed workload row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalGovernanceRow {
+    /// Stable row identity.
+    pub row_id: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Row class frozen by the contract.
+    pub row_class: GovernanceRowClass,
+    /// Support posture.
+    pub support_class: SupportClass,
+    /// Queue lane admitted by the row.
+    pub queue_lane_class: QueueLaneClass,
+    /// Collapse key admitted by the row.
+    pub collapse_key_class: CollapseKeyClass,
+    /// Budget domain admitted by the row.
+    pub budget_domain_class: BudgetDomainClass,
+    /// Checkpoint policy admitted by the row.
+    pub checkpoint_policy_class: CheckpointPolicyClass,
+    /// Retry posture admitted by the row.
+    pub retry_class: RetryClass,
+    /// Cancellation posture admitted by the row.
+    pub cancellation_class: CancellationClass,
+    /// Opaque queue identity ref admitted by the row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_identity_ref: Option<String>,
+    /// Restore fidelity admitted by the row.
+    pub restore_fidelity_class: RestoreFidelityClass,
+    /// Restore no-hidden-rerun posture admitted by the row.
+    pub no_hidden_rerun_class: NoHiddenRerunClass,
+    /// Opaque restore anchor ref admitted by the row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_anchor_ref: Option<String>,
+    /// Terminal boundary admitted by the row.
+    pub terminal_boundary_class: TerminalBoundaryClass,
+    /// Clipboard posture admitted by the row.
+    pub clipboard_posture_class: ClipboardPostureClass,
+    /// Opaque terminal-boundary ref admitted by the row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_ref: Option<String>,
+    /// Known limit attached to the row.
+    pub known_limit_class: KnownLimitClass,
+    /// Downgrade rule attached to the row.
+    pub downgrade_rule_class: DowngradeRuleClass,
+    /// Evidence class backing the row.
+    pub evidence_class: EvidenceClass,
+    /// Confidence class backing the row.
+    pub confidence_class: ConfidenceClass,
+    /// Evidence references backing the row.
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+    /// Disclosure reference surfaced when the row narrows or carries a known limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disclosure_ref: Option<String>,
+    /// Capture timestamp for the row.
+    pub captured_at: String,
+    /// True when raw source material is excluded.
+    pub raw_private_material_excluded: bool,
+    /// True when secrets are excluded.
+    pub secrets_excluded: bool,
+    /// True when ambient authority is excluded.
+    pub ambient_authority_excluded: bool,
+}
+
+impl QueueSessionTerminalGovernanceRow {
+    fn all_bindings_satisfied(&self) -> bool {
+        self.support_class.is_bound()
+            && self.known_limit_class.is_bound()
+            && self.downgrade_rule_class.is_bound()
+            && self.evidence_class.is_bound()
+    }
+}
+
+/// Consumer projection that must preserve this packet verbatim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalGovernanceConsumerProjection {
+    /// Consumer surface that reads this packet.
+    pub consumer_surface: ConsumerSurface,
+    /// Opaque projection reference.
+    pub projection_ref: String,
+    /// Packet id preserved by the projection.
+    pub packet_id_ref: String,
+    /// True when the projection preserves workload vocabulary.
+    pub preserves_workload_vocabulary: bool,
+    /// True when the projection preserves lane vocabulary.
+    pub preserves_lane_vocabulary: bool,
+    /// True when the projection preserves row-class vocabulary.
+    pub preserves_row_class_vocabulary: bool,
+    /// True when the projection preserves restore vocabulary.
+    pub preserves_restore_vocabulary: bool,
+    /// True when the projection preserves terminal-boundary vocabulary.
+    pub preserves_terminal_boundary_vocabulary: bool,
+    /// True when the projection preserves clipboard vocabulary.
+    pub preserves_clipboard_vocabulary: bool,
+    /// True when the projection supports JSON export parity.
+    pub supports_json_export: bool,
+    /// True when raw private material remains excluded.
+    pub raw_private_material_excluded: bool,
+    /// True when ambient authority remains excluded.
+    pub ambient_authority_excluded: bool,
+}
+
+impl QueueSessionTerminalGovernanceConsumerProjection {
+    fn preserves_truth_for(&self, packet_id: &str) -> bool {
+        self.packet_id_ref == packet_id
+            && self.preserves_workload_vocabulary
+            && self.preserves_lane_vocabulary
+            && self.preserves_row_class_vocabulary
+            && self.preserves_restore_vocabulary
+            && self.preserves_terminal_boundary_vocabulary
+            && self.preserves_clipboard_vocabulary
+            && self.supports_json_export
+            && self.raw_private_material_excluded
+            && self.ambient_authority_excluded
+            && !self.projection_ref.trim().is_empty()
+    }
+}
+
+/// Constructor input for [`QueueSessionTerminalGovernancePacket::materialize`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalGovernancePacketInput {
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Claimed workflow or contract id.
+    pub workflow_or_surface_id: String,
+    /// Packet capture timestamp.
+    pub generated_at: String,
+    /// Workloads covered by the packet.
+    #[serde(default)]
+    pub covered_workloads: Vec<GovernedWorkloadClass>,
+    /// Governance rows.
+    #[serde(default)]
+    pub rows: Vec<QueueSessionTerminalGovernanceRow>,
+    /// Consumer projections preserving this packet.
+    #[serde(default)]
+    pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
+    /// Source contracts used by the packet.
+    #[serde(default)]
+    pub source_contract_refs: Vec<String>,
+}
+
+/// Runtime-owned queue, restore, and terminal governance packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalGovernancePacket {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable packet id.
+    pub packet_id: String,
+    /// Claimed workflow or surface id.
+    pub workflow_or_surface_id: String,
+    /// Packet capture timestamp.
+    pub generated_at: String,
+    /// Workloads covered by the packet.
+    #[serde(default)]
+    pub covered_workloads: Vec<GovernedWorkloadClass>,
+    /// Governance rows.
+    #[serde(default)]
+    pub rows: Vec<QueueSessionTerminalGovernanceRow>,
+    /// Consumer projections preserving this packet.
+    #[serde(default)]
+    pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
+    /// Source contract references used by the packet.
+    #[serde(default)]
+    pub source_contract_refs: Vec<String>,
+    /// Derived promotion state.
+    pub promotion_state: PromotionState,
+    /// Validation findings captured at materialization.
+    #[serde(default)]
+    pub validation_findings: Vec<ValidationFinding>,
+}
+
+impl QueueSessionTerminalGovernancePacket {
+    /// Materializes a packet and records derived validation findings.
+    pub fn materialize(input: QueueSessionTerminalGovernancePacketInput) -> Self {
+        let mut packet = Self {
+            record_kind: QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND.to_owned(),
+            schema_version: QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION,
+            packet_id: input.packet_id,
+            workflow_or_surface_id: input.workflow_or_surface_id,
+            generated_at: input.generated_at,
+            covered_workloads: input.covered_workloads,
+            rows: input.rows,
+            consumer_projections: input.consumer_projections,
+            source_contract_refs: input.source_contract_refs,
+            promotion_state: PromotionState::Stable,
+            validation_findings: Vec::new(),
+        };
+        let findings = packet.derived_findings(false);
+        packet.promotion_state = promotion_state_for_findings(&findings);
+        packet.validation_findings = findings;
+        packet
+    }
+
+    /// Re-validates the packet against frozen governance invariants.
+    pub fn validate(&self) -> Vec<ValidationFinding> {
+        self.derived_findings(true)
+    }
+
+    /// Returns the unique workload tokens observed across rows.
+    pub fn workload_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.workload_class);
+        }
+        set.into_iter().map(GovernedWorkloadClass::as_str).collect()
+    }
+
+    /// Returns the unique queue-lane tokens observed across rows.
+    pub fn queue_lane_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.queue_lane_class);
+        }
+        set.into_iter().map(QueueLaneClass::as_str).collect()
+    }
+
+    /// Returns the unique row-class tokens observed across rows.
+    pub fn row_class_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.row_class);
+        }
+        set.into_iter().map(GovernanceRowClass::as_str).collect()
+    }
+
+    /// Returns the unique restore-fidelity tokens observed across rows.
+    pub fn restore_fidelity_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.restore_fidelity_class);
+        }
+        set.into_iter().map(RestoreFidelityClass::as_str).collect()
+    }
+
+    /// Returns the unique terminal-boundary tokens observed across rows.
+    pub fn terminal_boundary_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.terminal_boundary_class);
+        }
+        set.into_iter().map(TerminalBoundaryClass::as_str).collect()
+    }
+
+    /// Returns the unique clipboard-posture tokens observed across rows.
+    pub fn clipboard_posture_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.clipboard_posture_class);
+        }
+        set.into_iter().map(ClipboardPostureClass::as_str).collect()
+    }
+
+    /// Returns true when the packet preserves a projection for the surface.
+    pub fn has_projection_for(&self, surface: ConsumerSurface) -> bool {
+        self.consumer_projections.iter().any(|projection| {
+            projection.consumer_surface == surface
+                && projection.preserves_truth_for(&self.packet_id)
+        })
+    }
+
+    /// Returns a support export that preserves the product packet verbatim.
+    pub fn support_export(
+        &self,
+        export_id: impl Into<String>,
+        exported_at: impl Into<String>,
+    ) -> QueueSessionTerminalGovernanceSupportExport {
+        QueueSessionTerminalGovernanceSupportExport {
+            record_kind: QUEUE_SESSION_TERMINAL_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION,
+            export_id: export_id.into(),
+            packet_id_ref: self.packet_id.clone(),
+            exported_at: exported_at.into(),
+            raw_private_material_excluded: true,
+            ambient_authority_excluded: true,
+            governance_packet: self.clone(),
+        }
+    }
+
+    fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
+        let mut findings = Vec::new();
+
+        if include_record_fields
+            && self.record_kind != QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND
+        {
+            findings.push(ValidationFinding::new(
+                FindingKind::WrongRecordKind,
+                FindingSeverity::Blocker,
+                "queue/session/terminal governance packet has the wrong record kind",
+            ));
+        }
+        if include_record_fields
+            && self.schema_version != QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION
+        {
+            findings.push(ValidationFinding::new(
+                FindingKind::WrongSchemaVersion,
+                FindingSeverity::Blocker,
+                "queue/session/terminal governance packet has the wrong schema version",
+            ));
+        }
+        if self.packet_id.trim().is_empty()
+            || self.workflow_or_surface_id.trim().is_empty()
+            || self.generated_at.trim().is_empty()
+        {
+            findings.push(ValidationFinding::new(
+                FindingKind::MissingIdentity,
+                FindingSeverity::Blocker,
+                "packet, workflow, and timestamp refs are required",
+            ));
+        }
+
+        for workload in GovernedWorkloadClass::REQUIRED {
+            let declared = self.covered_workloads.contains(&workload);
+            let present = self.rows.iter().any(|row| row.workload_class == workload);
+            if !declared || !present {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingWorkloadCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} is not fully covered by the packet",
+                        workload.as_str()
+                    ),
+                ));
+            }
+        }
+
+        for row in &self.rows {
+            if row.row_id.trim().is_empty() || row.captured_at.trim().is_empty() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingIdentity,
+                    FindingSeverity::Blocker,
+                    format!("row {} identity or timestamp is empty", row.row_id),
+                ));
+            }
+            if !row.raw_private_material_excluded {
+                findings.push(ValidationFinding::new(
+                    FindingKind::RawSourceMaterialPresent,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} admits raw source material past the boundary",
+                        row.row_id
+                    ),
+                ));
+            }
+            if !row.secrets_excluded {
+                findings.push(ValidationFinding::new(
+                    FindingKind::SecretsPresent,
+                    FindingSeverity::Blocker,
+                    format!("row {} admits secrets past the boundary", row.row_id),
+                ));
+            }
+            if !row.ambient_authority_excluded {
+                findings.push(ValidationFinding::new(
+                    FindingKind::AmbientAuthorityPresent,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} admits ambient authority past the boundary",
+                        row.row_id
+                    ),
+                ));
+            }
+            if !row.support_class.is_bound() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingSupportClass,
+                    FindingSeverity::Blocker,
+                    format!("row {} has no bound support class", row.row_id),
+                ));
+            }
+            if !row.known_limit_class.is_bound() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingKnownLimit,
+                    FindingSeverity::Blocker,
+                    format!("row {} has no bound known limit class", row.row_id),
+                ));
+            }
+            if !row.downgrade_rule_class.is_bound() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingDowngradeRuleClass,
+                    FindingSeverity::Blocker,
+                    format!("row {} has no bound downgrade rule class", row.row_id),
+                ));
+            }
+            if !row.evidence_class.is_bound() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingEvidenceClass,
+                    FindingSeverity::Blocker,
+                    format!("row {} has no bound evidence class", row.row_id),
+                ));
+            }
+            if matches!(row.support_class, SupportClass::Stable) && !row.all_bindings_satisfied() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::StableWithUnboundBinding,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} claims stable while support, limit, downgrade, or evidence bindings are unbound",
+                        row.row_id
+                    ),
+                ));
+            }
+            if row.support_class.requires_disclosure() && row.disclosure_ref.is_none() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::NarrowedRowMissingDisclosureRef,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} has support class {} without a disclosure ref",
+                        row.row_id,
+                        row.support_class.as_str()
+                    ),
+                ));
+            }
+            if row.known_limit_class.requires_disclosure() && row.disclosure_ref.is_none() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::KnownLimitMissingDisclosureRef,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} has known limit {} without a disclosure ref",
+                        row.row_id,
+                        row.known_limit_class.as_str()
+                    ),
+                ));
+            }
+            if row.downgrade_rule_class.requires_disclosure() && row.disclosure_ref.is_none() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::DowngradeRuleMissingDisclosureRef,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} binds downgrade rule {} without a disclosure ref",
+                        row.row_id,
+                        row.downgrade_rule_class.as_str()
+                    ),
+                ));
+            }
+            if row.evidence_refs.is_empty() {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingEvidenceRefs,
+                    FindingSeverity::Blocker,
+                    format!("row {} carries no evidence refs", row.row_id),
+                ));
+            }
+
+            if row.row_class.requires_queue_fields() {
+                if matches!(row.queue_lane_class, QueueLaneClass::NotApplicable)
+                    || matches!(row.collapse_key_class, CollapseKeyClass::NotApplicable)
+                    || matches!(row.budget_domain_class, BudgetDomainClass::NotApplicable)
+                    || matches!(
+                        row.checkpoint_policy_class,
+                        CheckpointPolicyClass::NotApplicable
+                    )
+                    || matches!(row.retry_class, RetryClass::NotApplicable)
+                    || matches!(row.cancellation_class, CancellationClass::NotApplicable)
+                    || row
+                        .queue_identity_ref
+                        .as_deref()
+                        .map(str::trim)
+                        .map(str::is_empty)
+                        .unwrap_or(true)
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::QueueFieldNotApplicable,
+                        FindingSeverity::Blocker,
+                        format!("row {} omits required queue identity fields", row.row_id),
+                    ));
+                }
+            } else if !matches!(row.queue_lane_class, QueueLaneClass::NotApplicable)
+                || !matches!(row.collapse_key_class, CollapseKeyClass::NotApplicable)
+                || !matches!(row.budget_domain_class, BudgetDomainClass::NotApplicable)
+                || !matches!(
+                    row.checkpoint_policy_class,
+                    CheckpointPolicyClass::NotApplicable
+                )
+                || !matches!(row.retry_class, RetryClass::NotApplicable)
+                || !matches!(row.cancellation_class, CancellationClass::NotApplicable)
+                || row.queue_identity_ref.is_some()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::QueueFieldNotPermittedOnRowClass,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} binds queue fields on row class {}",
+                        row.row_id,
+                        row.row_class.as_str()
+                    ),
+                ));
+            }
+
+            if row.row_class.requires_restore_fields() {
+                if matches!(
+                    row.restore_fidelity_class,
+                    RestoreFidelityClass::NotApplicable
+                ) || matches!(row.no_hidden_rerun_class, NoHiddenRerunClass::NotApplicable)
+                    || row
+                        .restore_anchor_ref
+                        .as_deref()
+                        .map(str::trim)
+                        .map(str::is_empty)
+                        .unwrap_or(true)
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::RestoreFieldNotApplicable,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "row {} omits required restore continuity fields",
+                            row.row_id
+                        ),
+                    ));
+                }
+            } else if !matches!(
+                row.restore_fidelity_class,
+                RestoreFidelityClass::NotApplicable
+            ) || !matches!(row.no_hidden_rerun_class, NoHiddenRerunClass::NotApplicable)
+                || row.restore_anchor_ref.is_some()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::RestoreFieldNotPermittedOnRowClass,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} binds restore fields on row class {}",
+                        row.row_id,
+                        row.row_class.as_str()
+                    ),
+                ));
+            }
+
+            if row.row_class.requires_terminal_fields() {
+                if matches!(
+                    row.terminal_boundary_class,
+                    TerminalBoundaryClass::NotApplicable
+                ) || matches!(
+                    row.clipboard_posture_class,
+                    ClipboardPostureClass::NotApplicable
+                ) || row
+                    .boundary_ref
+                    .as_deref()
+                    .map(str::trim)
+                    .map(str::is_empty)
+                    .unwrap_or(true)
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::TerminalFieldNotApplicable,
+                        FindingSeverity::Blocker,
+                        format!("row {} omits required terminal boundary fields", row.row_id),
+                    ));
+                }
+            } else if !matches!(
+                row.terminal_boundary_class,
+                TerminalBoundaryClass::NotApplicable
+            ) || !matches!(
+                row.clipboard_posture_class,
+                ClipboardPostureClass::NotApplicable
+            ) || row.boundary_ref.is_some()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::TerminalFieldNotPermittedOnRowClass,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "row {} binds terminal fields on row class {}",
+                        row.row_id,
+                        row.row_class.as_str()
+                    ),
+                ));
+            }
+        }
+
+        for workload in &self.covered_workloads {
+            let stable_quality = self.rows.iter().any(|row| {
+                row.workload_class == *workload
+                    && matches!(row.row_class, GovernanceRowClass::ContinuityQuality)
+                    && matches!(row.support_class, SupportClass::Stable)
+            });
+            if !stable_quality {
+                continue;
+            }
+
+            if !self.rows.iter().any(|row| {
+                row.workload_class == *workload
+                    && matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingQueueIdentityAdmission,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} claims stable continuity without queue identity admission",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if !self.rows.iter().any(|row| {
+                row.workload_class == *workload
+                    && matches!(
+                        row.row_class,
+                        GovernanceRowClass::RestoreContinuityAdmission
+                    )
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRestoreContinuityAdmission,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} claims stable continuity without restore continuity admission",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if workload.requires_terminal_boundary()
+                && !self.rows.iter().any(|row| {
+                    row.workload_class == *workload
+                        && matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+                })
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingTerminalBoundaryAdmission,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} claims stable continuity without terminal boundary admission",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if !self.rows.iter().any(|row| {
+                row.workload_class == *workload
+                    && matches!(row.row_class, GovernanceRowClass::DowngradeRule)
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingDowngradeRule,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "workload {} claims stable continuity without a downgrade rule row",
+                        workload.as_str()
+                    ),
+                ));
+            }
+        }
+
+        for queue_lane in QueueLaneClass::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
+                    && row.queue_lane_class == queue_lane
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredQueueLaneCoverage,
+                    FindingSeverity::Blocker,
+                    format!("queue lane {} is not covered", queue_lane.as_str()),
+                ));
+            }
+        }
+        for fidelity in RestoreFidelityClass::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(
+                    row.row_class,
+                    GovernanceRowClass::RestoreContinuityAdmission
+                ) && row.restore_fidelity_class == fidelity
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredRestoreFidelityCoverage,
+                    FindingSeverity::Blocker,
+                    format!("restore fidelity {} is not covered", fidelity.as_str()),
+                ));
+            }
+        }
+        for boundary in TerminalBoundaryClass::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+                    && row.terminal_boundary_class == boundary
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredTerminalBoundaryCoverage,
+                    FindingSeverity::Blocker,
+                    format!("terminal boundary {} is not covered", boundary.as_str()),
+                ));
+            }
+        }
+        for posture in ClipboardPostureClass::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+                    && row.clipboard_posture_class == posture
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredClipboardPostureCoverage,
+                    FindingSeverity::Blocker,
+                    format!("clipboard posture {} is not covered", posture.as_str()),
+                ));
+            }
+        }
+
+        for required_surface in ConsumerSurface::REQUIRED {
+            if !self.has_projection_for(required_surface) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingConsumerProjection,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "packet {} is missing a preserved {} projection",
+                        self.packet_id,
+                        required_surface.as_str()
+                    ),
+                ));
+            }
+        }
+        for projection in &self.consumer_projections {
+            if !projection.preserves_truth_for(&self.packet_id) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ConsumerProjectionDrift,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} does not preserve packet truth",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_workload_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::WorkloadVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses workload vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_lane_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::LaneVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses lane vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_row_class_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::RowClassVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses row-class vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_restore_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::RestoreVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses restore vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_terminal_boundary_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::TerminalBoundaryVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses terminal-boundary vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_clipboard_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ClipboardVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses clipboard vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+        }
+
+        if include_record_fields {
+            let mut without_promotion = findings.clone();
+            without_promotion
+                .retain(|finding| finding.finding_kind != FindingKind::PromotionStateMismatch);
+            let derived = promotion_state_for_findings(&without_promotion);
+            if self.promotion_state != derived {
+                findings.push(ValidationFinding::new(
+                    FindingKind::PromotionStateMismatch,
+                    FindingSeverity::Blocker,
+                    "stored promotion state does not match derived findings",
+                ));
+            }
+        }
+
+        findings
+    }
+}
+
+fn promotion_state_for_findings(findings: &[ValidationFinding]) -> PromotionState {
+    if findings
+        .iter()
+        .any(|finding| finding.severity == FindingSeverity::Blocker)
+    {
+        PromotionState::BlocksStable
+    } else if findings
+        .iter()
+        .any(|finding| finding.severity == FindingSeverity::Warning)
+    {
+        PromotionState::NarrowedBelowStable
+    } else {
+        PromotionState::Stable
+    }
+}
+
+/// Support export wrapper that preserves the exact packet shown in product surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalGovernanceSupportExport {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Stable export id.
+    pub export_id: String,
+    /// Preserved packet id.
+    pub packet_id_ref: String,
+    /// Export timestamp.
+    pub exported_at: String,
+    /// True when raw private material stays excluded.
+    pub raw_private_material_excluded: bool,
+    /// True when ambient authority stays excluded.
+    pub ambient_authority_excluded: bool,
+    /// Exact product packet preserved by the export.
+    pub governance_packet: QueueSessionTerminalGovernancePacket,
+}
+
+impl QueueSessionTerminalGovernanceSupportExport {
+    /// Returns true when the export safely preserves the packet verbatim.
+    pub fn is_export_safe(&self) -> bool {
+        self.record_kind == QUEUE_SESSION_TERMINAL_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND
+            && self.schema_version == QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION
+            && self.packet_id_ref == self.governance_packet.packet_id
+            && self.raw_private_material_excluded
+            && self.ambient_authority_excluded
+            && self.governance_packet.validate().is_empty()
+    }
+}
+
+fn stable_projection(surface: ConsumerSurface) -> QueueSessionTerminalGovernanceConsumerProjection {
+    QueueSessionTerminalGovernanceConsumerProjection {
+        consumer_surface: surface,
+        projection_ref: format!("projection:{}", surface.as_str()),
+        packet_id_ref: "packet:queue-session-terminal-governance".to_owned(),
+        preserves_workload_vocabulary: true,
+        preserves_lane_vocabulary: true,
+        preserves_row_class_vocabulary: true,
+        preserves_restore_vocabulary: true,
+        preserves_terminal_boundary_vocabulary: true,
+        preserves_clipboard_vocabulary: true,
+        supports_json_export: true,
+        raw_private_material_excluded: true,
+        ambient_authority_excluded: true,
+    }
+}
+
+fn row_base(
+    row_id: &str,
+    workload_class: GovernedWorkloadClass,
+    row_class: GovernanceRowClass,
+) -> QueueSessionTerminalGovernanceRow {
+    QueueSessionTerminalGovernanceRow {
+        row_id: row_id.to_owned(),
+        workload_class,
+        row_class,
+        support_class: SupportClass::Stable,
+        queue_lane_class: QueueLaneClass::NotApplicable,
+        collapse_key_class: CollapseKeyClass::NotApplicable,
+        budget_domain_class: BudgetDomainClass::NotApplicable,
+        checkpoint_policy_class: CheckpointPolicyClass::NotApplicable,
+        retry_class: RetryClass::NotApplicable,
+        cancellation_class: CancellationClass::NotApplicable,
+        queue_identity_ref: None,
+        restore_fidelity_class: RestoreFidelityClass::NotApplicable,
+        no_hidden_rerun_class: NoHiddenRerunClass::NotApplicable,
+        restore_anchor_ref: None,
+        terminal_boundary_class: TerminalBoundaryClass::NotApplicable,
+        clipboard_posture_class: ClipboardPostureClass::NotApplicable,
+        boundary_ref: None,
+        known_limit_class: KnownLimitClass::NoneDeclared,
+        downgrade_rule_class: DowngradeRuleClass::None,
+        evidence_class: EvidenceClass::SchemaFixtureEvidence,
+        confidence_class: ConfidenceClass::High,
+        evidence_refs: vec![
+            QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF.to_owned(),
+            QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF.to_owned(),
+        ],
+        disclosure_ref: None,
+        captured_at: "2026-06-12T00:00:00Z".to_owned(),
+        raw_private_material_excluded: true,
+        secrets_excluded: true,
+        ambient_authority_excluded: true,
+    }
+}
+
+fn quality_row(workload: GovernedWorkloadClass) -> QueueSessionTerminalGovernanceRow {
+    let mut row = row_base(
+        &format!("row:{}:quality", workload.as_str()),
+        workload,
+        GovernanceRowClass::ContinuityQuality,
+    );
+    row.evidence_class = EvidenceClass::ReleaseEvidenceReview;
+    row.evidence_refs
+        .push(QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF.to_owned());
+    row
+}
+
+fn queue_row(
+    workload: GovernedWorkloadClass,
+    queue_lane_class: QueueLaneClass,
+    collapse_key_class: CollapseKeyClass,
+    budget_domain_class: BudgetDomainClass,
+    checkpoint_policy_class: CheckpointPolicyClass,
+    retry_class: RetryClass,
+    cancellation_class: CancellationClass,
+) -> QueueSessionTerminalGovernanceRow {
+    let mut row = row_base(
+        &format!("row:{}:queue", workload.as_str()),
+        workload,
+        GovernanceRowClass::QueueIdentityAdmission,
+    );
+    row.queue_lane_class = queue_lane_class;
+    row.collapse_key_class = collapse_key_class;
+    row.budget_domain_class = budget_domain_class;
+    row.checkpoint_policy_class = checkpoint_policy_class;
+    row.retry_class = retry_class;
+    row.cancellation_class = cancellation_class;
+    row.queue_identity_ref = Some(format!("queue:{}", workload.as_str()));
+    row.evidence_class = EvidenceClass::AutomatedFunctionalEvidence;
+    row
+}
+
+fn restore_row(
+    workload: GovernedWorkloadClass,
+    restore_fidelity_class: RestoreFidelityClass,
+    no_hidden_rerun_class: NoHiddenRerunClass,
+) -> QueueSessionTerminalGovernanceRow {
+    let mut row = row_base(
+        &format!("row:{}:restore", workload.as_str()),
+        workload,
+        GovernanceRowClass::RestoreContinuityAdmission,
+    );
+    row.restore_fidelity_class = restore_fidelity_class;
+    row.no_hidden_rerun_class = no_hidden_rerun_class;
+    row.restore_anchor_ref = Some(format!("restore:{}", workload.as_str()));
+    row.evidence_class = EvidenceClass::FailureRecoveryDrillEvidence;
+    row
+}
+
+fn terminal_row(
+    workload: GovernedWorkloadClass,
+    terminal_boundary_class: TerminalBoundaryClass,
+    clipboard_posture_class: ClipboardPostureClass,
+) -> QueueSessionTerminalGovernanceRow {
+    let mut row = row_base(
+        &format!("row:{}:terminal", workload.as_str()),
+        workload,
+        GovernanceRowClass::TerminalBoundaryAdmission,
+    );
+    row.terminal_boundary_class = terminal_boundary_class;
+    row.clipboard_posture_class = clipboard_posture_class;
+    row.boundary_ref = Some(format!("boundary:{}", workload.as_str()));
+    row.evidence_class = EvidenceClass::SecurityPrivacyReviewEvidence;
+    row
+}
+
+fn downgrade_row(
+    workload: GovernedWorkloadClass,
+    downgrade_rule_class: DowngradeRuleClass,
+) -> QueueSessionTerminalGovernanceRow {
+    let mut row = row_base(
+        &format!("row:{}:downgrade", workload.as_str()),
+        workload,
+        GovernanceRowClass::DowngradeRule,
+    );
+    row.downgrade_rule_class = downgrade_rule_class;
+    row.evidence_class = EvidenceClass::DocsDisclosureEvidence;
+    row.disclosure_ref = Some(format!("disclosure:{}", workload.as_str()));
+    row
+}
+
+fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
+    let covered_workloads = GovernedWorkloadClass::REQUIRED.to_vec();
+    let rows = vec![
+        quality_row(GovernedWorkloadClass::NotebookSession),
+        queue_row(
+            GovernedWorkloadClass::NotebookSession,
+            QueueLaneClass::InteractiveBackground,
+            CollapseKeyClass::WorkspaceSliceTarget,
+            BudgetDomainClass::CpuMemoryDisk,
+            CheckpointPolicyClass::ItemBoundary,
+            RetryClass::LocalRetryBudget,
+            CancellationClass::CheckpointThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::NotebookSession,
+            RestoreFidelityClass::CompatibleRestore,
+            NoHiddenRerunClass::ExplicitRerunOnly,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::NotebookSession,
+            TerminalBoundaryClass::Local,
+            ClipboardPostureClass::LocalDirect,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::NotebookSession,
+            DowngradeRuleClass::AutoNarrowOnQueueMetadataStale,
+        ),
+        quality_row(GovernedWorkloadClass::DataQueryConsole),
+        queue_row(
+            GovernedWorkloadClass::DataQueryConsole,
+            QueueLaneClass::Foreground,
+            CollapseKeyClass::SessionSurfaceTarget,
+            BudgetDomainClass::ProtectedInteractiveReserve,
+            CheckpointPolicyClass::NoneDeclared,
+            RetryClass::ManualRequeueOnly,
+            CancellationClass::ImmediateAbortSafe,
+        ),
+        restore_row(
+            GovernedWorkloadClass::DataQueryConsole,
+            RestoreFidelityClass::ExactRestore,
+            NoHiddenRerunClass::MetadataOnlyResume,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::DataQueryConsole,
+            TerminalBoundaryClass::Remote,
+            ClipboardPostureClass::BracketedPasteReview,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::DataQueryConsole,
+            DowngradeRuleClass::AutoNarrowOnRestoreFidelityStale,
+        ),
+        quality_row(GovernedWorkloadClass::PipelineRun),
+        queue_row(
+            GovernedWorkloadClass::PipelineRun,
+            QueueLaneClass::ProviderOverlay,
+            CollapseKeyClass::ProviderRouteTarget,
+            BudgetDomainClass::NetworkProviderQuota,
+            CheckpointPolicyClass::ExplicitPhaseBoundary,
+            RetryClass::ProviderRetryBudget,
+            CancellationClass::CancelAfterPhase,
+        ),
+        restore_row(
+            GovernedWorkloadClass::PipelineRun,
+            RestoreFidelityClass::EvidenceOnly,
+            NoHiddenRerunClass::BlockedUntilManualReview,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::PipelineRun,
+            TerminalBoundaryClass::Managed,
+            ClipboardPostureClass::MetadataOnlyExport,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::PipelineRun,
+            DowngradeRuleClass::AutoNarrowOnRetryBudgetExhausted,
+        ),
+        quality_row(GovernedWorkloadClass::PreviewRoute),
+        queue_row(
+            GovernedWorkloadClass::PreviewRoute,
+            QueueLaneClass::Maintenance,
+            CollapseKeyClass::WorkspaceSliceTarget,
+            BudgetDomainClass::BatteryThermal,
+            CheckpointPolicyClass::TimeBoundary,
+            RetryClass::LocalRetryBudget,
+            CancellationClass::CleanupThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::PreviewRoute,
+            RestoreFidelityClass::PlaceholderOnly,
+            NoHiddenRerunClass::ReconnectReviewRequired,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::PreviewRoute,
+            TerminalBoundaryClass::Container,
+            ClipboardPostureClass::RemoteBridgeReview,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::PreviewRoute,
+            DowngradeRuleClass::AutoNarrowOnTerminalBoundaryStale,
+        ),
+        quality_row(GovernedWorkloadClass::ProfilerCapture),
+        queue_row(
+            GovernedWorkloadClass::ProfilerCapture,
+            QueueLaneClass::Maintenance,
+            CollapseKeyClass::SessionSurfaceTarget,
+            BudgetDomainClass::DurableStorage,
+            CheckpointPolicyClass::ExplicitPhaseBoundary,
+            RetryClass::NoneDeclared,
+            CancellationClass::RollbackThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::ProfilerCapture,
+            RestoreFidelityClass::EvidenceOnly,
+            NoHiddenRerunClass::BlockedUntilManualReview,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::ProfilerCapture,
+            DowngradeRuleClass::AutoNarrowOnMissingCheckpointProof,
+        ),
+        quality_row(GovernedWorkloadClass::DocsRecall),
+        queue_row(
+            GovernedWorkloadClass::DocsRecall,
+            QueueLaneClass::InteractiveBackground,
+            CollapseKeyClass::WorkspaceSliceTarget,
+            BudgetDomainClass::OptionalServiceQuota,
+            CheckpointPolicyClass::TimeBoundary,
+            RetryClass::LocalRetryBudget,
+            CancellationClass::CheckpointThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::DocsRecall,
+            RestoreFidelityClass::ExactRestore,
+            NoHiddenRerunClass::LiveContinuityPreserved,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::DocsRecall,
+            DowngradeRuleClass::AutoNarrowOnQueueMetadataStale,
+        ),
+        quality_row(GovernedWorkloadClass::SyncOffboardingFlow),
+        queue_row(
+            GovernedWorkloadClass::SyncOffboardingFlow,
+            QueueLaneClass::UploadReplication,
+            CollapseKeyClass::ArtifactDestinationTarget,
+            BudgetDomainClass::DurableStorage,
+            CheckpointPolicyClass::ResumableChunkBoundary,
+            RetryClass::ProviderRetryBudget,
+            CancellationClass::CheckpointThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::SyncOffboardingFlow,
+            RestoreFidelityClass::LayoutOnly,
+            NoHiddenRerunClass::ExplicitRerunOnly,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::SyncOffboardingFlow,
+            DowngradeRuleClass::AutoNarrowOnRetryBudgetExhausted,
+        ),
+        quality_row(GovernedWorkloadClass::CompanionHandoff),
+        queue_row(
+            GovernedWorkloadClass::CompanionHandoff,
+            QueueLaneClass::UploadReplication,
+            CollapseKeyClass::HandoffSubject,
+            BudgetDomainClass::NetworkProviderQuota,
+            CheckpointPolicyClass::ResumableChunkBoundary,
+            RetryClass::ReconnectAfterReauth,
+            CancellationClass::CleanupThenCancel,
+        ),
+        restore_row(
+            GovernedWorkloadClass::CompanionHandoff,
+            RestoreFidelityClass::CompatibleRestore,
+            NoHiddenRerunClass::ReauthorizeBeforeResume,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::CompanionHandoff,
+            TerminalBoundaryClass::Remote,
+            ClipboardPostureClass::MetadataOnlyExport,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::CompanionHandoff,
+            DowngradeRuleClass::AutoNarrowOnRestoreFidelityStale,
+        ),
+        quality_row(GovernedWorkloadClass::IncidentWorkspace),
+        queue_row(
+            GovernedWorkloadClass::IncidentWorkspace,
+            QueueLaneClass::ProviderOverlay,
+            CollapseKeyClass::SessionSurfaceTarget,
+            BudgetDomainClass::NetworkProviderQuota,
+            CheckpointPolicyClass::ExplicitPhaseBoundary,
+            RetryClass::ProviderRetryBudget,
+            CancellationClass::CancelAfterPhase,
+        ),
+        restore_row(
+            GovernedWorkloadClass::IncidentWorkspace,
+            RestoreFidelityClass::TranscriptOnly,
+            NoHiddenRerunClass::TranscriptPreservedNoRerun,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::IncidentWorkspace,
+            TerminalBoundaryClass::SharedControl,
+            ClipboardPostureClass::SharedControlGrantRequired,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::IncidentWorkspace,
+            DowngradeRuleClass::AutoNarrowOnTerminalBoundaryStale,
+        ),
+        quality_row(GovernedWorkloadClass::InfrastructureSession),
+        queue_row(
+            GovernedWorkloadClass::InfrastructureSession,
+            QueueLaneClass::Foreground,
+            CollapseKeyClass::SessionSurfaceTarget,
+            BudgetDomainClass::ProtectedInteractiveReserve,
+            CheckpointPolicyClass::ItemBoundary,
+            RetryClass::ReconnectAfterReauth,
+            CancellationClass::ImmediateAbortSafe,
+        ),
+        restore_row(
+            GovernedWorkloadClass::InfrastructureSession,
+            RestoreFidelityClass::TranscriptOnly,
+            NoHiddenRerunClass::ReconnectReviewRequired,
+        ),
+        terminal_row(
+            GovernedWorkloadClass::InfrastructureSession,
+            TerminalBoundaryClass::PolicyBlocked,
+            ClipboardPostureClass::PolicyDeniedSafeAlternative,
+        ),
+        downgrade_row(
+            GovernedWorkloadClass::InfrastructureSession,
+            DowngradeRuleClass::AutoBlockOnMissingEvidence,
+        ),
+    ];
+    let consumer_projections = ConsumerSurface::REQUIRED
+        .into_iter()
+        .map(stable_projection)
+        .collect();
+    QueueSessionTerminalGovernancePacketInput {
+        packet_id: "packet:queue-session-terminal-governance".to_owned(),
+        workflow_or_surface_id: "runtime.queue_session_terminal_governance".to_owned(),
+        generated_at: "2026-06-12T00:00:00Z".to_owned(),
+        covered_workloads,
+        rows,
+        consumer_projections,
+        source_contract_refs: vec![
+            QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF.to_owned(),
+            QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF.to_owned(),
+            QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF.to_owned(),
+        ],
+    }
+}
+
+/// Returns the checked-in stable governance packet.
+pub fn current_queue_session_terminal_governance_packet() -> QueueSessionTerminalGovernancePacket {
+    QueueSessionTerminalGovernancePacket::materialize(stable_input())
+}

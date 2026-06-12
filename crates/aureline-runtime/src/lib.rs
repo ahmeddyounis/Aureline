@@ -63,6 +63,7 @@ pub mod provenance;
 pub mod publish_execution_plane_certification_packets_for_local_remote;
 pub mod quality;
 pub mod queue_governor_and_admission_control;
+pub mod queue_session_terminal_governance;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
@@ -615,6 +616,31 @@ pub use queue_governor_and_admission_control::{
     QUEUE_GOVERNOR_FIXTURE_DIR, QUEUE_GOVERNOR_PACKET_ARTIFACT_REF, QUEUE_GOVERNOR_SCHEMA_REF,
     QUEUE_GOVERNOR_SCHEMA_VERSION, QUEUE_GOVERNOR_STABLE_PACKET_RECORD_KIND,
     QUEUE_GOVERNOR_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use queue_session_terminal_governance::{
+    current_queue_session_terminal_governance_packet,
+    BudgetDomainClass as GovernanceBudgetDomainClass,
+    CancellationClass as GovernanceCancellationClass,
+    CheckpointPolicyClass as GovernanceCheckpointPolicyClass,
+    ClipboardPostureClass as GovernanceClipboardPostureClass,
+    CollapseKeyClass as GovernanceCollapseKeyClass, ConfidenceClass as GovernanceConfidenceClass,
+    ConsumerSurface as GovernanceConsumerSurface,
+    DowngradeRuleClass as GovernanceDowngradeRuleClass, EvidenceClass as GovernanceEvidenceClass,
+    FindingKind as GovernanceFindingKind, FindingSeverity as GovernanceFindingSeverity,
+    GovernanceRowClass as QueueSessionTerminalGovernanceRowClass, GovernedWorkloadClass,
+    KnownLimitClass as GovernanceKnownLimitClass, NoHiddenRerunClass,
+    PromotionState as GovernancePromotionState, QueueLaneClass as GovernanceQueueLaneClass,
+    QueueSessionTerminalGovernanceConsumerProjection, QueueSessionTerminalGovernancePacket,
+    QueueSessionTerminalGovernancePacketInput, QueueSessionTerminalGovernanceRow,
+    QueueSessionTerminalGovernanceSupportExport,
+    RestoreFidelityClass as GovernanceRestoreFidelityClass, RetryClass as GovernanceRetryClass,
+    SupportClass as GovernanceSupportClass,
+    TerminalBoundaryClass as GovernanceTerminalBoundaryClass,
+    ValidationFinding as GovernanceValidationFinding,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR, QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use recipes::{
     RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,
