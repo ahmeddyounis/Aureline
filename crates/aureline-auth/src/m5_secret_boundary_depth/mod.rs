@@ -321,6 +321,8 @@ pub enum SecretBoundaryRepairableChangeClass {
     PinMismatch,
     /// Trust or credential rotation is required before the route may continue.
     RotationRequired,
+    /// The delegated scope, grant, or handle was revoked and must be rebound.
+    CredentialRevoked,
     /// The SSH host proof is unknown and requires explicit review.
     SshHostKeyUnknown,
     /// The SSH host proof changed from the last-known-good fingerprint.
@@ -337,11 +339,12 @@ pub enum SecretBoundaryRepairableChangeClass {
 
 impl SecretBoundaryRepairableChangeClass {
     /// Every required change class in canonical order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::CaUntrusted,
         Self::BundleStale,
         Self::PinMismatch,
         Self::RotationRequired,
+        Self::CredentialRevoked,
         Self::SshHostKeyUnknown,
         Self::SshHostKeyMismatch,
         Self::ClientCertificateRequired,
@@ -357,6 +360,7 @@ impl SecretBoundaryRepairableChangeClass {
             Self::BundleStale => "bundle_stale",
             Self::PinMismatch => "pin_mismatch",
             Self::RotationRequired => "rotation_required",
+            Self::CredentialRevoked => "credential_revoked",
             Self::SshHostKeyUnknown => "ssh_host_key_unknown",
             Self::SshHostKeyMismatch => "ssh_host_key_mismatch",
             Self::ClientCertificateRequired => "client_certificate_required",
@@ -1265,6 +1269,198 @@ pub struct SecretBoundarySurfaceState {
     pub export_safety_banner: SecretBoundaryExportSafetyBanner,
 }
 
+/// Closed lineage-event vocabulary for credential rotation, revoke, rebind,
+/// and policy-denied projection rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryLineageEventClass {
+    /// The surface needs a credential or lease rotation before work can resume.
+    RotationRequired,
+    /// The current handle, grant, or delegated authority was revoked.
+    CredentialRevoked,
+    /// The surface needs a bounded rebind or trust repair.
+    RebindRequired,
+    /// Policy denied the attempted projection before downstream send/run/publish.
+    PolicyDeniedProjection,
+    /// Forwarding was intentionally paused at the current boundary.
+    ForwardingPaused,
+}
+
+impl SecretBoundaryLineageEventClass {
+    /// Stable token recorded on derived lineage projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RotationRequired => "rotation_required",
+            Self::CredentialRevoked => "credential_revoked",
+            Self::RebindRequired => "rebind_required",
+            Self::PolicyDeniedProjection => "policy_denied_projection",
+            Self::ForwardingPaused => "forwarding_paused",
+        }
+    }
+}
+
+/// Failure dimension surfaced before a credential-bearing action may proceed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryFailureDimensionClass {
+    /// Trust, CA, SSH, or certificate verification failed.
+    Trust,
+    /// Policy or approval scope denied the projection.
+    Policy,
+    /// The configured credential or delegated scope needs repair.
+    Credential,
+    /// Network or remote-vault availability blocked the projection.
+    Network,
+    /// The boundary was paused intentionally and must be resumed explicitly.
+    RuntimeHealth,
+}
+
+impl SecretBoundaryFailureDimensionClass {
+    /// Stable token recorded on derived lineage projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Trust => "trust",
+            Self::Policy => "policy",
+            Self::Credential => "credential",
+            Self::Network => "network",
+            Self::RuntimeHealth => "runtime_health",
+        }
+    }
+}
+
+/// Severity class used by the derived durable-activity projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryActivitySeverityClass {
+    /// Informational continuity item.
+    Info,
+    /// Warning that needs bounded repair before a blocked workflow can continue.
+    Warning,
+    /// Blocking failure that stopped a credentialed action before send/run/publish.
+    Error,
+}
+
+impl SecretBoundaryActivitySeverityClass {
+    /// Stable token recorded on derived durable-activity projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Info => "info",
+            Self::Warning => "warning",
+            Self::Error => "error",
+        }
+    }
+}
+
+/// Export-safe credential-lineage event derived from one surface state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryLineageEvent {
+    /// Stable lineage-event id.
+    pub event_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Closed event class.
+    pub event_class: SecretBoundaryLineageEventClass,
+    /// Failed dimension surfaced before work may continue.
+    pub failure_dimension: SecretBoundaryFailureDimensionClass,
+    /// Current health posture tied to this event.
+    pub health_state: SecretBoundaryHealthStateClass,
+    /// Acting identity class bound to the event.
+    pub actor_identity: SecretBoundaryActingIdentityClass,
+    /// Consumer identity bound to the event.
+    pub consumer_identity: SecretBoundaryConsumerIdentityClass,
+    /// Reviewable target boundary label.
+    pub target_boundary_label: String,
+    /// Workflows impacted by the event.
+    pub impacted_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    /// Narrowest safe next action.
+    pub next_safe_action_label: String,
+    /// Export-safe continuity note.
+    pub local_safe_behavior: String,
+    /// Stable reopen target safe for workflow history and durable activity.
+    pub durable_reopen_target_ref: String,
+    /// Optional Project Doctor finding code.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doctor_finding_code: Option<String>,
+    /// Optional repair candidate id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repair_candidate_id: Option<String>,
+    /// Optional support-bundle lineage ref.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_bundle_lineage_ref: Option<String>,
+    /// Redaction-safe event summary.
+    pub export_safe_summary: String,
+}
+
+/// Workflow-history row derived from one credential-lineage event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryWorkflowHistoryRow {
+    /// Stable workflow-history row id.
+    pub row_id: String,
+    /// Source lineage-event id.
+    pub event_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Workflow ref blocked or impacted by the event.
+    pub workflow_ref: String,
+    /// Workflow label blocked or impacted by the event.
+    pub workflow_label: String,
+    /// Event class carried into workflow history.
+    pub event_class: SecretBoundaryLineageEventClass,
+    /// Health posture carried into workflow history.
+    pub health_state: SecretBoundaryHealthStateClass,
+    /// Narrowest safe next action.
+    pub next_safe_action_label: String,
+    /// Stable reopen target safe for the workflow-history surface.
+    pub durable_reopen_target_ref: String,
+    /// Redaction-safe workflow-history summary.
+    pub export_safe_summary: String,
+}
+
+/// Durable-activity row derived from one credential-lineage event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryActivityRow {
+    /// Stable durable row id.
+    pub row_id: String,
+    /// Stable durable job id.
+    pub durable_job_id: String,
+    /// Source lineage-event id.
+    pub event_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Severity surfaced to durable-activity consumers.
+    pub severity: SecretBoundaryActivitySeverityClass,
+    /// Reviewable activity summary.
+    pub summary_label: String,
+    /// Stable reopen target safe for the activity center.
+    pub durable_reopen_target_ref: String,
+    /// Primary repair or reopen action label.
+    pub primary_action_label: String,
+    /// Redaction-safe activity summary.
+    pub export_safe_summary: String,
+}
+
+/// Derived credential-lineage bundle that joins workflow history, durable
+/// activity, and support export to one secret-boundary state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryLineageBundle {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Export-safe lineage events.
+    pub events: Vec<SecretBoundaryLineageEvent>,
+    /// Workflow-history rows derived from the events.
+    pub workflow_history_rows: Vec<SecretBoundaryWorkflowHistoryRow>,
+    /// Durable-activity rows derived from the events.
+    pub activity_rows: Vec<SecretBoundaryActivityRow>,
+}
+
 impl SecretBoundaryExportSafetyBanner {
     /// Returns the default export-safety banner shared by M5 rows.
     pub fn standard(matrix_row_id: impl Into<String>, summary: impl Into<String>) -> Self {
@@ -1280,6 +1476,76 @@ impl SecretBoundaryExportSafetyBanner {
                 "portable workspace exports".to_owned(),
             ],
             raw_secret_values_included: false,
+        }
+    }
+}
+
+impl SecretBoundarySurfaceState {
+    /// Derives the export-safe lineage bundle for this surface state.
+    pub fn lineage_bundle(&self) -> SecretBoundaryLineageBundle {
+        let events = derived_lineage_events_from_surface_state(self);
+        SecretBoundaryLineageBundle::from_events(
+            self.matrix_row_id.clone(),
+            self.vocabulary_ref.clone(),
+            events,
+        )
+    }
+}
+
+impl SecretBoundaryLineageBundle {
+    /// Builds a lineage bundle from explicit lineage events.
+    pub fn from_events(
+        matrix_row_id: impl Into<String>,
+        vocabulary_ref: impl Into<String>,
+        events: Vec<SecretBoundaryLineageEvent>,
+    ) -> Self {
+        let matrix_row_id = matrix_row_id.into();
+        let workflow_history_rows = events
+            .iter()
+            .flat_map(|event| {
+                event
+                    .impacted_workflows
+                    .iter()
+                    .map(move |workflow| SecretBoundaryWorkflowHistoryRow {
+                        row_id: format!(
+                            "workflow_history:{}:{}",
+                            event.event_id, workflow.workflow_ref
+                        ),
+                        event_id: event.event_id.clone(),
+                        matrix_row_id: event.matrix_row_id.clone(),
+                        workflow_ref: workflow.workflow_ref.clone(),
+                        workflow_label: workflow.workflow_label.clone(),
+                        event_class: event.event_class,
+                        health_state: event.health_state,
+                        next_safe_action_label: event.next_safe_action_label.clone(),
+                        durable_reopen_target_ref: event.durable_reopen_target_ref.clone(),
+                        export_safe_summary: format!(
+                            "{} is blocked by {}. {}",
+                            workflow.workflow_label, event.target_boundary_label, event.local_safe_behavior
+                        ),
+                    })
+            })
+            .collect();
+        let activity_rows = events
+            .iter()
+            .map(|event| SecretBoundaryActivityRow {
+                row_id: format!("activity_row:{}", event.event_id),
+                durable_job_id: format!("activity_job:{}", event.event_id),
+                event_id: event.event_id.clone(),
+                matrix_row_id: event.matrix_row_id.clone(),
+                severity: activity_severity_for_health(event.health_state),
+                summary_label: event.export_safe_summary.clone(),
+                durable_reopen_target_ref: event.durable_reopen_target_ref.clone(),
+                primary_action_label: event.next_safe_action_label.clone(),
+                export_safe_summary: event.export_safe_summary.clone(),
+            })
+            .collect();
+        Self {
+            matrix_row_id,
+            vocabulary_ref: vocabulary_ref.into(),
+            events,
+            workflow_history_rows,
+            activity_rows,
         }
     }
 }
@@ -1655,6 +1921,7 @@ impl M5SecretBoundaryDepthPacket {
                 if !matches!(
                     repairable_state.triggering_health_state,
                     SecretBoundaryHealthStateClass::Expired
+                        | SecretBoundaryHealthStateClass::Revoked
                         | SecretBoundaryHealthStateClass::Unavailable
                         | SecretBoundaryHealthStateClass::PolicyBlocked
                         | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
@@ -1787,6 +2054,7 @@ impl M5SecretBoundaryDepthPacket {
         for required_state in [
             SecretBoundaryHealthStateClass::Missing,
             SecretBoundaryHealthStateClass::Expired,
+            SecretBoundaryHealthStateClass::Revoked,
             SecretBoundaryHealthStateClass::PolicyBlocked,
             SecretBoundaryHealthStateClass::ForwardingPaused,
             SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
@@ -1842,6 +2110,12 @@ pub struct SecretBoundarySupportExport {
     pub rows: Vec<SecretBoundarySupportExportRow>,
     /// Project Doctor finding codes preserved by the export.
     pub doctor_finding_codes: Vec<String>,
+    /// Credential-lineage events preserved by the export.
+    pub lineage_events: Vec<SecretBoundaryLineageEvent>,
+    /// Workflow-history rows preserved by the export.
+    pub workflow_history_rows: Vec<SecretBoundaryWorkflowHistoryRow>,
+    /// Durable-activity rows preserved by the export.
+    pub activity_rows: Vec<SecretBoundaryActivityRow>,
     /// `true` when raw secret values are excluded.
     pub raw_secret_values_excluded: bool,
     /// `true` when raw handle ids are excluded.
@@ -1852,6 +2126,10 @@ pub struct SecretBoundarySupportExport {
     pub project_doctor_lineage_preserved: bool,
     /// `true` when support-bundle lineage refs are preserved.
     pub support_bundle_lineage_preserved: bool,
+    /// `true` when workflow-history lineage is preserved.
+    pub workflow_history_lineage_preserved: bool,
+    /// `true` when durable-activity lineage is preserved.
+    pub activity_lineage_preserved: bool,
 }
 
 impl SecretBoundarySupportExport {
@@ -1867,6 +2145,11 @@ impl SecretBoundarySupportExport {
             .flat_map(|row| row.repairable_states.iter())
             .map(|state| state.doctor_finding_code.clone())
             .collect();
+        let lineage_bundles: Vec<_> = packet
+            .surface_rows
+            .iter()
+            .map(lineage_bundle_from_surface_row)
+            .collect();
         Self {
             record_kind: M5_SECRET_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: M5_SECRET_BOUNDARY_DEPTH_SCHEMA_VERSION,
@@ -1881,11 +2164,25 @@ impl SecretBoundarySupportExport {
                 .map(SecretBoundarySupportExportRow::from_surface_row)
                 .collect(),
             doctor_finding_codes: doctor_finding_codes.into_iter().collect(),
+            lineage_events: lineage_bundles
+                .iter()
+                .flat_map(|bundle| bundle.events.clone())
+                .collect(),
+            workflow_history_rows: lineage_bundles
+                .iter()
+                .flat_map(|bundle| bundle.workflow_history_rows.clone())
+                .collect(),
+            activity_rows: lineage_bundles
+                .iter()
+                .flat_map(|bundle| bundle.activity_rows.clone())
+                .collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
             matrix_ids_preserved: true,
             project_doctor_lineage_preserved: true,
             support_bundle_lineage_preserved: true,
+            workflow_history_lineage_preserved: true,
+            activity_lineage_preserved: true,
         }
     }
 }
@@ -1942,6 +2239,285 @@ impl SecretBoundarySupportExportRow {
             repair_owner_token: row.repair_owner.as_str().to_owned(),
             repairable_states: row.repairable_states.clone(),
             profile_parity_rows: row.profile_parity_rows.clone(),
+        }
+    }
+}
+
+fn lineage_bundle_from_surface_row(row: &SecretBoundarySurfaceRow) -> SecretBoundaryLineageBundle {
+    let events = if let Some(repairable_state) = row.repairable_states.first() {
+        vec![lineage_event_from_repairable_state(
+            row.matrix_row_id.clone(),
+            row.acting_identities
+                .first()
+                .copied()
+                .unwrap_or(SecretBoundaryActingIdentityClass::LocalOnlyHandle),
+            row.consumer_identities
+                .first()
+                .copied()
+                .unwrap_or(SecretBoundaryConsumerIdentityClass::LocalWorkflow),
+            row.local_safe_behavior.clone(),
+            repairable_state,
+        )]
+    } else {
+        Vec::new()
+    };
+    SecretBoundaryLineageBundle::from_events(
+        row.matrix_row_id.clone(),
+        M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        events,
+    )
+}
+
+fn derived_lineage_events_from_surface_state(
+    state: &SecretBoundarySurfaceState,
+) -> Vec<SecretBoundaryLineageEvent> {
+    if let Some(repairable_state) = &state.active_repair_state {
+        return vec![lineage_event_from_repairable_state(
+            state.matrix_row_id.clone(),
+            state.consumer_identity_receipt.actor_identity,
+            state.consumer_identity_receipt.consumer_identity,
+            state
+                .credential_state_row
+                .decline_path
+                .still_works_summary
+                .clone(),
+            repairable_state,
+        )];
+    }
+
+    if let Some(repairable_state) = state
+        .repairable_states
+        .iter()
+        .find(|repairable_state| {
+            repairable_state.triggering_health_state == state.credential_state_row.health_state
+        })
+    {
+        return vec![lineage_event_from_repairable_state(
+            state.matrix_row_id.clone(),
+            state.consumer_identity_receipt.actor_identity,
+            state.consumer_identity_receipt.consumer_identity,
+            state
+                .credential_state_row
+                .decline_path
+                .still_works_summary
+                .clone(),
+            repairable_state,
+        )];
+    }
+
+    if let Some(event) = generic_lineage_event_from_surface_state(state) {
+        return vec![event];
+    }
+
+    state
+        .repairable_states
+        .first()
+        .map(|repairable_state| {
+            vec![lineage_event_from_repairable_state(
+                state.matrix_row_id.clone(),
+                state.consumer_identity_receipt.actor_identity,
+                state.consumer_identity_receipt.consumer_identity,
+                state
+                    .credential_state_row
+                    .decline_path
+                    .still_works_summary
+                    .clone(),
+                repairable_state,
+            )]
+        })
+        .unwrap_or_default()
+}
+
+fn lineage_event_from_repairable_state(
+    matrix_row_id: String,
+    actor_identity: SecretBoundaryActingIdentityClass,
+    consumer_identity: SecretBoundaryConsumerIdentityClass,
+    local_safe_behavior: String,
+    repairable_state: &SecretBoundaryRepairableState,
+) -> SecretBoundaryLineageEvent {
+    let event_class = event_class_for_repairable_state(repairable_state);
+    let failure_dimension = failure_dimension_for_repairable_state(repairable_state);
+    let impacted_count = repairable_state.blocked_workflows.len();
+    SecretBoundaryLineageEvent {
+        event_id: format!(
+            "lineage:{}:{}",
+            repairable_state.matrix_row_id,
+            repairable_state.change_class.as_str()
+        ),
+        matrix_row_id,
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        event_class,
+        failure_dimension,
+        health_state: repairable_state.triggering_health_state,
+        actor_identity,
+        consumer_identity,
+        target_boundary_label: repairable_state.affected_target_label.clone(),
+        impacted_workflows: repairable_state.blocked_workflows.clone(),
+        next_safe_action_label: repairable_state.next_action_label.clone(),
+        local_safe_behavior: local_safe_behavior.clone(),
+        durable_reopen_target_ref: repairable_state.repair_state_id.clone(),
+        doctor_finding_code: Some(repairable_state.doctor_finding_code.clone()),
+        repair_candidate_id: Some(repairable_state.repair_candidate_id.clone()),
+        support_bundle_lineage_ref: Some(repairable_state.support_bundle_lineage_ref.clone()),
+        export_safe_summary: format!(
+            "{} affects {} workflow(s). {}",
+            repairable_state.affected_target_label, impacted_count, local_safe_behavior
+        ),
+    }
+}
+
+fn generic_lineage_event_from_surface_state(
+    state: &SecretBoundarySurfaceState,
+) -> Option<SecretBoundaryLineageEvent> {
+    let health_state = state.credential_state_row.health_state;
+    let event_class = match health_state {
+        SecretBoundaryHealthStateClass::Revoked => {
+            SecretBoundaryLineageEventClass::CredentialRevoked
+        }
+        SecretBoundaryHealthStateClass::PolicyBlocked => {
+            SecretBoundaryLineageEventClass::PolicyDeniedProjection
+        }
+        SecretBoundaryHealthStateClass::ForwardingPaused => {
+            SecretBoundaryLineageEventClass::ForwardingPaused
+        }
+        SecretBoundaryHealthStateClass::Expired => SecretBoundaryLineageEventClass::RotationRequired,
+        SecretBoundaryHealthStateClass::Missing
+        | SecretBoundaryHealthStateClass::Unavailable
+        | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+        | SecretBoundaryHealthStateClass::NotConfigured => {
+            SecretBoundaryLineageEventClass::RebindRequired
+        }
+        SecretBoundaryHealthStateClass::Healthy | SecretBoundaryHealthStateClass::ExpiringSoon => {
+            return None;
+        }
+    };
+    let failure_dimension = failure_dimension_for_health(health_state);
+    let next_safe_action_label = match event_class {
+        SecretBoundaryLineageEventClass::CredentialRevoked
+        | SecretBoundaryLineageEventClass::RotationRequired => {
+            state.credential_state_row.rotate_action_label.clone()
+        }
+        SecretBoundaryLineageEventClass::PolicyDeniedProjection
+        | SecretBoundaryLineageEventClass::RebindRequired => {
+            state.credential_state_row.test_action_label.clone()
+        }
+        SecretBoundaryLineageEventClass::ForwardingPaused => {
+            "Resume forwarded projection".to_owned()
+        }
+    };
+    let impacted_workflows = state.credential_state_row.dependent_workflows.clone();
+    Some(SecretBoundaryLineageEvent {
+        event_id: format!("lineage:{}:{}", state.matrix_row_id, event_class.as_str()),
+        matrix_row_id: state.matrix_row_id.clone(),
+        vocabulary_ref: state.vocabulary_ref.clone(),
+        event_class,
+        failure_dimension,
+        health_state,
+        actor_identity: state.consumer_identity_receipt.actor_identity,
+        consumer_identity: state.consumer_identity_receipt.consumer_identity,
+        target_boundary_label: state.credential_state_row.target_boundary_label.clone(),
+        impacted_workflows: impacted_workflows.clone(),
+        next_safe_action_label,
+        local_safe_behavior: state
+            .credential_state_row
+            .decline_path
+            .still_works_summary
+            .clone(),
+        durable_reopen_target_ref: format!("secret_boundary:{}", state.matrix_row_id),
+        doctor_finding_code: None,
+        repair_candidate_id: None,
+        support_bundle_lineage_ref: None,
+        export_safe_summary: format!(
+            "{} blocks {} workflow(s). {}",
+            state.credential_state_row.target_boundary_label,
+            impacted_workflows.len(),
+            state.credential_state_row.decline_path.still_works_summary
+        ),
+    })
+}
+
+fn event_class_for_repairable_state(
+    repairable_state: &SecretBoundaryRepairableState,
+) -> SecretBoundaryLineageEventClass {
+    match repairable_state.change_class {
+        SecretBoundaryRepairableChangeClass::RotationRequired => {
+            SecretBoundaryLineageEventClass::RotationRequired
+        }
+        SecretBoundaryRepairableChangeClass::CredentialRevoked => {
+            SecretBoundaryLineageEventClass::CredentialRevoked
+        }
+        _ if repairable_state.triggering_health_state == SecretBoundaryHealthStateClass::PolicyBlocked => {
+            SecretBoundaryLineageEventClass::PolicyDeniedProjection
+        }
+        _ => SecretBoundaryLineageEventClass::RebindRequired,
+    }
+}
+
+fn failure_dimension_for_repairable_state(
+    repairable_state: &SecretBoundaryRepairableState,
+) -> SecretBoundaryFailureDimensionClass {
+    match repairable_state.change_class {
+        SecretBoundaryRepairableChangeClass::CaUntrusted
+        | SecretBoundaryRepairableChangeClass::BundleStale
+        | SecretBoundaryRepairableChangeClass::PinMismatch
+        | SecretBoundaryRepairableChangeClass::SshHostKeyUnknown
+        | SecretBoundaryRepairableChangeClass::SshHostKeyMismatch
+        | SecretBoundaryRepairableChangeClass::ClientCertificateRequired
+        | SecretBoundaryRepairableChangeClass::ClientCertificateExpired => {
+            SecretBoundaryFailureDimensionClass::Trust
+        }
+        SecretBoundaryRepairableChangeClass::BrowserHandoffReturnLost
+        | SecretBoundaryRepairableChangeClass::DeviceCodeRenewalRequired
+        | SecretBoundaryRepairableChangeClass::RotationRequired
+        | SecretBoundaryRepairableChangeClass::CredentialRevoked => {
+            SecretBoundaryFailureDimensionClass::Credential
+        }
+    }
+}
+
+fn failure_dimension_for_health(
+    health_state: SecretBoundaryHealthStateClass,
+) -> SecretBoundaryFailureDimensionClass {
+    match health_state {
+        SecretBoundaryHealthStateClass::PolicyBlocked => SecretBoundaryFailureDimensionClass::Policy,
+        SecretBoundaryHealthStateClass::ForwardingPaused => {
+            SecretBoundaryFailureDimensionClass::RuntimeHealth
+        }
+        SecretBoundaryHealthStateClass::Unavailable
+        | SecretBoundaryHealthStateClass::RemoteVaultUnavailable => {
+            SecretBoundaryFailureDimensionClass::Network
+        }
+        SecretBoundaryHealthStateClass::Missing
+        | SecretBoundaryHealthStateClass::NotConfigured
+        | SecretBoundaryHealthStateClass::Expired
+        | SecretBoundaryHealthStateClass::Revoked => {
+            SecretBoundaryFailureDimensionClass::Credential
+        }
+        SecretBoundaryHealthStateClass::Healthy | SecretBoundaryHealthStateClass::ExpiringSoon => {
+            SecretBoundaryFailureDimensionClass::Credential
+        }
+    }
+}
+
+fn activity_severity_for_health(
+    health_state: SecretBoundaryHealthStateClass,
+) -> SecretBoundaryActivitySeverityClass {
+    match health_state {
+        SecretBoundaryHealthStateClass::PolicyBlocked | SecretBoundaryHealthStateClass::Revoked => {
+            SecretBoundaryActivitySeverityClass::Error
+        }
+        SecretBoundaryHealthStateClass::Expired
+        | SecretBoundaryHealthStateClass::Unavailable
+        | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+        | SecretBoundaryHealthStateClass::Missing
+        | SecretBoundaryHealthStateClass::NotConfigured => {
+            SecretBoundaryActivitySeverityClass::Warning
+        }
+        SecretBoundaryHealthStateClass::ForwardingPaused => {
+            SecretBoundaryActivitySeverityClass::Info
+        }
+        SecretBoundaryHealthStateClass::Healthy | SecretBoundaryHealthStateClass::ExpiringSoon => {
+            SecretBoundaryActivitySeverityClass::Info
         }
     }
 }
@@ -2930,11 +3506,11 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                     "m5.secret.provider_model.scope_registry",
                     SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
                     SecretBoundaryProjectionParityClass::RemoteVaultFetch,
-                    SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                    SecretBoundaryHealthStateClass::Revoked,
                     SecretBoundaryStorageClass::RemoteVault,
                     SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
-                    "Repair remote-vault scope lineage",
-                    "Managed scope review stays available even when the remote vault path is unavailable.",
+                    "Rebind revoked provider scope",
+                    "Managed scope review stays available when the delegated scope or grant was revoked.",
                 ),
                 profile_parity_row(
                     "m5.secret.provider_model.scope_registry",
@@ -2949,26 +3525,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::ProviderOperator,
-            repairable_states: vec![repairable_state(
-                "repair_state:m5.secret.provider_model.scope_registry.device_code_renewal_required",
-                "m5.secret.provider_model.scope_registry",
-                SecretBoundaryRepairableChangeClass::DeviceCodeRenewalRequired,
-                SecretBoundaryHealthStateClass::Expired,
-                "target:provider.scope_registry:delegated_scope",
-                "Provider delegated scope",
-                SecretBoundaryLastKnownGoodClass::DeviceCodeSession,
-                "The last-known-good scope repair path used the same device-code session and delegated scope binding.",
-                vec![
-                    workflow_dependency("workflow:provider.scope.inspect", "Inspect provider scope"),
-                    workflow_dependency("workflow:provider.scope.repair", "Repair scope or delegated identity"),
-                ],
-                "Renew the exact device-code session for this scope without widening authority",
-                SecretBoundaryRepairOwnerClass::ProviderOperator,
-                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
-                "doctor.finding.secret_boundary.provider.device_code_renewal_required",
-                "repair_candidate:secret_boundary.provider.renew_device_code_scope",
-                "support.lineage.secret_boundary.provider.scope_registry.device_code_renewal_required",
-            )],
+            repairable_states: vec![
+                repairable_state(
+                    "repair_state:m5.secret.provider_model.scope_registry.device_code_renewal_required",
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryRepairableChangeClass::DeviceCodeRenewalRequired,
+                    SecretBoundaryHealthStateClass::Expired,
+                    "target:provider.scope_registry:delegated_scope",
+                    "Provider delegated scope",
+                    SecretBoundaryLastKnownGoodClass::DeviceCodeSession,
+                    "The last-known-good scope repair path used the same device-code session and delegated scope binding.",
+                    vec![
+                        workflow_dependency("workflow:provider.scope.inspect", "Inspect provider scope"),
+                        workflow_dependency("workflow:provider.scope.repair", "Repair scope or delegated identity"),
+                    ],
+                    "Renew the exact device-code session for this scope without widening authority",
+                    SecretBoundaryRepairOwnerClass::ProviderOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                    "doctor.finding.secret_boundary.provider.device_code_renewal_required",
+                    "repair_candidate:secret_boundary.provider.renew_device_code_scope",
+                    "support.lineage.secret_boundary.provider.scope_registry.device_code_renewal_required",
+                ),
+                repairable_state(
+                    "repair_state:m5.secret.provider_model.scope_registry.credential_revoked",
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryRepairableChangeClass::CredentialRevoked,
+                    SecretBoundaryHealthStateClass::Revoked,
+                    "target:provider.scope_registry:delegated_scope",
+                    "Provider delegated scope",
+                    SecretBoundaryLastKnownGoodClass::DelegatedScopeBinding,
+                    "The last-known-good scope mutation used the reviewed delegated scope binding and installation-grant lineage before revocation.",
+                    vec![
+                        workflow_dependency("workflow:provider.scope.inspect", "Inspect provider scope"),
+                        workflow_dependency("workflow:provider.scope.repair", "Repair scope or delegated identity"),
+                    ],
+                    "Rebind the exact delegated scope or installation grant before mutating provider state",
+                    SecretBoundaryRepairOwnerClass::ProviderOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                    "doctor.finding.secret_boundary.provider.credential_revoked",
+                    "repair_candidate:secret_boundary.provider.rebind_revoked_scope",
+                    "support.lineage.secret_boundary.provider.scope_registry.credential_revoked",
+                ),
+            ],
             repair_path: "Repair the exact delegated scope, installation grant, or remote-vault lineage that drifted; do not widen to generic connected.".to_owned(),
             local_safe_behavior:
                 "Scope inspection, drift review, and local draft queues remain available without live mutation authority."
@@ -3140,11 +3738,11 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                     "m5.secret.preview_route.remote_preview",
                     SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
                     SecretBoundaryProjectionParityClass::DelegatedIdentity,
-                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryHealthStateClass::Revoked,
                     SecretBoundaryStorageClass::SessionOnly,
                     SecretBoundaryActingIdentityClass::DelegatedCredential,
-                    "Renew delegated preview session",
-                    "Managed preview expiry narrows to metadata-only route history and exact desktop handoff instructions.",
+                    "Rebind delegated preview session",
+                    "Managed preview revocation narrows to metadata-only route history and exact desktop handoff instructions.",
                 ),
                 profile_parity_row(
                     "m5.secret.preview_route.remote_preview",
@@ -3159,26 +3757,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::ReleaseSummaryOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
-            repairable_states: vec![repairable_state(
-                "repair_state:m5.secret.preview_route.remote_preview.pin_mismatch",
-                "m5.secret.preview_route.remote_preview",
-                SecretBoundaryRepairableChangeClass::PinMismatch,
-                SecretBoundaryHealthStateClass::PolicyBlocked,
-                "target:preview_route.remote_preview:public_or_org_route",
-                "Preview route trust root",
-                SecretBoundaryLastKnownGoodClass::PinnedControlPlaneRoot,
-                "The last-known-good preview route used the published pinned control-plane roots for this route class.",
-                vec![
-                    workflow_dependency("workflow:preview.route", "Open preview route"),
-                    workflow_dependency("workflow:preview.share", "Share or revoke preview route"),
-                ],
-                "Review the rotated route trust root before reopening or sharing this preview",
-                SecretBoundaryRepairOwnerClass::RemoteOperator,
-                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
-                "doctor.finding.secret_boundary.preview.pin_mismatch",
-                "repair_candidate:secret_boundary.preview.review_rotated_root",
-                "support.lineage.secret_boundary.preview.remote_preview.pin_mismatch",
-            )],
+            repairable_states: vec![
+                repairable_state(
+                    "repair_state:m5.secret.preview_route.remote_preview.pin_mismatch",
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryRepairableChangeClass::PinMismatch,
+                    SecretBoundaryHealthStateClass::PolicyBlocked,
+                    "target:preview_route.remote_preview:public_or_org_route",
+                    "Preview route trust root",
+                    SecretBoundaryLastKnownGoodClass::PinnedControlPlaneRoot,
+                    "The last-known-good preview route used the published pinned control-plane roots for this route class.",
+                    vec![
+                        workflow_dependency("workflow:preview.route", "Open preview route"),
+                        workflow_dependency("workflow:preview.share", "Share or revoke preview route"),
+                    ],
+                    "Review the rotated route trust root before reopening or sharing this preview",
+                    SecretBoundaryRepairOwnerClass::RemoteOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                    "doctor.finding.secret_boundary.preview.pin_mismatch",
+                    "repair_candidate:secret_boundary.preview.review_rotated_root",
+                    "support.lineage.secret_boundary.preview.remote_preview.pin_mismatch",
+                ),
+                repairable_state(
+                    "repair_state:m5.secret.preview_route.remote_preview.credential_revoked",
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryRepairableChangeClass::CredentialRevoked,
+                    SecretBoundaryHealthStateClass::Revoked,
+                    "target:preview_route.remote_preview:delegated_session",
+                    "Preview delegated session",
+                    SecretBoundaryLastKnownGoodClass::DelegatedScopeBinding,
+                    "The last-known-good preview route used the same delegated preview audience and reviewed share scope before revocation.",
+                    vec![
+                        workflow_dependency("workflow:preview.route", "Open preview route"),
+                        workflow_dependency("workflow:preview.share", "Share or revoke preview route"),
+                    ],
+                    "Rebind the delegated preview session before reopening or sharing this route",
+                    SecretBoundaryRepairOwnerClass::RemoteOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                    "doctor.finding.secret_boundary.preview.credential_revoked",
+                    "repair_candidate:secret_boundary.preview.rebind_revoked_session",
+                    "support.lineage.secret_boundary.preview.remote_preview.credential_revoked",
+                ),
+            ],
             repair_path: "Revalidate the preview route trust or delegated session before reopening a remote preview.".to_owned(),
             local_safe_behavior:
                 "Expired previews narrow to metadata-only route history and exact desktop handoff instructions."

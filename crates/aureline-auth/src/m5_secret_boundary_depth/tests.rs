@@ -112,6 +112,7 @@ fn summary_tracks_required_degraded_states() {
     for state in [
         SecretBoundaryHealthStateClass::Missing,
         SecretBoundaryHealthStateClass::Expired,
+        SecretBoundaryHealthStateClass::Revoked,
         SecretBoundaryHealthStateClass::PolicyBlocked,
         SecretBoundaryHealthStateClass::ForwardingPaused,
         SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
@@ -171,7 +172,12 @@ fn support_export_preserves_doctor_and_support_lineage() {
     );
     assert!(export.project_doctor_lineage_preserved);
     assert!(export.support_bundle_lineage_preserved);
+    assert!(export.workflow_history_lineage_preserved);
+    assert!(export.activity_lineage_preserved);
     assert!(!export.doctor_finding_codes.is_empty());
+    assert!(!export.lineage_events.is_empty());
+    assert!(!export.workflow_history_rows.is_empty());
+    assert!(!export.activity_rows.is_empty());
     assert!(export
         .rows
         .iter()

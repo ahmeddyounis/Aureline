@@ -100,6 +100,10 @@ fn packet_projects_m5_secret_boundary_states() {
         .available_controls
         .is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
+    let lineage = states[0].lineage_bundle();
+    assert!(!lineage.events.is_empty());
+    assert!(!lineage.workflow_history_rows.is_empty());
+    assert!(!lineage.activity_rows.is_empty());
 }
 
 #[test]

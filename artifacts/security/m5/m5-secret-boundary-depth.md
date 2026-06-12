@@ -42,8 +42,9 @@ The packet-wide summary now proves coverage for:
 - `local_handle`, `forwarded_local_credential`, `remote_vault_fetch`, `session_only_secret`, `delegated_identity`, and `missing`
 - `local_workflow`, `remote_helper`, `registry_client`, `database_connector`, `preview_publisher`, `cluster_connector`, `companion_handoff`, `service_issued_delegate`
 - `pause_forwarding`, `stop_using_secret`, and `drop_delegated_identity`
-- `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
-- `ca_untrusted`, `bundle_stale`, `pin_mismatch`, `rotation_required`, `ssh_host_key_unknown`, `ssh_host_key_mismatch`, `client_certificate_required`, `client_certificate_expired`, `browser_handoff_return_lost`, and `device_code_renewal_required` as typed repairable changes
+- `missing`, `expired`, `revoked`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
+- `ca_untrusted`, `bundle_stale`, `pin_mismatch`, `rotation_required`, `credential_revoked`, `ssh_host_key_unknown`, `ssh_host_key_mismatch`, `client_certificate_required`, `client_certificate_expired`, `browser_handoff_return_lost`, and `device_code_renewal_required` as typed repairable changes
+- export-safe workflow-history rows and durable-activity rows derived from the same credential-lineage event ids used by support export
 
 ## Row Summary
 
@@ -66,5 +67,5 @@ The packet-wide summary now proves coverage for:
 
 - `docs_help` must quote the checked `matrix_id`, row ids, and shared vocabulary.
 - `diagnostics` must show row ids, acting identity, repair owner, and the bound repairable state before downstream failure details.
-- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, repairable states, per-profile parity rows, export posture, repair owner, Project Doctor finding codes, and support-bundle lineage while excluding raw secret values and raw handle ids.
+- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, repairable states, per-profile parity rows, export posture, repair owner, Project Doctor finding codes, workflow-history lineage, durable-activity lineage, and support-bundle lineage while excluding raw secret values and raw handle ids.
 - `release_public_truth` must publish only checked matrix ids, row ids, and summary vocabulary.
