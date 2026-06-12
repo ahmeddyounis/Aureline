@@ -28,6 +28,7 @@ pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
+pub mod m5_admission_and_routing;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_source_acquisition_review;
 pub mod mutation_and_generated_artifact_lineage;
@@ -199,6 +200,18 @@ pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
     BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
     BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
     BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
+};
+
+pub use m5_admission_and_routing::{
+    current_m5_admission_and_routing_packet, AdmissionCheckpoint,
+    AdmissionClass as M5AdmissionClass, ArchetypeConfidence as AdmissionArchetypeConfidence,
+    BundleRecommendationSource, DetectionSource, FirstUsefulWorkRoute as M5FirstUsefulWorkRoute,
+    M5AdmissionAndRoutingExportProjection, M5AdmissionAndRoutingExportRow,
+    M5AdmissionAndRoutingPacket, M5AdmissionAndRoutingSummary, M5AdmissionAndRoutingViolation,
+    M5Wedge, SetupItem, SetupItemKind, SetupTiming, M5_ADMISSION_AND_ROUTING_DOC_REF,
+    M5_ADMISSION_AND_ROUTING_FIXTURE_DIR, M5_ADMISSION_AND_ROUTING_JSON,
+    M5_ADMISSION_AND_ROUTING_PATH, M5_ADMISSION_AND_ROUTING_RECORD_KIND,
+    M5_ADMISSION_AND_ROUTING_SCHEMA_REF, M5_ADMISSION_AND_ROUTING_SCHEMA_VERSION,
 };
 
 pub use m5_entry_and_bundle_governance::{

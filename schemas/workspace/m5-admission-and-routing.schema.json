@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-admission-and-routing.schema.json",
+  "title": "Aureline M5 admission-and-routing packet",
+  "description": "Schema for the m5_admission_and_routing_packet. The packet carries one or more admission checkpoints per M5 wedge, each classifying the workspace as certified, probable, mixed, unknown, restricted, or missing-prerequisite with an explicit source label (detection source), an archetype confidence, a bundle-recommendation source, and a first-useful-work route. Setup items are separated by timing — blocking-now, recommended-soon, or optional-later — so non-blocking setup is deferrable while minimal local-safe work stays available; only an explicit policy restriction removes local-safe work. Every checkpoint holds four guardrail flags closed (it never forces a wizard, auto-installs packs, rewrites layout without review, or widens trust without review) and no setup item ever auto-runs. A checkpoint may present as certified support only when its admission class is certified, the admission class may never out-rank the archetype confidence it derives from, the bundle-recommendation source may never out-rank that confidence, and the detection source must be canonical for the admission class. Each checkpoint carries routing, archetype, and bundle provenance refs plus diagnostics, support-export, help-surface, docs-badge, and release-evidence refs so those surfaces ingest the same packet. Every M5 wedge must be covered, the recorded certified-presentation and local-safe values must equal the gate's recomputed values, and the summary must equal the recomputed summary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "checkpoint_identity_scheme",
+    "wedges",
+    "admission_classes",
+    "detection_sources",
+    "archetype_confidences",
+    "bundle_recommendation_sources",
+    "first_useful_work_routes",
+    "setup_timings",
+    "setup_item_kinds",
+    "checkpoints",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_admission_and_routing_packet" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "checkpoint_identity_scheme": { "$ref": "#/$defs/non_empty_string" },
+    "wedges": { "type": "array", "items": { "$ref": "#/$defs/wedge" } },
+    "admission_classes": { "type": "array", "items": { "$ref": "#/$defs/admission_class" } },
+    "detection_sources": { "type": "array", "items": { "$ref": "#/$defs/detection_source" } },
+    "archetype_confidences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/archetype_confidence" }
+    },
+    "bundle_recommendation_sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/bundle_recommendation_source" }
+    },
+    "first_useful_work_routes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/first_useful_work_route" }
+    },
+    "setup_timings": { "type": "array", "items": { "$ref": "#/$defs/setup_timing" } },
+    "setup_item_kinds": { "type": "array", "items": { "$ref": "#/$defs/setup_item_kind" } },
+    "checkpoints": { "type": "array", "items": { "$ref": "#/$defs/checkpoint" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "wedge": {
+      "enum": [
+        "notebook_workspace",
+        "data_and_api_workspace",
+        "profiler_workspace",
+        "framework_pack_workspace",
+        "docs_workspace",
+        "companion_workspace",
+        "sync_handoff_workspace",
+        "local_folder_workspace"
+      ]
+    },
+    "admission_class": {
+      "enum": ["certified", "probable", "mixed", "unknown", "restricted", "missing_prerequisite"]
+    },
+    "detection_source": {
+      "enum": [
+        "certified_manifest",
+        "framework_pack_signal",
+        "heuristic_probe",
+        "mixed_signals",
+        "user_declared",
+        "no_signal",
+        "policy_restriction",
+        "missing_toolchain_probe"
+      ]
+    },
+    "archetype_confidence": {
+      "enum": ["certified", "probable", "mixed", "unknown"]
+    },
+    "bundle_recommendation_source": {
+      "enum": [
+        "certified_archetype_match",
+        "probable_heuristic",
+        "mixed_signal_blend",
+        "user_selected",
+        "no_recommendation"
+      ]
+    },
+    "first_useful_work_route": {
+      "enum": [
+        "open_minimal",
+        "set_up_later",
+        "guided_setup_offered",
+        "local_safe_fallback",
+        "restricted_browse"
+      ]
+    },
+    "setup_timing": {
+      "enum": ["blocking_now", "recommended_soon", "optional_later"]
+    },
+    "setup_item_kind": {
+      "enum": [
+        "install_framework_pack",
+        "restore_packages",
+        "configure_runtime",
+        "grant_trust",
+        "hydrate_data",
+        "import_docs_pack",
+        "recommend_workflow_bundle",
+        "warm_index"
+      ]
+    },
+    "setup_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_kind",
+        "timing",
+        "blocks_first_useful_work",
+        "auto_runs",
+        "requires_review",
+        "action_label",
+        "evidence_ref"
+      ],
+      "properties": {
+        "item_kind": { "$ref": "#/$defs/setup_item_kind" },
+        "timing": { "$ref": "#/$defs/setup_timing" },
+        "blocks_first_useful_work": { "type": "boolean" },
+        "auto_runs": { "const": false },
+        "requires_review": { "type": "boolean" },
+        "action_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "wedge",
+        "admission_class",
+        "detection_source",
+        "archetype_confidence",
+        "bundle_recommendation_source",
+        "first_useful_work_route",
+        "local_safe_work_available",
+        "forces_wizard",
+        "auto_installs_packs",
+        "rewrites_layout_without_review",
+        "widens_trust_without_review",
+        "presented_as_certified_support",
+        "setup_items",
+        "routing_provenance_ref",
+        "archetype_evidence_ref",
+        "bundle_recommendation_ref",
+        "owner",
+        "diagnostics_ref",
+        "support_export_ref",
+        "help_surface_ref",
+        "docs_badge_ref",
+        "release_evidence_ref",
+        "note"
+      ],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "wedge": { "$ref": "#/$defs/wedge" },
+        "admission_class": { "$ref": "#/$defs/admission_class" },
+        "detection_source": { "$ref": "#/$defs/detection_source" },
+        "archetype_confidence": { "$ref": "#/$defs/archetype_confidence" },
+        "bundle_recommendation_source": { "$ref": "#/$defs/bundle_recommendation_source" },
+        "first_useful_work_route": { "$ref": "#/$defs/first_useful_work_route" },
+        "local_safe_work_available": { "type": "boolean" },
+        "forces_wizard": { "const": false },
+        "auto_installs_packs": { "const": false },
+        "rewrites_layout_without_review": { "const": false },
+        "widens_trust_without_review": { "const": false },
+        "presented_as_certified_support": { "type": "boolean" },
+        "setup_items": { "type": "array", "items": { "$ref": "#/$defs/setup_item" } },
+        "routing_provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "archetype_evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bundle_recommendation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "caveats": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "diagnostics_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_badge_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_checkpoints",
+        "checkpoint_count",
+        "certified_checkpoints",
+        "probable_checkpoints",
+        "mixed_checkpoints",
+        "unknown_checkpoints",
+        "restricted_checkpoints",
+        "missing_prerequisite_checkpoints",
+        "checkpoints_presenting_certified_support",
+        "checkpoints_with_blocking_setup",
+        "checkpoints_with_local_safe_work",
+        "total_setup_items",
+        "blocking_now_items",
+        "recommended_soon_items",
+        "optional_later_items",
+        "setup_items_requiring_review"
+      ],
+      "properties": {
+        "total_checkpoints": { "type": "integer", "minimum": 0 },
+        "checkpoint_count": { "type": "integer", "minimum": 0 },
+        "certified_checkpoints": { "type": "integer", "minimum": 0 },
+        "probable_checkpoints": { "type": "integer", "minimum": 0 },
+        "mixed_checkpoints": { "type": "integer", "minimum": 0 },
+        "unknown_checkpoints": { "type": "integer", "minimum": 0 },
+        "restricted_checkpoints": { "type": "integer", "minimum": 0 },
+        "missing_prerequisite_checkpoints": { "type": "integer", "minimum": 0 },
+        "checkpoints_presenting_certified_support": { "type": "integer", "minimum": 0 },
+        "checkpoints_with_blocking_setup": { "type": "integer", "minimum": 0 },
+        "checkpoints_with_local_safe_work": { "type": "integer", "minimum": 0 },
+        "total_setup_items": { "type": "integer", "minimum": 0 },
+        "blocking_now_items": { "type": "integer", "minimum": 0 },
+        "recommended_soon_items": { "type": "integer", "minimum": 0 },
+        "optional_later_items": { "type": "integer", "minimum": 0 },
+        "setup_items_requiring_review": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
