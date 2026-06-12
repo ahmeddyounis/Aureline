@@ -8,7 +8,7 @@
 //! expiry, last-access posture, and revocation behavior are all reviewable
 //! before and after the route becomes reachable.
 //!
-//! Four principal models live here:
+//! The principal models include:
 //!
 //! - [`route_governance::RouteObject`] — the stable route-truth row consumed
 //!   by UI, audits, issue reports, and support exports. Mirrors the boundary
@@ -27,6 +27,14 @@
 //!   remote/helper, provider-linked, state/schema, and accessibility surfaces
 //!   across all deployment profiles (local OSS, self-hosted, managed, and
 //!   air-gapped).
+//! - [`managed_workspace_lifecycle::ManagedWorkspaceLifecyclePage`] — the
+//!   stable lifecycle proof packet that makes managed-workspace provision,
+//!   warm, ready, suspend, resume, reconnect, rebuild, recreate, expiry, and
+//!   local-safe continuation a reviewed concept whose continuity, persistence,
+//!   provenance, recovery, and caveat truth stays consistent across desktop,
+//!   preview, companion, incident, and support/export surfaces. Mirrors the
+//!   boundary schema at
+//!   `/schemas/remote/managed_workspace_lifecycle.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -39,6 +47,7 @@
 
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
+pub mod managed_workspace_lifecycle;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
 
@@ -55,6 +64,24 @@ pub use finalize_qualification_rows_for_desktop_local_remote_helper::{
     QUALIFICATION_MATRIX_SHARED_CONTRACT_REF, QUALIFICATION_MATRIX_SUMMARY_RECORD_KIND,
     QUALIFICATION_MATRIX_SUPPORT_EXPORT_RECORD_KIND, QUALIFICATION_RECORD_KIND,
     REQUIRED_ACCESSIBILITY_FEATURES, REQUIRED_ROW_COUNT, REQUIRED_SURFACE_PROFILE_PAIRS,
+};
+
+pub use managed_workspace_lifecycle::{
+    audit_lifecycle_page, seeded_lifecycle_snapshot, seeded_managed_workspace_lifecycle_page,
+    validate_lifecycle_page, CaveatClass, ContinuityClass, ExpiryClass, LifecycleDefect,
+    LifecycleDispositionClass, LifecycleMatrixRow, LifecycleRecord, LifecycleSnapshot,
+    LifecycleStateClass, LifecycleSummary, LifecycleSupportExport, ManagedWorkspaceLifecyclePage,
+    NarrowReasonClass as ManagedWorkspaceLifecycleNarrowReasonClass, PersistenceClass,
+    ProvenanceClass, RecoveryOptionClass, SurfaceClass as ManagedWorkspaceSurfaceClass,
+    TransitionReasonClass, MANAGED_WORKSPACE_LIFECYCLE_ARTIFACT_REF,
+    MANAGED_WORKSPACE_LIFECYCLE_DEFECT_RECORD_KIND, MANAGED_WORKSPACE_LIFECYCLE_DOC_REF,
+    MANAGED_WORKSPACE_LIFECYCLE_PAGE_RECORD_KIND, MANAGED_WORKSPACE_LIFECYCLE_RECORD_KIND,
+    MANAGED_WORKSPACE_LIFECYCLE_ROW_RECORD_KIND, MANAGED_WORKSPACE_LIFECYCLE_SCHEMA_VERSION,
+    MANAGED_WORKSPACE_LIFECYCLE_SHARED_CONTRACT_REF,
+    MANAGED_WORKSPACE_LIFECYCLE_SUMMARY_RECORD_KIND,
+    MANAGED_WORKSPACE_LIFECYCLE_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_LIFECYCLE_STATES,
+    REQUIRED_RECORD_COUNT as MANAGED_WORKSPACE_LIFECYCLE_REQUIRED_RECORD_COUNT,
+    REQUIRED_SURFACES as MANAGED_WORKSPACE_LIFECYCLE_REQUIRED_SURFACES,
 };
 
 pub use route_governance::{

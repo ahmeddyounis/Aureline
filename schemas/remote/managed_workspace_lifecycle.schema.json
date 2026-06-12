@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/remote/managed_workspace_lifecycle.schema.json",
+  "title": "Aureline managed-workspace lifecycle — provision, warm, ready, suspend, resume, reconnect, rebuild, recreate, expiry, and local-safe continuation",
+  "description": "Boundary schema for the stable ManagedWorkspaceLifecyclePage proof packet. The packet carries one record per required lifecycle state, each with typed transition reason, persistence class, template/image provenance, continuity class, recovery options, expiry posture, local-safe continuation availability, caveat history, and the consuming surfaces it reaches. A resume may never claim exact continuity over a changed persistence class, provenance, or target identity. Raw credentials, raw private keys, raw image bytes, raw endpoint URLs, and raw PII are excluded; only closed-vocabulary tokens, opaque refs, plain-language summary sentences, and schema-version integers cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "page_id",
+    "page_label",
+    "generated_at",
+    "summary",
+    "rows",
+    "defects",
+    "snapshot"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "record_kind": {
+      "type": "string",
+      "const": "remote_managed_workspace_lifecycle_page_record"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "remote:managed_workspace_lifecycle:v1"
+    },
+    "page_id": { "$ref": "#/$defs/opaque_id" },
+    "page_label": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "summary": { "$ref": "#/$defs/lifecycle_summary" },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_matrix_row" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_defect" }
+    },
+    "snapshot": { "$ref": "#/$defs/lifecycle_snapshot" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:/\\-][a-z0-9]+)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800
+    },
+    "lifecycle_state_token": {
+      "type": "string",
+      "enum": [
+        "provision",
+        "warm",
+        "ready",
+        "suspended",
+        "resumed",
+        "reconnecting",
+        "rebuild_required",
+        "recreate_required",
+        "expired",
+        "local_safe_continuation"
+      ]
+    },
+    "nullable_lifecycle_state_token": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/lifecycle_state_token" }
+      ]
+    },
+    "transition_reason_token": {
+      "type": "string",
+      "enum": [
+        "user_requested_create",
+        "user_requested_resume",
+        "user_requested_suspend",
+        "idle_window_elapsed",
+        "hibernation_window_elapsed",
+        "successor_image_available",
+        "capsule_drift_detected",
+        "control_plane_failure",
+        "control_plane_recovered",
+        "expiry_deadline_reached"
+      ]
+    },
+    "persistence_class_token": {
+      "type": "string",
+      "enum": [
+        "persistent_volume",
+        "ephemeral_scratch",
+        "snapshot_restored",
+        "rebuilt_fresh",
+        "recreated_new",
+        "local_mirror"
+      ]
+    },
+    "provenance_class_token": {
+      "type": "string",
+      "enum": [
+        "pinned_digest",
+        "pinned_tag",
+        "successor_image",
+        "drifted_unpinned",
+        "unknown"
+      ]
+    },
+    "continuity_class_token": {
+      "type": "string",
+      "enum": [
+        "exact_continuity",
+        "material_change",
+        "fresh_no_continuity",
+        "local_safe_only"
+      ]
+    },
+    "recovery_option_token": {
+      "type": "string",
+      "enum": [
+        "resume",
+        "reconnect",
+        "rebuild",
+        "recreate",
+        "local_safe_continue",
+        "contact_operator"
+      ]
+    },
+    "expiry_class_token": {
+      "type": "string",
+      "enum": [
+        "none",
+        "idle_window",
+        "hibernation_window",
+        "hard_deadline",
+        "control_plane_outage"
+      ]
+    },
+    "caveat_class_token": {
+      "type": "string",
+      "enum": [
+        "persistence_class_changed",
+        "template_changed",
+        "image_changed",
+        "target_identity_changed",
+        "session_reauth_required",
+        "scratch_state_discarded",
+        "local_safe_only"
+      ]
+    },
+    "surface_token": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "preview_route",
+        "companion_handoff",
+        "incident_packet",
+        "support_export"
+      ]
+    },
+    "disposition_token": {
+      "type": "string",
+      "enum": ["truthful", "narrowed", "flagged", "withheld"]
+    },
+    "narrow_reason_token": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "raw_private_material_exposed",
+        "target_identity_undeclared",
+        "required_state_missing",
+        "surface_coverage_incomplete",
+        "continuity_overclaim",
+        "caveat_history_missing",
+        "local_safe_continuation_unavailable"
+      ]
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "lifecycle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "lifecycle_state",
+        "lifecycle_state_token",
+        "prior_lifecycle_state",
+        "prior_lifecycle_state_token",
+        "transition_reason",
+        "transition_reason_token",
+        "persistence_class",
+        "persistence_class_token",
+        "persistence_changed",
+        "template_provenance",
+        "template_provenance_token",
+        "image_provenance",
+        "image_provenance_token",
+        "provenance_changed",
+        "target_identity_ref",
+        "target_identity_preserved",
+        "continuity_class",
+        "continuity_class_token",
+        "recovery_options",
+        "expiry_class",
+        "expiry_class_token",
+        "expiry_timing_ref",
+        "local_safe_continuation_available",
+        "caveat_history",
+        "surfaces_present",
+        "raw_private_material_excluded",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_managed_workspace_lifecycle_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:managed_workspace_lifecycle:v1"
+        },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state_token" },
+        "lifecycle_state_token": { "$ref": "#/$defs/lifecycle_state_token" },
+        "prior_lifecycle_state": { "$ref": "#/$defs/nullable_lifecycle_state_token" },
+        "prior_lifecycle_state_token": { "$ref": "#/$defs/nullable_lifecycle_state_token" },
+        "transition_reason": { "$ref": "#/$defs/transition_reason_token" },
+        "transition_reason_token": { "$ref": "#/$defs/transition_reason_token" },
+        "persistence_class": { "$ref": "#/$defs/persistence_class_token" },
+        "persistence_class_token": { "$ref": "#/$defs/persistence_class_token" },
+        "persistence_changed": { "type": "boolean" },
+        "template_provenance": { "$ref": "#/$defs/provenance_class_token" },
+        "template_provenance_token": { "$ref": "#/$defs/provenance_class_token" },
+        "image_provenance": { "$ref": "#/$defs/provenance_class_token" },
+        "image_provenance_token": { "$ref": "#/$defs/provenance_class_token" },
+        "provenance_changed": { "type": "boolean" },
+        "target_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_preserved": { "type": "boolean" },
+        "continuity_class": { "$ref": "#/$defs/continuity_class_token" },
+        "continuity_class_token": { "$ref": "#/$defs/continuity_class_token" },
+        "recovery_options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_option_token" }
+        },
+        "expiry_class": { "$ref": "#/$defs/expiry_class_token" },
+        "expiry_class_token": { "$ref": "#/$defs/expiry_class_token" },
+        "expiry_timing_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "local_safe_continuation_available": { "type": "boolean" },
+        "caveat_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/caveat_class_token" }
+        },
+        "surfaces_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_token" }
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "lifecycle_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records"],
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_record" }
+        }
+      }
+    },
+    "lifecycle_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "lifecycle_state_token",
+        "prior_lifecycle_state_token",
+        "transition_reason_token",
+        "persistence_class_token",
+        "continuity_class_token",
+        "material_change",
+        "local_safe_continuation_available",
+        "raw_private_material_excluded",
+        "disposition_token",
+        "narrow_reason_token",
+        "plain_language_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_managed_workspace_lifecycle_row_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:managed_workspace_lifecycle:v1"
+        },
+        "lifecycle_state_token": { "$ref": "#/$defs/lifecycle_state_token" },
+        "prior_lifecycle_state_token": { "$ref": "#/$defs/nullable_lifecycle_state_token" },
+        "transition_reason_token": { "$ref": "#/$defs/transition_reason_token" },
+        "persistence_class_token": { "$ref": "#/$defs/persistence_class_token" },
+        "continuity_class_token": { "$ref": "#/$defs/continuity_class_token" },
+        "material_change": { "type": "boolean" },
+        "local_safe_continuation_available": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "disposition_token": { "$ref": "#/$defs/disposition_token" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_token" },
+        "plain_language_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "lifecycle_defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_managed_workspace_lifecycle_defect_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:managed_workspace_lifecycle:v1"
+        },
+        "defect_id": { "$ref": "#/$defs/non_empty_string" },
+        "narrow_reason": { "$ref": "#/$defs/narrow_reason_token" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_token" },
+        "source": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "lifecycle_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_count",
+        "truthful_count",
+        "narrowed_count",
+        "flagged_count",
+        "withheld_count",
+        "states_covered",
+        "material_change_count",
+        "local_safe_continuation_count",
+        "overall_disposition_token"
+      ],
+      "properties": {
+        "record_count": { "type": "integer", "minimum": 0 },
+        "truthful_count": { "type": "integer", "minimum": 0 },
+        "narrowed_count": { "type": "integer", "minimum": 0 },
+        "flagged_count": { "type": "integer", "minimum": 0 },
+        "withheld_count": { "type": "integer", "minimum": 0 },
+        "states_covered": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "material_change_count": { "type": "integer", "minimum": 0 },
+        "local_safe_continuation_count": { "type": "integer", "minimum": 0 },
+        "overall_disposition_token": { "$ref": "#/$defs/disposition_token" }
+      }
+    }
+  }
+}
