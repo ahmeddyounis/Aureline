@@ -26,6 +26,7 @@ pub mod publish_later;
 pub mod reconciliation;
 pub mod registry;
 pub mod route_resolution;
+pub mod scope_review;
 pub mod stabilize_provider_account_install_grant_registry;
 pub mod work_item_sync;
 pub mod work_items;
@@ -216,6 +217,32 @@ pub use route_resolution::{
     ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
     ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
     ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use scope_review::{
+    audit_provider_scope_review_page, seeded_provider_scope_review_page,
+    validate_provider_scope_review_page, EffectiveScopeInvalidationEventRecord,
+    LeastPrivilegeAlternativeRecord, ProviderScopeConsumerSupportSummary,
+    ProviderScopeInvalidationSupportSummary, ProviderScopeResolutionRecord,
+    ProviderScopeReviewContractRefs, ProviderScopeReviewDefect,
+    ProviderScopeReviewDefectKind, ProviderScopeReviewFixtureMetadata, ProviderScopeReviewPage,
+    ProviderScopeReviewSummary, ProviderScopeReviewSupportExport,
+    ProviderScopeReviewSupportSummary, ProviderScopeReviewValidationReport,
+    ScopeReviewAlternativeClass, ScopeReviewAuthorityHealthClass,
+    ScopeReviewConsumerProjectionRecord, ScopeReviewDecisionClass,
+    ScopeReviewDowngradeActionClass, ScopeReviewFreshnessBlock,
+    ScopeReviewGrantResolutionReasonClass, ScopeReviewInvalidationTriggerClass,
+    ScopeReviewPolicyContext, ScopeReviewPolicyLockClass, ScopeReviewProviderClass,
+    ScopeReviewRequestedActionClass, ScopeReviewStalenessClass, ScopeReviewSurfaceClass,
+    ScopeReviewTargetObjectClass, ScopeReviewTargetObjectIdentity,
+    PROVIDER_SCOPE_REVIEW_ALTERNATIVE_RECORD_KIND, PROVIDER_SCOPE_REVIEW_ARTIFACT_REF,
+    PROVIDER_SCOPE_REVIEW_CONSUMER_PROJECTION_RECORD_KIND, PROVIDER_SCOPE_REVIEW_DEFECT_RECORD_KIND,
+    PROVIDER_SCOPE_REVIEW_EFFECTIVE_SCOPE_SCHEMA_REF, PROVIDER_SCOPE_REVIEW_FIXTURE_DIR,
+    PROVIDER_SCOPE_REVIEW_INVALIDATION_RECORD_KIND, PROVIDER_SCOPE_REVIEW_PAGE_RECORD_KIND,
+    PROVIDER_SCOPE_REVIEW_RESOLUTION_RECORD_KIND, PROVIDER_SCOPE_REVIEW_SCHEMA_REF,
+    PROVIDER_SCOPE_REVIEW_SCHEMA_VERSION, PROVIDER_SCOPE_REVIEW_SHARED_CONTRACT_REF,
+    PROVIDER_SCOPE_REVIEW_SUMMARY_RECORD_KIND, PROVIDER_SCOPE_REVIEW_SUPPORT_EXPORT_ARTIFACT_REF,
+    PROVIDER_SCOPE_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
+    PROVIDER_SCOPE_REVIEW_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use stabilize_provider_account_install_grant_registry::{
     audit_stable_registry_packet, seeded_stable_provider_account_install_grant_registry_packet,

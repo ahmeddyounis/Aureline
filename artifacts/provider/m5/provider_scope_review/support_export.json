@@ -1,0 +1,169 @@
+{
+  "record_kind": "providers_scope_review_support_export_record",
+  "schema_version": 1,
+  "export_id": "providers:scope_review:m5:seed:support_export",
+  "page_id": "providers:scope_review:m5:seed",
+  "generated_at": "2026-06-12T20:05:30Z",
+  "resolution_summaries": [
+    {
+      "resolution_id": "scope_review:resolution:code_host:human:comment",
+      "provider_family": "code_host",
+      "provider_class": "code_host",
+      "actor_class": "human_account",
+      "authority_health_class": "healthy",
+      "decision_class": "allowed",
+      "grant_resolution_reason": "allowed",
+      "effective_scope_refs": [
+        "scope:repo:payments/backend:comment"
+      ],
+      "policy_lock_classes": [
+        "no_local_policy_lock"
+      ],
+      "least_privilege_alternative_refs": [],
+      "summary": "Allowed: Aureline acts as the signed-in reviewer account and can publish the PR comment with repo comment scope."
+    },
+    {
+      "resolution_id": "scope_review:resolution:ci:install:rerun",
+      "provider_family": "ci_checks",
+      "provider_class": "ci_checks",
+      "actor_class": "installation_or_app_grant",
+      "authority_health_class": "healthy",
+      "decision_class": "allowed",
+      "grant_resolution_reason": "allowed",
+      "effective_scope_refs": [
+        "scope:repo:payments/backend:check_run_write"
+      ],
+      "policy_lock_classes": [
+        "no_local_policy_lock"
+      ],
+      "least_privilege_alternative_refs": [],
+      "summary": "Allowed: Aureline acts as the CI bot installation grant and can rerun the check with install-scoped write authority."
+    },
+    {
+      "resolution_id": "scope_review:resolution:code_host:browser_only:merge",
+      "provider_family": "code_host",
+      "provider_class": "code_host",
+      "actor_class": "human_account",
+      "authority_health_class": "expiring",
+      "decision_class": "browser_only",
+      "grant_resolution_reason": "allowed_with_browser_handoff",
+      "effective_scope_refs": [],
+      "policy_lock_classes": [
+        "policy_bundle_requires_browser_handoff"
+      ],
+      "least_privilege_alternative_refs": [
+        "scope_review:alternative:merge:browser",
+        "scope_review:alternative:merge:copy_export"
+      ],
+      "summary": "Browser-only: Aureline can inspect the merge scope, but policy requires the final merge to complete through the provider browser handoff."
+    },
+    {
+      "resolution_id": "scope_review:resolution:issue:delegated:local_draft",
+      "provider_family": "issue_tracker",
+      "provider_class": "issue_tracker",
+      "actor_class": "delegated_user_token",
+      "authority_health_class": "unreachable",
+      "decision_class": "local_draft_only",
+      "grant_resolution_reason": "allowed_with_deferred_publish",
+      "effective_scope_refs": [],
+      "policy_lock_classes": [
+        "policy_bundle_requires_deferred_publish"
+      ],
+      "least_privilege_alternative_refs": [
+        "scope_review:alternative:item:local_draft",
+        "scope_review:alternative:item:inspect_only"
+      ],
+      "summary": "Local-draft only: Aureline keeps the work-item edit as a deferred publish item because the delegated credential cannot currently reach the provider."
+    },
+    {
+      "resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "provider_family": "issue_tracker",
+      "provider_class": "release_publisher",
+      "actor_class": "policy_injected_service_identity",
+      "authority_health_class": "host_mismatch",
+      "decision_class": "denied",
+      "grant_resolution_reason": "denied_host_mismatch",
+      "effective_scope_refs": [],
+      "policy_lock_classes": [
+        "release_publisher_lock",
+        "managed_provider_admin_lock"
+      ],
+      "least_privilege_alternative_refs": [
+        "scope_review:alternative:release:inspect",
+        "scope_review:alternative:release:admin_review",
+        "scope_review:alternative:release:copy_export"
+      ],
+      "summary": "Denied: the managed release publisher no longer matches the reviewed provider host and tenant, so Aureline falls back to inspect-only and export-safe evidence."
+    }
+  ],
+  "invalidation_summaries": [
+    {
+      "event_id": "scope_review:invalidation:ci:revoked",
+      "originating_resolution_id": "scope_review:resolution:ci:install:rerun",
+      "invalidation_trigger_class": "actor_class_revoked",
+      "downgrade_action_class": "force_inspect_only_until_repair",
+      "rationale_summary": "The installation grant was revoked, so cached check-run write authority is invalidated and rerun controls degrade to inspect-only."
+    },
+    {
+      "event_id": "scope_review:invalidation:release:host_mismatch",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "invalidation_trigger_class": "host_mismatch_detected",
+      "downgrade_action_class": "force_disconnect_until_repair",
+      "rationale_summary": "The release publisher host binding drifted; cached provider scope is disconnected until the host and tenant are reviewed."
+    },
+    {
+      "event_id": "scope_review:invalidation:release:tenant_switch",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "invalidation_trigger_class": "tenant_switch_detected",
+      "downgrade_action_class": "force_account_reselection",
+      "rationale_summary": "The managed publisher tenant changed, so cached effective scope is invalidated and the release route requires an explicit tenant reselection."
+    },
+    {
+      "event_id": "scope_review:invalidation:release:org_membership_lost",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "invalidation_trigger_class": "org_membership_lost",
+      "downgrade_action_class": "force_admin_review",
+      "rationale_summary": "Required org membership was lost, so release authority downgrades to admin review and support/export keeps the degraded state visible."
+    },
+    {
+      "event_id": "scope_review:invalidation:item:provider_health",
+      "originating_resolution_id": "scope_review:resolution:issue:delegated:local_draft",
+      "invalidation_trigger_class": "provider_health_degraded",
+      "downgrade_action_class": "force_local_draft_only_until_repair",
+      "rationale_summary": "Provider health degraded after the deferred decision was computed, so queued publishes remain local and visible until the route recovers."
+    }
+  ],
+  "consumer_surface_summaries": [
+    {
+      "projection_id": "scope_review:projection:desktop:release_host_mismatch",
+      "surface_class": "desktop",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "projected_decision_class": "denied",
+      "projected_decision_summary": "Denied: the managed release publisher no longer matches the reviewed provider host and tenant, so Aureline falls back to inspect-only and export-safe evidence."
+    },
+    {
+      "projection_id": "scope_review:projection:cli_headless:release_host_mismatch",
+      "surface_class": "cli_headless",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "projected_decision_class": "denied",
+      "projected_decision_summary": "Denied: the managed release publisher no longer matches the reviewed provider host and tenant, so Aureline falls back to inspect-only and export-safe evidence."
+    },
+    {
+      "projection_id": "scope_review:projection:companion:release_host_mismatch",
+      "surface_class": "companion",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "projected_decision_class": "denied",
+      "projected_decision_summary": "Denied: the managed release publisher no longer matches the reviewed provider host and tenant, so Aureline falls back to inspect-only and export-safe evidence."
+    },
+    {
+      "projection_id": "scope_review:projection:support_export:release_host_mismatch",
+      "surface_class": "support_export",
+      "originating_resolution_id": "scope_review:resolution:release:host_mismatch:denied",
+      "projected_decision_class": "denied",
+      "projected_decision_summary": "Denied: the managed release publisher no longer matches the reviewed provider host and tenant, so Aureline falls back to inspect-only and export-safe evidence."
+    }
+  ],
+  "redaction_class": "metadata_safe_default",
+  "raw_scope_material_excluded": true,
+  "redaction_summary": "Metadata-only provider scope-review export: provider class, acting-identity class, authority health, effective-scope result, least-privilege alternatives, and invalidation lineage are preserved. Raw tokens, raw provider scope text, hidden delegation material, and raw provider payloads remain excluded."
+}
