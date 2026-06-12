@@ -32,6 +32,13 @@ surface lacks its own stable qualification packet, Help / About renders that
 row's `displayed_label` and `active_narrow_reasons` from the register rather
 than inheriting a neighboring Stable claim.
 
+Infrastructure and incident-adjacent DevOps/SRE depth uses the same model:
+[`/artifacts/infra/infrastructure-surface-qualification/support_export.json`](../../artifacts/infra/infrastructure-surface-qualification/support_export.json)
+is the checked source for infrastructure `displayed_posture`,
+`narrow_reasons`, and packet refs, and
+[`/docs/help/infrastructure-surface-qualification.md`](./infrastructure-surface-qualification.md)
+is the help-facing summary over that same row set.
+
 ## What the seed surface guarantees
 
 The surface is a thin projection over upstream truth — no surface in the

@@ -10,6 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
 pub mod cluster_context_and_live_resource;
+pub mod infrastructure_surface_qualification;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
 pub mod relation_graph_incident_support_parity;
@@ -23,6 +24,22 @@ pub use cluster_context_and_live_resource::{
     CLUSTER_LIVE_RESOURCE_DOC_REF, CLUSTER_LIVE_RESOURCE_FIXTURE_DIR,
     CLUSTER_LIVE_RESOURCE_PACKET_RECORD_KIND, CLUSTER_LIVE_RESOURCE_SCHEMA_REF,
     CLUSTER_LIVE_RESOURCE_SCHEMA_VERSION,
+};
+pub use infrastructure_surface_qualification::{
+    current_infrastructure_surface_qualification_export,
+    seeded_infrastructure_surface_qualification_packet, EvidenceCurrency,
+    InfrastructureEvidenceConsumer, InfrastructureEvidenceConsumerBinding,
+    InfrastructureEvidenceIndexEntry, InfrastructureNarrowReason, InfrastructureProofClass,
+    InfrastructureSurface, InfrastructureSurfaceQualificationArtifactError,
+    InfrastructureSurfaceQualificationPacket, InfrastructureSurfaceQualificationPacketInput,
+    InfrastructureSurfaceQualificationViolation, InfrastructureSurfaceRow,
+    InfrastructureSurfaceVerdict, INFRASTRUCTURE_SURFACE_QUALIFICATION_ARTIFACT_REF,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_DOC_REF, INFRASTRUCTURE_SURFACE_QUALIFICATION_FIXTURE_DIR,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_HELP_REF,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_RECORD_KIND,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_SCHEMA_REF,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_SCHEMA_VERSION,
+    INFRASTRUCTURE_SURFACE_QUALIFICATION_SUMMARY_REF,
 };
 pub use plan_and_validation_viewers::{
     seeded_plan_and_validation_viewer_packet, validate_plan_and_validation_viewer_packet,
@@ -44,14 +61,13 @@ pub use provider_overlay_and_vendor_console_handoff_continuity::{
 pub use relation_graph_incident_support_parity::{
     seeded_relation_graph_incident_support_parity_packet,
     validate_relation_graph_incident_support_parity_packet, ConnectorSkewState, ExecutionPlane,
-    LocalityMismatchState, ParityDrillClass, ParityDrillResolution,
-    RelationGraphConsumerBinding, RelationGraphHandoffLineage,
-    RelationGraphIncidentSupportParityPacket, RelationGraphIncidentSupportParityValidationReport,
-    RelationGraphParityDrill, RelationGraphParitySurface, RelationGraphSelection,
+    LocalityMismatchState, ParityDrillClass, ParityDrillResolution, RelationGraphConsumerBinding,
+    RelationGraphHandoffLineage, RelationGraphIncidentSupportParityPacket,
+    RelationGraphIncidentSupportParityValidationReport, RelationGraphParityDrill,
+    RelationGraphParitySurface, RelationGraphSelection, StaleLiveOverlayState,
     RELATION_GRAPH_PARITY_ARTIFACT_REF, RELATION_GRAPH_PARITY_DOC_REF,
     RELATION_GRAPH_PARITY_FIXTURE_DIR, RELATION_GRAPH_PARITY_PACKET_RECORD_KIND,
     RELATION_GRAPH_PARITY_SCHEMA_REF, RELATION_GRAPH_PARITY_SCHEMA_VERSION,
-    StaleLiveOverlayState,
 };
 pub use source_intelligence_and_resource_relationships::{
     seeded_source_intelligence_object_packet, validate_object_packet,
