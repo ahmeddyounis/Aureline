@@ -17,6 +17,7 @@
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
 pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
+pub mod m5_install_config_auth_certification;
 pub mod m5_install_diagnostics;
 pub mod ownership_audit;
 pub mod profile_cards;
@@ -176,3 +177,23 @@ pub use m5_coexistence_and_fleet_rollout::{
     M5_COEXISTENCE_FLEET_ROLLOUT_SCHEMA_VERSION,
     M5_COEXISTENCE_FLEET_ROLLOUT_SUPPORT_EXPORT_RECORD_KIND,
 };
+
+pub use m5_install_config_auth_certification::{
+    current_m5_install_config_auth_certification, CertificationConsumer,
+    CertificationConsumerBinding, CertificationDomain, CertificationDowngradePath,
+    CertificationDrill, CertificationDrillClass, CertificationNarrowReason, CertificationProfile,
+    CertificationRow, DomainQualification, M5InstallConfigAuthCertification,
+    M5InstallConfigAuthCertificationExportProjection, M5InstallConfigAuthCertificationExportRow,
+    M5InstallConfigAuthCertificationSummary, M5InstallConfigAuthCertificationSupportExport,
+    M5InstallConfigAuthCertificationViolation, SourcePacket,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_ARTIFACT_DOC_REF,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_DOC_REF, M5_INSTALL_CONFIG_AUTH_CERTIFICATION_FIXTURE_DIR,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_JSON, M5_INSTALL_CONFIG_AUTH_CERTIFICATION_PATH,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_RECORD_KIND,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_SCHEMA_REF,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_SCHEMA_VERSION,
+    M5_INSTALL_CONFIG_AUTH_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+// Note: `EvidenceFreshness` is intentionally not re-exported here to avoid colliding with the
+// coexistence module's same-named type; reference it via the module path when needed.

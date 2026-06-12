@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/install/m5-install-config-auth-certification.schema.json",
+  "title": "Aureline M5 install/config/auth certification packet",
+  "description": "Schema for the m5_install_config_auth_certification packet. The packet aggregates the install-topology, configuration-portability, sync/device, and auth-recovery evidence landed across the install, settings, and identity lanes into one qualification report for every claimed M5 profile (desktop-stable, desktop-preview, portable, managed-fleet, mirror-offline). Each certification row carries one domain qualification per required domain (install_topology, config_portability, sync_device, auth_recovery), and each domain qualification names the canonical source packet it draws truth from (validated against the closed source-packet vocabulary) plus its evidence freshness (current, aging, stale, missing). A non-inheriting certification gate derives the support label that may be published: a domain whose source declared below verified, whose evidence is aging or stale, whose evidence is missing, or a row missing a required domain all lower or withhold the published support automatically, so a claimed row is either qualified with current proof or automatically downgraded before publication. Drills replay the install-topology, side-by-side, portable, mirror/offline, settings-portability, sync/device, passkey/recovery, accessibility, and downgrade scenarios and prove the object detects each. Every required consumer surface (release center, About, docs/help, admin docs, support export, diagnostics, CLI) binds to the packet and narrows with it; the recorded published support, narrow reasons, and downgrade path must equal the recomputed gate decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "certification_identity_scheme",
+    "profiles",
+    "domains",
+    "source_packets",
+    "assurance_labels",
+    "evidence_freshness_states",
+    "narrow_reasons",
+    "downgrade_paths",
+    "drill_classes",
+    "consumers",
+    "rows",
+    "drills",
+    "consumer_bindings",
+    "summary"
+  ],
+  "$defs": {
+    "profile": {
+      "type": "string",
+      "enum": ["desktop_stable", "desktop_preview", "portable", "managed_fleet", "mirror_offline"]
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["install_topology", "config_portability", "sync_device", "auth_recovery"]
+    },
+    "source_packet": {
+      "type": "string",
+      "enum": [
+        "install_governance",
+        "coexistence_fleet_rollout",
+        "install_diagnostics",
+        "effective_settings",
+        "portable_state_and_restore",
+        "sync_and_device_review",
+        "auth_and_recovery"
+      ]
+    },
+    "assurance": {
+      "type": "string",
+      "enum": ["verified", "bounded", "retest_pending", "withheld"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["current", "aging", "stale", "missing"]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": ["stale_evidence", "missing_evidence", "source_unqualified", "incomplete_domain_coverage"]
+    },
+    "downgrade_path": {
+      "type": "string",
+      "enum": [
+        "refresh_evidence",
+        "requalify_source",
+        "complete_domain_coverage",
+        "narrow_to_supported_scope",
+        "withhold_claim",
+        "none"
+      ]
+    },
+    "drill_class": {
+      "type": "string",
+      "enum": [
+        "install_topology",
+        "side_by_side",
+        "portable",
+        "mirror_offline",
+        "settings_portability",
+        "sync_device",
+        "passkey_recovery",
+        "accessibility",
+        "downgrade"
+      ]
+    },
+    "consumer": {
+      "type": "string",
+      "enum": ["release_center", "about", "docs_help", "admin_docs", "support_export", "diagnostics", "cli"]
+    },
+    "domain_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "source_packet",
+        "source_packet_ref",
+        "evidence_ref",
+        "evidence_freshness",
+        "declared_support",
+        "published_support",
+        "note"
+      ],
+      "properties": {
+        "domain": { "$ref": "#/$defs/domain" },
+        "source_packet": { "$ref": "#/$defs/source_packet" },
+        "source_packet_ref": { "type": "string", "minLength": 1 },
+        "evidence_ref": { "type": "string", "minLength": 1 },
+        "evidence_freshness": { "$ref": "#/$defs/freshness" },
+        "declared_support": { "$ref": "#/$defs/assurance" },
+        "published_support": { "$ref": "#/$defs/assurance" },
+        "caveats": { "type": "array", "items": { "type": "string" } },
+        "stale_or_missing_fields": { "type": "array", "items": { "type": "string" } },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "profile",
+        "display_name",
+        "owner",
+        "evidence_as_of",
+        "domains",
+        "declared_support",
+        "published_support",
+        "downgrade_path",
+        "certification_ref",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "type": "string", "minLength": 1 },
+        "profile": { "$ref": "#/$defs/profile" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "evidence_as_of": { "type": "string", "minLength": 1 },
+        "domains": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/domain_qualification" }
+        },
+        "declared_support": { "$ref": "#/$defs/assurance" },
+        "published_support": { "$ref": "#/$defs/assurance" },
+        "narrow_reasons": { "type": "array", "items": { "$ref": "#/$defs/narrow_reason" } },
+        "downgrade_path": { "$ref": "#/$defs/downgrade_path" },
+        "supported_scopes": { "type": "array", "items": { "type": "string" } },
+        "caveats": { "type": "array", "items": { "type": "string" } },
+        "stale_or_missing_fields": { "type": "array", "items": { "type": "string" } },
+        "certification_ref": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "drill_class",
+        "target_ref",
+        "scenario",
+        "expected_signal",
+        "observed_signal",
+        "detected",
+        "resolves_to"
+      ],
+      "properties": {
+        "drill_id": { "type": "string", "minLength": 1 },
+        "drill_class": { "$ref": "#/$defs/drill_class" },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "expected_signal": { "type": "string", "minLength": 1 },
+        "observed_signal": { "type": "string", "minLength": 1 },
+        "detected": { "type": "boolean" },
+        "resolves_to": { "type": "string", "minLength": 1 }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "binding_ref",
+        "certification_packet_id_ref",
+        "ingests_packet",
+        "preserves_published_support",
+        "preserves_downgrade_paths",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "binding_ref": { "type": "string", "minLength": 1 },
+        "certification_packet_id_ref": { "type": "string", "minLength": 1 },
+        "ingests_packet": { "type": "boolean" },
+        "preserves_published_support": { "type": "boolean" },
+        "preserves_downgrade_paths": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_install_config_auth_certification" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "overview_page": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "certification_identity_scheme": { "type": "string", "minLength": 1 },
+    "profiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "domains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "source_packets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source_packet" }
+    },
+    "assurance_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assurance" }
+    },
+    "evidence_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/freshness" }
+    },
+    "narrow_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/narrow_reason" }
+    },
+    "downgrade_paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_path" }
+    },
+    "drill_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/drill_class" }
+    },
+    "consumers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer" }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "drills": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/drill" }
+    },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "profile_count",
+        "total_domain_rows",
+        "source_packet_count",
+        "verified_rows",
+        "bounded_rows",
+        "retest_pending_rows",
+        "withheld_rows",
+        "downgraded_rows",
+        "stale_evidence_rows",
+        "missing_evidence_rows",
+        "source_unqualified_rows",
+        "drill_count",
+        "detected_drill_count"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "profile_count": { "type": "integer", "minimum": 0 },
+        "total_domain_rows": { "type": "integer", "minimum": 0 },
+        "source_packet_count": { "type": "integer", "minimum": 0 },
+        "verified_rows": { "type": "integer", "minimum": 0 },
+        "bounded_rows": { "type": "integer", "minimum": 0 },
+        "retest_pending_rows": { "type": "integer", "minimum": 0 },
+        "withheld_rows": { "type": "integer", "minimum": 0 },
+        "downgraded_rows": { "type": "integer", "minimum": 0 },
+        "stale_evidence_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 },
+        "source_unqualified_rows": { "type": "integer", "minimum": 0 },
+        "drill_count": { "type": "integer", "minimum": 0 },
+        "detected_drill_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
