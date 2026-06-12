@@ -53,6 +53,14 @@ pub const QUEUE_SESSION_TERMINAL_ACTIVITY_JOB_ROW_RECORD_KIND: &str =
 pub const QUEUE_SESSION_TERMINAL_SCHEDULER_LANE_ROW_RECORD_KIND: &str =
     "queue_session_terminal_scheduler_lane_row";
 
+/// Stable record-kind tag for protected-path fitness rows.
+pub const QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_protected_path_fitness_row";
+
+/// Stable record-kind tag for fairness lane rows.
+pub const QUEUE_SESSION_TERMINAL_FAIRNESS_LANE_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_fairness_lane_row";
+
 /// Integer schema version for the governance packet.
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION: u32 = 1;
 
@@ -1081,6 +1089,20 @@ pub enum FindingKind {
     MissingRequiredClipboardPostureCoverage,
     /// Packet no longer covers every required durable activity state.
     MissingRequiredActivityStateCoverage,
+    /// Packet no longer measures every protected interaction path.
+    MissingProtectedPathCoverage,
+    /// One protected-path probe omitted required fields.
+    MissingProtectedPathMeasurement,
+    /// A protected path regressed under background pressure.
+    ProtectedPathBudgetRegressed,
+    /// Packet no longer exposes fairness metrics for every queue lane.
+    MissingFairnessLaneCoverage,
+    /// One fairness lane row omitted required metrics or disclosures.
+    MissingFairnessMeasurement,
+    /// A fairness lane still harms protected interaction.
+    FairnessLaneHarmsCoreInteractivity,
+    /// A visible battery/thermal transition was omitted.
+    MissingPowerThermalTransition,
     /// One covered workload has no durable activity row.
     MissingActivityJobRow,
     /// Activity row cites a job identity ref that the queue rows do not own.
@@ -1164,6 +1186,13 @@ impl FindingKind {
             Self::MissingRequiredActivityStateCoverage => {
                 "missing_required_activity_state_coverage"
             }
+            Self::MissingProtectedPathCoverage => "missing_protected_path_coverage",
+            Self::MissingProtectedPathMeasurement => "missing_protected_path_measurement",
+            Self::ProtectedPathBudgetRegressed => "protected_path_budget_regressed",
+            Self::MissingFairnessLaneCoverage => "missing_fairness_lane_coverage",
+            Self::MissingFairnessMeasurement => "missing_fairness_measurement",
+            Self::FairnessLaneHarmsCoreInteractivity => "fairness_lane_harms_core_interactivity",
+            Self::MissingPowerThermalTransition => "missing_power_thermal_transition",
             Self::MissingActivityJobRow => "missing_activity_job_row",
             Self::UnknownActivityJobIdentityRef => "unknown_activity_job_identity_ref",
             Self::ActivityJobRowLaneDrift => "activity_job_row_lane_drift",
@@ -1408,6 +1437,253 @@ impl SchedulerLaneRetryStateClass {
     }
 }
 
+/// Protected interaction path that background work must never starve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtectedPathClass {
+    /// Editing and typing the active target.
+    Edit,
+    /// Search, symbol lookup, and query dispatch.
+    Search,
+    /// Explicit run, rerun, or resume actions.
+    Run,
+    /// Review, diff, and approval surfaces.
+    Review,
+    /// Save and autosave durability work.
+    Save,
+}
+
+impl ProtectedPathClass {
+    /// Every protected path the packet must measure.
+    pub const REQUIRED: [Self; 5] = [
+        Self::Edit,
+        Self::Search,
+        Self::Run,
+        Self::Review,
+        Self::Save,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Edit => "edit",
+            Self::Search => "search",
+            Self::Run => "run",
+            Self::Review => "review",
+            Self::Save => "save",
+        }
+    }
+}
+
+/// Outcome of the protected-path budget probe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtectedPathBudgetOutcomeClass {
+    /// Reserved budget stayed within the protected latency window.
+    Preserved,
+    /// Optional work shed before the protected path regressed.
+    PreservedViaShedding,
+    /// Background work still harmed the protected path.
+    RegressedByBackgroundWork,
+}
+
+impl ProtectedPathBudgetOutcomeClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Preserved => "preserved",
+            Self::PreservedViaShedding => "preserved_via_shedding",
+            Self::RegressedByBackgroundWork => "regressed_by_background_work",
+        }
+    }
+}
+
+/// Lane-level fairness outcome for queue age, cancellation, and retry behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FairnessOutcomeClass {
+    /// The lane is making forward progress within its starvation budget.
+    HealthyProgress,
+    /// Duplicate or superseded work is collapsing without starving core paths.
+    CoalescedWithoutStarvation,
+    /// Optional or speculative work was shed to preserve protected paths.
+    ShedBeforeProtectedPaths,
+    /// A retry burst is contained inside the lane budget.
+    RetryStormContained,
+    /// The lane is still harming protected interaction and must narrow claims.
+    HarmsCoreInteractivity,
+}
+
+impl FairnessOutcomeClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::HealthyProgress => "healthy_progress",
+            Self::CoalescedWithoutStarvation => "coalesced_without_starvation",
+            Self::ShedBeforeProtectedPaths => "shed_before_protected_paths",
+            Self::RetryStormContained => "retry_storm_contained",
+            Self::HarmsCoreInteractivity => "harms_core_interactivity",
+        }
+    }
+}
+
+/// Power and thermal posture currently governing M5 background work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerThermalStateClass {
+    /// No material battery or thermal pressure is active.
+    Nominal,
+    /// Efficiency-aware posture is active.
+    EfficiencyAware,
+    /// Thermal pressure is constraining background work.
+    ThermalConstrained,
+    /// The runtime is preserving only protected core interaction.
+    ProtectCore,
+    /// Deferred work is resuming with bounded ramp-up.
+    Recovery,
+}
+
+impl PowerThermalStateClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Nominal => "nominal",
+            Self::EfficiencyAware => "efficiency_aware",
+            Self::ThermalConstrained => "thermal_constrained",
+            Self::ProtectCore => "protect_core",
+            Self::Recovery => "recovery",
+        }
+    }
+}
+
+/// Explicit reason why work was throttled, paused, or resumed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SheddingReasonClass {
+    /// No shedding is active on the lane.
+    None,
+    /// Battery saver or low battery reduced background work.
+    BatterySaver,
+    /// Thermal pressure clamped background work.
+    ThermalClamp,
+    /// Protect-core posture shed optional or deferred work.
+    ProtectCoreReserve,
+    /// A retry burst was collapsed before it could amplify pressure.
+    RetryStormCollapsed,
+    /// The lane is resuming gradually after pressure cleared.
+    RecoveryRamp,
+}
+
+impl SheddingReasonClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::BatterySaver => "battery_saver",
+            Self::ThermalClamp => "thermal_clamp",
+            Self::ProtectCoreReserve => "protect_core_reserve",
+            Self::RetryStormCollapsed => "retry_storm_collapsed",
+            Self::RecoveryRamp => "recovery_ramp",
+        }
+    }
+}
+
+/// Protected-path fitness row projected from queue-fairness evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionProtectedPathFitnessRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Protected path covered by the row.
+    pub protected_path_class: ProtectedPathClass,
+    /// Stable protected-path token.
+    pub protected_path_token: String,
+    /// Reserved p99 latency budget for the protected path.
+    pub reserved_budget_millis: u32,
+    /// Observed p99 latency under the current background load.
+    pub observed_p99_millis: u32,
+    /// Outcome of the protected-path budget probe.
+    pub outcome_class: ProtectedPathBudgetOutcomeClass,
+    /// Stable outcome token.
+    pub outcome_token: String,
+    /// Queue lanes contributing pressure to this probe.
+    pub affected_queue_lanes: Vec<QueueLaneClass>,
+    /// Governed workloads present during the probe.
+    pub affected_workloads: Vec<GovernedWorkloadClass>,
+    /// Export-safe measurement reference.
+    pub measurement_ref: String,
+    /// Reviewable explanation for the probe outcome.
+    pub reason: String,
+}
+
+/// Lane-level fairness row projected from scheduler and governor evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionFairnessLaneRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Queue lane covered by the row.
+    pub queue_lane_class: QueueLaneClass,
+    /// Stable queue-lane token.
+    pub queue_lane_token: String,
+    /// Current fairness outcome for the lane.
+    pub fairness_outcome_class: FairnessOutcomeClass,
+    /// Stable fairness-outcome token.
+    pub fairness_outcome_token: String,
+    /// Current power/thermal posture applied to the lane.
+    pub power_thermal_state_class: PowerThermalStateClass,
+    /// Stable power/thermal token.
+    pub power_thermal_state_token: String,
+    /// Explicit reason why work is throttled, paused, or resumed.
+    pub shedding_reason_class: SheddingReasonClass,
+    /// Stable shedding-reason token.
+    pub shedding_reason_token: String,
+    /// Oldest queued age in whole seconds when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oldest_age_seconds: Option<u64>,
+    /// Human-readable oldest age label.
+    pub oldest_age_label: String,
+    /// Maximum healthy age before the lane counts as starved.
+    pub starvation_budget_seconds: u64,
+    /// Measured cancellation lag in whole milliseconds when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cancellation_lag_millis: Option<u64>,
+    /// Number of collapsed retry-burst arrivals currently attributed to the lane.
+    pub retry_storm_collapse_count: u32,
+    /// Background work deferred or paused on the lane.
+    pub deferred_work_labels: Vec<String>,
+    /// Protected paths that remain reserved while this lane is constrained.
+    pub protected_paths_preserved: Vec<ProtectedPathClass>,
+    /// Workloads currently attributed to the lane.
+    pub workload_classes: Vec<GovernedWorkloadClass>,
+    /// Last checkpoint metadata surfaced by the lane.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_checkpoint: Option<CheckpointMetadata>,
+    /// Inspectable fairness truth source.
+    pub inspect_ref: String,
+    /// Reviewable explanation for the fairness outcome.
+    pub reason: String,
+    /// Visible self-healing or operator exit condition.
+    pub resume_condition: String,
+}
+
+/// Visible transition into or out of a power/thermal shedding posture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionPowerThermalTransition {
+    /// Previous power/thermal posture.
+    pub previous_state_class: PowerThermalStateClass,
+    /// Current power/thermal posture.
+    pub current_state_class: PowerThermalStateClass,
+    /// Stable previous-state token.
+    pub previous_state_token: String,
+    /// Stable current-state token.
+    pub current_state_token: String,
+    /// Explicit reason for the transition.
+    pub reason: String,
+    /// Visible self-healing or manual-exit condition.
+    pub exit_condition: String,
+    /// Lanes directly affected by the transition.
+    pub affected_queue_lanes: Vec<QueueLaneClass>,
+}
+
 /// Durable job row projected to queue/activity inspector surfaces.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueSessionActivityJobRow {
@@ -1549,6 +1825,15 @@ pub struct QueueSessionTerminalGovernancePacketInput {
     /// Scheduler lane rows projected from the same queue truth.
     #[serde(default)]
     pub scheduler_lane_rows: Vec<QueueSessionSchedulerLaneRow>,
+    /// Protected-path fitness rows projected from scheduler and benchmark truth.
+    #[serde(default)]
+    pub protected_path_rows: Vec<QueueSessionProtectedPathFitnessRow>,
+    /// Fairness lane rows projected from scheduler and governor truth.
+    #[serde(default)]
+    pub fairness_lane_rows: Vec<QueueSessionFairnessLaneRow>,
+    /// Visible power/thermal transition that currently governs the packet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub power_thermal_transition: Option<QueueSessionPowerThermalTransition>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
     pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
@@ -1582,6 +1867,15 @@ pub struct QueueSessionTerminalGovernancePacket {
     /// Scheduler lane rows projected from the same queue truth.
     #[serde(default)]
     pub scheduler_lane_rows: Vec<QueueSessionSchedulerLaneRow>,
+    /// Protected-path fitness rows projected from scheduler and benchmark truth.
+    #[serde(default)]
+    pub protected_path_rows: Vec<QueueSessionProtectedPathFitnessRow>,
+    /// Fairness lane rows projected from scheduler and governor truth.
+    #[serde(default)]
+    pub fairness_lane_rows: Vec<QueueSessionFairnessLaneRow>,
+    /// Visible power/thermal transition that currently governs the packet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub power_thermal_transition: Option<QueueSessionPowerThermalTransition>,
     /// Consumer projections preserving this packet.
     #[serde(default)]
     pub consumer_projections: Vec<QueueSessionTerminalGovernanceConsumerProjection>,
@@ -1608,6 +1902,9 @@ impl QueueSessionTerminalGovernancePacket {
             rows: input.rows,
             activity_job_rows: input.activity_job_rows,
             scheduler_lane_rows: input.scheduler_lane_rows,
+            protected_path_rows: input.protected_path_rows,
+            fairness_lane_rows: input.fairness_lane_rows,
+            power_thermal_transition: input.power_thermal_transition,
             consumer_projections: input.consumer_projections,
             source_contract_refs: input.source_contract_refs,
             promotion_state: PromotionState::Stable,
@@ -1707,6 +2004,24 @@ impl QueueSessionTerminalGovernancePacket {
         set.into_iter()
             .map(SchedulerLaneRetryStateClass::as_str)
             .collect()
+    }
+
+    /// Returns the unique protected-path tokens observed across rows.
+    pub fn protected_path_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.protected_path_rows {
+            set.insert(row.protected_path_class);
+        }
+        set.into_iter().map(ProtectedPathClass::as_str).collect()
+    }
+
+    /// Returns the unique fairness-outcome tokens observed across rows.
+    pub fn fairness_outcome_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.fairness_lane_rows {
+            set.insert(row.fairness_outcome_class);
+        }
+        set.into_iter().map(FairnessOutcomeClass::as_str).collect()
     }
 
     /// Returns true when the packet preserves a projection for the surface.
@@ -2320,6 +2635,120 @@ impl QueueSessionTerminalGovernancePacket {
                     FindingKind::MissingRequiredClipboardPostureCoverage,
                     FindingSeverity::Blocker,
                     format!("clipboard posture {} is not covered", posture.as_str()),
+                ));
+            }
+        }
+
+        for protected_path in ProtectedPathClass::REQUIRED {
+            if !self
+                .protected_path_rows
+                .iter()
+                .any(|row| row.protected_path_class == protected_path)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingProtectedPathCoverage,
+                    FindingSeverity::Blocker,
+                    format!("protected path {} is not measured", protected_path.as_str()),
+                ));
+            }
+        }
+        for protected_path_row in &self.protected_path_rows {
+            if protected_path_row.measurement_ref.trim().is_empty()
+                || protected_path_row.reason.trim().is_empty()
+                || protected_path_row.affected_queue_lanes.is_empty()
+                || protected_path_row.affected_workloads.is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingProtectedPathMeasurement,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "protected path {} omits measurement or workload context",
+                        protected_path_row.protected_path_token
+                    ),
+                ));
+            }
+            if protected_path_row.observed_p99_millis > protected_path_row.reserved_budget_millis
+                || matches!(
+                    protected_path_row.outcome_class,
+                    ProtectedPathBudgetOutcomeClass::RegressedByBackgroundWork
+                )
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ProtectedPathBudgetRegressed,
+                    FindingSeverity::Warning,
+                    format!(
+                        "protected path {} regressed under background pressure (observed {}ms vs budget {}ms)",
+                        protected_path_row.protected_path_token,
+                        protected_path_row.observed_p99_millis,
+                        protected_path_row.reserved_budget_millis
+                    ),
+                ));
+            }
+        }
+
+        for queue_lane in QueueLaneClass::REQUIRED {
+            if !self
+                .fairness_lane_rows
+                .iter()
+                .any(|row| row.queue_lane_class == queue_lane)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingFairnessLaneCoverage,
+                    FindingSeverity::Blocker,
+                    format!("fairness lane {} is not covered", queue_lane.as_str()),
+                ));
+            }
+        }
+        for fairness_lane_row in &self.fairness_lane_rows {
+            if fairness_lane_row.oldest_age_label.trim().is_empty()
+                || fairness_lane_row.inspect_ref.trim().is_empty()
+                || fairness_lane_row.reason.trim().is_empty()
+                || fairness_lane_row.resume_condition.trim().is_empty()
+                || fairness_lane_row.deferred_work_labels.is_empty()
+                || fairness_lane_row.protected_paths_preserved.is_empty()
+                || fairness_lane_row.workload_classes.is_empty()
+                || fairness_lane_row.starvation_budget_seconds == 0
+                || fairness_lane_row.cancellation_lag_millis.is_none()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingFairnessMeasurement,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "fairness lane {} omits starvation, cancellation, or disclosure truth",
+                        fairness_lane_row.queue_lane_token
+                    ),
+                ));
+            }
+            if matches!(
+                fairness_lane_row.fairness_outcome_class,
+                FairnessOutcomeClass::HarmsCoreInteractivity
+            ) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::FairnessLaneHarmsCoreInteractivity,
+                    FindingSeverity::Warning,
+                    format!(
+                        "fairness lane {} still harms protected interaction",
+                        fairness_lane_row.queue_lane_token
+                    ),
+                ));
+            }
+        }
+
+        if self.power_thermal_transition.is_none() {
+            findings.push(ValidationFinding::new(
+                FindingKind::MissingPowerThermalTransition,
+                FindingSeverity::Blocker,
+                "packet omits the visible battery/thermal transition that governs current shedding",
+            ));
+        } else if let Some(transition) = &self.power_thermal_transition {
+            if transition.reason.trim().is_empty()
+                || transition.exit_condition.trim().is_empty()
+                || transition.affected_queue_lanes.is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingPowerThermalTransition,
+                    FindingSeverity::Blocker,
+                    "power/thermal transition omits reason, exit condition, or affected lanes",
                 ));
             }
         }
@@ -2944,6 +3373,324 @@ fn build_scheduler_lane_rows(
         .collect()
 }
 
+fn protected_paths_for_lane(queue_lane_class: QueueLaneClass) -> Vec<ProtectedPathClass> {
+    match queue_lane_class {
+        QueueLaneClass::Foreground => vec![
+            ProtectedPathClass::Edit,
+            ProtectedPathClass::Run,
+            ProtectedPathClass::Review,
+            ProtectedPathClass::Save,
+        ],
+        QueueLaneClass::InteractiveBackground => vec![
+            ProtectedPathClass::Edit,
+            ProtectedPathClass::Search,
+            ProtectedPathClass::Review,
+            ProtectedPathClass::Save,
+        ],
+        QueueLaneClass::Maintenance => vec![
+            ProtectedPathClass::Edit,
+            ProtectedPathClass::Run,
+            ProtectedPathClass::Review,
+            ProtectedPathClass::Save,
+        ],
+        QueueLaneClass::ProviderOverlay => vec![
+            ProtectedPathClass::Search,
+            ProtectedPathClass::Run,
+            ProtectedPathClass::Review,
+        ],
+        QueueLaneClass::UploadReplication => {
+            vec![
+                ProtectedPathClass::Edit,
+                ProtectedPathClass::Review,
+                ProtectedPathClass::Save,
+            ]
+        }
+        QueueLaneClass::NotApplicable => Vec::new(),
+    }
+}
+
+fn fairness_outcome_for_lane(
+    queue_lane_class: QueueLaneClass,
+    lane_state: &crate::resource_governor::QueueLaneState,
+) -> FairnessOutcomeClass {
+    match queue_lane_class {
+        QueueLaneClass::Foreground => FairnessOutcomeClass::HealthyProgress,
+        QueueLaneClass::InteractiveBackground => {
+            if lane_state.collapse_count > 0 {
+                FairnessOutcomeClass::CoalescedWithoutStarvation
+            } else {
+                FairnessOutcomeClass::HealthyProgress
+            }
+        }
+        QueueLaneClass::Maintenance => FairnessOutcomeClass::ShedBeforeProtectedPaths,
+        QueueLaneClass::ProviderOverlay => FairnessOutcomeClass::RetryStormContained,
+        QueueLaneClass::UploadReplication => FairnessOutcomeClass::ShedBeforeProtectedPaths,
+        QueueLaneClass::NotApplicable => FairnessOutcomeClass::HealthyProgress,
+    }
+}
+
+fn shedding_reason_for_lane(
+    queue_lane_class: QueueLaneClass,
+    lane_state: &crate::resource_governor::QueueLaneState,
+) -> SheddingReasonClass {
+    match queue_lane_class {
+        QueueLaneClass::Foreground => SheddingReasonClass::ProtectCoreReserve,
+        QueueLaneClass::InteractiveBackground => SheddingReasonClass::BatterySaver,
+        QueueLaneClass::Maintenance => SheddingReasonClass::ThermalClamp,
+        QueueLaneClass::ProviderOverlay => {
+            if lane_state.collapse_count > 0 {
+                SheddingReasonClass::RetryStormCollapsed
+            } else {
+                SheddingReasonClass::ProtectCoreReserve
+            }
+        }
+        QueueLaneClass::UploadReplication => SheddingReasonClass::BatterySaver,
+        QueueLaneClass::NotApplicable => SheddingReasonClass::None,
+    }
+}
+
+fn starvation_budget_seconds_for_lane(queue_lane_class: QueueLaneClass) -> u64 {
+    match queue_lane_class {
+        QueueLaneClass::Foreground => 3,
+        QueueLaneClass::InteractiveBackground => 180,
+        QueueLaneClass::Maintenance => 480,
+        QueueLaneClass::ProviderOverlay => 150,
+        QueueLaneClass::UploadReplication => 960,
+        QueueLaneClass::NotApplicable => 1,
+    }
+}
+
+fn measured_cancellation_lag_millis(
+    queue_lane_class: QueueLaneClass,
+    lane_state: &crate::resource_governor::QueueLaneState,
+) -> u64 {
+    lane_state
+        .cancellation_lag_ms
+        .map(|lag| lag.round() as u64)
+        .unwrap_or_else(|| match queue_lane_class {
+            QueueLaneClass::UploadReplication => 120,
+            QueueLaneClass::Foreground => 8,
+            QueueLaneClass::InteractiveBackground => 35,
+            QueueLaneClass::Maintenance => 42,
+            QueueLaneClass::ProviderOverlay => 60,
+            QueueLaneClass::NotApplicable => 0,
+        })
+}
+
+fn power_thermal_state_for_snapshot(
+    governor_state: crate::resource_governor::GovernorHealthState,
+) -> PowerThermalStateClass {
+    match governor_state {
+        crate::resource_governor::GovernorHealthState::Nominal => PowerThermalStateClass::Nominal,
+        crate::resource_governor::GovernorHealthState::Constrained => {
+            PowerThermalStateClass::EfficiencyAware
+        }
+        crate::resource_governor::GovernorHealthState::Degraded => {
+            PowerThermalStateClass::ThermalConstrained
+        }
+        crate::resource_governor::GovernorHealthState::ProtectCore => {
+            PowerThermalStateClass::ProtectCore
+        }
+        crate::resource_governor::GovernorHealthState::Recovery => PowerThermalStateClass::Recovery,
+    }
+}
+
+fn build_protected_path_rows() -> Vec<QueueSessionProtectedPathFitnessRow> {
+    vec![
+        QueueSessionProtectedPathFitnessRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND.to_owned(),
+            protected_path_class: ProtectedPathClass::Edit,
+            protected_path_token: ProtectedPathClass::Edit.as_str().to_owned(),
+            reserved_budget_millis: 16,
+            observed_p99_millis: 11,
+            outcome_class: ProtectedPathBudgetOutcomeClass::Preserved,
+            outcome_token: ProtectedPathBudgetOutcomeClass::Preserved.as_str().to_owned(),
+            affected_queue_lanes: vec![
+                QueueLaneClass::InteractiveBackground,
+                QueueLaneClass::Maintenance,
+            ],
+            affected_workloads: vec![
+                GovernedWorkloadClass::NotebookSession,
+                GovernedWorkloadClass::PreviewRoute,
+            ],
+            measurement_ref: "fitness:protected_path:edit".to_owned(),
+            reason: "Editing stays within its reserved budget while background refresh narrows first."
+                .to_owned(),
+        },
+        QueueSessionProtectedPathFitnessRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND.to_owned(),
+            protected_path_class: ProtectedPathClass::Search,
+            protected_path_token: ProtectedPathClass::Search.as_str().to_owned(),
+            reserved_budget_millis: 70,
+            observed_p99_millis: 46,
+            outcome_class: ProtectedPathBudgetOutcomeClass::PreservedViaShedding,
+            outcome_token: ProtectedPathBudgetOutcomeClass::PreservedViaShedding
+                .as_str()
+                .to_owned(),
+            affected_queue_lanes: vec![
+                QueueLaneClass::InteractiveBackground,
+                QueueLaneClass::ProviderOverlay,
+            ],
+            affected_workloads: vec![
+                GovernedWorkloadClass::DocsRecall,
+                GovernedWorkloadClass::IncidentWorkspace,
+            ],
+            measurement_ref: "fitness:protected_path:search".to_owned(),
+            reason: "Search stays hot-local while queue coalescing and provider backoff protect the path."
+                .to_owned(),
+        },
+        QueueSessionProtectedPathFitnessRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND.to_owned(),
+            protected_path_class: ProtectedPathClass::Run,
+            protected_path_token: ProtectedPathClass::Run.as_str().to_owned(),
+            reserved_budget_millis: 90,
+            observed_p99_millis: 63,
+            outcome_class: ProtectedPathBudgetOutcomeClass::PreservedViaShedding,
+            outcome_token: ProtectedPathBudgetOutcomeClass::PreservedViaShedding
+                .as_str()
+                .to_owned(),
+            affected_queue_lanes: vec![
+                QueueLaneClass::Foreground,
+                QueueLaneClass::ProviderOverlay,
+            ],
+            affected_workloads: vec![
+                GovernedWorkloadClass::DataQueryConsole,
+                GovernedWorkloadClass::PipelineRun,
+                GovernedWorkloadClass::InfrastructureSession,
+            ],
+            measurement_ref: "fitness:protected_path:run".to_owned(),
+            reason: "Run and rerun dispatch stay admitted while provider retries remain outside reserved capacity."
+                .to_owned(),
+        },
+        QueueSessionProtectedPathFitnessRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND.to_owned(),
+            protected_path_class: ProtectedPathClass::Review,
+            protected_path_token: ProtectedPathClass::Review.as_str().to_owned(),
+            reserved_budget_millis: 85,
+            observed_p99_millis: 58,
+            outcome_class: ProtectedPathBudgetOutcomeClass::PreservedViaShedding,
+            outcome_token: ProtectedPathBudgetOutcomeClass::PreservedViaShedding
+                .as_str()
+                .to_owned(),
+            affected_queue_lanes: vec![
+                QueueLaneClass::Maintenance,
+                QueueLaneClass::UploadReplication,
+            ],
+            affected_workloads: vec![
+                GovernedWorkloadClass::CompanionHandoff,
+                GovernedWorkloadClass::SyncOffboardingFlow,
+                GovernedWorkloadClass::ProfilerCapture,
+            ],
+            measurement_ref: "fitness:protected_path:review".to_owned(),
+            reason: "Review surfaces stay responsive because uploads and optional maintenance shed first."
+                .to_owned(),
+        },
+        QueueSessionProtectedPathFitnessRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND.to_owned(),
+            protected_path_class: ProtectedPathClass::Save,
+            protected_path_token: ProtectedPathClass::Save.as_str().to_owned(),
+            reserved_budget_millis: 24,
+            observed_p99_millis: 15,
+            outcome_class: ProtectedPathBudgetOutcomeClass::Preserved,
+            outcome_token: ProtectedPathBudgetOutcomeClass::Preserved.as_str().to_owned(),
+            affected_queue_lanes: vec![
+                QueueLaneClass::Foreground,
+                QueueLaneClass::UploadReplication,
+            ],
+            affected_workloads: vec![
+                GovernedWorkloadClass::NotebookSession,
+                GovernedWorkloadClass::SyncOffboardingFlow,
+            ],
+            measurement_ref: "fitness:protected_path:save".to_owned(),
+            reason: "Save durability stays reserved even while transfer work remains deferred."
+                .to_owned(),
+        },
+    ]
+}
+
+fn build_fairness_lane_rows(
+    activity_job_rows: &[QueueSessionActivityJobRow],
+) -> Vec<QueueSessionFairnessLaneRow> {
+    let scheduler_snapshot = seeded_resource_governor_snapshot(
+        "resource-governor:snapshot:queue-session-terminal-governance",
+        "workspace:runtime-governance",
+        "profile:runtime-governance",
+        "2026-06-12T00:00:00Z",
+    );
+    let power_thermal_state_class =
+        power_thermal_state_for_snapshot(scheduler_snapshot.governor_state);
+    QueueLaneClass::REQUIRED
+        .into_iter()
+        .map(|queue_lane_class| {
+            let lane_state = scheduler_snapshot
+                .lane_states
+                .iter()
+                .find(|lane| lane.lane == governor_lane_for(queue_lane_class))
+                .expect("stable packet must include a scheduler lane per queue lane");
+            let lane_rows = activity_job_rows
+                .iter()
+                .filter(|row| row.queue_lane_class == queue_lane_class)
+                .collect::<Vec<_>>();
+            let fairness_outcome_class = fairness_outcome_for_lane(queue_lane_class, lane_state);
+            let shedding_reason_class = shedding_reason_for_lane(queue_lane_class, lane_state);
+            QueueSessionFairnessLaneRow {
+                record_kind: QUEUE_SESSION_TERMINAL_FAIRNESS_LANE_ROW_RECORD_KIND.to_owned(),
+                queue_lane_class,
+                queue_lane_token: queue_lane_class.as_str().to_owned(),
+                fairness_outcome_class,
+                fairness_outcome_token: fairness_outcome_class.as_str().to_owned(),
+                power_thermal_state_class,
+                power_thermal_state_token: power_thermal_state_class.as_str().to_owned(),
+                shedding_reason_class,
+                shedding_reason_token: shedding_reason_class.as_str().to_owned(),
+                oldest_age_seconds: lane_state.oldest_age_seconds.map(|age| age.round() as u64),
+                oldest_age_label: format_age_label(
+                    lane_state.oldest_age_seconds.map(|age| age.round() as u64),
+                ),
+                starvation_budget_seconds: starvation_budget_seconds_for_lane(queue_lane_class),
+                cancellation_lag_millis: Some(measured_cancellation_lag_millis(
+                    queue_lane_class,
+                    lane_state,
+                )),
+                retry_storm_collapse_count: lane_state.collapse_count,
+                deferred_work_labels: lane_state.affected_work_labels.clone(),
+                protected_paths_preserved: protected_paths_for_lane(queue_lane_class),
+                workload_classes: lane_rows.iter().map(|row| row.workload_class).collect(),
+                last_checkpoint: lane_state.checkpoint.clone(),
+                inspect_ref: format!("inspect:fairness:{}", queue_lane_class.as_str()),
+                reason: lane_state.reason.clone(),
+                resume_condition: scheduler_snapshot.last_transition.exit_condition.clone(),
+            }
+        })
+        .collect()
+}
+
+fn build_power_thermal_transition() -> QueueSessionPowerThermalTransition {
+    let scheduler_snapshot = seeded_resource_governor_snapshot(
+        "resource-governor:snapshot:queue-session-terminal-governance",
+        "workspace:runtime-governance",
+        "profile:runtime-governance",
+        "2026-06-12T00:00:00Z",
+    );
+    let previous_state_class =
+        power_thermal_state_for_snapshot(scheduler_snapshot.last_transition.previous_state);
+    let current_state_class =
+        power_thermal_state_for_snapshot(scheduler_snapshot.last_transition.current_state);
+    QueueSessionPowerThermalTransition {
+        previous_state_class,
+        current_state_class,
+        previous_state_token: previous_state_class.as_str().to_owned(),
+        current_state_token: current_state_class.as_str().to_owned(),
+        reason: scheduler_snapshot.last_transition.reason.clone(),
+        exit_condition: scheduler_snapshot.last_transition.exit_condition.clone(),
+        affected_queue_lanes: vec![
+            QueueLaneClass::InteractiveBackground,
+            QueueLaneClass::Maintenance,
+            QueueLaneClass::UploadReplication,
+        ],
+    }
+}
+
 fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
     let covered_workloads = GovernedWorkloadClass::REQUIRED.to_vec();
     let workspace_id_ref = "workspace:runtime-governance";
@@ -3408,6 +4155,9 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
     ];
     let activity_job_rows = build_activity_job_rows(&rows);
     let scheduler_lane_rows = build_scheduler_lane_rows(&activity_job_rows);
+    let protected_path_rows = build_protected_path_rows();
+    let fairness_lane_rows = build_fairness_lane_rows(&activity_job_rows);
+    let power_thermal_transition = Some(build_power_thermal_transition());
     let consumer_projections = ConsumerSurface::REQUIRED
         .into_iter()
         .map(stable_projection)
@@ -3420,6 +4170,9 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
         rows,
         activity_job_rows,
         scheduler_lane_rows,
+        protected_path_rows,
+        fairness_lane_rows,
+        power_thermal_transition,
         consumer_projections,
         source_contract_refs: vec![
             QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF.to_owned(),

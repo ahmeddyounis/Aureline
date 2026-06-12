@@ -1,7 +1,9 @@
 # Queue Session Terminal Governance Matrix
 
 This reviewer matrix is the checked-in continuity contract for the runtime
-surfaces governed by `aureline-runtime`.
+surfaces governed by `aureline-runtime`. It now also carries the fairness and
+protected-path fitness truth required to prove M5 background work yields before
+edit/search/run/review/save regress.
 
 | Workload | Concrete jobs | Queue lane | Budget domains | Collapse / staleness | Checkpoint | Restore fidelity | No hidden rerun | Terminal boundary | Clipboard posture | Downgrade rule |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -38,3 +40,12 @@ surfaces governed by `aureline-runtime`.
 - Scheduler inspector rows reuse the same packet and publish per-lane queue
   depth, oldest age, collapse count, retry-state rollup, and last checkpoint
   metadata so activity center and support bundles read one scheduler truth.
+- Protected-path fitness rows now measure `edit`, `search`, `run`, `review`,
+  and `save` with reserved budgets and observed p99 values. A regressed path is
+  a narrowing input, not a silent green row.
+- Fairness lane rows now publish starvation budget, cancellation lag,
+  retry-storm collapse count, power/thermal state, shedding reason, protected
+  paths preserved, and resume condition for each queue lane.
+- A visible power/thermal transition now records the current shedding state,
+  reason, exit condition, and affected lanes so slowdowns do not read as
+  generic slowness.

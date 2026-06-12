@@ -6,12 +6,12 @@ use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
     current_queue_session_terminal_governance_packet, ActivityJobStateClass, GovernanceFindingKind,
-    GovernancePromotionState, GovernanceSupportClass, GovernedJobKind, GovernedWorkloadClass,
-    QueueSessionTerminalGovernancePacket, QueueSessionTerminalGovernanceRowClass,
-    BACKGROUND_QUEUE_CONTRACT_DOC_REF, CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF,
-    HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF,
-    QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR,
-    QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF,
+    GovernancePromotionState, GovernanceProtectedPathBudgetOutcomeClass, GovernanceSupportClass,
+    GovernedJobKind, GovernedWorkloadClass, QueueSessionTerminalGovernancePacket,
+    QueueSessionTerminalGovernanceRowClass, BACKGROUND_QUEUE_CONTRACT_DOC_REF,
+    CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF, HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR, QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -30,6 +30,8 @@ struct ExpectedFixture {
     promotion_state: String,
     validation_finding_count: usize,
     row_count: usize,
+    protected_path_row_count: usize,
+    fairness_lane_row_count: usize,
     support_export_safe: bool,
     #[serde(default)]
     expected_finding_kinds: Vec<String>,
@@ -47,6 +49,10 @@ struct ExpectedFixture {
     terminal_boundary_tokens: Vec<String>,
     #[serde(default)]
     clipboard_posture_tokens: Vec<String>,
+    #[serde(default)]
+    protected_path_tokens: Vec<String>,
+    #[serde(default)]
+    fairness_outcome_tokens: Vec<String>,
 }
 
 fn repo_root() -> PathBuf {
@@ -158,17 +164,38 @@ fn apply_mutation(packet: &mut QueueSessionTerminalGovernancePacket, mutation: &
                 .budget_domain_refs
                 .push(HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF.to_owned());
         }
+        "remove_upload_fairness_lane_row" => {
+            packet
+                .fairness_lane_rows
+                .retain(|row| row.queue_lane_token != "upload_replication");
+        }
+        "regress_review_protected_path_budget" => {
+            let row = packet
+                .protected_path_rows
+                .iter_mut()
+                .find(|row| row.protected_path_token == "review")
+                .expect("review protected-path row");
+            row.observed_p99_millis = 143;
+            row.outcome_class =
+                GovernanceProtectedPathBudgetOutcomeClass::RegressedByBackgroundWork;
+            row.outcome_token = row.outcome_class.as_str().to_owned();
+        }
         other => panic!("unknown mutation: {other}"),
     }
 
     let findings = packet.validate();
-    packet.validation_findings = findings.clone();
-    packet.promotion_state = if findings
+    let findings_without_promotion_mismatch = findings
+        .iter()
+        .filter(|finding| finding.finding_kind != GovernanceFindingKind::PromotionStateMismatch)
+        .cloned()
+        .collect::<Vec<_>>();
+    packet.validation_findings = findings_without_promotion_mismatch.clone();
+    packet.promotion_state = if findings_without_promotion_mismatch
         .iter()
         .any(|finding| finding.severity == aureline_runtime::GovernanceFindingSeverity::Blocker)
     {
         GovernancePromotionState::BlocksStable
-    } else if findings
+    } else if findings_without_promotion_mismatch
         .iter()
         .any(|finding| finding.severity == aureline_runtime::GovernanceFindingSeverity::Warning)
     {
@@ -207,6 +234,18 @@ fn assert_fixture_matches(file_name: &str) {
         packet.rows.len(),
         fixture.expect.row_count,
         "fixture {} row count drift",
+        fixture.case_name
+    );
+    assert_eq!(
+        packet.protected_path_rows.len(),
+        fixture.expect.protected_path_row_count,
+        "fixture {} protected-path row count drift",
+        fixture.case_name
+    );
+    assert_eq!(
+        packet.fairness_lane_rows.len(),
+        fixture.expect.fairness_lane_row_count,
+        "fixture {} fairness-lane row count drift",
         fixture.case_name
     );
     assert_eq!(
@@ -249,6 +288,16 @@ fn assert_fixture_matches(file_name: &str) {
         &packet.clipboard_posture_tokens(),
         &fixture.expect.clipboard_posture_tokens,
         "clipboard_posture",
+    );
+    assert_token_set_matches(
+        &packet.protected_path_tokens(),
+        &fixture.expect.protected_path_tokens,
+        "protected_path",
+    );
+    assert_token_set_matches(
+        &packet.fairness_outcome_tokens(),
+        &fixture.expect.fairness_outcome_tokens,
+        "fairness_outcome",
     );
 
     let export = packet.support_export(
@@ -324,6 +373,16 @@ fn protected_hot_path_budget_cannot_be_consumed() {
 }
 
 #[test]
+fn removing_fairness_lane_blocks_stable() {
+    assert_fixture_matches("remove_upload_fairness_lane_row.json");
+}
+
+#[test]
+fn protected_path_regression_narrows_stable_claim() {
+    assert_fixture_matches("regress_review_protected_path_budget.json");
+}
+
+#[test]
 fn checked_in_packet_validates_and_covers_every_required_class() {
     let packet = current_queue_session_terminal_governance_packet();
     let findings = packet.validate();
@@ -333,6 +392,8 @@ fn checked_in_packet_validates_and_covers_every_required_class() {
     );
     assert_eq!(packet.covered_workloads.len(), 10);
     assert_eq!(packet.rows.len(), 47);
+    assert_eq!(packet.protected_path_rows.len(), 5);
+    assert_eq!(packet.fairness_lane_rows.len(), 5);
     let observed_job_kinds: BTreeSet<&str> = packet.job_kind_tokens().into_iter().collect();
     for job_kind in GovernedJobKind::REQUIRED {
         assert!(
@@ -359,6 +420,7 @@ fn checked_in_packet_ships_activity_rows_and_scheduler_lane_rows() {
     let packet = current_queue_session_terminal_governance_packet();
     assert_eq!(packet.activity_job_rows.len(), 10);
     assert_eq!(packet.scheduler_lane_rows.len(), 5);
+    assert!(packet.power_thermal_transition.is_some());
 
     let observed_states: BTreeSet<&str> = packet.activity_state_tokens().into_iter().collect();
     for state in ActivityJobStateClass::REQUIRED {
@@ -405,4 +467,8 @@ fn checked_in_packet_ships_activity_rows_and_scheduler_lane_rows() {
             activity_row.row_id
         );
     }
+    assert_eq!(
+        packet.protected_path_tokens(),
+        vec!["edit", "search", "run", "review", "save"]
+    );
 }

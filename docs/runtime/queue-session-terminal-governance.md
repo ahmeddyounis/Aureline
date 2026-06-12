@@ -30,6 +30,18 @@ and the reviewer matrix is
 - Scheduler lane rows: `scheduler_lane_rows` publish per-lane queue depth,
   oldest queued age, collapse count, retry-state rollup, last checkpoint
   metadata, and the durable activity rows currently attributed to the lane.
+- Protected-path fitness rows: `protected_path_rows` measure `edit`, `search`,
+  `run`, `review`, and `save` under M5 background load with reserved budgets,
+  observed p99 values, affected lanes/workloads, and an explicit outcome of
+  `preserved`, `preserved_via_shedding`, or
+  `regressed_by_background_work`.
+- Fairness lane rows: `fairness_lane_rows` publish per-lane starvation budgets,
+  queue age, cancellation lag, retry-storm collapse counts, the current
+  `power_thermal_state_class`, an explicit `shedding_reason_class`, protected
+  paths preserved by the lane, and visible `resume_condition` truth.
+- Power/thermal transition: `power_thermal_transition` makes the active
+  background-shedding state transition reviewable with previous/current state,
+  reason, exit condition, and affected lanes.
 - Downgrade posture: `known_limit_class`, `downgrade_rule_class`,
   `support_class`, and `disclosure_ref` whenever a row narrows below stable.
 
@@ -42,6 +54,10 @@ and the reviewer matrix is
   `initiating_source`, `collapse_key`, `collapse_policy`,
   `staleness_policy`, exact `budget_domain_refs`, and the revision or
   context refs that invalidate stale work.
+- Every checked-in packet must also measure the protected interaction set
+  `edit`, `search`, `run`, `review`, and `save`, and it must keep those paths
+  on explicit reserved budgets rather than letting background work borrow the
+  hot path implicitly.
 - Workloads that cross a runtime boundary must also publish one terminal
   boundary row; generic desktop continuity is not enough.
 - Every governed workload must also publish one durable activity row so the
@@ -52,6 +68,9 @@ and the reviewer matrix is
   consume `hot_path_interactive_budget`; they must run in explicit queue
   budgets such as `foreground_task_budget`, `knowledge_refresh_budget`,
   `maintenance_budget`, `provider_overlay_budget`, or `replication_budget`.
+- Fairness is a visible contract, not an inferred one. Queue age, cancellation
+  lag, retry-storm collapse counts, checkpoint resume posture, and
+  battery/thermal shedding must remain inspectable on every governed lane.
 - Restore preserves structure, evidence, transcripts, and honest rerun
   affordances, but never silently replays commands or reacquires authority.
 - Clipboard and paste posture must preserve the active boundary class and
@@ -77,6 +96,19 @@ and the reviewer matrix is
   identities the governance rows admit; support export preserves the packet
   verbatim so operator/support views do not reconstruct scheduler state from
   logs or ad hoc summaries.
+- Every required queue lane also publishes one fairness row with starvation
+  budget, cancellation lag, retry-storm collapse count, power/thermal posture,
+  shedding reason, protected-path preservation, and resume condition.
+
+## Protected-Path Fitness
+
+- The packet must cover `edit`, `search`, `run`, `review`, and `save`.
+- A protected-path row becomes a warning-level narrowing input when its observed
+  p99 exceeds the reserved budget or its outcome is
+  `regressed_by_background_work`.
+- This is the auto-narrow rule for M5 background-heavy surfaces: if the packet
+  can still explain the regression, it narrows below Stable instead of silently
+  keeping a full claim.
 
 ## Downgrade Rules
 
@@ -85,6 +117,8 @@ and the reviewer matrix is
   row.
 - Stale terminal-boundary or clipboard proof narrows the workload row.
 - Missing checkpoint proof or exhausted retry budgets narrow the workload row.
+- Protected-path regressions and fairness rows that still harm core interaction
+  narrow the packet below Stable.
 - Missing evidence blocks stable publication.
 
 ## Concrete M5 Job Coverage

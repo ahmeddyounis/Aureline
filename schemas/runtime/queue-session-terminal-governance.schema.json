@@ -14,6 +14,9 @@
     "rows",
     "activity_job_rows",
     "scheduler_lane_rows",
+    "protected_path_rows",
+    "fairness_lane_rows",
+    "power_thermal_transition",
     "consumer_projections",
     "promotion_state",
     "validation_findings"
@@ -194,6 +197,144 @@
         }
       }
     },
+    "protected_path_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "record_kind",
+          "protected_path_class",
+          "protected_path_token",
+          "reserved_budget_millis",
+          "observed_p99_millis",
+          "outcome_class",
+          "outcome_token",
+          "affected_queue_lanes",
+          "affected_workloads",
+          "measurement_ref",
+          "reason"
+        ],
+        "properties": {
+          "record_kind": {
+            "const": "queue_session_terminal_protected_path_fitness_row"
+          },
+          "protected_path_class": { "$ref": "#/$defs/protected_path" },
+          "protected_path_token": { "type": "string", "minLength": 1 },
+          "reserved_budget_millis": { "type": "integer", "minimum": 1 },
+          "observed_p99_millis": { "type": "integer", "minimum": 0 },
+          "outcome_class": { "$ref": "#/$defs/protected_path_outcome" },
+          "outcome_token": { "type": "string", "minLength": 1 },
+          "affected_queue_lanes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/queue_lane" }
+          },
+          "affected_workloads": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/workload" }
+          },
+          "measurement_ref": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "fairness_lane_rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "record_kind",
+          "queue_lane_class",
+          "queue_lane_token",
+          "fairness_outcome_class",
+          "fairness_outcome_token",
+          "power_thermal_state_class",
+          "power_thermal_state_token",
+          "shedding_reason_class",
+          "shedding_reason_token",
+          "oldest_age_label",
+          "starvation_budget_seconds",
+          "cancellation_lag_millis",
+          "retry_storm_collapse_count",
+          "deferred_work_labels",
+          "protected_paths_preserved",
+          "workload_classes",
+          "inspect_ref",
+          "reason",
+          "resume_condition"
+        ],
+        "properties": {
+          "record_kind": {
+            "const": "queue_session_terminal_fairness_lane_row"
+          },
+          "queue_lane_class": { "$ref": "#/$defs/queue_lane" },
+          "queue_lane_token": { "type": "string", "minLength": 1 },
+          "fairness_outcome_class": { "$ref": "#/$defs/fairness_outcome" },
+          "fairness_outcome_token": { "type": "string", "minLength": 1 },
+          "power_thermal_state_class": { "$ref": "#/$defs/power_thermal_state" },
+          "power_thermal_state_token": { "type": "string", "minLength": 1 },
+          "shedding_reason_class": { "$ref": "#/$defs/shedding_reason" },
+          "shedding_reason_token": { "type": "string", "minLength": 1 },
+          "oldest_age_seconds": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "oldest_age_label": { "type": "string", "minLength": 1 },
+          "starvation_budget_seconds": { "type": "integer", "minimum": 1 },
+          "cancellation_lag_millis": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "retry_storm_collapse_count": { "type": "integer", "minimum": 0 },
+          "deferred_work_labels": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "protected_paths_preserved": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/protected_path" }
+          },
+          "workload_classes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/workload" }
+          },
+          "inspect_ref": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "resume_condition": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "power_thermal_transition": {
+      "type": "object",
+      "required": [
+        "previous_state_class",
+        "current_state_class",
+        "previous_state_token",
+        "current_state_token",
+        "reason",
+        "exit_condition",
+        "affected_queue_lanes"
+      ],
+      "properties": {
+        "previous_state_class": { "$ref": "#/$defs/power_thermal_state" },
+        "current_state_class": { "$ref": "#/$defs/power_thermal_state" },
+        "previous_state_token": { "type": "string", "minLength": 1 },
+        "current_state_token": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "exit_condition": { "type": "string", "minLength": 1 },
+        "affected_queue_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/queue_lane" }
+        }
+      }
+    },
     "consumer_projections": {
       "type": "array",
       "minItems": 8
@@ -309,6 +450,44 @@
         "provider_retry_budget_tracked",
         "reauthorize_before_retry",
         "manual_review_before_retry"
+      ]
+    },
+    "protected_path": {
+      "enum": ["edit", "search", "run", "review", "save"]
+    },
+    "protected_path_outcome": {
+      "enum": [
+        "preserved",
+        "preserved_via_shedding",
+        "regressed_by_background_work"
+      ]
+    },
+    "fairness_outcome": {
+      "enum": [
+        "healthy_progress",
+        "coalesced_without_starvation",
+        "shed_before_protected_paths",
+        "retry_storm_contained",
+        "harms_core_interactivity"
+      ]
+    },
+    "power_thermal_state": {
+      "enum": [
+        "nominal",
+        "efficiency_aware",
+        "thermal_constrained",
+        "protect_core",
+        "recovery"
+      ]
+    },
+    "shedding_reason": {
+      "enum": [
+        "none",
+        "battery_saver",
+        "thermal_clamp",
+        "protect_core_reserve",
+        "retry_storm_collapsed",
+        "recovery_ramp"
       ]
     },
     "initiating_source": {
