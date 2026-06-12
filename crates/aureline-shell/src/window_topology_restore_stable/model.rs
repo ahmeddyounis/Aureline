@@ -7,7 +7,8 @@
 //! routinely fuse: rebuilding the **window topology** (which windows existed,
 //! their pane trees, focus history, and visible surfaces) and resuming the
 //! **session-scoped execution** behind a pane (a live terminal, a debug
-//! session, a notebook kernel, a preview server, a remote-backed surface). When
+//! session, a notebook kernel, a query console, a preview route, a profiler
+//! capture, an incident workspace, or a remote-backed surface). When
 //! they are fused, a restored window silently reacquires live authority: a
 //! terminal re-runs a deploy, a debugger reattaches, a remote pane reconnects
 //! without consent. When the display topology changed underneath the save —
@@ -77,8 +78,9 @@ pub const WINDOW_TOPOLOGY_RESTORE_SHARED_CONTRACT_REF: &str =
 pub const WINDOW_TOPOLOGY_RESTORE_NOTICE: &str =
     "Window-restore truth: window-topology restore is separated from session-scoped execution \
      restore; restoring a window recreates pane shells, the pane tree, and focus history, but a \
-     terminal, debug, notebook, preview, or remote-backed pane hydrates into a truthful placeholder \
-     or reconnect state instead of silently reacquiring live authority; workspace authority — dirty \
+     terminal, debug, notebook, query-console, preview-route, profiler-capture, incident-workspace, \
+     or remote-backed pane hydrates into a truthful placeholder or reconnect state instead of \
+     silently reacquiring live authority; workspace authority — dirty \
      buffers, recovery journals, trust and policy, VFS identity, and attached execution contexts — \
      stays centralized while pane-tree layout, focus history, zoom/follow state, and visible \
      surfaces stay window-local; split, move, float, pin, and close-pane mutate one versioned \
@@ -213,7 +215,7 @@ pub enum PaneSurfaceClass {
     Problems,
     /// Source-control panel (re-readable).
     Scm,
-    /// Documentation browser (re-readable).
+    /// Documentation browser or docs pane (re-readable).
     Docs,
     /// Explorer tree (re-readable).
     Explorer,
@@ -223,8 +225,12 @@ pub enum PaneSurfaceClass {
     Debugger,
     /// Notebook pane (session-scoped live authority).
     Notebook,
+    /// Query-console pane (session-scoped live authority).
+    QueryConsole,
     /// Preview canvas (session-scoped live authority).
     Preview,
+    /// Profiler capture or replay pane (session-scoped live authority).
+    ProfilerCapture,
     /// Remote-backed surface (session-scoped live authority).
     RemoteBacked,
     /// AI panel (session-scoped live authority).
@@ -233,6 +239,8 @@ pub enum PaneSurfaceClass {
     Test,
     /// Pipeline / job pane (session-scoped live authority).
     Pipeline,
+    /// Incident workspace pane (session-scoped live authority).
+    IncidentWorkspace,
     /// Extension-contributed pane (may be missing on restore).
     CustomExtension,
 }
@@ -251,11 +259,14 @@ impl PaneSurfaceClass {
             Self::Terminal => "terminal",
             Self::Debugger => "debugger",
             Self::Notebook => "notebook",
+            Self::QueryConsole => "query_console",
             Self::Preview => "preview",
+            Self::ProfilerCapture => "profiler_capture",
             Self::RemoteBacked => "remote_backed",
             Self::AiPanel => "ai_panel",
             Self::Test => "test",
             Self::Pipeline => "pipeline",
+            Self::IncidentWorkspace => "incident_workspace",
             Self::CustomExtension => "custom_extension",
         }
     }
@@ -268,11 +279,14 @@ impl PaneSurfaceClass {
             Self::Terminal
                 | Self::Debugger
                 | Self::Notebook
+                | Self::QueryConsole
                 | Self::Preview
+                | Self::ProfilerCapture
                 | Self::RemoteBacked
                 | Self::AiPanel
                 | Self::Test
                 | Self::Pipeline
+                | Self::IncidentWorkspace
         )
     }
 }
@@ -1989,9 +2003,13 @@ mod tests {
     #[test]
     fn session_scoped_classification_is_correct() {
         assert!(PaneSurfaceClass::Terminal.is_session_scoped());
+        assert!(PaneSurfaceClass::QueryConsole.is_session_scoped());
+        assert!(PaneSurfaceClass::ProfilerCapture.is_session_scoped());
+        assert!(PaneSurfaceClass::IncidentWorkspace.is_session_scoped());
         assert!(PaneSurfaceClass::RemoteBacked.is_session_scoped());
         assert!(!PaneSurfaceClass::Editor.is_session_scoped());
         assert!(!PaneSurfaceClass::Diff.is_session_scoped());
+        assert!(!PaneSurfaceClass::Docs.is_session_scoped());
     }
 
     #[test]

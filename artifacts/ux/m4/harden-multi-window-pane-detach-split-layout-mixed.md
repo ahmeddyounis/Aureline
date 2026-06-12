@@ -50,10 +50,11 @@ drops below the launch cutline rather than inheriting an adjacent green row.
   authority reacquisition.** No session-scoped pane hydrates live; placeholder
   panes forbid command rerun and authority reacquire, carry a restore-no-rerun
   state, and offer a recovery action.
-  `monitor_removed_placeholder_backed.json` keeps five session panes
-  (`transcript_restored` / `session_ended` / `reconnect_available` /
-  `rerun_required` / `context_unavailable`) as placeholder cards rather than
-  collapsing the panes — guarded by `restore_is_skeleton_first_with_no_silent_rerun`.
+  `monitor_removed_placeholder_backed.json` keeps the M5 runtime surface set
+  (terminal, pipeline, query console, notebook, preview route, docs, profiler,
+  and incident) as placeholder cards rather than collapsing the panes —
+  guarded by `restore_is_skeleton_first_with_no_silent_rerun` and
+  `placeholder_scenario_covers_the_m5_restore_surface_set`.
 - **Restore fidelity and display-topology adjustment provenance are recorded on
   every reopen.** `restore_provenance.resulting_fidelity` is one of Exact /
   Compatible / Layout-only / Placeholder-backed; any non-exact reopen carries a

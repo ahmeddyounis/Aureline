@@ -18,10 +18,11 @@
 //!   live, so the reopen is Compatible with a recorded display-topology
 //!   downgrade. Qualifies **Stable**.
 //! - `monitor_removed_placeholder_backed` — a window reopened after an external
-//!   display detached and its session runtimes did not survive; the terminal,
-//!   debugger, notebook, remote-backed, and missing-extension panes keep their
-//!   slots with in-place placeholder cards and restore-no-rerun guards.
-//!   Qualifies **Stable** by proving placeholder honesty.
+//!   display detached and its M5 session runtimes did not survive; notebook,
+//!   query-console, profiler, pipeline, preview-route, docs, incident, and
+//!   terminal panes keep their slots with in-place placeholder cards and
+//!   restore-no-rerun guards. Qualifies **Stable** by proving placeholder
+//!   honesty across the expanded surface set.
 //! - `help_about_preview_surface` — the exact reopen, but the Help/About binding
 //!   surface marker is Preview, so the reopen narrows below Stable by its lowest
 //!   binding surface marker instead of inheriting an adjacent green row.
@@ -487,14 +488,15 @@ fn mixed_dpi_multi_monitor_compatible() -> WindowTopologyRestoreScenario {
 fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
     let window_id = "win-workspace-secondary-02";
     let routes = required_recovery_routes(true, true, true);
-    // A nested split tree: editor on the left; the right side splits into the
-    // session-scoped panes that did not survive the restart.
+    // A nested split tree: editor on the left; the right side preserves the
+    // exact M5 surface layout even though the backing runtimes did not survive
+    // the restart.
     let pane_tree = PaneTree {
         pane_tree_schema_version: PANE_TREE_SCHEMA_VERSION,
         root: PaneTreeNode::Split {
             axis: SplitAxisClass::Vertical,
             first_weight: 2,
-            second_weight: 3,
+            second_weight: 5,
             first: Box::new(PaneTreeNode::Leaf {
                 pane_id: "pane-editor-deploy".to_string(),
             }),
@@ -503,18 +505,18 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                 first_weight: 1,
                 second_weight: 1,
                 first: Box::new(PaneTreeNode::Split {
-                    axis: SplitAxisClass::Horizontal,
+                    axis: SplitAxisClass::Vertical,
                     first_weight: 1,
                     second_weight: 1,
                     first: Box::new(PaneTreeNode::Leaf {
                         pane_id: "pane-terminal-deploy".to_string(),
                     }),
                     second: Box::new(PaneTreeNode::Leaf {
-                        pane_id: "pane-debugger-api".to_string(),
+                        pane_id: "pane-pipeline-deploy".to_string(),
                     }),
                 }),
                 second: Box::new(PaneTreeNode::Split {
-                    axis: SplitAxisClass::Horizontal,
+                    axis: SplitAxisClass::Vertical,
                     first_weight: 1,
                     second_weight: 1,
                     first: Box::new(PaneTreeNode::Split {
@@ -522,14 +524,38 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                         first_weight: 1,
                         second_weight: 1,
                         first: Box::new(PaneTreeNode::Leaf {
-                            pane_id: "pane-remote-host".to_string(),
+                            pane_id: "pane-query-console-orders".to_string(),
                         }),
                         second: Box::new(PaneTreeNode::Leaf {
                             pane_id: "pane-notebook-explore".to_string(),
                         }),
                     }),
-                    second: Box::new(PaneTreeNode::Leaf {
-                        pane_id: "pane-ext-coverage".to_string(),
+                    second: Box::new(PaneTreeNode::Split {
+                        axis: SplitAxisClass::Horizontal,
+                        first_weight: 1,
+                        second_weight: 1,
+                        first: Box::new(PaneTreeNode::Split {
+                            axis: SplitAxisClass::Horizontal,
+                            first_weight: 1,
+                            second_weight: 1,
+                            first: Box::new(PaneTreeNode::Leaf {
+                                pane_id: "pane-preview-route-checkout".to_string(),
+                            }),
+                            second: Box::new(PaneTreeNode::Leaf {
+                                pane_id: "pane-docs-runtime-playbook".to_string(),
+                            }),
+                        }),
+                        second: Box::new(PaneTreeNode::Split {
+                            axis: SplitAxisClass::Horizontal,
+                            first_weight: 1,
+                            second_weight: 1,
+                            first: Box::new(PaneTreeNode::Leaf {
+                                pane_id: "pane-profiler-startup".to_string(),
+                            }),
+                            second: Box::new(PaneTreeNode::Leaf {
+                                pane_id: "pane-incident-sev1".to_string(),
+                            }),
+                        }),
                     }),
                 }),
             }),
@@ -552,9 +578,9 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                  explicit user action.",
             ),
             placeholder_slot(
-                "pane-debugger-api",
-                PaneSurfaceClass::Debugger,
-                "api debug session",
+                "pane-pipeline-deploy",
+                PaneSurfaceClass::Pipeline,
+                "deploy pipeline",
                 PanePlaceholderState::SessionEnded,
                 PaneSubstitutionReason::RuntimeDidNotSurvive,
                 vec![
@@ -563,13 +589,13 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                     PaneRecoveryAction::ExportEvidence,
                     PaneRecoveryAction::RemovePane,
                 ],
-                "Debug session ended and was not reattached; the pane slot is preserved with its \
-                 last-known target.",
+                "Pipeline run details, logs, and artifact pointers are preserved, but rerun and \
+                 cancel authority were not silently restored.",
             ),
             placeholder_slot(
-                "pane-remote-host",
-                PaneSurfaceClass::RemoteBacked,
-                "staging-host",
+                "pane-query-console-orders",
+                PaneSurfaceClass::QueryConsole,
+                "orders query console",
                 PanePlaceholderState::ReconnectAvailable,
                 PaneSubstitutionReason::ExpiredRemoteSession,
                 vec![
@@ -578,7 +604,8 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                     PaneRecoveryAction::ExportEvidence,
                     PaneRecoveryAction::RemovePane,
                 ],
-                "Remote session expired; reconnect is available but live authority has not resumed.",
+                "The saved query console preserved target and result hints, but the remote session \
+                 expired and live execution has not resumed.",
             ),
             placeholder_slot(
                 "pane-notebook-explore",
@@ -596,19 +623,64 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                  rerun requires an explicit user action.",
             ),
             placeholder_slot(
-                "pane-ext-coverage",
-                PaneSurfaceClass::CustomExtension,
-                "coverage view",
+                "pane-preview-route-checkout",
+                PaneSurfaceClass::Preview,
+                "checkout preview",
                 PanePlaceholderState::ContextUnavailable,
-                PaneSubstitutionReason::MissingExtension,
+                PaneSubstitutionReason::RuntimeDidNotSurvive,
                 vec![
-                    PaneRecoveryAction::InstallExtension,
+                    PaneRecoveryAction::RerunExplicitly,
+                    PaneRecoveryAction::CompareEvidence,
+                    PaneRecoveryAction::ExportEvidence,
+                    PaneRecoveryAction::RemovePane,
+                ],
+                "The preview runtime did not survive restart; the route, title, and evidence are \
+                 preserved but live rendering is withheld until an explicit restart.",
+            ),
+            placeholder_slot(
+                "pane-docs-runtime-playbook",
+                PaneSurfaceClass::Docs,
+                "runtime playbook",
+                PanePlaceholderState::ContextUnavailable,
+                PaneSubstitutionReason::ExpiredManagedSession,
+                vec![
+                    PaneRecoveryAction::ReconnectSession,
                     PaneRecoveryAction::OpenWithout,
                     PaneRecoveryAction::ExportEvidence,
                     PaneRecoveryAction::RemovePane,
                 ],
-                "The coverage extension is absent; the pane slot is preserved with a placeholder \
-                 until the extension is installed.",
+                "The docs pane preserved its slot and route context, but the managed recall route \
+                 expired and the pane reopens as a truthful placeholder instead of faking fresh docs.",
+            ),
+            placeholder_slot(
+                "pane-profiler-startup",
+                PaneSurfaceClass::ProfilerCapture,
+                "startup capture",
+                PanePlaceholderState::SessionEnded,
+                PaneSubstitutionReason::RuntimeDidNotSurvive,
+                vec![
+                    PaneRecoveryAction::CompareEvidence,
+                    PaneRecoveryAction::ExportEvidence,
+                    PaneRecoveryAction::RerunExplicitly,
+                    PaneRecoveryAction::RemovePane,
+                ],
+                "Profiler capture evidence remains inspectable, but the live capture session ended \
+                 and replay is not silently resumed.",
+            ),
+            placeholder_slot(
+                "pane-incident-sev1",
+                PaneSurfaceClass::IncidentWorkspace,
+                "incident sev-1",
+                PanePlaceholderState::ReconnectAvailable,
+                PaneSubstitutionReason::ExpiredManagedSession,
+                vec![
+                    PaneRecoveryAction::ReconnectSession,
+                    PaneRecoveryAction::CompareEvidence,
+                    PaneRecoveryAction::ExportEvidence,
+                    PaneRecoveryAction::RemovePane,
+                ],
+                "The incident workspace preserved timeline and evidence hints, but shared-control \
+                 authority expired and requires an explicit reconnect review.",
             ),
         ],
     };
@@ -621,8 +693,9 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
         summary: "A secondary window reopened after an external display detached and its session \
                   runtimes did not survive: the window was remapped to the primary display and \
                   clamped to the safe visible region, the editor pane hydrated live, and the \
-                  terminal, debugger, remote-backed, notebook, and missing-extension panes kept \
-                  their slots with in-place placeholder cards and restore-no-rerun guards."
+                  terminal, pipeline, query-console, notebook, preview-route, docs, profiler, \
+                  and incident panes kept their slots with in-place placeholder cards and \
+                  restore-no-rerun guards."
             .to_string(),
         window_id: window_id.to_string(),
         window_role: WindowRoleClass::SecondaryWorkspace,
@@ -648,9 +721,10 @@ fn monitor_removed_placeholder_backed() -> WindowTopologyRestoreScenario {
                 from_fidelity: RestoreFidelityClass::Compatible,
                 to_fidelity: RestoreFidelityClass::PlaceholderBacked,
                 reason: RestoreDowngradeReason::RuntimeDidNotSurvive,
-                note: "An external display detached and the terminal, debugger, remote, notebook, \
-                       and extension runtimes did not survive; the structure was preserved with \
-                       placeholder cards rather than collapsing panes."
+                note: "An external display detached and the terminal, pipeline, query-console, \
+                       notebook, preview-route, docs, profiler, and incident runtimes did not \
+                       survive; the structure was preserved with placeholder cards rather than \
+                       collapsing panes."
                     .to_string(),
             }),
             compare_ref: Some("aureline://restore-compare/monitor-removed-placeholder".to_string()),
@@ -890,5 +964,33 @@ mod tests {
             }
         }
         assert!(record.pillars.no_silent_rerun_or_reacquire);
+    }
+
+    #[test]
+    fn placeholder_scenario_covers_the_m5_restore_surface_set() {
+        let scenario = monitor_removed_placeholder_backed();
+        let record = scenario.record();
+        let seen = record
+            .pane_tree
+            .slots
+            .iter()
+            .map(|slot| slot.surface_class)
+            .collect::<std::collections::BTreeSet<_>>();
+        for required in [
+            PaneSurfaceClass::Terminal,
+            PaneSurfaceClass::Notebook,
+            PaneSurfaceClass::QueryConsole,
+            PaneSurfaceClass::Pipeline,
+            PaneSurfaceClass::Preview,
+            PaneSurfaceClass::Docs,
+            PaneSurfaceClass::ProfilerCapture,
+            PaneSurfaceClass::IncidentWorkspace,
+        ] {
+            assert!(
+                seen.contains(&required),
+                "placeholder scenario must cover {}",
+                required.as_str()
+            );
+        }
     }
 }

@@ -41,9 +41,10 @@ use aureline_shell::notification_attention_stable::{
     is_canonical_object_ref, AttentionRouteSurface, LayoutMode, StableClaimClass,
 };
 use aureline_shell::window_topology_restore_stable::{
-    window_topology_restore_corpus, PaneHydrationClass, RestoreFidelityClass, RestoreTruthSurface,
-    WindowLocalTopologyClass, WindowRestoreRecoveryAction, WindowTopologyRestoreRecord,
-    WorkspaceAuthorityClass, PANE_TREE_SCHEMA_VERSION,
+    window_topology_restore_corpus, PaneHydrationClass, PaneSurfaceClass,
+    RestoreFidelityClass, RestoreTruthSurface, WindowLocalTopologyClass,
+    WindowRestoreRecoveryAction, WindowTopologyRestoreRecord, WorkspaceAuthorityClass,
+    PANE_TREE_SCHEMA_VERSION,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -231,6 +232,37 @@ fn restore_is_skeleton_first_with_no_silent_rerun() {
             record.pillars.no_silent_rerun_or_reacquire,
             "{} permits silent rerun",
             scenario.scenario_id
+        );
+    }
+}
+
+#[test]
+fn placeholder_matrix_covers_the_m5_surface_set() {
+    let scenario = window_topology_restore_corpus()
+        .into_iter()
+        .find(|scenario| scenario.scenario_id == "monitor_removed_placeholder_backed")
+        .expect("monitor_removed_placeholder_backed scenario");
+    let record = load_record(&scenario.fixture_filename);
+    let seen = record
+        .pane_tree
+        .slots
+        .iter()
+        .map(|slot| slot.surface_class)
+        .collect::<std::collections::BTreeSet<_>>();
+    for required in [
+        PaneSurfaceClass::Terminal,
+        PaneSurfaceClass::Notebook,
+        PaneSurfaceClass::QueryConsole,
+        PaneSurfaceClass::Pipeline,
+        PaneSurfaceClass::Preview,
+        PaneSurfaceClass::Docs,
+        PaneSurfaceClass::ProfilerCapture,
+        PaneSurfaceClass::IncidentWorkspace,
+    ] {
+        assert!(
+            seen.contains(&required),
+            "placeholder matrix missing {}",
+            required.as_str()
         );
     }
 }

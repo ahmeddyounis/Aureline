@@ -14,7 +14,8 @@ Where that lane brings one window back to a first-useful state, this lane proves
 that *every* reopened window — primary, secondary, review, inspector — recreates
 its pane topology truthfully across pane detach, splits, mixed-DPI docks, and
 multi-monitor change, and never silently reacquires the live authority behind a
-terminal, debugger, notebook, preview, or remote-backed pane.
+terminal, debugger, notebook, query console, preview route, profiler capture,
+incident workspace, or remote-backed pane.
 
 Do not clone status text from this doc — ingest the canonical machine sources:
 
@@ -60,10 +61,11 @@ restore-provenance contract. The record binds, for one window identity:
   carries `pane_tree_schema_version`; a leaf without a slot, a slot outside the
   tree, a duplicate pane ID, or a zero-weight split is a hard error.
 - **Skeleton-first / hydrate-second restore.** The pane structure is recreated
-  first; session-scoped panes (terminal, debugger, notebook, preview,
-  remote-backed, AI, test, pipeline) then hydrate into a truthful placeholder or
-  reconnect state. A session-scoped pane that hydrates *live* — silently
-  reacquiring authority — is rejected outright.
+  first; session-scoped panes (terminal, debugger, notebook, query console,
+  preview route, profiler capture, incident workspace, remote-backed, AI, test,
+  pipeline) then hydrate into a truthful placeholder or reconnect state. A
+  session-scoped pane that hydrates *live* — silently reacquiring authority —
+  is rejected outright.
 - **Restore-no-rerun honesty.** Every session-scoped pane that did not survive
   keeps its slot with an in-place placeholder card carrying a restore-no-rerun
   state (`transcript_restored`, `session_ended`, `reconnect_available`,
@@ -86,7 +88,7 @@ restore-provenance contract. The record binds, for one window identity:
 | --- | --- | --- | --- | --- | --- |
 | `exact_single_window.json` | Single window, exact reopen | **stable** | stable | Exact | a vertical editor split reopened exactly; both editor panes re-read truthfully from durable buffer state with no side effect |
 | `mixed_dpi_multi_monitor_compatible.json` | Mixed-DPI dock, compatible reopen | **stable** | stable | Compatible | a mixed-DPI dock cycle adjusts scale and bounds; layout intent preserved, panes hydrate live, downgrade recorded with provenance |
-| `monitor_removed_placeholder_backed.json` | Monitor removed, placeholder-backed recovery | **stable** | stable | Placeholder-backed | an external display detaches and the terminal, debug, remote, notebook, and extension runtimes do not survive; five panes keep their slots with restore-no-rerun placeholder cards instead of collapsing |
+| `monitor_removed_placeholder_backed.json` | Monitor removed, placeholder-backed recovery | **stable** | stable | Placeholder-backed | an external display detaches and the terminal, pipeline, query console, notebook, preview route, docs, profiler, and incident runtimes do not survive; the panes keep their slots with restore-no-rerun placeholder cards instead of collapsing |
 | `help_about_preview_surface.json` | Exact reopen, Help/About surface in preview | preview (narrowed) | preview | Exact | narrow-below-Stable by the lowest binding surface marker (`surface_not_yet_stable`) |
 | `authority_topology_leak_drill.json` | Authority/topology fusion drill | beta (narrowed) | stable | Exact | the lane detects workspace authority fused with window topology and narrows with `authority_topology_not_separated` |
 
