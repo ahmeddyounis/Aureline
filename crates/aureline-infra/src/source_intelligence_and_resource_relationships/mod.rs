@@ -11,12 +11,24 @@
 //! model by reusing [`QualificationPosture`] for file-only, inspect-only, and
 //! handoff-only downgrade profiles.
 
+pub mod object_packet;
+
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
 use crate::target_context_and_control_plane_boundary::{
     InfraBoundaryFinding, InfraBoundaryFindingSeverity, QualificationPosture,
+};
+
+pub use object_packet::{
+    seeded_source_intelligence_object_packet, validate_object_packet,
+    InfrastructureConsumerProjection, InfrastructureConsumerSurface,
+    InfrastructureObjectIdentity, InfrastructureObjectLineage, InfrastructureObjectRecord,
+    InfrastructureObjectRelationRecord, SourceIntelligenceObjectPacket,
+    SourceIntelligenceObjectPacketValidationReport, SOURCE_INTELLIGENCE_OBJECT_FIXTURE_DIR,
+    SOURCE_INTELLIGENCE_OBJECT_PACKET_RECORD_KIND, SOURCE_INTELLIGENCE_OBJECT_SCHEMA_REF,
+    SOURCE_INTELLIGENCE_OBJECT_SCHEMA_VERSION,
 };
 
 /// Schema version for source-intelligence matrix packets.

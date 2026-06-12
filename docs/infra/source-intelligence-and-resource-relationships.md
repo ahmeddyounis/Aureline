@@ -1,8 +1,13 @@
 # Infrastructure Source-Intelligence and Resource Relationships
 
-This document defines the canonical M5 matrix for infrastructure-aware source intelligence. It freezes one shared vocabulary for Terraform/HCL, Kubernetes/Helm, devcontainer, CI/environment, and policy-manifest families so later infra, review, search, docs, AI, incident, and support surfaces reuse the same truth-layer and relation-edge model.
+This document defines the canonical M5 infrastructure source-intelligence contract. It freezes one shared vocabulary for Terraform/HCL, Kubernetes/Helm, devcontainer, CI/environment, and policy-manifest families and pairs that vocabulary with a concrete object packet so later infra, review, search, docs, AI, incident, and support surfaces reuse the same truth-layer, relation-edge, and stable-object model.
 
-The canonical machine-readable schema is [`/schemas/infra/source-intelligence-and-resource-relationships.schema.json`](../../schemas/infra/source-intelligence-and-resource-relationships.schema.json). The Rust validation model is in [`/crates/aureline-infra`](../../crates/aureline-infra/src/source_intelligence_and_resource_relationships/mod.rs). Fixtures live in [`/fixtures/infra/source-intelligence-and-resource-relationships`](../../fixtures/infra/source-intelligence-and-resource-relationships).
+The machine-readable schemas are:
+
+- [`/schemas/infra/source-intelligence-and-resource-relationships.schema.json`](../../schemas/infra/source-intelligence-and-resource-relationships.schema.json) for the qualification matrix.
+- [`/schemas/infra/source-intelligence-object-packet.schema.json`](../../schemas/infra/source-intelligence-object-packet.schema.json) for the concrete object, relation, and consumer-projection packet.
+
+The Rust validation model is in [`/crates/aureline-infra`](../../crates/aureline-infra/src/source_intelligence_and_resource_relationships/mod.rs). Fixtures live in [`/fixtures/infra/source-intelligence-and-resource-relationships`](../../fixtures/infra/source-intelligence-and-resource-relationships).
 
 This packet extends, rather than replaces, the [target-context and control-plane boundary](./target-context-and-control-plane-boundary.md) and [cluster-context and live-resource](./cluster-context-and-live-resource.md) packets. Those packets govern exact target identity and live boundary safety; this matrix freezes which truth layers and relationship edges later infra surfaces are allowed to claim.
 
@@ -31,6 +36,18 @@ Packets that fail any error-severity check are not promotable. The affected fami
 - `qualified_matrix_packet.json` proves the full five-family matrix with all five truth layers, the shared edge vocabulary, and explicit file-only, inspect-only, and handoff-only profiles.
 - `file_only_downgraded_matrix_packet.json` proves that the same matrix remains valid when the focus is explicit downgrade posture instead of stable-qualified depth language.
 - `missing_truth_layer_and_profile_packet.json` intentionally fails validation by omitting one truth layer and one downgrade profile from the Terraform row.
+- `qualified_object_packet.json` proves that every claimed family emits stable authored, rendered, planned, observed, and provider-overlay objects plus shared graph/review/docs/incident projections.
+- `missing_rendered_lineage_object_packet.json` intentionally fails validation by stripping rendered/planned lineage fields that must preserve authored source paths and tool identity/version.
+
+## Canonical Object Packet
+
+The object packet instantiates the matrix as actual infrastructure facts instead of leaving the contract at vocabulary-only level.
+
+- Every object carries a stable object id, infrastructure family, truth layer, target-context ref, freshness label, authority posture, provenance refs, and a redaction-safe support summary.
+- Derived objects preserve authored lineage through `authored_object_refs`, `source_input_refs`, and `known_path_back_to_source_refs`; rendered and planned objects additionally preserve tool identity and version where known.
+- Stable identities capture selectors and owners directly, so Terraform addresses, Kubernetes selectors, devcontainer/workspace handles, CI environment selectors, and policy scopes are not trapped inside raw text viewers.
+- Relation edges stay in the shared vocabulary and bind concrete objects rather than private caches.
+- Consumer projections for graph, review, docs, and incident surfaces resolve object and relation refs from the shared packet and explicitly forbid hidden side caches.
 
 ## Support Export Posture
 

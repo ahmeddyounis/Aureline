@@ -4,9 +4,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use aureline_infra::{
+    seeded_source_intelligence_object_packet, InfrastructureConsumerSurface,
     InfrastructureFamily, QualificationPosture, RelationEdgeClass,
-    SourceIntelligenceRelationshipMatrixPacket, TruthLayer,
-    SOURCE_INTELLIGENCE_RELATIONSHIP_PACKET_RECORD_KIND,
+    SourceIntelligenceObjectPacket, SourceIntelligenceRelationshipMatrixPacket,
+    TruthLayer, SOURCE_INTELLIGENCE_OBJECT_PACKET_RECORD_KIND,
+    SOURCE_INTELLIGENCE_OBJECT_SCHEMA_VERSION, SOURCE_INTELLIGENCE_RELATIONSHIP_PACKET_RECORD_KIND,
     SOURCE_INTELLIGENCE_RELATIONSHIP_SCHEMA_VERSION,
 };
 
@@ -92,7 +94,63 @@ fn missing_truth_layer_and_profile_fixture_fails() {
         .any(|finding| finding.check_id == "downgrade_profile_coverage"));
 }
 
+#[test]
+fn qualified_object_fixture_validates() {
+    let packet = load_object_fixture("qualified_object_packet.json");
+    let report = packet.validate();
+    assert!(
+        report.passed,
+        "qualified object fixture must pass: {:#?}",
+        report.findings
+    );
+    assert_eq!(
+        packet.record_kind,
+        SOURCE_INTELLIGENCE_OBJECT_PACKET_RECORD_KIND
+    );
+    assert_eq!(packet.schema_version, SOURCE_INTELLIGENCE_OBJECT_SCHEMA_VERSION);
+}
+
+#[test]
+fn qualified_object_fixture_covers_consumers() {
+    let packet = load_object_fixture("qualified_object_packet.json");
+    let report = packet.validate();
+    for required in [
+        InfrastructureConsumerSurface::Graph,
+        InfrastructureConsumerSurface::Review,
+        InfrastructureConsumerSurface::Docs,
+        InfrastructureConsumerSurface::Incident,
+    ] {
+        assert!(report.consumer_surfaces.contains(&required));
+        assert!(packet.consumer_projection(required).is_some());
+    }
+}
+
+#[test]
+fn qualified_object_fixture_matches_seeded_packet() {
+    let fixture = load_object_fixture("qualified_object_packet.json");
+    let seeded = seeded_source_intelligence_object_packet();
+    assert_eq!(fixture, seeded);
+}
+
+#[test]
+fn missing_rendered_lineage_object_fixture_fails() {
+    let report = load_object_fixture("missing_rendered_lineage_object_packet.json").validate();
+    assert!(!report.passed);
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id == "derived_lineage"));
+}
+
 fn load_fixture(name: &str) -> SourceIntelligenceRelationshipMatrixPacket {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/infra/source-intelligence-and-resource-relationships")
+        .join(name);
+    let payload = fs::read_to_string(path).expect("fixture exists");
+    serde_json::from_str(&payload).expect("fixture parses")
+}
+
+fn load_object_fixture(name: &str) -> SourceIntelligenceObjectPacket {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/infra/source-intelligence-and-resource-relationships")
         .join(name);

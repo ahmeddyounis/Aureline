@@ -298,6 +298,42 @@ fn packet() -> SourceIntelligenceRelationshipMatrixPacket {
 }
 
 #[test]
+fn seeded_object_packet_validates() {
+    let packet = seeded_source_intelligence_object_packet();
+    let report = packet.validate();
+    assert!(report.passed, "object packet must pass: {:#?}", report.findings);
+}
+
+#[test]
+fn seeded_object_packet_covers_required_consumer_surfaces() {
+    let report = seeded_source_intelligence_object_packet().validate();
+    for required in [
+        InfrastructureConsumerSurface::Graph,
+        InfrastructureConsumerSurface::Review,
+        InfrastructureConsumerSurface::Docs,
+        InfrastructureConsumerSurface::Incident,
+    ] {
+        assert!(report.consumer_surfaces.contains(&required));
+    }
+}
+
+#[test]
+fn seeded_object_packet_resolves_projection_refs() {
+    let packet = seeded_source_intelligence_object_packet();
+    let projection = packet
+        .consumer_projection(InfrastructureConsumerSurface::Incident)
+        .expect("incident projection exists");
+    assert!(projection
+        .object_refs
+        .iter()
+        .all(|object_ref| packet.object(object_ref).is_some()));
+    assert!(projection
+        .relation_refs
+        .iter()
+        .all(|relation_ref| packet.relation(relation_ref).is_some()));
+}
+
+#[test]
 fn valid_packet_passes() {
     let report = packet().validate();
     assert!(report.passed, "expected pass: {:#?}", report.findings);
