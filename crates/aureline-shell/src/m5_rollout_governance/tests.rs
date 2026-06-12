@@ -5,7 +5,10 @@ fn seeded_summary_covers_all_rollout_rows() {
     let summary = seeded_m5_rollout_governance_render_summary();
     assert_eq!(summary.row_count, summary.rows.len());
     assert!(summary.active_kill_switch_row_count >= 1);
-    assert_eq!(summary.settings_inspector_visible_row_count, summary.row_count);
+    assert_eq!(
+        summary.settings_inspector_visible_row_count,
+        summary.row_count
+    );
     assert_eq!(summary.help_about_visible_row_count, summary.row_count);
     assert_eq!(summary.diagnostics_visible_row_count, summary.row_count);
     assert_eq!(summary.support_export_visible_row_count, summary.row_count);

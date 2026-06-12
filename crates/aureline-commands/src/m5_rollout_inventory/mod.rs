@@ -48,8 +48,7 @@ pub const M5_ROLLOUT_INVENTORY_SUMMARY_REF: &str =
 pub const M5_ROLLOUT_INVENTORY_PACKET_ID: &str = "m5-rollout-inventory:stable:0001";
 
 /// Stable support-export id used by [`M5RolloutInventorySupportExport`].
-pub const M5_ROLLOUT_INVENTORY_SUPPORT_EXPORT_ID: &str =
-    "support-export:m5-rollout-inventory:0001";
+pub const M5_ROLLOUT_INVENTORY_SUPPORT_EXPORT_ID: &str = "support-export:m5-rollout-inventory:0001";
 
 const GENERATED_AT: &str = "2026-06-12T00:00:00Z";
 
@@ -359,12 +358,18 @@ impl M5RolloutInventoryPacket {
         out.push_str("# M5 Rollout Inventory\n\n");
         out.push_str("| Metric | Value |\n|---|---:|\n");
         out.push_str(&format!("| Rows | {} |\n", self.summary.row_count));
-        out.push_str(&format!("| Labs rows | {} |\n", self.summary.labs_row_count));
+        out.push_str(&format!(
+            "| Labs rows | {} |\n",
+            self.summary.labs_row_count
+        ));
         out.push_str(&format!(
             "| Preview rows | {} |\n",
             self.summary.preview_row_count
         ));
-        out.push_str(&format!("| Beta rows | {} |\n", self.summary.beta_row_count));
+        out.push_str(&format!(
+            "| Beta rows | {} |\n",
+            self.summary.beta_row_count
+        ));
         out.push_str(&format!(
             "| Stable rows | {} |\n",
             self.summary.stable_row_count
@@ -599,7 +604,10 @@ fn row(
         declared_state_class,
         effective_state_class,
         promotion_state,
-        rollout_state_ref: format!("rollout:{canonical_verb}:{}", effective_state_class.as_str()),
+        rollout_state_ref: format!(
+            "rollout:{canonical_verb}:{}",
+            effective_state_class.as_str()
+        ),
         stable_claim_allowed,
         no_hidden_flag_rule_satisfied: true,
         affected_capability_ids: affected_capability_ids
@@ -1115,10 +1123,12 @@ pub fn validate_m5_rollout_inventory_packet(
                 .iter()
                 .any(|surface| surface.surface_class == required_surface)
             {
-                errors.push(M5RolloutInventoryValidationError::MissingSurfaceDisclosure {
-                    command_id: row.command_id.clone(),
-                    surface_class: required_surface.as_str().to_string(),
-                });
+                errors.push(
+                    M5RolloutInventoryValidationError::MissingSurfaceDisclosure {
+                        command_id: row.command_id.clone(),
+                        surface_class: required_surface.as_str().to_string(),
+                    },
+                );
             }
         }
         if !row.no_hidden_flag_rule_satisfied {

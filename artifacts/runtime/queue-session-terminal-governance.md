@@ -49,3 +49,21 @@ edit/search/run/review/save regress.
 - A visible power/thermal transition now records the current shedding state,
   reason, exit condition, and affected lanes so slowdowns do not read as
   generic slowness.
+- Separate protocol-surface rows now bind each claimed terminal family to the
+  canonical protocol corpus (`utf8_stream`, `alternate_screen`,
+  `mouse_reporting`, `bracketed_paste`, `hyperlinks`, `truecolor`,
+  `searchable_bounded_scrollback`) and shell signals (`osc7_cwd`,
+  `osc133_prompt_boundary`, `osc133_command_boundary`,
+  `osc133_exit_status`, `osc133_rerun_semantics`).
+- Terminal-boundary rows now also carry `boundary_disclosure_class` so
+  local/remote/container/managed/shared-control/policy-suppressed clipboard
+  flows disclose the active boundary instead of relying on generic chrome.
+- Separate linkification rows now freeze confidence for `path`, `url`,
+  `stack_frame`, and `problem_match` targets. `imported_evidence` and
+  `heuristic_best_effort` remain first-class confidence states rather than
+  silently flattening into exact links.
+- Separate downstream consumer rows now freeze taint and provenance for
+  `ai_context`, `quick_fix`, `problem_matcher`, and `evidence_export`.
+  Terminal-derived content stays reviewable as tainted context with preserved
+  boundary/source, promoted-range, raw-backlink, or redaction/scope
+  provenance.

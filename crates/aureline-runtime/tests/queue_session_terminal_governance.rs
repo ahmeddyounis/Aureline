@@ -32,6 +32,9 @@ struct ExpectedFixture {
     row_count: usize,
     protected_path_row_count: usize,
     fairness_lane_row_count: usize,
+    protocol_surface_row_count: usize,
+    linkification_row_count: usize,
+    output_consumer_row_count: usize,
     support_export_safe: bool,
     #[serde(default)]
     expected_finding_kinds: Vec<String>,
@@ -49,6 +52,24 @@ struct ExpectedFixture {
     terminal_boundary_tokens: Vec<String>,
     #[serde(default)]
     clipboard_posture_tokens: Vec<String>,
+    #[serde(default)]
+    boundary_disclosure_tokens: Vec<String>,
+    #[serde(default)]
+    protocol_surface_tokens: Vec<String>,
+    #[serde(default)]
+    protocol_capability_tokens: Vec<String>,
+    #[serde(default)]
+    shell_signal_tokens: Vec<String>,
+    #[serde(default)]
+    link_target_tokens: Vec<String>,
+    #[serde(default)]
+    link_confidence_tokens: Vec<String>,
+    #[serde(default)]
+    output_consumer_tokens: Vec<String>,
+    #[serde(default)]
+    output_taint_tokens: Vec<String>,
+    #[serde(default)]
+    output_provenance_tokens: Vec<String>,
     #[serde(default)]
     protected_path_tokens: Vec<String>,
     #[serde(default)]
@@ -169,6 +190,28 @@ fn apply_mutation(packet: &mut QueueSessionTerminalGovernancePacket, mutation: &
                 .fairness_lane_rows
                 .retain(|row| row.queue_lane_token != "upload_replication");
         }
+        "remove_preview_protocol_surface_row" => {
+            packet
+                .protocol_surface_rows
+                .retain(|row| row.workload_class != GovernedWorkloadClass::PreviewRoute);
+        }
+        "remove_infrastructure_problem_match_linkification_row" => {
+            packet.linkification_rows.retain(|row| {
+                !(row.workload_class == GovernedWorkloadClass::InfrastructureSession
+                    && row.link_target_token == "problem_match")
+            });
+        }
+        "erase_ai_consumer_taint_preservation" => {
+            let row = packet
+                .output_consumer_rows
+                .iter_mut()
+                .find(|row| {
+                    row.workload_class == GovernedWorkloadClass::NotebookSession
+                        && row.consumer_token == "ai_context"
+                })
+                .expect("notebook ai consumer row");
+            row.taint_state_preserved = false;
+        }
         "regress_review_protected_path_budget" => {
             let row = packet
                 .protected_path_rows
@@ -249,6 +292,24 @@ fn assert_fixture_matches(file_name: &str) {
         fixture.case_name
     );
     assert_eq!(
+        packet.protocol_surface_rows.len(),
+        fixture.expect.protocol_surface_row_count,
+        "fixture {} protocol-surface row count drift",
+        fixture.case_name
+    );
+    assert_eq!(
+        packet.linkification_rows.len(),
+        fixture.expect.linkification_row_count,
+        "fixture {} linkification row count drift",
+        fixture.case_name
+    );
+    assert_eq!(
+        packet.output_consumer_rows.len(),
+        fixture.expect.output_consumer_row_count,
+        "fixture {} output-consumer row count drift",
+        fixture.case_name
+    );
+    assert_eq!(
         findings.len(),
         fixture.expect.validation_finding_count,
         "fixture {} finding count drift",
@@ -288,6 +349,51 @@ fn assert_fixture_matches(file_name: &str) {
         &packet.clipboard_posture_tokens(),
         &fixture.expect.clipboard_posture_tokens,
         "clipboard_posture",
+    );
+    assert_token_set_matches(
+        &packet.boundary_disclosure_tokens(),
+        &fixture.expect.boundary_disclosure_tokens,
+        "boundary_disclosure",
+    );
+    assert_token_set_matches(
+        &packet.protocol_surface_tokens(),
+        &fixture.expect.protocol_surface_tokens,
+        "protocol_surface",
+    );
+    assert_token_set_matches(
+        &packet.protocol_capability_tokens(),
+        &fixture.expect.protocol_capability_tokens,
+        "protocol_capability",
+    );
+    assert_token_set_matches(
+        &packet.shell_signal_tokens(),
+        &fixture.expect.shell_signal_tokens,
+        "shell_signal",
+    );
+    assert_token_set_matches(
+        &packet.link_target_tokens(),
+        &fixture.expect.link_target_tokens,
+        "link_target",
+    );
+    assert_token_set_matches(
+        &packet.link_confidence_tokens(),
+        &fixture.expect.link_confidence_tokens,
+        "link_confidence",
+    );
+    assert_token_set_matches(
+        &packet.output_consumer_tokens(),
+        &fixture.expect.output_consumer_tokens,
+        "output_consumer",
+    );
+    assert_token_set_matches(
+        &packet.output_taint_tokens(),
+        &fixture.expect.output_taint_tokens,
+        "output_taint",
+    );
+    assert_token_set_matches(
+        &packet.output_provenance_tokens(),
+        &fixture.expect.output_provenance_tokens,
+        "output_provenance",
     );
     assert_token_set_matches(
         &packet.protected_path_tokens(),
@@ -378,6 +484,21 @@ fn removing_fairness_lane_blocks_stable() {
 }
 
 #[test]
+fn removing_protocol_surface_blocks_stable() {
+    assert_fixture_matches("remove_preview_protocol_surface_row.json");
+}
+
+#[test]
+fn removing_linkification_target_blocks_stable() {
+    assert_fixture_matches("remove_infrastructure_problem_match_linkification_row.json");
+}
+
+#[test]
+fn losing_taint_preservation_blocks_stable() {
+    assert_fixture_matches("erase_ai_consumer_taint_preservation.json");
+}
+
+#[test]
 fn protected_path_regression_narrows_stable_claim() {
     assert_fixture_matches("regress_review_protected_path_budget.json");
 }
@@ -394,6 +515,9 @@ fn checked_in_packet_validates_and_covers_every_required_class() {
     assert_eq!(packet.rows.len(), 47);
     assert_eq!(packet.protected_path_rows.len(), 5);
     assert_eq!(packet.fairness_lane_rows.len(), 5);
+    assert_eq!(packet.protocol_surface_rows.len(), 7);
+    assert_eq!(packet.linkification_rows.len(), 28);
+    assert_eq!(packet.output_consumer_rows.len(), 28);
     let observed_job_kinds: BTreeSet<&str> = packet.job_kind_tokens().into_iter().collect();
     for job_kind in GovernedJobKind::REQUIRED {
         assert!(
@@ -470,5 +594,17 @@ fn checked_in_packet_ships_activity_rows_and_scheduler_lane_rows() {
     assert_eq!(
         packet.protected_path_tokens(),
         vec!["edit", "search", "run", "review", "save"]
+    );
+    assert_eq!(
+        packet.protocol_capability_tokens(),
+        vec![
+            "utf8_stream",
+            "alternate_screen",
+            "mouse_reporting",
+            "bracketed_paste",
+            "hyperlinks",
+            "truecolor",
+            "searchable_bounded_scrollback"
+        ]
     );
 }

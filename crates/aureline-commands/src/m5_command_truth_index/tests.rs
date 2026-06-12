@@ -34,7 +34,10 @@ fn non_stable_rows_do_not_publish_stable_wording() {
         .filter(|row| row.effective_state_class != M5CapabilityStateClass::Stable)
     {
         assert!(!row.stable_wording_allowed, "{}", row.command_id);
-        assert!(row.surface_rows.iter().all(|surface| !surface.stable_wording_visible));
+        assert!(row
+            .surface_rows
+            .iter()
+            .all(|surface| !surface.stable_wording_visible));
     }
 }
 

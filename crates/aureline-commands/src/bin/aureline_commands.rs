@@ -361,11 +361,13 @@ fn maybe_render_m5_command_truth_index(args: &[String]) -> Option<String> {
     Some(match mode {
         "json" | "packet" => serde_json::to_string_pretty(&packet)
             .expect("M5 command truth index packet must serialize"),
-        "support-export" => serde_json::to_string_pretty(&M5CommandTruthIndexSupportExport::from_packet(
-            M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_ID.to_string(),
-            packet,
-        ))
-        .expect("M5 command truth index support export must serialize"),
+        "support-export" => {
+            serde_json::to_string_pretty(&M5CommandTruthIndexSupportExport::from_packet(
+                M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_ID.to_string(),
+                packet,
+            ))
+            .expect("M5 command truth index support export must serialize")
+        }
         "summary" | "summary-md" => packet.render_markdown(),
         _ => panic!(
             "unsupported m5-command-truth-index mode {mode}; use json, support-export, or summary"

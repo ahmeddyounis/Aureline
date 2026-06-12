@@ -22,7 +22,19 @@ and the reviewer matrix is
 - Restore continuity: `restore_fidelity_class`,
   `no_hidden_rerun_class`, and an opaque `restore_anchor_ref`.
 - Terminal boundary: `terminal_boundary_class`,
-  `clipboard_posture_class`, and an opaque `boundary_ref`.
+  `clipboard_posture_class`, `boundary_disclosure_class`, and an opaque
+  `boundary_ref`.
+- Terminal protocol coverage: `protocol_surface_rows` bind one claimed surface
+  to explicit `protocol_capability_classes`,
+  `shell_integration_signal_classes`, boundary disclosure, and high-risk paste
+  review truth.
+- Linkification coverage: `linkification_rows` bind paths, URLs, stack frames,
+  and problem matches to explicit confidence classes so heuristic or imported
+  links stay inspectable instead of masquerading as exact shell truth.
+- Downstream terminal-consumer coverage: `output_consumer_rows` bind AI,
+  quick-fix, problem-matcher, and evidence-export consumers to explicit taint
+  and provenance posture instead of letting terminal text self-authorize
+  follow-on actions.
 - Durable activity rows: `activity_job_rows` publish stable `job_identity_refs`,
   `queue_lane_class`, state-specific pause/stall/resume truth, queue age,
   retry posture, the next action, and exact-target reopen plus inspect refs for
@@ -60,6 +72,15 @@ and the reviewer matrix is
   hot path implicitly.
 - Workloads that cross a runtime boundary must also publish one terminal
   boundary row; generic desktop continuity is not enough.
+- Claimed M5 terminal surfaces must also publish one protocol-surface row.
+  Notebook terminals, request/DB consoles, preview/dev-server panes,
+  pipeline/provider consoles, companion remote consoles, incident consoles, and
+  infrastructure shells may not inherit shell or clipboard truth from a generic
+  terminal packet.
+- Every claimed terminal workload must also publish linkification rows for
+  `path`, `url`, `stack_frame`, and `problem_match`, plus downstream consumer
+  rows for `ai_context`, `quick_fix`, `problem_matcher`, and
+  `evidence_export`.
 - Every governed workload must also publish one durable activity row so the
   activity center, diagnostics, runtime inspectors, and support bundles reopen
   the same exact object and preserve the same queue/checkpoint truth after
@@ -75,6 +96,13 @@ and the reviewer matrix is
   affordances, but never silently replays commands or reacquires authority.
 - Clipboard and paste posture must preserve the active boundary class and
   policy outcome rather than relying on local heuristics or generic copy.
+- High-risk paste and clipboard-write flows surface the active local, remote,
+  container, managed, shared-control, or policy-suppressed boundary before the
+  flow commits when the posture requires review.
+- Terminal output remains tainted context until a user- or policy-admitted
+  promotion preserves source-kind and range provenance; AI, quick fixes,
+  problem matchers, and evidence export read that same typed taint/provenance
+  row instead of flattening terminal content into anonymous text.
 - Support export, release evidence, and docs/help reuse the same runtime
   vocabulary; they do not paraphrase boundary or restore semantics locally.
 

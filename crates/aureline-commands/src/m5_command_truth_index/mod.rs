@@ -324,7 +324,11 @@ impl M5CommandTruthIndexPacket {
                 row.command_id,
                 row.effective_state_class.display_label(),
                 row.truth_state_class.as_str(),
-                if row.stable_wording_allowed { "allowed" } else { "narrowed" },
+                if row.stable_wording_allowed {
+                    "allowed"
+                } else {
+                    "narrowed"
+                },
                 row.help_about_projection_ref,
                 row.release_center_projection_ref,
                 row.support_export_projection_ref,
@@ -543,10 +547,9 @@ fn result_packet_reuse_complete(row: &M5CommandGovernanceRow) -> bool {
         && result.preserves_raw_packet_export
         && result.joins_support_export
         && result.joins_release_evidence
-        && row
-            .surface_rows
-            .iter()
-            .all(|surface| surface.result_packet_parity_preserved && surface.export_join_parity_preserved)
+        && row.surface_rows.iter().all(|surface| {
+            surface.result_packet_parity_preserved && surface.export_join_parity_preserved
+        })
         && activity_parity_ok
 }
 
@@ -564,7 +567,8 @@ fn lifecycle_truth_visible(row: &M5CapabilityStateTruthRow) -> bool {
         let projection = capability_projection(row, surface_class);
         projection.export_safe
             && !projection.inspect_detail_ref.is_empty()
-            && (!projection.dependency_marker_refs.is_empty() || projection.dependency_markers_visible)
+            && (!projection.dependency_marker_refs.is_empty()
+                || projection.dependency_markers_visible)
     })
 }
 
@@ -630,10 +634,20 @@ fn surface_projection_rows(
     capability_row: &M5CapabilityStateTruthRow,
     truth_state_class: M5CommandTruthStateClass,
 ) -> Vec<M5CommandTruthSurfaceProjectionRow> {
-    let help_about = capability_projection(capability_row, M5CapabilityProjectionSurfaceClass::HelpAbout);
-    let release = capability_projection(capability_row, M5CapabilityProjectionSurfaceClass::ReleaseRow);
-    let support = capability_projection(capability_row, M5CapabilityProjectionSurfaceClass::SupportPacket);
-    let public_truth = capability_projection(capability_row, M5CapabilityProjectionSurfaceClass::DocsPack);
+    let help_about = capability_projection(
+        capability_row,
+        M5CapabilityProjectionSurfaceClass::HelpAbout,
+    );
+    let release = capability_projection(
+        capability_row,
+        M5CapabilityProjectionSurfaceClass::ReleaseRow,
+    );
+    let support = capability_projection(
+        capability_row,
+        M5CapabilityProjectionSurfaceClass::SupportPacket,
+    );
+    let public_truth =
+        capability_projection(capability_row, M5CapabilityProjectionSurfaceClass::DocsPack);
     let stable_wording_visible = matches!(truth_state_class, M5CommandTruthStateClass::Certified);
     let support_wording_visible = help_about.support_wording_visible;
     let reasons = narrowing_reason_codes(governance_row, capability_row, truth_state_class);
@@ -698,15 +712,30 @@ fn evidence_refs(
         governance_row.command_revision_ref.clone(),
         governance_row.capability_class_ref.clone(),
         governance_row.lifecycle_disclosure.lifecycle_ref.clone(),
-        governance_row.lifecycle_disclosure.rollout_state_ref.clone(),
+        governance_row
+            .lifecycle_disclosure
+            .rollout_state_ref
+            .clone(),
         governance_row.rollout_governance.rollout_state_ref.clone(),
         capability_row.capability_row_id.clone(),
         capability_row.lifecycle_ref.clone(),
         capability_row.rollout_state_ref.clone(),
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::SettingsRow),
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::HelpAbout),
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::ReleaseRow),
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::SupportPacket),
+        capability_projection_ref(
+            capability_row,
+            M5CapabilityProjectionSurfaceClass::SettingsRow,
+        ),
+        capability_projection_ref(
+            capability_row,
+            M5CapabilityProjectionSurfaceClass::HelpAbout,
+        ),
+        capability_projection_ref(
+            capability_row,
+            M5CapabilityProjectionSurfaceClass::ReleaseRow,
+        ),
+        capability_projection_ref(
+            capability_row,
+            M5CapabilityProjectionSurfaceClass::SupportPacket,
+        ),
         capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::DocsPack),
         rollout_surface_ref(
             &governance_row.rollout_governance,
@@ -750,14 +779,18 @@ fn build_row(
     capability_packet: &M5CapabilityStateTruthPacket,
 ) -> M5CommandTruthIndexRow {
     let truth_state_class = truth_state(governance_row, capability_row);
-    let settings_projection_ref =
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::SettingsRow);
+    let settings_projection_ref = capability_projection_ref(
+        capability_row,
+        M5CapabilityProjectionSurfaceClass::SettingsRow,
+    );
     let help_about_projection_ref = rollout_surface_ref(
         &governance_row.rollout_governance,
         M5RolloutConsumerSurfaceClass::HelpAbout,
     );
-    let release_center_projection_ref =
-        capability_projection_ref(capability_row, M5CapabilityProjectionSurfaceClass::ReleaseRow);
+    let release_center_projection_ref = capability_projection_ref(
+        capability_row,
+        M5CapabilityProjectionSurfaceClass::ReleaseRow,
+    );
     let support_export_projection_ref = rollout_surface_ref(
         &governance_row.rollout_governance,
         M5RolloutConsumerSurfaceClass::SupportExport,
@@ -815,8 +848,14 @@ fn build_row(
         owner_ref: governance_row.rollout_governance.owner_ref.clone(),
         rollout_ring: governance_row.rollout_governance.rollout_ring.clone(),
         cohort: governance_row.rollout_governance.cohort.clone(),
-        review_or_expiry_date: governance_row.rollout_governance.review_or_expiry_date.clone(),
-        lifecycle_label: capability_row.effective_state_class.display_label().to_string(),
+        review_or_expiry_date: governance_row
+            .rollout_governance
+            .review_or_expiry_date
+            .clone(),
+        lifecycle_label: capability_row
+            .effective_state_class
+            .display_label()
+            .to_string(),
         support_class: governance_row.lifecycle_disclosure.support_class.clone(),
         effective_state_class: capability_row.effective_state_class,
         truth_state_class,
@@ -890,7 +929,8 @@ pub fn seeded_m5_command_truth_index_packet() -> M5CommandTruthIndexPacket {
                 .rows
                 .iter()
                 .map(|governance_row| {
-                    let capability_row = capability_row(&capability_packet, &governance_row.command_id);
+                    let capability_row =
+                        capability_row(&capability_packet, &governance_row.command_id);
                     build_row(
                         governance_row,
                         capability_row,
@@ -942,8 +982,14 @@ pub fn validate_m5_command_truth_index_packet(
         }
 
         for (field, value) in [
-            ("settings_projection_ref", row.settings_projection_ref.as_str()),
-            ("help_about_projection_ref", row.help_about_projection_ref.as_str()),
+            (
+                "settings_projection_ref",
+                row.settings_projection_ref.as_str(),
+            ),
+            (
+                "help_about_projection_ref",
+                row.help_about_projection_ref.as_str(),
+            ),
             (
                 "diagnostics_projection_ref",
                 row.diagnostics_projection_ref.as_str(),
@@ -956,7 +1002,10 @@ pub fn validate_m5_command_truth_index_packet(
                 "support_export_projection_ref",
                 row.support_export_projection_ref.as_str(),
             ),
-            ("public_truth_projection_ref", row.public_truth_projection_ref.as_str()),
+            (
+                "public_truth_projection_ref",
+                row.public_truth_projection_ref.as_str(),
+            ),
         ] {
             if value.is_empty() {
                 errors.push(M5CommandTruthIndexValidationError::MissingProjectionRef {
@@ -995,7 +1044,9 @@ pub fn validate_m5_command_truth_index_packet(
         }
 
         let state_matches = match row.truth_state_class {
-            M5CommandTruthStateClass::Certified => row.effective_state_class == M5CapabilityStateClass::Stable,
+            M5CommandTruthStateClass::Certified => {
+                row.effective_state_class == M5CapabilityStateClass::Stable
+            }
             M5CommandTruthStateClass::Narrowed => matches!(
                 row.effective_state_class,
                 M5CapabilityStateClass::Labs

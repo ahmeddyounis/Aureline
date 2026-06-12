@@ -38,10 +38,9 @@ fn policy_blocked_and_retest_rows_are_seeded_explicitly() {
         sync.effective_state_class,
         M5RolloutStateClass::DisabledByPolicy
     );
-    assert!(sync
-        .kill_switches
-        .iter()
-        .any(|kill| kill.source_class == M5KillSwitchSourceClass::AdminPolicyCeiling && kill.active));
+    assert!(sync.kill_switches.iter().any(|kill| kill.source_class
+        == M5KillSwitchSourceClass::AdminPolicyCeiling
+        && kill.active));
 
     let docs = packet
         .rows
@@ -104,7 +103,8 @@ fn support_export_quotes_rollout_refs() {
 
 #[test]
 fn published_packet_artifact_matches_seed() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../artifacts/commands/m5_rollout_inventory/packet.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../artifacts/commands/m5_rollout_inventory/packet.json");
     let on_disk = std::fs::read_to_string(&path).expect("packet artifact must exist");
     let rendered =
         serde_json::to_string_pretty(&seeded_m5_rollout_inventory_packet()).expect("serializes");
@@ -113,8 +113,8 @@ fn published_packet_artifact_matches_seed() {
 
 #[test]
 fn published_fixture_packet_matches_seed() {
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/commands/m5_rollout_inventory/packet.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/commands/m5_rollout_inventory/packet.json");
     let on_disk = std::fs::read_to_string(&path).expect("packet fixture must exist");
     let rendered =
         serde_json::to_string_pretty(&seeded_m5_rollout_inventory_packet()).expect("serializes");
@@ -136,8 +136,11 @@ fn published_support_export_matches_seed() {
 
 #[test]
 fn published_summary_matches_seed() {
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../artifacts/commands/m5_rollout_inventory/summary.md");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../artifacts/commands/m5_rollout_inventory/summary.md");
     let on_disk = std::fs::read_to_string(&path).expect("summary artifact must exist");
-    assert_eq!(on_disk, seeded_m5_rollout_inventory_packet().render_markdown());
+    assert_eq!(
+        on_disk,
+        seeded_m5_rollout_inventory_packet().render_markdown()
+    );
 }

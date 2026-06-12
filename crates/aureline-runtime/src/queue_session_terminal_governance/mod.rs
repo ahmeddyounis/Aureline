@@ -16,8 +16,18 @@
 //! - one restore continuity bundle: restore fidelity, no-hidden-rerun class,
 //!   and an opaque restore anchor ref;
 //! - one explicit terminal-boundary bundle when the workload crosses an
-//!   execution boundary: boundary class, clipboard posture, and an opaque
-//!   boundary ref;
+//!   execution boundary: boundary class, clipboard posture,
+//!   boundary-disclosure posture, and an opaque boundary ref;
+//! - one protocol-surface row for each claimed M5 terminal family naming the
+//!   protocol corpus, shell-integration signals, and high-risk clipboard
+//!   disclosure posture that back the claim;
+//! - one linkification-confidence row per claimed terminal workload and link
+//!   target class so paths, URLs, stack frames, and problem matches remain
+//!   inspectable under heuristic or imported evidence;
+//! - one downstream consumer row per claimed terminal workload and consumer
+//!   class so AI, quick-fix, problem-matcher, and evidence-export flows keep
+//!   taint and provenance attached instead of flattening console content into
+//!   anonymous text;
 //! - one downgrade rule so stale queue metadata, restore fidelity, or boundary
 //!   proof narrows the claim instead of inheriting adjacent stable truth.
 //!
@@ -60,6 +70,18 @@ pub const QUEUE_SESSION_TERMINAL_PROTECTED_PATH_FITNESS_ROW_RECORD_KIND: &str =
 /// Stable record-kind tag for fairness lane rows.
 pub const QUEUE_SESSION_TERMINAL_FAIRNESS_LANE_ROW_RECORD_KIND: &str =
     "queue_session_terminal_fairness_lane_row";
+
+/// Stable record-kind tag for terminal protocol and shell-integration rows.
+pub const QUEUE_SESSION_TERMINAL_PROTOCOL_SURFACE_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_protocol_surface_row";
+
+/// Stable record-kind tag for linkification-confidence rows.
+pub const QUEUE_SESSION_TERMINAL_LINKIFICATION_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_linkification_row";
+
+/// Stable record-kind tag for downstream terminal-consumer taint rows.
+pub const QUEUE_SESSION_TERMINAL_OUTPUT_CONSUMER_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_output_consumer_row";
 
 /// Integer schema version for the governance packet.
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION: u32 = 1;
@@ -772,6 +794,348 @@ impl ClipboardPostureClass {
     }
 }
 
+/// Boundary-disclosure vocabulary required before high-risk clipboard and
+/// paste flows commit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BoundaryDisclosureClass {
+    /// The local desktop boundary is visible to the operator.
+    LocalContextVisible,
+    /// The active remote boundary is visible to the operator.
+    RemoteContextVisible,
+    /// The active container boundary is visible to the operator.
+    ContainerContextVisible,
+    /// The active managed-runtime boundary is visible to the operator.
+    ManagedContextVisible,
+    /// The active shared-control boundary is visible to the operator.
+    SharedControlContextVisible,
+    /// Policy suppression and the safe alternative are visible to the operator.
+    PolicySuppressedVisible,
+    /// Row does not bind a boundary disclosure posture.
+    NotApplicable,
+}
+
+impl BoundaryDisclosureClass {
+    /// Every boundary-disclosure posture the packet must expose.
+    pub const REQUIRED: [Self; 6] = [
+        Self::LocalContextVisible,
+        Self::RemoteContextVisible,
+        Self::ContainerContextVisible,
+        Self::ManagedContextVisible,
+        Self::SharedControlContextVisible,
+        Self::PolicySuppressedVisible,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalContextVisible => "local_context_visible",
+            Self::RemoteContextVisible => "remote_context_visible",
+            Self::ContainerContextVisible => "container_context_visible",
+            Self::ManagedContextVisible => "managed_context_visible",
+            Self::SharedControlContextVisible => "shared_control_context_visible",
+            Self::PolicySuppressedVisible => "policy_suppressed_visible",
+            Self::NotApplicable => "not_applicable",
+        }
+    }
+}
+
+/// Terminal protocol surfaces claimed by the M5 runtime packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalProtocolSurfaceClass {
+    /// Notebook-linked terminal session.
+    NotebookTerminal,
+    /// Request or database console.
+    DataQueryConsole,
+    /// Pipeline console or attached provider log stream.
+    PipelineConsole,
+    /// Preview or dev-server pane.
+    PreviewDevServerPane,
+    /// Companion or handoff-adjacent remote console.
+    CompanionRemoteConsole,
+    /// Incident-session console with shared-control guardrails.
+    IncidentSessionConsole,
+    /// Infrastructure or remote/container shell.
+    InfrastructureShell,
+}
+
+impl TerminalProtocolSurfaceClass {
+    /// Every protocol surface the packet must cover.
+    pub const REQUIRED: [Self; 7] = [
+        Self::NotebookTerminal,
+        Self::DataQueryConsole,
+        Self::PipelineConsole,
+        Self::PreviewDevServerPane,
+        Self::CompanionRemoteConsole,
+        Self::IncidentSessionConsole,
+        Self::InfrastructureShell,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotebookTerminal => "notebook_terminal",
+            Self::DataQueryConsole => "data_query_console",
+            Self::PipelineConsole => "pipeline_console",
+            Self::PreviewDevServerPane => "preview_dev_server_pane",
+            Self::CompanionRemoteConsole => "companion_remote_console",
+            Self::IncidentSessionConsole => "incident_session_console",
+            Self::InfrastructureShell => "infrastructure_shell",
+        }
+    }
+}
+
+/// Terminal protocol feature vocabulary admitted by the packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalProtocolCapabilityClass {
+    /// UTF-8 streams and Unicode handling remain available.
+    Utf8Stream,
+    /// Alternate-screen entry and exit are preserved.
+    AlternateScreen,
+    /// Mouse reporting remains available.
+    MouseReporting,
+    /// Bracketed-paste protocol is preserved.
+    BracketedPaste,
+    /// Hyperlink protocol is preserved.
+    Hyperlinks,
+    /// 24-bit color remains available.
+    Truecolor,
+    /// Bounded searchable scrollback remains available.
+    SearchableBoundedScrollback,
+}
+
+impl TerminalProtocolCapabilityClass {
+    /// Every protocol capability the packet must expose.
+    pub const REQUIRED: [Self; 7] = [
+        Self::Utf8Stream,
+        Self::AlternateScreen,
+        Self::MouseReporting,
+        Self::BracketedPaste,
+        Self::Hyperlinks,
+        Self::Truecolor,
+        Self::SearchableBoundedScrollback,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Utf8Stream => "utf8_stream",
+            Self::AlternateScreen => "alternate_screen",
+            Self::MouseReporting => "mouse_reporting",
+            Self::BracketedPaste => "bracketed_paste",
+            Self::Hyperlinks => "hyperlinks",
+            Self::Truecolor => "truecolor",
+            Self::SearchableBoundedScrollback => "searchable_bounded_scrollback",
+        }
+    }
+}
+
+/// Shell-integration signal vocabulary admitted by the packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShellIntegrationSignalClass {
+    /// OSC 7 current-working-directory signal.
+    Osc7Cwd,
+    /// OSC 133 prompt-boundary signal.
+    Osc133PromptBoundary,
+    /// OSC 133 command-boundary signal.
+    Osc133CommandBoundary,
+    /// OSC 133 exit-status signal.
+    Osc133ExitStatus,
+    /// OSC 133 rerun-semantics or safe-rerun state signal.
+    Osc133RerunSemantics,
+}
+
+impl ShellIntegrationSignalClass {
+    /// Every shell-integration signal the packet must expose.
+    pub const REQUIRED: [Self; 5] = [
+        Self::Osc7Cwd,
+        Self::Osc133PromptBoundary,
+        Self::Osc133CommandBoundary,
+        Self::Osc133ExitStatus,
+        Self::Osc133RerunSemantics,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Osc7Cwd => "osc7_cwd",
+            Self::Osc133PromptBoundary => "osc133_prompt_boundary",
+            Self::Osc133CommandBoundary => "osc133_command_boundary",
+            Self::Osc133ExitStatus => "osc133_exit_status",
+            Self::Osc133RerunSemantics => "osc133_rerun_semantics",
+        }
+    }
+}
+
+/// Link target vocabulary admitted by terminal linkification rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalLinkTargetClass {
+    /// Filesystem or workspace path.
+    Path,
+    /// URL or endpoint-like link.
+    Url,
+    /// Stack frame or frame-like source anchor.
+    StackFrame,
+    /// Problem matcher or diagnostic anchor.
+    ProblemMatch,
+}
+
+impl TerminalLinkTargetClass {
+    /// Every link target the packet must expose.
+    pub const REQUIRED: [Self; 4] = [Self::Path, Self::Url, Self::StackFrame, Self::ProblemMatch];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Path => "path",
+            Self::Url => "url",
+            Self::StackFrame => "stack_frame",
+            Self::ProblemMatch => "problem_match",
+        }
+    }
+}
+
+/// Confidence class preserved by terminal linkification rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalLinkConfidenceClass {
+    /// Exact link backed by shell integration or protocol-native metadata.
+    ShellIntegratedExact,
+    /// Structured runtime or tool-backed mapping.
+    StructuredRuntime,
+    /// Imported link backed by captured external evidence.
+    ImportedEvidence,
+    /// Heuristic parser or fallback link.
+    HeuristicBestEffort,
+}
+
+impl TerminalLinkConfidenceClass {
+    /// Every link-confidence class the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::ShellIntegratedExact,
+        Self::StructuredRuntime,
+        Self::ImportedEvidence,
+        Self::HeuristicBestEffort,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ShellIntegratedExact => "shell_integrated_exact",
+            Self::StructuredRuntime => "structured_runtime",
+            Self::ImportedEvidence => "imported_evidence",
+            Self::HeuristicBestEffort => "heuristic_best_effort",
+        }
+    }
+}
+
+/// Downstream consumer vocabulary for terminal-derived content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalOutputConsumerClass {
+    /// AI context or assistant ingestion.
+    AiContext,
+    /// Quick fix or apply-preview derivation.
+    QuickFix,
+    /// Problem matcher or diagnostic promotion.
+    ProblemMatcher,
+    /// Evidence or support export.
+    EvidenceExport,
+}
+
+impl TerminalOutputConsumerClass {
+    /// Every downstream consumer the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::AiContext,
+        Self::QuickFix,
+        Self::ProblemMatcher,
+        Self::EvidenceExport,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AiContext => "ai_context",
+            Self::QuickFix => "quick_fix",
+            Self::ProblemMatcher => "problem_matcher",
+            Self::EvidenceExport => "evidence_export",
+        }
+    }
+}
+
+/// Taint posture preserved when downstream consumers read terminal content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalOutputTaintClass {
+    /// Content remains tainted context only.
+    TaintedContext,
+    /// Content is a user- or policy-promoted slice with taint preserved.
+    UserPromotedSlice,
+    /// Structured projection stays tainted and attributable.
+    StructuredTaintedProjection,
+    /// Export keeps metadata-only taint posture.
+    MetadataOnlyExport,
+}
+
+impl TerminalOutputTaintClass {
+    /// Every taint posture the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::TaintedContext,
+        Self::UserPromotedSlice,
+        Self::StructuredTaintedProjection,
+        Self::MetadataOnlyExport,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::TaintedContext => "tainted_context",
+            Self::UserPromotedSlice => "user_promoted_slice",
+            Self::StructuredTaintedProjection => "structured_tainted_projection",
+            Self::MetadataOnlyExport => "metadata_only_export",
+        }
+    }
+}
+
+/// Provenance posture preserved when downstream consumers read terminal
+/// content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalOutputProvenanceClass {
+    /// Boundary, session, and source-kind provenance remain attached.
+    BoundaryAndSourcePreserved,
+    /// Promoted-range provenance remains attached.
+    PromotedRangePreserved,
+    /// Raw-output backlink or source-kind provenance remains attached.
+    RawBacklinkPreserved,
+    /// Export scope, redaction, and omission provenance remain attached.
+    RedactionAndScopePreserved,
+}
+
+impl TerminalOutputProvenanceClass {
+    /// Every provenance posture the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::BoundaryAndSourcePreserved,
+        Self::PromotedRangePreserved,
+        Self::RawBacklinkPreserved,
+        Self::RedactionAndScopePreserved,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BoundaryAndSourcePreserved => "boundary_and_source_preserved",
+            Self::PromotedRangePreserved => "promoted_range_preserved",
+            Self::RawBacklinkPreserved => "raw_backlink_preserved",
+            Self::RedactionAndScopePreserved => "redaction_and_scope_preserved",
+        }
+    }
+}
+
 /// Evidence class backing one governance row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1087,6 +1451,8 @@ pub enum FindingKind {
     MissingRequiredTerminalBoundaryCoverage,
     /// Packet no longer covers every required clipboard posture class.
     MissingRequiredClipboardPostureCoverage,
+    /// Packet no longer covers every required boundary-disclosure class.
+    MissingRequiredBoundaryDisclosureCoverage,
     /// Packet no longer covers every required durable activity state.
     MissingRequiredActivityStateCoverage,
     /// Packet no longer measures every protected interaction path.
@@ -1113,6 +1479,32 @@ pub enum FindingKind {
     MissingActivityActionRef,
     /// Packet no longer covers every required scheduler lane row.
     MissingSchedulerLaneCoverage,
+    /// One required protocol surface no longer has protocol coverage.
+    MissingProtocolSurfaceCoverage,
+    /// Packet no longer covers every required terminal protocol capability.
+    MissingRequiredProtocolCapabilityCoverage,
+    /// Packet no longer covers every required shell-integration signal.
+    MissingRequiredShellIntegrationSignalCoverage,
+    /// One protocol surface row omitted required disclosures, refs, or guardrails.
+    InvalidProtocolSurfaceRow,
+    /// One terminal workload no longer has linkification coverage.
+    MissingLinkificationCoverage,
+    /// Packet no longer covers every required link target class.
+    MissingRequiredLinkTargetCoverage,
+    /// Packet no longer covers every required link-confidence class.
+    MissingRequiredLinkConfidenceCoverage,
+    /// One linkification row omitted required refs or guardrails.
+    InvalidLinkificationRow,
+    /// One terminal workload no longer has downstream consumer coverage.
+    MissingOutputConsumerCoverage,
+    /// Packet no longer covers every required downstream consumer class.
+    MissingRequiredOutputConsumerCoverage,
+    /// Packet no longer covers every required taint posture.
+    MissingRequiredOutputTaintCoverage,
+    /// Packet no longer covers every required downstream provenance posture.
+    MissingRequiredOutputProvenanceCoverage,
+    /// One downstream consumer row omitted required refs or guardrails.
+    InvalidOutputConsumerRow,
     /// Raw source material crossed the boundary.
     RawSourceMaterialPresent,
     /// Secrets crossed the boundary.
@@ -1135,6 +1527,16 @@ pub enum FindingKind {
     TerminalBoundaryVocabularyCollapsed,
     /// Consumer projection collapsed clipboard vocabulary.
     ClipboardVocabularyCollapsed,
+    /// Consumer projection collapsed protocol vocabulary.
+    ProtocolVocabularyCollapsed,
+    /// Consumer projection collapsed shell-signal vocabulary.
+    ShellSignalVocabularyCollapsed,
+    /// Consumer projection collapsed boundary-disclosure vocabulary.
+    BoundaryDisclosureVocabularyCollapsed,
+    /// Consumer projection collapsed linkification vocabulary.
+    LinkificationVocabularyCollapsed,
+    /// Consumer projection collapsed taint/provenance vocabulary.
+    TaintProvenanceVocabularyCollapsed,
     /// Stored promotion state disagrees with derived findings.
     PromotionStateMismatch,
 }
@@ -1183,6 +1585,9 @@ impl FindingKind {
             Self::MissingRequiredClipboardPostureCoverage => {
                 "missing_required_clipboard_posture_coverage"
             }
+            Self::MissingRequiredBoundaryDisclosureCoverage => {
+                "missing_required_boundary_disclosure_coverage"
+            }
             Self::MissingRequiredActivityStateCoverage => {
                 "missing_required_activity_state_coverage"
             }
@@ -1198,6 +1603,29 @@ impl FindingKind {
             Self::ActivityJobRowLaneDrift => "activity_job_row_lane_drift",
             Self::MissingActivityActionRef => "missing_activity_action_ref",
             Self::MissingSchedulerLaneCoverage => "missing_scheduler_lane_coverage",
+            Self::MissingProtocolSurfaceCoverage => "missing_protocol_surface_coverage",
+            Self::MissingRequiredProtocolCapabilityCoverage => {
+                "missing_required_protocol_capability_coverage"
+            }
+            Self::MissingRequiredShellIntegrationSignalCoverage => {
+                "missing_required_shell_integration_signal_coverage"
+            }
+            Self::InvalidProtocolSurfaceRow => "invalid_protocol_surface_row",
+            Self::MissingLinkificationCoverage => "missing_linkification_coverage",
+            Self::MissingRequiredLinkTargetCoverage => "missing_required_link_target_coverage",
+            Self::MissingRequiredLinkConfidenceCoverage => {
+                "missing_required_link_confidence_coverage"
+            }
+            Self::InvalidLinkificationRow => "invalid_linkification_row",
+            Self::MissingOutputConsumerCoverage => "missing_output_consumer_coverage",
+            Self::MissingRequiredOutputConsumerCoverage => {
+                "missing_required_output_consumer_coverage"
+            }
+            Self::MissingRequiredOutputTaintCoverage => "missing_required_output_taint_coverage",
+            Self::MissingRequiredOutputProvenanceCoverage => {
+                "missing_required_output_provenance_coverage"
+            }
+            Self::InvalidOutputConsumerRow => "invalid_output_consumer_row",
             Self::RawSourceMaterialPresent => "raw_source_material_present",
             Self::SecretsPresent => "secrets_present",
             Self::AmbientAuthorityPresent => "ambient_authority_present",
@@ -1209,6 +1637,13 @@ impl FindingKind {
             Self::RestoreVocabularyCollapsed => "restore_vocabulary_collapsed",
             Self::TerminalBoundaryVocabularyCollapsed => "terminal_boundary_vocabulary_collapsed",
             Self::ClipboardVocabularyCollapsed => "clipboard_vocabulary_collapsed",
+            Self::ProtocolVocabularyCollapsed => "protocol_vocabulary_collapsed",
+            Self::ShellSignalVocabularyCollapsed => "shell_signal_vocabulary_collapsed",
+            Self::BoundaryDisclosureVocabularyCollapsed => {
+                "boundary_disclosure_vocabulary_collapsed"
+            }
+            Self::LinkificationVocabularyCollapsed => "linkification_vocabulary_collapsed",
+            Self::TaintProvenanceVocabularyCollapsed => "taint_provenance_vocabulary_collapsed",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
         }
     }
@@ -1280,6 +1715,8 @@ pub struct QueueSessionTerminalGovernanceRow {
     pub terminal_boundary_class: TerminalBoundaryClass,
     /// Clipboard posture admitted by the row.
     pub clipboard_posture_class: ClipboardPostureClass,
+    /// Boundary-disclosure posture admitted by the row.
+    pub boundary_disclosure_class: BoundaryDisclosureClass,
     /// Opaque terminal-boundary ref admitted by the row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boundary_ref: Option<String>,
@@ -1759,6 +2196,100 @@ pub struct QueueSessionSchedulerLaneRow {
     pub inspect_ref: String,
 }
 
+/// Terminal protocol and shell-integration coverage row for one claimed M5
+/// surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalProtocolSurfaceRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Claimed protocol surface class.
+    pub protocol_surface_class: TerminalProtocolSurfaceClass,
+    /// Stable surface token.
+    pub protocol_surface_token: String,
+    /// Terminal boundary class shown on the surface.
+    pub terminal_boundary_class: TerminalBoundaryClass,
+    /// Clipboard posture shown on the surface.
+    pub clipboard_posture_class: ClipboardPostureClass,
+    /// Boundary-disclosure posture shown before risky clipboard flows.
+    pub boundary_disclosure_class: BoundaryDisclosureClass,
+    /// Stable boundary-disclosure token.
+    pub boundary_disclosure_token: String,
+    /// Terminal protocol capabilities covered by the corpus.
+    pub protocol_capability_classes: Vec<TerminalProtocolCapabilityClass>,
+    /// Shell-integration signals covered by the corpus.
+    pub shell_integration_signal_classes: Vec<ShellIntegrationSignalClass>,
+    /// True when high-risk paste review remains visible on the surface.
+    pub high_risk_paste_review_required: bool,
+    /// True when clipboard-affecting actions stay policy-aware.
+    pub clipboard_policy_aware: bool,
+    /// Inspectable terminal corpus or signal review ref.
+    pub inspect_ref: String,
+    /// Evidence references backing the row.
+    pub evidence_refs: Vec<String>,
+    /// Guardrail: row carries no raw terminal bytes.
+    pub raw_terminal_bytes_excluded: bool,
+    /// Guardrail: row carries no raw clipboard payload.
+    pub raw_clipboard_payload_excluded: bool,
+}
+
+/// Linkification-confidence row for one terminal workload and target class.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalLinkificationRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Link target class covered by the row.
+    pub link_target_class: TerminalLinkTargetClass,
+    /// Stable target token.
+    pub link_target_token: String,
+    /// Preserved source-kind confidence class.
+    pub confidence_class: TerminalLinkConfidenceClass,
+    /// Stable confidence token.
+    pub confidence_token: String,
+    /// True when the rendered link stays boundary-labelled.
+    pub boundary_label_visible: bool,
+    /// True when the linked content remains tainted until explicitly promoted.
+    pub tainted_until_promoted: bool,
+    /// Inspectable source or provenance ref for the link target.
+    pub provenance_ref: String,
+    /// Inspectable action or review ref for the link target.
+    pub inspect_ref: String,
+}
+
+/// Taint and provenance row for one downstream terminal-content consumer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalOutputConsumerRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Downstream consumer class.
+    pub consumer_class: TerminalOutputConsumerClass,
+    /// Stable consumer token.
+    pub consumer_token: String,
+    /// Taint posture preserved for the consumer.
+    pub taint_class: TerminalOutputTaintClass,
+    /// Stable taint token.
+    pub taint_token: String,
+    /// Provenance posture preserved for the consumer.
+    pub provenance_class: TerminalOutputProvenanceClass,
+    /// Stable provenance token.
+    pub provenance_token: String,
+    /// True when taint state remains visible to the consumer surface.
+    pub taint_state_preserved: bool,
+    /// True when provenance state remains visible to the consumer surface.
+    pub provenance_state_preserved: bool,
+    /// True when raw terminal bodies stay excluded by default.
+    pub raw_terminal_body_excluded_by_default: bool,
+    /// Inspectable review or export ref for the consumer.
+    pub inspect_ref: String,
+    /// Inspectable provenance or range ref for the consumer.
+    pub provenance_ref: String,
+}
+
 /// Consumer projection that must preserve this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueSessionTerminalGovernanceConsumerProjection {
@@ -1780,6 +2311,16 @@ pub struct QueueSessionTerminalGovernanceConsumerProjection {
     pub preserves_terminal_boundary_vocabulary: bool,
     /// True when the projection preserves clipboard vocabulary.
     pub preserves_clipboard_vocabulary: bool,
+    /// True when the projection preserves protocol-capability vocabulary.
+    pub preserves_protocol_vocabulary: bool,
+    /// True when the projection preserves shell-signal vocabulary.
+    pub preserves_shell_signal_vocabulary: bool,
+    /// True when the projection preserves boundary-disclosure vocabulary.
+    pub preserves_boundary_disclosure_vocabulary: bool,
+    /// True when the projection preserves linkification-confidence vocabulary.
+    pub preserves_linkification_vocabulary: bool,
+    /// True when the projection preserves taint and provenance vocabulary.
+    pub preserves_taint_provenance_vocabulary: bool,
     /// True when the projection supports JSON export parity.
     pub supports_json_export: bool,
     /// True when raw private material remains excluded.
@@ -1797,6 +2338,11 @@ impl QueueSessionTerminalGovernanceConsumerProjection {
             && self.preserves_restore_vocabulary
             && self.preserves_terminal_boundary_vocabulary
             && self.preserves_clipboard_vocabulary
+            && self.preserves_protocol_vocabulary
+            && self.preserves_shell_signal_vocabulary
+            && self.preserves_boundary_disclosure_vocabulary
+            && self.preserves_linkification_vocabulary
+            && self.preserves_taint_provenance_vocabulary
             && self.supports_json_export
             && self.raw_private_material_excluded
             && self.ambient_authority_excluded
@@ -1831,6 +2377,15 @@ pub struct QueueSessionTerminalGovernancePacketInput {
     /// Fairness lane rows projected from scheduler and governor truth.
     #[serde(default)]
     pub fairness_lane_rows: Vec<QueueSessionFairnessLaneRow>,
+    /// Terminal protocol and shell-integration coverage rows.
+    #[serde(default)]
+    pub protocol_surface_rows: Vec<QueueSessionTerminalProtocolSurfaceRow>,
+    /// Linkification-confidence rows.
+    #[serde(default)]
+    pub linkification_rows: Vec<QueueSessionTerminalLinkificationRow>,
+    /// Downstream taint and provenance rows.
+    #[serde(default)]
+    pub output_consumer_rows: Vec<QueueSessionTerminalOutputConsumerRow>,
     /// Visible power/thermal transition that currently governs the packet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power_thermal_transition: Option<QueueSessionPowerThermalTransition>,
@@ -1873,6 +2428,15 @@ pub struct QueueSessionTerminalGovernancePacket {
     /// Fairness lane rows projected from scheduler and governor truth.
     #[serde(default)]
     pub fairness_lane_rows: Vec<QueueSessionFairnessLaneRow>,
+    /// Terminal protocol and shell-integration coverage rows.
+    #[serde(default)]
+    pub protocol_surface_rows: Vec<QueueSessionTerminalProtocolSurfaceRow>,
+    /// Linkification-confidence rows.
+    #[serde(default)]
+    pub linkification_rows: Vec<QueueSessionTerminalLinkificationRow>,
+    /// Downstream taint and provenance rows.
+    #[serde(default)]
+    pub output_consumer_rows: Vec<QueueSessionTerminalOutputConsumerRow>,
     /// Visible power/thermal transition that currently governs the packet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power_thermal_transition: Option<QueueSessionPowerThermalTransition>,
@@ -1904,6 +2468,9 @@ impl QueueSessionTerminalGovernancePacket {
             scheduler_lane_rows: input.scheduler_lane_rows,
             protected_path_rows: input.protected_path_rows,
             fairness_lane_rows: input.fairness_lane_rows,
+            protocol_surface_rows: input.protocol_surface_rows,
+            linkification_rows: input.linkification_rows,
+            output_consumer_rows: input.output_consumer_rows,
             power_thermal_transition: input.power_thermal_transition,
             consumer_projections: input.consumer_projections,
             source_contract_refs: input.source_contract_refs,
@@ -2022,6 +2589,112 @@ impl QueueSessionTerminalGovernancePacket {
             set.insert(row.fairness_outcome_class);
         }
         set.into_iter().map(FairnessOutcomeClass::as_str).collect()
+    }
+
+    /// Returns the unique boundary-disclosure tokens observed across rows.
+    pub fn boundary_disclosure_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            set.insert(row.boundary_disclosure_class);
+        }
+        for row in &self.protocol_surface_rows {
+            set.insert(row.boundary_disclosure_class);
+        }
+        set.into_iter()
+            .map(BoundaryDisclosureClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique protocol-surface tokens observed across rows.
+    pub fn protocol_surface_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.protocol_surface_rows {
+            set.insert(row.protocol_surface_class);
+        }
+        set.into_iter()
+            .map(TerminalProtocolSurfaceClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique protocol-capability tokens observed across rows.
+    pub fn protocol_capability_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.protocol_surface_rows {
+            for capability in &row.protocol_capability_classes {
+                set.insert(*capability);
+            }
+        }
+        set.into_iter()
+            .map(TerminalProtocolCapabilityClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique shell-integration signal tokens observed across rows.
+    pub fn shell_signal_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.protocol_surface_rows {
+            for signal in &row.shell_integration_signal_classes {
+                set.insert(*signal);
+            }
+        }
+        set.into_iter()
+            .map(ShellIntegrationSignalClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique link-target tokens observed across rows.
+    pub fn link_target_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.linkification_rows {
+            set.insert(row.link_target_class);
+        }
+        set.into_iter()
+            .map(TerminalLinkTargetClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique link-confidence tokens observed across rows.
+    pub fn link_confidence_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.linkification_rows {
+            set.insert(row.confidence_class);
+        }
+        set.into_iter()
+            .map(TerminalLinkConfidenceClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique downstream consumer tokens observed across rows.
+    pub fn output_consumer_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.output_consumer_rows {
+            set.insert(row.consumer_class);
+        }
+        set.into_iter()
+            .map(TerminalOutputConsumerClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique taint tokens observed across rows.
+    pub fn output_taint_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.output_consumer_rows {
+            set.insert(row.taint_class);
+        }
+        set.into_iter()
+            .map(TerminalOutputTaintClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique downstream provenance tokens observed across rows.
+    pub fn output_provenance_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.output_consumer_rows {
+            set.insert(row.provenance_class);
+        }
+        set.into_iter()
+            .map(TerminalOutputProvenanceClass::as_str)
+            .collect()
     }
 
     /// Returns true when the packet preserves a projection for the surface.
@@ -2347,6 +3020,9 @@ impl QueueSessionTerminalGovernancePacket {
                 ) || matches!(
                     row.clipboard_posture_class,
                     ClipboardPostureClass::NotApplicable
+                ) || matches!(
+                    row.boundary_disclosure_class,
+                    BoundaryDisclosureClass::NotApplicable
                 ) || row
                     .boundary_ref
                     .as_deref()
@@ -2366,6 +3042,9 @@ impl QueueSessionTerminalGovernancePacket {
             ) || !matches!(
                 row.clipboard_posture_class,
                 ClipboardPostureClass::NotApplicable
+            ) || !matches!(
+                row.boundary_disclosure_class,
+                BoundaryDisclosureClass::NotApplicable
             ) || row.boundary_ref.is_some()
             {
                 findings.push(ValidationFinding::new(
@@ -2573,6 +3252,274 @@ impl QueueSessionTerminalGovernancePacket {
             }
         }
 
+        let terminal_workloads = GovernedWorkloadClass::REQUIRED
+            .into_iter()
+            .filter(|workload| workload.requires_terminal_boundary())
+            .collect::<Vec<_>>();
+        for workload in &terminal_workloads {
+            if !self
+                .protocol_surface_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingProtocolSurfaceCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "terminal workload {} is missing protocol coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if !self
+                .linkification_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingLinkificationCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "terminal workload {} is missing linkification coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if !self
+                .output_consumer_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingOutputConsumerCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "terminal workload {} is missing downstream consumer coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            for link_target in TerminalLinkTargetClass::REQUIRED {
+                if !self.linkification_rows.iter().any(|row| {
+                    row.workload_class == *workload && row.link_target_class == link_target
+                }) {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::MissingLinkificationCoverage,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "terminal workload {} is missing {} linkification coverage",
+                            workload.as_str(),
+                            link_target.as_str()
+                        ),
+                    ));
+                }
+            }
+            for consumer in TerminalOutputConsumerClass::REQUIRED {
+                if !self
+                    .output_consumer_rows
+                    .iter()
+                    .any(|row| row.workload_class == *workload && row.consumer_class == consumer)
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::MissingOutputConsumerCoverage,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "terminal workload {} is missing consumer {} coverage",
+                            workload.as_str(),
+                            consumer.as_str()
+                        ),
+                    ));
+                }
+            }
+        }
+        for surface in TerminalProtocolSurfaceClass::REQUIRED {
+            if !self
+                .protocol_surface_rows
+                .iter()
+                .any(|row| row.protocol_surface_class == surface)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingProtocolSurfaceCoverage,
+                    FindingSeverity::Blocker,
+                    format!("protocol surface {} is not covered", surface.as_str()),
+                ));
+            }
+        }
+        for capability in TerminalProtocolCapabilityClass::REQUIRED {
+            if !self.protocol_surface_rows.iter().any(|row| {
+                row.protocol_capability_classes
+                    .iter()
+                    .any(|covered| *covered == capability)
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredProtocolCapabilityCoverage,
+                    FindingSeverity::Blocker,
+                    format!("protocol capability {} is not covered", capability.as_str()),
+                ));
+            }
+        }
+        for signal in ShellIntegrationSignalClass::REQUIRED {
+            if !self.protocol_surface_rows.iter().any(|row| {
+                row.shell_integration_signal_classes
+                    .iter()
+                    .any(|covered| *covered == signal)
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredShellIntegrationSignalCoverage,
+                    FindingSeverity::Blocker,
+                    format!("shell signal {} is not covered", signal.as_str()),
+                ));
+            }
+        }
+        for protocol_row in &self.protocol_surface_rows {
+            if protocol_row.protocol_surface_token != protocol_row.protocol_surface_class.as_str()
+                || protocol_row.boundary_disclosure_token
+                    != protocol_row.boundary_disclosure_class.as_str()
+                || protocol_row.inspect_ref.trim().is_empty()
+                || protocol_row.evidence_refs.is_empty()
+                || protocol_row.protocol_capability_classes.is_empty()
+                || protocol_row.shell_integration_signal_classes.is_empty()
+                || !protocol_row.clipboard_policy_aware
+                || !protocol_row.raw_terminal_bytes_excluded
+                || !protocol_row.raw_clipboard_payload_excluded
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidProtocolSurfaceRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "protocol surface row {} for workload {} is incomplete or unsafe",
+                        protocol_row.protocol_surface_token,
+                        protocol_row.workload_class.as_str()
+                    ),
+                ));
+            }
+            if let Some(terminal_row) = self.rows.iter().find(|row| {
+                row.workload_class == protocol_row.workload_class
+                    && matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+            }) {
+                if terminal_row.terminal_boundary_class != protocol_row.terminal_boundary_class
+                    || terminal_row.clipboard_posture_class != protocol_row.clipboard_posture_class
+                    || terminal_row.boundary_disclosure_class
+                        != protocol_row.boundary_disclosure_class
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::InvalidProtocolSurfaceRow,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "protocol surface row {} drifts from terminal-boundary admission for workload {}",
+                            protocol_row.protocol_surface_token,
+                            protocol_row.workload_class.as_str()
+                        ),
+                    ));
+                }
+            }
+        }
+        for link_target in TerminalLinkTargetClass::REQUIRED {
+            if !self
+                .linkification_rows
+                .iter()
+                .any(|row| row.link_target_class == link_target)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredLinkTargetCoverage,
+                    FindingSeverity::Blocker,
+                    format!("link target {} is not covered", link_target.as_str()),
+                ));
+            }
+        }
+        for confidence in TerminalLinkConfidenceClass::REQUIRED {
+            if !self
+                .linkification_rows
+                .iter()
+                .any(|row| row.confidence_class == confidence)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredLinkConfidenceCoverage,
+                    FindingSeverity::Blocker,
+                    format!("link confidence {} is not covered", confidence.as_str()),
+                ));
+            }
+        }
+        for link_row in &self.linkification_rows {
+            if link_row.link_target_token != link_row.link_target_class.as_str()
+                || link_row.confidence_token != link_row.confidence_class.as_str()
+                || !link_row.boundary_label_visible
+                || !link_row.tainted_until_promoted
+                || link_row.provenance_ref.trim().is_empty()
+                || link_row.inspect_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidLinkificationRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "linkification row {} for workload {} is incomplete or unsafe",
+                        link_row.link_target_token,
+                        link_row.workload_class.as_str()
+                    ),
+                ));
+            }
+        }
+        for consumer in TerminalOutputConsumerClass::REQUIRED {
+            if !self
+                .output_consumer_rows
+                .iter()
+                .any(|row| row.consumer_class == consumer)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredOutputConsumerCoverage,
+                    FindingSeverity::Blocker,
+                    format!("output consumer {} is not covered", consumer.as_str()),
+                ));
+            }
+        }
+        for taint in TerminalOutputTaintClass::REQUIRED {
+            if !self
+                .output_consumer_rows
+                .iter()
+                .any(|row| row.taint_class == taint)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredOutputTaintCoverage,
+                    FindingSeverity::Blocker,
+                    format!("output taint {} is not covered", taint.as_str()),
+                ));
+            }
+        }
+        for provenance in TerminalOutputProvenanceClass::REQUIRED {
+            if !self
+                .output_consumer_rows
+                .iter()
+                .any(|row| row.provenance_class == provenance)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredOutputProvenanceCoverage,
+                    FindingSeverity::Blocker,
+                    format!("output provenance {} is not covered", provenance.as_str()),
+                ));
+            }
+        }
+        for consumer_row in &self.output_consumer_rows {
+            if consumer_row.consumer_token != consumer_row.consumer_class.as_str()
+                || consumer_row.taint_token != consumer_row.taint_class.as_str()
+                || consumer_row.provenance_token != consumer_row.provenance_class.as_str()
+                || !consumer_row.taint_state_preserved
+                || !consumer_row.provenance_state_preserved
+                || !consumer_row.raw_terminal_body_excluded_by_default
+                || consumer_row.inspect_ref.trim().is_empty()
+                || consumer_row.provenance_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidOutputConsumerRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "output consumer row {} for workload {} is incomplete or unsafe",
+                        consumer_row.consumer_token,
+                        consumer_row.workload_class.as_str()
+                    ),
+                ));
+            }
+        }
+
         for queue_lane in QueueLaneClass::REQUIRED {
             if !self.rows.iter().any(|row| {
                 matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
@@ -2635,6 +3582,18 @@ impl QueueSessionTerminalGovernancePacket {
                     FindingKind::MissingRequiredClipboardPostureCoverage,
                     FindingSeverity::Blocker,
                     format!("clipboard posture {} is not covered", posture.as_str()),
+                ));
+            }
+        }
+        for disclosure in BoundaryDisclosureClass::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+                    && row.boundary_disclosure_class == disclosure
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredBoundaryDisclosureCoverage,
+                    FindingSeverity::Blocker,
+                    format!("boundary disclosure {} is not covered", disclosure.as_str()),
                 ));
             }
         }
@@ -2837,6 +3796,56 @@ impl QueueSessionTerminalGovernancePacket {
                     ),
                 ));
             }
+            if !projection.preserves_protocol_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ProtocolVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses protocol vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_shell_signal_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::ShellSignalVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses shell-signal vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_boundary_disclosure_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::BoundaryDisclosureVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses boundary-disclosure vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_linkification_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::LinkificationVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses linkification vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_taint_provenance_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::TaintProvenanceVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses taint/provenance vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
         }
 
         if include_record_fields {
@@ -2929,6 +3938,11 @@ fn stable_projection(surface: ConsumerSurface) -> QueueSessionTerminalGovernance
         preserves_restore_vocabulary: true,
         preserves_terminal_boundary_vocabulary: true,
         preserves_clipboard_vocabulary: true,
+        preserves_protocol_vocabulary: true,
+        preserves_shell_signal_vocabulary: true,
+        preserves_boundary_disclosure_vocabulary: true,
+        preserves_linkification_vocabulary: true,
+        preserves_taint_provenance_vocabulary: true,
         supports_json_export: true,
         raw_private_material_excluded: true,
         ambient_authority_excluded: true,
@@ -2958,6 +3972,7 @@ fn row_base(
         restore_anchor_ref: None,
         terminal_boundary_class: TerminalBoundaryClass::NotApplicable,
         clipboard_posture_class: ClipboardPostureClass::NotApplicable,
+        boundary_disclosure_class: BoundaryDisclosureClass::NotApplicable,
         boundary_ref: None,
         known_limit_class: KnownLimitClass::NoneDeclared,
         downgrade_rule_class: DowngradeRuleClass::None,
@@ -3079,6 +4094,7 @@ fn terminal_row(
     workload: GovernedWorkloadClass,
     terminal_boundary_class: TerminalBoundaryClass,
     clipboard_posture_class: ClipboardPostureClass,
+    boundary_disclosure_class: BoundaryDisclosureClass,
 ) -> QueueSessionTerminalGovernanceRow {
     let mut row = row_base(
         &format!("row:{}:terminal", workload.as_str()),
@@ -3087,6 +4103,7 @@ fn terminal_row(
     );
     row.terminal_boundary_class = terminal_boundary_class;
     row.clipboard_posture_class = clipboard_posture_class;
+    row.boundary_disclosure_class = boundary_disclosure_class;
     row.boundary_ref = Some(format!("boundary:{}", workload.as_str()));
     row.evidence_class = EvidenceClass::SecurityPrivacyReviewEvidence;
     row
@@ -3105,6 +4122,214 @@ fn downgrade_row(
     row.evidence_class = EvidenceClass::DocsDisclosureEvidence;
     row.disclosure_ref = Some(format!("disclosure:{}", workload.as_str()));
     row
+}
+
+fn protocol_surface_class_for(workload: GovernedWorkloadClass) -> TerminalProtocolSurfaceClass {
+    match workload {
+        GovernedWorkloadClass::NotebookSession => TerminalProtocolSurfaceClass::NotebookTerminal,
+        GovernedWorkloadClass::DataQueryConsole => TerminalProtocolSurfaceClass::DataQueryConsole,
+        GovernedWorkloadClass::PipelineRun => TerminalProtocolSurfaceClass::PipelineConsole,
+        GovernedWorkloadClass::PreviewRoute => TerminalProtocolSurfaceClass::PreviewDevServerPane,
+        GovernedWorkloadClass::CompanionHandoff => {
+            TerminalProtocolSurfaceClass::CompanionRemoteConsole
+        }
+        GovernedWorkloadClass::IncidentWorkspace => {
+            TerminalProtocolSurfaceClass::IncidentSessionConsole
+        }
+        GovernedWorkloadClass::InfrastructureSession => {
+            TerminalProtocolSurfaceClass::InfrastructureShell
+        }
+        GovernedWorkloadClass::ProfilerCapture
+        | GovernedWorkloadClass::DocsRecall
+        | GovernedWorkloadClass::SyncOffboardingFlow => {
+            panic!("non-terminal workload does not have a protocol surface")
+        }
+    }
+}
+
+fn boundary_disclosure_for(
+    terminal_boundary_class: TerminalBoundaryClass,
+) -> BoundaryDisclosureClass {
+    match terminal_boundary_class {
+        TerminalBoundaryClass::Local => BoundaryDisclosureClass::LocalContextVisible,
+        TerminalBoundaryClass::Remote => BoundaryDisclosureClass::RemoteContextVisible,
+        TerminalBoundaryClass::Container => BoundaryDisclosureClass::ContainerContextVisible,
+        TerminalBoundaryClass::Managed => BoundaryDisclosureClass::ManagedContextVisible,
+        TerminalBoundaryClass::SharedControl => {
+            BoundaryDisclosureClass::SharedControlContextVisible
+        }
+        TerminalBoundaryClass::PolicyBlocked => BoundaryDisclosureClass::PolicySuppressedVisible,
+        TerminalBoundaryClass::NotApplicable => BoundaryDisclosureClass::NotApplicable,
+    }
+}
+
+fn high_risk_paste_review_required(posture: ClipboardPostureClass) -> bool {
+    matches!(
+        posture,
+        ClipboardPostureClass::BracketedPasteReview
+            | ClipboardPostureClass::RemoteBridgeReview
+            | ClipboardPostureClass::SharedControlGrantRequired
+            | ClipboardPostureClass::PolicyDeniedSafeAlternative
+    )
+}
+
+fn build_protocol_surface_rows(
+    rows: &[QueueSessionTerminalGovernanceRow],
+) -> Vec<QueueSessionTerminalProtocolSurfaceRow> {
+    let required_capabilities = TerminalProtocolCapabilityClass::REQUIRED.to_vec();
+    let required_signals = ShellIntegrationSignalClass::REQUIRED.to_vec();
+    rows.iter()
+        .filter(|row| matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission))
+        .map(|row| QueueSessionTerminalProtocolSurfaceRow {
+            record_kind: QUEUE_SESSION_TERMINAL_PROTOCOL_SURFACE_ROW_RECORD_KIND.to_owned(),
+            workload_class: row.workload_class,
+            protocol_surface_class: protocol_surface_class_for(row.workload_class),
+            protocol_surface_token: protocol_surface_class_for(row.workload_class)
+                .as_str()
+                .to_owned(),
+            terminal_boundary_class: row.terminal_boundary_class,
+            clipboard_posture_class: row.clipboard_posture_class,
+            boundary_disclosure_class: row.boundary_disclosure_class,
+            boundary_disclosure_token: row.boundary_disclosure_class.as_str().to_owned(),
+            protocol_capability_classes: required_capabilities.clone(),
+            shell_integration_signal_classes: required_signals.clone(),
+            high_risk_paste_review_required: high_risk_paste_review_required(
+                row.clipboard_posture_class,
+            ),
+            clipboard_policy_aware: true,
+            inspect_ref: format!("inspect:protocol:{}", row.workload_class.as_str()),
+            evidence_refs: vec![
+                QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF.to_owned(),
+                CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF.to_owned(),
+            ],
+            raw_terminal_bytes_excluded: true,
+            raw_clipboard_payload_excluded: true,
+        })
+        .collect()
+}
+
+fn link_confidence_for(
+    workload: GovernedWorkloadClass,
+    link_target_class: TerminalLinkTargetClass,
+) -> TerminalLinkConfidenceClass {
+    match (workload, link_target_class) {
+        (
+            GovernedWorkloadClass::NotebookSession
+            | GovernedWorkloadClass::DataQueryConsole
+            | GovernedWorkloadClass::IncidentWorkspace,
+            TerminalLinkTargetClass::Path | TerminalLinkTargetClass::StackFrame,
+        ) => TerminalLinkConfidenceClass::ShellIntegratedExact,
+        (
+            GovernedWorkloadClass::PipelineRun | GovernedWorkloadClass::CompanionHandoff,
+            TerminalLinkTargetClass::Url,
+        ) => TerminalLinkConfidenceClass::ImportedEvidence,
+        (_, TerminalLinkTargetClass::ProblemMatch) => {
+            TerminalLinkConfidenceClass::StructuredRuntime
+        }
+        _ => TerminalLinkConfidenceClass::HeuristicBestEffort,
+    }
+}
+
+fn build_linkification_rows() -> Vec<QueueSessionTerminalLinkificationRow> {
+    GovernedWorkloadClass::REQUIRED
+        .into_iter()
+        .filter(|workload| workload.requires_terminal_boundary())
+        .flat_map(|workload| {
+            TerminalLinkTargetClass::REQUIRED
+                .into_iter()
+                .map(move |link_target_class| {
+                    let confidence_class = link_confidence_for(workload, link_target_class);
+                    QueueSessionTerminalLinkificationRow {
+                        record_kind: QUEUE_SESSION_TERMINAL_LINKIFICATION_ROW_RECORD_KIND
+                            .to_owned(),
+                        workload_class: workload,
+                        link_target_class,
+                        link_target_token: link_target_class.as_str().to_owned(),
+                        confidence_class,
+                        confidence_token: confidence_class.as_str().to_owned(),
+                        boundary_label_visible: true,
+                        tainted_until_promoted: true,
+                        provenance_ref: format!(
+                            "provenance:link:{}:{}",
+                            workload.as_str(),
+                            link_target_class.as_str()
+                        ),
+                        inspect_ref: format!(
+                            "inspect:link:{}:{}",
+                            workload.as_str(),
+                            link_target_class.as_str()
+                        ),
+                    }
+                })
+        })
+        .collect()
+}
+
+fn consumer_taint_for(consumer: TerminalOutputConsumerClass) -> TerminalOutputTaintClass {
+    match consumer {
+        TerminalOutputConsumerClass::AiContext => TerminalOutputTaintClass::UserPromotedSlice,
+        TerminalOutputConsumerClass::QuickFix => TerminalOutputTaintClass::TaintedContext,
+        TerminalOutputConsumerClass::ProblemMatcher => {
+            TerminalOutputTaintClass::StructuredTaintedProjection
+        }
+        TerminalOutputConsumerClass::EvidenceExport => TerminalOutputTaintClass::MetadataOnlyExport,
+    }
+}
+
+fn consumer_provenance_for(consumer: TerminalOutputConsumerClass) -> TerminalOutputProvenanceClass {
+    match consumer {
+        TerminalOutputConsumerClass::AiContext => {
+            TerminalOutputProvenanceClass::PromotedRangePreserved
+        }
+        TerminalOutputConsumerClass::QuickFix => {
+            TerminalOutputProvenanceClass::BoundaryAndSourcePreserved
+        }
+        TerminalOutputConsumerClass::ProblemMatcher => {
+            TerminalOutputProvenanceClass::RawBacklinkPreserved
+        }
+        TerminalOutputConsumerClass::EvidenceExport => {
+            TerminalOutputProvenanceClass::RedactionAndScopePreserved
+        }
+    }
+}
+
+fn build_output_consumer_rows() -> Vec<QueueSessionTerminalOutputConsumerRow> {
+    GovernedWorkloadClass::REQUIRED
+        .into_iter()
+        .filter(|workload| workload.requires_terminal_boundary())
+        .flat_map(|workload| {
+            TerminalOutputConsumerClass::REQUIRED
+                .into_iter()
+                .map(move |consumer_class| {
+                    let taint_class = consumer_taint_for(consumer_class);
+                    let provenance_class = consumer_provenance_for(consumer_class);
+                    QueueSessionTerminalOutputConsumerRow {
+                        record_kind: QUEUE_SESSION_TERMINAL_OUTPUT_CONSUMER_ROW_RECORD_KIND
+                            .to_owned(),
+                        workload_class: workload,
+                        consumer_class,
+                        consumer_token: consumer_class.as_str().to_owned(),
+                        taint_class,
+                        taint_token: taint_class.as_str().to_owned(),
+                        provenance_class,
+                        provenance_token: provenance_class.as_str().to_owned(),
+                        taint_state_preserved: true,
+                        provenance_state_preserved: true,
+                        raw_terminal_body_excluded_by_default: true,
+                        inspect_ref: format!(
+                            "inspect:consumer:{}:{}",
+                            workload.as_str(),
+                            consumer_class.as_str()
+                        ),
+                        provenance_ref: format!(
+                            "provenance:consumer:{}:{}",
+                            workload.as_str(),
+                            consumer_class.as_str()
+                        ),
+                    }
+                })
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -3730,6 +4955,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::NotebookSession,
             TerminalBoundaryClass::Local,
             ClipboardPostureClass::LocalDirect,
+            boundary_disclosure_for(TerminalBoundaryClass::Local),
         ),
         downgrade_row(
             GovernedWorkloadClass::NotebookSession,
@@ -3770,6 +4996,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::DataQueryConsole,
             TerminalBoundaryClass::Remote,
             ClipboardPostureClass::BracketedPasteReview,
+            boundary_disclosure_for(TerminalBoundaryClass::Remote),
         ),
         downgrade_row(
             GovernedWorkloadClass::DataQueryConsole,
@@ -3828,6 +5055,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::PipelineRun,
             TerminalBoundaryClass::Managed,
             ClipboardPostureClass::MetadataOnlyExport,
+            boundary_disclosure_for(TerminalBoundaryClass::Managed),
         ),
         downgrade_row(
             GovernedWorkloadClass::PipelineRun,
@@ -3886,6 +5114,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::PreviewRoute,
             TerminalBoundaryClass::Container,
             ClipboardPostureClass::RemoteBridgeReview,
+            boundary_disclosure_for(TerminalBoundaryClass::Container),
         ),
         downgrade_row(
             GovernedWorkloadClass::PreviewRoute,
@@ -4067,6 +5296,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::CompanionHandoff,
             TerminalBoundaryClass::Remote,
             ClipboardPostureClass::MetadataOnlyExport,
+            boundary_disclosure_for(TerminalBoundaryClass::Remote),
         ),
         downgrade_row(
             GovernedWorkloadClass::CompanionHandoff,
@@ -4107,6 +5337,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::IncidentWorkspace,
             TerminalBoundaryClass::SharedControl,
             ClipboardPostureClass::SharedControlGrantRequired,
+            boundary_disclosure_for(TerminalBoundaryClass::SharedControl),
         ),
         downgrade_row(
             GovernedWorkloadClass::IncidentWorkspace,
@@ -4147,6 +5378,7 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             GovernedWorkloadClass::InfrastructureSession,
             TerminalBoundaryClass::PolicyBlocked,
             ClipboardPostureClass::PolicyDeniedSafeAlternative,
+            boundary_disclosure_for(TerminalBoundaryClass::PolicyBlocked),
         ),
         downgrade_row(
             GovernedWorkloadClass::InfrastructureSession,
@@ -4157,6 +5389,9 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
     let scheduler_lane_rows = build_scheduler_lane_rows(&activity_job_rows);
     let protected_path_rows = build_protected_path_rows();
     let fairness_lane_rows = build_fairness_lane_rows(&activity_job_rows);
+    let protocol_surface_rows = build_protocol_surface_rows(&rows);
+    let linkification_rows = build_linkification_rows();
+    let output_consumer_rows = build_output_consumer_rows();
     let power_thermal_transition = Some(build_power_thermal_transition());
     let consumer_projections = ConsumerSurface::REQUIRED
         .into_iter()
@@ -4172,6 +5407,9 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
         scheduler_lane_rows,
         protected_path_rows,
         fairness_lane_rows,
+        protocol_surface_rows,
+        linkification_rows,
+        output_consumer_rows,
         power_thermal_transition,
         consumer_projections,
         source_contract_refs: vec![

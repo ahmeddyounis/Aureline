@@ -83,7 +83,10 @@ pub fn diagnostics_lines(panel: &M5RolloutDiagnosticsPanel) -> Vec<String> {
     let mut lines = vec![
         "M5 rollout governance".to_string(),
         format!("rows: {}", panel.row_count),
-        format!("active_kill_switch_rows: {}", panel.active_kill_switch_row_count),
+        format!(
+            "active_kill_switch_rows: {}",
+            panel.active_kill_switch_row_count
+        ),
         format!("narrowed_rows: {}", panel.narrowed_row_count),
     ];
     for row in &panel.rows {
@@ -118,7 +121,9 @@ mod tests {
     fn diagnostics_lines_name_settings_projection_refs() {
         let panel = materialize_m5_rollout_diagnostics_panel();
         let lines = diagnostics_lines(&panel);
-        assert!(lines.iter().any(|line| line.contains("M5 rollout governance")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("M5 rollout governance")));
         assert!(lines
             .iter()
             .any(|line| line.contains("cmd:docs_browser.open_external")));

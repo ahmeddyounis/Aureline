@@ -890,7 +890,12 @@ impl M5CommandGovernanceSupportExport {
             case_ids.push(row.lifecycle_disclosure.rollout_state_ref.clone());
             case_ids.push(row.rollout_governance.capability_id.clone());
             case_ids.push(row.rollout_governance.owner_ref.clone());
-            case_ids.extend(row.rollout_governance.affected_capability_ids.iter().cloned());
+            case_ids.extend(
+                row.rollout_governance
+                    .affected_capability_ids
+                    .iter()
+                    .cloned(),
+            );
             for source in &row.rollout_governance.kill_switches {
                 case_ids.push(source.source_ref.clone());
             }

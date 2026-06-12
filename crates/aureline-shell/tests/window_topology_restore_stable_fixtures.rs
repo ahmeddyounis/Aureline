@@ -41,10 +41,9 @@ use aureline_shell::notification_attention_stable::{
     is_canonical_object_ref, AttentionRouteSurface, LayoutMode, StableClaimClass,
 };
 use aureline_shell::window_topology_restore_stable::{
-    window_topology_restore_corpus, PaneHydrationClass, PaneSurfaceClass,
-    RestoreFidelityClass, RestoreTruthSurface, WindowLocalTopologyClass,
-    WindowRestoreRecoveryAction, WindowTopologyRestoreRecord, WorkspaceAuthorityClass,
-    PANE_TREE_SCHEMA_VERSION,
+    window_topology_restore_corpus, PaneHydrationClass, PaneSurfaceClass, RestoreFidelityClass,
+    RestoreTruthSurface, WindowLocalTopologyClass, WindowRestoreRecoveryAction,
+    WindowTopologyRestoreRecord, WorkspaceAuthorityClass, PANE_TREE_SCHEMA_VERSION,
 };
 
 const FIXTURE_DIR: &str = concat!(

@@ -113,7 +113,10 @@ fn seeded_packet_exposes_origin_lifecycle_and_alias_disclosure() {
         docs_browser.origin_disclosure.source_display_label,
         "Extension"
     );
-    assert_eq!(docs_browser.lifecycle_disclosure.stability_label, "RetestPending");
+    assert_eq!(
+        docs_browser.lifecycle_disclosure.stability_label,
+        "RetestPending"
+    );
     assert_eq!(
         docs_browser.rollout_governance.effective_state_class,
         M5RolloutStateClass::RetestPending
@@ -276,7 +279,9 @@ fn support_export_quotes_packet_and_command_ids() {
         assert!(export.case_ids.contains(&row.command_id));
         assert!(export.case_ids.contains(&row.command_revision_ref));
         assert!(export.case_ids.contains(&row.capability_class_ref));
-        assert!(export.case_ids.contains(&row.rollout_governance.capability_id));
+        assert!(export
+            .case_ids
+            .contains(&row.rollout_governance.capability_id));
         assert!(export.case_ids.contains(&row.rollout_governance.owner_ref));
         assert!(export
             .case_ids
