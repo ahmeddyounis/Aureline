@@ -8,8 +8,17 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
+pub mod cluster_context_and_live_resource;
 pub mod target_context_and_control_plane_boundary;
 
+pub use cluster_context_and_live_resource::{
+    validate_packet as validate_cluster_live_resource_packet, ClusterContextStrip,
+    ClusterLiveResourcePacket, ClusterLiveResourceValidationReport, ConsoleHandoffTruth,
+    MutatingActionGate, OpsSurface, OpsSurfaceProjection, OpsToolKind, TruthMode, TruthModeView,
+    CLUSTER_LIVE_RESOURCE_DOC_REF, CLUSTER_LIVE_RESOURCE_FIXTURE_DIR,
+    CLUSTER_LIVE_RESOURCE_PACKET_RECORD_KIND, CLUSTER_LIVE_RESOURCE_SCHEMA_REF,
+    CLUSTER_LIVE_RESOURCE_SCHEMA_VERSION,
+};
 pub use target_context_and_control_plane_boundary::{
     validate_packet, ActionEnvelope, ActionKind, ActionPosture, BoundaryActionReview,
     ConnectorClass, ConnectorClassPolicy, ControlPlaneHandoff, EnvironmentCompleteness,
