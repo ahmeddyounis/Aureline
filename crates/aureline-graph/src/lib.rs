@@ -15,6 +15,7 @@ pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 pub mod m5_graph_governance;
+pub mod m5_workset_scope;
 pub mod navigation_target_truth_packet;
 pub mod public_proof_publication_truth_packet;
 mod query;
@@ -106,6 +107,15 @@ pub use m5_graph_governance::{
     M5_GRAPH_GOVERNANCE_FIXTURE_DIR, M5_GRAPH_GOVERNANCE_JSON, M5_GRAPH_GOVERNANCE_PATH,
     M5_GRAPH_GOVERNANCE_RECORD_KIND, M5_GRAPH_GOVERNANCE_SCHEMA_REF,
     M5_GRAPH_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use m5_workset_scope::{
+    current_m5_workset_scope_packet, M5WorksetScopeExportProjection, M5WorksetScopeExportRow,
+    M5WorksetScopePacket, M5WorksetScopeSummary, M5WorksetScopeViolation, ScopeChangeAction,
+    ScopeChangeActuation, ScopeChangeDirection, ScopeConsumerBinding, WorksetScopeConsumerSurface,
+    WorksetScopeSnapshot, M5_WORKSET_SCOPE_DOC_REF, M5_WORKSET_SCOPE_FIXTURE_DIR,
+    M5_WORKSET_SCOPE_GOVERNANCE_MATRIX_REF, M5_WORKSET_SCOPE_JSON, M5_WORKSET_SCOPE_PATH,
+    M5_WORKSET_SCOPE_RECORD_KIND, M5_WORKSET_SCOPE_SCHEMA_REF, M5_WORKSET_SCOPE_SCHEMA_VERSION,
+    M5_WORKSET_SCOPE_SOURCE_PACKET_REF,
 };
 pub use navigation_target_truth_packet::{
     current_stable_navigation_target_truth_packet, AccessKind as NavigationAccessKind,
