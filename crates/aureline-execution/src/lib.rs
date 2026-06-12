@@ -74,7 +74,23 @@
 //! commit instead of letting a request, browser, or handoff path inherit hidden authority
 //! or bypass review, and it exports a machine-readable mutation receipt so support and
 //! audit can reconstruct which reviewed action class actually ran.
+//!
+//! The companion [`m5_adapter_parity_and_health`] module narrows the same discipline to a
+//! fifth question — *how did this flow source its execution truth, and how authoritative is
+//! that source?* — across the M5 flows that can mix live build-event data, protocol-backed
+//! adapters, imported artifacts, and heuristic fallback: pipeline build runs, preview
+//! routes, notebook executions, framework tooling actions, incident replays, and
+//! support-bundle joins. It pins one closed [`m5_adapter_parity_and_health::AdapterSource`]
+//! vocabulary, carries an adapter-health strip and machine-readable health receipt per flow,
+//! and runs every flow through a non-inheriting health gate so an imported or heuristic
+//! source, a stale or expired snapshot, partial or absent coverage, an unstable connection,
+//! or an unverified source narrows or withholds the published health — keeping imported and
+//! heuristic fallback usable but visibly narrower than a live authoritative adapter, and
+//! never letting it silently replace live state. Fallback reasons and health receipts join
+//! into support bundles, issue reports, and release evidence so field triage can see how the
+//! product actually sourced execution truth.
 
+pub mod m5_adapter_parity_and_health;
 pub mod m5_build_and_host_governance;
 pub mod m5_host_boundary;
 pub mod m5_mutation_and_handoff_review;

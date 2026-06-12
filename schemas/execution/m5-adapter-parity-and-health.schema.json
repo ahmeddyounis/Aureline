@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/m5-adapter-parity-and-health.schema.json",
+  "title": "Aureline M5 adapter-parity-and-health matrix",
+  "description": "Schema for the m5_adapter_parity_and_health_matrix packet. The packet freezes one adapter-health row per M5 flow that can mix live build-event data, protocol-backed adapters, imported artifacts, and heuristic fallback (pipeline build run, preview route, notebook execution, framework tooling action, incident replay, support-bundle join). Each row names the adapter source that fed it (native, protocol-backed, structured-import, imported, heuristic), how fresh the data is, how complete its coverage is, how stable its connection is, and whether the truth was verified; it surfaces the adapter, the adapter-health strip the user saw, a recovery path, and a machine-readable health receipt so support bundles, issue reports, and release evidence can reconstruct how the product sourced execution truth. A non-inheriting health gate derives the health class that may be published: an imported or heuristic source, a stale or expired snapshot, partial or absent coverage, a reconnecting, bridged, or disconnected connection, or an unverified or unverifiable source cannot publish live authoritative health, and the health decision records whether the gate published, qualified, marked provisional, or withheld it. Imported and heuristic fallback stays usable but visibly narrower than a live authoritative adapter, a flow that joins a support bundle must carry a support-bundle ref, one row is required per claimed flow so no flow inherits a live authoritative claim, and the recorded published health, decision, and fallback reasons must equal the recomputed gate decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "adapter_flows",
+    "health_classes",
+    "adapter_sources",
+    "freshness_states",
+    "coverage_states",
+    "connection_states",
+    "verification_states",
+    "recovery_paths",
+    "fallback_reasons",
+    "health_decisions",
+    "flows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_adapter_parity_and_health_matrix" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "adapter_flows": { "type": "array", "items": { "$ref": "#/$defs/adapter_flow" } },
+    "health_classes": { "type": "array", "items": { "$ref": "#/$defs/health_class" } },
+    "adapter_sources": { "type": "array", "items": { "$ref": "#/$defs/adapter_source" } },
+    "freshness_states": { "type": "array", "items": { "$ref": "#/$defs/freshness_state" } },
+    "coverage_states": { "type": "array", "items": { "$ref": "#/$defs/coverage_state" } },
+    "connection_states": { "type": "array", "items": { "$ref": "#/$defs/connection_state" } },
+    "verification_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verification_state" }
+    },
+    "recovery_paths": { "type": "array", "items": { "$ref": "#/$defs/recovery_path" } },
+    "fallback_reasons": { "type": "array", "items": { "$ref": "#/$defs/fallback_reason" } },
+    "health_decisions": { "type": "array", "items": { "$ref": "#/$defs/health_decision" } },
+    "flows": { "type": "array", "items": { "$ref": "#/$defs/flow" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "adapter_flow": {
+      "enum": [
+        "pipeline_build_run",
+        "preview_route",
+        "notebook_execution",
+        "framework_tooling_action",
+        "incident_replay",
+        "support_bundle_join"
+      ]
+    },
+    "health_class": {
+      "enum": ["live_authoritative", "import_qualified", "heuristic_provisional", "unavailable"]
+    },
+    "adapter_source": {
+      "enum": ["native", "protocol_backed", "structured_import", "imported", "heuristic"]
+    },
+    "freshness_state": {
+      "enum": ["live", "recent", "stale", "expired"]
+    },
+    "coverage_state": {
+      "enum": ["complete", "partial", "degraded", "absent"]
+    },
+    "connection_state": {
+      "enum": ["connected", "reconnecting", "bridged", "disconnected"]
+    },
+    "verification_state": {
+      "enum": ["verified", "attested", "unverified", "unverifiable"]
+    },
+    "recovery_path": {
+      "enum": ["await_live_adapter", "reimport_artifact", "open_in_provider", "none"]
+    },
+    "fallback_reason": {
+      "enum": [
+        "imported_artifact",
+        "heuristic_inference",
+        "stale_snapshot",
+        "partial_coverage",
+        "connection_unstable",
+        "unverified_source"
+      ]
+    },
+    "health_decision": {
+      "enum": ["publish", "qualify", "provisional", "withhold"]
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id",
+        "adapter_flow",
+        "adapter_source",
+        "freshness",
+        "coverage",
+        "connection",
+        "verification",
+        "declared_health",
+        "published_health",
+        "health_decision",
+        "recovery_path",
+        "adapter_ref",
+        "target_context_ref",
+        "health_strip_ref",
+        "health_receipt_ref",
+        "execution_ref",
+        "support_export_ref",
+        "note"
+      ],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_flow": { "$ref": "#/$defs/adapter_flow" },
+        "adapter_source": { "$ref": "#/$defs/adapter_source" },
+        "freshness": { "$ref": "#/$defs/freshness_state" },
+        "coverage": { "$ref": "#/$defs/coverage_state" },
+        "connection": { "$ref": "#/$defs/connection_state" },
+        "verification": { "$ref": "#/$defs/verification_state" },
+        "declared_health": { "$ref": "#/$defs/health_class" },
+        "published_health": { "$ref": "#/$defs/health_class" },
+        "health_decision": { "$ref": "#/$defs/health_decision" },
+        "fallback_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_reason" }
+        },
+        "recovery_path": { "$ref": "#/$defs/recovery_path" },
+        "adapter_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "health_strip_ref": { "$ref": "#/$defs/non_empty_string" },
+        "health_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_snapshot_ref": { "type": "string" },
+        "support_bundle_ref": { "type": "string" },
+        "execution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_flows",
+        "flow_count",
+        "authoritative_flows",
+        "import_qualified_flows",
+        "heuristic_provisional_flows",
+        "unavailable_flows",
+        "published_flows",
+        "qualified_flows",
+        "provisional_flows",
+        "withheld_flows",
+        "downgraded_flows",
+        "export_join_flows",
+        "live_source_flows",
+        "imported_or_heuristic_flows",
+        "stale_flows",
+        "flows_with_fallback_reasons"
+      ],
+      "properties": {
+        "total_flows": { "type": "integer", "minimum": 0 },
+        "flow_count": { "type": "integer", "minimum": 0 },
+        "authoritative_flows": { "type": "integer", "minimum": 0 },
+        "import_qualified_flows": { "type": "integer", "minimum": 0 },
+        "heuristic_provisional_flows": { "type": "integer", "minimum": 0 },
+        "unavailable_flows": { "type": "integer", "minimum": 0 },
+        "published_flows": { "type": "integer", "minimum": 0 },
+        "qualified_flows": { "type": "integer", "minimum": 0 },
+        "provisional_flows": { "type": "integer", "minimum": 0 },
+        "withheld_flows": { "type": "integer", "minimum": 0 },
+        "downgraded_flows": { "type": "integer", "minimum": 0 },
+        "export_join_flows": { "type": "integer", "minimum": 0 },
+        "live_source_flows": { "type": "integer", "minimum": 0 },
+        "imported_or_heuristic_flows": { "type": "integer", "minimum": 0 },
+        "stale_flows": { "type": "integer", "minimum": 0 },
+        "flows_with_fallback_reasons": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
