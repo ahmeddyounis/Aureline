@@ -9,4 +9,4 @@ The fixture boundary is redaction-safe:
 
 - raw secret values are excluded
 - raw handle ids are excluded
-- row ids, default modes, export posture, and repair-owner tokens are preserved
+- row ids, default modes, deployment-profile parity rows, export posture, and repair-owner tokens are preserved

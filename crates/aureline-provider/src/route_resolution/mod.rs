@@ -33,6 +33,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -965,7 +966,8 @@ impl RouteResolutionBetaPage {
         let storage_class = provider_route_storage_class(row.grant.auth_source);
         let projection_mode = provider_route_projection_mode(row.grant.auth_source);
         let secret_class = provider_route_secret_class(row.grant.auth_source);
-        let health_state = provider_route_health_state(row.route_degraded_state);
+        let health_state =
+            provider_route_health_state(row.grant.auth_source, row.route_degraded_state);
         let target_label = format!(
             "{} via {}",
             row.display_label, row.route.transport_label
@@ -1033,6 +1035,9 @@ impl RouteResolutionBetaPage {
                 policy_owner_label: row.owner.owner_label.clone(),
                 stop_forwarding_action_label: "Stop routed provider auth".to_owned(),
             }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+            ),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 PROVIDER_ROUTE_MATRIX_ROW_ID,
                 "Raw provider tokens remain excluded from route-resolution exports, support bundles, publish queues, and browser handoff packets.",
@@ -1156,6 +1161,7 @@ fn provider_route_projection_mode(
 }
 
 fn provider_route_health_state(
+    auth_source: ProviderAuthSourceClass,
     degraded_state: RouteDegradedStateClass,
 ) -> SecretBoundaryHealthStateClass {
     match degraded_state {
@@ -1166,7 +1172,14 @@ fn provider_route_health_state(
         RouteDegradedStateClass::RouteUnreachable
         | RouteDegradedStateClass::MirrorLagBeyondTolerance
         | RouteDegradedStateClass::SnapshotOlderThanRetentionFloor => {
-            SecretBoundaryHealthStateClass::Unavailable
+            if matches!(auth_source, ProviderAuthSourceClass::PolicyInjectedService) {
+                SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+            } else {
+                SecretBoundaryHealthStateClass::Unavailable
+            }
+        }
+        _ if matches!(auth_source, ProviderAuthSourceClass::UnknownAuthSource) => {
+            SecretBoundaryHealthStateClass::Missing
         }
         _ => SecretBoundaryHealthStateClass::Healthy,
     }

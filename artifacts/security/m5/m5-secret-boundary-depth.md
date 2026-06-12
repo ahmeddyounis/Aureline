@@ -22,14 +22,22 @@ The canonical matrix covers 12 credential-bearing surfaces across:
 Every row carries:
 
 - explicit `matrix_row_id`
+- four deployment-profile parity rows
 - allowed credential modes
 - projection modes
 - storage classes
 - acting identity classes
+- per-profile bounded next actions
 - trust-store dependencies
 - export posture
 - repair owner
 - local-safe continuity note
+
+The packet-wide summary now proves coverage for:
+
+- `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline`
+- `local_handle`, `forwarded_local_credential`, `remote_vault_fetch`, `session_only_secret`, `delegated_identity`, and `missing`
+- `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
 
 ## Row Summary
 
@@ -52,5 +60,5 @@ Every row carries:
 
 - `docs_help` must quote the checked `matrix_id`, row ids, and shared vocabulary.
 - `diagnostics` must show row ids, acting identity, and repair owner before downstream failure details.
-- `support_export` must preserve row ids, default modes, export posture, and repair owner while excluding raw secret values and raw handle ids.
+- `support_export` must preserve row ids, default modes, per-profile parity rows, export posture, and repair owner while excluding raw secret values and raw handle ids.
 - `release_public_truth` must publish only checked matrix ids, row ids, and summary vocabulary.

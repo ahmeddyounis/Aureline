@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -483,7 +484,7 @@ impl InfraBoundaryPacket {
         let credential_mode = infra_credential_mode(self.environment_context.credential_handle_class.as_str());
         let storage_class = infra_storage_class(self.environment_context.issuance_source.as_str());
         let projection_mode = infra_projection_mode(review.connector_class);
-        let health_state = infra_health_state(review.action_posture);
+        let health_state = infra_health_state(review.connector_class, review.action_posture);
         let target_label = format!(
             "{} / {}",
             self.environment_context.provider, self.environment_context.account_subscription_project
@@ -584,6 +585,9 @@ impl InfraBoundaryPacket {
                 policy_owner_label: self.environment_context.execution_context_profile.clone(),
                 stop_forwarding_action_label: "Stop connector credential projection".to_owned(),
             }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+            ),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 INFRA_CONNECTOR_MATRIX_ROW_ID,
                 "Raw SSH material, client-certificate bytes, delegated connector tokens, and trust roots remain excluded from support bundles and portable target-context exports.",
@@ -633,12 +637,21 @@ fn infra_projection_mode(connector_class: ConnectorClass) -> SecretBoundaryProje
     }
 }
 
-fn infra_health_state(action_posture: ActionPosture) -> SecretBoundaryHealthStateClass {
+fn infra_health_state(
+    connector_class: ConnectorClass,
+    action_posture: ActionPosture,
+) -> SecretBoundaryHealthStateClass {
     match action_posture {
         ActionPosture::Blocked | ActionPosture::NotClaimed => {
             SecretBoundaryHealthStateClass::PolicyBlocked
         }
-        ActionPosture::HandoffOnly => SecretBoundaryHealthStateClass::Unavailable,
+        ActionPosture::HandoffOnly => {
+            if matches!(connector_class, ConnectorClass::ProviderConsoleOverlay) {
+                SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+            } else {
+                SecretBoundaryHealthStateClass::ForwardingPaused
+            }
+        }
         _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }

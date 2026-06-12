@@ -449,6 +449,12 @@ pub enum SecretBoundaryHealthStateClass {
     Unavailable,
     /// Policy or scope now blocks the credential.
     PolicyBlocked,
+    /// A forwarded local credential was intentionally paused.
+    ForwardingPaused,
+    /// A remote vault or remote-vault-backed authority could not be reached.
+    RemoteVaultUnavailable,
+    /// No usable credential or handle is currently configured.
+    Missing,
     /// No usable source exists.
     NotConfigured,
 }
@@ -463,9 +469,100 @@ impl SecretBoundaryHealthStateClass {
             Self::Revoked => "revoked",
             Self::Unavailable => "unavailable",
             Self::PolicyBlocked => "policy_blocked",
+            Self::ForwardingPaused => "forwarding_paused",
+            Self::RemoteVaultUnavailable => "remote_vault_unavailable",
+            Self::Missing => "missing",
             Self::NotConfigured => "not_configured",
         }
     }
+}
+
+/// Deployment profile that must preserve the same credential-state semantics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryDeploymentProfileClass {
+    /// Local desktop execution.
+    LocalDesktop,
+    /// SSH, container, or remote-helper execution.
+    SshOrContainer,
+    /// Managed workspace or managed service execution.
+    ManagedWorkspace,
+    /// Mirror-only or offline continuity execution.
+    MirrorOffline,
+}
+
+impl SecretBoundaryDeploymentProfileClass {
+    /// Every required deployment profile in canonical order.
+    pub const ALL: [Self; 4] = [
+        Self::LocalDesktop,
+        Self::SshOrContainer,
+        Self::ManagedWorkspace,
+        Self::MirrorOffline,
+    ];
+
+    /// Stable token recorded in projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalDesktop => "local_desktop",
+            Self::SshOrContainer => "ssh_or_container",
+            Self::ManagedWorkspace => "managed_workspace",
+            Self::MirrorOffline => "mirror_offline",
+        }
+    }
+}
+
+/// Projection-parity class a surface exposes across deployment profiles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryProjectionParityClass {
+    /// A local broker handle or OS-store reference is used.
+    LocalHandle,
+    /// A local credential is forwarded into a remote runtime.
+    ForwardedLocalCredential,
+    /// A remote vault is fetched on demand.
+    RemoteVaultFetch,
+    /// A visibly degraded session-only secret is used.
+    SessionOnlySecret,
+    /// A delegated identity or service-issued authority is used.
+    DelegatedIdentity,
+    /// No usable credential path is configured.
+    Missing,
+}
+
+impl SecretBoundaryProjectionParityClass {
+    /// Stable token recorded in projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalHandle => "local_handle",
+            Self::ForwardedLocalCredential => "forwarded_local_credential",
+            Self::RemoteVaultFetch => "remote_vault_fetch",
+            Self::SessionOnlySecret => "session_only_secret",
+            Self::DelegatedIdentity => "delegated_identity",
+            Self::Missing => "missing",
+        }
+    }
+}
+
+/// Per-profile parity state carried by the matrix and projected by consumers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryProfileParityRow {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Deployment profile covered by this row.
+    pub deployment_profile: SecretBoundaryDeploymentProfileClass,
+    /// Projection parity the profile uses.
+    pub projection_parity: SecretBoundaryProjectionParityClass,
+    /// Current state named for the profile.
+    pub health_state: SecretBoundaryHealthStateClass,
+    /// Storage class used by the profile.
+    pub storage_class: SecretBoundaryStorageClass,
+    /// Acting identity class used by the profile.
+    pub acting_identity: SecretBoundaryActingIdentityClass,
+    /// Bounded next action shown to the user.
+    pub next_action_label: String,
+    /// Export-safe note describing what still works in this profile.
+    pub local_safe_behavior: String,
 }
 
 /// Delegated-credential posture that must remain visible across local, remote,
@@ -679,6 +776,8 @@ pub struct SecretBoundarySurfaceState {
     /// Optional delegated-credential row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegated_credential_row: Option<SecretBoundaryDelegatedCredentialRow>,
+    /// Per-profile parity rows reused by product and diagnostics.
+    pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
     /// Shared export-safety banner.
     pub export_safety_banner: SecretBoundaryExportSafetyBanner,
 }
@@ -729,6 +828,8 @@ pub struct SecretBoundarySurfaceRow {
     pub acting_identities: Vec<SecretBoundaryActingIdentityClass>,
     /// Trust-store dependencies the surface must disclose.
     pub trust_store_dependencies: Vec<SecretBoundaryTrustStoreDependencyClass>,
+    /// Deployment-profile parity rows for the surface.
+    pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
     /// Export posture for the surface.
     pub export_posture: SecretBoundaryExportPostureClass,
     /// Owner of the typed repair path.
@@ -771,6 +872,12 @@ pub struct SecretBoundarySummary {
     pub default_credential_mode_tokens_present: Vec<String>,
     /// Consumer surface tokens present in the packet.
     pub consumer_surface_tokens_present: Vec<String>,
+    /// Deployment profile tokens present in the packet.
+    pub deployment_profile_tokens_present: Vec<String>,
+    /// Projection-parity tokens present in the packet.
+    pub projection_parity_tokens_present: Vec<String>,
+    /// Health-state tokens present in the packet.
+    pub health_state_tokens_present: Vec<String>,
     /// `true` when the packet excludes raw secret bodies.
     pub raw_secret_values_excluded: bool,
     /// `true` when the packet excludes raw handle ids.
@@ -817,10 +924,18 @@ impl M5SecretBoundaryDepthPacket {
         let mut domain_tokens: BTreeSet<String> = BTreeSet::new();
         let mut mode_tokens: BTreeSet<String> = BTreeSet::new();
         let mut consumer_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut profile_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut parity_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut health_tokens: BTreeSet<String> = BTreeSet::new();
 
         for row in &self.surface_rows {
             domain_tokens.insert(row.domain.as_str().to_owned());
             mode_tokens.insert(row.default_credential_mode.as_str().to_owned());
+            for profile_row in &row.profile_parity_rows {
+                profile_tokens.insert(profile_row.deployment_profile.as_str().to_owned());
+                parity_tokens.insert(profile_row.projection_parity.as_str().to_owned());
+                health_tokens.insert(profile_row.health_state.as_str().to_owned());
+            }
         }
         for projection in &self.consumer_projections {
             consumer_tokens.insert(projection.surface.as_str().to_owned());
@@ -831,6 +946,9 @@ impl M5SecretBoundaryDepthPacket {
             domain_tokens_present: domain_tokens.into_iter().collect(),
             default_credential_mode_tokens_present: mode_tokens.into_iter().collect(),
             consumer_surface_tokens_present: consumer_tokens.into_iter().collect(),
+            deployment_profile_tokens_present: profile_tokens.into_iter().collect(),
+            projection_parity_tokens_present: parity_tokens.into_iter().collect(),
+            health_state_tokens_present: health_tokens.into_iter().collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
         }
@@ -902,6 +1020,11 @@ impl M5SecretBoundaryDepthPacket {
                     row.matrix_row_id.clone(),
                 ));
             }
+            if row.profile_parity_rows.is_empty() {
+                violations.push(M5SecretBoundaryDepthViolation::MissingProfileParity(
+                    row.matrix_row_id.clone(),
+                ));
+            }
             if row.repair_path.trim().is_empty() || row.local_safe_behavior.trim().is_empty() {
                 violations.push(
                     M5SecretBoundaryDepthViolation::MissingRepairOrContinuityNote(
@@ -918,6 +1041,66 @@ impl M5SecretBoundaryDepthPacket {
                         row.matrix_row_id.clone(),
                     ),
                 );
+            }
+
+            let mut seen_profiles = BTreeSet::new();
+            for profile_row in &row.profile_parity_rows {
+                seen_profiles.insert(profile_row.deployment_profile);
+                if profile_row.next_action_label.trim().is_empty()
+                    || profile_row.local_safe_behavior.trim().is_empty()
+                {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::IncompleteProfileParity(
+                            row.matrix_row_id.clone(),
+                            profile_row.deployment_profile,
+                        ),
+                    );
+                }
+                if profile_row.matrix_row_id != row.matrix_row_id {
+                    violations.push(M5SecretBoundaryDepthViolation::ProfileParityRowIdMismatch(
+                        row.matrix_row_id.clone(),
+                        profile_row.deployment_profile,
+                    ));
+                }
+                if profile_row.projection_parity == SecretBoundaryProjectionParityClass::Missing
+                    && profile_row.health_state != SecretBoundaryHealthStateClass::Missing
+                {
+                    violations.push(M5SecretBoundaryDepthViolation::MissingParityStateDrift(
+                        row.matrix_row_id.clone(),
+                        profile_row.deployment_profile,
+                    ));
+                }
+                if profile_row.health_state == SecretBoundaryHealthStateClass::ForwardingPaused
+                    && profile_row.projection_parity
+                        != SecretBoundaryProjectionParityClass::ForwardedLocalCredential
+                {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::ForwardingPausedParityDrift(
+                            row.matrix_row_id.clone(),
+                            profile_row.deployment_profile,
+                        ),
+                    );
+                }
+                if profile_row.health_state
+                    == SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+                    && profile_row.projection_parity
+                        != SecretBoundaryProjectionParityClass::RemoteVaultFetch
+                {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RemoteVaultUnavailableParityDrift(
+                            row.matrix_row_id.clone(),
+                            profile_row.deployment_profile,
+                        ),
+                    );
+                }
+            }
+            for profile in SecretBoundaryDeploymentProfileClass::ALL {
+                if !seen_profiles.contains(&profile) {
+                    violations.push(M5SecretBoundaryDepthViolation::MissingProfileCoverage(
+                        row.matrix_row_id.clone(),
+                        profile,
+                    ));
+                }
             }
         }
 
@@ -952,6 +1135,25 @@ impl M5SecretBoundaryDepthPacket {
 
         if self.summary != self.recompute_summary() {
             violations.push(M5SecretBoundaryDepthViolation::SummaryMismatch);
+        }
+
+        for required_state in [
+            SecretBoundaryHealthStateClass::Missing,
+            SecretBoundaryHealthStateClass::Expired,
+            SecretBoundaryHealthStateClass::PolicyBlocked,
+            SecretBoundaryHealthStateClass::ForwardingPaused,
+            SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+        ] {
+            if !self
+                .summary
+                .health_state_tokens_present
+                .iter()
+                .any(|token| token == required_state.as_str())
+            {
+                violations.push(M5SecretBoundaryDepthViolation::MissingRequiredHealthState(
+                    required_state,
+                ));
+            }
         }
 
         violations
@@ -1027,6 +1229,8 @@ pub struct SecretBoundarySupportExportRow {
     pub export_posture_token: String,
     /// Repair owner token.
     pub repair_owner_token: String,
+    /// Per-profile parity rows preserved for diagnostics/support.
+    pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
 }
 
 impl SecretBoundarySupportExportRow {
@@ -1038,6 +1242,7 @@ impl SecretBoundarySupportExportRow {
             default_credential_mode_token: row.default_credential_mode.as_str().to_owned(),
             export_posture_token: row.export_posture.as_str().to_owned(),
             repair_owner_token: row.repair_owner.as_str().to_owned(),
+            profile_parity_rows: row.profile_parity_rows.clone(),
         }
     }
 }
@@ -1071,6 +1276,20 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingActingIdentities(String),
     /// A row omitted every trust-store dependency.
     MissingTrustDependencies(String),
+    /// A row omitted per-profile parity.
+    MissingProfileParity(String),
+    /// A row omitted one required deployment profile.
+    MissingProfileCoverage(String, SecretBoundaryDeploymentProfileClass),
+    /// A per-profile row omitted a bounded next action or continuity note.
+    IncompleteProfileParity(String, SecretBoundaryDeploymentProfileClass),
+    /// A per-profile row did not preserve the parent matrix row id.
+    ProfileParityRowIdMismatch(String, SecretBoundaryDeploymentProfileClass),
+    /// A `missing` parity row drifted from the `missing` health state.
+    MissingParityStateDrift(String, SecretBoundaryDeploymentProfileClass),
+    /// A `forwarding_paused` state was not paired with forwarded-local parity.
+    ForwardingPausedParityDrift(String, SecretBoundaryDeploymentProfileClass),
+    /// A `remote_vault_unavailable` state was not paired with remote-vault parity.
+    RemoteVaultUnavailableParityDrift(String, SecretBoundaryDeploymentProfileClass),
     /// A row omitted the repair path or local-safe continuity note.
     MissingRepairOrContinuityNote(String),
     /// A `not_configured` row omitted a local-safe metadata path.
@@ -1081,6 +1300,8 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingConsumerProjection(SecretBoundaryConsumerSurface),
     /// A consumer projection drifted from the matrix id or vocabulary ref.
     ConsumerProjectionDrift(SecretBoundaryConsumerSurface),
+    /// A required health-state token was not represented anywhere in the packet.
+    MissingRequiredHealthState(SecretBoundaryHealthStateClass),
     /// The checked summary diverged from the recomputed summary.
     SummaryMismatch,
 }
@@ -1115,6 +1336,39 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                     "row {row} must declare at least one trust-store dependency"
                 )
             }
+            Self::MissingProfileParity(row) => {
+                write!(f, "row {row} must declare per-profile parity rows")
+            }
+            Self::MissingProfileCoverage(row, profile) => write!(
+                f,
+                "row {row} is missing deployment-profile coverage for {}",
+                profile.as_str()
+            ),
+            Self::IncompleteProfileParity(row, profile) => write!(
+                f,
+                "row {row} profile {} must declare a bounded next action and continuity note",
+                profile.as_str()
+            ),
+            Self::ProfileParityRowIdMismatch(row, profile) => write!(
+                f,
+                "row {row} profile {} drifted from the parent matrix_row_id",
+                profile.as_str()
+            ),
+            Self::MissingParityStateDrift(row, profile) => write!(
+                f,
+                "row {row} profile {} uses missing parity without missing state",
+                profile.as_str()
+            ),
+            Self::ForwardingPausedParityDrift(row, profile) => write!(
+                f,
+                "row {row} profile {} uses forwarding_paused without forwarded-local parity",
+                profile.as_str()
+            ),
+            Self::RemoteVaultUnavailableParityDrift(row, profile) => write!(
+                f,
+                "row {row} profile {} uses remote_vault_unavailable without remote-vault parity",
+                profile.as_str()
+            ),
             Self::MissingRepairOrContinuityNote(row) => write!(
                 f,
                 "row {row} must declare both repair_path and local_safe_behavior"
@@ -1135,6 +1389,11 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "consumer projection {} drifted from matrix_id or vocabulary_ref",
                 surface.as_str()
+            ),
+            Self::MissingRequiredHealthState(state) => write!(
+                f,
+                "packet must cover the {} health state",
+                state.as_str()
             ),
             Self::SummaryMismatch => write!(f, "packet summary diverges from recomputed summary"),
         }
@@ -1159,6 +1418,40 @@ pub fn validate_m5_secret_boundary_depth_packet(
     packet: &M5SecretBoundaryDepthPacket,
 ) -> Vec<M5SecretBoundaryDepthViolation> {
     packet.validate()
+}
+
+/// Returns the canonical per-profile parity rows for one matrix row id.
+pub fn seeded_secret_boundary_profile_parity_rows(
+    matrix_row_id: &str,
+) -> Vec<SecretBoundaryProfileParityRow> {
+    seeded_m5_secret_boundary_depth_packet()
+        .surface_rows
+        .into_iter()
+        .find(|row| row.matrix_row_id == matrix_row_id)
+        .map(|row| row.profile_parity_rows)
+        .unwrap_or_default()
+}
+
+fn profile_parity_row(
+    matrix_row_id: &str,
+    deployment_profile: SecretBoundaryDeploymentProfileClass,
+    projection_parity: SecretBoundaryProjectionParityClass,
+    health_state: SecretBoundaryHealthStateClass,
+    storage_class: SecretBoundaryStorageClass,
+    acting_identity: SecretBoundaryActingIdentityClass,
+    next_action_label: &str,
+    local_safe_behavior: &str,
+) -> SecretBoundaryProfileParityRow {
+    SecretBoundaryProfileParityRow {
+        matrix_row_id: matrix_row_id.to_owned(),
+        deployment_profile,
+        projection_parity,
+        health_state,
+        storage_class,
+        acting_identity,
+        next_action_label: next_action_label.to_owned(),
+        local_safe_behavior: local_safe_behavior.to_owned(),
+    }
 }
 
 /// Builds the canonical seeded M5 secret-boundary depth packet.
@@ -1202,6 +1495,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.request_workspace.send_http",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Test local request handle",
+                    "Request editing, effective-request review, and metadata-only history stay available locally.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.send_http",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded request credential",
+                    "Forwarding pauses without forcing paste-a-token fallback; request files and metadata-only replay remain available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.send_http",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Renew managed request session",
+                    "Managed send keeps the delegated boundary explicit while local request authoring continues.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.send_http",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open metadata-only request history",
+                    "Mirror/offline mode keeps request review, diff, and metadata exports available without implying a live credential path.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
             repair_path: "Rebind the broker handle or complete browser/device-code auth before send."
@@ -1240,6 +1575,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.request_workspace.history_replay",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Retest replay handle",
+                    "Local replay keeps history, diff, and request evidence review available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.history_replay",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Re-enter session-only replay secret",
+                    "Replay review stays available when a session-only credential expires in a remote shell or container.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.history_replay",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Refresh managed replay approval",
+                    "Managed replay keeps delegated authority separate from the saved request history.",
+                ),
+                profile_parity_row(
+                    "m5.secret.request_workspace.history_replay",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Use one-time replay secret",
+                    "Mirror/offline replay can use a bounded session-only secret without persisting raw auth into the history packet.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
@@ -1281,6 +1658,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.database.connection_picker",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Test local database handle",
+                    "Schema inspection, statement review, and imported-result browsing stay available locally.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.connection_picker",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded database credential",
+                    "Remote/container sessions pause forwarding explicitly instead of asking for a raw password paste.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.connection_picker",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::RemoteVaultFetch,
+                    SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                    SecretBoundaryStorageClass::RemoteVault,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Rebind managed vault route",
+                    "Managed database sessions narrow to inspect-only when the remote vault is unavailable.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.connection_picker",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open imported result or schema snapshot",
+                    "Mirror/offline continuity keeps query review and imported snapshots available without claiming a reconnectable credential.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::AliasOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::DataOperator,
@@ -1324,6 +1743,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.database.query_history_portability",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Validate local query-history alias",
+                    "Local query-history review and portability diff remain available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.query_history_portability",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Refresh session-only replay secret",
+                    "A session-only replay secret can expire without losing the redacted history packet.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.query_history_portability",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::RemoteVaultFetch,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::RemoteVault,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Inspect managed vault lineage",
+                    "Managed portability keeps remote-vault lineage explicit and still excludes raw values from exports.",
+                ),
+                profile_parity_row(
+                    "m5.secret.database.query_history_portability",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Replay with one-time session input",
+                    "Mirror/offline replay can accept bounded session input while preserving the same redaction and export rules.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::DataOperator,
             repair_path: "Re-resolve the connection alias or remote-vault reference before replaying a live query.".to_owned(),
@@ -1365,6 +1826,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.provider_model.route_resolution",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::HumanAccount,
+                    "Retest local provider route",
+                    "Local provider metadata and draft queues remain available when live routing is closed.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.route_resolution",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded provider credential",
+                    "Remote helper routing pauses forwarded credentials explicitly and keeps publish-later fallback visible.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.route_resolution",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Reissue delegated provider grant",
+                    "Managed routes keep delegated authority explicit rather than flattening to a generic connected badge.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.route_resolution",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Continue with cached provider metadata",
+                    "Mirror/offline provider review stays metadata-only until a live route is re-established.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::ProviderOperator,
@@ -1412,6 +1915,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::HumanAccount,
+                    "Inspect provider scope lineage",
+                    "Local scope inspection and draft fallback remain available without widening authority.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded scope credential",
+                    "Forwarded scope credentials pause explicitly when the remote boundary changes.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::RemoteVaultFetch,
+                    SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                    SecretBoundaryStorageClass::RemoteVault,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Repair remote-vault scope lineage",
+                    "Managed scope review stays available even when the remote vault path is unavailable.",
+                ),
+                profile_parity_row(
+                    "m5.secret.provider_model.scope_registry",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Enter a one-time recovery scope",
+                    "Offline scope repair can use a bounded session-only secret while keeping durable local drafts separate.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::ProviderOperator,
             repair_path: "Repair the exact delegated scope, installation grant, or remote-vault lineage that drifted; do not widen to generic connected.".to_owned(),
@@ -1452,6 +1997,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.registry.package_auth",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Test local registry handle",
+                    "Dependency review, lockfile diff, and local resolution stay available on desktop.",
+                ),
+                profile_parity_row(
+                    "m5.secret.registry.package_auth",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded registry credential",
+                    "Remote package actions keep the forwarded boundary explicit instead of asking for a pasted token.",
+                ),
+                profile_parity_row(
+                    "m5.secret.registry.package_auth",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::PolicyBlocked,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Review managed publish policy",
+                    "Managed registry routes can be blocked by policy while dependency inspection remains available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.registry.package_auth",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Use offline cache or mirror review",
+                    "Mirror/offline package review stays honest about cache-only state and never implies live publish authority.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::AliasOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
             repair_path: "Rebind the registry handle or refresh the delegated token before install or publish.".to_owned(),
@@ -1488,6 +2075,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Refresh desktop preview session",
+                    "Local preview keeps exact desktop handoff and route review available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded preview credential",
+                    "Remote preview pauses forwarded credentials explicitly while preserving route history and revocation details.",
+                ),
+                profile_parity_row(
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Renew delegated preview session",
+                    "Managed preview expiry narrows to metadata-only route history and exact desktop handoff instructions.",
+                ),
+                profile_parity_row(
+                    "m5.secret.preview_route.remote_preview",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open prior route evidence",
+                    "Mirror/offline mode keeps exported route evidence and revocation history available without a live preview path.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::ReleaseSummaryOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
@@ -1534,6 +2163,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Retest local connector handle",
+                    "Manifest inspection, trust review, and safe handoff stay available on desktop.",
+                ),
+                profile_parity_row(
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded target credential",
+                    "Forwarding pauses explicitly across SSH/container boundaries while target manifests remain inspectable.",
+                ),
+                profile_parity_row(
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::RemoteVaultFetch,
+                    SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                    SecretBoundaryStorageClass::RemoteVault,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Repair target vault trust",
+                    "Managed target contexts keep trust and repair lineage explicit when the remote vault path is unavailable.",
+                ),
+                profile_parity_row(
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open cached target manifest",
+                    "Mirror/offline target review stays local-safe and never implies a reachable remote control plane.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
             repair_path: "Repair SSH host proof, client-certificate binding, or vault trust before reconnecting the target context.".to_owned(),
@@ -1569,6 +2240,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             trust_store_dependencies: vec![
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.companion.session_handoff",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Refresh companion handoff session",
+                    "Read-only follow state and exact desktop handoff stay available on the local device.",
+                ),
+                profile_parity_row(
+                    "m5.secret.companion.session_handoff",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded companion credential",
+                    "Companion handoff keeps remote/local identity boundaries visible when forwarding pauses.",
+                ),
+                profile_parity_row(
+                    "m5.secret.companion.session_handoff",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::DelegatedCredential,
+                    "Renew companion delegated session",
+                    "Managed companion handoff expiry keeps read-only follow state and handoff descriptors visible.",
+                ),
+                profile_parity_row(
+                    "m5.secret.companion.session_handoff",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open saved handoff descriptor",
+                    "Offline companion review stays bounded to saved descriptors and never implies a live relay.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
@@ -1612,6 +2325,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
                 SecretBoundaryTrustStoreDependencyClass::VaultRef,
             ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.managed.workspace_runtime",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open local-safe continuation",
+                    "Local editing remains available when the managed runtime is absent.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.workspace_runtime",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded runtime credential",
+                    "Remote helper execution pauses forwarding explicitly instead of falling back to an unmanaged token copy.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.workspace_runtime",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::RemoteVaultFetch,
+                    SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                    SecretBoundaryStorageClass::RemoteVault,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Repair managed runtime vault lineage",
+                    "Managed runtime actions narrow to local-safe continuation when the remote vault or host proof path is unavailable.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.workspace_runtime",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::SessionOnlySecret,
+                    SecretBoundaryHealthStateClass::Expired,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Recreate managed runtime from mirror evidence",
+                    "Mirror/offline mode keeps the last validated local mirror and honest recreate guidance rather than implying a resumable managed credential.",
+                ),
+            ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
             repair_path: "Repair the remote-vault lineage, delegated authority, or host proof before resuming managed runtime actions.".to_owned(),
@@ -1652,6 +2407,48 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
                 SecretBoundaryTrustStoreDependencyClass::OsStore,
                 SecretBoundaryTrustStoreDependencyClass::PinnedControlPlane,
                 SecretBoundaryTrustStoreDependencyClass::OrgCaBundle,
+            ],
+            profile_parity_rows: vec![
+                profile_parity_row(
+                    "m5.secret.managed.sync_plane",
+                    SecretBoundaryDeploymentProfileClass::LocalDesktop,
+                    SecretBoundaryProjectionParityClass::LocalHandle,
+                    SecretBoundaryHealthStateClass::Healthy,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryActingIdentityClass::HumanAccount,
+                    "Inspect local sync posture",
+                    "Local history, offline packets, and offboarding exports stay available on desktop.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.sync_plane",
+                    SecretBoundaryDeploymentProfileClass::SshOrContainer,
+                    SecretBoundaryProjectionParityClass::ForwardedLocalCredential,
+                    SecretBoundaryHealthStateClass::ForwardingPaused,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ForwardedLocalCredential,
+                    "Resume forwarded sync credential",
+                    "Forwarded sync credentials pause explicitly across remote helpers while local history remains intact.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.sync_plane",
+                    SecretBoundaryDeploymentProfileClass::ManagedWorkspace,
+                    SecretBoundaryProjectionParityClass::DelegatedIdentity,
+                    SecretBoundaryHealthStateClass::PolicyBlocked,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryActingIdentityClass::ServiceIssuedAuthority,
+                    "Review managed sync policy",
+                    "Managed sync can be blocked by policy while local offboarding and export paths remain available.",
+                ),
+                profile_parity_row(
+                    "m5.secret.managed.sync_plane",
+                    SecretBoundaryDeploymentProfileClass::MirrorOffline,
+                    SecretBoundaryProjectionParityClass::Missing,
+                    SecretBoundaryHealthStateClass::Missing,
+                    SecretBoundaryStorageClass::NotConfigured,
+                    SecretBoundaryActingIdentityClass::LocalOnlyHandle,
+                    "Open offline sync packet",
+                    "Mirror/offline continuity keeps local history and redacted offboarding packets available without a live sync-plane credential.",
+                ),
             ],
             export_posture: SecretBoundaryExportPostureClass::ReleaseSummaryOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::ServiceOperator,
@@ -1728,6 +2525,9 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             domain_tokens_present: Vec::new(),
             default_credential_mode_tokens_present: Vec::new(),
             consumer_surface_tokens_present: Vec::new(),
+            deployment_profile_tokens_present: Vec::new(),
+            projection_parity_tokens_present: Vec::new(),
+            health_state_tokens_present: Vec::new(),
             raw_secret_values_excluded: false,
             raw_handle_ids_excluded: false,
         },

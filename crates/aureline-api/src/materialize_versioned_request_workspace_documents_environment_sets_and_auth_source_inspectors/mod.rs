@@ -6,6 +6,7 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -820,6 +821,7 @@ fn request_surface_state(
         },
         vault_picker: Some(request_picker_state(matrix_row_id, auth_source)),
         delegated_credential_row,
+        profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
         export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
             matrix_row_id,
             "Raw credentials stay excluded from profiles, support bundles, request history exports, and portable workspace artifacts.",
@@ -969,7 +971,7 @@ fn request_projection_mode(auth_mode: AuthSourceMode) -> SecretBoundaryProjectio
 fn request_health_state(auth_mode: AuthSourceMode) -> SecretBoundaryHealthStateClass {
     match auth_mode {
         AuthSourceMode::PolicyBlocked => SecretBoundaryHealthStateClass::PolicyBlocked,
-        AuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::NotConfigured,
+        AuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::Missing,
         _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }

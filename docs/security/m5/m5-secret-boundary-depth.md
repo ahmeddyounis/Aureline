@@ -30,6 +30,35 @@ Acting identity classes:
 - `local_only_handle`
 - `service_issued_authority`
 
+Deployment profiles:
+
+- `local_desktop`
+- `ssh_or_container`
+- `managed_workspace`
+- `mirror_offline`
+
+Projection parity classes:
+
+- `local_handle`
+- `forwarded_local_credential`
+- `remote_vault_fetch`
+- `session_only_secret`
+- `delegated_identity`
+- `missing`
+
+Credential health and degraded states:
+
+- `healthy`
+- `expiring_soon`
+- `expired`
+- `revoked`
+- `unavailable`
+- `policy_blocked`
+- `forwarding_paused`
+- `remote_vault_unavailable`
+- `missing`
+- `not_configured`
+
 Trust-store dependencies:
 
 - `os_store`
@@ -56,6 +85,8 @@ Repair owners:
 
 ## Consumer Rules
 
+- Every surface must preserve the same `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline` parity rows instead of replacing degraded states with generic connector failures.
+- The packet MUST expose first-class `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` states with bounded next actions.
 - Docs/help must project the same `matrix_id` and row ids rather than restating a generic connected state.
 - Diagnostics must name the row id, acting identity, trust dependency, and repair owner before surfacing the downstream error.
 - Support export must preserve row ids and shared vocabulary while excluding raw secret values and raw handle ids.

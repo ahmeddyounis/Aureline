@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -909,6 +910,7 @@ fn database_surface_state(
         },
         vault_picker: Some(database_picker_state(matrix_row_id, row)),
         delegated_credential_row,
+        profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
         export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
             matrix_row_id,
             "Raw database credentials remain excluded from profiles, support bundles, query history, and result handoff exports.",
@@ -1066,7 +1068,7 @@ fn database_health_state(
 ) -> SecretBoundaryHealthStateClass {
     match auth_mode {
         DatabaseAuthSourceMode::PolicyBlocked => SecretBoundaryHealthStateClass::PolicyBlocked,
-        DatabaseAuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::NotConfigured,
+        DatabaseAuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::Missing,
         _ if write_posture == DatabaseWritePosture::PolicyBlocked => {
             SecretBoundaryHealthStateClass::PolicyBlocked
         }

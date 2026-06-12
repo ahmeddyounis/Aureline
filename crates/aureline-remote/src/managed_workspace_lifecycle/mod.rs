@@ -62,6 +62,15 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows, SecretBoundaryCredentialMode,
+    SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
+    SecretBoundaryDelegatedCredentialRow, SecretBoundaryDelegatedUseClass,
+    SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
+    SecretBoundaryProjectionMode, SecretBoundarySecretAccessPrompt,
+    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
+    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -1120,6 +1129,104 @@ impl ManagedWorkspaceLifecyclePage {
                 true
             }
         })
+    }
+
+    /// Projects the shared M5 secret-boundary state for the managed runtime lane.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(record) = self.snapshot.record_for_state(LifecycleStateClass::Ready.as_str()) else {
+            return Vec::new();
+        };
+
+        let target_label = format!("Managed workspace {}", record.target_identity_ref);
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Continue with local-safe mirror".to_owned(),
+            still_works_summary:
+                "Declining keeps local editing and lifecycle review available while managed runtime actions stay closed."
+                    .to_owned(),
+        };
+        let workflows = vec![
+            managed_runtime_workflow("workflow:managed.runtime.resume", "Resume managed runtime"),
+            managed_runtime_workflow(
+                "workflow:managed.runtime.repair",
+                "Repair managed runtime auth or host proof",
+            ),
+        ];
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: "m5.secret.managed.workspace_runtime".to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: "m5.secret.managed.workspace_runtime".to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Managed workspace runtime".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                target_workflow_label: target_label.clone(),
+                storage_class: SecretBoundaryStorageClass::RemoteVault,
+                credential_mode: SecretBoundaryCredentialMode::RemoteVaultFetch,
+                projection_mode: SecretBoundaryProjectionMode::RemoteVaultFetch,
+                lifetime_label: "Managed runtime credential lease".to_owned(),
+                expires_at: record.expiry_timing_ref.clone(),
+                dependent_workflows: workflows.clone(),
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: "m5.secret.managed.workspace_runtime".to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Managed runtime credential state".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                source_class: SecretBoundaryCredentialMode::RemoteVaultFetch,
+                target_boundary_label: target_label.clone(),
+                storage_class: SecretBoundaryStorageClass::RemoteVault,
+                projection_mode: SecretBoundaryProjectionMode::RemoteVaultFetch,
+                health_state: managed_runtime_health_state(record),
+                expires_at: record.expiry_timing_ref.clone(),
+                rotate_action_label: "Rotate managed runtime lease".to_owned(),
+                revoke_action_label: "Revoke managed runtime credential".to_owned(),
+                test_action_label: "Validate managed runtime trust".to_owned(),
+                dependent_workflows: workflows,
+                decline_path,
+            },
+            vault_picker: None,
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: "m5.secret.managed.workspace_runtime".to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class: SecretBoundaryDelegatedUseClass::RemoteVaultFetch,
+                target_host_or_workspace_label: target_label,
+                expires_at: record.expiry_timing_ref.clone(),
+                policy_owner_label: "Managed workspace control plane".to_owned(),
+                stop_forwarding_action_label: "Pause managed runtime auth".to_owned(),
+            }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                "m5.secret.managed.workspace_runtime",
+            ),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                "m5.secret.managed.workspace_runtime",
+                "Raw managed-runtime credentials, vault material, and host proofs stay excluded from support bundles and lifecycle exports.",
+            ),
+        }]
+    }
+}
+
+fn managed_runtime_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn managed_runtime_health_state(record: &LifecycleRecord) -> SecretBoundaryHealthStateClass {
+    match record.lifecycle_state {
+        LifecycleStateClass::Expired => SecretBoundaryHealthStateClass::Expired,
+        LifecycleStateClass::Reconnecting | LifecycleStateClass::LocalSafeContinuation => {
+            SecretBoundaryHealthStateClass::ForwardingPaused
+        }
+        LifecycleStateClass::RebuildRequired | LifecycleStateClass::RecreateRequired => {
+            SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+        }
+        _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }
 

@@ -392,6 +392,18 @@ fn support_export_wraps_page_cleanly() {
 }
 
 #[test]
+fn page_projects_m5_secret_boundary_state() {
+    let states = page().secret_boundary_states();
+    assert_eq!(states.len(), 1);
+    assert_eq!(
+        states[0].matrix_row_id,
+        "m5.secret.managed.workspace_runtime"
+    );
+    assert_eq!(states[0].profile_parity_rows.len(), 4);
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}
+
+#[test]
 fn audit_function_returns_empty_defects_for_seeded_page() {
     let page = page();
     let re_audit = audit_lifecycle_page(&page);

@@ -86,6 +86,45 @@ fn every_required_consumer_projection_is_present() {
 }
 
 #[test]
+fn every_row_covers_every_deployment_profile() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    for row in &packet.surface_rows {
+        let present: BTreeSet<_> = row
+            .profile_parity_rows
+            .iter()
+            .map(|profile| profile.deployment_profile)
+            .collect();
+        for profile in SecretBoundaryDeploymentProfileClass::ALL {
+            assert!(
+                present.contains(&profile),
+                "row {} missing profile {}",
+                row.matrix_row_id,
+                profile.as_str()
+            );
+        }
+    }
+}
+
+#[test]
+fn summary_tracks_required_degraded_states() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let states = &packet.summary.health_state_tokens_present;
+    for state in [
+        SecretBoundaryHealthStateClass::Missing,
+        SecretBoundaryHealthStateClass::Expired,
+        SecretBoundaryHealthStateClass::PolicyBlocked,
+        SecretBoundaryHealthStateClass::ForwardingPaused,
+        SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+    ] {
+        assert!(
+            states.iter().any(|token| token == state.as_str()),
+            "missing state {}",
+            state.as_str()
+        );
+    }
+}
+
+#[test]
 fn duplicate_row_id_fails_validation() {
     let mut packet = seeded_m5_secret_boundary_depth_packet();
     packet.surface_rows[1].matrix_row_id = packet.surface_rows[0].matrix_row_id.clone();
@@ -115,4 +154,15 @@ fn summary_mismatch_fails_validation() {
     assert!(packet
         .validate()
         .contains(&M5SecretBoundaryDepthViolation::SummaryMismatch));
+}
+
+#[test]
+fn forwarding_paused_requires_forwarded_local_parity() {
+    let mut packet = seeded_m5_secret_boundary_depth_packet();
+    packet.surface_rows[0].profile_parity_rows[1].projection_parity =
+        SecretBoundaryProjectionParityClass::LocalHandle;
+    assert!(packet.validate().iter().any(|violation| matches!(
+        violation,
+        M5SecretBoundaryDepthViolation::ForwardingPausedParityDrift(_, _)
+    )));
 }

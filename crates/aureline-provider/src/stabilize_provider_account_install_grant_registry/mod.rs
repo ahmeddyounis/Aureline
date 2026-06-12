@@ -32,6 +32,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -903,6 +904,9 @@ impl StableProviderAccountInstallGrantRegistryPacket {
                 policy_owner_label: "Registry or release operator".to_owned(),
                 stop_forwarding_action_label: "Stop registry auth reuse".to_owned(),
             }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+            ),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 REGISTRY_AUTH_MATRIX_ROW_ID,
                 "Raw registry tokens stay excluded from profiles, lockfile handoffs, support bundles, and publish evidence packets.",
@@ -1638,10 +1642,10 @@ fn registry_health_state(health_state: RegistryHealthStateClass) -> SecretBounda
             SecretBoundaryHealthStateClass::PolicyBlocked
         }
         RegistryHealthStateClass::BlockedProviderUnreachable => {
-            SecretBoundaryHealthStateClass::Unavailable
+            SecretBoundaryHealthStateClass::RemoteVaultUnavailable
         }
         RegistryHealthStateClass::BlockedAuthLoss => SecretBoundaryHealthStateClass::Revoked,
-        RegistryHealthStateClass::OfflineCaptureOnly => SecretBoundaryHealthStateClass::NotConfigured,
+        RegistryHealthStateClass::OfflineCaptureOnly => SecretBoundaryHealthStateClass::Missing,
     }
 }
 

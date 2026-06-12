@@ -50,6 +50,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -1347,6 +1348,9 @@ impl AccountScopeBetaPage {
                 policy_owner_label,
                 stop_forwarding_action_label: "Stop delegated provider scope".to_owned(),
             }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+            ),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 PROVIDER_SCOPE_MATRIX_ROW_ID,
                 "Raw provider grants, delegated credentials, and vault-backed values remain excluded from support bundles, scope exports, and portable registry packets.",

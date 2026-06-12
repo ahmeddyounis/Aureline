@@ -24,6 +24,7 @@
 //!   under what auth/expiry posture?".
 
 use aureline_auth::{
+    seeded_secret_boundary_profile_parity_rows,
     SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
     SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
     SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
@@ -817,7 +818,7 @@ impl RouteObject {
         let credential_mode = route_credential_mode(self.auth.auth_source_class);
         let storage_class = route_storage_class(self.auth.auth_source_class);
         let projection_mode = route_projection_mode(self.auth.auth_source_class);
-        let health_state = route_health_state(self.lifecycle_state);
+        let health_state = route_health_state(self.auth.auth_source_class, self.lifecycle_state);
         let target_label = format!(
             "{} / {}",
             self.source.service_label, self.controlled_exposure_label.as_str()
@@ -881,6 +882,9 @@ impl RouteObject {
                     .unwrap_or_else(|| self.revocation.summary.clone()),
                 stop_forwarding_action_label: "Stop preview route exposure".to_owned(),
             }),
+            profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
+                PREVIEW_ROUTE_MATRIX_ROW_ID,
+            ),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 PREVIEW_ROUTE_MATRIX_ROW_ID,
                 "Raw preview credentials, signed-link material, and callback payloads stay excluded from support bundles, route shares, and exported route history.",
@@ -982,7 +986,10 @@ fn route_delegated_use(auth_source: AuthSourceClass) -> SecretBoundaryDelegatedU
     }
 }
 
-fn route_health_state(lifecycle_state: LifecycleState) -> SecretBoundaryHealthStateClass {
+fn route_health_state(
+    auth_source: AuthSourceClass,
+    lifecycle_state: LifecycleState,
+) -> SecretBoundaryHealthStateClass {
     match lifecycle_state {
         LifecycleState::Expired | LifecycleState::ApprovalExpired => {
             SecretBoundaryHealthStateClass::Expired
@@ -991,10 +998,19 @@ fn route_health_state(lifecycle_state: LifecycleState) -> SecretBoundaryHealthSt
         LifecycleState::PolicyDenied | LifecycleState::CapabilityNarrowed => {
             SecretBoundaryHealthStateClass::PolicyBlocked
         }
-        LifecycleState::ProviderUnavailable
-        | LifecycleState::SuspendedReconnect
-        | LifecycleState::StaleTarget
-        | LifecycleState::Blocked => SecretBoundaryHealthStateClass::Unavailable,
+        LifecycleState::SuspendedReconnect => SecretBoundaryHealthStateClass::ForwardingPaused,
+        LifecycleState::ProviderUnavailable => {
+            if matches!(auth_source, AuthSourceClass::MachineToMachineAllowlist) {
+                SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+            } else {
+                SecretBoundaryHealthStateClass::Unavailable
+            }
+        }
+        LifecycleState::Blocked => SecretBoundaryHealthStateClass::Missing,
+        LifecycleState::StaleTarget => SecretBoundaryHealthStateClass::Unavailable,
+        _ if matches!(auth_source, AuthSourceClass::AuthUnknownRequiresReview) => {
+            SecretBoundaryHealthStateClass::Missing
+        }
         _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }
