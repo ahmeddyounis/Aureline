@@ -20,6 +20,7 @@ use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 
 use crate::automation::{labels_include, why_not_automatable_reason, ControlledAutomationLabel};
+use crate::descriptor::{CommandAlias, CommandOriginMetadata};
 use crate::enablement::DisabledReasonRecord;
 use crate::registry::{seeded_registry, CommandRegistryEntryRecord};
 
@@ -407,17 +408,116 @@ pub struct M5ResultPacketGovernanceRecord {
     pub artifacts: M5ResultArtifactProjectionRecord,
 }
 
+/// Export-safe origin and runtime provenance disclosure for one command.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5CommandOriginDisclosureRecord {
+    /// Plain-language source label shared by palette, help, and support surfaces.
+    pub source_display_label: String,
+    /// Descriptor-owned origin class token.
+    pub origin_class: String,
+    /// Optional source record backing this command origin.
+    pub source_ref: Option<String>,
+    /// Optional publisher or bundle owner reference.
+    pub publisher_ref: Option<String>,
+    /// Runtime provenance class disclosed to users and operators.
+    pub runtime_origin_class: String,
+    /// Stable runtime provenance ref exported by support/help surfaces.
+    pub runtime_origin_ref: String,
+    /// Pack or bundle ref when the command is sourced from a pack, bundle, or bridge.
+    pub pack_or_bundle_ref: Option<String>,
+    /// Native/bridge posture the runtime keeps visible.
+    pub bridge_native_state: String,
+    /// Support-facing posture for this command source.
+    pub support_posture: String,
+}
+
+/// Lifecycle, support, and rollout truth for one command.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5LifecycleDisclosureRecord {
+    /// Descriptor lifecycle state.
+    pub lifecycle_state: String,
+    /// Support posture exported from the descriptor.
+    pub support_class: String,
+    /// Release channel owning the current command claim.
+    pub release_channel: String,
+    /// Freshness classification for the current descriptor claim.
+    pub freshness_class: String,
+    /// Human-facing stability label surfaces should show.
+    pub stability_label: String,
+    /// Whether the command still depends on a visible migration or channel state.
+    pub experiment_state: String,
+    /// Stable lifecycle detail ref for copy-safe inspection.
+    pub lifecycle_ref: String,
+    /// Stable rollout-state ref for support and parity joins.
+    pub rollout_state_ref: String,
+    /// Optional deprecation notice ref when the lifecycle has entered migration.
+    pub deprecation_notice_ref: Option<String>,
+}
+
+/// Alias, replacement, and deprecation disclosure for one stable alias.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5AliasLifecycleRecord {
+    /// Stable alias id.
+    pub alias_id: String,
+    /// Alias-kind vocabulary token.
+    pub alias_kind: String,
+    /// Active, deprecated, or retired state.
+    pub alias_state: String,
+    /// Canonical command id this alias resolves to.
+    pub canonical_command_id: String,
+    /// Source system or importer that minted the alias.
+    pub source_system_ref: String,
+    /// Optional introduction version or release ref.
+    pub introduced_ref: Option<String>,
+    /// Optional retirement version or release ref.
+    pub retirement_ref: Option<String>,
+    /// Replacement command id when this alias has entered migration.
+    pub replacement_command_id: Option<String>,
+    /// Note ref used by help and migration surfaces.
+    pub replacement_note_ref: Option<String>,
+    /// Replacement posture surfaces should disclose.
+    pub replacement_posture: String,
+    /// Whether new bindings may still target this alias.
+    pub eligible_for_new_bindings: bool,
+    /// Support-facing posture for this alias.
+    pub support_posture: String,
+}
+
+/// One copy-safe value action available from command inspection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5CopyValueActionRecord {
+    /// Whether the action is available on the current route.
+    pub available: bool,
+    /// Copy-safe value surfaces may copy or export when available.
+    pub value: Option<String>,
+}
+
+/// One copy-safe inspect action available from command inspection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5InspectActionRecord {
+    /// Whether the inspect affordance is available.
+    pub available: bool,
+    /// Stable detail ref the affordance resolves through.
+    pub detail_ref: Option<String>,
+}
+
 /// Copy-safe command introspection affordances.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct M5CopySafeIntrospectionRecord {
-    /// Whether `Copy command ID` is available.
-    pub copy_command_id: bool,
-    /// Whether `Copy CLI form` is available.
-    pub copy_cli_form: bool,
-    /// Whether `Add to recipe` is available.
-    pub add_to_recipe: bool,
-    /// Whether `Why not automatable?` is available.
-    pub inspect_why_not_automatable: bool,
+    /// `Copy command ID` affordance.
+    pub copy_command_id: M5CopyValueActionRecord,
+    /// `Copy CLI form` affordance.
+    pub copy_cli_form: M5CopyValueActionRecord,
+    /// `Copy recipe step` affordance.
+    pub copy_recipe_step: M5CopyValueActionRecord,
+    /// `Inspect origin` affordance.
+    pub inspect_origin: M5InspectActionRecord,
+    /// `Inspect lifecycle` affordance.
+    pub inspect_lifecycle: M5InspectActionRecord,
+    /// `Inspect capability class` affordance.
+    pub inspect_capability_class: M5InspectActionRecord,
+    /// `Why not automatable?` affordance.
+    pub inspect_why_not_automatable: M5InspectActionRecord,
 }
 
 /// Preview-sheet posture projected from the canonical descriptor.
@@ -495,6 +595,23 @@ pub struct M5ApprovalParityPacketRecord {
     pub support_export_safe: bool,
 }
 
+/// Route-level runtime provenance and handoff disclosure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct M5RouteProvenanceRecord {
+    /// Runtime origin class projected for this route.
+    pub runtime_origin_class: String,
+    /// Stable origin-scope token used in support and diagnostics.
+    pub origin_scope: String,
+    /// Stable client-scope label shown by shell/help surfaces.
+    pub client_scope_label: String,
+    /// Stable authority-boundary ref the route preserves.
+    pub authority_boundary_ref: String,
+    /// Companion/browser handoff packet ref when desktop handoff is required.
+    pub handoff_packet_ref: Option<String>,
+    /// Handoff reason class when a browser/companion route cannot run directly.
+    pub handoff_reason_class: Option<String>,
+}
+
 /// One per-surface route row in the M5 governance packet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct M5SurfaceGovernanceRow {
@@ -510,6 +627,8 @@ pub struct M5SurfaceGovernanceRow {
     pub disabled_reason_packets: Vec<M5DisabledReasonPacketRecord>,
     /// Structured approval or denial packet preserved by the route.
     pub approval_parity_packet: M5ApprovalParityPacketRecord,
+    /// Runtime provenance and handoff posture preserved by the route.
+    pub route_provenance: M5RouteProvenanceRecord,
     /// Whether the surface preserves the canonical result-packet model.
     pub result_packet_parity_preserved: bool,
     /// Whether the surface preserves durable activity joins when required.
@@ -537,12 +656,20 @@ pub struct M5CommandGovernanceRow {
     pub lifecycle_state: String,
     /// Descriptor capability scope class.
     pub capability_scope_class: String,
+    /// Stable capability-class detail ref for inspectors.
+    pub capability_class_ref: String,
     /// Descriptor preview class.
     pub preview_class: String,
     /// Descriptor approval posture class.
     pub approval_posture_class: String,
     /// Descriptor AI-tool surfacing class.
     pub ai_tool_surfacing_class: String,
+    /// Origin and runtime provenance disclosure for this command.
+    pub origin_disclosure: M5CommandOriginDisclosureRecord,
+    /// Lifecycle and rollout disclosure for this command.
+    pub lifecycle_disclosure: M5LifecycleDisclosureRecord,
+    /// Stable alias, deprecation, and replacement metadata.
+    pub alias_records: Vec<M5AliasLifecycleRecord>,
     /// Controlled or descriptor-native automation labels.
     pub automation_labels: Vec<String>,
     /// Invocation schema ref the route preserves.
@@ -584,6 +711,16 @@ pub struct M5CommandGovernanceSummary {
     pub checkpoint_required_command_count: usize,
     /// Number of commands that join release evidence.
     pub release_evidence_join_count: usize,
+    /// Number of non-core commands under audit.
+    pub non_core_command_count: usize,
+    /// Number of built-in extension commands under audit.
+    pub built_in_extension_command_count: usize,
+    /// Number of imported bridge commands under audit.
+    pub imported_bridge_command_count: usize,
+    /// Number of aliases that are deprecated or retired.
+    pub deprecated_alias_count: usize,
+    /// Number of browser/companion routes that must hand off to desktop.
+    pub browser_handoff_command_count: usize,
     /// Number of total findings.
     pub finding_count: usize,
 }
@@ -655,14 +792,34 @@ impl M5CommandGovernancePacket {
             self.summary.release_evidence_join_count
         ));
         out.push_str(&format!(
+            "| Non-core commands | {} |\n",
+            self.summary.non_core_command_count
+        ));
+        out.push_str(&format!(
+            "| Built-in extension commands | {} |\n",
+            self.summary.built_in_extension_command_count
+        ));
+        out.push_str(&format!(
+            "| Imported bridge commands | {} |\n",
+            self.summary.imported_bridge_command_count
+        ));
+        out.push_str(&format!(
+            "| Deprecated aliases | {} |\n",
+            self.summary.deprecated_alias_count
+        ));
+        out.push_str(&format!(
+            "| Browser handoff routes | {} |\n",
+            self.summary.browser_handoff_command_count
+        ));
+        out.push_str(&format!(
             "| Findings | {} |\n\n",
             self.summary.finding_count
         ));
 
         out.push_str(
-            "| Command | Result profile | Activity join | Rollback / checkpoints | Outcomes | Findings |\n",
+            "| Command | Source | Lifecycle | Result profile | Activity join | Aliases | Findings |\n",
         );
-        out.push_str("|---|---|---|---|---|---|\n");
+        out.push_str("|---|---|---|---|---|---|---|\n");
         for row in &self.rows {
             let findings = if row.finding_codes.is_empty() {
                 "none".to_string()
@@ -670,36 +827,27 @@ impl M5CommandGovernancePacket {
                 row.finding_codes.join(", ")
             };
             let result = &row.result_packet_governance;
-            let rollback_checkpoint = format!(
-                "{}/{}",
-                if result.artifacts.rollback_handle_required {
-                    "rollback"
-                } else {
-                    "no_rollback"
-                },
-                if result.artifacts.checkpoint_ref_required {
-                    "checkpoints"
-                } else {
-                    "no_checkpoints"
-                }
-            );
-            let outcomes = result
-                .outcome_rows
-                .iter()
-                .map(|row| row.outcome_class.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
+            let aliases = if row.alias_records.is_empty() {
+                "none".to_string()
+            } else {
+                row.alias_records
+                    .iter()
+                    .map(|alias| format!("{}:{}", alias.alias_id, alias.alias_state))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
             out.push_str(&format!(
-                "| `{}` | `{}` | `{}` | `{}` | `{}` | `{}` |\n",
+                "| `{}` | `{}` | `{}` | `{}` | `{}` | `{}` | `{}` |\n",
                 row.command_id,
+                row.origin_disclosure.source_display_label,
+                row.lifecycle_disclosure.stability_label,
                 result.execution_profile_class.as_str(),
                 if result.joins_activity_center {
                     "joined"
                 } else {
                     "not_required"
                 },
-                rollback_checkpoint,
-                outcomes,
+                aliases,
                 findings
             ));
         }
@@ -732,11 +880,50 @@ impl M5CommandGovernanceSupportExport {
         for row in &packet.rows {
             case_ids.push(row.command_id.clone());
             case_ids.push(row.command_revision_ref.clone());
+            case_ids.push(row.capability_class_ref.clone());
+            case_ids.push(row.lifecycle_disclosure.lifecycle_ref.clone());
+            case_ids.push(row.lifecycle_disclosure.rollout_state_ref.clone());
+            case_ids.push(row.origin_disclosure.runtime_origin_ref.clone());
+            if let Some(reference) = row.origin_disclosure.source_ref.clone() {
+                case_ids.push(reference);
+            }
+            if let Some(reference) = row.origin_disclosure.publisher_ref.clone() {
+                case_ids.push(reference);
+            }
+            if let Some(reference) = row.origin_disclosure.pack_or_bundle_ref.clone() {
+                case_ids.push(reference);
+            }
+            if let Some(reference) = row.lifecycle_disclosure.deprecation_notice_ref.clone() {
+                case_ids.push(reference);
+            }
+            for alias in &row.alias_records {
+                case_ids.push(alias.alias_id.clone());
+                case_ids.push(alias.canonical_command_id.clone());
+                case_ids.push(alias.source_system_ref.clone());
+                if let Some(reference) = alias.introduced_ref.clone() {
+                    case_ids.push(reference);
+                }
+                if let Some(reference) = alias.retirement_ref.clone() {
+                    case_ids.push(reference);
+                }
+                if let Some(reference) = alias.replacement_command_id.clone() {
+                    case_ids.push(reference);
+                }
+                if let Some(reference) = alias.replacement_note_ref.clone() {
+                    case_ids.push(reference);
+                }
+            }
             for outcome in &row.result_packet_governance.outcome_rows {
                 case_ids.push(outcome.export_safe_summary_ref.clone());
                 case_ids.push(outcome.raw_packet_export_ref.clone());
                 case_ids.push(outcome.support_export_case_ref.clone());
                 case_ids.push(outcome.release_evidence_ref.clone());
+            }
+            for surface in &row.surface_rows {
+                case_ids.push(surface.route_provenance.authority_boundary_ref.clone());
+                if let Some(reference) = surface.route_provenance.handoff_packet_ref.clone() {
+                    case_ids.push(reference);
+                }
             }
             if let Some(reference) = row
                 .result_packet_governance
@@ -842,6 +1029,30 @@ pub enum M5CommandGovernanceValidationError {
         /// Command id that regressed.
         command_id: String,
     },
+    /// A command row lost origin or lifecycle disclosure required by help/support surfaces.
+    MissingProvenanceDisclosure {
+        /// Command id that regressed.
+        command_id: String,
+    },
+    /// An alias is missing replacement or lifecycle metadata required for inspection.
+    AliasLifecycleIncomplete {
+        /// Command id that regressed.
+        command_id: String,
+        /// Alias id that regressed.
+        alias_id: String,
+    },
+    /// A copy-safe inspect or copy affordance is missing its stable detail/value ref.
+    MissingIntrospectionAction {
+        /// Command id that regressed.
+        command_id: String,
+    },
+    /// A browser/companion handoff route lost its explicit handoff packet.
+    MissingHandoffProvenance {
+        /// Command id that regressed.
+        command_id: String,
+        /// Surface that regressed.
+        surface_class: String,
+    },
 }
 
 impl fmt::Display for M5CommandGovernanceValidationError {
@@ -897,6 +1108,28 @@ impl fmt::Display for M5CommandGovernanceValidationError {
             Self::MissingExportParity { command_id } => write!(
                 f,
                 "command {command_id} lost copy-safe summary, raw export, support-export, or release-evidence parity"
+            ),
+            Self::MissingProvenanceDisclosure { command_id } => write!(
+                f,
+                "command {command_id} is missing origin, runtime, lifecycle, or capability disclosure"
+            ),
+            Self::AliasLifecycleIncomplete {
+                command_id,
+                alias_id,
+            } => write!(
+                f,
+                "command {command_id} alias {alias_id} is missing lifecycle or replacement disclosure"
+            ),
+            Self::MissingIntrospectionAction { command_id } => write!(
+                f,
+                "command {command_id} is missing a copy-safe inspect or copy action payload"
+            ),
+            Self::MissingHandoffProvenance {
+                command_id,
+                surface_class,
+            } => write!(
+                f,
+                "command {command_id} lost its explicit handoff provenance on {surface_class}"
             ),
         }
     }
@@ -1063,6 +1296,238 @@ fn descriptor_posture(entry: &CommandRegistryEntryRecord) -> M5RoutePostureClass
     }
 }
 
+fn command_origin(entry: &CommandRegistryEntryRecord) -> CommandOriginMetadata {
+    entry
+        .descriptor
+        .origin
+        .clone()
+        .unwrap_or(CommandOriginMetadata {
+            origin_class: "unknown".to_string(),
+            source_ref: None,
+            publisher_ref: None,
+        })
+}
+
+fn source_display_label(origin_class: &str) -> &'static str {
+    match origin_class {
+        "core" => "Core",
+        "built_in_extension" => "Extension",
+        "imported_bridge" => "Imported bridge",
+        "policy_provided" => "Policy",
+        _ => "Imported",
+    }
+}
+
+fn bridge_native_state(origin_class: &str) -> &'static str {
+    match origin_class {
+        "core" => "native_core",
+        "built_in_extension" => "built_in_extension",
+        "imported_bridge" => "imported_bridge",
+        "policy_provided" => "policy_routed",
+        _ => "imported_runtime",
+    }
+}
+
+fn support_posture_for_origin(origin_class: &str) -> &'static str {
+    match origin_class {
+        "core" => "supported_core",
+        "built_in_extension" => "supported_first_party_extension",
+        "imported_bridge" => "bridge_compatibility_surface",
+        "policy_provided" => "policy_governed_surface",
+        _ => "imported_surface",
+    }
+}
+
+fn runtime_origin_class_for_origin(origin_class: &str) -> &'static str {
+    match origin_class {
+        "core" => "desktop_command_graph",
+        "built_in_extension" => "built_in_bundle_runtime",
+        "imported_bridge" => "compatibility_bridge_runtime",
+        "policy_provided" => "policy_runtime",
+        _ => "imported_runtime",
+    }
+}
+
+fn pack_or_bundle_ref(origin: &CommandOriginMetadata) -> Option<String> {
+    origin
+        .source_ref
+        .as_ref()
+        .filter(|value| value.starts_with("bundle:") || value.starts_with("pack:"))
+        .cloned()
+}
+
+fn origin_disclosure(entry: &CommandRegistryEntryRecord) -> M5CommandOriginDisclosureRecord {
+    let origin = command_origin(entry);
+    M5CommandOriginDisclosureRecord {
+        source_display_label: source_display_label(&origin.origin_class).to_string(),
+        origin_class: origin.origin_class.clone(),
+        source_ref: origin.source_ref.clone(),
+        publisher_ref: origin.publisher_ref.clone(),
+        runtime_origin_class: runtime_origin_class_for_origin(&origin.origin_class).to_string(),
+        runtime_origin_ref: format!(
+            "runtime:{}:{}",
+            entry.descriptor.canonical_verb,
+            bridge_native_state(&origin.origin_class)
+        ),
+        pack_or_bundle_ref: pack_or_bundle_ref(&origin),
+        bridge_native_state: bridge_native_state(&origin.origin_class).to_string(),
+        support_posture: support_posture_for_origin(&origin.origin_class).to_string(),
+    }
+}
+
+fn stability_label(lifecycle_state: &str) -> &'static str {
+    match lifecycle_state {
+        "deprecated" => "Deprecated",
+        "stable" => "Stable",
+        "lts_facing" => "LTS",
+        "beta" => "Beta",
+        "preview" => "Preview",
+        _ => "Experimental",
+    }
+}
+
+fn experiment_state(entry: &CommandRegistryEntryRecord) -> &'static str {
+    match entry.descriptor.lifecycle_state.as_str() {
+        "deprecated" => "migration_window",
+        "stable" | "lts_facing" => "not_experiment_gated",
+        _ => "channel_visible",
+    }
+}
+
+fn lifecycle_ref(entry: &CommandRegistryEntryRecord) -> String {
+    format!(
+        "lifecycle:{}:{}",
+        entry.descriptor.canonical_verb, entry.descriptor.lifecycle_state
+    )
+}
+
+fn lifecycle_disclosure(entry: &CommandRegistryEntryRecord) -> M5LifecycleDisclosureRecord {
+    M5LifecycleDisclosureRecord {
+        lifecycle_state: entry.descriptor.lifecycle_state.clone(),
+        support_class: entry.descriptor.support_class.clone(),
+        release_channel: entry.descriptor.release_channel.clone(),
+        freshness_class: entry.descriptor.declared_freshness_class.clone(),
+        stability_label: stability_label(&entry.descriptor.lifecycle_state).to_string(),
+        experiment_state: experiment_state(entry).to_string(),
+        lifecycle_ref: lifecycle_ref(entry),
+        rollout_state_ref: rollout_state_ref(entry),
+        deprecation_notice_ref: (entry.descriptor.lifecycle_state == "deprecated").then(|| {
+            format!(
+                "docs:{}:deprecation",
+                entry.descriptor.docs_help_anchor_ref.anchor_id
+            )
+        }),
+    }
+}
+
+fn capability_class_ref(entry: &CommandRegistryEntryRecord) -> String {
+    format!("capability:{}", entry.descriptor.capability_scope_class)
+}
+
+fn alias_replacement_command_id(alias: &CommandAlias) -> Option<String> {
+    match alias.deprecation_state.as_deref() {
+        Some("deprecated") | Some("retired") => alias.canonical_command_id.clone(),
+        _ => None,
+    }
+}
+
+fn alias_replacement_posture(alias: &CommandAlias) -> &'static str {
+    match alias.deprecation_state.as_deref() {
+        Some("deprecated") | Some("retired") if alias_replacement_command_id(alias).is_some() => {
+            "replacement_declared"
+        }
+        Some("deprecated") | Some("retired") => "no_direct_replacement",
+        _ => "replacement_not_required",
+    }
+}
+
+fn alias_support_posture(entry: &CommandRegistryEntryRecord) -> &'static str {
+    match command_origin(entry).origin_class.as_str() {
+        "imported_bridge" => "bridge_alias",
+        "built_in_extension" => "first_party_extension_alias",
+        _ => "native_alias",
+    }
+}
+
+fn alias_source_system_ref(entry: &CommandRegistryEntryRecord) -> String {
+    command_origin(entry)
+        .source_ref
+        .unwrap_or_else(|| "registry:command_aliases".to_string())
+}
+
+fn alias_records(entry: &CommandRegistryEntryRecord) -> Vec<M5AliasLifecycleRecord> {
+    entry
+        .public_contract()
+        .aliases
+        .into_iter()
+        .map(|alias| M5AliasLifecycleRecord {
+            alias_id: alias.alias_id.clone(),
+            alias_kind: alias.alias_kind.clone(),
+            alias_state: alias
+                .deprecation_state
+                .clone()
+                .unwrap_or_else(|| "active".to_string()),
+            canonical_command_id: alias
+                .canonical_command_id
+                .clone()
+                .unwrap_or_else(|| entry.descriptor.command_id.clone()),
+            source_system_ref: alias_source_system_ref(entry),
+            introduced_ref: alias.introduced_version.clone(),
+            retirement_ref: alias.retirement_version.clone(),
+            replacement_command_id: alias_replacement_command_id(&alias),
+            replacement_note_ref: alias.replacement_note_ref.clone(),
+            replacement_posture: alias_replacement_posture(&alias).to_string(),
+            eligible_for_new_bindings: !matches!(
+                alias.deprecation_state.as_deref(),
+                Some("deprecated") | Some("retired")
+            ),
+            support_posture: alias_support_posture(entry).to_string(),
+        })
+        .collect()
+}
+
+fn cli_invocation_skeleton(entry: &CommandRegistryEntryRecord) -> String {
+    let mut command = format!(
+        "aureline {}",
+        entry.descriptor.canonical_verb.replace('.', " ")
+    );
+    for arg in &entry.descriptor.typed_arguments {
+        if arg.is_required {
+            command.push_str(&format!(" --{} <{}>", arg.argument_name, arg.argument_kind));
+        } else {
+            command.push_str(&format!(
+                " [--{} <{}>]",
+                arg.argument_name, arg.argument_kind
+            ));
+        }
+    }
+    command
+}
+
+fn recipe_step_template(entry: &CommandRegistryEntryRecord) -> String {
+    let argument_keys = entry
+        .descriptor
+        .typed_arguments
+        .iter()
+        .map(|arg| format!("\"{}\": null", arg.argument_name))
+        .collect::<Vec<_>>();
+    let arguments = if argument_keys.is_empty() {
+        "{}".to_string()
+    } else {
+        format!("{{ {} }}", argument_keys.join(", "))
+    };
+    format!(
+        "{{\"command_id\":\"{}\",\"command_revision_ref\":\"{}\",\"canonical_verb\":\"{}\",\"arguments\":{arguments}}}",
+        entry.descriptor.command_id,
+        entry.descriptor.command_revision_ref,
+        entry.descriptor.canonical_verb
+    )
+}
+
+fn origin_detail_ref(entry: &CommandRegistryEntryRecord) -> String {
+    format!("origin:{}", entry.descriptor.canonical_verb)
+}
+
 fn actor_ref(surface: M5GovernanceSurfaceClass) -> &'static str {
     match surface {
         M5GovernanceSurfaceClass::Desktop => "actor:desktop:local_user",
@@ -1095,29 +1560,123 @@ fn rollout_state_ref(entry: &CommandRegistryEntryRecord) -> String {
     )
 }
 
+fn route_runtime_origin_class(surface: M5GovernanceSurfaceClass) -> &'static str {
+    match surface {
+        M5GovernanceSurfaceClass::Desktop => "desktop_command_graph",
+        M5GovernanceSurfaceClass::Cli => "headless_command_graph",
+        M5GovernanceSurfaceClass::Ai => "ai_tool_surface",
+        M5GovernanceSurfaceClass::Recipe => "recipe_runner",
+        M5GovernanceSurfaceClass::Extension => "extension_host",
+        M5GovernanceSurfaceClass::BrowserCompanion => "browser_companion_route",
+    }
+}
+
+fn origin_scope(surface: M5GovernanceSurfaceClass) -> &'static str {
+    match surface {
+        M5GovernanceSurfaceClass::Desktop => "desktop_client",
+        M5GovernanceSurfaceClass::Cli => "headless_runner",
+        M5GovernanceSurfaceClass::Ai => "desktop_client",
+        M5GovernanceSurfaceClass::Recipe => "headless_runner",
+        M5GovernanceSurfaceClass::Extension => "extension_host",
+        M5GovernanceSurfaceClass::BrowserCompanion => "desktop_client",
+    }
+}
+
+fn client_scope_label(surface: M5GovernanceSurfaceClass) -> &'static str {
+    match surface {
+        M5GovernanceSurfaceClass::Desktop => "Desktop",
+        M5GovernanceSurfaceClass::Cli => "Headless only",
+        M5GovernanceSurfaceClass::Ai => "Desktop",
+        M5GovernanceSurfaceClass::Recipe => "Headless only",
+        M5GovernanceSurfaceClass::Extension => "Desktop",
+        M5GovernanceSurfaceClass::BrowserCompanion => "Browser companion",
+    }
+}
+
+fn route_provenance(
+    entry: &CommandRegistryEntryRecord,
+    surface: M5GovernanceSurfaceClass,
+    route_posture: M5RoutePostureClass,
+) -> M5RouteProvenanceRecord {
+    let handoff_required = surface == M5GovernanceSurfaceClass::BrowserCompanion
+        && route_posture == M5RoutePostureClass::DesktopHandoffRequired;
+    M5RouteProvenanceRecord {
+        runtime_origin_class: route_runtime_origin_class(surface).to_string(),
+        origin_scope: origin_scope(surface).to_string(),
+        client_scope_label: client_scope_label(surface).to_string(),
+        authority_boundary_ref: format!(
+            "authority-boundary:{}:{}",
+            surface.as_str(),
+            entry.descriptor.canonical_verb
+        ),
+        handoff_packet_ref: handoff_required.then(|| {
+            format!(
+                "handoff:{}:{}",
+                entry.descriptor.canonical_verb,
+                surface.as_str()
+            )
+        }),
+        handoff_reason_class: handoff_required.then(|| "desktop_required".to_string()),
+    }
+}
+
 fn copy_safe_introspection(entry: &CommandRegistryEntryRecord) -> M5CopySafeIntrospectionRecord {
     let why_not = why_not_automatable_reason(
         &entry.automation_labels,
         &entry.descriptor.approval_posture_class,
     );
     M5CopySafeIntrospectionRecord {
-        copy_command_id: true,
-        copy_cli_form: labels_include(
-            &entry.automation_labels,
-            ControlledAutomationLabel::HeadlessSafe,
-        ),
-        add_to_recipe: labels_include(
-            &entry.automation_labels,
-            ControlledAutomationLabel::RecipeSafe,
-        ),
-        inspect_why_not_automatable: why_not.is_some(),
+        copy_command_id: M5CopyValueActionRecord {
+            available: true,
+            value: Some(entry.descriptor.command_id.clone()),
+        },
+        copy_cli_form: M5CopyValueActionRecord {
+            available: labels_include(
+                &entry.automation_labels,
+                ControlledAutomationLabel::HeadlessSafe,
+            ),
+            value: labels_include(
+                &entry.automation_labels,
+                ControlledAutomationLabel::HeadlessSafe,
+            )
+            .then(|| cli_invocation_skeleton(entry)),
+        },
+        copy_recipe_step: M5CopyValueActionRecord {
+            available: labels_include(
+                &entry.automation_labels,
+                ControlledAutomationLabel::RecipeSafe,
+            ),
+            value: labels_include(
+                &entry.automation_labels,
+                ControlledAutomationLabel::RecipeSafe,
+            )
+            .then(|| recipe_step_template(entry)),
+        },
+        inspect_origin: M5InspectActionRecord {
+            available: true,
+            detail_ref: Some(origin_detail_ref(entry)),
+        },
+        inspect_lifecycle: M5InspectActionRecord {
+            available: true,
+            detail_ref: Some(lifecycle_ref(entry)),
+        },
+        inspect_capability_class: M5InspectActionRecord {
+            available: true,
+            detail_ref: Some(capability_class_ref(entry)),
+        },
+        inspect_why_not_automatable: M5InspectActionRecord {
+            available: why_not.is_some(),
+            detail_ref: why_not
+                .map(|reason| format!("automation:{}:{}", entry.descriptor.canonical_verb, reason)),
+        },
     }
 }
 
 fn rollback_handle_required(entry: &CommandRegistryEntryRecord) -> bool {
-    entry.preview_gate_metadata.as_ref().is_some_and(|metadata| {
-        metadata.revert_posture_class == "rollback_or_checkpoint_available"
-    })
+    entry
+        .preview_gate_metadata
+        .as_ref()
+        .is_some_and(|metadata| metadata.revert_posture_class == "rollback_or_checkpoint_available")
 }
 
 fn checkpoint_ref_required(entry: &CommandRegistryEntryRecord) -> bool {
@@ -1242,14 +1801,22 @@ fn build_outcome_row(
     entry: &CommandRegistryEntryRecord,
     outcome: M5ResultOutcomeClass,
 ) -> M5CommandOutcomeProjectionRow {
-    let base = format!("result-packet:{}:{}", entry.descriptor.canonical_verb, outcome.as_str());
+    let base = format!(
+        "result-packet:{}:{}",
+        entry.descriptor.canonical_verb,
+        outcome.as_str()
+    );
     M5CommandOutcomeProjectionRow {
         outcome_class: outcome,
         result_code: result_code_for_outcome(outcome).to_string(),
         activity_state_class: activity_state_for_outcome(entry, outcome),
         export_safe_summary_ref: format!("{base}:summary"),
         raw_packet_export_ref: format!("{base}:raw"),
-        support_export_case_ref: format!("support:{}:{}", entry.descriptor.canonical_verb, outcome.as_str()),
+        support_export_case_ref: format!(
+            "support:{}:{}",
+            entry.descriptor.canonical_verb,
+            outcome.as_str()
+        ),
         release_evidence_ref: format!(
             "release-evidence:{}:{}",
             entry.descriptor.canonical_verb,
@@ -1261,7 +1828,11 @@ fn build_outcome_row(
 
 fn build_result_artifacts(entry: &CommandRegistryEntryRecord) -> M5ResultArtifactProjectionRecord {
     M5ResultArtifactProjectionRecord {
-        result_contract_class: entry.descriptor.result_contract.result_contract_class.clone(),
+        result_contract_class: entry
+            .descriptor
+            .result_contract
+            .result_contract_class
+            .clone(),
         artifact_kind_ref: entry.descriptor.result_contract.artifact_kind_ref.clone(),
         evidence_ref_classes: entry
             .descriptor
@@ -1529,6 +2100,7 @@ fn build_surface_row(
         preview_parity: preview_parity(entry),
         disabled_reason_packets: denial_packets_for_surface(entry, surface, route_posture),
         approval_parity_packet: build_approval_packet(entry, surface, route_posture),
+        route_provenance: route_provenance(entry, surface, route_posture),
         result_packet_parity_preserved: true,
         activity_join_parity_preserved: !result_governance.joins_activity_center
             || result_governance.artifacts.activity_join_ref.is_some(),
@@ -1542,6 +2114,7 @@ fn build_surface_row(
 
 fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
     let result_packet_governance = build_result_packet_governance(entry);
+    let alias_records = alias_records(entry);
     let surface_rows = M5GovernanceSurfaceClass::required_coverage()
         .into_iter()
         .map(|surface| build_surface_row(entry, surface))
@@ -1558,9 +2131,13 @@ fn build_row(entry: &CommandRegistryEntryRecord) -> M5CommandGovernanceRow {
         canonical_verb: entry.descriptor.canonical_verb.clone(),
         lifecycle_state: entry.descriptor.lifecycle_state.clone(),
         capability_scope_class: entry.descriptor.capability_scope_class.clone(),
+        capability_class_ref: capability_class_ref(entry),
         preview_class: entry.descriptor.preview_class.clone(),
         approval_posture_class: entry.descriptor.approval_posture_class.clone(),
         ai_tool_surfacing_class: entry.descriptor.ai_tool_surfacing_class.clone(),
+        origin_disclosure: origin_disclosure(entry),
+        lifecycle_disclosure: lifecycle_disclosure(entry),
+        alias_records,
         automation_labels: if entry.descriptor.automation_labels.is_empty() {
             entry.automation_labels.clone()
         } else {
@@ -1607,15 +2184,49 @@ pub fn seeded_m5_command_governance_packet() -> M5CommandGovernancePacket {
             .count(),
         rollback_required_command_count: rows
             .iter()
-            .filter(|row| row.result_packet_governance.artifacts.rollback_handle_required)
+            .filter(|row| {
+                row.result_packet_governance
+                    .artifacts
+                    .rollback_handle_required
+            })
             .count(),
         checkpoint_required_command_count: rows
             .iter()
-            .filter(|row| row.result_packet_governance.artifacts.checkpoint_ref_required)
+            .filter(|row| {
+                row.result_packet_governance
+                    .artifacts
+                    .checkpoint_ref_required
+            })
             .count(),
         release_evidence_join_count: rows
             .iter()
             .filter(|row| row.result_packet_governance.joins_release_evidence)
+            .count(),
+        non_core_command_count: rows
+            .iter()
+            .filter(|row| row.origin_disclosure.origin_class != "core")
+            .count(),
+        built_in_extension_command_count: rows
+            .iter()
+            .filter(|row| row.origin_disclosure.origin_class == "built_in_extension")
+            .count(),
+        imported_bridge_command_count: rows
+            .iter()
+            .filter(|row| row.origin_disclosure.origin_class == "imported_bridge")
+            .count(),
+        deprecated_alias_count: rows
+            .iter()
+            .flat_map(|row| row.alias_records.iter())
+            .filter(|alias| matches!(alias.alias_state.as_str(), "deprecated" | "retired"))
+            .count(),
+        browser_handoff_command_count: rows
+            .iter()
+            .filter(|row| {
+                row.surface_rows.iter().any(|surface| {
+                    surface.surface_class == M5GovernanceSurfaceClass::BrowserCompanion
+                        && surface.route_provenance.handoff_packet_ref.is_some()
+                })
+            })
             .count(),
         finding_count: rows.iter().map(|row| row.finding_codes.len()).sum(),
     };
@@ -1670,6 +2281,41 @@ pub fn validate_m5_command_governance_packet(
             });
         }
 
+        if row.origin_disclosure.origin_class.trim().is_empty()
+            || row.origin_disclosure.source_display_label.trim().is_empty()
+            || row.origin_disclosure.runtime_origin_class.trim().is_empty()
+            || row.origin_disclosure.runtime_origin_ref.trim().is_empty()
+            || row.lifecycle_disclosure.lifecycle_ref.trim().is_empty()
+            || row.lifecycle_disclosure.rollout_state_ref.trim().is_empty()
+            || row.lifecycle_disclosure.stability_label.trim().is_empty()
+            || row.capability_class_ref.trim().is_empty()
+        {
+            errors.push(
+                M5CommandGovernanceValidationError::MissingProvenanceDisclosure {
+                    command_id: row.command_id.clone(),
+                },
+            );
+        }
+
+        for alias in &row.alias_records {
+            if alias.alias_id.trim().is_empty()
+                || alias.alias_kind.trim().is_empty()
+                || alias.alias_state.trim().is_empty()
+                || alias.canonical_command_id.trim().is_empty()
+                || alias.source_system_ref.trim().is_empty()
+                || (matches!(alias.alias_state.as_str(), "deprecated" | "retired")
+                    && (alias.replacement_command_id.is_none()
+                        || alias.replacement_posture.trim().is_empty()))
+            {
+                errors.push(
+                    M5CommandGovernanceValidationError::AliasLifecycleIncomplete {
+                        command_id: row.command_id.clone(),
+                        alias_id: alias.alias_id.clone(),
+                    },
+                );
+            }
+        }
+
         for required in M5ResultOutcomeClass::required_coverage() {
             if !row
                 .result_packet_governance
@@ -1704,9 +2350,11 @@ pub fn validate_m5_command_governance_packet(
                 || result.activity_shared_contract_ref.is_none()
                 || !activity_identity_is_stable(&row.command_id))
         {
-            errors.push(M5CommandGovernanceValidationError::MissingDurableResultJoin {
-                command_id: row.command_id.clone(),
-            });
+            errors.push(
+                M5CommandGovernanceValidationError::MissingDurableResultJoin {
+                    command_id: row.command_id.clone(),
+                },
+            );
         }
 
         if (result.artifacts.rollback_handle_required
@@ -1714,12 +2362,65 @@ pub fn validate_m5_command_governance_packet(
             || (result.artifacts.checkpoint_ref_required
                 && result.artifacts.checkpoint_ref_classes.is_empty())
         {
-            errors.push(M5CommandGovernanceValidationError::MissingRollbackOrCheckpoint {
-                command_id: row.command_id.clone(),
-            });
+            errors.push(
+                M5CommandGovernanceValidationError::MissingRollbackOrCheckpoint {
+                    command_id: row.command_id.clone(),
+                },
+            );
         }
 
         for surface in &row.surface_rows {
+            let actions = &surface.preview_parity.copy_safe_introspection;
+            if !actions.copy_command_id.available
+                || actions
+                    .copy_command_id
+                    .value
+                    .as_deref()
+                    .is_none_or(str::is_empty)
+                || (actions.copy_cli_form.available
+                    && actions
+                        .copy_cli_form
+                        .value
+                        .as_deref()
+                        .is_none_or(str::is_empty))
+                || (actions.copy_recipe_step.available
+                    && actions
+                        .copy_recipe_step
+                        .value
+                        .as_deref()
+                        .is_none_or(str::is_empty))
+                || !actions.inspect_origin.available
+                || actions
+                    .inspect_origin
+                    .detail_ref
+                    .as_deref()
+                    .is_none_or(str::is_empty)
+                || !actions.inspect_lifecycle.available
+                || actions
+                    .inspect_lifecycle
+                    .detail_ref
+                    .as_deref()
+                    .is_none_or(str::is_empty)
+                || !actions.inspect_capability_class.available
+                || actions
+                    .inspect_capability_class
+                    .detail_ref
+                    .as_deref()
+                    .is_none_or(str::is_empty)
+                || (actions.inspect_why_not_automatable.available
+                    && actions
+                        .inspect_why_not_automatable
+                        .detail_ref
+                        .as_deref()
+                        .is_none_or(str::is_empty))
+            {
+                errors.push(
+                    M5CommandGovernanceValidationError::MissingIntrospectionAction {
+                        command_id: row.command_id.clone(),
+                    },
+                );
+            }
+
             if !surface.preview_parity_preserved
                 || !surface.approval_parity_preserved
                 || !surface.disabled_reason_parity_preserved
@@ -1764,6 +2465,27 @@ pub fn validate_m5_command_governance_packet(
                     command_id: row.command_id.clone(),
                     surface_class: surface.surface_class.as_str().to_string(),
                 });
+            }
+
+            if surface.surface_class == M5GovernanceSurfaceClass::BrowserCompanion
+                && surface.route_posture_class == M5RoutePostureClass::DesktopHandoffRequired
+                && (surface
+                    .route_provenance
+                    .handoff_packet_ref
+                    .as_deref()
+                    .is_none_or(str::is_empty)
+                    || surface
+                        .route_provenance
+                        .handoff_reason_class
+                        .as_deref()
+                        .is_none_or(str::is_empty))
+            {
+                errors.push(
+                    M5CommandGovernanceValidationError::MissingHandoffProvenance {
+                        command_id: row.command_id.clone(),
+                        surface_class: surface.surface_class.as_str().to_string(),
+                    },
+                );
             }
         }
     }

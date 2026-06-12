@@ -63,6 +63,11 @@ fn seeded_packet_routes_browser_companion_to_handoff_when_surface_is_not_support
         browser.route_posture_class,
         M5RoutePostureClass::DesktopHandoffRequired
     );
+    assert!(browser.route_provenance.handoff_packet_ref.is_some());
+    assert_eq!(
+        browser.route_provenance.handoff_reason_class.as_deref(),
+        Some("desktop_required")
+    );
 }
 
 #[test]
@@ -78,7 +83,72 @@ fn seeded_packet_keeps_copy_safe_why_not_automatable_reason_in_sync() {
         preview.why_not_automatable_reason.as_deref(),
         Some("approval_required")
     );
-    assert!(preview.copy_safe_introspection.inspect_why_not_automatable);
+    assert!(
+        preview
+            .copy_safe_introspection
+            .inspect_why_not_automatable
+            .available
+    );
+    assert!(preview
+        .copy_safe_introspection
+        .inspect_why_not_automatable
+        .detail_ref
+        .as_deref()
+        .is_some_and(|value| value.contains("approval_required")));
+}
+
+#[test]
+fn seeded_packet_exposes_origin_lifecycle_and_alias_disclosure() {
+    let packet = seeded_m5_command_governance_packet();
+    let docs_browser = packet
+        .rows
+        .iter()
+        .find(|row| row.command_id == "cmd:docs_browser.open_external")
+        .expect("docs browser row must exist");
+    assert_eq!(
+        docs_browser.origin_disclosure.origin_class,
+        "built_in_extension"
+    );
+    assert_eq!(
+        docs_browser.origin_disclosure.source_display_label,
+        "Extension"
+    );
+    assert_eq!(docs_browser.lifecycle_disclosure.stability_label, "Beta");
+    assert_eq!(docs_browser.alias_records.len(), 1);
+    assert_eq!(docs_browser.alias_records[0].alias_state, "active");
+    assert!(docs_browser.surface_rows.iter().all(|surface| surface
+        .preview_parity
+        .copy_safe_introspection
+        .inspect_origin
+        .available));
+}
+
+#[test]
+fn seeded_packet_exposes_copy_safe_cli_and_recipe_templates_when_supported() {
+    let packet = seeded_m5_command_governance_packet();
+    let scaffold = packet
+        .rows
+        .iter()
+        .find(|row| row.command_id == "cmd:template_scaffold.scaffold_project")
+        .expect("scaffold row must exist");
+    let actions = &scaffold.surface_rows[0]
+        .preview_parity
+        .copy_safe_introspection;
+    assert!(actions.copy_command_id.available);
+    assert_eq!(
+        actions.copy_command_id.value.as_deref(),
+        Some("cmd:template_scaffold.scaffold_project")
+    );
+    assert!(actions.copy_cli_form.available);
+    assert!(actions
+        .copy_cli_form
+        .value
+        .as_deref()
+        .is_some_and(|value| value.starts_with("aureline template_scaffold scaffold_project")));
+    assert!(actions.copy_recipe_step.available);
+    assert!(actions.copy_recipe_step.value.as_deref().is_some_and(
+        |value| value.contains("\"command_id\":\"cmd:template_scaffold.scaffold_project\"")
+    ));
 }
 
 #[test]
@@ -153,28 +223,35 @@ fn rollback_and_checkpoint_requirements_follow_preview_gate_posture() {
         .iter()
         .find(|row| row.command_id == "cmd:offboarding.export_and_wipe")
         .expect("offboarding row must exist");
-    assert!(offboarding
-        .result_packet_governance
-        .artifacts
-        .rollback_handle_required);
-    assert!(offboarding
-        .result_packet_governance
-        .artifacts
-        .checkpoint_ref_required);
+    assert!(
+        offboarding
+            .result_packet_governance
+            .artifacts
+            .rollback_handle_required
+    );
+    assert!(
+        offboarding
+            .result_packet_governance
+            .artifacts
+            .checkpoint_ref_required
+    );
 
     let sync = packet
         .rows
         .iter()
         .find(|row| row.command_id == "cmd:sync.push_workspace_state")
         .expect("sync row must exist");
-    assert!(!sync
-        .result_packet_governance
-        .artifacts
-        .rollback_handle_required);
-    assert!(sync
-        .result_packet_governance
-        .artifacts
-        .checkpoint_ref_required);
+    assert!(
+        !sync
+            .result_packet_governance
+            .artifacts
+            .rollback_handle_required
+    );
+    assert!(
+        sync.result_packet_governance
+            .artifacts
+            .checkpoint_ref_required
+    );
 }
 
 #[test]
@@ -190,6 +267,13 @@ fn support_export_quotes_packet_and_command_ids() {
     for row in &packet.rows {
         assert!(export.case_ids.contains(&row.command_id));
         assert!(export.case_ids.contains(&row.command_revision_ref));
+        assert!(export.case_ids.contains(&row.capability_class_ref));
+        assert!(export
+            .case_ids
+            .contains(&row.lifecycle_disclosure.lifecycle_ref));
+        assert!(export
+            .case_ids
+            .contains(&row.origin_disclosure.runtime_origin_ref));
         for outcome in &row.result_packet_governance.outcome_rows {
             assert!(export.case_ids.contains(&outcome.export_safe_summary_ref));
             assert!(export.case_ids.contains(&outcome.raw_packet_export_ref));
