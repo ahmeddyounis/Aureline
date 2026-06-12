@@ -177,8 +177,16 @@ impl CancellationContract {
 pub enum InitiatingSource {
     /// User foreground action.
     UserAction,
+    /// Session startup or crash recovery startup.
+    SessionStartup,
     /// Workspace open or restore.
     WorkspaceOpen,
+    /// Profile selection or profile-layer change.
+    ProfileChange,
+    /// Policy epoch or policy-bundle change.
+    PolicyChange,
+    /// Focus or visible-workset change.
+    FocusChange,
     /// File watcher notification.
     FileChangeNotification,
     /// Remote reconnect.
@@ -189,8 +197,12 @@ pub enum InitiatingSource {
     ExtensionRequest,
     /// AI tool request.
     AiToolCall,
+    /// Support export or support-bundle request.
+    SupportExportRequest,
     /// Sync trigger.
     SyncTrigger,
+    /// Resume from a prior recovery or checkpoint.
+    RecoveryResume,
 }
 
 impl InitiatingSource {
@@ -198,13 +210,19 @@ impl InitiatingSource {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::UserAction => "user_action",
+            Self::SessionStartup => "session_startup",
             Self::WorkspaceOpen => "workspace_open",
+            Self::ProfileChange => "profile_change",
+            Self::PolicyChange => "policy_change",
+            Self::FocusChange => "focus_change",
             Self::FileChangeNotification => "file_change_notification",
             Self::RemoteReconnect => "remote_reconnect",
             Self::SchedulerTimer => "scheduler_timer",
             Self::ExtensionRequest => "extension_request",
             Self::AiToolCall => "ai_tool_call",
+            Self::SupportExportRequest => "support_export_request",
             Self::SyncTrigger => "sync_trigger",
+            Self::RecoveryResume => "recovery_resume",
         }
     }
 }

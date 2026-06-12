@@ -29,6 +29,11 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::queue_governor_and_admission_control::{
+    CollapsePolicy as QueueCollapsePolicy, InitiatingSource as QueueInitiatingSource,
+    QueueJobScope, StalenessPolicy as QueueStalenessPolicy,
+};
+
 /// Stable record-kind tag for [`QueueSessionTerminalGovernancePacket`].
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_RECORD_KIND: &str =
     "queue_session_terminal_governance_packet";
@@ -55,6 +60,31 @@ pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF: &str =
 /// Repo-relative fixture corpus directory.
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR: &str =
     "fixtures/runtime/queue_session_terminal_governance";
+
+/// Background-queue contract reference reused by queue identity rows.
+pub const BACKGROUND_QUEUE_CONTRACT_DOC_REF: &str = "docs/runtime/background_queue_contract.md";
+
+/// Context-cache and terminal-restore contract reused by restore rows.
+pub const CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF: &str =
+    "docs/runtime/context_cache_and_terminal_restore_contract.md";
+
+/// Foreground budget domain for explicit user-run work.
+pub const FOREGROUND_TASK_BUDGET_DOMAIN_REF: &str = "foreground_task_budget";
+
+/// Interactive knowledge-refresh budget domain.
+pub const KNOWLEDGE_REFRESH_BUDGET_DOMAIN_REF: &str = "knowledge_refresh_budget";
+
+/// Maintenance budget domain for deferred background work.
+pub const MAINTENANCE_BUDGET_DOMAIN_REF: &str = "maintenance_budget";
+
+/// Provider-overlay budget domain for remote or service-backed work.
+pub const PROVIDER_OVERLAY_BUDGET_DOMAIN_REF: &str = "provider_overlay_budget";
+
+/// Replication budget domain for uploads, sync, and offboarding.
+pub const REPLICATION_BUDGET_DOMAIN_REF: &str = "replication_budget";
+
+/// Reserved hot-path budget that queue rows may protect but never consume.
+pub const HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF: &str = "hot_path_interactive_budget";
 
 /// Runtime workload class governed by this contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -284,6 +314,138 @@ impl CollapseKeyClass {
             Self::HandoffSubject => "handoff_subject",
             Self::NotApplicable => "not_applicable",
         }
+    }
+}
+
+/// Concrete background job kinds covered by the M5 governance packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernedJobKind {
+    /// Notebook cell or notebook-run execution.
+    NotebookCellExecution,
+    /// Docs-pack refresh or catalog refresh.
+    DocsPackRefresh,
+    /// Retrieval or index refresh for docs recall.
+    DocsRetrievalIndexRefresh,
+    /// Request collection or API-console execution.
+    DataRequestCollectionRun,
+    /// Profiler capture or capture-finalization work.
+    ProfilerCapture,
+    /// Pipeline log refresh or pull work.
+    PipelineLogPull,
+    /// Pipeline artifact refresh or pull work.
+    PipelineArtifactPull,
+    /// Preview dev-server lifecycle work.
+    PreviewDevServer,
+    /// Preview route refresh or binding work.
+    PreviewRouteRefresh,
+    /// Sync replication job.
+    SyncProfileReplication,
+    /// Offboarding export or package assembly job.
+    SyncOffboardingExport,
+    /// Companion handoff package publication.
+    CompanionHandoffPackage,
+    /// Incident workspace recovery or evidence refresh.
+    IncidentRecoveryWorkspaceRefresh,
+    /// Infrastructure overlay probe or runbook session binding.
+    InfrastructureOverlayProbe,
+}
+
+impl GovernedJobKind {
+    /// Every concrete job kind the packet must cover.
+    pub const REQUIRED: [Self; 14] = [
+        Self::NotebookCellExecution,
+        Self::DocsPackRefresh,
+        Self::DocsRetrievalIndexRefresh,
+        Self::DataRequestCollectionRun,
+        Self::ProfilerCapture,
+        Self::PipelineLogPull,
+        Self::PipelineArtifactPull,
+        Self::PreviewDevServer,
+        Self::PreviewRouteRefresh,
+        Self::SyncProfileReplication,
+        Self::SyncOffboardingExport,
+        Self::CompanionHandoffPackage,
+        Self::IncidentRecoveryWorkspaceRefresh,
+        Self::InfrastructureOverlayProbe,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotebookCellExecution => "notebook.cell_execution",
+            Self::DocsPackRefresh => "docs.pack_refresh",
+            Self::DocsRetrievalIndexRefresh => "docs.retrieval_index_refresh",
+            Self::DataRequestCollectionRun => "data.request_collection_run",
+            Self::ProfilerCapture => "profiler.capture",
+            Self::PipelineLogPull => "pipeline.log_pull",
+            Self::PipelineArtifactPull => "pipeline.artifact_pull",
+            Self::PreviewDevServer => "preview.dev_server",
+            Self::PreviewRouteRefresh => "preview.route_refresh",
+            Self::SyncProfileReplication => "sync.profile_replication",
+            Self::SyncOffboardingExport => "sync.offboarding_export",
+            Self::CompanionHandoffPackage => "companion.handoff_package",
+            Self::IncidentRecoveryWorkspaceRefresh => "incident.recovery_workspace_refresh",
+            Self::InfrastructureOverlayProbe => "infrastructure.overlay_probe",
+        }
+    }
+}
+
+/// One concrete, export-safe queue identity bound to a queue row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GovernedJobIdentity {
+    /// Stable concrete job kind.
+    pub job_kind: GovernedJobKind,
+    /// Opaque job identity ref safe for diagnostics and support export.
+    pub job_identity_ref: String,
+    /// Opaque workspace id owning the job.
+    pub workspace_id_ref: String,
+    /// Optional slice or workset identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slice_id_ref: Option<String>,
+    /// Root or target scope bound to the job.
+    pub scope: QueueJobScope,
+    /// Stable initiating source.
+    pub initiating_source: QueueInitiatingSource,
+    /// Structured duplicate or supersede key.
+    pub collapse_key: String,
+    /// Concrete duplicate or supersede behavior.
+    pub collapse_policy: QueueCollapsePolicy,
+    /// Concrete staleness behavior when resumed or dequeued.
+    pub staleness_policy: QueueStalenessPolicy,
+    /// Exact budget domains this job consumes.
+    #[serde(default)]
+    pub budget_domain_refs: Vec<String>,
+    /// Workspace revision ref used to self-invalidate stale work.
+    pub workspace_revision_ref: String,
+    /// Optional manifest or slice hash used to self-invalidate stale work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_hash_ref: Option<String>,
+    /// Optional execution-context hash used to self-invalidate stale work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_context_hash_ref: Option<String>,
+    /// Optional policy epoch used to self-invalidate stale work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_epoch_ref: Option<String>,
+}
+
+impl GovernedJobIdentity {
+    fn is_valid(&self) -> bool {
+        !self.job_identity_ref.trim().is_empty()
+            && !self.workspace_id_ref.trim().is_empty()
+            && !self.scope.scope_class.trim().is_empty()
+            && !self.scope.scope_ref.trim().is_empty()
+            && !self.collapse_key.trim().is_empty()
+            && !self.workspace_revision_ref.trim().is_empty()
+            && !self.budget_domain_refs.is_empty()
+            && self
+                .budget_domain_refs
+                .iter()
+                .all(|budget_domain| is_known_budget_domain_ref(budget_domain))
+            && !self
+                .budget_domain_refs
+                .iter()
+                .any(|budget_domain| budget_domain == HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF)
     }
 }
 
@@ -878,6 +1040,14 @@ pub enum FindingKind {
     MissingEvidenceRefs,
     /// Queue row omitted required queue fields.
     QueueFieldNotApplicable,
+    /// Queue row omitted concrete job identities.
+    MissingJobIdentities,
+    /// Queue row carries an invalid concrete job identity bundle.
+    InvalidJobIdentity,
+    /// Queue row covers an unknown concrete budget-domain ref.
+    UnknownBudgetDomainRef,
+    /// Queue row tries to consume protected hot-path budget.
+    ProtectedBudgetConsumedByQueueJob,
     /// Non-queue row bound queue-only fields.
     QueueFieldNotPermittedOnRowClass,
     /// Restore row omitted required restore fields.
@@ -890,6 +1060,8 @@ pub enum FindingKind {
     TerminalFieldNotPermittedOnRowClass,
     /// Packet no longer covers every required queue lane.
     MissingRequiredQueueLaneCoverage,
+    /// Packet no longer covers every required concrete job kind.
+    MissingRequiredJobKindCoverage,
     /// Packet no longer covers every required restore fidelity class.
     MissingRequiredRestoreFidelityCoverage,
     /// Packet no longer covers every required terminal boundary class.
@@ -944,7 +1116,12 @@ impl FindingKind {
             Self::DowngradeRuleMissingDisclosureRef => "downgrade_rule_missing_disclosure_ref",
             Self::MissingEvidenceRefs => "missing_evidence_refs",
             Self::QueueFieldNotApplicable => "queue_field_not_applicable",
+            Self::MissingJobIdentities => "missing_job_identities",
+            Self::InvalidJobIdentity => "invalid_job_identity",
+            Self::UnknownBudgetDomainRef => "unknown_budget_domain_ref",
+            Self::ProtectedBudgetConsumedByQueueJob => "protected_budget_consumed_by_queue_job",
             Self::QueueFieldNotPermittedOnRowClass => "queue_field_not_permitted_on_row_class",
+            Self::MissingRequiredJobKindCoverage => "missing_required_job_kind_coverage",
             Self::RestoreFieldNotApplicable => "restore_field_not_applicable",
             Self::RestoreFieldNotPermittedOnRowClass => "restore_field_not_permitted_on_row_class",
             Self::TerminalFieldNotApplicable => "terminal_field_not_applicable",
@@ -1018,7 +1195,7 @@ pub struct QueueSessionTerminalGovernanceRow {
     pub queue_lane_class: QueueLaneClass,
     /// Collapse key admitted by the row.
     pub collapse_key_class: CollapseKeyClass,
-    /// Budget domain admitted by the row.
+    /// Budget-domain guard admitted by the row.
     pub budget_domain_class: BudgetDomainClass,
     /// Checkpoint policy admitted by the row.
     pub checkpoint_policy_class: CheckpointPolicyClass,
@@ -1029,6 +1206,9 @@ pub struct QueueSessionTerminalGovernanceRow {
     /// Opaque queue identity ref admitted by the row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_identity_ref: Option<String>,
+    /// Concrete stable job identities governed by this queue row.
+    #[serde(default)]
+    pub job_identities: Vec<GovernedJobIdentity>,
     /// Restore fidelity admitted by the row.
     pub restore_fidelity_class: RestoreFidelityClass,
     /// Restore no-hidden-rerun posture admitted by the row.
@@ -1219,6 +1399,17 @@ impl QueueSessionTerminalGovernancePacket {
             set.insert(row.queue_lane_class);
         }
         set.into_iter().map(QueueLaneClass::as_str).collect()
+    }
+
+    /// Returns the unique concrete job-kind tokens observed across queue rows.
+    pub fn job_kind_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            for identity in &row.job_identities {
+                set.insert(identity.job_kind);
+            }
+        }
+        set.into_iter().map(GovernedJobKind::as_str).collect()
     }
 
     /// Returns the unique row-class tokens observed across rows.
@@ -1467,6 +1658,51 @@ impl QueueSessionTerminalGovernancePacket {
                         format!("row {} omits required queue identity fields", row.row_id),
                     ));
                 }
+                if row.job_identities.is_empty() {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::MissingJobIdentities,
+                        FindingSeverity::Blocker,
+                        format!("row {} omits concrete job identities", row.row_id),
+                    ));
+                }
+                for identity in &row.job_identities {
+                    if !identity.is_valid() {
+                        findings.push(ValidationFinding::new(
+                            FindingKind::InvalidJobIdentity,
+                            FindingSeverity::Blocker,
+                            format!(
+                                "row {} carries an invalid job identity for {}",
+                                row.row_id,
+                                identity.job_kind.as_str()
+                            ),
+                        ));
+                    }
+                    for budget_domain_ref in &identity.budget_domain_refs {
+                        if !is_known_budget_domain_ref(budget_domain_ref) {
+                            findings.push(ValidationFinding::new(
+                                FindingKind::UnknownBudgetDomainRef,
+                                FindingSeverity::Blocker,
+                                format!(
+                                    "row {} uses unknown budget domain {} for {}",
+                                    row.row_id,
+                                    budget_domain_ref,
+                                    identity.job_kind.as_str()
+                                ),
+                            ));
+                        }
+                        if budget_domain_ref == HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF {
+                            findings.push(ValidationFinding::new(
+                                FindingKind::ProtectedBudgetConsumedByQueueJob,
+                                FindingSeverity::Blocker,
+                                format!(
+                                    "row {} tries to consume protected hot-path budget for {}",
+                                    row.row_id,
+                                    identity.job_kind.as_str()
+                                ),
+                            ));
+                        }
+                    }
+                }
             } else if !matches!(row.queue_lane_class, QueueLaneClass::NotApplicable)
                 || !matches!(row.collapse_key_class, CollapseKeyClass::NotApplicable)
                 || !matches!(row.budget_domain_class, BudgetDomainClass::NotApplicable)
@@ -1477,6 +1713,7 @@ impl QueueSessionTerminalGovernancePacket {
                 || !matches!(row.retry_class, RetryClass::NotApplicable)
                 || !matches!(row.cancellation_class, CancellationClass::NotApplicable)
                 || row.queue_identity_ref.is_some()
+                || !row.job_identities.is_empty()
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::QueueFieldNotPermittedOnRowClass,
@@ -1648,6 +1885,21 @@ impl QueueSessionTerminalGovernancePacket {
                 ));
             }
         }
+        for job_kind in GovernedJobKind::REQUIRED {
+            if !self.rows.iter().any(|row| {
+                matches!(row.row_class, GovernanceRowClass::QueueIdentityAdmission)
+                    && row
+                        .job_identities
+                        .iter()
+                        .any(|identity| identity.job_kind == job_kind)
+            }) {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredJobKindCoverage,
+                    FindingSeverity::Blocker,
+                    format!("job kind {} is not covered", job_kind.as_str()),
+                ));
+            }
+        }
         for fidelity in RestoreFidelityClass::REQUIRED {
             if !self.rows.iter().any(|row| {
                 matches!(
@@ -1807,6 +2059,18 @@ fn promotion_state_for_findings(findings: &[ValidationFinding]) -> PromotionStat
     }
 }
 
+fn is_known_budget_domain_ref(budget_domain_ref: &str) -> bool {
+    matches!(
+        budget_domain_ref,
+        FOREGROUND_TASK_BUDGET_DOMAIN_REF
+            | KNOWLEDGE_REFRESH_BUDGET_DOMAIN_REF
+            | MAINTENANCE_BUDGET_DOMAIN_REF
+            | PROVIDER_OVERLAY_BUDGET_DOMAIN_REF
+            | REPLICATION_BUDGET_DOMAIN_REF
+            | HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF
+    )
+}
+
 /// Support export wrapper that preserves the exact packet shown in product surfaces.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueSessionTerminalGovernanceSupportExport {
@@ -1874,6 +2138,7 @@ fn row_base(
         retry_class: RetryClass::NotApplicable,
         cancellation_class: CancellationClass::NotApplicable,
         queue_identity_ref: None,
+        job_identities: Vec::new(),
         restore_fidelity_class: RestoreFidelityClass::NotApplicable,
         no_hidden_rerun_class: NoHiddenRerunClass::NotApplicable,
         restore_anchor_ref: None,
@@ -1908,6 +2173,50 @@ fn quality_row(workload: GovernedWorkloadClass) -> QueueSessionTerminalGovernanc
     row
 }
 
+fn workspace_scope(scope_class: &str, scope_ref: &str) -> QueueJobScope {
+    QueueJobScope {
+        scope_class: scope_class.to_owned(),
+        scope_ref: scope_ref.to_owned(),
+    }
+}
+
+fn job_identity(
+    job_kind: GovernedJobKind,
+    job_identity_ref: &str,
+    workspace_id_ref: &str,
+    slice_id_ref: Option<&str>,
+    scope: QueueJobScope,
+    initiating_source: QueueInitiatingSource,
+    collapse_key: &str,
+    collapse_policy: QueueCollapsePolicy,
+    staleness_policy: QueueStalenessPolicy,
+    budget_domain_refs: &[&str],
+    workspace_revision_ref: &str,
+    manifest_hash_ref: Option<&str>,
+    execution_context_hash_ref: Option<&str>,
+    policy_epoch_ref: Option<&str>,
+) -> GovernedJobIdentity {
+    GovernedJobIdentity {
+        job_kind,
+        job_identity_ref: job_identity_ref.to_owned(),
+        workspace_id_ref: workspace_id_ref.to_owned(),
+        slice_id_ref: slice_id_ref.map(str::to_owned),
+        scope,
+        initiating_source,
+        collapse_key: collapse_key.to_owned(),
+        collapse_policy,
+        staleness_policy,
+        budget_domain_refs: budget_domain_refs
+            .iter()
+            .map(|budget| (*budget).to_owned())
+            .collect(),
+        workspace_revision_ref: workspace_revision_ref.to_owned(),
+        manifest_hash_ref: manifest_hash_ref.map(str::to_owned),
+        execution_context_hash_ref: execution_context_hash_ref.map(str::to_owned),
+        policy_epoch_ref: policy_epoch_ref.map(str::to_owned),
+    }
+}
+
 fn queue_row(
     workload: GovernedWorkloadClass,
     queue_lane_class: QueueLaneClass,
@@ -1916,6 +2225,7 @@ fn queue_row(
     checkpoint_policy_class: CheckpointPolicyClass,
     retry_class: RetryClass,
     cancellation_class: CancellationClass,
+    job_identities: Vec<GovernedJobIdentity>,
 ) -> QueueSessionTerminalGovernanceRow {
     let mut row = row_base(
         &format!("row:{}:queue", workload.as_str()),
@@ -1929,6 +2239,7 @@ fn queue_row(
     row.retry_class = retry_class;
     row.cancellation_class = cancellation_class;
     row.queue_identity_ref = Some(format!("queue:{}", workload.as_str()));
+    row.job_identities = job_identities;
     row.evidence_class = EvidenceClass::AutomatedFunctionalEvidence;
     row
 }
@@ -1984,6 +2295,7 @@ fn downgrade_row(
 
 fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
     let covered_workloads = GovernedWorkloadClass::REQUIRED.to_vec();
+    let workspace_id_ref = "workspace:runtime-governance";
     let rows = vec![
         quality_row(GovernedWorkloadClass::NotebookSession),
         queue_row(
@@ -1994,6 +2306,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ItemBoundary,
             RetryClass::LocalRetryBudget,
             CancellationClass::CheckpointThenCancel,
+            vec![job_identity(
+                GovernedJobKind::NotebookCellExecution,
+                "job:notebook.cell_execution:active_run",
+                workspace_id_ref,
+                Some("slice:notebook:training"),
+                workspace_scope("current_root", "scope:notebook:training_root"),
+                QueueInitiatingSource::UserAction,
+                "collapse:notebook.cell_execution:workspace:runtime-governance:slice:notebook:training",
+                QueueCollapsePolicy::RestartAfterSupersede,
+                QueueStalenessPolicy::RefreshOnResume,
+                &[KNOWLEDGE_REFRESH_BUDGET_DOMAIN_REF],
+                "rev:notebook:42",
+                Some("manifest:notebook:training:v4"),
+                Some("ctx:notebook:kernel:python311"),
+                Some("policy:interactive:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::NotebookSession,
@@ -2018,6 +2346,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::NoneDeclared,
             RetryClass::ManualRequeueOnly,
             CancellationClass::ImmediateAbortSafe,
+            vec![job_identity(
+                GovernedJobKind::DataRequestCollectionRun,
+                "job:data.request_collection_run:active_request",
+                workspace_id_ref,
+                Some("slice:data:orders"),
+                workspace_scope("named_workset", "scope:data:orders_collection"),
+                QueueInitiatingSource::UserAction,
+                "collapse:data.request_collection_run:workspace:runtime-governance:slice:data:orders",
+                QueueCollapsePolicy::ReplaceSuperseded,
+                QueueStalenessPolicy::RefreshOnResume,
+                &[FOREGROUND_TASK_BUDGET_DOMAIN_REF],
+                "rev:data:17",
+                Some("manifest:data:orders:v2"),
+                Some("ctx:data:http_client:v5"),
+                Some("policy:data:api:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::DataQueryConsole,
@@ -2042,6 +2386,40 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ExplicitPhaseBoundary,
             RetryClass::ProviderRetryBudget,
             CancellationClass::CancelAfterPhase,
+            vec![
+                job_identity(
+                    GovernedJobKind::PipelineLogPull,
+                    "job:pipeline.log_pull:tail",
+                    workspace_id_ref,
+                    Some("slice:pipeline:deploy"),
+                    workspace_scope("review_workspace", "scope:pipeline:deploy_run"),
+                    QueueInitiatingSource::UserAction,
+                    "collapse:pipeline.log_pull:workspace:runtime-governance:slice:pipeline:deploy",
+                    QueueCollapsePolicy::ReplaceSuperseded,
+                    QueueStalenessPolicy::RefreshOnResume,
+                    &[PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                    "rev:pipeline:31",
+                    Some("manifest:pipeline:deploy:v6"),
+                    Some("ctx:pipeline:runner:remote"),
+                    Some("policy:pipeline:overlay:2026-06-12"),
+                ),
+                job_identity(
+                    GovernedJobKind::PipelineArtifactPull,
+                    "job:pipeline.artifact_pull:latest_bundle",
+                    workspace_id_ref,
+                    Some("slice:pipeline:deploy"),
+                    workspace_scope("review_workspace", "scope:pipeline:deploy_artifacts"),
+                    QueueInitiatingSource::UserAction,
+                    "collapse:pipeline.artifact_pull:workspace:runtime-governance:slice:pipeline:deploy",
+                    QueueCollapsePolicy::CoalesceStaleDuplicates,
+                    QueueStalenessPolicy::ReQueueIfStillRelevant,
+                    &[PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                    "rev:pipeline:31",
+                    Some("manifest:pipeline:deploy:v6"),
+                    Some("ctx:pipeline:runner:remote"),
+                    Some("policy:pipeline:overlay:2026-06-12"),
+                ),
+            ],
         ),
         restore_row(
             GovernedWorkloadClass::PipelineRun,
@@ -2066,6 +2444,40 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::TimeBoundary,
             RetryClass::LocalRetryBudget,
             CancellationClass::CleanupThenCancel,
+            vec![
+                job_identity(
+                    GovernedJobKind::PreviewDevServer,
+                    "job:preview.dev_server:workspace",
+                    workspace_id_ref,
+                    Some("slice:preview:webapp"),
+                    workspace_scope("named_workset", "scope:preview:webapp"),
+                    QueueInitiatingSource::WorkspaceOpen,
+                    "collapse:preview.dev_server:workspace:runtime-governance:slice:preview:webapp",
+                    QueueCollapsePolicy::RestartAfterSupersede,
+                    QueueStalenessPolicy::RefreshOnResume,
+                    &[MAINTENANCE_BUDGET_DOMAIN_REF],
+                    "rev:preview:24",
+                    Some("manifest:preview:webapp:v3"),
+                    Some("ctx:preview:node20"),
+                    Some("policy:preview:local:2026-06-12"),
+                ),
+                job_identity(
+                    GovernedJobKind::PreviewRouteRefresh,
+                    "job:preview.route_refresh:workspace",
+                    workspace_id_ref,
+                    Some("slice:preview:webapp"),
+                    workspace_scope("named_workset", "scope:preview:webapp_route"),
+                    QueueInitiatingSource::FileChangeNotification,
+                    "collapse:preview.route_refresh:workspace:runtime-governance:slice:preview:webapp",
+                    QueueCollapsePolicy::CoalesceStaleDuplicates,
+                    QueueStalenessPolicy::DropIfStale,
+                    &[KNOWLEDGE_REFRESH_BUDGET_DOMAIN_REF],
+                    "rev:preview:24",
+                    Some("manifest:preview:webapp:v3"),
+                    Some("ctx:preview:node20"),
+                    Some("policy:preview:local:2026-06-12"),
+                ),
+            ],
         ),
         restore_row(
             GovernedWorkloadClass::PreviewRoute,
@@ -2090,6 +2502,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ExplicitPhaseBoundary,
             RetryClass::NoneDeclared,
             CancellationClass::RollbackThenCancel,
+            vec![job_identity(
+                GovernedJobKind::ProfilerCapture,
+                "job:profiler.capture:active_trace",
+                workspace_id_ref,
+                Some("slice:profiler:startup"),
+                workspace_scope("current_root", "scope:profiler:startup_hot_path"),
+                QueueInitiatingSource::UserAction,
+                "collapse:profiler.capture:workspace:runtime-governance:slice:profiler:startup",
+                QueueCollapsePolicy::SerializeExactDuplicates,
+                QueueStalenessPolicy::DropIfStale,
+                &[MAINTENANCE_BUDGET_DOMAIN_REF],
+                "rev:profiler:09",
+                Some("manifest:profiler:startup:v1"),
+                Some("ctx:profiler:local_sampler"),
+                Some("policy:profiler:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::ProfilerCapture,
@@ -2109,6 +2537,40 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::TimeBoundary,
             RetryClass::LocalRetryBudget,
             CancellationClass::CheckpointThenCancel,
+            vec![
+                job_identity(
+                    GovernedJobKind::DocsPackRefresh,
+                    "job:docs.pack_refresh:workspace",
+                    workspace_id_ref,
+                    Some("slice:docs:rust"),
+                    workspace_scope("named_workset", "scope:docs:rust_pack"),
+                    QueueInitiatingSource::WorkspaceOpen,
+                    "collapse:docs.pack_refresh:workspace:runtime-governance:slice:docs:rust",
+                    QueueCollapsePolicy::ReplaceSuperseded,
+                    QueueStalenessPolicy::RefreshOnResume,
+                    &[MAINTENANCE_BUDGET_DOMAIN_REF, PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                    "rev:docs:55",
+                    Some("manifest:docs:rust:v8"),
+                    Some("ctx:docs:browser"),
+                    Some("policy:docs:catalog:2026-06-12"),
+                ),
+                job_identity(
+                    GovernedJobKind::DocsRetrievalIndexRefresh,
+                    "job:docs.retrieval_index_refresh:workspace",
+                    workspace_id_ref,
+                    Some("slice:docs:rust"),
+                    workspace_scope("named_workset", "scope:docs:rust_retrieval"),
+                    QueueInitiatingSource::SchedulerTimer,
+                    "collapse:docs.retrieval_index_refresh:workspace:runtime-governance:slice:docs:rust",
+                    QueueCollapsePolicy::CoalesceStaleDuplicates,
+                    QueueStalenessPolicy::DropIfStale,
+                    &[KNOWLEDGE_REFRESH_BUDGET_DOMAIN_REF],
+                    "rev:docs:55",
+                    Some("manifest:docs:rust:v8"),
+                    Some("ctx:docs:browser"),
+                    Some("policy:docs:catalog:2026-06-12"),
+                ),
+            ],
         ),
         restore_row(
             GovernedWorkloadClass::DocsRecall,
@@ -2128,6 +2590,40 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ResumableChunkBoundary,
             RetryClass::ProviderRetryBudget,
             CancellationClass::CheckpointThenCancel,
+            vec![
+                job_identity(
+                    GovernedJobKind::SyncProfileReplication,
+                    "job:sync.profile_replication:workspace",
+                    workspace_id_ref,
+                    None,
+                    workspace_scope("full_workspace", "scope:sync:profile_replication"),
+                    QueueInitiatingSource::SyncTrigger,
+                    "collapse:sync.profile_replication:workspace:runtime-governance",
+                    QueueCollapsePolicy::SerializeExactDuplicates,
+                    QueueStalenessPolicy::ReQueueIfStillRelevant,
+                    &[REPLICATION_BUDGET_DOMAIN_REF],
+                    "rev:sync:12",
+                    Some("manifest:profile:runtime:v5"),
+                    Some("ctx:sync:profile"),
+                    Some("policy:sync:2026-06-12"),
+                ),
+                job_identity(
+                    GovernedJobKind::SyncOffboardingExport,
+                    "job:sync.offboarding_export:workspace",
+                    workspace_id_ref,
+                    None,
+                    workspace_scope("full_workspace", "scope:sync:offboarding_export"),
+                    QueueInitiatingSource::SupportExportRequest,
+                    "collapse:sync.offboarding_export:workspace:runtime-governance",
+                    QueueCollapsePolicy::SerializeExactDuplicates,
+                    QueueStalenessPolicy::ReQueueIfStillRelevant,
+                    &[REPLICATION_BUDGET_DOMAIN_REF],
+                    "rev:sync:12",
+                    Some("manifest:profile:runtime:v5"),
+                    Some("ctx:sync:offboarding"),
+                    Some("policy:sync:2026-06-12"),
+                ),
+            ],
         ),
         restore_row(
             GovernedWorkloadClass::SyncOffboardingFlow,
@@ -2147,6 +2643,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ResumableChunkBoundary,
             RetryClass::ReconnectAfterReauth,
             CancellationClass::CleanupThenCancel,
+            vec![job_identity(
+                GovernedJobKind::CompanionHandoffPackage,
+                "job:companion.handoff_package:workspace",
+                workspace_id_ref,
+                Some("slice:companion:handoff"),
+                workspace_scope("companion_surface", "scope:companion:handoff"),
+                QueueInitiatingSource::UserAction,
+                "collapse:companion.handoff_package:workspace:runtime-governance:slice:companion:handoff",
+                QueueCollapsePolicy::ReplaceSuperseded,
+                QueueStalenessPolicy::RefreshOnResume,
+                &[REPLICATION_BUDGET_DOMAIN_REF, PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                "rev:companion:07",
+                Some("manifest:companion:handoff:v2"),
+                Some("ctx:companion:remote"),
+                Some("policy:companion:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::CompanionHandoff,
@@ -2171,6 +2683,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ExplicitPhaseBoundary,
             RetryClass::ProviderRetryBudget,
             CancellationClass::CancelAfterPhase,
+            vec![job_identity(
+                GovernedJobKind::IncidentRecoveryWorkspaceRefresh,
+                "job:incident.recovery_workspace_refresh:workspace",
+                workspace_id_ref,
+                Some("slice:incident:sev1"),
+                workspace_scope("review_workspace", "scope:incident:sev1"),
+                QueueInitiatingSource::RecoveryResume,
+                "collapse:incident.recovery_workspace_refresh:workspace:runtime-governance:slice:incident:sev1",
+                QueueCollapsePolicy::CoalesceStaleDuplicates,
+                QueueStalenessPolicy::RefreshOnResume,
+                &[PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                "rev:incident:88",
+                Some("manifest:incident:sev1:v3"),
+                Some("ctx:incident:shared_control"),
+                Some("policy:incident:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::IncidentWorkspace,
@@ -2195,6 +2723,22 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             CheckpointPolicyClass::ItemBoundary,
             RetryClass::ReconnectAfterReauth,
             CancellationClass::ImmediateAbortSafe,
+            vec![job_identity(
+                GovernedJobKind::InfrastructureOverlayProbe,
+                "job:infrastructure.overlay_probe:workspace",
+                workspace_id_ref,
+                Some("slice:infra:cluster-a"),
+                workspace_scope("policy_limited_view", "scope:infra:cluster-a"),
+                QueueInitiatingSource::RemoteReconnect,
+                "collapse:infrastructure.overlay_probe:workspace:runtime-governance:slice:infra:cluster-a",
+                QueueCollapsePolicy::ReplaceSuperseded,
+                QueueStalenessPolicy::RefreshOnResume,
+                &[FOREGROUND_TASK_BUDGET_DOMAIN_REF, PROVIDER_OVERLAY_BUDGET_DOMAIN_REF],
+                "rev:infra:63",
+                Some("manifest:infra:cluster-a:v5"),
+                Some("ctx:infra:ssh"),
+                Some("policy:infra:2026-06-12"),
+            )],
         ),
         restore_row(
             GovernedWorkloadClass::InfrastructureSession,
@@ -2226,6 +2770,8 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
             QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF.to_owned(),
             QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF.to_owned(),
             QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF.to_owned(),
+            BACKGROUND_QUEUE_CONTRACT_DOC_REF.to_owned(),
+            CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF.to_owned(),
         ],
     }
 }

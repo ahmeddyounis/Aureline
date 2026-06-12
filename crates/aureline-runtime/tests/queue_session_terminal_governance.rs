@@ -6,10 +6,12 @@ use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
     current_queue_session_terminal_governance_packet, GovernanceFindingKind,
-    GovernancePromotionState, GovernanceSupportClass, GovernedWorkloadClass,
+    GovernancePromotionState, GovernanceSupportClass, GovernedJobKind, GovernedWorkloadClass,
     QueueSessionTerminalGovernancePacket, QueueSessionTerminalGovernanceRowClass,
-    QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF,
-    QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR, QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF,
+    BACKGROUND_QUEUE_CONTRACT_DOC_REF, CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF,
+    HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF, QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR,
+    QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -35,6 +37,8 @@ struct ExpectedFixture {
     workload_tokens: Vec<String>,
     #[serde(default)]
     queue_lane_tokens: Vec<String>,
+    #[serde(default)]
+    job_kind_tokens: Vec<String>,
     #[serde(default)]
     row_class_tokens: Vec<String>,
     #[serde(default)]
@@ -140,6 +144,20 @@ fn apply_mutation(packet: &mut QueueSessionTerminalGovernancePacket, mutation: &
                 .expect("infrastructure terminal row");
             row.raw_private_material_excluded = false;
         }
+        "consume_hot_path_budget" => {
+            let row = packet
+                .rows
+                .iter_mut()
+                .find(|row| {
+                    row.workload_class == GovernedWorkloadClass::PreviewRoute
+                        && row.row_class
+                            == QueueSessionTerminalGovernanceRowClass::QueueIdentityAdmission
+                })
+                .expect("preview queue row");
+            row.job_identities[0]
+                .budget_domain_refs
+                .push(HOT_PATH_INTERACTIVE_BUDGET_DOMAIN_REF.to_owned());
+        }
         other => panic!("unknown mutation: {other}"),
     }
 
@@ -208,6 +226,11 @@ fn assert_fixture_matches(file_name: &str) {
         "queue_lane",
     );
     assert_token_set_matches(
+        &packet.job_kind_tokens(),
+        &fixture.expect.job_kind_tokens,
+        "job_kind",
+    );
+    assert_token_set_matches(
         &packet.row_class_tokens(),
         &fixture.expect.row_class_tokens,
         "row_class",
@@ -261,6 +284,8 @@ fn schema_doc_fixture_and_artifact_exist_on_disk() {
     assert_exists(QUEUE_SESSION_TERMINAL_GOVERNANCE_DOC_REF);
     assert_exists(QUEUE_SESSION_TERMINAL_GOVERNANCE_ARTIFACT_DOC_REF);
     assert_exists(QUEUE_SESSION_TERMINAL_GOVERNANCE_FIXTURE_DIR);
+    assert_exists(BACKGROUND_QUEUE_CONTRACT_DOC_REF);
+    assert_exists(CONTEXT_CACHE_TERMINAL_RESTORE_CONTRACT_DOC_REF);
 }
 
 #[test]
@@ -294,6 +319,11 @@ fn raw_source_material_blocks_stable() {
 }
 
 #[test]
+fn protected_hot_path_budget_cannot_be_consumed() {
+    assert_fixture_matches("consume_hot_path_budget.json");
+}
+
+#[test]
 fn checked_in_packet_validates_and_covers_every_required_class() {
     let packet = current_queue_session_terminal_governance_packet();
     let findings = packet.validate();
@@ -303,6 +333,14 @@ fn checked_in_packet_validates_and_covers_every_required_class() {
     );
     assert_eq!(packet.covered_workloads.len(), 10);
     assert_eq!(packet.rows.len(), 47);
+    let observed_job_kinds: BTreeSet<&str> = packet.job_kind_tokens().into_iter().collect();
+    for job_kind in GovernedJobKind::REQUIRED {
+        assert!(
+            observed_job_kinds.contains(job_kind.as_str()),
+            "job kind {} must be covered",
+            job_kind.as_str()
+        );
+    }
     for workload in GovernedWorkloadClass::REQUIRED {
         assert!(
             packet.rows.iter().any(|row| row.workload_class == workload),
