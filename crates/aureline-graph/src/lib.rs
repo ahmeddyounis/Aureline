@@ -15,6 +15,7 @@ pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 pub mod m5_graph_governance;
+pub mod m5_topology_identity;
 pub mod m5_workset_scope;
 pub mod navigation_target_truth_packet;
 pub mod public_proof_publication_truth_packet;
@@ -107,6 +108,17 @@ pub use m5_graph_governance::{
     M5_GRAPH_GOVERNANCE_FIXTURE_DIR, M5_GRAPH_GOVERNANCE_JSON, M5_GRAPH_GOVERNANCE_PATH,
     M5_GRAPH_GOVERNANCE_RECORD_KIND, M5_GRAPH_GOVERNANCE_SCHEMA_REF,
     M5_GRAPH_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use m5_topology_identity::{
+    current_m5_topology_identity_packet, ContractBadge, M5TopologyIdentityExportProjection,
+    M5TopologyIdentityExportRow, M5TopologyIdentityPacket, M5TopologyIdentitySummary,
+    M5TopologyIdentityViolation, RelationFidelity as TopologyRelationFidelity,
+    TopologyEdgeIdentity, TopologyEdgeKind, TopologyNodeIdentity, TopologyNodeKind,
+    TopologyScopeAnchor, TopologySourceClass, TopologySurface, TopologySurfaceBinding,
+    M5_TOPOLOGY_IDENTITY_DOC_REF, M5_TOPOLOGY_IDENTITY_FIXTURE_DIR,
+    M5_TOPOLOGY_IDENTITY_GOVERNANCE_MATRIX_REF, M5_TOPOLOGY_IDENTITY_JSON,
+    M5_TOPOLOGY_IDENTITY_PATH, M5_TOPOLOGY_IDENTITY_RECORD_KIND, M5_TOPOLOGY_IDENTITY_SCHEMA_REF,
+    M5_TOPOLOGY_IDENTITY_SCHEMA_VERSION, M5_TOPOLOGY_IDENTITY_SCOPE_PACKET_REF,
 };
 pub use m5_workset_scope::{
     current_m5_workset_scope_packet, M5WorksetScopeExportProjection, M5WorksetScopeExportRow,
