@@ -424,6 +424,130 @@ pub struct ActionEnvelope {
     pub rollback_checkpoint_ref: Option<String>,
 }
 
+/// Stable reason Aureline is leaving its governed control-plane boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlPlaneHandoffReason {
+    /// Provider overlay offers additional detail for the current target.
+    ProviderOverlayInspection,
+    /// The requested mutation is intentionally handoff-only.
+    MutationRequiresVendorConsole,
+    /// Provider scope, freshness, or permission narrowing requires a handoff.
+    PermissionScopeGap,
+    /// Incident workflow requires a provider-owned operational step.
+    IncidentRunbookContinuation,
+    /// Preview or route follow-up continues in a provider-owned page.
+    PreviewOrRouteContinuation,
+    /// Source, route, or ownership breadcrumbs continue in provider-owned detail.
+    SourceOrOwnershipTrace,
+}
+
+/// Destination class reached by a control-plane handoff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlPlaneHandoffDestinationClass {
+    /// Provider-owned admin or operator console.
+    VendorConsole,
+    /// Provider-owned detail or status page.
+    ProviderOwnedPage,
+    /// Managed control-plane dashboard or tenant admin surface.
+    ManagedControlPlane,
+    /// Provider-owned docs, runbook, or remediation page.
+    ProviderRunbookPage,
+}
+
+/// Redaction-safe target identity preserved during a control-plane handoff.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneTargetIdentity {
+    /// Human-facing label for the target on arrival.
+    pub target_label: String,
+    /// Provider family backing the target.
+    pub provider: String,
+    /// Account, subscription, or project the target belongs to.
+    pub account_subscription_project: String,
+    /// Cluster reference when applicable.
+    pub cluster: Option<String>,
+    /// Namespace, service, route, or other scope when applicable.
+    pub namespace_or_scope: Option<String>,
+    /// Region or zone when applicable.
+    pub region_zone: Option<String>,
+    /// Tenant or organization when applicable.
+    pub tenant: Option<String>,
+    /// Stable Aureline-side target ref preserved across return.
+    pub stable_target_ref: String,
+    /// Provider-side handle or route ref when one exists.
+    pub provider_handle_ref: Option<String>,
+}
+
+/// Disclosure describing the authority boundary at a handoff.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneAuthorityBoundary {
+    /// Human-facing label for the boundary disclosure.
+    pub boundary_label: String,
+    /// Effective Aureline authority posture before the handoff.
+    pub aureline_posture: ActionPosture,
+    /// Human-facing label for the authority the destination may hold.
+    pub destination_authority_label: String,
+    /// True when the control-plane boundary is rendered explicitly.
+    pub control_plane_boundary_disclosed: bool,
+    /// True when the destination is clearly identified as vendor-owned authority.
+    pub vendor_owned_authority: bool,
+    /// True when provider overlay state is prevented from masquerading as canonical truth.
+    pub overlay_cannot_become_canonical_truth: bool,
+}
+
+/// Return surface that rehydrates target context after a handoff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlPlaneReturnSurface {
+    /// Code or manifest-local breadcrumb surface.
+    CodeBreadcrumb,
+    /// Incident workspace or runbook step surface.
+    IncidentWorkspace,
+    /// Preview route or preview diagnostics surface.
+    PreviewRoute,
+    /// Route explorer or endpoint inventory surface.
+    RouteExplorer,
+    /// Infrastructure panel or resource browser surface.
+    InfrastructurePanel,
+}
+
+/// Structured return anchor that restores the originating surface safely.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneReturnAnchor {
+    /// Stable return-anchor id.
+    pub anchor_id: String,
+    /// Surface the user returns to.
+    pub surface: ControlPlaneReturnSurface,
+    /// Shared context ref rehydrated on return.
+    pub context_ref: String,
+    /// Primary object ref reopened on return.
+    pub primary_object_ref: String,
+    /// Route, view, or panel ref reopened on return.
+    pub route_or_view_ref: String,
+    /// Human-facing restore action label.
+    pub restore_action_label: String,
+    /// True when the return flow forbids dropping back to a generic shell.
+    pub generic_shell_reopen_forbidden: bool,
+}
+
+/// Breadcrumb preserved so the user can return through the same target-safe path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneBreadcrumb {
+    /// Stable breadcrumb id.
+    pub breadcrumb_id: String,
+    /// Ordered breadcrumb position.
+    pub position: u32,
+    /// Human-facing breadcrumb label.
+    pub label: String,
+    /// Surface represented by the breadcrumb.
+    pub surface: ControlPlaneReturnSurface,
+    /// Shared context ref carried by the breadcrumb.
+    pub context_ref: String,
+    /// Stable object or route ref represented by the breadcrumb.
+    pub object_ref: String,
+}
+
 /// Explicit provider-console or browser handoff packet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ControlPlaneHandoff {
@@ -431,16 +555,28 @@ pub struct ControlPlaneHandoff {
     pub handoff_id: String,
     /// Destination provider or console.
     pub destination: String,
+    /// Stable reason Aureline is leaving product scope.
+    pub handoff_reason: ControlPlaneHandoffReason,
+    /// Typed destination class used for governance and export.
+    pub destination_class: ControlPlaneHandoffDestinationClass,
     /// Target context carried into the handoff.
     pub target_context_ref: String,
     /// Connector class used by the handoff.
     pub connector_class: ConnectorClass,
+    /// Redaction-safe target identity preserved into the handoff.
+    pub target_identity: ControlPlaneTargetIdentity,
+    /// Boundary disclosure preserved with the handoff.
+    pub authority_boundary: ControlPlaneAuthorityBoundary,
     /// True when the destination is disclosed as outside Aureline authority.
     pub explicit_handoff_destination: bool,
     /// True when the handoff is not treated as substitute product truth.
     pub not_substitute_truth: bool,
     /// Return or revocation path.
     pub return_or_revocation_path: String,
+    /// Structured return anchor that preserves the original target context.
+    pub return_anchor: ControlPlaneReturnAnchor,
+    /// Breadcrumb path preserved for safe return.
+    pub breadcrumbs: Vec<ControlPlaneBreadcrumb>,
     /// Audit lineage ref.
     pub audit_ref: String,
 }
@@ -753,6 +889,155 @@ fn infra_health_state(
     }
 }
 
+pub(crate) fn validate_control_plane_handoff(
+    handoff: &ControlPlaneHandoff,
+    context: &EnvironmentContext,
+) -> Vec<InfraBoundaryFinding> {
+    let mut findings = Vec::new();
+
+    if handoff.target_context_ref != context.context_id {
+        findings.push(error(
+            "handoff_target",
+            "Control-plane handoff points at a different target context.",
+        ));
+    }
+    if !matches!(
+        handoff.connector_class,
+        ConnectorClass::ProviderConsoleOverlay
+    ) {
+        findings.push(error(
+            "handoff_connector",
+            "Control-plane handoff does not use provider/console overlay class.",
+        ));
+    }
+    if !handoff.explicit_handoff_destination || !handoff.not_substitute_truth {
+        findings.push(error(
+            "handoff_truth",
+            "Control-plane handoff is not explicit or is treated as substitute truth.",
+        ));
+    }
+    if handoff.destination.trim().is_empty() {
+        findings.push(error(
+            "handoff_destination",
+            "Control-plane handoff is missing a destination label.",
+        ));
+    }
+
+    let target_identity = &handoff.target_identity;
+    let target_matches_context = target_identity.provider == context.provider
+        && target_identity.account_subscription_project == context.account_subscription_project
+        && target_identity.cluster.as_deref() == context.cluster.as_deref()
+        && target_identity.namespace_or_scope.as_deref() == context.namespace.as_deref()
+        && target_identity.region_zone.as_deref() == context.region_zone.as_deref()
+        && target_identity.tenant.as_deref() == context.tenant.as_deref();
+    if !target_matches_context {
+        findings.push(error(
+            "handoff_target_identity",
+            "Control-plane handoff target identity does not match the environment context.",
+        ));
+    }
+    if target_identity.target_label.trim().is_empty()
+        || target_identity.stable_target_ref.trim().is_empty()
+    {
+        findings.push(error(
+            "handoff_target_identity",
+            "Control-plane handoff target identity is missing a label or stable target ref.",
+        ));
+    }
+
+    let boundary = &handoff.authority_boundary;
+    if boundary.boundary_label.trim().is_empty()
+        || boundary.destination_authority_label.trim().is_empty()
+    {
+        findings.push(error(
+            "handoff_boundary_label",
+            "Control-plane handoff authority boundary is missing a label.",
+        ));
+    }
+    if !boundary.control_plane_boundary_disclosed
+        || !boundary.vendor_owned_authority
+        || !boundary.overlay_cannot_become_canonical_truth
+    {
+        findings.push(error(
+            "handoff_boundary_disclosure",
+            "Control-plane handoff authority boundary is not fully disclosed.",
+        ));
+    }
+    if !matches!(
+        boundary.aureline_posture,
+        ActionPosture::InspectOnly | ActionPosture::DryRunOnly | ActionPosture::HandoffOnly
+    ) {
+        findings.push(error(
+            "handoff_boundary_posture",
+            "Control-plane handoff boundary implies wider in-product authority than allowed.",
+        ));
+    }
+
+    if handoff.return_or_revocation_path.trim().is_empty() || handoff.audit_ref.trim().is_empty() {
+        findings.push(error(
+            "handoff_paths",
+            "Control-plane handoff is missing a return/revocation path or audit ref.",
+        ));
+    }
+
+    let return_anchor = &handoff.return_anchor;
+    if return_anchor.context_ref != handoff.target_context_ref {
+        findings.push(error(
+            "handoff_return_anchor",
+            "Control-plane handoff return anchor points at a different target context.",
+        ));
+    }
+    if return_anchor.anchor_id.trim().is_empty()
+        || return_anchor.primary_object_ref.trim().is_empty()
+        || return_anchor.route_or_view_ref.trim().is_empty()
+        || return_anchor.restore_action_label.trim().is_empty()
+    {
+        findings.push(error(
+            "handoff_return_anchor",
+            "Control-plane handoff return anchor is missing identity or restore details.",
+        ));
+    }
+    if !return_anchor.generic_shell_reopen_forbidden {
+        findings.push(error(
+            "handoff_return_anchor",
+            "Control-plane handoff may fall back to a generic shell instead of a target-safe return.",
+        ));
+    }
+
+    if handoff.breadcrumbs.len() < 2 {
+        findings.push(error(
+            "handoff_breadcrumbs",
+            "Control-plane handoff must preserve at least two return-safe breadcrumbs.",
+        ));
+    } else {
+        let mut expected_position = 1_u32;
+        for breadcrumb in &handoff.breadcrumbs {
+            if breadcrumb.context_ref != handoff.target_context_ref {
+                findings.push(error(
+                    "handoff_breadcrumbs",
+                    "Control-plane breadcrumb points at a different target context.",
+                ));
+            }
+            if breadcrumb.position != expected_position {
+                findings.push(error(
+                    "handoff_breadcrumbs",
+                    "Control-plane breadcrumbs are not ordered as a stable return path.",
+                ));
+                break;
+            }
+            if breadcrumb.label.trim().is_empty() || breadcrumb.object_ref.trim().is_empty() {
+                findings.push(error(
+                    "handoff_breadcrumbs",
+                    "Control-plane breadcrumb is missing a label or object ref.",
+                ));
+            }
+            expected_position += 1;
+        }
+    }
+
+    findings
+}
+
 /// Validates one infrastructure boundary packet.
 pub fn validate_packet(packet: &InfraBoundaryPacket) -> InfraBoundaryValidationReport {
     let mut findings = Vec::new();
@@ -984,27 +1269,10 @@ pub fn validate_packet(packet: &InfraBoundaryPacket) -> InfraBoundaryValidationR
     }
 
     for handoff in &packet.control_plane_handoffs {
-        if handoff.target_context_ref != packet.environment_context.context_id {
-            findings.push(error(
-                "handoff_target",
-                "Control-plane handoff points at a different target context.",
-            ));
-        }
-        if !matches!(
-            handoff.connector_class,
-            ConnectorClass::ProviderConsoleOverlay
-        ) {
-            findings.push(error(
-                "handoff_connector",
-                "Control-plane handoff does not use provider/console overlay class.",
-            ));
-        }
-        if !handoff.explicit_handoff_destination || !handoff.not_substitute_truth {
-            findings.push(error(
-                "handoff_truth",
-                "Control-plane handoff is not explicit or is treated as substitute truth.",
-            ));
-        }
+        findings.extend(validate_control_plane_handoff(
+            handoff,
+            &packet.environment_context,
+        ));
     }
 
     let passed = findings

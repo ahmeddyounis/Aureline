@@ -14,6 +14,7 @@ A cluster, Terraform, or incident-adjacent surface needs a current packet provin
 - the Terraform plan review, Kubernetes resource view, cluster live resource, incident runbook step, and support runbook export all render the full five-mode vocabulary;
 - mutating or boundary-raising actions (`mutate` covering apply and destroy, `port_forward`, `shell_attach`, `exec`, `container_exec`, and `browser_console_launch`) pass through a **gate** that requires a reviewed preview or handoff, previews the exact target, and states the source-of-truth posture before execution;
 - approved high-risk mutations carry a reviewed preview ref, and console launches carry an explicit handoff ref;
+- console handoffs preserve the shared typed handoff reason, destination class, target identity snapshot, authority-boundary disclosure, structured return anchor, and return-safe breadcrumbs from the boundary packet;
 - provider consoles are explicit handoff destinations that never claim Aureline as the authoritative control plane and never substitute for local source, plan, or observed truth.
 
 Packets that fail any error-severity check are not promoted; their surfaces stay read-only, preview-pending, or handoff-only.

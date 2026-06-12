@@ -11,6 +11,7 @@
 
 pub mod cluster_context_and_live_resource;
 pub mod plan_and_validation_viewers;
+pub mod provider_overlay_and_vendor_console_handoff_continuity;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
@@ -30,6 +31,14 @@ pub use plan_and_validation_viewers::{
     ViewerConsumerSurface, ViewerFollowUpGate, PLAN_AND_VALIDATION_VIEWER_DOC_REF,
     PLAN_AND_VALIDATION_VIEWER_FIXTURE_DIR, PLAN_AND_VALIDATION_VIEWER_PACKET_RECORD_KIND,
     PLAN_AND_VALIDATION_VIEWER_SCHEMA_REF, PLAN_AND_VALIDATION_VIEWER_SCHEMA_VERSION,
+};
+pub use provider_overlay_and_vendor_console_handoff_continuity::{
+    seeded_provider_overlay_handoff_packet, validate_provider_overlay_handoff_packet,
+    OverlayContinuitySurface, OverlayContinuitySurfaceBinding, ProviderOverlayDisclosureRow,
+    ProviderOverlayHandoffContinuityPacket, ProviderOverlayHandoffContinuityValidationReport,
+    PROVIDER_OVERLAY_HANDOFF_ARTIFACT_REF, PROVIDER_OVERLAY_HANDOFF_DOC_REF,
+    PROVIDER_OVERLAY_HANDOFF_FIXTURE_DIR, PROVIDER_OVERLAY_HANDOFF_PACKET_RECORD_KIND,
+    PROVIDER_OVERLAY_HANDOFF_SCHEMA_REF, PROVIDER_OVERLAY_HANDOFF_SCHEMA_VERSION,
 };
 pub use source_intelligence_and_resource_relationships::{
     seeded_source_intelligence_object_packet, validate_object_packet,
@@ -52,11 +61,13 @@ pub use source_intelligence_and_resource_relationships::{
 };
 pub use target_context_and_control_plane_boundary::{
     validate_packet, ActionEnvelope, ActionKind, ActionPosture, BoundaryActionReview,
-    ConnectorClass, ConnectorClassPolicy, ControlPlaneHandoff, EnvironmentCompleteness,
-    EnvironmentContext, FreshnessLabel, InfraBoundaryFinding, InfraBoundaryFindingSeverity,
-    InfraBoundaryPacket, InfraBoundaryValidationReport, QualificationPosture, ResourceLinkRow,
-    StateClass, SurfaceBinding, SurfaceKind, TargetContextChip, TruthClass,
-    CONTROL_PLANE_BOUNDARY_DOC_REF, CONTROL_PLANE_BOUNDARY_FIXTURE_DIR,
-    CONTROL_PLANE_BOUNDARY_PACKET_RECORD_KIND, CONTROL_PLANE_BOUNDARY_SCHEMA_REF,
-    CONTROL_PLANE_BOUNDARY_SCHEMA_VERSION,
+    ConnectorClass, ConnectorClassPolicy, ControlPlaneAuthorityBoundary, ControlPlaneBreadcrumb,
+    ControlPlaneHandoff, ControlPlaneHandoffDestinationClass, ControlPlaneHandoffReason,
+    ControlPlaneReturnAnchor, ControlPlaneReturnSurface, ControlPlaneTargetIdentity,
+    EnvironmentCompleteness, EnvironmentContext, FreshnessLabel, InfraBoundaryFinding,
+    InfraBoundaryFindingSeverity, InfraBoundaryPacket, InfraBoundaryValidationReport,
+    QualificationPosture, ResourceLinkRow, StateClass, SurfaceBinding, SurfaceKind,
+    TargetContextChip, TruthClass, CONTROL_PLANE_BOUNDARY_DOC_REF,
+    CONTROL_PLANE_BOUNDARY_FIXTURE_DIR, CONTROL_PLANE_BOUNDARY_PACKET_RECORD_KIND,
+    CONTROL_PLANE_BOUNDARY_SCHEMA_REF, CONTROL_PLANE_BOUNDARY_SCHEMA_VERSION,
 };

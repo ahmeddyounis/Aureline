@@ -13,6 +13,7 @@ A stable infra/ops row needs a current packet proving all of the following:
 - desired, rendered, planned, observed, cached, permission-limited, unavailable, and provider-overlay truth stay separate in resource rows and exports;
 - terminal, logs, resource graph, incident workspace, AI action sheet, CLI JSON, browser handoff, and support export render the same target chip for the same context;
 - mutate, port-forward, shell attach, exec, container exec, and browser-console launch reviews show target identity, duration, credential scope, revocation path, preview envelope where applicable, and audit lineage;
+- every provider-console handoff carries a typed handoff reason, destination class, target identity snapshot, authority-boundary disclosure, structured return anchor, and return-safe breadcrumbs;
 - production or high-risk contexts default to read-only or approval-pending posture until step-up and preview evidence are present;
 - provider consoles are explicit handoff destinations and never substitute for local source, plan, or observed truth.
 
@@ -20,7 +21,7 @@ Rows without current evidence are downgraded to `file_only`, `inspect_only`, or 
 
 ## Fixture Meaning
 
-- `qualified_context_parity_packet.json` proves stable parity for a production-tagged Kubernetes namespace while keeping console actions handoff-only.
+- `qualified_context_parity_packet.json` proves stable parity for a production-tagged Kubernetes namespace while keeping console actions handoff-only and preserving typed handoff reason, authority boundary, return anchor, and breadcrumbs.
 - `stale_live_overlay_downgraded_packet.json` keeps desired/rendered/cached rows visible while disabling live writes after stale overlay detection.
 - `wrong_target_action_blocked_packet.json` intentionally fails validation because a terminal target chip points at a different project and cluster than the packet context.
 

@@ -102,6 +102,48 @@
       "type": "string",
       "enum": ["desired", "rendered", "plan", "live", "provider_overlay"]
     },
+    "action_posture": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "dry_run_only",
+        "step_up_required",
+        "write_approved",
+        "blocked",
+        "not_claimed",
+        "handoff_only"
+      ]
+    },
+    "handoff_reason": {
+      "type": "string",
+      "enum": [
+        "provider_overlay_inspection",
+        "mutation_requires_vendor_console",
+        "permission_scope_gap",
+        "incident_runbook_continuation",
+        "preview_or_route_continuation",
+        "source_or_ownership_trace"
+      ]
+    },
+    "handoff_destination_class": {
+      "type": "string",
+      "enum": [
+        "vendor_console",
+        "provider_owned_page",
+        "managed_control_plane",
+        "provider_runbook_page"
+      ]
+    },
+    "return_surface": {
+      "type": "string",
+      "enum": [
+        "code_breadcrumb",
+        "incident_workspace",
+        "preview_route",
+        "route_explorer",
+        "infrastructure_panel"
+      ]
+    },
     "environment_context": {
       "type": "object",
       "additionalProperties": false,
@@ -265,27 +307,131 @@
         "handoff": { "$ref": "#/$defs/control_plane_handoff" }
       }
     },
+    "handoff_target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_label",
+        "provider",
+        "account_subscription_project",
+        "cluster",
+        "namespace_or_scope",
+        "region_zone",
+        "tenant",
+        "stable_target_ref",
+        "provider_handle_ref"
+      ],
+      "properties": {
+        "target_label": { "$ref": "#/$defs/non_empty" },
+        "provider": { "$ref": "#/$defs/non_empty" },
+        "account_subscription_project": { "$ref": "#/$defs/non_empty" },
+        "cluster": { "$ref": "#/$defs/nullable_non_empty" },
+        "namespace_or_scope": { "$ref": "#/$defs/nullable_non_empty" },
+        "region_zone": { "$ref": "#/$defs/nullable_non_empty" },
+        "tenant": { "$ref": "#/$defs/nullable_non_empty" },
+        "stable_target_ref": { "$ref": "#/$defs/non_empty" },
+        "provider_handle_ref": { "$ref": "#/$defs/nullable_non_empty" }
+      }
+    },
+    "handoff_authority_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_label",
+        "aureline_posture",
+        "destination_authority_label",
+        "control_plane_boundary_disclosed",
+        "vendor_owned_authority",
+        "overlay_cannot_become_canonical_truth"
+      ],
+      "properties": {
+        "boundary_label": { "$ref": "#/$defs/non_empty" },
+        "aureline_posture": { "$ref": "#/$defs/action_posture" },
+        "destination_authority_label": { "$ref": "#/$defs/non_empty" },
+        "control_plane_boundary_disclosed": { "type": "boolean" },
+        "vendor_owned_authority": { "type": "boolean" },
+        "overlay_cannot_become_canonical_truth": { "type": "boolean" }
+      }
+    },
+    "handoff_return_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "surface",
+        "context_ref",
+        "primary_object_ref",
+        "route_or_view_ref",
+        "restore_action_label",
+        "generic_shell_reopen_forbidden"
+      ],
+      "properties": {
+        "anchor_id": { "$ref": "#/$defs/non_empty" },
+        "surface": { "$ref": "#/$defs/return_surface" },
+        "context_ref": { "$ref": "#/$defs/non_empty" },
+        "primary_object_ref": { "$ref": "#/$defs/non_empty" },
+        "route_or_view_ref": { "$ref": "#/$defs/non_empty" },
+        "restore_action_label": { "$ref": "#/$defs/non_empty" },
+        "generic_shell_reopen_forbidden": { "type": "boolean" }
+      }
+    },
+    "handoff_breadcrumb": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "breadcrumb_id",
+        "position",
+        "label",
+        "surface",
+        "context_ref",
+        "object_ref"
+      ],
+      "properties": {
+        "breadcrumb_id": { "$ref": "#/$defs/non_empty" },
+        "position": { "type": "integer", "minimum": 1 },
+        "label": { "$ref": "#/$defs/non_empty" },
+        "surface": { "$ref": "#/$defs/return_surface" },
+        "context_ref": { "$ref": "#/$defs/non_empty" },
+        "object_ref": { "$ref": "#/$defs/non_empty" }
+      }
+    },
     "control_plane_handoff": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "handoff_id",
         "destination",
+        "handoff_reason",
+        "destination_class",
         "target_context_ref",
         "connector_class",
+        "target_identity",
+        "authority_boundary",
         "explicit_handoff_destination",
         "not_substitute_truth",
         "return_or_revocation_path",
+        "return_anchor",
+        "breadcrumbs",
         "audit_ref"
       ],
       "properties": {
         "handoff_id": { "$ref": "#/$defs/non_empty" },
         "destination": { "$ref": "#/$defs/non_empty" },
+        "handoff_reason": { "$ref": "#/$defs/handoff_reason" },
+        "destination_class": { "$ref": "#/$defs/handoff_destination_class" },
         "target_context_ref": { "$ref": "#/$defs/non_empty" },
         "connector_class": { "$ref": "#/$defs/connector_class" },
+        "target_identity": { "$ref": "#/$defs/handoff_target_identity" },
+        "authority_boundary": { "$ref": "#/$defs/handoff_authority_boundary" },
         "explicit_handoff_destination": { "type": "boolean", "const": true },
         "not_substitute_truth": { "type": "boolean", "const": true },
         "return_or_revocation_path": { "$ref": "#/$defs/non_empty" },
+        "return_anchor": { "$ref": "#/$defs/handoff_return_anchor" },
+        "breadcrumbs": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/handoff_breadcrumb" }
+        },
         "audit_ref": { "$ref": "#/$defs/non_empty" }
       }
     }

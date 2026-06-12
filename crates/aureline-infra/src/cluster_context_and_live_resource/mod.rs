@@ -18,8 +18,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::target_context_and_control_plane_boundary::{
-    ActionKind, ConnectorClass, ControlPlaneHandoff, EnvironmentCompleteness, EnvironmentContext,
-    FreshnessLabel, InfraBoundaryFinding, InfraBoundaryFindingSeverity,
+    validate_control_plane_handoff, ActionKind, ControlPlaneHandoff, EnvironmentCompleteness,
+    EnvironmentContext, FreshnessLabel, InfraBoundaryFinding, InfraBoundaryFindingSeverity,
 };
 
 /// Schema version for cluster-context and live-resource packets.
@@ -440,27 +440,10 @@ pub fn validate_packet(packet: &ClusterLiveResourcePacket) -> ClusterLiveResourc
     for handoff in &packet.console_handoffs {
         surfaces.insert(handoff.surface);
         tool_kinds.insert(handoff.tool_kind);
-        if handoff.handoff.target_context_ref != context_id {
-            findings.push(error(
-                "handoff_target",
-                "Console handoff points at a different target context.",
-            ));
-        }
-        if !matches!(
-            handoff.handoff.connector_class,
-            ConnectorClass::ProviderConsoleOverlay
-        ) {
-            findings.push(error(
-                "handoff_connector",
-                "Console handoff does not use provider/console overlay class.",
-            ));
-        }
-        if !handoff.handoff.explicit_handoff_destination || !handoff.handoff.not_substitute_truth {
-            findings.push(error(
-                "handoff_truth",
-                "Console handoff is not explicit or is treated as substitute truth.",
-            ));
-        }
+        findings.extend(validate_control_plane_handoff(
+            &handoff.handoff,
+            &packet.environment_context,
+        ));
         if handoff.aureline_is_authoritative {
             findings.push(error(
                 "handoff_authority",
