@@ -16,6 +16,7 @@ pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 pub mod m5_graph_governance;
 pub mod m5_impact_query;
+pub mod m5_ownership_and_contracts;
 pub mod m5_topology_identity;
 pub mod m5_workset_scope;
 pub mod navigation_target_truth_packet;
@@ -119,6 +120,17 @@ pub use m5_impact_query::{
     M5_IMPACT_QUERY_PATH, M5_IMPACT_QUERY_RECORD_KIND, M5_IMPACT_QUERY_SCHEMA_REF,
     M5_IMPACT_QUERY_SCHEMA_VERSION, M5_IMPACT_QUERY_SCOPE_PACKET_REF,
     M5_IMPACT_QUERY_TOPOLOGY_PACKET_REF,
+};
+pub use m5_ownership_and_contracts::{
+    current_m5_ownership_and_contracts_packet, M5OwnershipContractExportProjection,
+    M5OwnershipContractExportRow, M5OwnershipContractPacket, M5OwnershipContractSummary,
+    M5OwnershipContractViolation, OwnershipConsumerBinding, OwnershipConsumerSurface,
+    OwnershipDescriptor, OwnershipRole, OwnershipSourceClass, OwnershipVisibility,
+    M5_OWNERSHIP_CONTRACTS_DOC_REF, M5_OWNERSHIP_CONTRACTS_FIXTURE_DIR,
+    M5_OWNERSHIP_CONTRACTS_GOVERNANCE_MATRIX_REF, M5_OWNERSHIP_CONTRACTS_JSON,
+    M5_OWNERSHIP_CONTRACTS_PATH, M5_OWNERSHIP_CONTRACTS_RECORD_KIND,
+    M5_OWNERSHIP_CONTRACTS_SCHEMA_REF, M5_OWNERSHIP_CONTRACTS_SCHEMA_VERSION,
+    M5_OWNERSHIP_CONTRACTS_SCOPE_PACKET_REF, M5_OWNERSHIP_CONTRACTS_TOPOLOGY_PACKET_REF,
 };
 pub use m5_topology_identity::{
     current_m5_topology_identity_packet, ContractBadge, M5TopologyIdentityExportProjection,
