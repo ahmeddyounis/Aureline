@@ -14,6 +14,7 @@ pub mod explainers;
 pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
+pub mod m5_explainer_and_architecture_maps;
 pub mod m5_graph_governance;
 pub mod m5_impact_query;
 pub mod m5_ownership_and_contracts;
@@ -99,6 +100,20 @@ pub use knowledge_evidence_packet::{
     KNOWLEDGE_EVIDENCE_PACKET_FIXTURE_DIR, KNOWLEDGE_EVIDENCE_PACKET_RECORD_KIND,
     KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_REF, KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_VERSION,
     KNOWLEDGE_EVIDENCE_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_explainer_and_architecture_maps::{
+    current_m5_explainer_and_architecture_maps_packet, CitationKind,
+    ExplainerCitation as ArchitectureExplainerCitation, ExplainerConsumerBinding,
+    ExplainerConsumerSurface, ExplainerSnapshot as ArchitectureExplainerSnapshot,
+    ExplainerVisibility, ExplanationSourceClass, FollowUpAction, FollowUpActionClass,
+    M5ExplainerArchitectureExportProjection, M5ExplainerArchitectureExportRow,
+    M5ExplainerArchitecturePacket, M5ExplainerArchitectureSummary,
+    M5ExplainerArchitectureViolation, NavigationAffordance, M5_EXPLAINER_ARCHITECTURE_DOC_REF,
+    M5_EXPLAINER_ARCHITECTURE_FIXTURE_DIR, M5_EXPLAINER_ARCHITECTURE_GOVERNANCE_MATRIX_REF,
+    M5_EXPLAINER_ARCHITECTURE_JSON, M5_EXPLAINER_ARCHITECTURE_PATH,
+    M5_EXPLAINER_ARCHITECTURE_RECORD_KIND, M5_EXPLAINER_ARCHITECTURE_SCHEMA_REF,
+    M5_EXPLAINER_ARCHITECTURE_SCHEMA_VERSION, M5_EXPLAINER_ARCHITECTURE_SCOPE_PACKET_REF,
+    M5_EXPLAINER_ARCHITECTURE_TOPOLOGY_PACKET_REF,
 };
 pub use m5_graph_governance::{
     current_m5_graph_governance_matrix, DowngradePath as GraphGovernanceDowngradePath,
