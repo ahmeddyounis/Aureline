@@ -29,6 +29,7 @@ pub mod history;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
 pub mod m5_admission_and_routing;
+pub mod m5_bundle_review_and_rollback;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;

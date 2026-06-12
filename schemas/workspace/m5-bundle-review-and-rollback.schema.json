@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-bundle-review-and-rollback.schema.json",
+  "title": "Aureline M5 bundle review and rollback packet",
+  "description": "Schema for the m5_bundle_review_and_rollback_packet. The packet carries one diff-and-checkpoint review per claimed M5 stack for the install, update, remove, and drift-review lifecycle of a workflow bundle. Each review presents a per-component diff covering extensions, profile/layout/settings presets, task/launch/debug recipes, docs and tour packs, template and scaffold refs, and migration mappings; classifies every component's local state as bundle-owned, locally-overridden, adopted, removable, blocked-by-policy, or blocked-by-lifecycle; records a distinct resolution (keep local, adopt bundle, rebase, compare, remove bundle-owned, or not applicable); rolls non-stable lifecycle dependencies into review-gated dependency markers; and mints a one-step rollback checkpoint before any mutation commits. A user-protected asset can never be removed, a blocked asset can never be silently adopted, every mutating operation must carry a one-step rollback checkpoint, every wedge and every operation must be covered, and the summary must equal the recomputed summary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "wedges",
+    "operations",
+    "diff_actions",
+    "ownership_classes",
+    "resolution_choices",
+    "drift_states",
+    "component_kinds",
+    "lifecycle_stages",
+    "certification_targets",
+    "consumer_surfaces",
+    "reviews",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_bundle_review_and_rollback_packet" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "wedges": { "type": "array", "items": { "$ref": "#/$defs/wedge" } },
+    "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+    "diff_actions": { "type": "array", "items": { "$ref": "#/$defs/diff_action" } },
+    "ownership_classes": { "type": "array", "items": { "$ref": "#/$defs/ownership" } },
+    "resolution_choices": { "type": "array", "items": { "$ref": "#/$defs/resolution" } },
+    "drift_states": { "type": "array", "items": { "$ref": "#/$defs/drift_state" } },
+    "component_kinds": { "type": "array", "items": { "$ref": "#/$defs/component_kind" } },
+    "lifecycle_stages": { "type": "array", "items": { "$ref": "#/$defs/lifecycle_stage" } },
+    "certification_targets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/certification_target" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviews": { "type": "array", "items": { "$ref": "#/$defs/review" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "wedge": {
+      "enum": [
+        "notebook_workspace",
+        "data_and_api_workspace",
+        "profiler_workspace",
+        "framework_pack_workspace",
+        "docs_workspace",
+        "companion_workspace",
+        "sync_handoff_workspace",
+        "local_folder_workspace"
+      ]
+    },
+    "operation": { "enum": ["install", "update", "remove", "drift_review"] },
+    "diff_action": { "enum": ["added", "removed", "modified", "unchanged"] },
+    "ownership": {
+      "enum": [
+        "bundle_owned",
+        "locally_overridden",
+        "adopted",
+        "removable",
+        "blocked_by_policy",
+        "blocked_by_lifecycle"
+      ]
+    },
+    "resolution": {
+      "enum": [
+        "keep_local",
+        "adopt_bundle",
+        "rebase",
+        "compare",
+        "remove_bundle_owned",
+        "not_applicable"
+      ]
+    },
+    "drift_state": {
+      "enum": ["in_sync", "local_ahead", "bundle_ahead", "diverged", "unknown"]
+    },
+    "component_kind": {
+      "enum": [
+        "extension",
+        "profile_preset",
+        "layout_preset",
+        "settings_preset",
+        "task_recipe",
+        "launch_recipe",
+        "debug_recipe",
+        "docs_pack",
+        "tour_pack",
+        "template_ref",
+        "scaffold_ref",
+        "migration_mapping"
+      ]
+    },
+    "lifecycle_stage": {
+      "enum": ["stable", "preview", "labs", "policy_gated", "mirror_only", "bounded_platform"]
+    },
+    "certification_target": {
+      "enum": [
+        "certified",
+        "managed_approved",
+        "community_reviewed",
+        "imported_pending_review",
+        "local_draft"
+      ]
+    },
+    "component_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_kind",
+        "component_id",
+        "lifecycle_stage",
+        "requires_review",
+        "diff_action",
+        "ownership",
+        "resolution",
+        "diffable",
+        "label",
+        "diff_preview_ref"
+      ],
+      "properties": {
+        "component_kind": { "$ref": "#/$defs/component_kind" },
+        "component_id": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_stage": { "$ref": "#/$defs/lifecycle_stage" },
+        "requires_review": { "type": "boolean" },
+        "diff_action": { "$ref": "#/$defs/diff_action" },
+        "ownership": { "$ref": "#/$defs/ownership" },
+        "resolution": { "$ref": "#/$defs/resolution" },
+        "diffable": { "const": true },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "diff_preview_ref": { "$ref": "#/$defs/non_empty_string" },
+        "local_override_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drift_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "component_id", "ownership", "resolution"],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "component_id": { "$ref": "#/$defs/non_empty_string" },
+        "ownership": { "$ref": "#/$defs/ownership" },
+        "resolution": { "$ref": "#/$defs/resolution" },
+        "local_override_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drift_state", "entries", "preserves_local_overrides"],
+      "properties": {
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/drift_entry" } },
+        "preserves_local_overrides": { "type": "boolean" }
+      }
+    },
+    "rollback_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_ref",
+        "one_step",
+        "reversible",
+        "captured_before_mutation",
+        "captured_component_count"
+      ],
+      "properties": {
+        "checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "one_step": { "type": "boolean" },
+        "reversible": { "type": "boolean" },
+        "captured_before_mutation": { "type": "boolean" },
+        "captured_component_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "policy_lifecycle_warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warning_id", "lifecycle_stage", "blocks_apply", "summary_label"],
+      "properties": {
+        "warning_id": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_stage": { "$ref": "#/$defs/lifecycle_stage" },
+        "blocks_apply": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_id",
+        "wedge",
+        "bundle_id",
+        "target_version",
+        "operation",
+        "certification_target",
+        "component_diffs",
+        "drift_record",
+        "rollback_checkpoint",
+        "dependency_markers",
+        "discloses_non_stable_dependencies",
+        "diffable",
+        "mirrorable",
+        "export_safe",
+        "opaque_binary_state",
+        "review_provenance_ref",
+        "owner",
+        "note"
+      ],
+      "properties": {
+        "review_id": { "$ref": "#/$defs/non_empty_string" },
+        "wedge": { "$ref": "#/$defs/wedge" },
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "from_version": { "$ref": "#/$defs/non_empty_string" },
+        "target_version": { "$ref": "#/$defs/non_empty_string" },
+        "operation": { "$ref": "#/$defs/operation" },
+        "certification_target": { "$ref": "#/$defs/certification_target" },
+        "component_diffs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component_diff" }
+        },
+        "drift_record": { "$ref": "#/$defs/drift_record" },
+        "rollback_checkpoint": { "$ref": "#/$defs/rollback_checkpoint" },
+        "dependency_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_stage" }
+        },
+        "discloses_non_stable_dependencies": { "type": "boolean" },
+        "policy_lifecycle_warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_lifecycle_warning" }
+        },
+        "diffable": { "const": true },
+        "mirrorable": { "const": true },
+        "export_safe": { "const": true },
+        "opaque_binary_state": { "const": false },
+        "review_provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "caveats": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_reviews",
+        "install_reviews",
+        "update_reviews",
+        "remove_reviews",
+        "drift_review_reviews",
+        "reviews_with_non_stable_dependencies",
+        "reviews_disclosing_non_stable",
+        "reviews_with_one_step_rollback",
+        "reviews_with_blocking_warnings",
+        "total_component_diffs",
+        "added_diffs",
+        "removed_diffs",
+        "modified_diffs",
+        "unchanged_diffs",
+        "bundle_owned_diffs",
+        "locally_overridden_diffs",
+        "adopted_diffs",
+        "removable_diffs",
+        "blocked_by_policy_diffs",
+        "blocked_by_lifecycle_diffs",
+        "non_stable_diffs",
+        "review_required_diffs"
+      ],
+      "properties": {
+        "total_reviews": { "type": "integer", "minimum": 0 },
+        "install_reviews": { "type": "integer", "minimum": 0 },
+        "update_reviews": { "type": "integer", "minimum": 0 },
+        "remove_reviews": { "type": "integer", "minimum": 0 },
+        "drift_review_reviews": { "type": "integer", "minimum": 0 },
+        "reviews_with_non_stable_dependencies": { "type": "integer", "minimum": 0 },
+        "reviews_disclosing_non_stable": { "type": "integer", "minimum": 0 },
+        "reviews_with_one_step_rollback": { "type": "integer", "minimum": 0 },
+        "reviews_with_blocking_warnings": { "type": "integer", "minimum": 0 },
+        "total_component_diffs": { "type": "integer", "minimum": 0 },
+        "added_diffs": { "type": "integer", "minimum": 0 },
+        "removed_diffs": { "type": "integer", "minimum": 0 },
+        "modified_diffs": { "type": "integer", "minimum": 0 },
+        "unchanged_diffs": { "type": "integer", "minimum": 0 },
+        "bundle_owned_diffs": { "type": "integer", "minimum": 0 },
+        "locally_overridden_diffs": { "type": "integer", "minimum": 0 },
+        "adopted_diffs": { "type": "integer", "minimum": 0 },
+        "removable_diffs": { "type": "integer", "minimum": 0 },
+        "blocked_by_policy_diffs": { "type": "integer", "minimum": 0 },
+        "blocked_by_lifecycle_diffs": { "type": "integer", "minimum": 0 },
+        "non_stable_diffs": { "type": "integer", "minimum": 0 },
+        "review_required_diffs": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
