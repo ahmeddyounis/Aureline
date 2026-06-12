@@ -123,6 +123,24 @@ fn every_row_covers_every_deployment_profile() {
 }
 
 #[test]
+fn qualification_rows_cover_every_row_profile_pair() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    for row in &packet.surface_rows {
+        for profile in SecretBoundaryDeploymentProfileClass::ALL {
+            assert!(
+                packet.qualification_rows.iter().any(|qualification| {
+                    qualification.matrix_row_id == row.matrix_row_id
+                        && qualification.deployment_profile == profile
+                }),
+                "missing qualification for row {} profile {}",
+                row.matrix_row_id,
+                profile.as_str()
+            );
+        }
+    }
+}
+
+#[test]
 fn summary_tracks_required_degraded_states() {
     let packet = seeded_m5_secret_boundary_depth_packet();
     let states = &packet.summary.health_state_tokens_present;
@@ -204,6 +222,29 @@ fn support_export_preserves_doctor_and_support_lineage() {
         .rows
         .iter()
         .all(|row| !row.repairable_states.is_empty()));
+    assert_eq!(export.qualification_rows, packet.qualification_rows);
+    assert_eq!(export.consumer_projections, packet.consumer_projections);
+}
+
+#[test]
+fn rows_without_current_m5_proof_narrow_below_qualified_current() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let route_resolution = packet
+        .qualification_rows
+        .iter()
+        .find(|row| {
+            row.matrix_row_id == "m5.secret.provider_model.route_resolution"
+                && row.deployment_profile == SecretBoundaryDeploymentProfileClass::LocalDesktop
+        })
+        .expect("provider route-resolution qualification must exist");
+    assert_eq!(
+        route_resolution.displayed_label,
+        SecretBoundaryQualificationLabel::SupportReviewOnly
+    );
+    assert_eq!(
+        route_resolution.narrow_reason,
+        SecretBoundaryQualificationNarrowReason::ProofPacketMissing
+    );
 }
 
 #[test]

@@ -36,6 +36,19 @@ Every row carries:
 - repair owner
 - local-safe continuity note
 
+The packet also carries a canonical evidence index:
+
+- `qualification_rows` contains one row/profile qualification per deployment
+  profile, for 48 total qualifications across the 12 surface rows.
+- `claimed_label` captures the maximum claim a lane wants to make.
+- `displayed_label` captures the narrowed claim every consumer must actually
+  show.
+- `qualification_packet` and `proof_index_ref` name the checked proof packet
+  behind each current claim.
+- `consumer_projections` carry the same `evidence_index_ref`,
+  `qualification_row_refs`, and qualification counts for every downstream
+  surface.
+
 The packet-wide summary now proves coverage for:
 
 - `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline`
@@ -47,6 +60,29 @@ The packet-wide summary now proves coverage for:
 - `profiles`, `workflow_bundles`, `portable_state_packages`, `recipes`, `support_bundles`, `ai_evidence_packets`, `incident_exports`, and `offboarding_exports` as governed artifact export families
 - `raw_tokens`, `private_keys`, `refresh_tokens`, `ambient_delegated_credentials`, and `raw_handle_ids` as omission classes that every governed export family proves explicitly
 - export-safe workflow-history rows and durable-activity rows derived from the same credential-lineage event ids used by support export
+- `qualified_current`, `limited_local_continuity`, and `support_review_only`
+  as the only consumer-visible qualification labels
+- `current` and `missing` as currently proven proof-freshness classes in the
+  checked packet
+- `not_narrowed`, `profile_local_continuity_only`, and `proof_packet_missing`
+  as the currently exercised narrow reasons in the checked packet
+
+## Qualification Summary
+
+Current checked counts:
+
+- 48 total qualification rows
+- 30 `qualified_current`
+- 8 `limited_local_continuity`
+- 10 `support_review_only`
+
+Auto-narrowing in the checked packet is intentional:
+
+- `mirror_offline` parity rows narrow to `limited_local_continuity` when the
+  profile preserves only local-safe continuity.
+- Rows without a current checked M5 proof packet narrow to
+  `support_review_only` with `proof_packet_missing`.
+- Consumers must render `displayed_label`, not `claimed_label`.
 
 ## Artifact-Family Export Rules
 
@@ -77,6 +113,16 @@ Every governed artifact family now carries one packet-backed export rule proving
 ## Consumer Projections
 
 - `docs_help` must quote the checked `matrix_id`, row ids, and shared vocabulary.
+- `help_about` must reuse the same `evidence_index_ref`, qualification rows,
+  and narrowing results surfaced in docs/help.
+- `admin_docs` must reuse the same `evidence_index_ref`, qualification rows,
+  and narrowing results surfaced in docs/help.
 - `diagnostics` must show row ids, acting identity, repair owner, and the bound repairable state before downstream failure details.
-- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, repairable states, per-profile parity rows, export posture, repair owner, Project Doctor finding codes, workflow-history lineage, durable-activity lineage, and support-bundle lineage while excluding raw secret values and raw handle ids.
-- `release_public_truth` must publish only checked matrix ids, row ids, and summary vocabulary.
+- `support_export` must preserve row ids, qualification rows, consumer
+  projections, default modes, projection modes, consumer identities,
+  projection controls, repairable states, per-profile parity rows, export
+  posture, repair owner, Project Doctor finding codes, workflow-history
+  lineage, durable-activity lineage, and support-bundle lineage while excluding
+  raw secret values and raw handle ids.
+- `release_public_truth` must publish only checked matrix ids, row ids,
+  qualification vocabulary, and summary vocabulary.

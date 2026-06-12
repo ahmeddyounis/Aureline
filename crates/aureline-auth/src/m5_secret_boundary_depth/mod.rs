@@ -663,6 +663,10 @@ pub struct SecretBoundaryRepairableState {
 pub enum SecretBoundaryConsumerSurface {
     /// Docs or in-product help.
     DocsHelp,
+    /// Help/About truth surfaces.
+    HelpAbout,
+    /// Admin documentation or operator-facing truth surfaces.
+    AdminDocs,
     /// Diagnostics or inspector surfaces.
     Diagnostics,
     /// Support-export surfaces.
@@ -673,8 +677,10 @@ pub enum SecretBoundaryConsumerSurface {
 
 impl SecretBoundaryConsumerSurface {
     /// Every required consumer surface in canonical order.
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 6] = [
         Self::DocsHelp,
+        Self::HelpAbout,
+        Self::AdminDocs,
         Self::Diagnostics,
         Self::SupportExport,
         Self::ReleasePublicTruth,
@@ -684,6 +690,8 @@ impl SecretBoundaryConsumerSurface {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::DocsHelp => "docs_help",
+            Self::HelpAbout => "help_about",
+            Self::AdminDocs => "admin_docs",
             Self::Diagnostics => "diagnostics",
             Self::SupportExport => "support_export",
             Self::ReleasePublicTruth => "release_public_truth",
@@ -1735,8 +1743,185 @@ pub struct SecretBoundaryConsumerProjection {
     pub shows_matrix_row_ids: bool,
     /// `true` when the consumer reuses the packet vocabulary verbatim.
     pub uses_shared_vocabulary: bool,
+    /// Stable evidence-index ref shared across consuming surfaces.
+    pub evidence_index_ref: String,
+    /// Qualification-row refs the consumer must project verbatim.
+    pub qualification_row_refs: Vec<String>,
+    /// Count of qualifications currently held at `qualified_current`.
+    pub current_qualification_count: usize,
+    /// Count of qualifications automatically narrowed below `qualified_current`.
+    pub narrowed_qualification_count: usize,
     /// Export-safe description of how the consumer narrows its copy.
     pub notes: String,
+}
+
+/// Qualification label shown on secret-boundary truth surfaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryQualificationLabel {
+    /// Current proof and all required secret-boundary coverage are present.
+    QualifiedCurrent,
+    /// The profile keeps local-safe continuity but not a live credential claim.
+    LimitedLocalContinuity,
+    /// The row remains visible for support/review only because current proof or
+    /// required coverage is incomplete.
+    SupportReviewOnly,
+}
+
+impl SecretBoundaryQualificationLabel {
+    /// Stable token recorded in qualification rows and summaries.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::QualifiedCurrent => "qualified_current",
+            Self::LimitedLocalContinuity => "limited_local_continuity",
+            Self::SupportReviewOnly => "support_review_only",
+        }
+    }
+
+    /// Returns true when the label represents a current secret-boundary claim.
+    pub const fn is_current(self) -> bool {
+        matches!(self, Self::QualifiedCurrent)
+    }
+}
+
+/// Freshness posture of the proof packet behind one row/profile qualification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryProofFreshnessClass {
+    /// A current checked proof packet backs the row/profile qualification.
+    Current,
+    /// Proof exists but is outside its freshness window.
+    Stale,
+    /// No checked proof packet exists for the row/profile qualification.
+    Missing,
+}
+
+impl SecretBoundaryProofFreshnessClass {
+    /// Stable token recorded in qualification rows and summaries.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Current => "current",
+            Self::Stale => "stale",
+            Self::Missing => "missing",
+        }
+    }
+}
+
+/// Closed reason vocabulary for a qualification row narrowed below
+/// `qualified_current`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryQualificationNarrowReason {
+    /// No narrowing is required.
+    NotNarrowed,
+    /// This deployment profile keeps only local-safe continuity for the row.
+    ProfileLocalContinuityOnly,
+    /// No checked proof packet is available.
+    ProofPacketMissing,
+    /// The checked proof packet is stale.
+    ProofPacketStale,
+    /// The row lacks current explicit handle-class proof.
+    HandleClassesUnproven,
+    /// The row lacks current vault/keychain picker proof.
+    VaultPickerUnproven,
+    /// The row lacks current delegated-identity proof.
+    DelegatedIdentityUnproven,
+    /// The row lacks current projection-pause proof.
+    ProjectionPauseUnproven,
+    /// The row lacks current trust-store drift proof.
+    TrustStoreDriftUnproven,
+    /// The row lacks current rotation/revoke lineage proof.
+    RotationRevokeLineageUnproven,
+    /// The row lacks current export-redaction proof.
+    ExportRedactionUnproven,
+    /// The row lacks current repair-flow proof.
+    RepairFlowUnproven,
+}
+
+impl SecretBoundaryQualificationNarrowReason {
+    /// Stable token recorded in qualification rows and summaries.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotNarrowed => "not_narrowed",
+            Self::ProfileLocalContinuityOnly => "profile_local_continuity_only",
+            Self::ProofPacketMissing => "proof_packet_missing",
+            Self::ProofPacketStale => "proof_packet_stale",
+            Self::HandleClassesUnproven => "handle_classes_unproven",
+            Self::VaultPickerUnproven => "vault_picker_unproven",
+            Self::DelegatedIdentityUnproven => "delegated_identity_unproven",
+            Self::ProjectionPauseUnproven => "projection_pause_unproven",
+            Self::TrustStoreDriftUnproven => "trust_store_drift_unproven",
+            Self::RotationRevokeLineageUnproven => "rotation_revoke_lineage_unproven",
+            Self::ExportRedactionUnproven => "export_redaction_unproven",
+            Self::RepairFlowUnproven => "repair_flow_unproven",
+        }
+    }
+}
+
+/// Checked proof packet and evidence refs behind one row/profile qualification.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryQualificationProof {
+    /// Stable proof id.
+    pub proof_id: String,
+    /// Repo-relative ref to the checked proof packet or checked support-export
+    /// artifact that grounds the qualification.
+    pub packet_ref: String,
+    /// Repo-relative ref to the proof schema or contract.
+    pub schema_ref: String,
+    /// Stable evidence-index ref reused by every consumer surface.
+    pub proof_index_ref: String,
+    /// UTC capture timestamp of the checked proof.
+    pub captured_at: String,
+    /// Checked evidence refs supporting the claim.
+    pub evidence_refs: Vec<String>,
+}
+
+/// One row/profile qualification in the canonical secret-boundary evidence
+/// index.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryProfileQualificationRow {
+    /// Stable qualification id.
+    pub qualification_row_id: String,
+    /// Shared matrix row id this qualification binds to.
+    pub matrix_row_id: String,
+    /// Stable domain token preserved for release/public-truth consumers.
+    pub domain: SecretBoundarySurfaceDomain,
+    /// Deployment profile the qualification applies to.
+    pub deployment_profile: SecretBoundaryDeploymentProfileClass,
+    /// Claimed label ceiling for this row/profile.
+    pub claimed_label: SecretBoundaryQualificationLabel,
+    /// Actual displayed label after proof and parity checks.
+    pub displayed_label: SecretBoundaryQualificationLabel,
+    /// Current proof freshness posture.
+    pub proof_freshness: SecretBoundaryProofFreshnessClass,
+    /// Checked proof packet when current or stale proof exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification_packet: Option<SecretBoundaryQualificationProof>,
+    /// Stable ref to the bound profile-parity row.
+    pub profile_parity_ref: String,
+    /// `true` when explicit handle-class proof is present.
+    pub handle_classes_verified: bool,
+    /// `true` when vault/keychain picker or storage-source proof is present.
+    pub vault_picker_verified: bool,
+    /// `true` when delegated-identity proof is present where required.
+    pub delegated_identity_verified: bool,
+    /// `true` when pause/stop/drop projection controls are proven.
+    pub projection_pause_verified: bool,
+    /// `true` when trust-store drift and typed repair proof is present.
+    pub trust_store_drift_verified: bool,
+    /// `true` when rotation/revoke lineage proof is present.
+    pub rotation_revoke_lineage_verified: bool,
+    /// `true` when export-redaction proof is present.
+    pub export_redaction_verified: bool,
+    /// `true` when typed repair-flow proof is present.
+    pub repair_flow_verified: bool,
+    /// Closed reason vocabulary for any narrowing.
+    pub narrow_reason: SecretBoundaryQualificationNarrowReason,
+    /// Export-safe rationale shown by help/admin/diagnostics/public-truth
+    /// consumers.
+    pub rationale: String,
 }
 
 /// Summary for the canonical packet.
@@ -1745,6 +1930,14 @@ pub struct SecretBoundaryConsumerProjection {
 pub struct SecretBoundarySummary {
     /// Total number of surface rows.
     pub surface_count: usize,
+    /// Total number of row/profile qualification rows.
+    pub qualification_count: usize,
+    /// Number of qualifications held at `qualified_current`.
+    pub current_qualification_count: usize,
+    /// Number of qualifications narrowed to `limited_local_continuity`.
+    pub limited_local_continuity_count: usize,
+    /// Number of qualifications narrowed to `support_review_only`.
+    pub support_review_only_count: usize,
     /// Domain tokens present in the matrix.
     pub domain_tokens_present: Vec<String>,
     /// Default credential-mode tokens present in the matrix.
@@ -1769,6 +1962,12 @@ pub struct SecretBoundarySummary {
     pub artifact_family_tokens_present: Vec<String>,
     /// Omitted material tokens present in the packet.
     pub omitted_material_tokens_present: Vec<String>,
+    /// Qualification-label tokens present in the packet.
+    pub qualification_label_tokens_present: Vec<String>,
+    /// Proof-freshness tokens present in the packet.
+    pub proof_freshness_tokens_present: Vec<String>,
+    /// Qualification narrow-reason tokens present in the packet.
+    pub qualification_narrow_reason_tokens_present: Vec<String>,
     /// `true` when the packet excludes raw secret bodies.
     pub raw_secret_values_excluded: bool,
     /// `true` when the packet excludes raw handle ids.
@@ -1803,6 +2002,9 @@ pub struct M5SecretBoundaryDepthPacket {
     pub source_contract_refs: Vec<String>,
     /// Surface rows governed by the packet.
     pub surface_rows: Vec<SecretBoundarySurfaceRow>,
+    /// Per-row, per-profile qualification rows forming the canonical evidence
+    /// index for current secret-boundary claims.
+    pub qualification_rows: Vec<SecretBoundaryProfileQualificationRow>,
     /// Required consumer projections.
     pub consumer_projections: Vec<SecretBoundaryConsumerProjection>,
     /// Cross-artifact export rules for secret-bearing families.
@@ -1826,6 +2028,12 @@ impl M5SecretBoundaryDepthPacket {
         let mut repairable_change_tokens: BTreeSet<String> = BTreeSet::new();
         let mut artifact_family_tokens: BTreeSet<String> = BTreeSet::new();
         let mut omitted_material_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut qualification_label_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut proof_freshness_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut qualification_narrow_reason_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut current_qualification_count = 0usize;
+        let mut limited_local_continuity_count = 0usize;
+        let mut support_review_only_count = 0usize;
 
         for row in &self.surface_rows {
             domain_tokens.insert(row.domain.as_str().to_owned());
@@ -1851,6 +2059,24 @@ impl M5SecretBoundaryDepthPacket {
         for projection in &self.consumer_projections {
             consumer_tokens.insert(projection.surface.as_str().to_owned());
         }
+        for qualification in &self.qualification_rows {
+            profile_tokens.insert(qualification.deployment_profile.as_str().to_owned());
+            qualification_label_tokens.insert(qualification.displayed_label.as_str().to_owned());
+            proof_freshness_tokens.insert(qualification.proof_freshness.as_str().to_owned());
+            qualification_narrow_reason_tokens
+                .insert(qualification.narrow_reason.as_str().to_owned());
+            match qualification.displayed_label {
+                SecretBoundaryQualificationLabel::QualifiedCurrent => {
+                    current_qualification_count += 1;
+                }
+                SecretBoundaryQualificationLabel::LimitedLocalContinuity => {
+                    limited_local_continuity_count += 1;
+                }
+                SecretBoundaryQualificationLabel::SupportReviewOnly => {
+                    support_review_only_count += 1;
+                }
+            }
+        }
         for rule in &self.artifact_export_rules {
             artifact_family_tokens.insert(rule.artifact_family.as_str().to_owned());
             for omitted in &rule.omitted_material_classes {
@@ -1860,6 +2086,10 @@ impl M5SecretBoundaryDepthPacket {
 
         SecretBoundarySummary {
             surface_count: self.surface_rows.len(),
+            qualification_count: self.qualification_rows.len(),
+            current_qualification_count,
+            limited_local_continuity_count,
+            support_review_only_count,
             domain_tokens_present: domain_tokens.into_iter().collect(),
             default_credential_mode_tokens_present: mode_tokens.into_iter().collect(),
             projection_mode_tokens_present: projection_mode_tokens.into_iter().collect(),
@@ -1872,6 +2102,11 @@ impl M5SecretBoundaryDepthPacket {
             repairable_change_tokens_present: repairable_change_tokens.into_iter().collect(),
             artifact_family_tokens_present: artifact_family_tokens.into_iter().collect(),
             omitted_material_tokens_present: omitted_material_tokens.into_iter().collect(),
+            qualification_label_tokens_present: qualification_label_tokens.into_iter().collect(),
+            proof_freshness_tokens_present: proof_freshness_tokens.into_iter().collect(),
+            qualification_narrow_reason_tokens_present: qualification_narrow_reason_tokens
+                .into_iter()
+                .collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
         }
@@ -2189,6 +2424,121 @@ impl M5SecretBoundaryDepthPacket {
             }
         }
 
+        let row_lookup = self
+            .surface_rows
+            .iter()
+            .map(|row| (row.matrix_row_id.as_str(), row))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut seen_qualification_ids = BTreeSet::new();
+        let mut covered_qualifications = BTreeSet::new();
+        let expected_qualification_refs = self
+            .qualification_rows
+            .iter()
+            .map(|row| row.qualification_row_id.clone())
+            .collect::<BTreeSet<_>>();
+        for qualification in &self.qualification_rows {
+            if !seen_qualification_ids.insert(qualification.qualification_row_id.clone()) {
+                violations.push(M5SecretBoundaryDepthViolation::DuplicateQualificationRowId(
+                    qualification.qualification_row_id.clone(),
+                ));
+            }
+            let Some(surface_row) = row_lookup.get(qualification.matrix_row_id.as_str()) else {
+                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownMatrixRow(
+                    qualification.qualification_row_id.clone(),
+                ));
+                continue;
+            };
+            if qualification.domain != surface_row.domain {
+                violations.push(M5SecretBoundaryDepthViolation::QualificationDomainMismatch(
+                    qualification.qualification_row_id.clone(),
+                ));
+            }
+            let Some(profile_row) = surface_row.profile_parity_rows.iter().find(|profile_row| {
+                profile_row.deployment_profile == qualification.deployment_profile
+            }) else {
+                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
+                    qualification.qualification_row_id.clone(),
+                ));
+                continue;
+            };
+            let expected_profile_parity_ref = format!(
+                "{}:{}",
+                surface_row.matrix_row_id,
+                qualification.deployment_profile.as_str()
+            );
+            if qualification.profile_parity_ref != expected_profile_parity_ref {
+                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
+                    qualification.qualification_row_id.clone(),
+                ));
+            }
+            covered_qualifications.insert((
+                qualification.matrix_row_id.clone(),
+                qualification.deployment_profile,
+            ));
+
+            let current_coverage_complete = qualification.handle_classes_verified
+                && qualification.vault_picker_verified
+                && qualification.delegated_identity_verified
+                && qualification.projection_pause_verified
+                && qualification.trust_store_drift_verified
+                && qualification.rotation_revoke_lineage_verified
+                && qualification.export_redaction_verified
+                && qualification.repair_flow_verified;
+            let local_continuity_only = matches!(
+                profile_row.projection_parity,
+                SecretBoundaryProjectionParityClass::Missing
+            ) || matches!(
+                profile_row.health_state,
+                SecretBoundaryHealthStateClass::Missing
+                    | SecretBoundaryHealthStateClass::NotConfigured
+            );
+
+            if qualification.displayed_label.is_current() {
+                if qualification.proof_freshness != SecretBoundaryProofFreshnessClass::Current
+                    || qualification.qualification_packet.is_none()
+                {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::CurrentQualificationMissingCurrentProof(
+                            qualification.qualification_row_id.clone(),
+                        ),
+                    );
+                }
+                if !current_coverage_complete {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::CurrentQualificationMissingCoverage(
+                            qualification.qualification_row_id.clone(),
+                        ),
+                    );
+                }
+                if local_continuity_only {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::CurrentQualificationOnMissingProfile(
+                            qualification.qualification_row_id.clone(),
+                        ),
+                    );
+                }
+            } else if qualification.narrow_reason
+                == SecretBoundaryQualificationNarrowReason::NotNarrowed
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::NarrowedQualificationMissingReason(
+                        qualification.qualification_row_id.clone(),
+                    ),
+                );
+            }
+        }
+
+        for row in &self.surface_rows {
+            for profile in SecretBoundaryDeploymentProfileClass::ALL {
+                if !covered_qualifications.contains(&(row.matrix_row_id.clone(), profile)) {
+                    violations.push(M5SecretBoundaryDepthViolation::MissingQualificationCoverage(
+                        row.matrix_row_id.clone(),
+                        profile,
+                    ));
+                }
+            }
+        }
+
         let mut seen_consumers = BTreeSet::new();
         for projection in &self.consumer_projections {
             seen_consumers.insert(projection.surface);
@@ -2200,6 +2550,25 @@ impl M5SecretBoundaryDepthPacket {
                 violations.push(M5SecretBoundaryDepthViolation::ConsumerProjectionDrift(
                     projection.surface,
                 ));
+            }
+            if projection.evidence_index_ref.trim().is_empty()
+                || projection.current_qualification_count
+                    != self.recompute_summary().current_qualification_count
+                || projection.narrowed_qualification_count
+                    != self.recompute_summary().qualification_count
+                        .saturating_sub(self.recompute_summary().current_qualification_count)
+                || projection
+                    .qualification_row_refs
+                    .iter()
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    != expected_qualification_refs
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::ConsumerProjectionQualificationDrift(
+                        projection.surface,
+                    ),
+                );
             }
         }
         for surface in SecretBoundaryConsumerSurface::ALL {
@@ -2232,6 +2601,58 @@ impl M5SecretBoundaryDepthPacket {
             {
                 violations.push(
                     M5SecretBoundaryDepthViolation::MissingRequiredProjectionControl(control),
+                );
+            }
+        }
+
+        for label in [
+            SecretBoundaryQualificationLabel::QualifiedCurrent,
+            SecretBoundaryQualificationLabel::LimitedLocalContinuity,
+            SecretBoundaryQualificationLabel::SupportReviewOnly,
+        ] {
+            if !self
+                .summary
+                .qualification_label_tokens_present
+                .iter()
+                .any(|token| token == label.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredQualificationLabel(label),
+                );
+            }
+        }
+
+        for freshness in [
+            SecretBoundaryProofFreshnessClass::Current,
+            SecretBoundaryProofFreshnessClass::Missing,
+        ] {
+            if !self
+                .summary
+                .proof_freshness_tokens_present
+                .iter()
+                .any(|token| token == freshness.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredProofFreshness(freshness),
+                );
+            }
+        }
+
+        for reason in [
+            SecretBoundaryQualificationNarrowReason::NotNarrowed,
+            SecretBoundaryQualificationNarrowReason::ProfileLocalContinuityOnly,
+            SecretBoundaryQualificationNarrowReason::ProofPacketMissing,
+        ] {
+            if !self
+                .summary
+                .qualification_narrow_reason_tokens_present
+                .iter()
+                .any(|token| token == reason.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredQualificationNarrowReason(
+                        reason,
+                    ),
                 );
             }
         }
@@ -2323,6 +2744,11 @@ pub struct SecretBoundarySupportExport {
     pub vocabulary_ref: String,
     /// Support-export row summaries.
     pub rows: Vec<SecretBoundarySupportExportRow>,
+    /// Qualification rows preserved by support export so support/help/release
+    /// consumers share the same current secret-boundary result.
+    pub qualification_rows: Vec<SecretBoundaryProfileQualificationRow>,
+    /// Consumer evidence-index projections preserved by support export.
+    pub consumer_projections: Vec<SecretBoundaryConsumerProjection>,
     /// Artifact-family export rules preserved by support export.
     pub artifact_export_rules: Vec<SecretBoundaryArtifactExportRule>,
     /// Project Doctor finding codes preserved by the export.
@@ -2380,6 +2806,8 @@ impl SecretBoundarySupportExport {
                 .iter()
                 .map(SecretBoundarySupportExportRow::from_surface_row)
                 .collect(),
+            qualification_rows: packet.qualification_rows.clone(),
+            consumer_projections: packet.consumer_projections.clone(),
             artifact_export_rules: packet.artifact_export_rules.clone(),
             doctor_finding_codes: doctor_finding_codes.into_iter().collect(),
             lineage_events: lineage_bundles
@@ -2811,6 +3239,28 @@ pub enum M5SecretBoundaryDepthViolation {
     RepairableStateHealthyTrigger(String),
     /// One required domain had no coverage.
     MissingDomainCoverage(SecretBoundarySurfaceDomain),
+    /// A row/profile qualification is missing.
+    MissingQualificationCoverage(String, SecretBoundaryDeploymentProfileClass),
+    /// A qualification id appeared more than once.
+    DuplicateQualificationRowId(String),
+    /// A qualification row drifted from the parent domain.
+    QualificationDomainMismatch(String),
+    /// A qualification row referenced an unknown matrix row.
+    QualificationUnknownMatrixRow(String),
+    /// A qualification row referenced a missing per-profile parity row.
+    QualificationUnknownProfileParity(String),
+    /// A qualification row rendered `qualified_current` without current proof.
+    CurrentQualificationMissingCurrentProof(String),
+    /// A qualification row rendered `qualified_current` while a required proof
+    /// coverage dimension was false.
+    CurrentQualificationMissingCoverage(String),
+    /// A qualification row rendered `qualified_current` on a local-only missing
+    /// profile.
+    CurrentQualificationOnMissingProfile(String),
+    /// A narrowed qualification row omitted its typed narrow reason.
+    NarrowedQualificationMissingReason(String),
+    /// A consumer projection omitted or mismatched qualification coverage.
+    ConsumerProjectionQualificationDrift(SecretBoundaryConsumerSurface),
     /// One required consumer projection was absent.
     MissingConsumerProjection(SecretBoundaryConsumerSurface),
     /// A consumer projection drifted from the matrix id or vocabulary ref.
@@ -2834,6 +3284,13 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingRequiredConsumerIdentity(SecretBoundaryConsumerIdentityClass),
     /// A required projection-control token was not represented anywhere.
     MissingRequiredProjectionControl(SecretBoundaryProjectionControlClass),
+    /// A required qualification-label token was not represented anywhere.
+    MissingRequiredQualificationLabel(SecretBoundaryQualificationLabel),
+    /// A required proof-freshness token was not represented anywhere.
+    MissingRequiredProofFreshness(SecretBoundaryProofFreshnessClass),
+    /// A required qualification narrow-reason token was not represented
+    /// anywhere.
+    MissingRequiredQualificationNarrowReason(SecretBoundaryQualificationNarrowReason),
     /// A required health-state token was not represented anywhere in the packet.
     MissingRequiredHealthState(SecretBoundaryHealthStateClass),
     /// A required repairable change token was not represented anywhere in the packet.
@@ -2957,6 +3414,47 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
             Self::MissingDomainCoverage(domain) => {
                 write!(f, "domain {} is missing from the matrix", domain.as_str())
             }
+            Self::MissingQualificationCoverage(row, profile) => write!(
+                f,
+                "row {row} is missing a qualification for deployment-profile {}",
+                profile.as_str()
+            ),
+            Self::DuplicateQualificationRowId(row) => {
+                write!(f, "qualification row id {row} is duplicated")
+            }
+            Self::QualificationDomainMismatch(row) => write!(
+                f,
+                "qualification row {row} drifted from the parent row domain"
+            ),
+            Self::QualificationUnknownMatrixRow(row) => write!(
+                f,
+                "qualification row {row} referenced an unknown matrix row"
+            ),
+            Self::QualificationUnknownProfileParity(row) => write!(
+                f,
+                "qualification row {row} referenced a missing profile-parity row"
+            ),
+            Self::CurrentQualificationMissingCurrentProof(row) => write!(
+                f,
+                "qualification row {row} rendered qualified_current without current proof"
+            ),
+            Self::CurrentQualificationMissingCoverage(row) => write!(
+                f,
+                "qualification row {row} rendered qualified_current without all required secret-boundary proof coverage"
+            ),
+            Self::CurrentQualificationOnMissingProfile(row) => write!(
+                f,
+                "qualification row {row} rendered qualified_current on a local-continuity-only profile"
+            ),
+            Self::NarrowedQualificationMissingReason(row) => write!(
+                f,
+                "qualification row {row} narrowed below qualified_current without a typed reason"
+            ),
+            Self::ConsumerProjectionQualificationDrift(surface) => write!(
+                f,
+                "consumer projection {} drifted from the shared qualification coverage set",
+                surface.as_str()
+            ),
             Self::MissingConsumerProjection(surface) => write!(
                 f,
                 "consumer projection {} is missing from the packet",
@@ -3007,6 +3505,21 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "packet must cover the {} projection control",
                 control.as_str()
+            ),
+            Self::MissingRequiredQualificationLabel(label) => write!(
+                f,
+                "packet must cover the {} qualification label",
+                label.as_str()
+            ),
+            Self::MissingRequiredProofFreshness(freshness) => write!(
+                f,
+                "packet must cover the {} proof-freshness posture",
+                freshness.as_str()
+            ),
+            Self::MissingRequiredQualificationNarrowReason(reason) => write!(
+                f,
+                "packet must cover the {} qualification narrow-reason",
+                reason.as_str()
             ),
             Self::MissingRequiredHealthState(state) => write!(
                 f,
@@ -3179,6 +3692,247 @@ fn artifact_export_rule(
         rebind_action_label: rebind_action_label.to_owned(),
         rebind_failure_label: rebind_failure_label.to_owned(),
     }
+}
+
+fn evidence_index_ref() -> String {
+    "evidence_index:m5.secret_boundary.depth.v1".to_owned()
+}
+
+fn qualification_proof(
+    row: &SecretBoundarySurfaceRow,
+    deployment_profile: SecretBoundaryDeploymentProfileClass,
+) -> Option<SecretBoundaryQualificationProof> {
+    let proof = match row.matrix_row_id.as_str() {
+        "m5.secret.request_workspace.send_http"
+        | "m5.secret.request_workspace.history_replay" => Some((
+            "artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json",
+            "schemas/data/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.schema.json",
+            vec![
+                "crates/aureline-api/src/materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors/mod.rs".to_owned(),
+                "artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json".to_owned(),
+            ],
+        )),
+        "m5.secret.database.connection_picker" => Some((
+            "artifacts/release/m4/database-statement-safety-and-result-grid-qualification.json",
+            "schemas/data/database-statement-safety-and-result-grid-qualification.schema.json",
+            vec![
+                "crates/aureline-data/src/database_qualification.rs".to_owned(),
+                "artifacts/release/m4/database-statement-safety-and-result-grid-qualification.json".to_owned(),
+            ],
+        )),
+        "m5.secret.database.query_history_portability" => Some((
+            "artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json",
+            "schemas/data/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.schema.json",
+            vec![
+                "crates/aureline-api/src/ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth/mod.rs".to_owned(),
+                "artifacts/data/m5/ship-query-history-connection-profile-portability-secret-safe-auth-storage-and-mirror-or-offline-truth.json".to_owned(),
+            ],
+        )),
+        "m5.secret.preview_route.remote_preview" => Some((
+            "artifacts/review/m5/add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure/support_export.json",
+            "schemas/review/add-remote-preview-route-lifecycle-expiry-target-identity-and-preview-runtime-trust-disclosure.schema.json",
+            vec![
+                "crates/aureline-review/src/add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure/mod.rs".to_owned(),
+                "artifacts/review/m5/add_remote_preview_route_lifecycle_expiry_target_identity_and_preview_runtime_trust_disclosure/support_export.json".to_owned(),
+            ],
+        )),
+        "m5.secret.infra_connector.target_context" => Some((
+            "artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json",
+            "schemas/data/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.schema.json",
+            vec![
+                "crates/aureline-api/src/implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling/mod.rs".to_owned(),
+                "artifacts/data/m5/implement-connection-browsers-schema-trees-and-target-context-envelopes-for-database-tooling.json".to_owned(),
+            ],
+        )),
+        "m5.secret.companion.session_handoff" => Some((
+            "artifacts/companion/m5/add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio/support_export.json",
+            "schemas/companion/add-remote-preview-or-session-handoff-light-remote-edit-and-scoped-collaboration-follow-continuity-on-companio.schema.json",
+            vec![
+                "crates/aureline-companion/src/add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio/mod.rs".to_owned(),
+                "artifacts/companion/m5/add_remote_preview_or_session_handoff_light_remote_edit_and_scoped_collaboration_follow_continuity_on_companio/support_export.json".to_owned(),
+            ],
+        )),
+        "m5.secret.managed.workspace_runtime" => Some((
+            "fixtures/remote/managed_workspace_lifecycle/support_export.json",
+            "schemas/remote/managed_workspace_lifecycle.schema.json",
+            vec![
+                "crates/aureline-remote/src/managed_workspace_lifecycle/mod.rs".to_owned(),
+                "fixtures/remote/managed_workspace_lifecycle/support_export.json".to_owned(),
+            ],
+        )),
+        "m5.secret.managed.sync_plane" => Some((
+            "artifacts/companion/m5/ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage/support_export.json",
+            "schemas/companion/ship-managed-sync-maturity-with-snapshot-classes-conflict-review-device-registry-and-end-to-end-encrypted-storage.schema.json",
+            vec![
+                "crates/aureline-companion/src/ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage/mod.rs".to_owned(),
+                "artifacts/companion/m5/ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage/support_export.json".to_owned(),
+            ],
+        )),
+        _ => None,
+    }?;
+
+    Some(SecretBoundaryQualificationProof {
+        proof_id: format!(
+            "secret_boundary_proof:{}:{}",
+            row.matrix_row_id,
+            deployment_profile.as_str()
+        ),
+        packet_ref: proof.0.to_owned(),
+        schema_ref: proof.1.to_owned(),
+        proof_index_ref: format!(
+            "{}:{}:{}",
+            evidence_index_ref(),
+            row.matrix_row_id,
+            deployment_profile.as_str()
+        ),
+        captured_at: "2026-06-12T00:00:00Z".to_owned(),
+        evidence_refs: proof.2,
+    })
+}
+
+fn qualification_narrow_reason_for_gap(
+    proof_freshness: SecretBoundaryProofFreshnessClass,
+    handle_classes_verified: bool,
+    vault_picker_verified: bool,
+    delegated_identity_verified: bool,
+    projection_pause_verified: bool,
+    trust_store_drift_verified: bool,
+    rotation_revoke_lineage_verified: bool,
+    export_redaction_verified: bool,
+    repair_flow_verified: bool,
+) -> SecretBoundaryQualificationNarrowReason {
+    match proof_freshness {
+        SecretBoundaryProofFreshnessClass::Missing => {
+            SecretBoundaryQualificationNarrowReason::ProofPacketMissing
+        }
+        SecretBoundaryProofFreshnessClass::Stale => {
+            SecretBoundaryQualificationNarrowReason::ProofPacketStale
+        }
+        SecretBoundaryProofFreshnessClass::Current => {
+            if !handle_classes_verified {
+                SecretBoundaryQualificationNarrowReason::HandleClassesUnproven
+            } else if !vault_picker_verified {
+                SecretBoundaryQualificationNarrowReason::VaultPickerUnproven
+            } else if !delegated_identity_verified {
+                SecretBoundaryQualificationNarrowReason::DelegatedIdentityUnproven
+            } else if !projection_pause_verified {
+                SecretBoundaryQualificationNarrowReason::ProjectionPauseUnproven
+            } else if !trust_store_drift_verified {
+                SecretBoundaryQualificationNarrowReason::TrustStoreDriftUnproven
+            } else if !rotation_revoke_lineage_verified {
+                SecretBoundaryQualificationNarrowReason::RotationRevokeLineageUnproven
+            } else if !export_redaction_verified {
+                SecretBoundaryQualificationNarrowReason::ExportRedactionUnproven
+            } else if !repair_flow_verified {
+                SecretBoundaryQualificationNarrowReason::RepairFlowUnproven
+            } else {
+                SecretBoundaryQualificationNarrowReason::NotNarrowed
+            }
+        }
+    }
+}
+
+fn qualification_row_for_profile(
+    row: &SecretBoundarySurfaceRow,
+    profile_row: &SecretBoundaryProfileParityRow,
+) -> SecretBoundaryProfileQualificationRow {
+    let qualification_row_id = format!(
+        "qualification:{}:{}",
+        row.matrix_row_id,
+        profile_row.deployment_profile.as_str()
+    );
+    let proof = qualification_proof(row, profile_row.deployment_profile);
+    let proof_freshness = if proof.is_some() {
+        SecretBoundaryProofFreshnessClass::Current
+    } else {
+        SecretBoundaryProofFreshnessClass::Missing
+    };
+    let local_continuity_only = matches!(
+        profile_row.projection_parity,
+        SecretBoundaryProjectionParityClass::Missing
+    ) || matches!(
+        profile_row.health_state,
+        SecretBoundaryHealthStateClass::Missing | SecretBoundaryHealthStateClass::NotConfigured
+    );
+    let coverage_verified = proof.is_some();
+    let narrow_reason = if local_continuity_only {
+        SecretBoundaryQualificationNarrowReason::ProfileLocalContinuityOnly
+    } else {
+        qualification_narrow_reason_for_gap(
+            proof_freshness,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+            coverage_verified,
+        )
+    };
+    let displayed_label = if local_continuity_only {
+        SecretBoundaryQualificationLabel::LimitedLocalContinuity
+    } else if narrow_reason == SecretBoundaryQualificationNarrowReason::NotNarrowed {
+        SecretBoundaryQualificationLabel::QualifiedCurrent
+    } else {
+        SecretBoundaryQualificationLabel::SupportReviewOnly
+    };
+    let rationale = match displayed_label {
+        SecretBoundaryQualificationLabel::QualifiedCurrent => format!(
+            "{} on {} is backed by a current checked proof packet covering handle classes, storage-source disclosure, delegated identity, projection controls, trust-store drift, rotation/revoke lineage, export redaction, and repair flow.",
+            row.title,
+            profile_row.deployment_profile.as_str()
+        ),
+        SecretBoundaryQualificationLabel::LimitedLocalContinuity => format!(
+            "{} on {} keeps only the local-safe continuity label because this profile does not claim a live credential path.",
+            row.title,
+            profile_row.deployment_profile.as_str()
+        ),
+        SecretBoundaryQualificationLabel::SupportReviewOnly => format!(
+            "{} on {} narrows to support-review-only because current secret-boundary proof is missing or incomplete.",
+            row.title,
+            profile_row.deployment_profile.as_str()
+        ),
+    };
+
+    SecretBoundaryProfileQualificationRow {
+        qualification_row_id,
+        matrix_row_id: row.matrix_row_id.clone(),
+        domain: row.domain,
+        deployment_profile: profile_row.deployment_profile,
+        claimed_label: SecretBoundaryQualificationLabel::QualifiedCurrent,
+        displayed_label,
+        proof_freshness,
+        qualification_packet: proof,
+        profile_parity_ref: format!(
+            "{}:{}",
+            row.matrix_row_id,
+            profile_row.deployment_profile.as_str()
+        ),
+        handle_classes_verified: coverage_verified,
+        vault_picker_verified: coverage_verified,
+        delegated_identity_verified: coverage_verified,
+        projection_pause_verified: coverage_verified,
+        trust_store_drift_verified: coverage_verified,
+        rotation_revoke_lineage_verified: coverage_verified,
+        export_redaction_verified: coverage_verified,
+        repair_flow_verified: coverage_verified,
+        narrow_reason,
+        rationale,
+    }
+}
+
+fn qualification_rows_for_surface_rows(
+    surface_rows: &[SecretBoundarySurfaceRow],
+) -> Vec<SecretBoundaryProfileQualificationRow> {
+    surface_rows
+        .iter()
+        .flat_map(|row| {
+            row.profile_parity_rows
+                .iter()
+                .map(move |profile_row| qualification_row_for_profile(row, profile_row))
+        })
+        .collect()
 }
 
 /// Builds the canonical seeded M5 secret-boundary depth packet.
@@ -4551,6 +5305,18 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
         },
     ];
 
+    let qualification_rows = qualification_rows_for_surface_rows(&surface_rows);
+    let current_qualification_count = qualification_rows
+        .iter()
+        .filter(|row| row.displayed_label.is_current())
+        .count();
+    let narrowed_qualification_count =
+        qualification_rows.len().saturating_sub(current_qualification_count);
+    let qualification_row_refs = qualification_rows
+        .iter()
+        .map(|row| row.qualification_row_id.clone())
+        .collect::<Vec<_>>();
+
     let consumer_projections = vec![
         SecretBoundaryConsumerProjection {
             surface: SecretBoundaryConsumerSurface::DocsHelp,
@@ -4559,7 +5325,37 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
             shows_matrix_row_ids: true,
             uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs: qualification_row_refs.clone(),
+            current_qualification_count,
+            narrowed_qualification_count,
             notes: "Docs and help quote the same matrix row ids and credential-mode vocabulary instead of restating connected status.".to_owned(),
+        },
+        SecretBoundaryConsumerProjection {
+            surface: SecretBoundaryConsumerSurface::HelpAbout,
+            surface_ref: "docs/help/m5-secret-boundary-evidence-index.md".to_owned(),
+            matrix_id: matrix_id.clone(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            shows_matrix_row_ids: true,
+            uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs: qualification_row_refs.clone(),
+            current_qualification_count,
+            narrowed_qualification_count,
+            notes: "Help/About projects the same qualification rows and current-vs-narrowed counts used by diagnostics and release truth.".to_owned(),
+        },
+        SecretBoundaryConsumerProjection {
+            surface: SecretBoundaryConsumerSurface::AdminDocs,
+            surface_ref: "docs/admin/m5-secret-boundary-evidence-index.md".to_owned(),
+            matrix_id: matrix_id.clone(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            shows_matrix_row_ids: true,
+            uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs: qualification_row_refs.clone(),
+            current_qualification_count,
+            narrowed_qualification_count,
+            notes: "Admin docs reference the same qualification rows, proof freshness, and narrow reasons instead of summarizing secret maturity manually.".to_owned(),
         },
         SecretBoundaryConsumerProjection {
             surface: SecretBoundaryConsumerSurface::Diagnostics,
@@ -4568,6 +5364,10 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
             shows_matrix_row_ids: true,
             uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs: qualification_row_refs.clone(),
+            current_qualification_count,
+            narrowed_qualification_count,
             notes: "Diagnostics project the row id, acting identity, and repair owner before showing downstream failure details.".to_owned(),
         },
         SecretBoundaryConsumerProjection {
@@ -4578,6 +5378,10 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
             shows_matrix_row_ids: true,
             uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs: qualification_row_refs.clone(),
+            current_qualification_count,
+            narrowed_qualification_count,
             notes: "Support export preserves matrix ids, default modes, export posture, and repair owner while excluding raw secret bodies and raw handle ids.".to_owned(),
         },
         SecretBoundaryConsumerProjection {
@@ -4587,6 +5391,10 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
             shows_matrix_row_ids: true,
             uses_shared_vocabulary: true,
+            evidence_index_ref: evidence_index_ref(),
+            qualification_row_refs,
+            current_qualification_count,
+            narrowed_qualification_count,
             notes: "Release/public-truth surfaces publish only the checked matrix id, row ids, and summary vocabulary; they never widen a row with ad hoc prose.".to_owned(),
         },
     ];
@@ -4708,10 +5516,15 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             "crates/aureline-remote/src/managed_workspace_lifecycle/mod.rs".to_owned(),
         ],
         surface_rows,
+        qualification_rows,
         consumer_projections,
         artifact_export_rules,
         summary: SecretBoundarySummary {
             surface_count: 0,
+            qualification_count: 0,
+            current_qualification_count: 0,
+            limited_local_continuity_count: 0,
+            support_review_only_count: 0,
             domain_tokens_present: Vec::new(),
             default_credential_mode_tokens_present: Vec::new(),
             projection_mode_tokens_present: Vec::new(),
@@ -4724,6 +5537,9 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             repairable_change_tokens_present: Vec::new(),
             artifact_family_tokens_present: Vec::new(),
             omitted_material_tokens_present: Vec::new(),
+            qualification_label_tokens_present: Vec::new(),
+            proof_freshness_tokens_present: Vec::new(),
+            qualification_narrow_reason_tokens_present: Vec::new(),
             raw_secret_values_excluded: false,
             raw_handle_ids_excluded: false,
         },

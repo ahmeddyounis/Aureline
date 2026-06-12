@@ -7,6 +7,49 @@ This document is the contract companion to `artifacts/security/m5/m5-secret-boun
 - Schema ref: `schemas/security/m5-secret-boundary-depth.schema.json`
 - Shared contract ref: `security:m5_secret_boundary_depth:v1`
 
+## Canonical Evidence Index
+
+The packet carries a canonical secret-boundary evidence index in
+`qualification_rows`.
+
+- Every `surface_row` MUST project one qualification row per deployment
+  profile.
+- `qualification_row_id` is the stable row/profile key every consumer reuses.
+- `claimed_label` records the maximum claim the lane wants to make.
+- `displayed_label` records the narrowed claim consumers may actually show.
+- `qualification_packet`, when present, names the checked packet or checked
+  support-export artifact that proves the claim.
+- `evidence_index_ref` and `proof_index_ref` are the canonical refs reused by
+  docs, Help/About, admin docs, diagnostics, support export, and
+  release/public-truth.
+
+Qualification labels:
+
+- `qualified_current`
+- `limited_local_continuity`
+- `support_review_only`
+
+Proof freshness:
+
+- `current`
+- `stale`
+- `missing`
+
+Qualification narrow reasons:
+
+- `not_narrowed`
+- `profile_local_continuity_only`
+- `proof_packet_missing`
+- `proof_packet_stale`
+- `handle_classes_unproven`
+- `vault_picker_unproven`
+- `delegated_identity_unproven`
+- `projection_pause_unproven`
+- `trust_store_drift_unproven`
+- `rotation_revoke_lineage_unproven`
+- `export_redaction_unproven`
+- `repair_flow_unproven`
+
 ## Shared Vocabulary
 
 Credential modes:
@@ -129,15 +172,32 @@ Repair owners:
 ## Consumer Rules
 
 - Every surface must preserve the same `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline` parity rows instead of replacing degraded states with generic connector failures.
+- Every consumer surface MUST reuse the packet's `qualification_rows` and
+  `evidence_index_ref` rather than minting a local claim table.
+- A consumer MAY display only `displayed_label`; it MUST NOT widen a row back
+  to `qualified_current` when proof freshness or required coverage is missing.
+- `limited_local_continuity` is reserved for parity rows that preserve local
+  metadata continuity without a live credential claim.
+- `support_review_only` is reserved for rows that remain visible for review,
+  diagnostics, or support while current proof or required handle/vault/delegate
+  coverage is incomplete.
 - The packet MUST expose first-class `missing`, `expired`, `revoked`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` states with bounded next actions.
 - Every surface row MUST carry at least one typed repairable state naming the exact affected target, the last-known-good class, the minimally destructive next action, the Project Doctor finding code, and the support-bundle lineage ref.
 - Consumer-identity receipts and projection-mode audit rows MUST preserve actor class, consumer identity, issuer label, target boundary, projection mode, and result without carrying raw secret values or raw handle ids.
 - Remote, managed, registry, preview, connector, and companion lanes MUST expose bounded `pause_forwarding`, `stop_using_secret`, or `drop_delegated_identity` controls when the authority can outlive the original prompt.
-- Docs/help must project the same `matrix_id` and row ids rather than restating a generic connected state.
+- Docs/help, Help/About, and admin docs must project the same `matrix_id`,
+  `qualification_row_id`, row ids, and shared vocabulary rather than restating
+  a generic connected state.
 - Diagnostics must name the row id, acting identity, trust dependency, repair owner, and typed repairable state before surfacing the downstream error.
-- Support export must preserve row ids, consumer identities, projection modes, projection controls, repairable states, workflow-history lineage, durable-activity lineage, Project Doctor finding codes, and support-bundle lineage while excluding raw secret values and raw handle ids.
+- Support export must preserve row ids, qualification rows, consumer
+  projections, consumer identities, projection modes, projection controls,
+  repairable states, workflow-history lineage, durable-activity lineage,
+  Project Doctor finding codes, and support-bundle lineage while excluding raw
+  secret values and raw handle ids.
 - Workflow history and durable activity must project the same export-safe event ids, impacted workflows, and next safe repair or rebind action for rotation, revoke, rebind, and policy-denied projection outcomes.
-- Release/public-truth surfaces may publish only checked row ids and summary vocabulary; they may not widen a row with custom prose.
+- Release/public-truth surfaces may publish only checked row ids, qualification
+  labels, narrow reasons, and summary vocabulary; they may not widen a row with
+  custom prose.
 
 ## Artifact Export Rules
 
