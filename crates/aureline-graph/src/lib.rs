@@ -14,6 +14,7 @@ pub mod explainers;
 pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
+pub mod m5_graph_governance;
 pub mod navigation_target_truth_packet;
 pub mod public_proof_publication_truth_packet;
 mod query;
@@ -94,6 +95,17 @@ pub use knowledge_evidence_packet::{
     KNOWLEDGE_EVIDENCE_PACKET_FIXTURE_DIR, KNOWLEDGE_EVIDENCE_PACKET_RECORD_KIND,
     KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_REF, KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_VERSION,
     KNOWLEDGE_EVIDENCE_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_graph_governance::{
+    current_m5_graph_governance_matrix, DowngradePath as GraphGovernanceDowngradePath,
+    DowngradeReason as GraphGovernanceDowngradeReason, EvidenceBacking, GraphDepthClaim,
+    GraphDepthLane, GraphFreshness as GraphGovernanceFreshness, GraphGovernanceDecision,
+    GraphGovernanceRow, ImpactResultClass, M5GraphGovernanceExportProjection,
+    M5GraphGovernanceExportRow, M5GraphGovernanceMatrix, M5GraphGovernanceSummary,
+    M5GraphGovernanceViolation, RelationFidelity, ScopeMode, M5_GRAPH_GOVERNANCE_DOC_REF,
+    M5_GRAPH_GOVERNANCE_FIXTURE_DIR, M5_GRAPH_GOVERNANCE_JSON, M5_GRAPH_GOVERNANCE_PATH,
+    M5_GRAPH_GOVERNANCE_RECORD_KIND, M5_GRAPH_GOVERNANCE_SCHEMA_REF,
+    M5_GRAPH_GOVERNANCE_SCHEMA_VERSION,
 };
 pub use navigation_target_truth_packet::{
     current_stable_navigation_target_truth_packet, AccessKind as NavigationAccessKind,
