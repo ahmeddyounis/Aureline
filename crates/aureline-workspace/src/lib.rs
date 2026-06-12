@@ -28,6 +28,7 @@ pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod history;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
+pub mod m5_entry_and_bundle_governance;
 pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
 pub mod portable_state_lineage;
@@ -197,6 +198,20 @@ pub use finalize_workflow_bundle_lifecycle_drift_and_overrides::{
     BUNDLE_LIFECYCLE_CONSUMER_SURFACES, BUNDLE_LIFECYCLE_FINALIZATION_RECORD_KIND,
     BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_REF, BUNDLE_LIFECYCLE_FINALIZATION_SCHEMA_VERSION,
     BUNDLE_LIFECYCLE_OPERATIONS, CHANGE_SEVERITY_CLASSES, TRUST_EGRESS_CHANGE_CLASSES,
+};
+
+pub use m5_entry_and_bundle_governance::{
+    current_m5_entry_bundle_governance_matrix, AdmissionOutcome, ArchetypeConfidence, BundleClass,
+    BundleScorecard, DowngradePath as EntryBundleDowngradePath,
+    DowngradeReason as EntryBundleDowngradeReason, EntryAssurance, EntryBundleLane, EntryBundleRow,
+    EntryTopologySupport, EntryVerb as EntryBundleVerb, LocatorType,
+    M5EntryBundleGovernanceExportProjection, M5EntryBundleGovernanceExportRow,
+    M5EntryBundleGovernanceMatrix, M5EntryBundleGovernanceSummary,
+    M5EntryBundleGovernanceViolation, RestoreFidelity, RootResolution, SetupQueueClass,
+    SourceTrust, M5_ENTRY_BUNDLE_GOVERNANCE_DOC_REF, M5_ENTRY_BUNDLE_GOVERNANCE_FIXTURE_DIR,
+    M5_ENTRY_BUNDLE_GOVERNANCE_JSON, M5_ENTRY_BUNDLE_GOVERNANCE_PATH,
+    M5_ENTRY_BUNDLE_GOVERNANCE_RECORD_KIND, M5_ENTRY_BUNDLE_GOVERNANCE_SCHEMA_REF,
+    M5_ENTRY_BUNDLE_GOVERNANCE_SCHEMA_VERSION,
 };
 
 pub use admission::{
