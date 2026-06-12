@@ -83,6 +83,22 @@ pub const QUEUE_SESSION_TERMINAL_LINKIFICATION_ROW_RECORD_KIND: &str =
 pub const QUEUE_SESSION_TERMINAL_OUTPUT_CONSUMER_ROW_RECORD_KIND: &str =
     "queue_session_terminal_output_consumer_row";
 
+/// Stable record-kind tag for session-continuity truth rows.
+pub const QUEUE_SESSION_TERMINAL_SESSION_CONTINUITY_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_session_continuity_row";
+
+/// Stable record-kind tag for transcript-export truth rows.
+pub const QUEUE_SESSION_TERMINAL_TRANSCRIPT_EXPORT_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_transcript_export_row";
+
+/// Stable record-kind tag for shared-control role and grant rows.
+pub const QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_shared_control_row";
+
+/// Stable record-kind tag for shared-control audit rows.
+pub const QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND: &str =
+    "queue_session_terminal_shared_control_audit_row";
+
 /// Integer schema version for the governance packet.
 pub const QUEUE_SESSION_TERMINAL_GOVERNANCE_SCHEMA_VERSION: u32 = 1;
 
@@ -840,6 +856,234 @@ impl BoundaryDisclosureClass {
     }
 }
 
+/// Honest live-versus-restored continuity class for one M5 session family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionContinuityClass {
+    /// Live continuity survived the restore or reopen path.
+    LiveSessionContinuity,
+    /// A transcript survived, but the live session did not.
+    TranscriptRestored,
+    /// The prior session ended and only provenance remains.
+    SessionEnded,
+}
+
+impl SessionContinuityClass {
+    /// Every continuity class the packet must expose.
+    pub const REQUIRED: [Self; 3] = [
+        Self::LiveSessionContinuity,
+        Self::TranscriptRestored,
+        Self::SessionEnded,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LiveSessionContinuity => "live_session_continuity",
+            Self::TranscriptRestored => "transcript_restored",
+            Self::SessionEnded => "session_ended",
+        }
+    }
+}
+
+/// Explicit next-step truth for execution after restore or reopen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResumeRequirementClass {
+    /// No renewed intent is needed to keep the session live.
+    NoneRequired,
+    /// The user may reconnect the live session explicitly.
+    ReconnectAvailable,
+    /// The user must rerun explicitly to regain execution.
+    RerunRequired,
+    /// The user must reauthorize explicitly before execution resumes.
+    ReauthorizationRequired,
+}
+
+impl ResumeRequirementClass {
+    /// Every resume-requirement class the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::NoneRequired,
+        Self::ReconnectAvailable,
+        Self::RerunRequired,
+        Self::ReauthorizationRequired,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoneRequired => "none_required",
+            Self::ReconnectAvailable => "reconnect_available",
+            Self::RerunRequired => "rerun_required",
+            Self::ReauthorizationRequired => "reauthorization_required",
+        }
+    }
+}
+
+/// Authority drift class disclosed on restore and reopen paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthorityStatusClass {
+    /// Authority is still current for the visible boundary.
+    AuthorityCurrent,
+    /// Prior authority expired and must not be implied as live.
+    AuthorityExpired,
+    /// Authority moved to a different runtime boundary or attachment.
+    AuthorityMoved,
+    /// Authority is blocked by policy or missing proof.
+    PolicyBlocked,
+}
+
+impl AuthorityStatusClass {
+    /// Every authority-status class the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::AuthorityCurrent,
+        Self::AuthorityExpired,
+        Self::AuthorityMoved,
+        Self::PolicyBlocked,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AuthorityCurrent => "authority_current",
+            Self::AuthorityExpired => "authority_expired",
+            Self::AuthorityMoved => "authority_moved",
+            Self::PolicyBlocked => "policy_blocked",
+        }
+    }
+}
+
+/// Redaction default used by transcript-export and support-bundle flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TranscriptExportRedactionClass {
+    /// Default export is metadata only; full transcript requires review.
+    MetadataOnlyDefault,
+    /// Default export is a redacted transcript with explicit labels.
+    RedactedTranscriptDefault,
+    /// Full transcript export is local-only and explicit opt-in.
+    ReviewedFullTranscriptOptIn,
+}
+
+impl TranscriptExportRedactionClass {
+    /// Every transcript-redaction class the packet must expose.
+    pub const REQUIRED: [Self; 3] = [
+        Self::MetadataOnlyDefault,
+        Self::RedactedTranscriptDefault,
+        Self::ReviewedFullTranscriptOptIn,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MetadataOnlyDefault => "metadata_only_default",
+            Self::RedactedTranscriptDefault => "redacted_transcript_default",
+            Self::ReviewedFullTranscriptOptIn => "reviewed_full_transcript_opt_in",
+        }
+    }
+}
+
+/// Shared-control role preserved for a collaborative session flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SharedSessionRoleClass {
+    /// Participant may inspect the session without input authority.
+    ReadOnlyViewer,
+    /// Participant follows the active driver without input authority.
+    Follower,
+    /// Participant currently holds write-capable control.
+    WriteCapableParticipant,
+}
+
+impl SharedSessionRoleClass {
+    /// Every shared role the packet must expose.
+    pub const REQUIRED: [Self; 3] = [
+        Self::ReadOnlyViewer,
+        Self::Follower,
+        Self::WriteCapableParticipant,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnlyViewer => "read_only_viewer",
+            Self::Follower => "follower",
+            Self::WriteCapableParticipant => "write_capable_participant",
+        }
+    }
+}
+
+/// Current grant state preserved for a shared session participant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SharedControlGrantStateClass {
+    /// Participant requested control and is awaiting review.
+    ControlRequestPending,
+    /// Participant currently holds an active control grant.
+    GrantedActive,
+    /// Participant is following only and holds no control grant.
+    FollowOnlyNoGrant,
+    /// A prior grant was revoked.
+    GrantRevoked,
+}
+
+impl SharedControlGrantStateClass {
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ControlRequestPending => "control_request_pending",
+            Self::GrantedActive => "granted_active",
+            Self::FollowOnlyNoGrant => "follow_only_no_grant",
+            Self::GrantRevoked => "grant_revoked",
+        }
+    }
+
+    /// True when the row must cite a control grant.
+    pub const fn requires_control_grant_ref(self) -> bool {
+        matches!(self, Self::GrantedActive | Self::GrantRevoked)
+    }
+}
+
+/// Audit event preserved for a shared-control session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SharedControlAuditEventClass {
+    /// A viewer requested temporary input authority.
+    GrantRequested,
+    /// A write-capable grant became active.
+    GrantActivated,
+    /// A grant was revoked or expired back to view-only.
+    GrantRevoked,
+    /// A participant joined as a follower without input authority.
+    FollowModeJoined,
+}
+
+impl SharedControlAuditEventClass {
+    /// Every shared-control audit event the packet must expose.
+    pub const REQUIRED: [Self; 4] = [
+        Self::GrantRequested,
+        Self::GrantActivated,
+        Self::GrantRevoked,
+        Self::FollowModeJoined,
+    ];
+
+    /// Returns the stable token used in fixtures, schemas, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GrantRequested => "grant_requested",
+            Self::GrantActivated => "grant_activated",
+            Self::GrantRevoked => "grant_revoked",
+            Self::FollowModeJoined => "follow_mode_joined",
+        }
+    }
+
+    /// True when the event must cite a control-grant ref.
+    pub const fn requires_control_grant_ref(self) -> bool {
+        matches!(self, Self::GrantActivated | Self::GrantRevoked)
+    }
+}
+
 /// Terminal protocol surfaces claimed by the M5 runtime packet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1487,6 +1731,32 @@ pub enum FindingKind {
     MissingRequiredShellIntegrationSignalCoverage,
     /// One protocol surface row omitted required disclosures, refs, or guardrails.
     InvalidProtocolSurfaceRow,
+    /// One terminal workload no longer has honest continuity coverage.
+    MissingSessionContinuityCoverage,
+    /// Packet no longer covers every required continuity class.
+    MissingRequiredSessionContinuityCoverage,
+    /// Packet no longer covers every required resume-requirement class.
+    MissingRequiredResumeRequirementCoverage,
+    /// Packet no longer covers every required authority-status class.
+    MissingRequiredAuthorityStatusCoverage,
+    /// One continuity row omitted required labels, refs, or boundary truth.
+    InvalidSessionContinuityRow,
+    /// One terminal workload no longer has transcript-export coverage.
+    MissingTranscriptExportCoverage,
+    /// Packet no longer covers every required transcript-redaction class.
+    MissingRequiredTranscriptRedactionCoverage,
+    /// One transcript-export row omitted required labels, refs, or guardrails.
+    InvalidTranscriptExportRow,
+    /// Shared-control workload no longer has role/grant coverage.
+    MissingSharedControlCoverage,
+    /// Packet no longer covers every required shared session role.
+    MissingRequiredSharedRoleCoverage,
+    /// Packet no longer covers every required shared-control audit event.
+    MissingRequiredSharedAuditEventCoverage,
+    /// One shared-control row omitted required labels, refs, or grant truth.
+    InvalidSharedControlRow,
+    /// One shared-control audit row omitted required labels, refs, or guardrails.
+    InvalidSharedControlAuditRow,
     /// One terminal workload no longer has linkification coverage.
     MissingLinkificationCoverage,
     /// Packet no longer covers every required link target class.
@@ -1533,6 +1803,12 @@ pub enum FindingKind {
     ShellSignalVocabularyCollapsed,
     /// Consumer projection collapsed boundary-disclosure vocabulary.
     BoundaryDisclosureVocabularyCollapsed,
+    /// Consumer projection collapsed session-continuity vocabulary.
+    SessionContinuityVocabularyCollapsed,
+    /// Consumer projection collapsed transcript-export vocabulary.
+    TranscriptExportVocabularyCollapsed,
+    /// Consumer projection collapsed shared-control vocabulary.
+    SharedControlVocabularyCollapsed,
     /// Consumer projection collapsed linkification vocabulary.
     LinkificationVocabularyCollapsed,
     /// Consumer projection collapsed taint/provenance vocabulary.
@@ -1611,6 +1887,29 @@ impl FindingKind {
                 "missing_required_shell_integration_signal_coverage"
             }
             Self::InvalidProtocolSurfaceRow => "invalid_protocol_surface_row",
+            Self::MissingSessionContinuityCoverage => "missing_session_continuity_coverage",
+            Self::MissingRequiredSessionContinuityCoverage => {
+                "missing_required_session_continuity_coverage"
+            }
+            Self::MissingRequiredResumeRequirementCoverage => {
+                "missing_required_resume_requirement_coverage"
+            }
+            Self::MissingRequiredAuthorityStatusCoverage => {
+                "missing_required_authority_status_coverage"
+            }
+            Self::InvalidSessionContinuityRow => "invalid_session_continuity_row",
+            Self::MissingTranscriptExportCoverage => "missing_transcript_export_coverage",
+            Self::MissingRequiredTranscriptRedactionCoverage => {
+                "missing_required_transcript_redaction_coverage"
+            }
+            Self::InvalidTranscriptExportRow => "invalid_transcript_export_row",
+            Self::MissingSharedControlCoverage => "missing_shared_control_coverage",
+            Self::MissingRequiredSharedRoleCoverage => "missing_required_shared_role_coverage",
+            Self::MissingRequiredSharedAuditEventCoverage => {
+                "missing_required_shared_audit_event_coverage"
+            }
+            Self::InvalidSharedControlRow => "invalid_shared_control_row",
+            Self::InvalidSharedControlAuditRow => "invalid_shared_control_audit_row",
             Self::MissingLinkificationCoverage => "missing_linkification_coverage",
             Self::MissingRequiredLinkTargetCoverage => "missing_required_link_target_coverage",
             Self::MissingRequiredLinkConfidenceCoverage => {
@@ -1642,6 +1941,9 @@ impl FindingKind {
             Self::BoundaryDisclosureVocabularyCollapsed => {
                 "boundary_disclosure_vocabulary_collapsed"
             }
+            Self::SessionContinuityVocabularyCollapsed => "session_continuity_vocabulary_collapsed",
+            Self::TranscriptExportVocabularyCollapsed => "transcript_export_vocabulary_collapsed",
+            Self::SharedControlVocabularyCollapsed => "shared_control_vocabulary_collapsed",
             Self::LinkificationVocabularyCollapsed => "linkification_vocabulary_collapsed",
             Self::TaintProvenanceVocabularyCollapsed => "taint_provenance_vocabulary_collapsed",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
@@ -2290,6 +2592,134 @@ pub struct QueueSessionTerminalOutputConsumerRow {
     pub provenance_ref: String,
 }
 
+/// Honest live-versus-restored continuity row for one terminal-backed M5
+/// workload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalSessionContinuityRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Honest continuity class exposed on restore or reopen.
+    pub continuity_class: SessionContinuityClass,
+    /// Stable continuity token.
+    pub continuity_token: String,
+    /// Exact next-step requirement for live execution.
+    pub resume_requirement_class: ResumeRequirementClass,
+    /// Stable resume-requirement token.
+    pub resume_requirement_token: String,
+    /// Explicit authority-drift class shown beside the boundary label.
+    pub authority_status_class: AuthorityStatusClass,
+    /// Stable authority-status token.
+    pub authority_status_token: String,
+    /// Terminal boundary class kept visible on the surface.
+    pub terminal_boundary_class: TerminalBoundaryClass,
+    /// Boundary-disclosure posture kept visible on the surface.
+    pub boundary_disclosure_class: BoundaryDisclosureClass,
+    /// True when the active boundary label remains visible after restore.
+    pub boundary_label_visible: bool,
+    /// Controlled product label exposed to users and support.
+    pub honest_state_label: String,
+    /// Inspectable continuity detail route.
+    pub inspect_ref: String,
+}
+
+/// Transcript-export truth row for one terminal-backed M5 workload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalTranscriptExportRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Boundary class quoted in export previews.
+    pub terminal_boundary_class: TerminalBoundaryClass,
+    /// Boundary-disclosure posture quoted in export previews.
+    pub boundary_disclosure_class: BoundaryDisclosureClass,
+    /// Maximum bounded scrollback carried into reviewed exports.
+    pub bounded_scrollback_lines: u32,
+    /// Default redaction posture for transcript export.
+    pub redaction_class: TranscriptExportRedactionClass,
+    /// Stable redaction token.
+    pub redaction_token: String,
+    /// True when role and state labels stay visible in the export preview.
+    pub role_state_labeling_visible: bool,
+    /// True when prompt and command boundary markers are preserved.
+    pub prompt_boundary_markers_preserved: bool,
+    /// Guardrail: support bundles never include raw transcript bodies by default.
+    pub support_bundle_raw_content_by_default: bool,
+    /// True when local save is supported through the reviewed flow.
+    pub local_save_supported: bool,
+    /// True when copy is supported through the reviewed flow.
+    pub copy_supported: bool,
+    /// True when attach-to-support-bundle is supported through the reviewed flow.
+    pub support_bundle_attach_supported: bool,
+    /// Inspectable export review route.
+    pub export_ref: String,
+    /// Inspectable transcript provenance route.
+    pub inspect_ref: String,
+}
+
+/// Shared-control role and grant row for a collaborative terminal-backed
+/// workload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalSharedControlRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Shared role preserved by the row.
+    pub role_class: SharedSessionRoleClass,
+    /// Stable role token.
+    pub role_token: String,
+    /// Current control-grant state.
+    pub grant_state_class: SharedControlGrantStateClass,
+    /// Stable grant-state token.
+    pub grant_state_token: String,
+    /// Opaque control-grant ref when the row represents an active or revoked grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_grant_ref: Option<String>,
+    /// True when the role label remains visible on the live and restored surfaces.
+    pub role_label_visible: bool,
+    /// True when the state label remains visible on the live and restored surfaces.
+    pub state_label_visible: bool,
+    /// True when the shared boundary remains visible.
+    pub boundary_label_visible: bool,
+    /// Inspectable audit route for the row.
+    pub audit_ref: String,
+    /// Controlled continuity note describing how authority narrows safely.
+    pub continuity_note: String,
+}
+
+/// Shared-control audit event preserved inside this packet family.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueSessionTerminalSharedControlAuditRow {
+    /// Record discriminator.
+    pub record_kind: String,
+    /// Workload covered by the row.
+    pub workload_class: GovernedWorkloadClass,
+    /// Shared-control audit event class.
+    pub event_class: SharedControlAuditEventClass,
+    /// Stable event token.
+    pub event_token: String,
+    /// Actor role that emitted the event.
+    pub actor_role_class: SharedSessionRoleClass,
+    /// Stable actor-role token.
+    pub actor_role_token: String,
+    /// Role affected by the event.
+    pub affected_role_class: SharedSessionRoleClass,
+    /// Stable affected-role token.
+    pub affected_role_token: String,
+    /// Opaque control-grant ref when the event acts on one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_grant_ref: Option<String>,
+    /// Inspectable audit event reference.
+    pub event_ref: String,
+    /// Controlled audit summary.
+    pub summary: String,
+    /// Guardrail: row carries no raw transcript or input content.
+    pub raw_content_excluded: bool,
+}
+
 /// Consumer projection that must preserve this packet verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueSessionTerminalGovernanceConsumerProjection {
@@ -2317,6 +2747,12 @@ pub struct QueueSessionTerminalGovernanceConsumerProjection {
     pub preserves_shell_signal_vocabulary: bool,
     /// True when the projection preserves boundary-disclosure vocabulary.
     pub preserves_boundary_disclosure_vocabulary: bool,
+    /// True when the projection preserves session-continuity vocabulary.
+    pub preserves_session_continuity_vocabulary: bool,
+    /// True when the projection preserves transcript-export vocabulary.
+    pub preserves_transcript_export_vocabulary: bool,
+    /// True when the projection preserves shared-control vocabulary.
+    pub preserves_shared_control_vocabulary: bool,
     /// True when the projection preserves linkification-confidence vocabulary.
     pub preserves_linkification_vocabulary: bool,
     /// True when the projection preserves taint and provenance vocabulary.
@@ -2341,6 +2777,9 @@ impl QueueSessionTerminalGovernanceConsumerProjection {
             && self.preserves_protocol_vocabulary
             && self.preserves_shell_signal_vocabulary
             && self.preserves_boundary_disclosure_vocabulary
+            && self.preserves_session_continuity_vocabulary
+            && self.preserves_transcript_export_vocabulary
+            && self.preserves_shared_control_vocabulary
             && self.preserves_linkification_vocabulary
             && self.preserves_taint_provenance_vocabulary
             && self.supports_json_export
@@ -2380,6 +2819,18 @@ pub struct QueueSessionTerminalGovernancePacketInput {
     /// Terminal protocol and shell-integration coverage rows.
     #[serde(default)]
     pub protocol_surface_rows: Vec<QueueSessionTerminalProtocolSurfaceRow>,
+    /// Honest session continuity rows for terminal-backed workloads.
+    #[serde(default)]
+    pub session_continuity_rows: Vec<QueueSessionTerminalSessionContinuityRow>,
+    /// Transcript-export truth rows for terminal-backed workloads.
+    #[serde(default)]
+    pub transcript_export_rows: Vec<QueueSessionTerminalTranscriptExportRow>,
+    /// Shared-control role and grant rows.
+    #[serde(default)]
+    pub shared_control_rows: Vec<QueueSessionTerminalSharedControlRow>,
+    /// Shared-control audit rows.
+    #[serde(default)]
+    pub shared_control_audit_rows: Vec<QueueSessionTerminalSharedControlAuditRow>,
     /// Linkification-confidence rows.
     #[serde(default)]
     pub linkification_rows: Vec<QueueSessionTerminalLinkificationRow>,
@@ -2431,6 +2882,18 @@ pub struct QueueSessionTerminalGovernancePacket {
     /// Terminal protocol and shell-integration coverage rows.
     #[serde(default)]
     pub protocol_surface_rows: Vec<QueueSessionTerminalProtocolSurfaceRow>,
+    /// Honest session continuity rows for terminal-backed workloads.
+    #[serde(default)]
+    pub session_continuity_rows: Vec<QueueSessionTerminalSessionContinuityRow>,
+    /// Transcript-export truth rows for terminal-backed workloads.
+    #[serde(default)]
+    pub transcript_export_rows: Vec<QueueSessionTerminalTranscriptExportRow>,
+    /// Shared-control role and grant rows.
+    #[serde(default)]
+    pub shared_control_rows: Vec<QueueSessionTerminalSharedControlRow>,
+    /// Shared-control audit rows.
+    #[serde(default)]
+    pub shared_control_audit_rows: Vec<QueueSessionTerminalSharedControlAuditRow>,
     /// Linkification-confidence rows.
     #[serde(default)]
     pub linkification_rows: Vec<QueueSessionTerminalLinkificationRow>,
@@ -2469,6 +2932,10 @@ impl QueueSessionTerminalGovernancePacket {
             protected_path_rows: input.protected_path_rows,
             fairness_lane_rows: input.fairness_lane_rows,
             protocol_surface_rows: input.protocol_surface_rows,
+            session_continuity_rows: input.session_continuity_rows,
+            transcript_export_rows: input.transcript_export_rows,
+            shared_control_rows: input.shared_control_rows,
+            shared_control_audit_rows: input.shared_control_audit_rows,
             linkification_rows: input.linkification_rows,
             output_consumer_rows: input.output_consumer_rows,
             power_thermal_transition: input.power_thermal_transition,
@@ -2642,6 +3109,48 @@ impl QueueSessionTerminalGovernancePacket {
             .collect()
     }
 
+    /// Returns the unique session-continuity tokens observed across rows.
+    pub fn session_continuity_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.session_continuity_rows {
+            set.insert(row.continuity_class);
+        }
+        set.into_iter()
+            .map(SessionContinuityClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique resume-requirement tokens observed across rows.
+    pub fn resume_requirement_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.session_continuity_rows {
+            set.insert(row.resume_requirement_class);
+        }
+        set.into_iter()
+            .map(ResumeRequirementClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique authority-status tokens observed across rows.
+    pub fn authority_status_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.session_continuity_rows {
+            set.insert(row.authority_status_class);
+        }
+        set.into_iter().map(AuthorityStatusClass::as_str).collect()
+    }
+
+    /// Returns the unique transcript-redaction tokens observed across rows.
+    pub fn transcript_redaction_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.transcript_export_rows {
+            set.insert(row.redaction_class);
+        }
+        set.into_iter()
+            .map(TranscriptExportRedactionClass::as_str)
+            .collect()
+    }
+
     /// Returns the unique link-target tokens observed across rows.
     pub fn link_target_tokens(&self) -> Vec<&'static str> {
         let mut set = BTreeSet::new();
@@ -2694,6 +3203,28 @@ impl QueueSessionTerminalGovernancePacket {
         }
         set.into_iter()
             .map(TerminalOutputProvenanceClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique shared-role tokens observed across shared-control rows.
+    pub fn shared_role_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.shared_control_rows {
+            set.insert(row.role_class);
+        }
+        set.into_iter()
+            .map(SharedSessionRoleClass::as_str)
+            .collect()
+    }
+
+    /// Returns the unique shared audit-event tokens observed across rows.
+    pub fn shared_audit_event_tokens(&self) -> Vec<&'static str> {
+        let mut set = BTreeSet::new();
+        for row in &self.shared_control_audit_rows {
+            set.insert(row.event_class);
+        }
+        set.into_iter()
+            .map(SharedControlAuditEventClass::as_str)
             .collect()
     }
 
@@ -3414,6 +3945,266 @@ impl QueueSessionTerminalGovernancePacket {
                 }
             }
         }
+        for workload in &terminal_workloads {
+            if !self
+                .session_continuity_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingSessionContinuityCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "terminal workload {} is missing session continuity coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+            if !self
+                .transcript_export_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingTranscriptExportCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "terminal workload {} is missing transcript export coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+        }
+        for continuity in SessionContinuityClass::REQUIRED {
+            if !self
+                .session_continuity_rows
+                .iter()
+                .any(|row| row.continuity_class == continuity)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredSessionContinuityCoverage,
+                    FindingSeverity::Blocker,
+                    format!("session continuity {} is not covered", continuity.as_str()),
+                ));
+            }
+        }
+        for requirement in ResumeRequirementClass::REQUIRED {
+            if !self
+                .session_continuity_rows
+                .iter()
+                .any(|row| row.resume_requirement_class == requirement)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredResumeRequirementCoverage,
+                    FindingSeverity::Blocker,
+                    format!("resume requirement {} is not covered", requirement.as_str()),
+                ));
+            }
+        }
+        for status in AuthorityStatusClass::REQUIRED {
+            if !self
+                .session_continuity_rows
+                .iter()
+                .any(|row| row.authority_status_class == status)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredAuthorityStatusCoverage,
+                    FindingSeverity::Blocker,
+                    format!("authority status {} is not covered", status.as_str()),
+                ));
+            }
+        }
+        for continuity_row in &self.session_continuity_rows {
+            if continuity_row.continuity_token != continuity_row.continuity_class.as_str()
+                || continuity_row.resume_requirement_token
+                    != continuity_row.resume_requirement_class.as_str()
+                || continuity_row.authority_status_token
+                    != continuity_row.authority_status_class.as_str()
+                || !continuity_row.boundary_label_visible
+                || continuity_row.honest_state_label.trim().is_empty()
+                || continuity_row.inspect_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidSessionContinuityRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "session continuity row for workload {} is incomplete or unsafe",
+                        continuity_row.workload_class.as_str()
+                    ),
+                ));
+            }
+            if let Some(terminal_row) = self.rows.iter().find(|row| {
+                row.workload_class == continuity_row.workload_class
+                    && matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+            }) {
+                if terminal_row.terminal_boundary_class != continuity_row.terminal_boundary_class
+                    || terminal_row.boundary_disclosure_class
+                        != continuity_row.boundary_disclosure_class
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::InvalidSessionContinuityRow,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "session continuity row for workload {} drifts from the terminal boundary admission",
+                            continuity_row.workload_class.as_str()
+                        ),
+                    ));
+                }
+            }
+        }
+        for redaction in TranscriptExportRedactionClass::REQUIRED {
+            if !self
+                .transcript_export_rows
+                .iter()
+                .any(|row| row.redaction_class == redaction)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredTranscriptRedactionCoverage,
+                    FindingSeverity::Blocker,
+                    format!("transcript redaction {} is not covered", redaction.as_str()),
+                ));
+            }
+        }
+        for export_row in &self.transcript_export_rows {
+            if export_row.redaction_token != export_row.redaction_class.as_str()
+                || export_row.bounded_scrollback_lines == 0
+                || !export_row.role_state_labeling_visible
+                || !export_row.prompt_boundary_markers_preserved
+                || export_row.support_bundle_raw_content_by_default
+                || !export_row.local_save_supported
+                || !export_row.copy_supported
+                || !export_row.support_bundle_attach_supported
+                || export_row.export_ref.trim().is_empty()
+                || export_row.inspect_ref.trim().is_empty()
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidTranscriptExportRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "transcript export row for workload {} is incomplete or unsafe",
+                        export_row.workload_class.as_str()
+                    ),
+                ));
+            }
+            if let Some(terminal_row) = self.rows.iter().find(|row| {
+                row.workload_class == export_row.workload_class
+                    && matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+            }) {
+                if terminal_row.terminal_boundary_class != export_row.terminal_boundary_class
+                    || terminal_row.boundary_disclosure_class
+                        != export_row.boundary_disclosure_class
+                {
+                    findings.push(ValidationFinding::new(
+                        FindingKind::InvalidTranscriptExportRow,
+                        FindingSeverity::Blocker,
+                        format!(
+                            "transcript export row for workload {} drifts from the terminal boundary admission",
+                            export_row.workload_class.as_str()
+                        ),
+                    ));
+                }
+            }
+        }
+
+        let shared_control_workloads = self
+            .rows
+            .iter()
+            .filter(|row| {
+                matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission)
+                    && row.terminal_boundary_class == TerminalBoundaryClass::SharedControl
+            })
+            .map(|row| row.workload_class)
+            .collect::<Vec<_>>();
+        for workload in &shared_control_workloads {
+            if !self
+                .shared_control_rows
+                .iter()
+                .any(|row| row.workload_class == *workload)
+                || !self
+                    .shared_control_audit_rows
+                    .iter()
+                    .any(|row| row.workload_class == *workload)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingSharedControlCoverage,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "shared-control workload {} is missing role or audit coverage",
+                        workload.as_str()
+                    ),
+                ));
+            }
+        }
+        for role in SharedSessionRoleClass::REQUIRED {
+            if !self
+                .shared_control_rows
+                .iter()
+                .any(|row| row.role_class == role)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredSharedRoleCoverage,
+                    FindingSeverity::Blocker,
+                    format!("shared role {} is not covered", role.as_str()),
+                ));
+            }
+        }
+        for event in SharedControlAuditEventClass::REQUIRED {
+            if !self
+                .shared_control_audit_rows
+                .iter()
+                .any(|row| row.event_class == event)
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::MissingRequiredSharedAuditEventCoverage,
+                    FindingSeverity::Blocker,
+                    format!("shared audit event {} is not covered", event.as_str()),
+                ));
+            }
+        }
+        for shared_row in &self.shared_control_rows {
+            if shared_row.role_token != shared_row.role_class.as_str()
+                || shared_row.grant_state_token != shared_row.grant_state_class.as_str()
+                || shared_row.role_label_visible
+                    && shared_row.state_label_visible
+                    && shared_row.boundary_label_visible
+                    && !shared_row.audit_ref.trim().is_empty()
+                    && !shared_row.continuity_note.trim().is_empty()
+                    && (!shared_row.grant_state_class.requires_control_grant_ref()
+                        || shared_row.control_grant_ref.is_some())
+            {
+                continue;
+            }
+            findings.push(ValidationFinding::new(
+                FindingKind::InvalidSharedControlRow,
+                FindingSeverity::Blocker,
+                format!(
+                    "shared-control row for workload {} and role {} is incomplete or unsafe",
+                    shared_row.workload_class.as_str(),
+                    shared_row.role_token
+                ),
+            ));
+        }
+        for audit_row in &self.shared_control_audit_rows {
+            if audit_row.event_token != audit_row.event_class.as_str()
+                || audit_row.actor_role_token != audit_row.actor_role_class.as_str()
+                || audit_row.affected_role_token != audit_row.affected_role_class.as_str()
+                || audit_row.event_ref.trim().is_empty()
+                || audit_row.summary.trim().is_empty()
+                || !audit_row.raw_content_excluded
+                || (audit_row.event_class.requires_control_grant_ref()
+                    && audit_row.control_grant_ref.is_none())
+            {
+                findings.push(ValidationFinding::new(
+                    FindingKind::InvalidSharedControlAuditRow,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "shared-control audit row for workload {} and event {} is incomplete or unsafe",
+                        audit_row.workload_class.as_str(),
+                        audit_row.event_token
+                    ),
+                ));
+            }
+        }
         for link_target in TerminalLinkTargetClass::REQUIRED {
             if !self
                 .linkification_rows
@@ -3826,6 +4617,36 @@ impl QueueSessionTerminalGovernancePacket {
                     ),
                 ));
             }
+            if !projection.preserves_session_continuity_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::SessionContinuityVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses session-continuity vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_transcript_export_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::TranscriptExportVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses transcript-export vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
+            if !projection.preserves_shared_control_vocabulary {
+                findings.push(ValidationFinding::new(
+                    FindingKind::SharedControlVocabularyCollapsed,
+                    FindingSeverity::Blocker,
+                    format!(
+                        "projection {} collapses shared-control vocabulary",
+                        projection.projection_ref
+                    ),
+                ));
+            }
             if !projection.preserves_linkification_vocabulary {
                 findings.push(ValidationFinding::new(
                     FindingKind::LinkificationVocabularyCollapsed,
@@ -3941,6 +4762,9 @@ fn stable_projection(surface: ConsumerSurface) -> QueueSessionTerminalGovernance
         preserves_protocol_vocabulary: true,
         preserves_shell_signal_vocabulary: true,
         preserves_boundary_disclosure_vocabulary: true,
+        preserves_session_continuity_vocabulary: true,
+        preserves_transcript_export_vocabulary: true,
+        preserves_shared_control_vocabulary: true,
         preserves_linkification_vocabulary: true,
         preserves_taint_provenance_vocabulary: true,
         supports_json_export: true,
@@ -4206,6 +5030,320 @@ fn build_protocol_surface_rows(
             raw_clipboard_payload_excluded: true,
         })
         .collect()
+}
+
+fn session_continuity_for(
+    workload: GovernedWorkloadClass,
+) -> (
+    SessionContinuityClass,
+    ResumeRequirementClass,
+    AuthorityStatusClass,
+    &'static str,
+) {
+    match workload {
+        GovernedWorkloadClass::NotebookSession => (
+            SessionContinuityClass::TranscriptRestored,
+            ResumeRequirementClass::RerunRequired,
+            AuthorityStatusClass::AuthorityCurrent,
+            "Transcript restored; rerun required to rebuild kernel state.",
+        ),
+        GovernedWorkloadClass::DataQueryConsole => (
+            SessionContinuityClass::LiveSessionContinuity,
+            ResumeRequirementClass::NoneRequired,
+            AuthorityStatusClass::AuthorityCurrent,
+            "Live session continuity preserved on the request console.",
+        ),
+        GovernedWorkloadClass::PipelineRun => (
+            SessionContinuityClass::SessionEnded,
+            ResumeRequirementClass::RerunRequired,
+            AuthorityStatusClass::AuthorityExpired,
+            "Session ended; rerun required to reopen the provider-backed pipeline console.",
+        ),
+        GovernedWorkloadClass::PreviewRoute => (
+            SessionContinuityClass::SessionEnded,
+            ResumeRequirementClass::ReconnectAvailable,
+            AuthorityStatusClass::AuthorityMoved,
+            "Session ended; reconnect available after the preview boundary is reattached.",
+        ),
+        GovernedWorkloadClass::CompanionHandoff => (
+            SessionContinuityClass::TranscriptRestored,
+            ResumeRequirementClass::ReauthorizationRequired,
+            AuthorityStatusClass::AuthorityExpired,
+            "Transcript restored; reauthorization required before companion control resumes.",
+        ),
+        GovernedWorkloadClass::IncidentWorkspace => (
+            SessionContinuityClass::TranscriptRestored,
+            ResumeRequirementClass::ReconnectAvailable,
+            AuthorityStatusClass::AuthorityCurrent,
+            "Transcript restored; shared-control reconnect available without replaying prior input.",
+        ),
+        GovernedWorkloadClass::InfrastructureSession => (
+            SessionContinuityClass::SessionEnded,
+            ResumeRequirementClass::ReconnectAvailable,
+            AuthorityStatusClass::PolicyBlocked,
+            "Session ended; reconnect available once the runtime boundary is reapproved.",
+        ),
+        GovernedWorkloadClass::ProfilerCapture
+        | GovernedWorkloadClass::DocsRecall
+        | GovernedWorkloadClass::SyncOffboardingFlow => {
+            panic!("non-terminal workload does not have session continuity truth")
+        }
+    }
+}
+
+fn build_session_continuity_rows(
+    rows: &[QueueSessionTerminalGovernanceRow],
+) -> Vec<QueueSessionTerminalSessionContinuityRow> {
+    rows.iter()
+        .filter(|row| matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission))
+        .map(|row| {
+            let (
+                continuity_class,
+                resume_requirement_class,
+                authority_status_class,
+                honest_state_label,
+            ) = session_continuity_for(row.workload_class);
+            QueueSessionTerminalSessionContinuityRow {
+                record_kind: QUEUE_SESSION_TERMINAL_SESSION_CONTINUITY_ROW_RECORD_KIND.to_owned(),
+                workload_class: row.workload_class,
+                continuity_class,
+                continuity_token: continuity_class.as_str().to_owned(),
+                resume_requirement_class,
+                resume_requirement_token: resume_requirement_class.as_str().to_owned(),
+                authority_status_class,
+                authority_status_token: authority_status_class.as_str().to_owned(),
+                terminal_boundary_class: row.terminal_boundary_class,
+                boundary_disclosure_class: row.boundary_disclosure_class,
+                boundary_label_visible: true,
+                honest_state_label: honest_state_label.to_owned(),
+                inspect_ref: format!("inspect:continuity:{}", row.workload_class.as_str()),
+            }
+        })
+        .collect()
+}
+
+fn transcript_redaction_for(
+    workload: GovernedWorkloadClass,
+) -> (TranscriptExportRedactionClass, u32) {
+    match workload {
+        GovernedWorkloadClass::NotebookSession => (
+            TranscriptExportRedactionClass::RedactedTranscriptDefault,
+            4_000,
+        ),
+        GovernedWorkloadClass::DataQueryConsole => (
+            TranscriptExportRedactionClass::ReviewedFullTranscriptOptIn,
+            2_000,
+        ),
+        GovernedWorkloadClass::PipelineRun => {
+            (TranscriptExportRedactionClass::MetadataOnlyDefault, 1_500)
+        }
+        GovernedWorkloadClass::PreviewRoute => (
+            TranscriptExportRedactionClass::RedactedTranscriptDefault,
+            2_500,
+        ),
+        GovernedWorkloadClass::CompanionHandoff => {
+            (TranscriptExportRedactionClass::MetadataOnlyDefault, 1_000)
+        }
+        GovernedWorkloadClass::IncidentWorkspace => (
+            TranscriptExportRedactionClass::ReviewedFullTranscriptOptIn,
+            3_000,
+        ),
+        GovernedWorkloadClass::InfrastructureSession => {
+            (TranscriptExportRedactionClass::MetadataOnlyDefault, 2_500)
+        }
+        GovernedWorkloadClass::ProfilerCapture
+        | GovernedWorkloadClass::DocsRecall
+        | GovernedWorkloadClass::SyncOffboardingFlow => {
+            panic!("non-terminal workload does not have transcript export truth")
+        }
+    }
+}
+
+fn build_transcript_export_rows(
+    rows: &[QueueSessionTerminalGovernanceRow],
+) -> Vec<QueueSessionTerminalTranscriptExportRow> {
+    rows.iter()
+        .filter(|row| matches!(row.row_class, GovernanceRowClass::TerminalBoundaryAdmission))
+        .map(|row| {
+            let (redaction_class, bounded_scrollback_lines) =
+                transcript_redaction_for(row.workload_class);
+            QueueSessionTerminalTranscriptExportRow {
+                record_kind: QUEUE_SESSION_TERMINAL_TRANSCRIPT_EXPORT_ROW_RECORD_KIND.to_owned(),
+                workload_class: row.workload_class,
+                terminal_boundary_class: row.terminal_boundary_class,
+                boundary_disclosure_class: row.boundary_disclosure_class,
+                bounded_scrollback_lines,
+                redaction_class,
+                redaction_token: redaction_class.as_str().to_owned(),
+                role_state_labeling_visible: true,
+                prompt_boundary_markers_preserved: true,
+                support_bundle_raw_content_by_default: false,
+                local_save_supported: true,
+                copy_supported: true,
+                support_bundle_attach_supported: true,
+                export_ref: format!("export:transcript:{}", row.workload_class.as_str()),
+                inspect_ref: format!("inspect:transcript:{}", row.workload_class.as_str()),
+            }
+        })
+        .collect()
+}
+
+fn build_shared_control_rows() -> Vec<QueueSessionTerminalSharedControlRow> {
+    vec![
+        QueueSessionTerminalSharedControlRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            role_class: SharedSessionRoleClass::ReadOnlyViewer,
+            role_token: SharedSessionRoleClass::ReadOnlyViewer.as_str().to_owned(),
+            grant_state_class: SharedControlGrantStateClass::ControlRequestPending,
+            grant_state_token: SharedControlGrantStateClass::ControlRequestPending
+                .as_str()
+                .to_owned(),
+            control_grant_ref: None,
+            role_label_visible: true,
+            state_label_visible: true,
+            boundary_label_visible: true,
+            audit_ref: "audit:incident:viewer_pending".to_owned(),
+            continuity_note:
+                "Viewer remains transcript-only until a fresh control grant is admitted."
+                    .to_owned(),
+        },
+        QueueSessionTerminalSharedControlRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            role_class: SharedSessionRoleClass::Follower,
+            role_token: SharedSessionRoleClass::Follower.as_str().to_owned(),
+            grant_state_class: SharedControlGrantStateClass::FollowOnlyNoGrant,
+            grant_state_token: SharedControlGrantStateClass::FollowOnlyNoGrant
+                .as_str()
+                .to_owned(),
+            control_grant_ref: None,
+            role_label_visible: true,
+            state_label_visible: true,
+            boundary_label_visible: true,
+            audit_ref: "audit:incident:follower_joined".to_owned(),
+            continuity_note:
+                "Follower mirrors the active presenter without inheriting input or clipboard rights."
+                    .to_owned(),
+        },
+        QueueSessionTerminalSharedControlRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            role_class: SharedSessionRoleClass::WriteCapableParticipant,
+            role_token: SharedSessionRoleClass::WriteCapableParticipant
+                .as_str()
+                .to_owned(),
+            grant_state_class: SharedControlGrantStateClass::GrantedActive,
+            grant_state_token: SharedControlGrantStateClass::GrantedActive
+                .as_str()
+                .to_owned(),
+            control_grant_ref: Some("grant:incident:writer:active".to_owned()),
+            role_label_visible: true,
+            state_label_visible: true,
+            boundary_label_visible: true,
+            audit_ref: "audit:incident:writer_active".to_owned(),
+            continuity_note:
+                "Write-capable participation stays explicit and expires back to observer without replaying input."
+                    .to_owned(),
+        },
+        QueueSessionTerminalSharedControlRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            role_class: SharedSessionRoleClass::ReadOnlyViewer,
+            role_token: SharedSessionRoleClass::ReadOnlyViewer.as_str().to_owned(),
+            grant_state_class: SharedControlGrantStateClass::GrantRevoked,
+            grant_state_token: SharedControlGrantStateClass::GrantRevoked
+                .as_str()
+                .to_owned(),
+            control_grant_ref: Some("grant:incident:writer:revoked".to_owned()),
+            role_label_visible: true,
+            state_label_visible: true,
+            boundary_label_visible: true,
+            audit_ref: "audit:incident:writer_revoked".to_owned(),
+            continuity_note:
+                "Revoked participants fall back to read-only continuity instead of inheriting lingering write authority."
+                    .to_owned(),
+        },
+    ]
+}
+
+fn build_shared_control_audit_rows() -> Vec<QueueSessionTerminalSharedControlAuditRow> {
+    vec![
+        QueueSessionTerminalSharedControlAuditRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            event_class: SharedControlAuditEventClass::GrantRequested,
+            event_token: SharedControlAuditEventClass::GrantRequested
+                .as_str()
+                .to_owned(),
+            actor_role_class: SharedSessionRoleClass::ReadOnlyViewer,
+            actor_role_token: SharedSessionRoleClass::ReadOnlyViewer.as_str().to_owned(),
+            affected_role_class: SharedSessionRoleClass::WriteCapableParticipant,
+            affected_role_token: SharedSessionRoleClass::WriteCapableParticipant
+                .as_str()
+                .to_owned(),
+            control_grant_ref: None,
+            event_ref: "audit_event:incident:grant_requested".to_owned(),
+            summary: "Viewer requested temporary terminal input authority.".to_owned(),
+            raw_content_excluded: true,
+        },
+        QueueSessionTerminalSharedControlAuditRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            event_class: SharedControlAuditEventClass::GrantActivated,
+            event_token: SharedControlAuditEventClass::GrantActivated
+                .as_str()
+                .to_owned(),
+            actor_role_class: SharedSessionRoleClass::WriteCapableParticipant,
+            actor_role_token: SharedSessionRoleClass::WriteCapableParticipant
+                .as_str()
+                .to_owned(),
+            affected_role_class: SharedSessionRoleClass::WriteCapableParticipant,
+            affected_role_token: SharedSessionRoleClass::WriteCapableParticipant
+                .as_str()
+                .to_owned(),
+            control_grant_ref: Some("grant:incident:writer:active".to_owned()),
+            event_ref: "audit_event:incident:grant_activated".to_owned(),
+            summary: "Temporary write-capable control became active on the incident terminal."
+                .to_owned(),
+            raw_content_excluded: true,
+        },
+        QueueSessionTerminalSharedControlAuditRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            event_class: SharedControlAuditEventClass::GrantRevoked,
+            event_token: SharedControlAuditEventClass::GrantRevoked
+                .as_str()
+                .to_owned(),
+            actor_role_class: SharedSessionRoleClass::ReadOnlyViewer,
+            actor_role_token: SharedSessionRoleClass::ReadOnlyViewer.as_str().to_owned(),
+            affected_role_class: SharedSessionRoleClass::WriteCapableParticipant,
+            affected_role_token: SharedSessionRoleClass::WriteCapableParticipant
+                .as_str()
+                .to_owned(),
+            control_grant_ref: Some("grant:incident:writer:revoked".to_owned()),
+            event_ref: "audit_event:incident:grant_revoked".to_owned(),
+            summary: "Write-capable control was revoked and safely demoted back to viewer."
+                .to_owned(),
+            raw_content_excluded: true,
+        },
+        QueueSessionTerminalSharedControlAuditRow {
+            record_kind: QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND.to_owned(),
+            workload_class: GovernedWorkloadClass::IncidentWorkspace,
+            event_class: SharedControlAuditEventClass::FollowModeJoined,
+            event_token: SharedControlAuditEventClass::FollowModeJoined
+                .as_str()
+                .to_owned(),
+            actor_role_class: SharedSessionRoleClass::Follower,
+            actor_role_token: SharedSessionRoleClass::Follower.as_str().to_owned(),
+            affected_role_class: SharedSessionRoleClass::Follower,
+            affected_role_token: SharedSessionRoleClass::Follower.as_str().to_owned(),
+            control_grant_ref: None,
+            event_ref: "audit_event:incident:follow_joined".to_owned(),
+            summary: "Participant joined the shared session as a follower only.".to_owned(),
+            raw_content_excluded: true,
+        },
+    ]
 }
 
 fn link_confidence_for(
@@ -5390,6 +6528,10 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
     let protected_path_rows = build_protected_path_rows();
     let fairness_lane_rows = build_fairness_lane_rows(&activity_job_rows);
     let protocol_surface_rows = build_protocol_surface_rows(&rows);
+    let session_continuity_rows = build_session_continuity_rows(&rows);
+    let transcript_export_rows = build_transcript_export_rows(&rows);
+    let shared_control_rows = build_shared_control_rows();
+    let shared_control_audit_rows = build_shared_control_audit_rows();
     let linkification_rows = build_linkification_rows();
     let output_consumer_rows = build_output_consumer_rows();
     let power_thermal_transition = Some(build_power_thermal_transition());
@@ -5408,6 +6550,10 @@ fn stable_input() -> QueueSessionTerminalGovernancePacketInput {
         protected_path_rows,
         fairness_lane_rows,
         protocol_surface_rows,
+        session_continuity_rows,
+        transcript_export_rows,
+        shared_control_rows,
+        shared_control_audit_rows,
         linkification_rows,
         output_consumer_rows,
         power_thermal_transition,

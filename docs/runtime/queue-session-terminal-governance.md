@@ -28,6 +28,20 @@ and the reviewer matrix is
   to explicit `protocol_capability_classes`,
   `shell_integration_signal_classes`, boundary disclosure, and high-risk paste
   review truth.
+- Session continuity truth: `session_continuity_rows` bind every terminal-backed
+  M5 workload to one honest `continuity_class`, one explicit
+  `resume_requirement_class`, one `authority_status_class`, and a controlled
+  user-facing label so `transcript restored`, `session ended`,
+  `reconnect available`, `rerun required`, and `reauthorization required`
+  never collapse into generic restore chrome.
+- Transcript export truth: `transcript_export_rows` bind bounded scrollback,
+  `redaction_class`, role/state labeling, prompt-boundary-marker preservation,
+  and the support-bundle default that raw transcript bodies are excluded unless
+  the user opts into a reviewed local flow.
+- Shared-control truth: `shared_control_rows` preserve explicit
+  `read_only_viewer`, `follower`, and `write_capable_participant` roles plus
+  grant state, while `shared_control_audit_rows` preserve the corresponding
+  request/activate/revoke/follow audit events inside this same packet family.
 - Linkification coverage: `linkification_rows` bind paths, URLs, stack frames,
   and problem matches to explicit confidence classes so heuristic or imported
   links stay inspectable instead of masquerading as exact shell truth.
@@ -77,6 +91,13 @@ and the reviewer matrix is
   pipeline/provider consoles, companion remote consoles, incident consoles, and
   infrastructure shells may not inherit shell or clipboard truth from a generic
   terminal packet.
+- Claimed M5 terminal surfaces must also publish one continuity row and one
+  transcript-export row. Restore and reopen paths must preserve the active
+  runtime boundary label and disclose when authority is current, expired,
+  moved, or policy-blocked.
+- Shared-control workloads must also publish explicit role/grant rows and audit
+  rows in this packet family. Viewers and followers may not inherit write,
+  clipboard, or runtime authority implicitly.
 - Every claimed terminal workload must also publish linkification rows for
   `path`, `url`, `stack_frame`, and `problem_match`, plus downstream consumer
   rows for `ai_context`, `quick_fix`, `problem_matcher`, and
@@ -94,6 +115,9 @@ and the reviewer matrix is
   battery/thermal shedding must remain inspectable on every governed lane.
 - Restore preserves structure, evidence, transcripts, and honest rerun
   affordances, but never silently replays commands or reacquires authority.
+- Transcript export is metadata-safe by default. Support bundles preserve role,
+  state, boundary, and prompt-boundary truth without including raw terminal
+  bodies unless an explicit reviewed flow opts into that narrower export.
 - Clipboard and paste posture must preserve the active boundary class and
   policy outcome rather than relying on local heuristics or generic copy.
 - High-risk paste and clipboard-write flows surface the active local, remote,

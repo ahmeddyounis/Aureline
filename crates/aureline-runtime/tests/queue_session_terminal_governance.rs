@@ -32,8 +32,19 @@ struct ExpectedFixture {
     row_count: usize,
     protected_path_row_count: usize,
     fairness_lane_row_count: usize,
+    #[serde(default)]
     protocol_surface_row_count: usize,
+    #[serde(default)]
+    session_continuity_row_count: usize,
+    #[serde(default)]
+    transcript_export_row_count: usize,
+    #[serde(default)]
+    shared_control_row_count: usize,
+    #[serde(default)]
+    shared_control_audit_row_count: usize,
+    #[serde(default)]
     linkification_row_count: usize,
+    #[serde(default)]
     output_consumer_row_count: usize,
     support_export_safe: bool,
     #[serde(default)]
@@ -61,9 +72,21 @@ struct ExpectedFixture {
     #[serde(default)]
     shell_signal_tokens: Vec<String>,
     #[serde(default)]
+    session_continuity_tokens: Vec<String>,
+    #[serde(default)]
+    resume_requirement_tokens: Vec<String>,
+    #[serde(default)]
+    authority_status_tokens: Vec<String>,
+    #[serde(default)]
+    transcript_redaction_tokens: Vec<String>,
+    #[serde(default)]
     link_target_tokens: Vec<String>,
     #[serde(default)]
     link_confidence_tokens: Vec<String>,
+    #[serde(default)]
+    shared_role_tokens: Vec<String>,
+    #[serde(default)]
+    shared_audit_event_tokens: Vec<String>,
     #[serde(default)]
     output_consumer_tokens: Vec<String>,
     #[serde(default)]
@@ -195,6 +218,25 @@ fn apply_mutation(packet: &mut QueueSessionTerminalGovernancePacket, mutation: &
                 .protocol_surface_rows
                 .retain(|row| row.workload_class != GovernedWorkloadClass::PreviewRoute);
         }
+        "remove_incident_session_continuity_row" => {
+            packet
+                .session_continuity_rows
+                .retain(|row| row.workload_class != GovernedWorkloadClass::IncidentWorkspace);
+        }
+        "allow_raw_transcript_support_bundle_default" => {
+            let row = packet
+                .transcript_export_rows
+                .iter_mut()
+                .find(|row| row.workload_class == GovernedWorkloadClass::InfrastructureSession)
+                .expect("infrastructure transcript export row");
+            row.support_bundle_raw_content_by_default = true;
+        }
+        "remove_shared_control_audit_row" => {
+            packet.shared_control_audit_rows.retain(|row| {
+                row.event_class
+                    != aureline_runtime::GovernanceSharedControlAuditEventClass::GrantRevoked
+            });
+        }
         "remove_infrastructure_problem_match_linkification_row" => {
             packet.linkification_rows.retain(|row| {
                 !(row.workload_class == GovernedWorkloadClass::InfrastructureSession
@@ -291,24 +333,62 @@ fn assert_fixture_matches(file_name: &str) {
         "fixture {} fairness-lane row count drift",
         fixture.case_name
     );
-    assert_eq!(
-        packet.protocol_surface_rows.len(),
-        fixture.expect.protocol_surface_row_count,
-        "fixture {} protocol-surface row count drift",
-        fixture.case_name
-    );
-    assert_eq!(
-        packet.linkification_rows.len(),
-        fixture.expect.linkification_row_count,
-        "fixture {} linkification row count drift",
-        fixture.case_name
-    );
-    assert_eq!(
-        packet.output_consumer_rows.len(),
-        fixture.expect.output_consumer_row_count,
-        "fixture {} output-consumer row count drift",
-        fixture.case_name
-    );
+    if fixture.expect.protocol_surface_row_count > 0 {
+        assert_eq!(
+            packet.protocol_surface_rows.len(),
+            fixture.expect.protocol_surface_row_count,
+            "fixture {} protocol-surface row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.session_continuity_row_count > 0 {
+        assert_eq!(
+            packet.session_continuity_rows.len(),
+            fixture.expect.session_continuity_row_count,
+            "fixture {} session-continuity row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.transcript_export_row_count > 0 {
+        assert_eq!(
+            packet.transcript_export_rows.len(),
+            fixture.expect.transcript_export_row_count,
+            "fixture {} transcript-export row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.shared_control_row_count > 0 {
+        assert_eq!(
+            packet.shared_control_rows.len(),
+            fixture.expect.shared_control_row_count,
+            "fixture {} shared-control row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.shared_control_audit_row_count > 0 {
+        assert_eq!(
+            packet.shared_control_audit_rows.len(),
+            fixture.expect.shared_control_audit_row_count,
+            "fixture {} shared-control audit row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.linkification_row_count > 0 {
+        assert_eq!(
+            packet.linkification_rows.len(),
+            fixture.expect.linkification_row_count,
+            "fixture {} linkification row count drift",
+            fixture.case_name
+        );
+    }
+    if fixture.expect.output_consumer_row_count > 0 {
+        assert_eq!(
+            packet.output_consumer_rows.len(),
+            fixture.expect.output_consumer_row_count,
+            "fixture {} output-consumer row count drift",
+            fixture.case_name
+        );
+    }
     assert_eq!(
         findings.len(),
         fixture.expect.validation_finding_count,
@@ -371,6 +451,26 @@ fn assert_fixture_matches(file_name: &str) {
         "shell_signal",
     );
     assert_token_set_matches(
+        &packet.session_continuity_tokens(),
+        &fixture.expect.session_continuity_tokens,
+        "session_continuity",
+    );
+    assert_token_set_matches(
+        &packet.resume_requirement_tokens(),
+        &fixture.expect.resume_requirement_tokens,
+        "resume_requirement",
+    );
+    assert_token_set_matches(
+        &packet.authority_status_tokens(),
+        &fixture.expect.authority_status_tokens,
+        "authority_status",
+    );
+    assert_token_set_matches(
+        &packet.transcript_redaction_tokens(),
+        &fixture.expect.transcript_redaction_tokens,
+        "transcript_redaction",
+    );
+    assert_token_set_matches(
         &packet.link_target_tokens(),
         &fixture.expect.link_target_tokens,
         "link_target",
@@ -379,6 +479,16 @@ fn assert_fixture_matches(file_name: &str) {
         &packet.link_confidence_tokens(),
         &fixture.expect.link_confidence_tokens,
         "link_confidence",
+    );
+    assert_token_set_matches(
+        &packet.shared_role_tokens(),
+        &fixture.expect.shared_role_tokens,
+        "shared_role",
+    );
+    assert_token_set_matches(
+        &packet.shared_audit_event_tokens(),
+        &fixture.expect.shared_audit_event_tokens,
+        "shared_audit_event",
     );
     assert_token_set_matches(
         &packet.output_consumer_tokens(),
@@ -489,6 +599,21 @@ fn removing_protocol_surface_blocks_stable() {
 }
 
 #[test]
+fn removing_session_continuity_blocks_stable() {
+    assert_fixture_matches("remove_incident_session_continuity_row.json");
+}
+
+#[test]
+fn support_bundle_defaults_cannot_include_raw_transcript_content() {
+    assert_fixture_matches("allow_raw_transcript_support_bundle_default.json");
+}
+
+#[test]
+fn removing_shared_control_audit_blocks_stable() {
+    assert_fixture_matches("remove_shared_control_audit_row.json");
+}
+
+#[test]
 fn removing_linkification_target_blocks_stable() {
     assert_fixture_matches("remove_infrastructure_problem_match_linkification_row.json");
 }
@@ -516,6 +641,10 @@ fn checked_in_packet_validates_and_covers_every_required_class() {
     assert_eq!(packet.protected_path_rows.len(), 5);
     assert_eq!(packet.fairness_lane_rows.len(), 5);
     assert_eq!(packet.protocol_surface_rows.len(), 7);
+    assert_eq!(packet.session_continuity_rows.len(), 7);
+    assert_eq!(packet.transcript_export_rows.len(), 7);
+    assert_eq!(packet.shared_control_rows.len(), 4);
+    assert_eq!(packet.shared_control_audit_rows.len(), 4);
     assert_eq!(packet.linkification_rows.len(), 28);
     assert_eq!(packet.output_consumer_rows.len(), 28);
     let observed_job_kinds: BTreeSet<&str> = packet.job_kind_tokens().into_iter().collect();
