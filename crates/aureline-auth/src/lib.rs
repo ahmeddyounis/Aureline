@@ -122,6 +122,7 @@ pub mod enterprise_drill_baseline;
 pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod identity_modes;
 pub mod keychain_state;
+pub mod m5_auth_and_recovery;
 pub mod network_trust;
 pub mod offline_entitlements;
 pub mod oidc;
@@ -417,6 +418,19 @@ pub use stabilize_system_browser_auth_passkey_capable_step_up::{
     SYSTEM_BROWSER_AUTH_STABILIZE_SCHEMA_VERSION,
     SYSTEM_BROWSER_AUTH_STABILIZE_SHARED_CONTRACT_REF,
     SYSTEM_BROWSER_AUTH_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_auth_and_recovery::{
+    is_canonical_object_ref as is_canonical_auth_recovery_ref, m5_auth_and_recovery_corpus,
+    AuthCondition, AuthDrill, AuthEventKind, AuthEventRow, AuthRecoveryClaim, AuthRecoveryPillars,
+    AuthRecoveryQualification, AuthSurface, BrowserHandoff as M5AuthBrowserHandoff,
+    ConditionDisposition, ContinuityCeiling, CredentialClass as M5AuthCredentialClass,
+    CredentialStorageRow, CredentialStoreClass as M5AuthCredentialStoreClass, DrillCategory,
+    FallbackPosture, HandoffMethod, HandoffReason, LocalCapabilityClass, LocalContinuityBlock,
+    M5AuthAndRecovery, M5AuthAndRecoveryInput, M5AuthAndRecoveryScenario, ManagedCapabilityClass,
+    PasskeyPosture, ProfileChannel, SurfaceTruthRow as M5AuthSurfaceTruthRow,
+    M5_AUTH_AND_RECOVERY_RECORD_KIND, M5_AUTH_AND_RECOVERY_SCHEMA_VERSION,
+    M5_AUTH_AND_RECOVERY_SHARED_CONTRACT_REF,
 };
 
 pub use finalize_no_account_local_use_proof_deprovision_preserves::{

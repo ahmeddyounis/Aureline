@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/m5_auth_and_recovery.schema.json",
+  "title": "Aureline M5 managed auth-and-recovery",
+  "description": "Boundary schema for the governed managed-auth-and-recovery record that brings the M5 managed identity events (sign-in, step-up, re-auth, session revocation, deprovision, account recovery) into one inspectable, local-first auth-boundary model. Each event discloses its provider/owner, its system-browser handoff method and typed reason, its passkey posture and keyboard-complete fallback, the managed capabilities a live degraded condition pauses, and the local work that stays usable through it. The record accounts for where refresh credentials and delegated handles live (and that they never leave the device) and replays the passkey-unavailable, browser-handoff-failure, offline-identity, policy-forced-sign-out, and deprovision-on-active-local-work drills as security, accessibility, and recovery exercises. It derives a fail-closed continuity ceiling that withholds a calm local-first-managed-safe claim when a managed capability is paused, and can never encode a local-work threat that is not authorized by a named governed policy row, an embedded password-first or CAPTCHA-only recovery on a stable profile, an implicit passkey fallback, or a leaked refresh credential.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "summary",
+    "profile_channel",
+    "events",
+    "credential_stores",
+    "drills",
+    "surface_truth",
+    "event_kind_coverage",
+    "surface_coverage",
+    "paused_capability_coverage",
+    "credential_class_coverage",
+    "drill_coverage",
+    "drill_category_coverage",
+    "pillars",
+    "trust_qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_auth_and_recovery_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "auth:m5_auth_and_recovery:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "profile_channel": { "$ref": "#/$defs/profile_channel" },
+    "events": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/auth_event_row" }
+    },
+    "credential_stores": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/credential_storage_row" }
+    },
+    "drills": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/drill" }
+    },
+    "surface_truth": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/surface_truth_row" }
+    },
+    "event_kind_coverage": { "type": "array", "items": { "$ref": "#/$defs/event_kind" } },
+    "surface_coverage": { "type": "array", "items": { "$ref": "#/$defs/surface" } },
+    "paused_capability_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/managed_capability" }
+    },
+    "credential_class_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/credential_class" }
+    },
+    "drill_coverage": { "type": "array", "items": { "$ref": "#/$defs/drill_kind" } },
+    "drill_category_coverage": { "type": "array", "items": { "$ref": "#/$defs/drill_category" } },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "trust_qualification": { "$ref": "#/$defs/trust_qualification" }
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://[^/]+/.+"
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "managed_sign_in",
+        "step_up",
+        "reauth",
+        "session_revocation",
+        "deprovision",
+        "account_recovery"
+      ]
+    },
+    "surface": {
+      "type": "string",
+      "enum": ["desktop", "companion", "browser_adjacent"]
+    },
+    "handoff_method": {
+      "type": "string",
+      "enum": [
+        "system_browser_passkey",
+        "system_browser_security_key",
+        "system_browser_device_code",
+        "system_browser_federated_password"
+      ]
+    },
+    "handoff_reason": {
+      "type": "string",
+      "enum": ["interactive_sign_in", "step_up_challenge", "policy_reauth", "recovery_flow"]
+    },
+    "passkey_posture": {
+      "type": "string",
+      "enum": [
+        "preferred",
+        "available",
+        "unavailable_fallback_explicit",
+        "unavailable_fallback_implicit"
+      ]
+    },
+    "fallback_posture": {
+      "type": "string",
+      "enum": [
+        "system_browser_passkey",
+        "system_browser_security_key",
+        "system_browser_device_code",
+        "system_browser_federated_password",
+        "recovery_code",
+        "embedded_password_first",
+        "captcha_only"
+      ]
+    },
+    "profile_channel": {
+      "type": "string",
+      "enum": ["stable", "preview", "portable", "managed"]
+    },
+    "managed_capability": {
+      "type": "string",
+      "enum": [
+        "hosted_ai",
+        "managed_sync",
+        "marketplace_publish",
+        "companion_control",
+        "policy_distribution",
+        "org_collab"
+      ]
+    },
+    "local_capability": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_files",
+        "local_history",
+        "local_only_workflows",
+        "byok_providers"
+      ]
+    },
+    "drill_kind": {
+      "type": "string",
+      "enum": [
+        "passkey_unavailable",
+        "browser_handoff_failure",
+        "offline_identity",
+        "policy_forced_sign_out",
+        "deprovision_on_active_local_work"
+      ]
+    },
+    "drill_category": {
+      "type": "string",
+      "enum": ["security", "accessibility", "recovery"]
+    },
+    "condition_disposition": {
+      "type": "string",
+      "enum": [
+        "managed_paused_local_preserved",
+        "recovery_offered",
+        "managed_exit_local_preserved"
+      ]
+    },
+    "credential_class": {
+      "type": "string",
+      "enum": ["refresh_token", "delegated_handle", "session_broker"]
+    },
+    "credential_store_class": {
+      "type": "string",
+      "enum": ["os_keychain", "enterprise_store", "session_broker_memory"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["desktop_shell", "cli_inspect", "docs_help", "support_export"]
+    },
+    "continuity_ceiling": {
+      "type": "string",
+      "enum": ["local_first_full", "managed_narrowed_local_intact", "local_continuity_at_risk"]
+    },
+    "claim_class": {
+      "type": "string",
+      "enum": ["local_first_managed_safe", "narrowed_managed_degraded", "unsupported"]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "events_incomplete",
+        "surfaces_incomplete",
+        "provider_undisclosed",
+        "local_first_threatened",
+        "fallback_posture_implicit",
+        "credential_export_leak",
+        "drill_not_local_preserving",
+        "managed_capability_paused",
+        "surface_truth_incomplete"
+      ]
+    },
+    "local_continuity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_editing_preserved",
+        "local_files_preserved",
+        "local_history_preserved",
+        "local_only_workflows_preserved",
+        "statement"
+      ],
+      "properties": {
+        "local_editing_preserved": { "type": "boolean" },
+        "local_files_preserved": { "type": "boolean" },
+        "local_history_preserved": { "type": "boolean" },
+        "local_only_workflows_preserved": { "type": "boolean" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "browser_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "reason", "return_route_ref", "keyboard_complete_fallback"],
+      "properties": {
+        "method": { "$ref": "#/$defs/handoff_method" },
+        "reason": { "$ref": "#/$defs/handoff_reason" },
+        "return_route_ref": { "$ref": "#/$defs/canonical_ref" },
+        "keyboard_complete_fallback": { "type": "boolean" }
+      }
+    },
+    "auth_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill",
+        "paused_capabilities",
+        "local_capabilities_remaining",
+        "fallback_posture",
+        "keyboard_complete_fallback",
+        "local_work_threatened",
+        "disposition",
+        "detail"
+      ],
+      "properties": {
+        "drill": { "$ref": "#/$defs/drill_kind" },
+        "paused_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/managed_capability" }
+        },
+        "local_capabilities_remaining": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_capability" }
+        },
+        "fallback_posture": { "$ref": "#/$defs/fallback_posture" },
+        "keyboard_complete_fallback": { "type": "boolean" },
+        "local_work_threatened": { "type": "boolean" },
+        "governed_policy_exception_ref": { "$ref": "#/$defs/canonical_ref" },
+        "disposition": { "$ref": "#/$defs/condition_disposition" },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "auth_event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "kind",
+        "surface",
+        "provider_label",
+        "issuer_ref",
+        "handoff",
+        "passkey_posture",
+        "local_continuity",
+        "managed_healthy",
+        "detail"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/event_kind" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "provider_label": { "type": "string", "minLength": 1 },
+        "org_label": { "type": "string", "minLength": 1 },
+        "issuer_ref": { "$ref": "#/$defs/canonical_ref" },
+        "handoff": { "$ref": "#/$defs/browser_handoff" },
+        "passkey_posture": { "$ref": "#/$defs/passkey_posture" },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_block" },
+        "managed_healthy": { "type": "boolean" },
+        "active_condition": { "$ref": "#/$defs/auth_condition" },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "credential_storage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "store_id",
+        "credential_class",
+        "store_class",
+        "excluded_from_portable_state",
+        "excluded_from_sync",
+        "excluded_from_support_export",
+        "detail"
+      ],
+      "properties": {
+        "store_id": { "type": "string", "minLength": 1 },
+        "credential_class": { "$ref": "#/$defs/credential_class" },
+        "store_class": { "$ref": "#/$defs/credential_store_class" },
+        "excluded_from_portable_state": { "const": true },
+        "excluded_from_sync": { "const": true },
+        "excluded_from_support_export": { "const": true },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "categories",
+        "paused_capabilities",
+        "local_preserved",
+        "local_labeled",
+        "keyboard_complete",
+        "expected_signal",
+        "recovery_path"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/drill_kind" },
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/drill_category" }
+        },
+        "paused_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/managed_capability" }
+        },
+        "local_preserved": { "const": true },
+        "local_labeled": { "const": true },
+        "keyboard_complete": { "const": true },
+        "expected_signal": { "type": "string", "minLength": 1 },
+        "recovery_path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "surface_truth_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "consumes_shared_record",
+        "shows_provider_disclosure",
+        "shows_paused_capabilities",
+        "shows_local_continuity",
+        "shows_fallback_posture",
+        "shows_drills"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "consumes_shared_record": { "type": "boolean" },
+        "shows_provider_disclosure": { "type": "boolean" },
+        "shows_paused_capabilities": { "type": "boolean" },
+        "shows_local_continuity": { "type": "boolean" },
+        "shows_fallback_posture": { "type": "boolean" },
+        "shows_drills": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events_complete",
+        "surfaces_represented",
+        "provider_disclosed",
+        "local_first_preserved",
+        "fallback_posture_explicit",
+        "credentials_export_excluded",
+        "drills_local_preserving",
+        "surface_truth_complete"
+      ],
+      "properties": {
+        "events_complete": { "type": "boolean" },
+        "surfaces_represented": { "type": "boolean" },
+        "provider_disclosed": { "type": "boolean" },
+        "local_first_preserved": { "type": "boolean" },
+        "fallback_posture_explicit": { "type": "boolean" },
+        "credentials_export_excluded": { "type": "boolean" },
+        "drills_local_preserving": { "type": "boolean" },
+        "surface_truth_complete": { "type": "boolean" }
+      }
+    },
+    "trust_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_class",
+        "effective_continuity_ceiling",
+        "qualifies_local_first_safe",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "effective_continuity_ceiling": { "$ref": "#/$defs/continuity_ceiling" },
+        "qualifies_local_first_safe": { "type": "boolean" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        }
+      }
+    }
+  }
+}
