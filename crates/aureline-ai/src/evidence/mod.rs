@@ -644,6 +644,7 @@ impl CitedSourceReference {
                 "citation-drawer:ai:{}",
                 sanitize_evidence_ref(&docs_node_identity.docs_node_id)
             )),
+            infrastructure_lineage: None,
             surface_refs: vec![format!(
                 "surface:docs-backed-ai:{}",
                 sanitize_evidence_ref(&docs_node_identity.docs_node_id)
@@ -1725,6 +1726,18 @@ pub struct AiMutationEvidenceDerivedSupportRow {
     /// Docs freshness token, when the canonical docs-derived record is present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs_freshness_token: Option<String>,
+    /// Infrastructure lineage ref when the canonical docs-derived record is infra-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_lineage_ref: Option<String>,
+    /// Infrastructure truth-layer tokens cited by the derived explanation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_truth_layer_tokens: Vec<String>,
+    /// Infrastructure truth-layer tokens that were unavailable and surfaced as limits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_unavailable_truth_layer_tokens: Vec<String>,
+    /// Visible infrastructure limit summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_limit_summary: Option<String>,
     /// Basis source-reference ids.
     pub basis_source_reference_refs: Vec<String>,
     /// Inference token.
@@ -1756,6 +1769,46 @@ impl AiMutationEvidenceDerivedSupportRow {
                     .as_str()
                     .to_owned()
             }),
+            infrastructure_lineage_ref: lineage.docs_derived_explanation.as_ref().and_then(
+                |record| {
+                    record
+                        .provenance
+                        .infrastructure_lineage
+                        .as_ref()
+                        .map(|lineage| lineage.lineage_ref.clone())
+                },
+            ),
+            infrastructure_truth_layer_tokens: lineage
+                .docs_derived_explanation
+                .as_ref()
+                .and_then(|record| {
+                    record
+                        .provenance
+                        .infrastructure_lineage
+                        .as_ref()
+                        .map(|lineage| lineage.truth_layer_tokens())
+                })
+                .unwrap_or_default(),
+            infrastructure_unavailable_truth_layer_tokens: lineage
+                .docs_derived_explanation
+                .as_ref()
+                .and_then(|record| {
+                    record
+                        .provenance
+                        .infrastructure_lineage
+                        .as_ref()
+                        .map(|lineage| lineage.unavailable_truth_layer_tokens())
+                })
+                .unwrap_or_default(),
+            infrastructure_limit_summary: lineage.docs_derived_explanation.as_ref().and_then(
+                |record| {
+                    record
+                        .provenance
+                        .infrastructure_lineage
+                        .as_ref()
+                        .and_then(|lineage| lineage.visible_limit_summary.clone())
+                },
+            ),
             basis_source_reference_refs: lineage.basis_source_reference_refs.clone(),
             inference_token: lineage.inference_class.as_str().to_owned(),
             confidence_token: lineage.confidence_class.as_str().to_owned(),

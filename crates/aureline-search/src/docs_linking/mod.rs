@@ -983,6 +983,7 @@ impl DocsLinkedReference {
                 })
                 .unwrap_or(DocsExampleValidationClass::NotApplicable),
             citation_drawer_ref: Some(self.citation_drawer_hook.hook_id.clone()),
+            infrastructure_lineage: None,
             surface_refs: vec![format!(
                 "surface:docs-linked-search:{}",
                 sanitize_planner_id(&self.reference_id)

@@ -3,9 +3,14 @@ use std::path::Path;
 use aureline_docs::{
     CitationAnchorAlpha, CitationAnchorAlphaInput,
     CitationAnchorAvailability as DocsCitationAnchorAvailability, CitationConfidenceClass,
-    CitationInferenceMarker, CitationLocalityClass, CitationSourceClass,
-    DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsNodeIdentity, DocsNodeIdentityInput,
-    DocsNodeKind, DocsScopeClass, LocaleOverlayState, VersionMatchState as DocsVersionMatchState,
+    CitationInferenceMarker, CitationLocalityClass, CitationSourceClass, DocsDerivedClaimKind,
+    DocsDerivedExplanation, DocsDerivedExplanationClaim, DocsDerivedExplanationInput,
+    DocsDerivedExplanationKind, DocsExampleValidationClass, DocsExternalOpenFallback,
+    DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsInfraTruthLayer,
+    DocsInfrastructureLineage, DocsKnowledgeObjectKind, DocsKnowledgeSurfaceKind,
+    DocsMirrorOfflinePosture, DocsNodeIdentity, DocsNodeIdentityInput, DocsNodeKind,
+    DocsNodeProvenance, DocsNodeProvenanceInput, DocsScopeClass, LocaleOverlayState,
+    VersionMatchState as DocsVersionMatchState,
 };
 use aureline_history::{
     ActorClass, ActorRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
@@ -214,6 +219,99 @@ fn glossary_docs_citation_anchor() -> CitationAnchorAlpha {
     })
 }
 
+fn infra_derived_docs_node_identity() -> DocsNodeIdentity {
+    DocsNodeIdentity::new(DocsNodeIdentityInput {
+        docs_node_id: "docs-node:derived:checkout-drift".to_owned(),
+        doc_kind: DocsNodeKind::DerivedExplainer,
+        source_class: CitationSourceClass::DerivedExplanation,
+        scope_class: DocsScopeClass::AiEvidence,
+        source_pack_ref: "pack:derived:infra-drift".to_owned(),
+        source_pack_revision_ref: "pack-revision:derived:infra-drift:2026-06-10".to_owned(),
+        version_or_revision_ref: "graph-epoch:infra-drift:2026-06-10".to_owned(),
+        version_match_state: DocsVersionMatchState::ExactBuildMatch,
+        freshness_class: CanonicalDocsFreshnessClass::WarmCached,
+        locality_class: CitationLocalityClass::CachedLocal,
+        source_locale: "en-US".to_owned(),
+        requested_locale: "en-US".to_owned(),
+        effective_locale: "en-US".to_owned(),
+        locale_overlay_state: LocaleOverlayState::SourceLanguageOriginal,
+        source_language_fallback_ref: None,
+        citation_availability: DocsCitationAnchorAvailability::ExactAnchorAvailable,
+        citation_anchor_refs: vec!["citation-anchor:infra:checkout-drift".to_owned()],
+        exact_reopen_ref: "reopen:docs-node:derived:checkout-drift".to_owned(),
+        hidden_or_omitted_note: None,
+    })
+}
+
+fn infra_docs_derived_explanation() -> DocsDerivedExplanation {
+    let docs_node = infra_derived_docs_node_identity();
+    let provenance = DocsNodeProvenance::new(DocsNodeProvenanceInput {
+        provenance_id: "docs-provenance:derived:checkout-drift".to_owned(),
+        docs_node: docs_node.clone(),
+        knowledge_object_kind: DocsKnowledgeObjectKind::DerivedExplanation,
+        derived_explanation_kind: Some(DocsDerivedExplanationKind::Generated),
+        source_build_at: "2026-06-10T09:00:00Z".to_owned(),
+        running_build_identity_ref: "build:aureline:ai-evidence-test:2026-06-12".to_owned(),
+        mirror_offline_posture: DocsMirrorOfflinePosture::CachedLocal,
+        external_open: DocsExternalOpenFallback::not_required(),
+        example_validation: DocsExampleValidationClass::NotApplicable,
+        citation_drawer_ref: Some("citation-drawer:infra:checkout-drift".to_owned()),
+        infrastructure_lineage: Some(DocsInfrastructureLineage {
+            lineage_ref: "infra-lineage:ai-evidence:checkout-drift".to_owned(),
+            subject_ref: "obj:k8s:checkout:deployment:checkout-api".to_owned(),
+            context_ref: Some("ctx:k8s:payments-us-1:checkout".to_owned()),
+            truth_layers_used: vec![
+                DocsInfraTruthLayer::AuthoredDesired,
+                DocsInfraTruthLayer::RenderedExpanded,
+            ],
+            unavailable_truth_layers: vec![
+                DocsInfraTruthLayer::ObservedLive,
+                DocsInfraTruthLayer::ProviderOverlay,
+            ],
+            relationship_refs: vec![
+                "relation:checkout:source-of-render".to_owned(),
+                "relation:checkout:runbook-reference".to_owned(),
+            ],
+            visible_limit_summary: Some(
+                "Live cluster and provider overlays were unavailable, so the explanation degraded to authored and rendered checkout truth."
+                    .to_owned(),
+            ),
+            support_summary: "AI evidence preserved the authored/rendered fallback used for checkout drift guidance.".to_owned(),
+        }),
+        surface_refs: vec!["surface:docs-backed-ai:checkout-drift".to_owned()],
+    });
+
+    DocsDerivedExplanation::new(DocsDerivedExplanationInput {
+        explanation_id: "docs-derived-explanation:checkout-drift".to_owned(),
+        surface_kind: DocsKnowledgeSurfaceKind::DocsBackedAi,
+        derived_explanation_kind: DocsDerivedExplanationKind::Generated,
+        summary_label: "Generated checkout drift explanation".to_owned(),
+        provenance,
+        upstream_citation_anchor_refs: vec![
+            "citation-anchor:payments-guide#create-charge".to_owned(),
+            "citation-anchor:infra:checkout-drift".to_owned(),
+        ],
+        cited_docs_node_refs: vec![
+            "docs-node:payments-guide:create-charge".to_owned(),
+            docs_node.docs_node_id,
+        ],
+        claims: vec![DocsDerivedExplanationClaim {
+            claim_id: "claim:checkout-drift:authored-rendered".to_owned(),
+            claim_kind: DocsDerivedClaimKind::ArchitectureRelation,
+            claim_summary:
+                "Checkout drift guidance came from authored manifests and rendered output because live overlays were unavailable."
+                    .to_owned(),
+            supporting_citation_anchor_refs: vec![
+                "citation-anchor:payments-guide#create-charge".to_owned(),
+            ],
+            inference_marker: CitationInferenceMarker::Inference,
+            confidence_class: CitationConfidenceClass::Inferred,
+        }],
+        derivation_epoch_ref: Some("graph-epoch:infra-drift:2026-06-10".to_owned()),
+        docs_pack_refs: vec!["pack:derived:infra-drift".to_owned()],
+    })
+}
+
 fn docs_sources() -> Vec<CitedSourceReference> {
     vec![
         CitedSourceReference {
@@ -250,7 +348,7 @@ fn docs_sources() -> Vec<CitedSourceReference> {
 fn derived_explanations() -> Vec<DerivedExplanationLineage> {
     vec![DerivedExplanationLineage {
         explanation_ref: "derived-explanation:payments-charge-path".to_owned(),
-        docs_derived_explanation: None,
+        docs_derived_explanation: Some(infra_docs_derived_explanation()),
         basis_source_reference_refs: vec![
             "source-ref:workspace-symbol:payments-handler".to_owned(),
             "source-ref:docs-pack:payments-guide".to_owned(),
@@ -525,6 +623,31 @@ fn docs_backed_pre_apply_packet_exports_route_spend_approval_and_citations() {
     assert_eq!(
         support.derived_explanation_rows[0].confidence_token,
         "inferred"
+    );
+    assert_eq!(
+        support.derived_explanation_rows[0]
+            .infrastructure_lineage_ref
+            .as_deref(),
+        Some("infra-lineage:ai-evidence:checkout-drift")
+    );
+    assert_eq!(
+        support.derived_explanation_rows[0].infrastructure_truth_layer_tokens,
+        vec![
+            "authored_desired".to_owned(),
+            "rendered_expanded".to_owned()
+        ]
+    );
+    assert_eq!(
+        support.derived_explanation_rows[0].infrastructure_unavailable_truth_layer_tokens,
+        vec!["observed_live".to_owned(), "provider_overlay".to_owned()]
+    );
+    assert_eq!(
+        support.derived_explanation_rows[0]
+            .infrastructure_limit_summary
+            .as_deref(),
+        Some(
+            "Live cluster and provider overlays were unavailable, so the explanation degraded to authored and rendered checkout truth."
+        )
     );
     assert!(!packet.export_safe_support_json().contains("://"));
     assert!(!packet

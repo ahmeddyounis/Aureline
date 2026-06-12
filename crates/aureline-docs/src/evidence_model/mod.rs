@@ -438,6 +438,137 @@ impl DocsTruthDowngrade {
     }
 }
 
+/// Export-safe infrastructure truth-layer token shared by docs, retrieval-debug, and AI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DocsInfraTruthLayer {
+    /// Repo-authored desired state.
+    AuthoredDesired,
+    /// Rendered, expanded, or otherwise derived output.
+    RenderedExpanded,
+    /// Planned or validated output such as dry runs and policy checks.
+    PlannedValidated,
+    /// Observed or live state from a scoped target.
+    ObservedLive,
+    /// Provider-owned overlay or vendor-console metadata.
+    ProviderOverlay,
+}
+
+impl DocsInfraTruthLayer {
+    /// Returns the stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AuthoredDesired => "authored_desired",
+            Self::RenderedExpanded => "rendered_expanded",
+            Self::PlannedValidated => "planned_validated",
+            Self::ObservedLive => "observed_live",
+            Self::ProviderOverlay => "provider_overlay",
+        }
+    }
+}
+
+/// Export-safe infrastructure explanation lineage carried by docs-backed surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocsInfrastructureLineage {
+    /// Stable lineage id.
+    pub lineage_ref: String,
+    /// Stable infra object or environment-slice subject ref.
+    pub subject_ref: String,
+    /// Stable context or environment-slice ref when one exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_ref: Option<String>,
+    /// Truth layers explicitly used by the explanation.
+    pub truth_layers_used: Vec<DocsInfraTruthLayer>,
+    /// Truth layers that were unavailable and therefore surfaced as limits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unavailable_truth_layers: Vec<DocsInfraTruthLayer>,
+    /// Relation or journey refs that make the lineage navigable.
+    pub relationship_refs: Vec<String>,
+    /// Visible explanation of any limit or fallback posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visible_limit_summary: Option<String>,
+    /// Export-safe explanation summary.
+    pub support_summary: String,
+}
+
+impl DocsInfrastructureLineage {
+    /// Returns the stable truth-layer tokens rendered on source strips and exports.
+    pub fn truth_layer_tokens(&self) -> Vec<String> {
+        self.truth_layers_used
+            .iter()
+            .map(|layer| layer.as_str().to_owned())
+            .collect()
+    }
+
+    /// Returns the unavailable truth-layer tokens rendered as visible limits.
+    pub fn unavailable_truth_layer_tokens(&self) -> Vec<String> {
+        self.unavailable_truth_layers
+            .iter()
+            .map(|layer| layer.as_str().to_owned())
+            .collect()
+    }
+
+    fn validate(&self) -> Vec<DocsEvidenceModelViolation> {
+        let mut violations = Vec::new();
+        if self.lineage_ref.trim().is_empty()
+            || self.subject_ref.trim().is_empty()
+            || self.support_summary.trim().is_empty()
+            || self.truth_layers_used.is_empty()
+            || self.relationship_refs.is_empty()
+        {
+            violations.push(DocsEvidenceModelViolation::InfrastructureLineageInvalid);
+            return violations;
+        }
+
+        let mut seen_truth_layers = Vec::new();
+        for layer in &self.truth_layers_used {
+            if seen_truth_layers.contains(layer) {
+                violations.push(DocsEvidenceModelViolation::InfrastructureLineageInvalid);
+                break;
+            }
+            seen_truth_layers.push(*layer);
+        }
+
+        let mut seen_unavailable = Vec::new();
+        for layer in &self.unavailable_truth_layers {
+            if seen_unavailable.contains(layer) || self.truth_layers_used.contains(layer) {
+                violations.push(DocsEvidenceModelViolation::InfrastructureLineageInvalid);
+                break;
+            }
+            seen_unavailable.push(*layer);
+        }
+
+        let needs_visible_limit = self.unavailable_truth_layers.iter().any(|layer| {
+            matches!(
+                layer,
+                DocsInfraTruthLayer::ObservedLive | DocsInfraTruthLayer::ProviderOverlay
+            )
+        });
+        if needs_visible_limit
+            && self
+                .visible_limit_summary
+                .as_deref()
+                .map_or(true, |summary| summary.trim().is_empty())
+        {
+            violations.push(DocsEvidenceModelViolation::InfrastructureLineageInvalid);
+        }
+        if needs_visible_limit
+            && !self.truth_layers_used.iter().any(|layer| {
+                matches!(
+                    layer,
+                    DocsInfraTruthLayer::AuthoredDesired
+                        | DocsInfraTruthLayer::RenderedExpanded
+                        | DocsInfraTruthLayer::PlannedValidated
+                )
+            })
+        {
+            violations.push(DocsEvidenceModelViolation::InfrastructureLineageInvalid);
+        }
+
+        violations
+    }
+}
+
 /// Derived explanation origin label.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -495,6 +626,9 @@ pub struct DocsNodeProvenance {
     /// Citation drawer or evidence-view ref.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citation_drawer_ref: Option<String>,
+    /// Infrastructure explanation lineage when the docs object is infra-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_lineage: Option<DocsInfrastructureLineage>,
     /// Surface refs that consume this provenance record.
     pub surface_refs: Vec<String>,
     /// Truth label after stale or illustrative downgrade calculation.
@@ -522,6 +656,7 @@ impl DocsNodeProvenance {
             external_open: input.external_open,
             example_validation: input.example_validation,
             citation_drawer_ref: input.citation_drawer_ref,
+            infrastructure_lineage: input.infrastructure_lineage,
             surface_refs: input.surface_refs,
             truth_label,
         }
@@ -550,6 +685,24 @@ impl DocsNodeProvenance {
             external_open_state_token: self.external_open.state.as_str().to_owned(),
             truth_label_token: self.truth_label.label_class.as_str().to_owned(),
             truth_label: self.truth_label.label.clone(),
+            infrastructure_lineage_ref: self
+                .infrastructure_lineage
+                .as_ref()
+                .map(|lineage| lineage.lineage_ref.clone()),
+            infrastructure_truth_layer_tokens: self
+                .infrastructure_lineage
+                .as_ref()
+                .map(DocsInfrastructureLineage::truth_layer_tokens)
+                .unwrap_or_default(),
+            infrastructure_unavailable_truth_layer_tokens: self
+                .infrastructure_lineage
+                .as_ref()
+                .map(DocsInfrastructureLineage::unavailable_truth_layer_tokens)
+                .unwrap_or_default(),
+            infrastructure_limit_summary: self
+                .infrastructure_lineage
+                .as_ref()
+                .and_then(|lineage| lineage.visible_limit_summary.clone()),
         }
     }
 
@@ -580,6 +733,9 @@ impl DocsNodeProvenance {
             violations.push(DocsEvidenceModelViolation::from(citation_violation));
         }
         violations.extend(self.external_open.validate());
+        if let Some(lineage) = &self.infrastructure_lineage {
+            violations.extend(lineage.validate());
+        }
         if self.docs_node.source_class == CitationSourceClass::DerivedExplanation
             && self.derived_explanation_kind.is_none()
         {
@@ -635,6 +791,8 @@ pub struct DocsNodeProvenanceInput {
     pub example_validation: DocsExampleValidationClass,
     /// Citation drawer or evidence-view ref.
     pub citation_drawer_ref: Option<String>,
+    /// Infrastructure explanation lineage when the docs object is infra-aware.
+    pub infrastructure_lineage: Option<DocsInfrastructureLineage>,
     /// Surface refs that consume this provenance record.
     pub surface_refs: Vec<String>,
 }
@@ -682,6 +840,18 @@ pub struct DocsKnowledgeSourceStrip {
     pub truth_label_token: String,
     /// Visible truth label.
     pub truth_label: String,
+    /// Infrastructure lineage ref when the row is infra-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_lineage_ref: Option<String>,
+    /// Infrastructure truth-layer tokens cited by the row.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_truth_layer_tokens: Vec<String>,
+    /// Infrastructure truth-layer tokens that were unavailable and surfaced as limits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_unavailable_truth_layer_tokens: Vec<String>,
+    /// Visible infrastructure limit summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_limit_summary: Option<String>,
 }
 
 /// Render projection for a docs-backed surface.
@@ -1078,6 +1248,8 @@ pub enum DocsEvidenceModelViolation {
     CitationUnavailableNotDowngraded,
     /// Downgraded truth lacked a stable reason token.
     MissingDowngradeReason,
+    /// Infrastructure lineage was incomplete, contradictory, or hid its fallback posture.
+    InfrastructureLineageInvalid,
     /// A derived explanation lacked curated/generated labeling.
     DerivedExplanationUnmarked,
     /// A derived claim lacked citations and inference labeling.
@@ -1104,6 +1276,7 @@ impl DocsEvidenceModelViolation {
             Self::StaleTruthNotDowngraded => "stale_truth_not_downgraded",
             Self::CitationUnavailableNotDowngraded => "citation_unavailable_not_downgraded",
             Self::MissingDowngradeReason => "missing_downgrade_reason",
+            Self::InfrastructureLineageInvalid => "infrastructure_lineage_invalid",
             Self::DerivedExplanationUnmarked => "derived_explanation_unmarked",
             Self::DerivedClaimUncited => "derived_claim_uncited",
             Self::ExportMissingProvenance => "export_missing_provenance",

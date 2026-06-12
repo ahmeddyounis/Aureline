@@ -1171,6 +1171,7 @@ fn docs_node_provenance_for_graph_node(
             "citation-drawer:graph:{}",
             sanitize_ref(&node.node_id)
         )),
+        infrastructure_lineage: None,
         surface_refs: vec![format!(
             "surface:graph-explainer:{}",
             sanitize_ref(&node.node_id)

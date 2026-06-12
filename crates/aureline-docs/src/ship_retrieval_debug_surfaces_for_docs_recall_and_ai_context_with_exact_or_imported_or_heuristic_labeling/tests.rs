@@ -1,4 +1,5 @@
 use super::*;
+use crate::DocsInfraTruthLayer;
 
 fn packet() -> RetrievalDebugPacket {
     RetrievalDebugPacket::materialize(seeded_stable_retrieval_debug_input())
@@ -61,6 +62,44 @@ fn every_entry_carries_chips_reason_signals_and_escapes() {
             let _ = (signal.signal_kind.as_str(), signal.contribution.as_str());
         }
     }
+}
+
+#[test]
+fn seeded_set_preserves_infra_truth_layers_and_visible_limits() {
+    let packet = packet();
+    let docs_entry = packet
+        .entries
+        .iter()
+        .find(|entry| entry.entry_id == "entry:docs:checkout-rendered-manifest")
+        .expect("infra docs entry present");
+    let docs_lineage = docs_entry
+        .infrastructure_lineage
+        .as_ref()
+        .expect("infra lineage present");
+    assert_eq!(
+        docs_lineage.truth_layer_tokens().join(","),
+        "authored_desired,rendered_expanded,planned_validated"
+    );
+    assert_eq!(
+        docs_lineage.visible_limit_summary.as_deref(),
+        Some(
+            "Provider overlay was unavailable, so the answer degraded to authored, rendered, and planned checkout intelligence."
+        )
+    );
+
+    let ai_entry = packet
+        .entries
+        .iter()
+        .find(|entry| entry.entry_id == "entry:ai_context:checkout-drift-fragment")
+        .expect("infra ai-context entry present");
+    assert_eq!(
+        ai_entry
+            .infrastructure_lineage
+            .as_ref()
+            .expect("infra lineage present")
+            .unavailable_truth_layer_tokens(),
+        vec!["observed_live".to_owned(), "provider_overlay".to_owned()]
+    );
 }
 
 #[test]
@@ -165,13 +204,45 @@ fn heuristic_entry_at_high_confidence_is_flagged() {
 #[test]
 fn drifted_version_presented_as_confident_live_collapses_version_truth() {
     let mut input = seeded_stable_retrieval_debug_input();
-    // The docs-search entry is high-confidence + authoritative-live; drift its version.
+    // The docs-search entry is high-confidence; drift its version and freshness into a fake live claim.
     input.entries[0].chips.version_match = RetrievalVersionMatch::IncompatibleDriftDetected;
+    input.entries[0].chips.freshness = RetrievalFreshness::AuthoritativeLive;
     let packet = RetrievalDebugPacket::materialize(input);
     assert!(packet
         .validation_findings
         .iter()
         .any(|f| f.finding_kind == RetrievalFindingKind::VersionTruthCollapsed));
+}
+
+#[test]
+fn missing_infra_limit_summary_blocks_stable() {
+    let mut input = seeded_stable_retrieval_debug_input();
+    let entry = input
+        .entries
+        .iter_mut()
+        .find(|entry| entry.entry_id == "entry:ai_context:checkout-drift-fragment")
+        .expect("infra ai-context entry present");
+    entry
+        .infrastructure_lineage
+        .as_mut()
+        .expect("infra lineage present")
+        .visible_limit_summary = None;
+    let packet = RetrievalDebugPacket::materialize(input);
+    assert!(packet
+        .validation_findings
+        .iter()
+        .any(|f| f.finding_kind == RetrievalFindingKind::InfrastructureLineageInvalid));
+}
+
+#[test]
+fn export_must_preserve_infra_truth_layers() {
+    let mut input = seeded_stable_retrieval_debug_input();
+    input.export.rows[0].infrastructure_truth_layers = vec![DocsInfraTruthLayer::AuthoredDesired];
+    let packet = RetrievalDebugPacket::materialize(input);
+    assert!(packet
+        .validation_findings
+        .iter()
+        .any(|f| { f.finding_kind == RetrievalFindingKind::ExportInfrastructureLineageMismatch }));
 }
 
 #[test]
@@ -385,7 +456,7 @@ fn checked_support_export_revalidates() {
         .expect("checked retrieval-debug export re-validates as clean stable");
     assert_eq!(
         export.packet.packet_id,
-        "packet:m5:retrieval_debug:net_retry_query"
+        "packet:m5:retrieval_debug:checkout_infra_query"
     );
     assert_eq!(
         export.packet.promotion_state,

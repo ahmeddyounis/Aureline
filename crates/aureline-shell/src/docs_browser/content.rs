@@ -200,6 +200,7 @@ fn docs_browser_projection_from_node(
             "citation-drawer:{}",
             sanitize_id(&docs_node.docs_node_id)
         )),
+        infrastructure_lineage: None,
         surface_refs: vec![format!(
             "surface:docs-browser:{}",
             sanitize_id(&docs_node.docs_node_id)

@@ -45,6 +45,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::{DocsInfraTruthLayer, DocsInfrastructureLineage};
+
 /// Stable record-kind tag carried by [`RetrievalDebugPacket`].
 pub const RETRIEVAL_DEBUG_RECORD_KIND: &str =
     "retrieval_debug_surfaces_for_docs_recall_and_ai_context";
@@ -578,6 +580,8 @@ pub enum RetrievalFindingKind {
     HeuristicLabelLooksAuthoritative,
     /// A non-current version-match is presented as a confident live match.
     VersionTruthCollapsed,
+    /// An infrastructure-aware entry hid or contradicted its truth-layer lineage.
+    InfrastructureLineageInvalid,
     /// An export row references an entry id absent from the entries.
     ExportRowOrphan,
     /// An entry has no matching export row.
@@ -592,6 +596,8 @@ pub enum RetrievalFindingKind {
     ExportSourceClassMismatch,
     /// An export row's confidence disagrees with the entry's chip.
     ExportConfidenceMismatch,
+    /// An export row's infrastructure lineage disagrees with the entry.
+    ExportInfrastructureLineageMismatch,
     /// A degradation is incomplete (missing summary).
     DegradationIncomplete,
     /// A degradation references an entry id absent from the entries.
@@ -622,6 +628,7 @@ impl RetrievalFindingKind {
             Self::OpenRawOpenSourceEscapeMissing => "open_raw_open_source_escape_missing",
             Self::HeuristicLabelLooksAuthoritative => "heuristic_label_looks_authoritative",
             Self::VersionTruthCollapsed => "version_truth_collapsed",
+            Self::InfrastructureLineageInvalid => "infrastructure_lineage_invalid",
             Self::ExportRowOrphan => "export_row_orphan",
             Self::ExportCoverageMissing => "export_coverage_missing",
             Self::ExportDropsPreservation => "export_drops_preservation",
@@ -629,6 +636,7 @@ impl RetrievalFindingKind {
             Self::ExportDerivationLabelMismatch => "export_derivation_label_mismatch",
             Self::ExportSourceClassMismatch => "export_source_class_mismatch",
             Self::ExportConfidenceMismatch => "export_confidence_mismatch",
+            Self::ExportInfrastructureLineageMismatch => "export_infrastructure_lineage_mismatch",
             Self::DegradationIncomplete => "degradation_incomplete",
             Self::DegradationOrphan => "degradation_orphan",
             Self::ConsumerProjectionDrift => "consumer_projection_drift",
@@ -706,6 +714,9 @@ pub struct RetrievalDebugEntry {
     pub open_raw_escape_ref: String,
     /// Open-source escape ref (open the upstream/source).
     pub open_source_escape_ref: String,
+    /// Infrastructure explanation lineage when this retrieval result is infra-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_lineage: Option<DocsInfrastructureLineage>,
 }
 
 /// One export row, mirroring an entry.
@@ -729,6 +740,18 @@ pub struct RetrievalDebugExportRow {
     pub open_raw_escape_ref: String,
     /// Open-source escape ref.
     pub open_source_escape_ref: String,
+    /// Infrastructure lineage ref when the entry is infra-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_lineage_ref: Option<String>,
+    /// Infrastructure truth layers preserved by the export row.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_truth_layers: Vec<DocsInfraTruthLayer>,
+    /// Infrastructure truth layers that were unavailable and surfaced as limits.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructure_unavailable_truth_layers: Vec<DocsInfraTruthLayer>,
+    /// Visible infrastructure limit summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infrastructure_limit_summary: Option<String>,
 }
 
 /// The retrieval-debug export projection for the entry set.
@@ -748,6 +771,9 @@ pub struct RetrievalDebugExport {
     pub preserves_ranking_reasons: bool,
     /// Whether the export preserves the open-raw / open-source escapes.
     pub preserves_open_raw_open_source_escape: bool,
+    /// Whether the export preserves infrastructure truth-layer lineage where present.
+    #[serde(default)]
+    pub preserves_infrastructure_lineage: bool,
     /// Per-entry export rows.
     pub rows: Vec<RetrievalDebugExportRow>,
 }
@@ -761,6 +787,7 @@ impl RetrievalDebugExport {
             && self.preserves_confidence
             && self.preserves_ranking_reasons
             && self.preserves_open_raw_open_source_escape
+            && self.preserves_infrastructure_lineage
     }
 }
 
@@ -798,6 +825,9 @@ pub struct RetrievalConsumerProjection {
     pub preserves_ranking_reasons: bool,
     /// Whether the surface preserves the open-raw / open-source escapes.
     pub preserves_open_raw_open_source_escape: bool,
+    /// Whether the surface preserves infrastructure truth-layer lineage where present.
+    #[serde(default)]
+    pub preserves_infrastructure_lineage: bool,
 }
 
 impl RetrievalConsumerProjection {
@@ -808,6 +838,7 @@ impl RetrievalConsumerProjection {
             && self.preserves_derivation_labels
             && self.preserves_ranking_reasons
             && self.preserves_open_raw_open_source_escape
+            && self.preserves_infrastructure_lineage
     }
 }
 
@@ -988,6 +1019,15 @@ impl RetrievalDebugPacket {
                 entry.cited,
                 entry.ranking_signals.len(),
             ));
+            if let Some(lineage) = &entry.infrastructure_lineage {
+                out.push_str(&format!(
+                    "  - Infrastructure truth layers: {}\n",
+                    join_truth_layers(&lineage.truth_layers_used)
+                ));
+                if let Some(limit_summary) = &lineage.visible_limit_summary {
+                    out.push_str(&format!("  - Infrastructure limits: {}\n", limit_summary));
+                }
+            }
         }
         if !self.retrieval_degradations.is_empty() {
             out.push_str("\n## Degradations\n\n");
@@ -1242,8 +1282,58 @@ fn check_one_entry(entry: &RetrievalDebugEntry, findings: &mut Vec<RetrievalVali
             ),
         );
     }
+    if let Some(lineage) = &entry.infrastructure_lineage {
+        check_infrastructure_lineage(entry, lineage, findings);
+    }
 
     check_entry_signals(entry, findings);
+}
+
+fn check_infrastructure_lineage(
+    entry: &RetrievalDebugEntry,
+    lineage: &DocsInfrastructureLineage,
+    findings: &mut Vec<RetrievalValidationFinding>,
+) {
+    let has_visible_limit = lineage
+        .visible_limit_summary
+        .as_deref()
+        .is_some_and(|summary| !summary.trim().is_empty());
+    let live_or_overlay_unavailable = lineage.unavailable_truth_layers.iter().any(|layer| {
+        matches!(
+            layer,
+            DocsInfraTruthLayer::ObservedLive | DocsInfraTruthLayer::ProviderOverlay
+        )
+    });
+    let degrades_to_repo_owned = lineage.truth_layers_used.iter().any(|layer| {
+        matches!(
+            layer,
+            DocsInfraTruthLayer::AuthoredDesired
+                | DocsInfraTruthLayer::RenderedExpanded
+                | DocsInfraTruthLayer::PlannedValidated
+        )
+    });
+    let overlaps_unavailable = lineage
+        .truth_layers_used
+        .iter()
+        .any(|layer| lineage.unavailable_truth_layers.contains(layer));
+
+    if lineage.lineage_ref.trim().is_empty()
+        || lineage.subject_ref.trim().is_empty()
+        || lineage.support_summary.trim().is_empty()
+        || lineage.truth_layers_used.is_empty()
+        || lineage.relationship_refs.is_empty()
+        || overlaps_unavailable
+        || (live_or_overlay_unavailable && (!has_visible_limit || !degrades_to_repo_owned))
+    {
+        push_finding(
+            findings,
+            RetrievalFindingKind::InfrastructureLineageInvalid,
+            format!(
+                "entry `{}` must keep explicit infrastructure truth-layer lineage and visible fallback limits",
+                entry.entry_id
+            ),
+        );
+    }
 }
 
 fn check_entry_signals(
@@ -1345,6 +1435,16 @@ fn check_export(input: &RetrievalDebugPacketInput, findings: &mut Vec<RetrievalV
                         ),
                     );
                 }
+                if !infrastructure_lineage_matches(entry, row) {
+                    push_finding(
+                        findings,
+                        RetrievalFindingKind::ExportInfrastructureLineageMismatch,
+                        format!(
+                            "export for `{}` drops or changes infrastructure truth-layer lineage",
+                            row.entry_id_ref
+                        ),
+                    );
+                }
             }
         }
     }
@@ -1356,6 +1456,26 @@ fn check_export(input: &RetrievalDebugPacketInput, findings: &mut Vec<RetrievalV
                 RetrievalFindingKind::ExportCoverageMissing,
                 format!("entry `{}` has no export row", entry.entry_id),
             );
+        }
+    }
+}
+
+fn infrastructure_lineage_matches(
+    entry: &RetrievalDebugEntry,
+    row: &RetrievalDebugExportRow,
+) -> bool {
+    match &entry.infrastructure_lineage {
+        None => {
+            row.infrastructure_lineage_ref.is_none()
+                && row.infrastructure_truth_layers.is_empty()
+                && row.infrastructure_unavailable_truth_layers.is_empty()
+                && row.infrastructure_limit_summary.is_none()
+        }
+        Some(lineage) => {
+            row.infrastructure_lineage_ref.as_deref() == Some(lineage.lineage_ref.as_str())
+                && row.infrastructure_truth_layers == lineage.truth_layers_used
+                && row.infrastructure_unavailable_truth_layers == lineage.unavailable_truth_layers
+                && row.infrastructure_limit_summary == lineage.visible_limit_summary
         }
     }
 }
@@ -1505,19 +1625,27 @@ fn json_contains_forbidden_boundary_material(value: &serde_json::Value) -> bool 
     }
 }
 
+fn join_truth_layers(layers: &[DocsInfraTruthLayer]) -> String {
+    layers
+        .iter()
+        .map(|layer| layer.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Seeded stable retrieval-debug input used by the producer, tests, and fixtures.
 pub fn seeded_stable_retrieval_debug_input() -> RetrievalDebugPacketInput {
-    let packet_id = "packet:m5:retrieval_debug:net_retry_query".to_owned();
+    let packet_id = "packet:m5:retrieval_debug:checkout_infra_query".to_owned();
     RetrievalDebugPacketInput {
         packet_id: packet_id.clone(),
-        query_label: "retrieval debug: how does the networking retry backoff work".to_owned(),
-        query_digest_ref: "querydigest:sha256:net-retry-backoff".to_owned(),
+        query_label: "retrieval debug: why does checkout drift from the cluster deployment".to_owned(),
+        query_digest_ref: "querydigest:sha256:checkout-infra-drift".to_owned(),
         entries: vec![docs_search_entry(), semantic_recall_entry(), ai_context_entry()],
         export: seeded_export(),
         retrieval_degradations: vec![RetrievalDegradation {
             degradation_class: RetrievalDegradationClass::IndexStale,
             severity: RetrievalFindingSeverity::Advisory,
-            summary: "the recall index was built before the last two commits; recall entries may lag the working tree".to_owned(),
+            summary: "the infra recall index was built before the latest manifest regeneration; retrieval results may lag the working tree".to_owned(),
             entry_id_ref: None,
             evidence_ref: Some("evidence:retrieval-debug:index-freshness".to_owned()),
         }],
@@ -1529,50 +1657,71 @@ pub fn seeded_stable_retrieval_debug_input() -> RetrievalDebugPacketInput {
 
 fn docs_search_entry() -> RetrievalDebugEntry {
     RetrievalDebugEntry {
-        entry_id: "entry:docs:retry_with_backoff_symbol".to_owned(),
+        entry_id: "entry:docs:checkout-rendered-manifest".to_owned(),
         lane: RetrievalLane::DocsSearch,
-        subject_kind: RetrievalSubjectKind::CodeSymbol,
-        subject_ref: "symbol:aureline-net::retry::retry_with_backoff".to_owned(),
-        title: "retry_with_backoff (symbol reference)".to_owned(),
-        headline: "exact symbol hit for retry_with_backoff in the workspace docs index".to_owned(),
+        subject_kind: RetrievalSubjectKind::CodeFile,
+        subject_ref: "file:deploy/checkout/rendered/deployment.yaml".to_owned(),
+        title: "checkout rendered Deployment manifest".to_owned(),
+        headline: "exact local infra-doc hit for the rendered checkout Deployment that maps authored manifests to cluster objects".to_owned(),
         chips: RetrievalChipSet {
-            source_class: RetrievalSourceClass::WorkspaceCode,
+            source_class: RetrievalSourceClass::ProjectDocs,
             version_match: RetrievalVersionMatch::ExactBuildMatch,
-            freshness: RetrievalFreshness::AuthoritativeLive,
+            freshness: RetrievalFreshness::WarmCached,
             locality: RetrievalLocality::Local,
             confidence: RetrievalConfidence::High,
         },
         derivation_label: RetrievalDerivationLabel::Exact,
-        derivation_reason: "exact symbol-name match against the local workspace index at the active build revision; labelled exact and high".to_owned(),
+        derivation_reason: "exact manifest-path and object-name match against the local infra docs index; the answer explicitly cites authored, rendered, and planned layers.".to_owned(),
         ranking_signals: vec![
             RankingSignal {
-                signal_kind: RankingSignalKind::SymbolExactMatch,
+                signal_kind: RankingSignalKind::LexicalMatch,
                 contribution: SignalContribution::Boost,
                 weight_label: "strong".to_owned(),
-                note: "query token matched the symbol name verbatim".to_owned(),
+                note: "query tokens matched the checkout manifest path and deployment name verbatim".to_owned(),
             },
             RankingSignal {
                 signal_kind: RankingSignalKind::PathProximity,
                 contribution: SignalContribution::Boost,
                 weight_label: "+0.2".to_owned(),
-                note: "symbol lives in the networking module the query scopes to".to_owned(),
+                note: "result lives in the deploy/checkout path the query scopes to".to_owned(),
             },
         ],
         cited: true,
-        citation_ref: Some("cite:symbol:aureline-net::retry::retry_with_backoff".to_owned()),
-        open_raw_escape_ref: "open-raw:symbol:aureline-net::retry::retry_with_backoff".to_owned(),
-        open_source_escape_ref: "open-source:repo:crates/aureline-net/src/retry.rs".to_owned(),
+        citation_ref: Some("cite:file:deploy/checkout/rendered/deployment.yaml".to_owned()),
+        open_raw_escape_ref: "open-raw:file:deploy/checkout/rendered/deployment.yaml".to_owned(),
+        open_source_escape_ref: "open-source:repo:deploy/checkout/base/deployment.yaml".to_owned(),
+        infrastructure_lineage: Some(DocsInfrastructureLineage {
+            lineage_ref: "infra-lineage:retrieval-debug:checkout-rendered".to_owned(),
+            subject_ref: "obj:k8s:checkout:deployment:checkout-api".to_owned(),
+            context_ref: Some("ctx:k8s:payments-us-1:checkout".to_owned()),
+            truth_layers_used: vec![
+                DocsInfraTruthLayer::AuthoredDesired,
+                DocsInfraTruthLayer::RenderedExpanded,
+                DocsInfraTruthLayer::PlannedValidated,
+            ],
+            unavailable_truth_layers: vec![DocsInfraTruthLayer::ProviderOverlay],
+            relationship_refs: vec![
+                "relation:checkout:source-of-render".to_owned(),
+                "relation:checkout:plan-for".to_owned(),
+                "relation:checkout:review-anchor".to_owned(),
+            ],
+            visible_limit_summary: Some(
+                "Provider overlay was unavailable, so the answer degraded to authored, rendered, and planned checkout intelligence."
+                    .to_owned(),
+            ),
+            support_summary: "Checkout retrieval lineage stayed on repo-authored, rendered, and planned Kubernetes truth without claiming vendor-console authority.".to_owned(),
+        }),
     }
 }
 
 fn semantic_recall_entry() -> RetrievalDebugEntry {
     RetrievalDebugEntry {
-        entry_id: "entry:recall:backoff_policy_guide".to_owned(),
+        entry_id: "entry:recall:checkout-runbook-drift".to_owned(),
         lane: RetrievalLane::SemanticRecall,
         subject_kind: RetrievalSubjectKind::PackNode,
-        subject_ref: "packnode:imported-pack:tokio/retry-guide".to_owned(),
-        title: "Exponential backoff guidance (imported pack)".to_owned(),
-        headline: "semantically similar guidance pulled from an imported retry-pattern pack".to_owned(),
+        subject_ref: "packnode:imported-pack:checkout-k8s-drift-runbook".to_owned(),
+        title: "Checkout Kubernetes drift runbook".to_owned(),
+        headline: "semantically similar runbook guidance pulled from an imported Kubernetes drift pack".to_owned(),
         chips: RetrievalChipSet {
             source_class: RetrievalSourceClass::ImportedPack,
             version_match: RetrievalVersionMatch::CompatibleMinorDrift,
@@ -1581,36 +1730,53 @@ fn semantic_recall_entry() -> RetrievalDebugEntry {
             confidence: RetrievalConfidence::Medium,
         },
         derivation_label: RetrievalDerivationLabel::Imported,
-        derivation_reason: "came in through a pinned imported pack rather than the workspace; labelled imported and held to medium because it is not workspace-verified".to_owned(),
+        derivation_reason: "came in through a pinned imported infra runbook pack rather than the workspace; labelled imported and held to medium because only the observed-layer mapping is mirrored.".to_owned(),
         ranking_signals: vec![
             RankingSignal {
                 signal_kind: RankingSignalKind::SemanticSimilarity,
                 contribution: SignalContribution::Boost,
                 weight_label: "+0.6".to_owned(),
-                note: "embedding similarity to the backoff query was high".to_owned(),
+                note: "embedding similarity to the checkout drift query was high".to_owned(),
             },
             RankingSignal {
                 signal_kind: RankingSignalKind::ImportedSourcePenalty,
                 contribution: SignalContribution::Penalty,
                 weight_label: "-0.15".to_owned(),
-                note: "imported, not workspace-verified; ranked below local hits".to_owned(),
+                note: "imported, not workspace-verified; ranked below local authored/rendered hits".to_owned(),
             },
         ],
         cited: true,
-        citation_ref: Some("cite:packnode:imported-pack:tokio/retry-guide".to_owned()),
-        open_raw_escape_ref: "open-raw:packnode:imported-pack:tokio/retry-guide".to_owned(),
-        open_source_escape_ref: "open-source:pack:tokio/retry-guide".to_owned(),
+        citation_ref: Some("cite:packnode:imported-pack:checkout-k8s-drift-runbook".to_owned()),
+        open_raw_escape_ref: "open-raw:packnode:imported-pack:checkout-k8s-drift-runbook"
+            .to_owned(),
+        open_source_escape_ref: "open-source:pack:checkout-k8s-drift-runbook".to_owned(),
+        infrastructure_lineage: Some(DocsInfrastructureLineage {
+            lineage_ref: "infra-lineage:retrieval-debug:checkout-runbook".to_owned(),
+            subject_ref: "obj:k8s:checkout:deployment:checkout-api".to_owned(),
+            context_ref: Some("ctx:k8s:payments-us-1:checkout".to_owned()),
+            truth_layers_used: vec![
+                DocsInfraTruthLayer::RenderedExpanded,
+                DocsInfraTruthLayer::ObservedLive,
+            ],
+            unavailable_truth_layers: vec![],
+            relationship_refs: vec![
+                "relation:checkout:live-counterpart".to_owned(),
+                "relation:checkout:runbook-reference".to_owned(),
+            ],
+            visible_limit_summary: None,
+            support_summary: "Imported runbook guidance stayed cited to rendered and observed checkout lineage.".to_owned(),
+        }),
     }
 }
 
 fn ai_context_entry() -> RetrievalDebugEntry {
     RetrievalDebugEntry {
-        entry_id: "entry:ai_context:retry_explanation_fragment".to_owned(),
+        entry_id: "entry:ai_context:checkout-drift-fragment".to_owned(),
         lane: RetrievalLane::AiContext,
         subject_kind: RetrievalSubjectKind::ContextFragment,
-        subject_ref: "fragment:ai-context:retry-backoff-explanation".to_owned(),
-        title: "Retry/backoff context fragment".to_owned(),
-        headline: "a heuristically assembled context fragment summarising the retry path for the prompt".to_owned(),
+        subject_ref: "fragment:ai-context:checkout-drift-explanation".to_owned(),
+        title: "Checkout drift context fragment".to_owned(),
+        headline: "a heuristically assembled infra context fragment summarising checkout drift for the prompt".to_owned(),
         chips: RetrievalChipSet {
             source_class: RetrievalSourceClass::AiAssembledContext,
             version_match: RetrievalVersionMatch::ExactBuildMatch,
@@ -1619,25 +1785,49 @@ fn ai_context_entry() -> RetrievalDebugEntry {
             confidence: RetrievalConfidence::Low,
         },
         derivation_label: RetrievalDerivationLabel::Heuristic,
-        derivation_reason: "assembled by a heuristic chunk-selection pass over the cited symbol and guide; labelled heuristic and held to low confidence".to_owned(),
+        derivation_reason: "assembled by a heuristic chunk-selection pass over authored manifests, rendered output, and the imported drift runbook; labelled heuristic and held to low confidence.".to_owned(),
         ranking_signals: vec![
             RankingSignal {
                 signal_kind: RankingSignalKind::SemanticSimilarity,
                 contribution: SignalContribution::Boost,
                 weight_label: "+0.5".to_owned(),
-                note: "fragment chosen for semantic proximity to the query".to_owned(),
+                note: "fragment chosen for semantic proximity to the checkout drift query".to_owned(),
             },
             RankingSignal {
                 signal_kind: RankingSignalKind::HeuristicPenalty,
                 contribution: SignalContribution::Penalty,
                 weight_label: "-0.3".to_owned(),
-                note: "fuzzy chunk selection; flagged heuristic so it never reads as verified".to_owned(),
+                note: "fuzzy infra chunk selection; flagged heuristic so it never reads as verified live state".to_owned(),
             },
         ],
         cited: true,
-        citation_ref: Some("cite:fragment:ai-context:retry-backoff-explanation".to_owned()),
-        open_raw_escape_ref: "open-raw:fragment:ai-context:retry-backoff-explanation".to_owned(),
-        open_source_escape_ref: "open-source:repo:crates/aureline-net/src/retry.rs".to_owned(),
+        citation_ref: Some("cite:fragment:ai-context:checkout-drift-explanation".to_owned()),
+        open_raw_escape_ref: "open-raw:fragment:ai-context:checkout-drift-explanation"
+            .to_owned(),
+        open_source_escape_ref: "open-source:repo:deploy/checkout/base/deployment.yaml"
+            .to_owned(),
+        infrastructure_lineage: Some(DocsInfrastructureLineage {
+            lineage_ref: "infra-lineage:retrieval-debug:checkout-context".to_owned(),
+            subject_ref: "obj:k8s:checkout:deployment:checkout-api".to_owned(),
+            context_ref: Some("ctx:k8s:payments-us-1:checkout".to_owned()),
+            truth_layers_used: vec![
+                DocsInfraTruthLayer::AuthoredDesired,
+                DocsInfraTruthLayer::RenderedExpanded,
+            ],
+            unavailable_truth_layers: vec![
+                DocsInfraTruthLayer::ObservedLive,
+                DocsInfraTruthLayer::ProviderOverlay,
+            ],
+            relationship_refs: vec![
+                "relation:checkout:source-of-render".to_owned(),
+                "relation:checkout:runbook-reference".to_owned(),
+            ],
+            visible_limit_summary: Some(
+                "Live cluster and provider overlays were unavailable, so AI context degraded to authored and rendered checkout facts instead of claiming runtime certainty."
+                    .to_owned(),
+            ),
+            support_summary: "AI context preserved only authored and rendered checkout truth because live overlays were unavailable during retrieval.".to_owned(),
+        }),
     }
 }
 
@@ -1650,43 +1840,84 @@ fn seeded_export() -> RetrievalDebugExport {
         preserves_confidence: true,
         preserves_ranking_reasons: true,
         preserves_open_raw_open_source_escape: true,
+        preserves_infrastructure_lineage: true,
         rows: vec![
             RetrievalDebugExportRow {
-                entry_id_ref: "entry:docs:retry_with_backoff_symbol".to_owned(),
+                entry_id_ref: "entry:docs:checkout-rendered-manifest".to_owned(),
                 lane: RetrievalLane::DocsSearch,
                 derivation_label: RetrievalDerivationLabel::Exact,
-                source_class: RetrievalSourceClass::WorkspaceCode,
+                source_class: RetrievalSourceClass::ProjectDocs,
                 confidence: RetrievalConfidence::High,
                 cited: true,
                 ranking_signal_count: 2,
-                open_raw_escape_ref: "open-raw:symbol:aureline-net::retry::retry_with_backoff"
+                open_raw_escape_ref: "open-raw:file:deploy/checkout/rendered/deployment.yaml"
                     .to_owned(),
-                open_source_escape_ref: "open-source:repo:crates/aureline-net/src/retry.rs"
+                open_source_escape_ref: "open-source:repo:deploy/checkout/base/deployment.yaml"
                     .to_owned(),
+                infrastructure_lineage_ref: Some(
+                    "infra-lineage:retrieval-debug:checkout-rendered".to_owned(),
+                ),
+                infrastructure_truth_layers: vec![
+                    DocsInfraTruthLayer::AuthoredDesired,
+                    DocsInfraTruthLayer::RenderedExpanded,
+                    DocsInfraTruthLayer::PlannedValidated,
+                ],
+                infrastructure_unavailable_truth_layers: vec![
+                    DocsInfraTruthLayer::ProviderOverlay,
+                ],
+                infrastructure_limit_summary: Some(
+                    "Provider overlay was unavailable, so the answer degraded to authored, rendered, and planned checkout intelligence."
+                        .to_owned(),
+                ),
             },
             RetrievalDebugExportRow {
-                entry_id_ref: "entry:recall:backoff_policy_guide".to_owned(),
+                entry_id_ref: "entry:recall:checkout-runbook-drift".to_owned(),
                 lane: RetrievalLane::SemanticRecall,
                 derivation_label: RetrievalDerivationLabel::Imported,
                 source_class: RetrievalSourceClass::ImportedPack,
                 confidence: RetrievalConfidence::Medium,
                 cited: true,
                 ranking_signal_count: 2,
-                open_raw_escape_ref: "open-raw:packnode:imported-pack:tokio/retry-guide".to_owned(),
-                open_source_escape_ref: "open-source:pack:tokio/retry-guide".to_owned(),
+                open_raw_escape_ref: "open-raw:packnode:imported-pack:checkout-k8s-drift-runbook"
+                    .to_owned(),
+                open_source_escape_ref: "open-source:pack:checkout-k8s-drift-runbook".to_owned(),
+                infrastructure_lineage_ref: Some(
+                    "infra-lineage:retrieval-debug:checkout-runbook".to_owned(),
+                ),
+                infrastructure_truth_layers: vec![
+                    DocsInfraTruthLayer::RenderedExpanded,
+                    DocsInfraTruthLayer::ObservedLive,
+                ],
+                infrastructure_unavailable_truth_layers: vec![],
+                infrastructure_limit_summary: None,
             },
             RetrievalDebugExportRow {
-                entry_id_ref: "entry:ai_context:retry_explanation_fragment".to_owned(),
+                entry_id_ref: "entry:ai_context:checkout-drift-fragment".to_owned(),
                 lane: RetrievalLane::AiContext,
                 derivation_label: RetrievalDerivationLabel::Heuristic,
                 source_class: RetrievalSourceClass::AiAssembledContext,
                 confidence: RetrievalConfidence::Low,
                 cited: true,
                 ranking_signal_count: 2,
-                open_raw_escape_ref: "open-raw:fragment:ai-context:retry-backoff-explanation"
+                open_raw_escape_ref: "open-raw:fragment:ai-context:checkout-drift-explanation"
                     .to_owned(),
-                open_source_escape_ref: "open-source:repo:crates/aureline-net/src/retry.rs"
+                open_source_escape_ref: "open-source:repo:deploy/checkout/base/deployment.yaml"
                     .to_owned(),
+                infrastructure_lineage_ref: Some(
+                    "infra-lineage:retrieval-debug:checkout-context".to_owned(),
+                ),
+                infrastructure_truth_layers: vec![
+                    DocsInfraTruthLayer::AuthoredDesired,
+                    DocsInfraTruthLayer::RenderedExpanded,
+                ],
+                infrastructure_unavailable_truth_layers: vec![
+                    DocsInfraTruthLayer::ObservedLive,
+                    DocsInfraTruthLayer::ProviderOverlay,
+                ],
+                infrastructure_limit_summary: Some(
+                    "Live cluster and provider overlays were unavailable, so AI context degraded to authored and rendered checkout facts instead of claiming runtime certainty."
+                        .to_owned(),
+                ),
             },
         ],
     }
@@ -1712,6 +1943,7 @@ fn required_projections(packet_id: &str) -> Vec<RetrievalConsumerProjection> {
         preserves_derivation_labels: true,
         preserves_ranking_reasons: true,
         preserves_open_raw_open_source_escape: true,
+        preserves_infrastructure_lineage: true,
     })
     .collect()
 }

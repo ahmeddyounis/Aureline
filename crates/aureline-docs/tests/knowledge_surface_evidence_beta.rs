@@ -60,6 +60,24 @@ fn evidence_packet_preserves_current_offline_and_stale_generated_truth() {
         .reason_tokens
         .contains(&"stale".to_owned()));
     assert_eq!(generated.source_strip.freshness_class_token, "stale");
+    assert_eq!(
+        generated
+            .provenance
+            .infrastructure_lineage
+            .as_ref()
+            .expect("infra lineage present")
+            .truth_layer_tokens(),
+        vec![
+            "authored_desired".to_owned(),
+            "rendered_expanded".to_owned()
+        ]
+    );
+    assert_eq!(
+        generated
+            .source_strip
+            .infrastructure_unavailable_truth_layer_tokens,
+        vec!["observed_live".to_owned(), "provider_overlay".to_owned()]
+    );
 
     let explanation = packet
         .derived_explanations
@@ -133,4 +151,7 @@ fn fixture_manifest_points_at_the_export_and_schemas() {
     assert!(!export_json.contains("://"));
     assert!(export_json.contains("\"truth_label\": \"Retest pending\""));
     assert!(export_json.contains("\"mirror_offline_posture_token\": \"offline_pinned_pack\""));
+    assert!(export_json.contains(
+        "\"infrastructure_lineage_ref\": \"infra-lineage:docs-evidence:checkout-drift\""
+    ));
 }

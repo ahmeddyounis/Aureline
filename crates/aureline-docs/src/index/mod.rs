@@ -485,6 +485,7 @@ fn docs_node_provenance_for_search(
             "citation-drawer:{}",
             sanitize_ref(&docs_node.docs_node_id)
         )),
+        infrastructure_lineage: None,
         surface_refs: vec!["surface:docs-backed-search".to_owned()],
     })
 }
