@@ -31,6 +31,7 @@ Every row carries:
 - bounded projection controls
 - per-profile bounded next actions
 - trust-store dependencies
+- typed repairable trust/certificate/SSH/browser-renewal states
 - export posture
 - repair owner
 - local-safe continuity note
@@ -42,6 +43,7 @@ The packet-wide summary now proves coverage for:
 - `local_workflow`, `remote_helper`, `registry_client`, `database_connector`, `preview_publisher`, `cluster_connector`, `companion_handoff`, `service_issued_delegate`
 - `pause_forwarding`, `stop_using_secret`, and `drop_delegated_identity`
 - `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` as first-class states
+- `ca_untrusted`, `bundle_stale`, `pin_mismatch`, `rotation_required`, `ssh_host_key_unknown`, `ssh_host_key_mismatch`, `client_certificate_required`, `client_certificate_expired`, `browser_handoff_return_lost`, and `device_code_renewal_required` as typed repairable changes
 
 ## Row Summary
 
@@ -63,6 +65,6 @@ The packet-wide summary now proves coverage for:
 ## Consumer Projections
 
 - `docs_help` must quote the checked `matrix_id`, row ids, and shared vocabulary.
-- `diagnostics` must show row ids, acting identity, and repair owner before downstream failure details.
-- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, per-profile parity rows, export posture, and repair owner while excluding raw secret values and raw handle ids.
+- `diagnostics` must show row ids, acting identity, repair owner, and the bound repairable state before downstream failure details.
+- `support_export` must preserve row ids, default modes, projection modes, consumer identities, projection controls, repairable states, per-profile parity rows, export posture, repair owner, Project Doctor finding codes, and support-bundle lineage while excluding raw secret values and raw handle ids.
 - `release_public_truth` must publish only checked matrix ids, row ids, and summary vocabulary.

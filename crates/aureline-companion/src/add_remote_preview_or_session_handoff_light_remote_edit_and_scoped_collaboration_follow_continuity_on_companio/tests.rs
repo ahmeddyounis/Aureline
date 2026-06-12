@@ -72,6 +72,7 @@ fn canonical_surface_projects_m5_secret_boundary_state() {
         states[0].projection_mode_audit.projection_mode,
         SecretBoundaryProjectionMode::BrowserHandoff
     );
+    assert!(!states[0].repairable_states.is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }
 

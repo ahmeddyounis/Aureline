@@ -5,7 +5,8 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -13,10 +14,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -822,7 +823,9 @@ impl DatabaseQualificationPacket {
         let Some(connection_row) = self
             .connection_corpus
             .iter()
-            .find(|row| row.picker_row && row.auth_source_mode != DatabaseAuthSourceMode::ImportedNoLiveAuth)
+            .find(|row| {
+                row.picker_row && row.auth_source_mode != DatabaseAuthSourceMode::ImportedNoLiveAuth
+            })
             .or_else(|| self.connection_corpus.first())
         else {
             return Vec::new();
@@ -944,6 +947,8 @@ fn database_surface_state(
                 .map(|control| control.control_class)
                 .collect(),
         ),
+        repairable_states: seeded_secret_boundary_repairable_states(matrix_row_id),
+        active_repair_state: seeded_secret_boundary_active_repair_state(matrix_row_id, health_state),
         profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
         export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
             matrix_row_id,
@@ -1037,9 +1042,7 @@ fn database_delegated_row(
     })
 }
 
-fn database_actor_identity(
-    auth_mode: DatabaseAuthSourceMode,
-) -> SecretBoundaryActingIdentityClass {
+fn database_actor_identity(auth_mode: DatabaseAuthSourceMode) -> SecretBoundaryActingIdentityClass {
     match auth_mode {
         DatabaseAuthSourceMode::DelegatedIdentity => {
             SecretBoundaryActingIdentityClass::DelegatedCredential
@@ -1064,30 +1067,30 @@ fn database_projection_controls(
         local_safe_note,
     )];
     match row.auth_source_mode {
-        DatabaseAuthSourceMode::SecretBrokerHandle => controls.push(
-            SecretBoundaryProjectionControl::new(
+        DatabaseAuthSourceMode::SecretBrokerHandle => {
+            controls.push(SecretBoundaryProjectionControl::new(
                 matrix_row_id,
                 SecretBoundaryProjectionControlClass::PauseForwarding,
                 "Pause forwarded DB credential",
                 local_safe_note,
-            ),
-        ),
-        DatabaseAuthSourceMode::DelegatedIdentity => controls.push(
-            SecretBoundaryProjectionControl::new(
+            ))
+        }
+        DatabaseAuthSourceMode::DelegatedIdentity => {
+            controls.push(SecretBoundaryProjectionControl::new(
                 matrix_row_id,
                 SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
                 "Drop delegated DB identity",
                 local_safe_note,
-            ),
-        ),
-        DatabaseAuthSourceMode::ManagedServiceIdentity => controls.push(
-            SecretBoundaryProjectionControl::new(
+            ))
+        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            controls.push(SecretBoundaryProjectionControl::new(
                 matrix_row_id,
                 SecretBoundaryProjectionControlClass::DropDelegatedIdentity,
                 "Drop managed DB delegate",
                 local_safe_note,
-            ),
-        ),
+            ))
+        }
         _ => {}
     }
     controls
@@ -1095,7 +1098,8 @@ fn database_projection_controls(
 
 fn database_secret_class(auth_mode: DatabaseAuthSourceMode) -> SecretBoundarySecretClass {
     match auth_mode {
-        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::ManagedServiceIdentity => {
+        DatabaseAuthSourceMode::DelegatedIdentity
+        | DatabaseAuthSourceMode::ManagedServiceIdentity => {
             SecretBoundarySecretClass::CloudDelegatedIdentity
         }
         DatabaseAuthSourceMode::NoAuthLocalFile | DatabaseAuthSourceMode::ImportedNoLiveAuth => {
@@ -1168,7 +1172,8 @@ fn database_health_state(
 
 fn database_lifetime_label(auth_mode: DatabaseAuthSourceMode) -> &'static str {
     match auth_mode {
-        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::ManagedServiceIdentity => {
+        DatabaseAuthSourceMode::DelegatedIdentity
+        | DatabaseAuthSourceMode::ManagedServiceIdentity => {
             "Session-bounded delegated database auth"
         }
         DatabaseAuthSourceMode::ImportedNoLiveAuth | DatabaseAuthSourceMode::PolicyBlocked => {
@@ -1181,9 +1186,7 @@ fn database_lifetime_label(auth_mode: DatabaseAuthSourceMode) -> &'static str {
 fn database_expires_at(auth_mode: DatabaseAuthSourceMode) -> Option<String> {
     match auth_mode {
         DatabaseAuthSourceMode::DelegatedIdentity => Some("2026-06-12T18:30:00Z".to_owned()),
-        DatabaseAuthSourceMode::ManagedServiceIdentity => {
-            Some("2026-06-12T19:15:00Z".to_owned())
-        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => Some("2026-06-12T19:15:00Z".to_owned()),
         _ => None,
     }
 }

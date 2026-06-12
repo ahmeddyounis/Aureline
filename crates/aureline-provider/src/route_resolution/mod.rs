@@ -33,7 +33,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -41,10 +42,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -973,10 +974,7 @@ impl RouteResolutionBetaPage {
             provider_route_health_state(row.grant.auth_source, row.route_degraded_state);
         let actor_identity = provider_route_actor_identity(row.grant.acting_identity_class);
         let consumer_identity = SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate;
-        let target_label = format!(
-            "{} via {}",
-            row.display_label, row.route.transport_label
-        );
+        let target_label = format!("{} via {}", row.display_label, row.route.transport_label);
         let decline_path = SecretBoundaryDeclinePath {
             decline_label: "Keep local route only".to_owned(),
             still_works_summary:
@@ -1069,6 +1067,13 @@ impl RouteResolutionBetaPage {
                     .iter()
                     .map(|control| control.control_class)
                     .collect(),
+            ),
+            repairable_states: seeded_secret_boundary_repairable_states(
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+            ),
+            active_repair_state: seeded_secret_boundary_active_repair_state(
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+                health_state,
             ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PROVIDER_ROUTE_MATRIX_ROW_ID,
@@ -1182,9 +1187,7 @@ fn provider_route_secret_class(auth_source: ProviderAuthSourceClass) -> SecretBo
         ProviderAuthSourceClass::InstallationGrant => {
             SecretBoundarySecretClass::CodeHostOrRegistryToken
         }
-        ProviderAuthSourceClass::HumanSession => {
-            SecretBoundarySecretClass::AiProviderToken
-        }
+        ProviderAuthSourceClass::HumanSession => SecretBoundarySecretClass::AiProviderToken,
         ProviderAuthSourceClass::ProjectScopedGrant => {
             SecretBoundarySecretClass::CodeHostOrRegistryToken
         }
@@ -1278,9 +1281,7 @@ fn provider_route_delegated_use(
         ActingIdentityClass::DelegatedCredential => {
             SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
         }
-        ActingIdentityClass::InstallationGrant => {
-            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
-        }
+        ActingIdentityClass::InstallationGrant => SecretBoundaryDelegatedUseClass::RemoteVaultFetch,
         ActingIdentityClass::ConnectedAccount => SecretBoundaryDelegatedUseClass::LocalSecretHandle,
     }
 }

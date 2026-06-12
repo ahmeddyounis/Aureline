@@ -308,6 +308,130 @@ impl SecretBoundaryTrustStoreDependencyClass {
     }
 }
 
+/// Typed trust, certificate, SSH, or renewal change that blocks a
+/// credential-bearing surface until a bounded repair runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryRepairableChangeClass {
+    /// The current route no longer chains to a trusted CA.
+    CaUntrusted,
+    /// The organization CA bundle is stale or revoked for the current route.
+    BundleStale,
+    /// The pinned control-plane trust root changed unexpectedly.
+    PinMismatch,
+    /// Trust or credential rotation is required before the route may continue.
+    RotationRequired,
+    /// The SSH host proof is unknown and requires explicit review.
+    SshHostKeyUnknown,
+    /// The SSH host proof changed from the last-known-good fingerprint.
+    SshHostKeyMismatch,
+    /// The route requires a client-certificate binding that is absent.
+    ClientCertificateRequired,
+    /// The bound client certificate expired and must be renewed.
+    ClientCertificateExpired,
+    /// A system-browser return path or callback correlation failed.
+    BrowserHandoffReturnLost,
+    /// A device-code-backed or browser/device-code renewal window elapsed.
+    DeviceCodeRenewalRequired,
+}
+
+impl SecretBoundaryRepairableChangeClass {
+    /// Every required change class in canonical order.
+    pub const ALL: [Self; 10] = [
+        Self::CaUntrusted,
+        Self::BundleStale,
+        Self::PinMismatch,
+        Self::RotationRequired,
+        Self::SshHostKeyUnknown,
+        Self::SshHostKeyMismatch,
+        Self::ClientCertificateRequired,
+        Self::ClientCertificateExpired,
+        Self::BrowserHandoffReturnLost,
+        Self::DeviceCodeRenewalRequired,
+    ];
+
+    /// Stable token recorded in packets and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CaUntrusted => "ca_untrusted",
+            Self::BundleStale => "bundle_stale",
+            Self::PinMismatch => "pin_mismatch",
+            Self::RotationRequired => "rotation_required",
+            Self::SshHostKeyUnknown => "ssh_host_key_unknown",
+            Self::SshHostKeyMismatch => "ssh_host_key_mismatch",
+            Self::ClientCertificateRequired => "client_certificate_required",
+            Self::ClientCertificateExpired => "client_certificate_expired",
+            Self::BrowserHandoffReturnLost => "browser_handoff_return_lost",
+            Self::DeviceCodeRenewalRequired => "device_code_renewal_required",
+        }
+    }
+}
+
+/// Closed vocabulary naming the boundary object whose prior-good posture or
+/// current drift the repair state is describing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryLastKnownGoodClass {
+    /// Platform trust-store descriptor previously admitted the route.
+    OsTrustStoreDescriptor,
+    /// Organization CA bundle epoch previously admitted the route.
+    OrgCaBundleEpoch,
+    /// Pinned root set previously admitted the route.
+    PinnedControlPlaneRoot,
+    /// SSH host proof or fingerprint previously admitted the route.
+    SshHostProof,
+    /// Client-certificate binding and fingerprint previously admitted the route.
+    ClientCertificateBinding,
+    /// Device-code session or refresh window previously admitted the route.
+    DeviceCodeSession,
+    /// Browser-handoff return packet/callback pairing previously admitted the route.
+    BrowserHandoffSession,
+    /// Remote-vault lineage previously admitted the route.
+    RemoteVaultLineage,
+    /// Delegated scope or installation grant previously admitted the route.
+    DelegatedScopeBinding,
+}
+
+impl SecretBoundaryLastKnownGoodClass {
+    /// Stable token recorded in packets and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OsTrustStoreDescriptor => "os_trust_store_descriptor",
+            Self::OrgCaBundleEpoch => "org_ca_bundle_epoch",
+            Self::PinnedControlPlaneRoot => "pinned_control_plane_root",
+            Self::SshHostProof => "ssh_host_proof",
+            Self::ClientCertificateBinding => "client_certificate_binding",
+            Self::DeviceCodeSession => "device_code_session",
+            Self::BrowserHandoffSession => "browser_handoff_session",
+            Self::RemoteVaultLineage => "remote_vault_lineage",
+            Self::DelegatedScopeBinding => "delegated_scope_binding",
+        }
+    }
+}
+
+/// Project Doctor probe family that owns the exported finding code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryDoctorProbeFamilyClass {
+    /// Network, proxy, CA, certificate, and transport explainability.
+    NetworkProxyCaTransport,
+    /// Trust, identity, and approval/renewal explainability.
+    TrustIdentityPolicy,
+    /// Remote, route, and collaboration explainability.
+    RemoteRoutesAndCollaboration,
+}
+
+impl SecretBoundaryDoctorProbeFamilyClass {
+    /// Stable token recorded in packets and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NetworkProxyCaTransport => "network_proxy_ca_transport",
+            Self::TrustIdentityPolicy => "trust_identity_policy",
+            Self::RemoteRoutesAndCollaboration => "remote_routes_and_collaboration",
+        }
+    }
+}
+
 /// Export posture for a credential-bearing surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -364,6 +488,45 @@ impl SecretBoundaryRepairOwnerClass {
             Self::ServiceOperator => "service_operator",
         }
     }
+}
+
+/// Typed, repairable blocker caused by trust, certificate, SSH, or
+/// browser/device-code renewal drift.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryRepairableState {
+    /// Stable repair-state id safe for export.
+    pub repair_state_id: String,
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// The specific change or failure surfaced to the user.
+    pub change_class: SecretBoundaryRepairableChangeClass,
+    /// The health state that activates this repair state.
+    pub triggering_health_state: SecretBoundaryHealthStateClass,
+    /// Exact target ref affected by the drift or renewal failure.
+    pub affected_target_ref: String,
+    /// Reviewable target label safe for export.
+    pub affected_target_label: String,
+    /// The last-known-good class that previously admitted the route.
+    pub last_known_good_class: SecretBoundaryLastKnownGoodClass,
+    /// Export-safe last-known-good summary.
+    pub last_known_good_summary: String,
+    /// Workflows blocked by this exact state.
+    pub blocked_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    /// Minimally destructive next action label.
+    pub next_action_label: String,
+    /// Owner responsible for the repair path.
+    pub repair_owner: SecretBoundaryRepairOwnerClass,
+    /// Project Doctor probe family that owns the finding.
+    pub doctor_probe_family: SecretBoundaryDoctorProbeFamilyClass,
+    /// Stable Project Doctor finding code.
+    pub doctor_finding_code: String,
+    /// Stable repair candidate id.
+    pub repair_candidate_id: String,
+    /// Stable support-bundle lineage ref.
+    pub support_bundle_lineage_ref: String,
 }
 
 /// Consumer surface that must project the matrix id and shared vocabulary.
@@ -612,8 +775,9 @@ pub const fn secret_boundary_use_audit_result_for_health(
     health_state: SecretBoundaryHealthStateClass,
 ) -> SecretBoundaryUseAuditResultClass {
     match health_state {
-        SecretBoundaryHealthStateClass::Healthy
-        | SecretBoundaryHealthStateClass::ExpiringSoon => SecretBoundaryUseAuditResultClass::Used,
+        SecretBoundaryHealthStateClass::Healthy | SecretBoundaryHealthStateClass::ExpiringSoon => {
+            SecretBoundaryUseAuditResultClass::Used
+        }
         SecretBoundaryHealthStateClass::Expired => SecretBoundaryUseAuditResultClass::Expired,
         SecretBoundaryHealthStateClass::Revoked => SecretBoundaryUseAuditResultClass::Revoked,
         SecretBoundaryHealthStateClass::Unavailable
@@ -1090,6 +1254,11 @@ pub struct SecretBoundarySurfaceState {
     pub consumer_identity_receipt: SecretBoundaryConsumerIdentityReceipt,
     /// Projection-mode audit for the active or most recent handle-safe use.
     pub projection_mode_audit: SecretBoundaryProjectionModeAudit,
+    /// Canonical repairable states for this surface.
+    pub repairable_states: Vec<SecretBoundaryRepairableState>,
+    /// Exact active repairable state when the current health posture is blocked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_repair_state: Option<SecretBoundaryRepairableState>,
     /// Per-profile parity rows reused by product and diagnostics.
     pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
     /// Shared export-safety banner.
@@ -1098,10 +1267,7 @@ pub struct SecretBoundarySurfaceState {
 
 impl SecretBoundaryExportSafetyBanner {
     /// Returns the default export-safety banner shared by M5 rows.
-    pub fn standard(
-        matrix_row_id: impl Into<String>,
-        summary: impl Into<String>,
-    ) -> Self {
+    pub fn standard(matrix_row_id: impl Into<String>, summary: impl Into<String>) -> Self {
         Self {
             matrix_row_id: matrix_row_id.into(),
             vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
@@ -1152,6 +1318,8 @@ pub struct SecretBoundarySurfaceRow {
     pub export_posture: SecretBoundaryExportPostureClass,
     /// Owner of the typed repair path.
     pub repair_owner: SecretBoundaryRepairOwnerClass,
+    /// Typed trust/certificate/SSH/renewal repair states for this surface.
+    pub repairable_states: Vec<SecretBoundaryRepairableState>,
     /// Export-safe explanation of the repair path.
     pub repair_path: String,
     /// Export-safe explanation of what remains usable without approval.
@@ -1202,6 +1370,8 @@ pub struct SecretBoundarySummary {
     pub projection_parity_tokens_present: Vec<String>,
     /// Health-state tokens present in the packet.
     pub health_state_tokens_present: Vec<String>,
+    /// Repairable change tokens present in the packet.
+    pub repairable_change_tokens_present: Vec<String>,
     /// `true` when the packet excludes raw secret bodies.
     pub raw_secret_values_excluded: bool,
     /// `true` when the packet excludes raw handle ids.
@@ -1254,6 +1424,7 @@ impl M5SecretBoundaryDepthPacket {
         let mut profile_tokens: BTreeSet<String> = BTreeSet::new();
         let mut parity_tokens: BTreeSet<String> = BTreeSet::new();
         let mut health_tokens: BTreeSet<String> = BTreeSet::new();
+        let mut repairable_change_tokens: BTreeSet<String> = BTreeSet::new();
 
         for row in &self.surface_rows {
             domain_tokens.insert(row.domain.as_str().to_owned());
@@ -1272,6 +1443,9 @@ impl M5SecretBoundaryDepthPacket {
                 parity_tokens.insert(profile_row.projection_parity.as_str().to_owned());
                 health_tokens.insert(profile_row.health_state.as_str().to_owned());
             }
+            for repairable_state in &row.repairable_states {
+                repairable_change_tokens.insert(repairable_state.change_class.as_str().to_owned());
+            }
         }
         for projection in &self.consumer_projections {
             consumer_tokens.insert(projection.surface.as_str().to_owned());
@@ -1288,6 +1462,7 @@ impl M5SecretBoundaryDepthPacket {
             deployment_profile_tokens_present: profile_tokens.into_iter().collect(),
             projection_parity_tokens_present: parity_tokens.into_iter().collect(),
             health_state_tokens_present: health_tokens.into_iter().collect(),
+            repairable_change_tokens_present: repairable_change_tokens.into_iter().collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
         }
@@ -1369,6 +1544,11 @@ impl M5SecretBoundaryDepthPacket {
                     row.matrix_row_id.clone(),
                 ));
             }
+            if row.repairable_states.is_empty() {
+                violations.push(M5SecretBoundaryDepthViolation::MissingRepairableStates(
+                    row.matrix_row_id.clone(),
+                ));
+            }
             if row.profile_parity_rows.is_empty() {
                 violations.push(M5SecretBoundaryDepthViolation::MissingProfileParity(
                     row.matrix_row_id.clone(),
@@ -1424,18 +1604,80 @@ impl M5SecretBoundaryDepthPacket {
                 );
             }
 
+            for repairable_state in &row.repairable_states {
+                if repairable_state.matrix_row_id != row.matrix_row_id {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RepairableStateRowIdMismatch(
+                            row.matrix_row_id.clone(),
+                            repairable_state.repair_state_id.clone(),
+                        ),
+                    );
+                }
+                if repairable_state.vocabulary_ref != M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RepairableStateVocabularyDrift(
+                            repairable_state.repair_state_id.clone(),
+                        ),
+                    );
+                }
+                if repairable_state.affected_target_ref.trim().is_empty()
+                    || repairable_state.affected_target_label.trim().is_empty()
+                    || repairable_state.last_known_good_summary.trim().is_empty()
+                    || repairable_state.next_action_label.trim().is_empty()
+                    || repairable_state.doctor_finding_code.trim().is_empty()
+                    || repairable_state.repair_candidate_id.trim().is_empty()
+                    || repairable_state
+                        .support_bundle_lineage_ref
+                        .trim()
+                        .is_empty()
+                {
+                    violations.push(M5SecretBoundaryDepthViolation::IncompleteRepairableState(
+                        repairable_state.repair_state_id.clone(),
+                    ));
+                }
+                if !repairable_state
+                    .doctor_finding_code
+                    .starts_with("doctor.finding.")
+                {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RepairableStateDoctorFindingInvalid(
+                            repairable_state.repair_state_id.clone(),
+                        ),
+                    );
+                }
+                if repairable_state.repair_owner != row.repair_owner {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RepairableStateOwnerMismatch(
+                            repairable_state.repair_state_id.clone(),
+                        ),
+                    );
+                }
+                if !matches!(
+                    repairable_state.triggering_health_state,
+                    SecretBoundaryHealthStateClass::Expired
+                        | SecretBoundaryHealthStateClass::Unavailable
+                        | SecretBoundaryHealthStateClass::PolicyBlocked
+                        | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
+                        | SecretBoundaryHealthStateClass::Missing
+                ) {
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::RepairableStateHealthyTrigger(
+                            repairable_state.repair_state_id.clone(),
+                        ),
+                    );
+                }
+            }
+
             let mut seen_profiles = BTreeSet::new();
             for profile_row in &row.profile_parity_rows {
                 seen_profiles.insert(profile_row.deployment_profile);
                 if profile_row.next_action_label.trim().is_empty()
                     || profile_row.local_safe_behavior.trim().is_empty()
                 {
-                    violations.push(
-                        M5SecretBoundaryDepthViolation::IncompleteProfileParity(
-                            row.matrix_row_id.clone(),
-                            profile_row.deployment_profile,
-                        ),
-                    );
+                    violations.push(M5SecretBoundaryDepthViolation::IncompleteProfileParity(
+                        row.matrix_row_id.clone(),
+                        profile_row.deployment_profile,
+                    ));
                 }
                 if profile_row.matrix_row_id != row.matrix_row_id {
                     violations.push(M5SecretBoundaryDepthViolation::ProfileParityRowIdMismatch(
@@ -1455,12 +1697,10 @@ impl M5SecretBoundaryDepthPacket {
                     && profile_row.projection_parity
                         != SecretBoundaryProjectionParityClass::ForwardedLocalCredential
                 {
-                    violations.push(
-                        M5SecretBoundaryDepthViolation::ForwardingPausedParityDrift(
-                            row.matrix_row_id.clone(),
-                            profile_row.deployment_profile,
-                        ),
-                    );
+                    violations.push(M5SecretBoundaryDepthViolation::ForwardingPausedParityDrift(
+                        row.matrix_row_id.clone(),
+                        profile_row.deployment_profile,
+                    ));
                 }
                 if profile_row.health_state
                     == SecretBoundaryHealthStateClass::RemoteVaultUnavailable
@@ -1563,6 +1803,19 @@ impl M5SecretBoundaryDepthPacket {
             }
         }
 
+        for change_class in SecretBoundaryRepairableChangeClass::ALL {
+            if !self
+                .summary
+                .repairable_change_tokens_present
+                .iter()
+                .any(|token| token == change_class.as_str())
+            {
+                violations.push(
+                    M5SecretBoundaryDepthViolation::MissingRequiredRepairableChange(change_class),
+                );
+            }
+        }
+
         violations
     }
 }
@@ -1587,12 +1840,18 @@ pub struct SecretBoundarySupportExport {
     pub vocabulary_ref: String,
     /// Support-export row summaries.
     pub rows: Vec<SecretBoundarySupportExportRow>,
+    /// Project Doctor finding codes preserved by the export.
+    pub doctor_finding_codes: Vec<String>,
     /// `true` when raw secret values are excluded.
     pub raw_secret_values_excluded: bool,
     /// `true` when raw handle ids are excluded.
     pub raw_handle_ids_excluded: bool,
     /// `true` when the export preserves matrix ids.
     pub matrix_ids_preserved: bool,
+    /// `true` when Project Doctor finding linkage is preserved.
+    pub project_doctor_lineage_preserved: bool,
+    /// `true` when support-bundle lineage refs are preserved.
+    pub support_bundle_lineage_preserved: bool,
 }
 
 impl SecretBoundarySupportExport {
@@ -1602,6 +1861,12 @@ impl SecretBoundarySupportExport {
         generated_at: impl Into<String>,
         packet: &M5SecretBoundaryDepthPacket,
     ) -> Self {
+        let doctor_finding_codes: BTreeSet<_> = packet
+            .surface_rows
+            .iter()
+            .flat_map(|row| row.repairable_states.iter())
+            .map(|state| state.doctor_finding_code.clone())
+            .collect();
         Self {
             record_kind: M5_SECRET_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: M5_SECRET_BOUNDARY_DEPTH_SCHEMA_VERSION,
@@ -1615,9 +1880,12 @@ impl SecretBoundarySupportExport {
                 .iter()
                 .map(SecretBoundarySupportExportRow::from_surface_row)
                 .collect(),
+            doctor_finding_codes: doctor_finding_codes.into_iter().collect(),
             raw_secret_values_excluded: true,
             raw_handle_ids_excluded: true,
             matrix_ids_preserved: true,
+            project_doctor_lineage_preserved: true,
+            support_bundle_lineage_preserved: true,
         }
     }
 }
@@ -1642,6 +1910,8 @@ pub struct SecretBoundarySupportExportRow {
     pub export_posture_token: String,
     /// Repair owner token.
     pub repair_owner_token: String,
+    /// Typed repairable states preserved for support diagnosis.
+    pub repairable_states: Vec<SecretBoundaryRepairableState>,
     /// Per-profile parity rows preserved for diagnostics/support.
     pub profile_parity_rows: Vec<SecretBoundaryProfileParityRow>,
 }
@@ -1670,6 +1940,7 @@ impl SecretBoundarySupportExportRow {
                 .collect(),
             export_posture_token: row.export_posture.as_str().to_owned(),
             repair_owner_token: row.repair_owner.as_str().to_owned(),
+            repairable_states: row.repairable_states.clone(),
             profile_parity_rows: row.profile_parity_rows.clone(),
         }
     }
@@ -1708,6 +1979,8 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingTrustDependencies(String),
     /// A row omitted every projection control class.
     MissingProjectionControls(String),
+    /// A row omitted every repairable state.
+    MissingRepairableStates(String),
     /// A row omitted per-profile parity.
     MissingProfileParity(String),
     /// A row omitted one required deployment profile.
@@ -1730,6 +2003,18 @@ pub enum M5SecretBoundaryDepthViolation {
     ForwardedIdentityMissingPauseControl(String),
     /// A delegated or service-issued path omitted a stop/drop control.
     DelegatedIdentityMissingStopOrDropControl(String),
+    /// A repairable state drifted from its parent row id.
+    RepairableStateRowIdMismatch(String, String),
+    /// A repairable state drifted from the shared vocabulary ref.
+    RepairableStateVocabularyDrift(String),
+    /// A repairable state omitted one or more required fields.
+    IncompleteRepairableState(String),
+    /// A repairable state declared an invalid doctor finding code.
+    RepairableStateDoctorFindingInvalid(String),
+    /// A repairable state drifted from the row repair owner.
+    RepairableStateOwnerMismatch(String),
+    /// A repairable state used a non-blocking triggering health state.
+    RepairableStateHealthyTrigger(String),
     /// One required domain had no coverage.
     MissingDomainCoverage(SecretBoundarySurfaceDomain),
     /// One required consumer projection was absent.
@@ -1742,6 +2027,8 @@ pub enum M5SecretBoundaryDepthViolation {
     MissingRequiredProjectionControl(SecretBoundaryProjectionControlClass),
     /// A required health-state token was not represented anywhere in the packet.
     MissingRequiredHealthState(SecretBoundaryHealthStateClass),
+    /// A required repairable change token was not represented anywhere in the packet.
+    MissingRequiredRepairableChange(SecretBoundaryRepairableChangeClass),
     /// The checked summary diverged from the recomputed summary.
     SummaryMismatch,
 }
@@ -1781,6 +2068,9 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
             }
             Self::MissingProjectionControls(row) => {
                 write!(f, "row {row} must declare at least one projection control")
+            }
+            Self::MissingRepairableStates(row) => {
+                write!(f, "row {row} must declare at least one repairable state")
             }
             Self::MissingProfileParity(row) => {
                 write!(f, "row {row} must declare per-profile parity rows")
@@ -1831,6 +2121,30 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "row {row} uses delegated/service-issued identity without stop/drop control"
             ),
+            Self::RepairableStateRowIdMismatch(row, repair_state) => write!(
+                f,
+                "repairable state {repair_state} drifted from parent row {row}"
+            ),
+            Self::RepairableStateVocabularyDrift(repair_state) => write!(
+                f,
+                "repairable state {repair_state} drifted from the shared vocabulary ref"
+            ),
+            Self::IncompleteRepairableState(repair_state) => write!(
+                f,
+                "repairable state {repair_state} must declare target, last-known-good, next-action, doctor, repair, and lineage fields"
+            ),
+            Self::RepairableStateDoctorFindingInvalid(repair_state) => write!(
+                f,
+                "repairable state {repair_state} must cite a doctor.finding.* code"
+            ),
+            Self::RepairableStateOwnerMismatch(repair_state) => write!(
+                f,
+                "repairable state {repair_state} must preserve the row repair owner"
+            ),
+            Self::RepairableStateHealthyTrigger(repair_state) => write!(
+                f,
+                "repairable state {repair_state} must trigger only on a blocked health posture"
+            ),
             Self::MissingDomainCoverage(domain) => {
                 write!(f, "domain {} is missing from the matrix", domain.as_str())
             }
@@ -1858,6 +2172,11 @@ impl fmt::Display for M5SecretBoundaryDepthViolation {
                 f,
                 "packet must cover the {} health state",
                 state.as_str()
+            ),
+            Self::MissingRequiredRepairableChange(change_class) => write!(
+                f,
+                "packet must cover the {} repairable change",
+                change_class.as_str()
             ),
             Self::SummaryMismatch => write!(f, "packet summary diverges from recomputed summary"),
         }
@@ -1897,13 +2216,31 @@ pub fn seeded_secret_boundary_profile_parity_rows(
 }
 
 /// Returns the canonical surface row for one matrix row id.
-pub fn seeded_secret_boundary_surface_row(
-    matrix_row_id: &str,
-) -> Option<SecretBoundarySurfaceRow> {
+pub fn seeded_secret_boundary_surface_row(matrix_row_id: &str) -> Option<SecretBoundarySurfaceRow> {
     seeded_m5_secret_boundary_depth_packet()
         .surface_rows
         .into_iter()
         .find(|row| row.matrix_row_id == matrix_row_id)
+}
+
+/// Returns the canonical repairable states for one matrix row id.
+pub fn seeded_secret_boundary_repairable_states(
+    matrix_row_id: &str,
+) -> Vec<SecretBoundaryRepairableState> {
+    seeded_secret_boundary_surface_row(matrix_row_id)
+        .map(|row| row.repairable_states)
+        .unwrap_or_default()
+}
+
+/// Returns the canonical active repairable state for one matrix row id and
+/// triggering health state, if one exists.
+pub fn seeded_secret_boundary_active_repair_state(
+    matrix_row_id: &str,
+    health_state: SecretBoundaryHealthStateClass,
+) -> Option<SecretBoundaryRepairableState> {
+    seeded_secret_boundary_repairable_states(matrix_row_id)
+        .into_iter()
+        .find(|state| state.triggering_health_state == health_state)
 }
 
 fn profile_parity_row(
@@ -1925,6 +2262,53 @@ fn profile_parity_row(
         acting_identity,
         next_action_label: next_action_label.to_owned(),
         local_safe_behavior: local_safe_behavior.to_owned(),
+    }
+}
+
+fn repairable_state(
+    repair_state_id: &str,
+    matrix_row_id: &str,
+    change_class: SecretBoundaryRepairableChangeClass,
+    triggering_health_state: SecretBoundaryHealthStateClass,
+    affected_target_ref: &str,
+    affected_target_label: &str,
+    last_known_good_class: SecretBoundaryLastKnownGoodClass,
+    last_known_good_summary: &str,
+    blocked_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    next_action_label: &str,
+    repair_owner: SecretBoundaryRepairOwnerClass,
+    doctor_probe_family: SecretBoundaryDoctorProbeFamilyClass,
+    doctor_finding_code: &str,
+    repair_candidate_id: &str,
+    support_bundle_lineage_ref: &str,
+) -> SecretBoundaryRepairableState {
+    SecretBoundaryRepairableState {
+        repair_state_id: repair_state_id.to_owned(),
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        change_class,
+        triggering_health_state,
+        affected_target_ref: affected_target_ref.to_owned(),
+        affected_target_label: affected_target_label.to_owned(),
+        last_known_good_class,
+        last_known_good_summary: last_known_good_summary.to_owned(),
+        blocked_workflows,
+        next_action_label: next_action_label.to_owned(),
+        repair_owner,
+        doctor_probe_family,
+        doctor_finding_code: doctor_finding_code.to_owned(),
+        repair_candidate_id: repair_candidate_id.to_owned(),
+        support_bundle_lineage_ref: support_bundle_lineage_ref.to_owned(),
+    }
+}
+
+fn workflow_dependency(
+    workflow_ref: &str,
+    workflow_label: &str,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.to_owned(),
+        workflow_label: workflow_label.to_owned(),
     }
 }
 
@@ -2015,6 +2399,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.request_workspace.send_http.client_certificate_required",
+                "m5.secret.request_workspace.send_http",
+                SecretBoundaryRepairableChangeClass::ClientCertificateRequired,
+                SecretBoundaryHealthStateClass::Missing,
+                "target:request_workspace:send_http:mtls_origin",
+                "Request workspace mTLS origin",
+                SecretBoundaryLastKnownGoodClass::ClientCertificateBinding,
+                "The last-known-good request route used the same client-certificate binding and target audience without widening scope.",
+                vec![workflow_dependency(
+                    "workflow:request.send_http",
+                    "Send request with current auth source",
+                )],
+                "Rebind the exact client certificate for this origin",
+                SecretBoundaryRepairOwnerClass::User,
+                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                "doctor.finding.secret_boundary.request_workspace.client_certificate_required",
+                "repair_candidate:secret_boundary.request_workspace.rebind_client_certificate",
+                "support.lineage.secret_boundary.request_workspace.send_http.client_certificate_required",
+            )],
             repair_path: "Rebind the broker handle or complete browser/device-code auth before send."
                 .to_owned(),
             local_safe_behavior:
@@ -2098,6 +2502,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.request_workspace.history_replay.rotation_required",
+                "m5.secret.request_workspace.history_replay",
+                SecretBoundaryRepairableChangeClass::RotationRequired,
+                SecretBoundaryHealthStateClass::Expired,
+                "target:request_workspace:history_replay:auth_source",
+                "Replayed auth source",
+                SecretBoundaryLastKnownGoodClass::DelegatedScopeBinding,
+                "The last-known-good replay used the same auth-source alias and scope binding before rotation closed it.",
+                vec![workflow_dependency(
+                    "workflow:request.history_replay",
+                    "Replay stored request metadata",
+                )],
+                "Refresh the replay auth source without mutating stored history",
+                SecretBoundaryRepairOwnerClass::User,
+                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                "doctor.finding.secret_boundary.request_workspace.rotation_required",
+                "repair_candidate:secret_boundary.request_workspace.refresh_replay_auth_source",
+                "support.lineage.secret_boundary.request_workspace.history_replay.rotation_required",
+            )],
             repair_path: "Rebind the replayed auth source before dispatch when the prior handle expired or was revoked.".to_owned(),
             local_safe_behavior:
                 "Replay review, diff, and history inspection remain available as metadata-only actions."
@@ -2186,6 +2610,32 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::AliasOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::DataOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.database.connection_picker.client_certificate_expired",
+                "m5.secret.database.connection_picker",
+                SecretBoundaryRepairableChangeClass::ClientCertificateExpired,
+                SecretBoundaryHealthStateClass::Expired,
+                "target:database.connection_picker:live_session",
+                "Live database session",
+                SecretBoundaryLastKnownGoodClass::ClientCertificateBinding,
+                "The last-known-good session used the same bound database certificate and fingerprint under the current connector policy.",
+                vec![
+                    workflow_dependency(
+                        "workflow:database.connect",
+                        "Open live database session",
+                    ),
+                    workflow_dependency(
+                        "workflow:database.schema",
+                        "Browse schema and target context",
+                    ),
+                ],
+                "Renew the bound client certificate and retest this connector",
+                SecretBoundaryRepairOwnerClass::DataOperator,
+                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                "doctor.finding.secret_boundary.database.client_certificate_expired",
+                "repair_candidate:secret_boundary.database.renew_client_certificate",
+                "support.lineage.secret_boundary.database.connection_picker.client_certificate_expired",
+            )],
             repair_path: "Rotate the connection-scoped handle, certificate binding, or delegated session before reconnect.".to_owned(),
             local_safe_behavior:
                 "Statement review, schema inspection, and imported-result browsing stay available without a live credential."
@@ -2275,6 +2725,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::DataOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.database.query_history_portability.ca_untrusted",
+                "m5.secret.database.query_history_portability",
+                SecretBoundaryRepairableChangeClass::CaUntrusted,
+                SecretBoundaryHealthStateClass::Unavailable,
+                "target:database.query_history_portability:replay_origin",
+                "Database replay origin",
+                SecretBoundaryLastKnownGoodClass::OsTrustStoreDescriptor,
+                "The last-known-good replay route chained through the platform trust store and admitted the same replay origin.",
+                vec![workflow_dependency(
+                    "workflow:database.replay",
+                    "Replay stored query metadata",
+                )],
+                "Inspect the trust source and restore the approved CA path for replay",
+                SecretBoundaryRepairOwnerClass::DataOperator,
+                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                "doctor.finding.secret_boundary.database.ca_untrusted",
+                "repair_candidate:secret_boundary.database.restore_ca_path_for_replay",
+                "support.lineage.secret_boundary.database.query_history_portability.ca_untrusted",
+            )],
             repair_path: "Re-resolve the connection alias or remote-vault reference before replaying a live query.".to_owned(),
             local_safe_behavior:
                 "History review, portability diff, and redacted exports remain usable without reconnect."
@@ -2365,6 +2835,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::ProviderOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.provider_model.route_resolution.browser_handoff_return_lost",
+                "m5.secret.provider_model.route_resolution",
+                SecretBoundaryRepairableChangeClass::BrowserHandoffReturnLost,
+                SecretBoundaryHealthStateClass::Expired,
+                "target:provider.route_resolution:connected_provider_route",
+                "Connected provider route",
+                SecretBoundaryLastKnownGoodClass::BrowserHandoffSession,
+                "The last-known-good provider route completed through the same browser handoff packet and callback correlation envelope.",
+                vec![
+                    workflow_dependency("workflow:provider.route.inspect", "Inspect provider route"),
+                    workflow_dependency("workflow:provider.route.repair", "Repair provider route auth"),
+                ],
+                "Retry the exact browser handoff or switch to the bounded device-code fallback",
+                SecretBoundaryRepairOwnerClass::ProviderOperator,
+                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                "doctor.finding.secret_boundary.provider.browser_handoff_return_lost",
+                "repair_candidate:secret_boundary.provider.retry_browser_handoff",
+                "support.lineage.secret_boundary.provider.route_resolution.browser_handoff_return_lost",
+            )],
             repair_path: "Re-issue the delegated grant, renew the browser/device-code session, or narrow the route to a local-safe path.".to_owned(),
             local_safe_behavior:
                 "Account-free local work and cached provider metadata remain available while auth is repaired."
@@ -2459,6 +2949,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::ProviderOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.provider_model.scope_registry.device_code_renewal_required",
+                "m5.secret.provider_model.scope_registry",
+                SecretBoundaryRepairableChangeClass::DeviceCodeRenewalRequired,
+                SecretBoundaryHealthStateClass::Expired,
+                "target:provider.scope_registry:delegated_scope",
+                "Provider delegated scope",
+                SecretBoundaryLastKnownGoodClass::DeviceCodeSession,
+                "The last-known-good scope repair path used the same device-code session and delegated scope binding.",
+                vec![
+                    workflow_dependency("workflow:provider.scope.inspect", "Inspect provider scope"),
+                    workflow_dependency("workflow:provider.scope.repair", "Repair scope or delegated identity"),
+                ],
+                "Renew the exact device-code session for this scope without widening authority",
+                SecretBoundaryRepairOwnerClass::ProviderOperator,
+                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                "doctor.finding.secret_boundary.provider.device_code_renewal_required",
+                "repair_candidate:secret_boundary.provider.renew_device_code_scope",
+                "support.lineage.secret_boundary.provider.scope_registry.device_code_renewal_required",
+            )],
             repair_path: "Repair the exact delegated scope, installation grant, or remote-vault lineage that drifted; do not widen to generic connected.".to_owned(),
             local_safe_behavior:
                 "Scope inspection, drift review, and local draft queues remain available without live mutation authority."
@@ -2547,6 +3057,23 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::AliasOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.registry.package_auth.bundle_stale",
+                "m5.secret.registry.package_auth",
+                SecretBoundaryRepairableChangeClass::BundleStale,
+                SecretBoundaryHealthStateClass::PolicyBlocked,
+                "target:registry.package_auth:primary_registry",
+                "Primary package registry",
+                SecretBoundaryLastKnownGoodClass::OrgCaBundleEpoch,
+                "The last-known-good registry session used the current org-approved CA bundle epoch before it went stale.",
+                vec![workflow_dependency("workflow:registry.resolve", "Resolve package metadata")],
+                "Refresh the approved registry CA bundle or switch to the named mirror",
+                SecretBoundaryRepairOwnerClass::User,
+                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                "doctor.finding.secret_boundary.registry.bundle_stale",
+                "repair_candidate:secret_boundary.registry.refresh_ca_bundle",
+                "support.lineage.secret_boundary.registry.package_auth.bundle_stale",
+            )],
             repair_path: "Rebind the registry handle or refresh the delegated token before install or publish.".to_owned(),
             local_safe_behavior:
                 "Dependency review, lockfile diff, and local-only resolution remain available without registry credentials."
@@ -2632,6 +3159,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::ReleaseSummaryOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.preview_route.remote_preview.pin_mismatch",
+                "m5.secret.preview_route.remote_preview",
+                SecretBoundaryRepairableChangeClass::PinMismatch,
+                SecretBoundaryHealthStateClass::PolicyBlocked,
+                "target:preview_route.remote_preview:public_or_org_route",
+                "Preview route trust root",
+                SecretBoundaryLastKnownGoodClass::PinnedControlPlaneRoot,
+                "The last-known-good preview route used the published pinned control-plane roots for this route class.",
+                vec![
+                    workflow_dependency("workflow:preview.route", "Open preview route"),
+                    workflow_dependency("workflow:preview.share", "Share or revoke preview route"),
+                ],
+                "Review the rotated route trust root before reopening or sharing this preview",
+                SecretBoundaryRepairOwnerClass::RemoteOperator,
+                SecretBoundaryDoctorProbeFamilyClass::NetworkProxyCaTransport,
+                "doctor.finding.secret_boundary.preview.pin_mismatch",
+                "repair_candidate:secret_boundary.preview.review_rotated_root",
+                "support.lineage.secret_boundary.preview.remote_preview.pin_mismatch",
+            )],
             repair_path: "Revalidate the preview route trust or delegated session before reopening a remote preview.".to_owned(),
             local_safe_behavior:
                 "Expired previews narrow to metadata-only route history and exact desktop handoff instructions."
@@ -2725,6 +3272,45 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
+            repairable_states: vec![
+                repairable_state(
+                    "repair_state:m5.secret.infra_connector.target_context.ssh_host_key_mismatch",
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryRepairableChangeClass::SshHostKeyMismatch,
+                    SecretBoundaryHealthStateClass::PolicyBlocked,
+                    "target:infra_connector.target_context:ssh_control_plane",
+                    "SSH target control plane",
+                    SecretBoundaryLastKnownGoodClass::SshHostProof,
+                    "The last-known-good target context used the approved SSH fingerprint history for this target identity.",
+                    vec![
+                        workflow_dependency("workflow:target.inspect", "Inspect target context"),
+                        workflow_dependency("workflow:target.connect", "Connect to target context"),
+                    ],
+                    "Review the changed SSH fingerprint before reconnecting this target",
+                    SecretBoundaryRepairOwnerClass::RemoteOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::RemoteRoutesAndCollaboration,
+                    "doctor.finding.secret_boundary.infra.ssh_host_key_mismatch",
+                    "repair_candidate:secret_boundary.infra.review_ssh_fingerprint",
+                    "support.lineage.secret_boundary.infra.target_context.ssh_host_key_mismatch",
+                ),
+                repairable_state(
+                    "repair_state:m5.secret.infra_connector.target_context.ssh_host_key_unknown",
+                    "m5.secret.infra_connector.target_context",
+                    SecretBoundaryRepairableChangeClass::SshHostKeyUnknown,
+                    SecretBoundaryHealthStateClass::Missing,
+                    "target:infra_connector.target_context:ssh_control_plane",
+                    "SSH target control plane",
+                    SecretBoundaryLastKnownGoodClass::SshHostProof,
+                    "The last-known-good target class requires an approved host-proof record before connection is allowed.",
+                    vec![workflow_dependency("workflow:target.connect", "Connect to target context")],
+                    "Approve or import the exact SSH host proof for this target",
+                    SecretBoundaryRepairOwnerClass::RemoteOperator,
+                    SecretBoundaryDoctorProbeFamilyClass::RemoteRoutesAndCollaboration,
+                    "doctor.finding.secret_boundary.infra.ssh_host_key_unknown",
+                    "repair_candidate:secret_boundary.infra.approve_ssh_host_proof",
+                    "support.lineage.secret_boundary.infra.target_context.ssh_host_key_unknown",
+                ),
+            ],
             repair_path: "Repair SSH host proof, client-certificate binding, or vault trust before reconnecting the target context.".to_owned(),
             local_safe_behavior:
                 "Manifest inspection, drift review, and policy explanation stay local-safe when live connector auth is blocked."
@@ -2809,6 +3395,23 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::MetadataOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::User,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.companion.session_handoff.browser_handoff_return_lost",
+                "m5.secret.companion.session_handoff",
+                SecretBoundaryRepairableChangeClass::BrowserHandoffReturnLost,
+                SecretBoundaryHealthStateClass::Expired,
+                "target:companion.session_handoff:return_path",
+                "Companion return path",
+                SecretBoundaryLastKnownGoodClass::BrowserHandoffSession,
+                "The last-known-good companion handoff returned through the same desktop/browser pairing and callback packet.",
+                vec![workflow_dependency("workflow:companion.follow", "Resume companion follow state")],
+                "Repeat the desktop/browser return path without widening the companion scope",
+                SecretBoundaryRepairOwnerClass::User,
+                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                "doctor.finding.secret_boundary.companion.browser_handoff_return_lost",
+                "repair_candidate:secret_boundary.companion.retry_browser_return",
+                "support.lineage.secret_boundary.companion.session_handoff.browser_handoff_return_lost",
+            )],
             repair_path: "Complete the desktop/browser return path again before resuming the companion handoff.".to_owned(),
             local_safe_behavior:
                 "Read-only follow state and handoff descriptors stay available without reviving a live companion credential."
@@ -2899,6 +3502,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::RedactedSupportExport,
             repair_owner: SecretBoundaryRepairOwnerClass::RemoteOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.managed.workspace_runtime.rotation_required",
+                "m5.secret.managed.workspace_runtime",
+                SecretBoundaryRepairableChangeClass::RotationRequired,
+                SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+                "target:managed.workspace_runtime:remote_vault_lineage",
+                "Managed runtime vault lineage",
+                SecretBoundaryLastKnownGoodClass::RemoteVaultLineage,
+                "The last-known-good runtime resumed through the same remote-vault lineage, delegated scope, and host-proof set.",
+                vec![
+                    workflow_dependency("workflow:managed.runtime.resume", "Resume managed runtime"),
+                    workflow_dependency("workflow:managed.runtime.repair", "Repair managed runtime"),
+                ],
+                "Rotate the remote-vault lease and revalidate host proof before resume",
+                SecretBoundaryRepairOwnerClass::RemoteOperator,
+                SecretBoundaryDoctorProbeFamilyClass::RemoteRoutesAndCollaboration,
+                "doctor.finding.secret_boundary.managed.rotation_required",
+                "repair_candidate:secret_boundary.managed.rotate_remote_vault_lease",
+                "support.lineage.secret_boundary.managed.workspace_runtime.rotation_required",
+            )],
             repair_path: "Repair the remote-vault lineage, delegated authority, or host proof before resuming managed runtime actions.".to_owned(),
             local_safe_behavior:
                 "Local editing and bounded state inspection remain available when managed credential repair is pending."
@@ -2988,6 +3611,26 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             ],
             export_posture: SecretBoundaryExportPostureClass::ReleaseSummaryOnly,
             repair_owner: SecretBoundaryRepairOwnerClass::ServiceOperator,
+            repairable_states: vec![repairable_state(
+                "repair_state:m5.secret.managed.sync_plane.device_code_renewal_required",
+                "m5.secret.managed.sync_plane",
+                SecretBoundaryRepairableChangeClass::DeviceCodeRenewalRequired,
+                SecretBoundaryHealthStateClass::PolicyBlocked,
+                "target:managed.sync_plane:service_session",
+                "Managed sync-plane session",
+                SecretBoundaryLastKnownGoodClass::DeviceCodeSession,
+                "The last-known-good managed sync mutation used the same reviewed device-code or browser/device-code renewal window.",
+                vec![
+                    workflow_dependency("workflow:managed.sync.inspect", "Inspect managed sync posture"),
+                    workflow_dependency("workflow:managed.sync.mutate", "Mutate managed sync state"),
+                ],
+                "Renew the managed sync auth window before mutating remote state",
+                SecretBoundaryRepairOwnerClass::ServiceOperator,
+                SecretBoundaryDoctorProbeFamilyClass::TrustIdentityPolicy,
+                "doctor.finding.secret_boundary.managed.device_code_renewal_required",
+                "repair_candidate:secret_boundary.managed.renew_sync_auth_window",
+                "support.lineage.secret_boundary.managed.sync_plane.device_code_renewal_required",
+            )],
             repair_path: "Reissue the sync-plane credential or complete the browser/device-code return path before mutating managed sync state.".to_owned(),
             local_safe_behavior:
                 "Local history, offline packets, and offboarding exports stay available while managed sync auth is repaired."
@@ -3067,6 +3710,7 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
             deployment_profile_tokens_present: Vec::new(),
             projection_parity_tokens_present: Vec::new(),
             health_state_tokens_present: Vec::new(),
+            repairable_change_tokens_present: Vec::new(),
             raw_secret_values_excluded: false,
             raw_handle_ids_excluded: false,
         },

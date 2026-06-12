@@ -9,7 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -17,10 +18,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -484,7 +485,8 @@ impl InfraBoundaryPacket {
             return Vec::new();
         };
 
-        let credential_mode = infra_credential_mode(self.environment_context.credential_handle_class.as_str());
+        let credential_mode =
+            infra_credential_mode(self.environment_context.credential_handle_class.as_str());
         let storage_class = infra_storage_class(self.environment_context.issuance_source.as_str());
         let projection_mode = infra_projection_mode(review.connector_class);
         let health_state = infra_health_state(review.connector_class, review.action_posture);
@@ -492,7 +494,8 @@ impl InfraBoundaryPacket {
         let consumer_identity = SecretBoundaryConsumerIdentityClass::ClusterConnector;
         let target_label = format!(
             "{} / {}",
-            self.environment_context.provider, self.environment_context.account_subscription_project
+            self.environment_context.provider,
+            self.environment_context.account_subscription_project
         );
         let decline_path = SecretBoundaryDeclinePath {
             decline_label: "Keep inspect-only target context".to_owned(),
@@ -502,7 +505,10 @@ impl InfraBoundaryPacket {
         };
         let workflows = vec![
             infra_workflow("workflow:infra.inspect", "Inspect target context"),
-            infra_workflow("workflow:infra.live", "Connect live infra or control-plane action"),
+            infra_workflow(
+                "workflow:infra.live",
+                "Connect live infra or control-plane action",
+            ),
         ];
         let projection_controls =
             infra_projection_controls(INFRA_CONNECTOR_MATRIX_ROW_ID, review.connector_class);
@@ -627,6 +633,13 @@ impl InfraBoundaryPacket {
                     .iter()
                     .map(|control| control.control_class)
                     .collect(),
+            ),
+            repairable_states: seeded_secret_boundary_repairable_states(
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+            ),
+            active_repair_state: seeded_secret_boundary_active_repair_state(
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+                health_state,
             ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 INFRA_CONNECTOR_MATRIX_ROW_ID,

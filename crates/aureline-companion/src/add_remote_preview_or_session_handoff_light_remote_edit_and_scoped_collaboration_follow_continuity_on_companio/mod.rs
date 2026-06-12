@@ -64,7 +64,8 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -72,9 +73,9 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -1061,6 +1062,8 @@ impl CompanionContinuitySurfacePacket {
                     .map(|control| control.control_class)
                     .collect(),
             ),
+            repairable_states: seeded_secret_boundary_repairable_states(matrix_row_id),
+            active_repair_state: seeded_secret_boundary_active_repair_state(matrix_row_id, health_state),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(matrix_row_id),
             export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
                 matrix_row_id,
@@ -1263,9 +1266,7 @@ fn companion_secret_health_state(
     }
 }
 
-fn companion_projection_controls(
-    matrix_row_id: &str,
-) -> Vec<SecretBoundaryProjectionControl> {
+fn companion_projection_controls(matrix_row_id: &str) -> Vec<SecretBoundaryProjectionControl> {
     let local_safe_note =
         "Read-only follow state and exact desktop handoff instructions remain available.";
     vec![

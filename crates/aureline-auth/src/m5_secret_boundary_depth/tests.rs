@@ -130,7 +130,9 @@ fn summary_tracks_required_consumer_identities_and_projection_controls() {
     let consumer_tokens = &packet.summary.consumer_identity_tokens_present;
     for identity in SecretBoundaryConsumerIdentityClass::ALL {
         assert!(
-            consumer_tokens.iter().any(|token| token == identity.as_str()),
+            consumer_tokens
+                .iter()
+                .any(|token| token == identity.as_str()),
             "missing consumer identity {}",
             identity.as_str()
         );
@@ -144,6 +146,53 @@ fn summary_tracks_required_consumer_identities_and_projection_controls() {
             control.as_str()
         );
     }
+}
+
+#[test]
+fn summary_tracks_required_repairable_change_classes() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let tokens = &packet.summary.repairable_change_tokens_present;
+    for change_class in SecretBoundaryRepairableChangeClass::ALL {
+        assert!(
+            tokens.iter().any(|token| token == change_class.as_str()),
+            "missing repairable change {}",
+            change_class.as_str()
+        );
+    }
+}
+
+#[test]
+fn support_export_preserves_doctor_and_support_lineage() {
+    let packet = seeded_m5_secret_boundary_depth_packet();
+    let export = SecretBoundarySupportExport::from_packet(
+        "m5-secret-boundary-depth:support-export",
+        "2026-06-12T00:00:00Z",
+        &packet,
+    );
+    assert!(export.project_doctor_lineage_preserved);
+    assert!(export.support_bundle_lineage_preserved);
+    assert!(!export.doctor_finding_codes.is_empty());
+    assert!(export
+        .rows
+        .iter()
+        .all(|row| !row.repairable_states.is_empty()));
+}
+
+#[test]
+fn active_repair_state_lookup_matches_triggering_health_state() {
+    let state = seeded_secret_boundary_active_repair_state(
+        "m5.secret.managed.workspace_runtime",
+        SecretBoundaryHealthStateClass::RemoteVaultUnavailable,
+    )
+    .expect("managed runtime must expose a remote-vault repair state");
+    assert_eq!(
+        state.change_class,
+        SecretBoundaryRepairableChangeClass::RotationRequired
+    );
+    assert_eq!(
+        state.doctor_finding_code,
+        "doctor.finding.secret_boundary.managed.rotation_required"
+    );
 }
 
 #[test]
@@ -167,6 +216,17 @@ fn missing_consumer_projection_fails_validation() {
             SecretBoundaryConsumerSurface::Diagnostics
         )
     ));
+}
+
+#[test]
+fn missing_repairable_state_fails_validation() {
+    let mut packet = seeded_m5_secret_boundary_depth_packet();
+    packet.surface_rows[0].repairable_states.clear();
+    assert!(packet.validate().iter().any(|violation| matches!(
+        violation,
+        M5SecretBoundaryDepthViolation::MissingRepairableStates(row)
+            if row == "m5.secret.request_workspace.send_http"
+    )));
 }
 
 #[test]

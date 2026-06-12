@@ -50,7 +50,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -58,10 +59,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -1247,43 +1248,50 @@ impl AccountScopeBetaPage {
         let connected = self.connected_account_rows.first();
         let resolution = self.resolution_rows.first();
 
-        let (display_label, auth_source, target_label, expires_at, policy_owner_label, health_state) =
-            if let Some(row) = delegated {
-                (
-                    row.display_label.clone(),
-                    row.auth_source,
-                    row.provider_host.host_label.clone(),
-                    row.expires_at.clone(),
-                    row.delegator_label.clone(),
-                    delegated_health_state(row.lifecycle_state),
-                )
-            } else if let Some(row) = installation {
-                (
-                    row.display_label.clone(),
-                    row.auth_source,
-                    row.provider_host.host_label.clone(),
-                    row.secret_expires_at.clone(),
-                    row.issuer_label.clone(),
-                    installation_health_state(row.lifecycle_state),
-                )
-            } else if let Some(row) = connected {
-                (
-                    row.display_label.clone(),
-                    row.auth_source,
-                    row.provider_host.host_label.clone(),
-                    row.expires_at.clone(),
-                    row.subject.subject_label.clone(),
-                    connected_health_state(row.lifecycle_state),
-                )
-            } else {
-                return Vec::new();
-            };
+        let (
+            display_label,
+            auth_source,
+            target_label,
+            expires_at,
+            policy_owner_label,
+            health_state,
+        ) = if let Some(row) = delegated {
+            (
+                row.display_label.clone(),
+                row.auth_source,
+                row.provider_host.host_label.clone(),
+                row.expires_at.clone(),
+                row.delegator_label.clone(),
+                delegated_health_state(row.lifecycle_state),
+            )
+        } else if let Some(row) = installation {
+            (
+                row.display_label.clone(),
+                row.auth_source,
+                row.provider_host.host_label.clone(),
+                row.secret_expires_at.clone(),
+                row.issuer_label.clone(),
+                installation_health_state(row.lifecycle_state),
+            )
+        } else if let Some(row) = connected {
+            (
+                row.display_label.clone(),
+                row.auth_source,
+                row.provider_host.host_label.clone(),
+                row.expires_at.clone(),
+                row.subject.subject_label.clone(),
+                connected_health_state(row.lifecycle_state),
+            )
+        } else {
+            return Vec::new();
+        };
 
         let credential_mode = account_scope_credential_mode(auth_source);
         let storage_class = account_scope_storage_class(auth_source);
         let projection_mode = account_scope_projection_mode(auth_source);
         let secret_class = account_scope_secret_class(auth_source);
-        let actor_identity = account_scope_actor_identity(delegated.is_some(), installation.is_some());
+        let actor_identity =
+            account_scope_actor_identity(delegated.is_some(), installation.is_some());
         let consumer_identity = SecretBoundaryConsumerIdentityClass::ServiceIssuedDelegate;
         let delegated_use_class = if delegated.is_some() {
             SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
@@ -1306,7 +1314,10 @@ impl AccountScopeBetaPage {
         };
         let workflows = vec![
             account_scope_workflow("workflow:provider.scope.inspect", "Inspect provider scope"),
-            account_scope_workflow("workflow:provider.scope.repair", "Repair scope or delegated identity"),
+            account_scope_workflow(
+                "workflow:provider.scope.repair",
+                "Repair scope or delegated identity",
+            ),
         ];
         let projection_controls = account_scope_projection_controls(
             PROVIDER_SCOPE_MATRIX_ROW_ID,
@@ -1385,6 +1396,13 @@ impl AccountScopeBetaPage {
                     .iter()
                     .map(|control| control.control_class)
                     .collect(),
+            ),
+            repairable_states: seeded_secret_boundary_repairable_states(
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+            ),
+            active_repair_state: seeded_secret_boundary_active_repair_state(
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+                health_state,
             ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PROVIDER_SCOPE_MATRIX_ROW_ID,
@@ -1486,7 +1504,8 @@ fn account_scope_picker_state() -> SecretBoundaryVaultPickerState {
 
 fn account_scope_secret_class(auth_source: AccountAuthSourceClass) -> SecretBoundarySecretClass {
     match auth_source {
-        AccountAuthSourceClass::DelegatedCredential | AccountAuthSourceClass::PolicyInjectedService => {
+        AccountAuthSourceClass::DelegatedCredential
+        | AccountAuthSourceClass::PolicyInjectedService => {
             SecretBoundarySecretClass::CloudDelegatedIdentity
         }
         AccountAuthSourceClass::InstallationGrant | AccountAuthSourceClass::ProjectScopedGrant => {
@@ -1496,21 +1515,27 @@ fn account_scope_secret_class(auth_source: AccountAuthSourceClass) -> SecretBoun
     }
 }
 
-fn account_scope_credential_mode(auth_source: AccountAuthSourceClass) -> SecretBoundaryCredentialMode {
+fn account_scope_credential_mode(
+    auth_source: AccountAuthSourceClass,
+) -> SecretBoundaryCredentialMode {
     match auth_source {
         AccountAuthSourceClass::HumanSession => SecretBoundaryCredentialMode::OsStore,
         AccountAuthSourceClass::InstallationGrant | AccountAuthSourceClass::ProjectScopedGrant => {
             SecretBoundaryCredentialMode::HandleOnly
         }
         AccountAuthSourceClass::DelegatedCredential => SecretBoundaryCredentialMode::Delegated,
-        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryCredentialMode::EnterpriseVault,
+        AccountAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryCredentialMode::EnterpriseVault
+        }
     }
 }
 
 fn account_scope_storage_class(auth_source: AccountAuthSourceClass) -> SecretBoundaryStorageClass {
     match auth_source {
         AccountAuthSourceClass::HumanSession => SecretBoundaryStorageClass::OsStore,
-        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryStorageClass::EnterpriseVault,
+        AccountAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryStorageClass::EnterpriseVault
+        }
         AccountAuthSourceClass::DelegatedCredential
         | AccountAuthSourceClass::InstallationGrant
         | AccountAuthSourceClass::ProjectScopedGrant => SecretBoundaryStorageClass::SessionOnly,
@@ -1522,7 +1547,9 @@ fn account_scope_projection_mode(
 ) -> SecretBoundaryProjectionMode {
     match auth_source {
         AccountAuthSourceClass::DelegatedCredential => SecretBoundaryProjectionMode::Delegated,
-        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryProjectionMode::RemoteVaultFetch,
+        AccountAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryProjectionMode::RemoteVaultFetch
+        }
         _ => SecretBoundaryProjectionMode::RequestHeader,
     }
 }
@@ -1542,12 +1569,16 @@ fn installation_health_state(
 ) -> SecretBoundaryHealthStateClass {
     match state {
         InstallationGrantLifecycleStateClass::Installed => SecretBoundaryHealthStateClass::Healthy,
-        InstallationGrantLifecycleStateClass::SecretExpired => SecretBoundaryHealthStateClass::Expired,
+        InstallationGrantLifecycleStateClass::SecretExpired => {
+            SecretBoundaryHealthStateClass::Expired
+        }
         InstallationGrantLifecycleStateClass::ScopeNarrowed
         | InstallationGrantLifecycleStateClass::Suspended => {
             SecretBoundaryHealthStateClass::PolicyBlocked
         }
-        InstallationGrantLifecycleStateClass::Uninstalled => SecretBoundaryHealthStateClass::Revoked,
+        InstallationGrantLifecycleStateClass::Uninstalled => {
+            SecretBoundaryHealthStateClass::Revoked
+        }
     }
 }
 

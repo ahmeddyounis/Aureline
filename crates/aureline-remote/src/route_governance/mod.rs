@@ -24,7 +24,8 @@
 //!   under what auth/expiry posture?".
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -32,10 +33,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -826,7 +827,8 @@ impl RouteObject {
         let consumer_identity = SecretBoundaryConsumerIdentityClass::PreviewPublisher;
         let target_label = format!(
             "{} / {}",
-            self.source.service_label, self.controlled_exposure_label.as_str()
+            self.source.service_label,
+            self.controlled_exposure_label.as_str()
         );
         let decline_path = SecretBoundaryDeclinePath {
             decline_label: "Keep local preview only".to_owned(),
@@ -917,6 +919,11 @@ impl RouteObject {
                     .iter()
                     .map(|control| control.control_class)
                     .collect(),
+            ),
+            repairable_states: seeded_secret_boundary_repairable_states(PREVIEW_ROUTE_MATRIX_ROW_ID),
+            active_repair_state: seeded_secret_boundary_active_repair_state(
+                PREVIEW_ROUTE_MATRIX_ROW_ID,
+                health_state,
             ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 PREVIEW_ROUTE_MATRIX_ROW_ID,
@@ -1028,7 +1035,9 @@ fn route_credential_mode(auth_source: AuthSourceClass) -> SecretBoundaryCredenti
         AuthSourceClass::WorkspaceSessionAuth => SecretBoundaryCredentialMode::HandleOnly,
         AuthSourceClass::OrganizationSso => SecretBoundaryCredentialMode::Delegated,
         AuthSourceClass::SignedPreviewLink => SecretBoundaryCredentialMode::BrowserHandoff,
-        AuthSourceClass::MachineToMachineAllowlist => SecretBoundaryCredentialMode::RemoteVaultFetch,
+        AuthSourceClass::MachineToMachineAllowlist => {
+            SecretBoundaryCredentialMode::RemoteVaultFetch
+        }
         AuthSourceClass::ExternalAuthPassthrough => SecretBoundaryCredentialMode::Delegated,
         AuthSourceClass::ApprovalTicketRequired => SecretBoundaryCredentialMode::Delegated,
         AuthSourceClass::AuthUnknownRequiresReview => SecretBoundaryCredentialMode::NotConfigured,
@@ -1051,7 +1060,9 @@ fn route_storage_class(auth_source: AuthSourceClass) -> SecretBoundaryStorageCla
 fn route_projection_mode(auth_source: AuthSourceClass) -> SecretBoundaryProjectionMode {
     match auth_source {
         AuthSourceClass::SignedPreviewLink => SecretBoundaryProjectionMode::BrowserHandoff,
-        AuthSourceClass::MachineToMachineAllowlist => SecretBoundaryProjectionMode::RemoteVaultFetch,
+        AuthSourceClass::MachineToMachineAllowlist => {
+            SecretBoundaryProjectionMode::RemoteVaultFetch
+        }
         AuthSourceClass::OrganizationSso
         | AuthSourceClass::ExternalAuthPassthrough
         | AuthSourceClass::ApprovalTicketRequired => SecretBoundaryProjectionMode::Delegated,

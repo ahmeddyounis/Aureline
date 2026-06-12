@@ -79,16 +79,26 @@ fn checked_in_packet_parses_and_validates() {
 fn packet_projects_m5_secret_boundary_states() {
     let states = packet().secret_boundary_states();
     assert_eq!(states.len(), 2);
-    assert_eq!(states[0].matrix_row_id, "m5.secret.database.connection_picker");
+    assert_eq!(
+        states[0].matrix_row_id,
+        "m5.secret.database.connection_picker"
+    );
     assert_eq!(
         states[1].matrix_row_id,
         "m5.secret.database.query_history_portability"
     );
     assert_eq!(
-        states[0].consumer_identity_receipt.consumer_identity.as_str(),
+        states[0]
+            .consumer_identity_receipt
+            .consumer_identity
+            .as_str(),
         "database_connector"
     );
-    assert!(!states[0].projection_mode_audit.available_controls.is_empty());
+    assert!(!states[0].repairable_states.is_empty());
+    assert!(!states[0]
+        .projection_mode_audit
+        .available_controls
+        .is_empty());
     assert!(!states[0].export_safety_banner.raw_secret_values_included);
 }
 

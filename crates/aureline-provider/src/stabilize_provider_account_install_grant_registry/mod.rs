@@ -32,7 +32,8 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use aureline_auth::{
-    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_profile_parity_rows,
+    secret_boundary_use_audit_result_for_health, seeded_secret_boundary_active_repair_state,
+    seeded_secret_boundary_profile_parity_rows, seeded_secret_boundary_repairable_states,
     SecretBoundaryActingIdentityClass, SecretBoundaryConsumerIdentityClass,
     SecretBoundaryConsumerIdentityReceipt, SecretBoundaryCredentialMode,
     SecretBoundaryCredentialStateRow, SecretBoundaryDeclinePath,
@@ -40,10 +41,10 @@ use aureline_auth::{
     SecretBoundaryExportSafetyBanner, SecretBoundaryHealthStateClass,
     SecretBoundaryProjectionControl, SecretBoundaryProjectionControlClass,
     SecretBoundaryProjectionMode, SecretBoundaryProjectionModeAudit,
-    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt,
-    SecretBoundarySecretClass, SecretBoundaryStorageClass, SecretBoundarySurfaceState,
-    SecretBoundaryVaultPickerOption, SecretBoundaryVaultPickerState,
-    SecretBoundaryWorkflowDependency, M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+    SecretBoundaryRepairOwnerClass, SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -837,7 +838,10 @@ impl StableProviderAccountInstallGrantRegistryPacket {
                     .to_owned(),
         };
         let workflows = vec![
-            registry_workflow("workflow:registry.install", "Authenticate install or restore"),
+            registry_workflow(
+                "workflow:registry.install",
+                "Authenticate install or restore",
+            ),
             registry_workflow("workflow:registry.publish", "Authenticate publish or queue"),
         ];
         let projection_controls =
@@ -942,6 +946,13 @@ impl StableProviderAccountInstallGrantRegistryPacket {
                     .iter()
                     .map(|control| control.control_class)
                     .collect(),
+            ),
+            repairable_states: seeded_secret_boundary_repairable_states(
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+            ),
+            active_repair_state: seeded_secret_boundary_active_repair_state(
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+                health_state,
             ),
             profile_parity_rows: seeded_secret_boundary_profile_parity_rows(
                 REGISTRY_AUTH_MATRIX_ROW_ID,

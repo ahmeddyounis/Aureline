@@ -76,6 +76,31 @@ Credential health and degraded states:
 - `missing`
 - `not_configured`
 
+Repairable change classes:
+
+- `ca_untrusted`
+- `bundle_stale`
+- `pin_mismatch`
+- `rotation_required`
+- `ssh_host_key_unknown`
+- `ssh_host_key_mismatch`
+- `client_certificate_required`
+- `client_certificate_expired`
+- `browser_handoff_return_lost`
+- `device_code_renewal_required`
+
+Last-known-good classes:
+
+- `os_trust_store_descriptor`
+- `org_ca_bundle_epoch`
+- `pinned_control_plane_root`
+- `ssh_host_proof`
+- `client_certificate_binding`
+- `device_code_session`
+- `browser_handoff_session`
+- `remote_vault_lineage`
+- `delegated_scope_binding`
+
 Trust-store dependencies:
 
 - `os_store`
@@ -104,9 +129,10 @@ Repair owners:
 
 - Every surface must preserve the same `local_desktop`, `ssh_or_container`, `managed_workspace`, and `mirror_offline` parity rows instead of replacing degraded states with generic connector failures.
 - The packet MUST expose first-class `missing`, `expired`, `policy_blocked`, `forwarding_paused`, and `remote_vault_unavailable` states with bounded next actions.
+- Every surface row MUST carry at least one typed repairable state naming the exact affected target, the last-known-good class, the minimally destructive next action, the Project Doctor finding code, and the support-bundle lineage ref.
 - Consumer-identity receipts and projection-mode audit rows MUST preserve actor class, consumer identity, issuer label, target boundary, projection mode, and result without carrying raw secret values or raw handle ids.
 - Remote, managed, registry, preview, connector, and companion lanes MUST expose bounded `pause_forwarding`, `stop_using_secret`, or `drop_delegated_identity` controls when the authority can outlive the original prompt.
 - Docs/help must project the same `matrix_id` and row ids rather than restating a generic connected state.
-- Diagnostics must name the row id, acting identity, trust dependency, and repair owner before surfacing the downstream error.
-- Support export must preserve row ids, consumer identities, projection modes, and projection controls while excluding raw secret values and raw handle ids.
+- Diagnostics must name the row id, acting identity, trust dependency, repair owner, and typed repairable state before surfacing the downstream error.
+- Support export must preserve row ids, consumer identities, projection modes, projection controls, repairable states, Project Doctor finding codes, and support-bundle lineage while excluding raw secret values and raw handle ids.
 - Release/public-truth surfaces may publish only checked row ids and summary vocabulary; they may not widen a row with custom prose.
