@@ -1,6 +1,8 @@
 use super::*;
 
-use aureline_provider::{HandoffProviderAcceptanceClass, PublishReviewActionClass};
+use aureline_provider::{
+    HandoffProviderAcceptanceClass, PublishReviewActionClass, WorkItemMutationMode,
+};
 
 const PACKET_ID: &str = "work-item-mutation-review:stable:0001";
 
@@ -74,9 +76,28 @@ fn markdown_summary_mentions_core_sections() {
         "Transition sheets",
         "Comment publish review",
         "Offline handoff packets",
+        "Conflict Or Reconcile",
     ] {
         assert!(summary.contains(needle), "summary missing {needle}");
     }
+}
+
+#[test]
+fn canonical_packet_covers_tri_mode_and_conflict_review() {
+    let packet = packet();
+    let modes = packet
+        .transition_reviews
+        .iter()
+        .map(|row| row.publish_mode_class)
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert!(modes.contains(&WorkItemMutationMode::LocalDraft));
+    assert!(modes.contains(&WorkItemMutationMode::PublishNow));
+    assert!(modes.contains(&WorkItemMutationMode::OpenInProvider));
+    assert!(
+        !packet.conflict_reconcile_rows.is_empty(),
+        "canonical packet must surface at least one compare/reconcile row"
+    );
 }
 
 #[test]

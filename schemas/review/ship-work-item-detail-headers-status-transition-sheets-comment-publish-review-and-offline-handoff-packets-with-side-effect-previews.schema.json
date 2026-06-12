@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/review/ship-work-item-detail-headers-status-transition-sheets-comment-publish-review-and-offline-handoff-packets-with-side-effect-previews.schema.json",
   "title": "Aureline work-item mutation review side-effect preview packet",
-  "description": "Boundary schema for the M5 packet that projects work-item detail headers, status-transition review sheets, comment publish review rows, and offline handoff packet continuity into one export-safe cross-surface record. The packet keeps provider boundary, canonical identity, state, publish mode, side effects, local-draft separation, notification behavior, redaction, expiry, and retry/export continuity explicit before any provider mutation leaves the machine. Raw provider payloads, raw URLs, raw comment bodies, credentials, and live provider responses never cross this boundary.",
+  "description": "Boundary schema for the M5 packet that projects work-item detail headers, status-transition review sheets, comment publish review rows, offline handoff packet continuity, and conflict compare/reconcile rows into one export-safe cross-surface record. The packet keeps provider boundary, canonical identity, tri-mode publish authority, side effects, local-draft separation, compare-or-reconcile gates, browser handoff continuity, activity/history/support authority labels, redaction, expiry, and retry/export continuity explicit before any provider mutation leaves the machine. Raw provider payloads, raw URLs, raw comment bodies, credentials, and live provider responses never cross this boundary.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,6 +14,7 @@
     "transition_reviews",
     "comment_publish_reviews",
     "offline_handoff_packets",
+    "conflict_reconcile_rows",
     "downgrade_triggers",
     "consumer_surfaces",
     "trust_review",
@@ -64,6 +65,12 @@
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/offline_handoff_packet"
+      }
+    },
+    "conflict_reconcile_rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/conflict_reconcile_row"
       }
     },
     "downgrade_triggers": {
@@ -181,6 +188,7 @@
         "side_effect_summaries",
         "local_draft_preserved_on_failure",
         "fallback_label",
+        "authority_labels",
         "summary_label"
       ],
       "properties": {
@@ -206,6 +214,8 @@
         },
         "local_draft_preserved_on_failure": { "type": "boolean" },
         "fallback_label": { "type": "string", "minLength": 1 },
+        "authority_labels": { "$ref": "#/$defs/authority_labels" },
+        "browser_handoff": { "$ref": "#/$defs/browser_handoff" },
         "summary_label": { "type": "string", "minLength": 1 }
       }
     },
@@ -227,6 +237,7 @@
         "notify_behavior_label",
         "fallback_label",
         "side_effect_summaries",
+        "authority_labels",
         "summary_label"
       ],
       "properties": {
@@ -253,6 +264,8 @@
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         },
+        "authority_labels": { "$ref": "#/$defs/authority_labels" },
+        "browser_handoff": { "$ref": "#/$defs/browser_handoff" },
         "summary_label": { "type": "string", "minLength": 1 }
       }
     },
@@ -279,6 +292,7 @@
         "retry_action_ref",
         "export_action_ref",
         "packet_survives_restart",
+        "authority_labels",
         "summary_label"
       ],
       "properties": {
@@ -315,8 +329,90 @@
         "retry_action_ref": { "type": "string", "minLength": 1 },
         "export_action_ref": { "type": "string", "minLength": 1 },
         "packet_survives_restart": { "type": "boolean" },
+        "authority_labels": { "$ref": "#/$defs/authority_labels" },
+        "browser_handoff": { "$ref": "#/$defs/browser_handoff" },
         "summary_label": { "type": "string", "minLength": 1 }
       }
+    },
+    "conflict_reconcile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "work_item_detail_record_id_ref",
+        "reconciliation_result_record_id_ref",
+        "local_draft_ref",
+        "deferred_publish_queue_item_ref",
+        "provider_drift_class",
+        "next_action_class",
+        "local_authority_label",
+        "provider_authority_label",
+        "compare_action_label",
+        "reconcile_action_label",
+        "requires_explicit_review",
+        "authority_labels",
+        "summary_label"
+      ],
+      "properties": {
+        "row_id": { "type": "string", "minLength": 1 },
+        "work_item_detail_record_id_ref": { "type": "string", "minLength": 1 },
+        "reconciliation_result_record_id_ref": { "type": "string", "minLength": 1 },
+        "local_draft_ref": { "type": "string", "minLength": 1 },
+        "deferred_publish_queue_item_ref": { "type": "string", "minLength": 1 },
+        "provider_drift_class": { "type": "string", "minLength": 1 },
+        "next_action_class": { "type": "string", "minLength": 1 },
+        "local_authority_label": { "type": "string", "minLength": 1 },
+        "provider_authority_label": { "type": "string", "minLength": 1 },
+        "compare_action_label": { "type": "string", "minLength": 1 },
+        "reconcile_action_label": { "type": "string", "minLength": 1 },
+        "requires_explicit_review": { "type": "boolean" },
+        "authority_labels": { "$ref": "#/$defs/authority_labels" },
+        "browser_handoff": { "$ref": "#/$defs/browser_handoff" },
+        "summary_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authority_labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completion_summary_label",
+        "history_row_label",
+        "activity_center_label",
+        "support_export_label"
+      ],
+      "properties": {
+        "completion_summary_label": { "type": "string", "minLength": 1 },
+        "history_row_label": { "type": "string", "minLength": 1 },
+        "activity_center_label": { "type": "string", "minLength": 1 },
+        "support_export_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "browser_handoff": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "browser_handoff_packet_ref",
+            "object_identity_ref",
+            "selected_anchor_ref",
+            "reason_code",
+            "expected_authority_label",
+            "return_anchor_ref",
+            "privacy_consequence_label"
+          ],
+          "properties": {
+            "browser_handoff_packet_ref": { "type": "string", "minLength": 1 },
+            "object_identity_ref": { "type": "string", "minLength": 1 },
+            "selected_anchor_ref": { "type": "string", "minLength": 1 },
+            "reason_code": { "type": "string", "minLength": 1 },
+            "expected_authority_label": { "type": "string", "minLength": 1 },
+            "return_anchor_ref": { "type": "string", "minLength": 1 },
+            "privacy_consequence_label": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
     },
     "trust_review": {
       "type": "object",

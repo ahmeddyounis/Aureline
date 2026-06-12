@@ -3560,6 +3560,42 @@ fn seeded_transition_reviews() -> Vec<TransitionReviewSheetRecord> {
             ],
             true,
             None,
+            None,
+        ),
+        transition_review(
+            "work_items:transition_review:open-in-provider",
+            "work_items:detail:provider-authoritative",
+            "work_items:transition_packet:open-in-provider",
+            TransitionReviewDispositionClass::AdmissibleViaBrowserHandoffOnly,
+            WorkItemMutationMode::OpenInProvider,
+            PermissionScopeClass::PermissionAdmissibleUnderBrowserHandoffOnly,
+            vec![
+                fanout(
+                    "fanout:open-in-provider:provider",
+                    SideEffectFanoutKindClass::ProviderMutationFanout,
+                    TargetAccountClass::BrowserHandoffAccountSessionOnly,
+                    AuthoritySourceClass::ProviderAuthoritativeSource,
+                    WorkItemMutationMode::OpenInProvider,
+                    NotificationSideEffectClass::NotificationUnknownUntilPublishAdmittedPendingReview,
+                    UndoRollbackPostureClass::RollbackUnknownPendingProviderCallback,
+                    OfflineDeferredHandlingClass::DeferredPublishBlockedPendingPrerequisites,
+                    Some("providers:browser_handoff:issue:241"),
+                ),
+                fanout(
+                    "fanout:open-in-provider:review",
+                    SideEffectFanoutKindClass::LinkedReviewUpdateFanout,
+                    TargetAccountClass::LocalOnlyNoProviderAccount,
+                    AuthoritySourceClass::LocalAuthoritativeSourceNoProviderOverlay,
+                    WorkItemMutationMode::LocalDraft,
+                    NotificationSideEffectClass::NoNotificationLocallyOnly,
+                    UndoRollbackPostureClass::NoUndoRequiredLocalOnly,
+                    OfflineDeferredHandlingClass::NotOfflineNotDeferred,
+                    Some("vcs:review_workspace:work-item"),
+                ),
+            ],
+            true,
+            None,
+            Some("providers:browser_handoff:issue:241"),
         ),
         transition_review(
             "work_items:transition_review:local-draft",
@@ -3580,6 +3616,7 @@ fn seeded_transition_reviews() -> Vec<TransitionReviewSheetRecord> {
                 None,
             )],
             true,
+            None,
             None,
         ),
         transition_review(
@@ -3626,6 +3663,7 @@ fn seeded_transition_reviews() -> Vec<TransitionReviewSheetRecord> {
             ],
             true,
             Some("providers:queue_item:issue:245"),
+            None,
         ),
         transition_review(
             "work_items:transition_review:policy-blocked",
@@ -3647,6 +3685,7 @@ fn seeded_transition_reviews() -> Vec<TransitionReviewSheetRecord> {
             )],
             false,
             None,
+            None,
         ),
     ]
 }
@@ -3662,6 +3701,7 @@ fn transition_review(
     side_effect_fanout_rows: Vec<SideEffectFanoutRow>,
     confirm_available: bool,
     queue_ref: Option<&str>,
+    browser_ref: Option<&str>,
 ) -> TransitionReviewSheetRecord {
     TransitionReviewSheetRecord {
         record_kind: TRANSITION_REVIEW_RECORD_KIND.to_string(),
@@ -3691,7 +3731,7 @@ fn transition_review(
         },
         local_draft_preserved_on_failure: true,
         linked_publish_later_queue_item_record_id_ref: queue_ref.map(str::to_string),
-        linked_browser_handoff_packet_ref: None,
+        linked_browser_handoff_packet_ref: browser_ref.map(str::to_string),
         linked_offline_handoff_packet_record_id_ref: None,
         block_reason_summary: (!disposition.is_admissible())
             .then(|| "Policy or trust prerequisites must clear before provider mutation.".to_string()),

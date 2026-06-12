@@ -42,12 +42,14 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_provider::{
-    seeded_work_item_sync_beta_page, seeded_work_item_transition_beta_page, HandoffAdmissionReasonClass,
-    HandoffDrainStateClass, HandoffExportRouteClass, HandoffProviderAcceptanceClass,
-    HandoffRetryRouteClass, OpenExternalActionClass, PermissionScopeClass, ProviderFamily,
+    seeded_provider_event_reconciliation_page, seeded_work_item_sync_beta_page,
+    seeded_work_item_transition_beta_page, HandoffAdmissionReasonClass, HandoffDrainStateClass,
+    HandoffExportRouteClass, HandoffProviderAcceptanceClass, HandoffRetryRouteClass,
+    OpenExternalActionClass, PermissionScopeClass, ProviderDriftClass, ProviderFamily,
     PublishReviewActionClass, PublishReviewActorScopeClass, PublishReviewDispositionClass,
-    RedactionClass, WorkItemDetailRecord, WorkItemFreshnessClass, WorkItemMutationMode,
-    WorkItemPublishPostureClass, WorkItemRowPostureClass, WriteAuthorityClass,
+    ReconciliationNextActionClass, ReconciliationResult, RedactionClass, WorkItemDetailRecord,
+    WorkItemFreshnessClass, WorkItemMutationMode, WorkItemPublishPostureClass,
+    WorkItemRowPostureClass, WriteAuthorityClass,
 };
 use serde::{Deserialize, Serialize};
 
@@ -101,6 +103,39 @@ pub const WORK_ITEM_MUTATION_REVIEW_ARTIFACT_REF: &str =
 /// Repo-relative path of the checked Markdown summary.
 pub const WORK_ITEM_MUTATION_REVIEW_SUMMARY_REF: &str =
     "artifacts/review/m5/ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews.md";
+
+/// Cross-surface authority labels that must stay aligned across the packet's
+/// completion, history, activity, and support/export surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SurfaceAuthorityLabels {
+    /// Completion summary label.
+    pub completion_summary_label: String,
+    /// Durable history row label.
+    pub history_row_label: String,
+    /// Activity-center item label.
+    pub activity_center_label: String,
+    /// Support/export label.
+    pub support_export_label: String,
+}
+
+/// Typed browser/provider handoff continuity metadata preserved on exported rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BrowserHandoffContinuity {
+    /// Typed browser-handoff packet ref.
+    pub browser_handoff_packet_ref: String,
+    /// Work-item or mutation identity preserved across the handoff.
+    pub object_identity_ref: String,
+    /// Selected anchor preserved across the handoff.
+    pub selected_anchor_ref: String,
+    /// Stable handoff reason code.
+    pub reason_code: String,
+    /// Expected authority label after the handoff.
+    pub expected_authority_label: String,
+    /// Durable return anchor.
+    pub return_anchor_ref: String,
+    /// Privacy consequence disclosed before leaving the product boundary.
+    pub privacy_consequence_label: String,
+}
 
 /// Stable consumer surface that must project this packet's vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -251,6 +286,11 @@ pub struct StatusTransitionReviewRow {
     pub local_draft_preserved_on_failure: bool,
     /// Offline or local fallback label.
     pub fallback_label: String,
+    /// Cross-surface authority labels that remain stable after completion.
+    pub authority_labels: SurfaceAuthorityLabels,
+    /// Optional browser/provider handoff continuity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<BrowserHandoffContinuity>,
     /// Export-safe summary.
     pub summary_label: String,
 }
@@ -292,6 +332,11 @@ pub struct CommentPublishReviewRow {
     pub fallback_label: String,
     /// Side-effect preview summaries.
     pub side_effect_summaries: Vec<String>,
+    /// Cross-surface authority labels that remain stable after completion.
+    pub authority_labels: SurfaceAuthorityLabels,
+    /// Optional browser/provider handoff continuity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<BrowserHandoffContinuity>,
     /// Export-safe summary.
     pub summary_label: String,
 }
@@ -337,6 +382,47 @@ pub struct OfflineHandoffPacketRow {
     pub export_action_ref: String,
     /// Packet survives restart.
     pub packet_survives_restart: bool,
+    /// Cross-surface authority labels that remain stable after completion.
+    pub authority_labels: SurfaceAuthorityLabels,
+    /// Optional browser/provider handoff continuity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<BrowserHandoffContinuity>,
+    /// Export-safe summary.
+    pub summary_label: String,
+}
+
+/// Typed compare/reconcile row used when provider truth raced a local draft or queue item.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConflictReconcileRow {
+    /// Stable row id.
+    pub row_id: String,
+    /// Bound work-item detail ref.
+    pub work_item_detail_record_id_ref: String,
+    /// Reconciliation-result record ref.
+    pub reconciliation_result_record_id_ref: String,
+    /// Local draft ref that diverged.
+    pub local_draft_ref: String,
+    /// Deferred publish queue item ref that diverged.
+    pub deferred_publish_queue_item_ref: String,
+    /// Provider drift class observed before mutation.
+    pub provider_drift_class: ProviderDriftClass,
+    /// Next safe action class.
+    pub next_action_class: ReconciliationNextActionClass,
+    /// Local authority label shown in compare/reconcile flows.
+    pub local_authority_label: String,
+    /// Provider authority label shown in compare/reconcile flows.
+    pub provider_authority_label: String,
+    /// Compare action label.
+    pub compare_action_label: String,
+    /// Reconcile action label.
+    pub reconcile_action_label: String,
+    /// True when the row blocks provider mutation pending explicit review.
+    pub requires_explicit_review: bool,
+    /// Cross-surface authority labels that remain stable after completion.
+    pub authority_labels: SurfaceAuthorityLabels,
+    /// Optional browser/provider handoff continuity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<BrowserHandoffContinuity>,
     /// Export-safe summary.
     pub summary_label: String,
 }
@@ -464,6 +550,8 @@ pub struct WorkItemMutationReviewPacketInput {
     pub comment_publish_reviews: Vec<CommentPublishReviewRow>,
     /// Offline handoff rows.
     pub offline_handoff_packets: Vec<OfflineHandoffPacketRow>,
+    /// Conflict compare/reconcile rows.
+    pub conflict_reconcile_rows: Vec<ConflictReconcileRow>,
     /// Downgrade triggers that apply to this lane.
     pub downgrade_triggers: Vec<WorkItemMutationReviewDowngradeTrigger>,
     /// Consumer surfaces that must project this lane.
@@ -501,6 +589,8 @@ pub struct WorkItemMutationReviewPacket {
     pub comment_publish_reviews: Vec<CommentPublishReviewRow>,
     /// Offline handoff rows.
     pub offline_handoff_packets: Vec<OfflineHandoffPacketRow>,
+    /// Conflict compare/reconcile rows.
+    pub conflict_reconcile_rows: Vec<ConflictReconcileRow>,
     /// Downgrade triggers that apply to this lane.
     pub downgrade_triggers: Vec<WorkItemMutationReviewDowngradeTrigger>,
     /// Consumer surfaces that must project this lane.
@@ -531,6 +621,7 @@ impl WorkItemMutationReviewPacket {
             transition_reviews: input.transition_reviews,
             comment_publish_reviews: input.comment_publish_reviews,
             offline_handoff_packets: input.offline_handoff_packets,
+            conflict_reconcile_rows: input.conflict_reconcile_rows,
             downgrade_triggers: input.downgrade_triggers,
             consumer_surfaces: input.consumer_surfaces,
             trust_review: input.trust_review,
@@ -571,6 +662,7 @@ impl WorkItemMutationReviewPacket {
         validate_transition_reviews(self, &mut violations);
         validate_comment_publish_reviews(self, &mut violations);
         validate_offline_handoff_packets(self, &mut violations);
+        validate_conflict_reconcile_rows(self, &mut violations);
 
         if !self.trust_review.all_hold() {
             violations.push(WorkItemMutationReviewViolation::TrustReviewIncomplete);
@@ -615,6 +707,7 @@ impl WorkItemMutationReviewPacket {
             .filter(|row| !row.confirm_action_available)
             .count();
         let offline_packets = self.offline_handoff_packets.len();
+        let conflict_rows = self.conflict_reconcile_rows.len();
 
         let mut out = String::new();
         out.push_str(
@@ -637,6 +730,7 @@ impl WorkItemMutationReviewPacket {
             "- Offline handoff packets: {}\n",
             offline_packets
         ));
+        out.push_str(&format!("- Conflict or reconcile rows: {}\n", conflict_rows));
         out.push_str(&format!(
             "- Proof freshness SLO: {} hours (last refresh: {})\n",
             self.proof_freshness.proof_freshness_slo_hours, self.proof_freshness.last_proof_refresh
@@ -689,6 +783,20 @@ impl WorkItemMutationReviewPacket {
                 row.expires_at,
                 row.publish_target_ref
             ));
+        }
+
+        if !self.conflict_reconcile_rows.is_empty() {
+            out.push_str("\n## Conflict Or Reconcile\n\n");
+            for row in &self.conflict_reconcile_rows {
+                out.push_str(&format!(
+                    "- **{}**: local `{}` vs provider `{}`; next `{}`; compare `{}`\n",
+                    row.reconciliation_result_record_id_ref,
+                    row.local_authority_label,
+                    row.provider_authority_label,
+                    reconciliation_next_action_label(row.next_action_class),
+                    row.compare_action_label
+                ));
+            }
         }
 
         out
@@ -767,6 +875,10 @@ pub enum WorkItemMutationReviewViolation {
     OrphanOfflineHandoffReference,
     /// An offline-handoff row implies provider acceptance.
     OfflineHandoffClaimsProviderAcceptance,
+    /// A conflict/reconcile row is incomplete.
+    ConflictReconcileRowIncomplete,
+    /// A conflict/reconcile row references a missing detail header.
+    OrphanConflictReconcileReference,
     /// No downgrade triggers are present.
     DowngradeTriggersMissing,
     /// No consumer surfaces are present.
@@ -804,6 +916,8 @@ impl WorkItemMutationReviewViolation {
             Self::OfflineHandoffClaimsProviderAcceptance => {
                 "offline_handoff_claims_provider_acceptance"
             }
+            Self::ConflictReconcileRowIncomplete => "conflict_reconcile_row_incomplete",
+            Self::OrphanConflictReconcileReference => "orphan_conflict_reconcile_reference",
             Self::DowngradeTriggersMissing => "downgrade_triggers_missing",
             Self::ConsumerSurfacesMissing => "consumer_surfaces_missing",
             Self::TrustReviewIncomplete => "trust_review_incomplete",
@@ -832,6 +946,7 @@ pub fn canonical_source_contract_refs() -> Vec<String> {
 pub fn canonical_work_item_mutation_review_packet() -> WorkItemMutationReviewPacket {
     let transition_page = seeded_work_item_transition_beta_page();
     let sync_page = seeded_work_item_sync_beta_page();
+    let reconciliation_page = seeded_provider_event_reconciliation_page();
     let detail_by_id: BTreeMap<&str, &WorkItemDetailRecord> = transition_page
         .detail_records
         .iter()
@@ -894,6 +1009,18 @@ pub fn canonical_work_item_mutation_review_packet() -> WorkItemMutationReviewPac
         })
         .collect();
 
+    let conflict_reconcile_rows = reconciliation_page
+        .reconciliation_results
+        .iter()
+        .filter(|result| result.drift_class.requires_review())
+        .map(|result| {
+            let detail = detail_by_id
+                .get("work_items:detail:cached-stale")
+                .expect("cached-stale detail exists for conflict reconcile");
+            project_conflict_reconcile_row(detail, result)
+        })
+        .collect();
+
     WorkItemMutationReviewPacket::new(WorkItemMutationReviewPacketInput {
         packet_id: "work-item-mutation-review:stable:0001".to_owned(),
         surface_label: "M5 work-item mutation review side-effect previews".to_owned(),
@@ -901,6 +1028,7 @@ pub fn canonical_work_item_mutation_review_packet() -> WorkItemMutationReviewPac
         transition_reviews,
         comment_publish_reviews,
         offline_handoff_packets,
+        conflict_reconcile_rows,
         downgrade_triggers: vec![
             WorkItemMutationReviewDowngradeTrigger::ProviderAuthorityStale,
             WorkItemMutationReviewDowngradeTrigger::SideEffectPreviewMissing,
@@ -1029,6 +1157,13 @@ fn project_transition_review_row(
     detail: &WorkItemDetailRecord,
     review: &aureline_provider::TransitionReviewSheetRecord,
 ) -> StatusTransitionReviewRow {
+    let authority_labels = authority_labels(
+        detail.canonical_id.as_str(),
+        mutation_authority_status_label(
+            review.publish_mode_class,
+            review.action_affordances.confirm_action_available,
+        ),
+    );
     StatusTransitionReviewRow {
         row_id: format!("transition-row:{}", review.review_id),
         transition_review_record_id_ref: review.review_id.clone(),
@@ -1055,6 +1190,19 @@ fn project_transition_review_row(
             .collect(),
         local_draft_preserved_on_failure: review.local_draft_preserved_on_failure,
         fallback_label: transition_fallback_label(review),
+        authority_labels: authority_labels.clone(),
+        browser_handoff: review
+            .linked_browser_handoff_packet_ref
+            .as_ref()
+            .map(|handoff_ref| {
+                browser_handoff_continuity(
+                    handoff_ref,
+                    &detail.detail_id,
+                    &review.linked_status_transition_packet_record_id_ref,
+                    "open_in_provider_transition_review",
+                    authority_labels.completion_summary_label.as_str(),
+                )
+            }),
         summary_label: review.summary.clone(),
     }
 }
@@ -1075,6 +1223,13 @@ fn project_comment_publish_review_row(
     } else {
         "no provider notification fanout disclosed".to_owned()
     };
+    let authority_labels = authority_labels(
+        detail.canonical_id.as_str(),
+        mutation_authority_status_label(
+            review.publish_mode_class,
+            review.publish_review_disposition_class.is_admissible(),
+        ),
+    );
 
     CommentPublishReviewRow {
         row_id: format!("comment-row:{}", review.publish_review_id),
@@ -1106,6 +1261,19 @@ fn project_comment_publish_review_row(
             .iter()
             .map(|row| row.summary.clone())
             .collect(),
+        authority_labels: authority_labels.clone(),
+        browser_handoff: review
+            .linked_browser_handoff_packet_ref
+            .as_ref()
+            .map(|handoff_ref| {
+                browser_handoff_continuity(
+                    handoff_ref,
+                    &detail.detail_id,
+                    &review.publish_review_id,
+                    "open_in_provider_comment_publish_review",
+                    authority_labels.completion_summary_label.as_str(),
+                )
+            }),
         summary_label: review.summary.clone(),
     }
 }
@@ -1144,6 +1312,10 @@ fn project_offline_handoff_row(
     );
     evidence_refs.sort();
     evidence_refs.dedup();
+    let authority_labels = authority_labels(
+        detail.canonical_id.as_str(),
+        offline_handoff_authority_status_label(packet.handoff_provider_acceptance_class),
+    );
 
     OfflineHandoffPacketRow {
         row_id: format!("handoff-row:{}", packet.packet_id),
@@ -1167,10 +1339,53 @@ fn project_offline_handoff_row(
         retry_action_ref: packet.retry_action_ref.clone(),
         export_action_ref: packet.export_action_ref.clone(),
         packet_survives_restart: packet.packet_survives_restart,
+        authority_labels: authority_labels.clone(),
+        browser_handoff: packet.linked_browser_handoff_packet_ref.as_ref().map(|handoff_ref| {
+            browser_handoff_continuity(
+                handoff_ref,
+                &detail.detail_id,
+                &packet.linked_status_transition_packet_record_id_ref,
+                "offline_handoff_browser_completion",
+                authority_labels.completion_summary_label.as_str(),
+            )
+        }),
         summary_label: format!(
             "{} · {}",
             detail.canonical_id, packet.summary
         ),
+    }
+}
+
+fn project_conflict_reconcile_row(
+    detail: &WorkItemDetailRecord,
+    result: &ReconciliationResult,
+) -> ConflictReconcileRow {
+    let authority_labels = authority_labels(
+        detail.canonical_id.as_str(),
+        "conflict compare required before provider mutation",
+    );
+    ConflictReconcileRow {
+        row_id: format!("conflict-row:{}", result.reconciliation_result_id),
+        work_item_detail_record_id_ref: detail.detail_id.clone(),
+        reconciliation_result_record_id_ref: result.reconciliation_result_id.clone(),
+        local_draft_ref: result.subject.local_draft_ref.clone(),
+        deferred_publish_queue_item_ref: result.subject.deferred_publish_queue_item_ref.clone(),
+        provider_drift_class: result.drift_class,
+        next_action_class: result.next_action,
+        local_authority_label: "local draft still preserved".to_owned(),
+        provider_authority_label: "provider state drifted and remains authoritative until review".to_owned(),
+        compare_action_label: "Compare local draft against provider state".to_owned(),
+        reconcile_action_label: "Re-review before replay or publish".to_owned(),
+        requires_explicit_review: result.drift_class.requires_review(),
+        authority_labels: authority_labels.clone(),
+        browser_handoff: Some(browser_handoff_continuity(
+            "providers:browser_handoff:compare-provider-drift",
+            &detail.detail_id,
+            &result.reconciliation_result_id,
+            "provider_drift_compare_in_provider",
+            authority_labels.completion_summary_label.as_str(),
+        )),
+        summary_label: result.support_export_summary.clone(),
     }
 }
 
@@ -1260,6 +1475,13 @@ fn validate_transition_reviews(
             || row.fallback_label.trim().is_empty()
             || row.summary_label.trim().is_empty()
             || !row.cancel_action_available
+            || !authority_labels_complete(&row.authority_labels)
+        {
+            violations.push(WorkItemMutationReviewViolation::TransitionReviewIncomplete);
+            return;
+        }
+        if row.publish_mode_class == WorkItemMutationMode::OpenInProvider
+            && !browser_handoff_complete(row.browser_handoff.as_ref())
         {
             violations.push(WorkItemMutationReviewViolation::TransitionReviewIncomplete);
             return;
@@ -1300,6 +1522,13 @@ fn validate_comment_publish_reviews(
             || row.fallback_label.trim().is_empty()
             || row.side_effect_summaries.is_empty()
             || row.summary_label.trim().is_empty()
+            || !authority_labels_complete(&row.authority_labels)
+        {
+            violations.push(WorkItemMutationReviewViolation::CommentPublishReviewIncomplete);
+            return;
+        }
+        if row.publish_mode_class == WorkItemMutationMode::OpenInProvider
+            && !browser_handoff_complete(row.browser_handoff.as_ref())
         {
             violations.push(WorkItemMutationReviewViolation::CommentPublishReviewIncomplete);
             return;
@@ -1348,11 +1577,78 @@ fn validate_offline_handoff_packets(
             || row.retry_route_classes.is_empty()
             || !row.packet_survives_restart
             || row.summary_label.trim().is_empty()
+            || !authority_labels_complete(&row.authority_labels)
         {
             violations.push(WorkItemMutationReviewViolation::OfflineHandoffPacketIncomplete);
             return;
         }
+        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref()) {
+            violations.push(WorkItemMutationReviewViolation::OfflineHandoffPacketIncomplete);
+            return;
+        }
     }
+}
+
+fn validate_conflict_reconcile_rows(
+    packet: &WorkItemMutationReviewPacket,
+    violations: &mut Vec<WorkItemMutationReviewViolation>,
+) {
+    let detail_refs: BTreeSet<&str> = packet
+        .detail_headers
+        .iter()
+        .map(|row| row.work_item_detail_record_id_ref.as_str())
+        .collect();
+
+    for row in &packet.conflict_reconcile_rows {
+        if !detail_refs.contains(row.work_item_detail_record_id_ref.as_str()) {
+            violations.push(WorkItemMutationReviewViolation::OrphanConflictReconcileReference);
+            return;
+        }
+        if row.row_id.trim().is_empty()
+            || row.reconciliation_result_record_id_ref.trim().is_empty()
+            || row.local_draft_ref.trim().is_empty()
+            || row.deferred_publish_queue_item_ref.trim().is_empty()
+            || row.local_authority_label.trim().is_empty()
+            || row.provider_authority_label.trim().is_empty()
+            || row.compare_action_label.trim().is_empty()
+            || row.reconcile_action_label.trim().is_empty()
+            || row.summary_label.trim().is_empty()
+            || !authority_labels_complete(&row.authority_labels)
+            || (row.provider_drift_class.requires_review() && !row.requires_explicit_review)
+        {
+            violations.push(WorkItemMutationReviewViolation::ConflictReconcileRowIncomplete);
+            return;
+        }
+        if row.next_action_class.is_manual_review_gate()
+            && row.compare_action_label.trim().is_empty()
+        {
+            violations.push(WorkItemMutationReviewViolation::ConflictReconcileRowIncomplete);
+            return;
+        }
+        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref()) {
+            violations.push(WorkItemMutationReviewViolation::ConflictReconcileRowIncomplete);
+            return;
+        }
+    }
+}
+
+fn authority_labels_complete(labels: &SurfaceAuthorityLabels) -> bool {
+    !labels.completion_summary_label.trim().is_empty()
+        && !labels.history_row_label.trim().is_empty()
+        && !labels.activity_center_label.trim().is_empty()
+        && !labels.support_export_label.trim().is_empty()
+}
+
+fn browser_handoff_complete(handoff: Option<&BrowserHandoffContinuity>) -> bool {
+    handoff.is_some_and(|handoff| {
+        !handoff.browser_handoff_packet_ref.trim().is_empty()
+            && !handoff.object_identity_ref.trim().is_empty()
+            && !handoff.selected_anchor_ref.trim().is_empty()
+            && !handoff.reason_code.trim().is_empty()
+            && !handoff.expected_authority_label.trim().is_empty()
+            && !handoff.return_anchor_ref.trim().is_empty()
+            && !handoff.privacy_consequence_label.trim().is_empty()
+    })
 }
 
 fn linked_branch_or_review_note(detail: &WorkItemDetailRecord) -> String {
@@ -1395,6 +1691,76 @@ fn comment_fallback_label(review: &aureline_provider::PublishReviewRecord) -> St
         reason.clone()
     } else {
         "no local fallback disclosed".to_owned()
+    }
+}
+
+fn authority_labels(canonical_id: &str, authority_status: &str) -> SurfaceAuthorityLabels {
+    SurfaceAuthorityLabels {
+        completion_summary_label: format!("{canonical_id}: {authority_status}"),
+        history_row_label: format!("{canonical_id} history: {authority_status}"),
+        activity_center_label: format!("{canonical_id} activity: {authority_status}"),
+        support_export_label: format!("{canonical_id} support export: {authority_status}"),
+    }
+}
+
+fn browser_handoff_continuity(
+    browser_handoff_packet_ref: &str,
+    object_identity_ref: &str,
+    selected_anchor_ref: &str,
+    reason_code: &str,
+    expected_authority_label: &str,
+) -> BrowserHandoffContinuity {
+    BrowserHandoffContinuity {
+        browser_handoff_packet_ref: browser_handoff_packet_ref.to_owned(),
+        object_identity_ref: object_identity_ref.to_owned(),
+        selected_anchor_ref: selected_anchor_ref.to_owned(),
+        reason_code: reason_code.to_owned(),
+        expected_authority_label: expected_authority_label.to_owned(),
+        return_anchor_ref: format!("return-anchor:{selected_anchor_ref}"),
+        privacy_consequence_label:
+            "provider browser handoff leaves the desktop boundary and may reveal provider-owned metadata"
+                .to_owned(),
+    }
+}
+
+fn mutation_authority_status_label(
+    mode: WorkItemMutationMode,
+    confirm_action_available: bool,
+) -> &'static str {
+    match mode {
+        WorkItemMutationMode::LocalDraft => "saved locally as a draft only",
+        WorkItemMutationMode::PublishNow if confirm_action_available => {
+            "ready to publish remotely now"
+        }
+        WorkItemMutationMode::PublishNow => "publish-now path blocked pending review",
+        WorkItemMutationMode::OpenInProvider => "provider completion through browser handoff",
+        WorkItemMutationMode::DeferredPublish if confirm_action_available => {
+            "queued locally for publish later"
+        }
+        WorkItemMutationMode::DeferredPublish => "publish-later path blocked pending re-review",
+        WorkItemMutationMode::InspectOnly => "inspect only with no mutation admitted",
+    }
+}
+
+fn offline_handoff_authority_status_label(
+    acceptance: HandoffProviderAcceptanceClass,
+) -> &'static str {
+    match acceptance {
+        HandoffProviderAcceptanceClass::NotSubmittedLocalCaptureOnly => {
+            "captured locally and not yet provider committed"
+        }
+        HandoffProviderAcceptanceClass::SubmittedPendingProviderAcceptUnverified => {
+            "submitted with provider acceptance still unverified"
+        }
+        HandoffProviderAcceptanceClass::ProviderAcceptConfirmedPublishLaterDrained => {
+            "provider commit confirmed after publish-later drain"
+        }
+        HandoffProviderAcceptanceClass::ProviderAcceptRejectedWithTypedReason => {
+            "provider rejected the drained publish"
+        }
+        HandoffProviderAcceptanceClass::ImportedHandoffEvidenceOnlyNoProviderPath => {
+            "imported evidence only with no live provider authority"
+        }
     }
 }
 
@@ -1574,6 +1940,19 @@ fn handoff_drain_state_label(state: HandoffDrainStateClass) -> &'static str {
         }
         HandoffDrainStateClass::RevokedByUserBeforeDrain => "revoked_by_user_before_drain",
         HandoffDrainStateClass::SupersededByHandoffPacket => "superseded_by_handoff_packet",
+    }
+}
+
+fn reconciliation_next_action_label(action: ReconciliationNextActionClass) -> &'static str {
+    match action {
+        ReconciliationNextActionClass::MutateProviderNow => "mutate_provider_now",
+        ReconciliationNextActionClass::RefreshThenRetry => "refresh_then_retry",
+        ReconciliationNextActionClass::ReauthThenRetry => "reauth_then_retry",
+        ReconciliationNextActionClass::RescopeThenRetry => "rescope_then_retry",
+        ReconciliationNextActionClass::CompareRebaseReview => "compare_rebase_review",
+        ReconciliationNextActionClass::CancelOrExport => "cancel_or_export",
+        ReconciliationNextActionClass::OpenInProvider => "open_in_provider",
+        ReconciliationNextActionClass::HoldForBackfill => "hold_for_backfill",
     }
 }
 

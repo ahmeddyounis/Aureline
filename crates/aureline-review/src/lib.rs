@@ -394,7 +394,8 @@ pub use ship_attributable_rerun_or_cancel_actions_with_execution_context_reuse_a
 pub use ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews::{
     canonical_source_contract_refs as work_item_mutation_review_canonical_source_contract_refs,
     canonical_work_item_mutation_review_packet, current_work_item_mutation_review_export,
-    CommentPublishReviewRow, OfflineHandoffPacketRow, StatusTransitionReviewRow,
+    BrowserHandoffContinuity, CommentPublishReviewRow, ConflictReconcileRow,
+    OfflineHandoffPacketRow, StatusTransitionReviewRow, SurfaceAuthorityLabels,
     WorkItemDetailHeaderRow, WorkItemMutationReviewArtifactError,
     WorkItemMutationReviewConsumerProjection, WorkItemMutationReviewConsumerSurface,
     WorkItemMutationReviewDowngradeTrigger, WorkItemMutationReviewPacket,
