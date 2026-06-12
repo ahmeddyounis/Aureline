@@ -12,6 +12,7 @@
 pub mod cluster_context_and_live_resource;
 pub mod plan_and_validation_viewers;
 pub mod provider_overlay_and_vendor_console_handoff_continuity;
+pub mod relation_graph_incident_support_parity;
 pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
@@ -39,6 +40,18 @@ pub use provider_overlay_and_vendor_console_handoff_continuity::{
     PROVIDER_OVERLAY_HANDOFF_ARTIFACT_REF, PROVIDER_OVERLAY_HANDOFF_DOC_REF,
     PROVIDER_OVERLAY_HANDOFF_FIXTURE_DIR, PROVIDER_OVERLAY_HANDOFF_PACKET_RECORD_KIND,
     PROVIDER_OVERLAY_HANDOFF_SCHEMA_REF, PROVIDER_OVERLAY_HANDOFF_SCHEMA_VERSION,
+};
+pub use relation_graph_incident_support_parity::{
+    seeded_relation_graph_incident_support_parity_packet,
+    validate_relation_graph_incident_support_parity_packet, ConnectorSkewState, ExecutionPlane,
+    LocalityMismatchState, ParityDrillClass, ParityDrillResolution,
+    RelationGraphConsumerBinding, RelationGraphHandoffLineage,
+    RelationGraphIncidentSupportParityPacket, RelationGraphIncidentSupportParityValidationReport,
+    RelationGraphParityDrill, RelationGraphParitySurface, RelationGraphSelection,
+    RELATION_GRAPH_PARITY_ARTIFACT_REF, RELATION_GRAPH_PARITY_DOC_REF,
+    RELATION_GRAPH_PARITY_FIXTURE_DIR, RELATION_GRAPH_PARITY_PACKET_RECORD_KIND,
+    RELATION_GRAPH_PARITY_SCHEMA_REF, RELATION_GRAPH_PARITY_SCHEMA_VERSION,
+    StaleLiveOverlayState,
 };
 pub use source_intelligence_and_resource_relationships::{
     seeded_source_intelligence_object_packet, validate_object_packet,

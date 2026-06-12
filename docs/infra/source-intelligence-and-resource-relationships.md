@@ -6,6 +6,7 @@ The machine-readable schemas are:
 
 - [`/schemas/infra/source-intelligence-and-resource-relationships.schema.json`](../../schemas/infra/source-intelligence-and-resource-relationships.schema.json) for the qualification matrix.
 - [`/schemas/infra/source-intelligence-object-packet.schema.json`](../../schemas/infra/source-intelligence-object-packet.schema.json) for the concrete object, relation, and consumer-projection packet.
+- [`/schemas/infra/relation-graph-incident-support-parity.schema.json`](../../schemas/infra/relation-graph-incident-support-parity.schema.json) for incident/support/proof reopen parity over the shared graph packet.
 
 The Rust validation model is in [`/crates/aureline-infra`](../../crates/aureline-infra/src/source_intelligence_and_resource_relationships/mod.rs). Fixtures live in [`/fixtures/infra/source-intelligence-and-resource-relationships`](../../fixtures/infra/source-intelligence-and-resource-relationships).
 
@@ -50,6 +51,16 @@ The object packet instantiates the matrix as actual infrastructure facts instead
 - Consumer projections for code/graph, review, docs, and incident surfaces resolve object and relation refs from the shared packet and explicitly forbid hidden side caches.
 - Every claimed surface reuses the same packet to serve `show live counterpart`, `show applied-by`, `show owned-by`, `show impacts`, and `explain this environment slice` flows instead of silently falling back to raw search or browser tabs.
 - If a surface narrows one environment slice or drops an edge needed by those flows, the validator marks the packet underqualified rather than letting the UI imply stable coverage.
+
+## Incident, Support, and Proof Parity
+
+The companion [relation-graph incident/support parity packet](./relation-graph-incident-support-parity.md) freezes how incident packets, support exports, and proof corpora reopen the exact graph state a user saw. It carries:
+
+- exact relation-set signatures for reopened environment slices;
+- stale-live overlay posture instead of a flattened “graph is stale” banner;
+- connector-skew and local/remote/managed mismatch labels;
+- control-plane handoff lineage and return-anchor refs;
+- per-family wrong-target, stale-live, missing-permission, skew, and locality drills.
 
 ## Support Export Posture
 
