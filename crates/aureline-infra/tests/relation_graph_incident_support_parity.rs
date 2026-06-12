@@ -55,7 +55,10 @@ fn policy_selection_keeps_permission_and_skew_explicit() {
         .iter()
         .find(|selection| selection.family == InfrastructureFamily::PolicyManifest)
         .expect("policy selection");
-    assert_eq!(selection.connector_skew_state, ConnectorSkewState::UnsupportedSkew);
+    assert_eq!(
+        selection.connector_skew_state,
+        ConnectorSkewState::UnsupportedSkew
+    );
     assert_eq!(
         selection.locality_mismatch_state,
         LocalityMismatchState::LocalVsManaged
@@ -69,7 +72,10 @@ fn artifact_support_export_matches_seeded_packet() {
     let payload = fs::read_to_string(path).expect("artifact exists");
     let artifact: RelationGraphIncidentSupportParityPacket =
         serde_json::from_str(&payload).expect("artifact parses");
-    assert_eq!(artifact, seeded_relation_graph_incident_support_parity_packet());
+    assert_eq!(
+        artifact,
+        seeded_relation_graph_incident_support_parity_packet()
+    );
 }
 
 #[test]

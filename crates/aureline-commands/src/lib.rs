@@ -20,6 +20,7 @@ pub mod descriptor;
 pub mod enablement;
 pub mod finalize_command_parity;
 pub mod finalize_traffic_origin_and_exposure_chips;
+pub mod freeze_command_governance_contract;
 pub mod harden_ai_and_command_support_export_parity_audit;
 pub mod harden_high_risk_command;
 pub mod invocation;
@@ -90,6 +91,27 @@ pub use finalize_traffic_origin_and_exposure_chips::{
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_REF,
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SCHEMA_VERSION,
     FINALIZE_TRAFFIC_ORIGIN_EXPOSURE_CHIPS_SUMMARY_REF,
+};
+pub use freeze_command_governance_contract::{
+    current_frozen_command_governance_contract_export, CommandDescriptorFieldClass,
+    CommandGovernanceContractArtifactError, CommandGovernanceContractPacket,
+    CommandGovernanceContractPacketInput, CommandGovernanceContractViolation,
+    CommandGovernanceSurfaceClass, DescriptorFieldRow, DowngradeRuleRow, DowngradeTriggerClass,
+    EvidenceFreshnessClass, FeatureFamilyClass, FeatureFamilyGovernanceRow, GovernanceClaimClass,
+    GovernanceContractRefs, GovernanceEvidenceExport, InvocationSessionFieldClass,
+    InvocationSessionFieldRow, LifecycleDependencyClass, LifecycleDependencyRow,
+    LifecycleDependencyVocabularyRow, PublicationConsumerSurfaceClass, ResultPacketFieldClass,
+    ResultPacketFieldRow, SurfaceGovernanceRow, FREEZE_COMMAND_GOVERNANCE_CAPABILITY_REGISTRY_REF,
+    FREEZE_COMMAND_GOVERNANCE_CLAIM_PUBLICATION_REF,
+    FREEZE_COMMAND_GOVERNANCE_CONTRACT_ARTIFACT_REF, FREEZE_COMMAND_GOVERNANCE_CONTRACT_DOC_REF,
+    FREEZE_COMMAND_GOVERNANCE_CONTRACT_FIXTURE_DIR, FREEZE_COMMAND_GOVERNANCE_CONTRACT_RECORD_KIND,
+    FREEZE_COMMAND_GOVERNANCE_CONTRACT_SCHEMA_REF,
+    FREEZE_COMMAND_GOVERNANCE_CONTRACT_SCHEMA_VERSION,
+    FREEZE_COMMAND_GOVERNANCE_CONTRACT_SUMMARY_REF,
+    FREEZE_COMMAND_GOVERNANCE_DESCRIPTOR_CONTRACT_REF,
+    FREEZE_COMMAND_GOVERNANCE_DISABLED_REASON_REF,
+    FREEZE_COMMAND_GOVERNANCE_INVOCATION_PARITY_CONTRACT_REF,
+    FREEZE_COMMAND_GOVERNANCE_LIFECYCLE_ADR_REF,
 };
 pub use harden_ai_and_command_support_export_parity_audit::{
     current_harden_ai_and_command_support_export_parity_audit_export,

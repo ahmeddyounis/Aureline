@@ -520,7 +520,8 @@ pub fn validate_relation_graph_incident_support_parity_packet(
                 "Consumer binding must reopen the same environment slice context.",
             ));
         }
-        if binding.reopen_command_id_ref.trim().is_empty() || binding.support_summary.trim().is_empty()
+        if binding.reopen_command_id_ref.trim().is_empty()
+            || binding.support_summary.trim().is_empty()
         {
             findings.push(error(
                 "binding_shape",
@@ -569,8 +570,7 @@ pub fn validate_relation_graph_incident_support_parity_packet(
         }
     }
 
-    let mut drills_per_family =
-        BTreeMap::<InfrastructureFamily, BTreeSet<ParityDrillClass>>::new();
+    let mut drills_per_family = BTreeMap::<InfrastructureFamily, BTreeSet<ParityDrillClass>>::new();
     for drill in &packet.drill_records {
         drill_classes.insert(drill.drill_class);
         if !drill_ids.insert(drill.drill_id.as_str()) {
@@ -677,7 +677,10 @@ fn validate_overlay_state(
             }
         }
         StaleLiveOverlayState::OverlayUnavailable => {
-            if !selection.freshness_labels.contains(&FreshnessLabel::Unavailable) {
+            if !selection
+                .freshness_labels
+                .contains(&FreshnessLabel::Unavailable)
+            {
                 findings.push(error(
                     "selection_overlay_unavailable",
                     "Unavailable-overlay graph selection must preserve unavailable freshness.",
@@ -699,7 +702,9 @@ fn validate_drill(drill: &RelationGraphParityDrill, findings: &mut Vec<InfraBoun
         }
         ParityDrillClass::StaleLiveOverlay => {
             if drill.stale_live_overlay_state != StaleLiveOverlayState::LiveWithStaleOverlay
-                || !drill.visible_freshness_labels.contains(&FreshnessLabel::Stale)
+                || !drill
+                    .visible_freshness_labels
+                    .contains(&FreshnessLabel::Stale)
             {
                 findings.push(error(
                     "drill_stale_overlay",
