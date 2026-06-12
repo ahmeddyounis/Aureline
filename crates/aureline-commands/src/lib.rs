@@ -26,6 +26,7 @@ pub mod harden_high_risk_command;
 pub mod invocation;
 pub mod m5_capability_state_truth;
 pub mod m5_command_governance;
+pub mod m5_command_truth_index;
 pub mod m5_rollout_inventory;
 pub mod publish_capability_route_inspector;
 pub mod registry;
@@ -176,6 +177,18 @@ pub use m5_command_governance::{
     M5_COMMAND_GOVERNANCE_SCHEMA_REF, M5_COMMAND_GOVERNANCE_SCHEMA_VERSION,
     M5_COMMAND_GOVERNANCE_SUMMARY_REF, M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
     M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_REF,
+};
+pub use m5_command_truth_index::{
+    current_m5_command_truth_index_export, seeded_m5_command_truth_index_packet,
+    validate_m5_command_truth_index_packet, M5CommandTruthIndexPacket,
+    M5CommandTruthIndexRow, M5CommandTruthIndexSummary, M5CommandTruthIndexSupportExport,
+    M5CommandTruthIndexValidationError, M5CommandTruthStateClass,
+    M5CommandTruthSurfaceClass, M5CommandTruthSurfaceProjectionRow,
+    M5_COMMAND_TRUTH_INDEX_DOC_REF, M5_COMMAND_TRUTH_INDEX_FIXTURE_DIR,
+    M5_COMMAND_TRUTH_INDEX_PACKET_ID, M5_COMMAND_TRUTH_INDEX_PACKET_REF,
+    M5_COMMAND_TRUTH_INDEX_RECORD_KIND, M5_COMMAND_TRUTH_INDEX_SCHEMA_REF,
+    M5_COMMAND_TRUTH_INDEX_SCHEMA_VERSION, M5_COMMAND_TRUTH_INDEX_SUMMARY_REF,
+    M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_ID, M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_REF,
 };
 pub use m5_rollout_inventory::{
     current_m5_rollout_inventory_export, rollout_inventory_row,

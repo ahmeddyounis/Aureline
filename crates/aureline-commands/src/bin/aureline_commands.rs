@@ -10,6 +10,10 @@ use aureline_commands::m5_command_governance::{
     current_m5_command_governance_export, M5CommandGovernanceSupportExport,
     M5_COMMAND_GOVERNANCE_SUPPORT_EXPORT_ID,
 };
+use aureline_commands::m5_command_truth_index::{
+    current_m5_command_truth_index_export, M5CommandTruthIndexSupportExport,
+    M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_ID,
+};
 use aureline_commands::m5_rollout_inventory::{
     current_m5_rollout_inventory_export, M5RolloutInventorySupportExport,
     M5_ROLLOUT_INVENTORY_SUPPORT_EXPORT_ID,
@@ -24,6 +28,10 @@ fn main() {
         return;
     }
     if let Some(rendered) = maybe_render_m5_command_governance(&args) {
+        print!("{rendered}");
+        return;
+    }
+    if let Some(rendered) = maybe_render_m5_command_truth_index(&args) {
         print!("{rendered}");
         return;
     }
@@ -340,6 +348,28 @@ fn maybe_render_m5_rollout_inventory(args: &[String]) -> Option<String> {
             .expect("support export must serialize")
         }
         _ => serde_json::to_string_pretty(&packet).expect("packet must serialize"),
+    })
+}
+
+fn maybe_render_m5_command_truth_index(args: &[String]) -> Option<String> {
+    if args.first().map(String::as_str) != Some("m5-command-truth-index") {
+        return None;
+    }
+    let mode = args.get(1).map(String::as_str).unwrap_or("json");
+    let packet = current_m5_command_truth_index_export()
+        .expect("checked M5 command truth index export validates");
+    Some(match mode {
+        "json" | "packet" => serde_json::to_string_pretty(&packet)
+            .expect("M5 command truth index packet must serialize"),
+        "support-export" => serde_json::to_string_pretty(&M5CommandTruthIndexSupportExport::from_packet(
+            M5_COMMAND_TRUTH_INDEX_SUPPORT_EXPORT_ID.to_string(),
+            packet,
+        ))
+        .expect("M5 command truth index support export must serialize"),
+        "summary" | "summary-md" => packet.render_markdown(),
+        _ => panic!(
+            "unsupported m5-command-truth-index mode {mode}; use json, support-export, or summary"
+        ),
     })
 }
 

@@ -1,15 +1,11 @@
 //! Shell projection for M5 rollout-governance truth.
 //!
-//! The shell consumes the command-owned M5 rollout inventory and capability
-//! state truth so Help/About, diagnostics, and settings-adjacent inspectors can
-//! quote the same owner, cohort, expiry, kill-switch, and lifecycle posture
-//! that the command routes enforce.
+//! The shell consumes the command-owned M5 command-truth index so Help/About,
+//! diagnostics, and settings-adjacent inspectors can quote the same owner,
+//! cohort, expiry, kill-switch, lifecycle, and narrowing posture that the
+//! command routes enforce.
 
-use aureline_commands::{
-    current_m5_capability_state_truth_export, current_m5_rollout_inventory_export,
-    M5CapabilityProjectionSurfaceClass, M5CapabilityStateTruthPacket, M5RolloutConsumerSurfaceClass,
-    M5RolloutInventoryPacket, M5RolloutInventoryRow,
-};
+use aureline_commands::{current_m5_command_truth_index_export, M5CommandTruthIndexPacket};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -46,8 +42,10 @@ pub struct M5RolloutGovernanceRenderRow {
     pub diagnostics_projection_ref: String,
     /// Support-export projection ref consuming the same row.
     pub support_export_projection_ref: String,
-    /// Docs/release projection ref consuming the same row.
-    pub docs_release_projection_ref: String,
+    /// Release-center projection ref consuming the same row.
+    pub release_center_projection_ref: String,
+    /// Public-truth projection ref consuming the same row.
+    pub public_truth_projection_ref: String,
     /// Whether the row may still publish stable-looking wording.
     pub stable_claim_allowed: bool,
 }
@@ -59,10 +57,8 @@ pub struct M5RolloutGovernanceRenderSummary {
     pub record_kind: String,
     /// Schema version quoted from the command-owned packet.
     pub schema_version: u32,
-    /// Shared rollout packet ref.
-    pub source_rollout_inventory_ref: String,
-    /// Source capability-state packet ref.
-    pub source_capability_state_ref: String,
+    /// Shared command-truth index ref.
+    pub source_command_truth_index_ref: String,
     /// Total row count under audit.
     pub row_count: usize,
     /// Rows with an active kill switch.
@@ -77,79 +73,47 @@ pub struct M5RolloutGovernanceRenderSummary {
     pub diagnostics_visible_row_count: usize,
     /// Rows visible to support exports.
     pub support_export_visible_row_count: usize,
+    /// Rows visible to release-center truth.
+    pub release_center_visible_row_count: usize,
+    /// Rows visible to public-truth packs.
+    pub public_truth_visible_row_count: usize,
     /// Render rows.
     pub rows: Vec<M5RolloutGovernanceRenderRow>,
 }
 
-fn capability_packet() -> M5CapabilityStateTruthPacket {
-    current_m5_capability_state_truth_export().expect("checked M5 capability-state truth validates")
-}
-
-fn surface_ref(row: &M5RolloutInventoryRow, surface: M5RolloutConsumerSurfaceClass) -> String {
-    row.surfaced_in
-        .iter()
-        .find(|entry| entry.surface_class == surface)
-        .map(|entry| entry.surface_ref.clone())
-        .unwrap_or_else(|| format!("m5-rollout:{}:{}", row.command_id, surface.as_str()))
-}
-
-fn settings_projection_ref(
-    capability_packet: &M5CapabilityStateTruthPacket,
-    command_id: &str,
-) -> String {
-    capability_packet
-        .rows
-        .iter()
-        .find(|row| row.command_id == command_id)
-        .and_then(|row| {
-            row.projection_rows
-                .iter()
-                .find(|projection| {
-                    projection.surface_class == M5CapabilityProjectionSurfaceClass::SettingsRow
-                })
-                .map(|projection| projection.projection_ref.clone())
-        })
-        .unwrap_or_else(|| format!("projection:{}:settings_row", command_id))
+fn truth_index_packet() -> M5CommandTruthIndexPacket {
+    current_m5_command_truth_index_export().expect("checked M5 command truth index validates")
 }
 
 impl M5RolloutGovernanceRenderSummary {
     /// Builds the shell summary from the shared command-owned packets.
-    pub fn from_packets(
-        rollout_packet: &M5RolloutInventoryPacket,
-        capability_packet: &M5CapabilityStateTruthPacket,
-    ) -> Self {
-        let rows = rollout_packet
+    pub fn from_packet(packet: &M5CommandTruthIndexPacket) -> Self {
+        let rows = packet
             .rows
             .iter()
             .map(|row| M5RolloutGovernanceRenderRow {
                 command_id: row.command_id.clone(),
                 display_label: row.display_label.clone(),
-                effective_state_label: row.effective_state_class.display_label().to_string(),
+                effective_state_label: row.lifecycle_label.clone(),
                 rollout_ring: row.rollout_ring.clone(),
                 cohort: row.cohort.clone(),
                 review_or_expiry_date: row.review_or_expiry_date.clone(),
                 owner_ref: row.owner_ref.clone(),
-                active_kill_switch_source: row
-                    .active_kill_switches()
-                    .first()
-                    .map(|kill| kill.source_class.as_str().to_string()),
-                settings_projection_ref: settings_projection_ref(capability_packet, &row.command_id),
-                help_about_projection_ref: surface_ref(row, M5RolloutConsumerSurfaceClass::HelpAbout),
-                diagnostics_projection_ref: surface_ref(row, M5RolloutConsumerSurfaceClass::Diagnostics),
-                support_export_projection_ref: surface_ref(
-                    row,
-                    M5RolloutConsumerSurfaceClass::SupportExport,
-                ),
-                docs_release_projection_ref: surface_ref(row, M5RolloutConsumerSurfaceClass::DocsRelease),
-                stable_claim_allowed: row.stable_claim_allowed,
+                active_kill_switch_source: row.active_kill_switch_source.clone(),
+                settings_projection_ref: row.settings_projection_ref.clone(),
+                help_about_projection_ref: row.help_about_projection_ref.clone(),
+                diagnostics_projection_ref: row.diagnostics_projection_ref.clone(),
+                support_export_projection_ref: row.support_export_projection_ref.clone(),
+                release_center_projection_ref: row.release_center_projection_ref.clone(),
+                public_truth_projection_ref: row.public_truth_projection_ref.clone(),
+                stable_claim_allowed: row.stable_wording_allowed,
             })
             .collect::<Vec<_>>();
 
         Self {
             record_kind: M5_ROLLOUT_GOVERNANCE_RENDER_RECORD_KIND.to_string(),
-            schema_version: rollout_packet.schema_version,
-            source_rollout_inventory_ref: rollout_packet.schema_ref.clone(),
-            source_capability_state_ref: capability_packet.schema_ref.clone(),
+            schema_version: packet.schema_version,
+            source_command_truth_index_ref: packet.schema_ref.clone(),
             row_count: rows.len(),
             active_kill_switch_row_count: rows
                 .iter()
@@ -164,13 +128,22 @@ impl M5RolloutGovernanceRenderSummary {
                 .iter()
                 .filter(|row| !row.help_about_projection_ref.is_empty())
                 .count(),
-            diagnostics_visible_row_count: rows
+            diagnostics_visible_row_count: packet
+                .rows
                 .iter()
                 .filter(|row| !row.diagnostics_projection_ref.is_empty())
                 .count(),
             support_export_visible_row_count: rows
                 .iter()
                 .filter(|row| !row.support_export_projection_ref.is_empty())
+                .count(),
+            release_center_visible_row_count: rows
+                .iter()
+                .filter(|row| !row.release_center_projection_ref.is_empty())
+                .count(),
+            public_truth_visible_row_count: rows
+                .iter()
+                .filter(|row| !row.public_truth_projection_ref.is_empty())
                 .count(),
             rows,
         }
@@ -179,8 +152,6 @@ impl M5RolloutGovernanceRenderSummary {
 
 /// Builds the seeded shell rollout-governance summary.
 pub fn seeded_m5_rollout_governance_render_summary() -> M5RolloutGovernanceRenderSummary {
-    let rollout_packet =
-        current_m5_rollout_inventory_export().expect("checked M5 rollout inventory validates");
-    let capability_packet = capability_packet();
-    M5RolloutGovernanceRenderSummary::from_packets(&rollout_packet, &capability_packet)
+    let packet = truth_index_packet();
+    M5RolloutGovernanceRenderSummary::from_packet(&packet)
 }
