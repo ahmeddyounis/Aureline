@@ -66,6 +66,15 @@
 //!   enterprise-managed beta profiles without exposing raw secret material,
 //!   raw handle ids, plaintext persistence, silent in-memory promotion,
 //!   stale handle reuse, or undeclared public-endpoint fallback; and
+//! - one [`m5_secret_boundary_depth::M5SecretBoundaryDepthPacket`] M5 matrix
+//!   that freezes request-workspace, database, provider/model, registry,
+//!   preview-route, infrastructure-connector, companion-handoff, and managed
+//!   credential-bearing surfaces onto one checked matrix id, one credential
+//!   vocabulary, one acting-identity vocabulary, one trust-store dependency
+//!   vocabulary, and one repair-owner vocabulary so later docs/help,
+//!   diagnostics, support export, and release/public-truth consumers ingest
+//!   the same row ids and tokens instead of cloning free-text credential
+//!   status; and
 //! - one [`keychain_state::SecretRepairBetaPage`] beta projection that turns
 //!   keychain lock-state, denied projection, and secret-repair flows into
 //!   three reviewable record kinds so admin, support, and reviewer surfaces
@@ -123,6 +132,7 @@ pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod identity_modes;
 pub mod keychain_state;
 pub mod m5_auth_and_recovery;
+pub mod m5_secret_boundary_depth;
 pub mod network_trust;
 pub mod offline_entitlements;
 pub mod oidc;
@@ -289,6 +299,21 @@ pub use keychain_state::{
     SECRET_REPAIR_BETA_REPAIR_EVENT_RECORD_KIND, SECRET_REPAIR_BETA_SCHEMA_VERSION,
     SECRET_REPAIR_BETA_SHARED_CONTRACT_REF, SECRET_REPAIR_BETA_SOURCE_MATRIX_REF,
     SECRET_REPAIR_BETA_SUMMARY_RECORD_KIND, SECRET_REPAIR_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_secret_boundary_depth::{
+    current_m5_secret_boundary_depth_packet, seeded_m5_secret_boundary_depth_packet,
+    validate_m5_secret_boundary_depth_packet, M5SecretBoundaryDepthPacket,
+    M5SecretBoundaryDepthViolation, SecretBoundaryActingIdentityClass,
+    SecretBoundaryConsumerProjection, SecretBoundaryConsumerSurface, SecretBoundaryCredentialMode,
+    SecretBoundaryExportPostureClass, SecretBoundaryProjectionMode, SecretBoundaryRepairOwnerClass,
+    SecretBoundaryStorageClass, SecretBoundarySummary, SecretBoundarySupportExport,
+    SecretBoundarySupportExportRow, SecretBoundarySurfaceDomain, SecretBoundarySurfaceRow,
+    SecretBoundaryTrustStoreDependencyClass, M5_SECRET_BOUNDARY_DEPTH_DOC_REF,
+    M5_SECRET_BOUNDARY_DEPTH_FIXTURE_DIR, M5_SECRET_BOUNDARY_DEPTH_PATH,
+    M5_SECRET_BOUNDARY_DEPTH_RECORD_KIND, M5_SECRET_BOUNDARY_DEPTH_SCHEMA_REF,
+    M5_SECRET_BOUNDARY_DEPTH_SCHEMA_VERSION, M5_SECRET_BOUNDARY_DEPTH_SHARED_CONTRACT_REF,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF, M5_SECRET_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use oidc::{
