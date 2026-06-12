@@ -24,6 +24,7 @@ pub mod freeze_command_governance_contract;
 pub mod harden_ai_and_command_support_export_parity_audit;
 pub mod harden_high_risk_command;
 pub mod invocation;
+pub mod m5_capability_state_truth;
 pub mod m5_command_governance;
 pub mod publish_capability_route_inspector;
 pub mod registry;
@@ -146,6 +147,19 @@ pub use harden_high_risk_command::{
 };
 pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
+};
+pub use m5_capability_state_truth::{
+    current_m5_capability_state_truth_export, seeded_m5_capability_state_truth_packet,
+    validate_m5_capability_state_truth_packet, M5CapabilityProjectionRow,
+    M5CapabilityProjectionSurfaceClass, M5CapabilityStateClass, M5CapabilityStateDefinitionRow,
+    M5CapabilityStateTruthPacket, M5CapabilityStateTruthRow, M5CapabilityStateTruthSummary,
+    M5CapabilityStateTruthSupportExport, M5CapabilityStateTruthValidationError,
+    M5LifecycleDependencyMarkerClass, M5LifecycleDependencyMarkerRecord,
+    M5_CAPABILITY_STATE_TRUTH_DOC_REF, M5_CAPABILITY_STATE_TRUTH_FIXTURE_DIR,
+    M5_CAPABILITY_STATE_TRUTH_PACKET_ID, M5_CAPABILITY_STATE_TRUTH_RECORD_KIND,
+    M5_CAPABILITY_STATE_TRUTH_SCHEMA_REF, M5_CAPABILITY_STATE_TRUTH_SCHEMA_VERSION,
+    M5_CAPABILITY_STATE_TRUTH_SUMMARY_REF, M5_CAPABILITY_STATE_TRUTH_SUPPORT_EXPORT_ID,
+    M5_CAPABILITY_STATE_TRUTH_SUPPORT_EXPORT_REF,
 };
 pub use m5_command_governance::{
     current_m5_command_governance_export, seeded_m5_command_governance_packet,
