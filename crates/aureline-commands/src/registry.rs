@@ -357,6 +357,22 @@ impl CommandRegistryEntryRecord {
         if contract.result_schema_ref.trim().is_empty() {
             return Err("stable command must declare result schema ref");
         }
+        if self
+            .descriptor
+            .docs_help_anchor_ref
+            .anchor_id
+            .trim()
+            .is_empty()
+        {
+            return Err("stable command must declare help anchor");
+        }
+        if self.descriptor.lifecycle_state.trim().is_empty()
+            || self.descriptor.support_class.trim().is_empty()
+            || self.descriptor.release_channel.trim().is_empty()
+            || self.descriptor.declared_freshness_class.trim().is_empty()
+        {
+            return Err("stable command must declare lifecycle metadata");
+        }
         if contract.capability_scope_class.trim().is_empty() {
             return Err("stable command must declare capability class");
         }
@@ -368,6 +384,11 @@ impl CommandRegistryEntryRecord {
         }
         if contract.automation_labels.is_empty() {
             return Err("stable command must declare automation labels");
+        }
+        if self.descriptor.capability_scope_class != "inert_metadata_only"
+            && self.disabled_reason_records.is_empty()
+        {
+            return Err("stable command must declare disabled-reason records");
         }
         for alias in &contract.aliases {
             if alias.canonical_command_id.as_deref() != Some(self.descriptor.command_id.as_str()) {
@@ -542,12 +563,23 @@ const SEEDED_REGISTRY_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../artifacts/commands/command_registry_seed.yaml"
 ));
+const SEEDED_M5_REGISTRY_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../artifacts/commands/m5_command_registry_seed.yaml"
+));
 
 static SEEDED_REGISTRY: OnceLock<CommandRegistry> = OnceLock::new();
 
+fn merged_seed_record() -> Result<CommandRegistrySeedRecord, RegistryError> {
+    let mut seed: CommandRegistrySeedRecord = serde_json::from_str(SEEDED_REGISTRY_JSON)?;
+    let m5_seed: CommandRegistrySeedRecord = serde_json::from_str(SEEDED_M5_REGISTRY_JSON)?;
+    seed.entries.extend(m5_seed.entries);
+    Ok(seed)
+}
+
 pub fn seeded_registry() -> &'static CommandRegistry {
     SEEDED_REGISTRY.get_or_init(|| {
-        CommandRegistry::from_seed_json(SEEDED_REGISTRY_JSON)
+        CommandRegistry::from_seed(merged_seed_record().expect("seeded registry merge must parse"))
             .expect("seeded command registry must parse and validate")
     })
 }
@@ -559,7 +591,7 @@ mod tests {
     #[test]
     fn seeded_registry_loads() {
         let registry = seeded_registry();
-        assert_eq!(registry.entries().len(), 24);
+        assert_eq!(registry.entries().len(), 39);
         assert!(registry.get("cmd:workspace.open_folder").is_some());
         assert!(registry.get("cmd:command_palette.open").is_some());
         assert!(registry.get("cmd:explorer.toggle").is_some());
@@ -579,6 +611,16 @@ mod tests {
         assert!(registry.get("cmd:labs.open_wedge_inspector").is_some());
         assert!(registry.get("cmd:task.rerun_last").is_some());
         assert!(registry.get("cmd:test.rerun_last").is_some());
+        assert!(registry.get("cmd:notebook.run_all_cells").is_some());
+        assert!(registry.get("cmd:data_api.send_request").is_some());
+        assert!(registry.get("cmd:profiler.start_capture").is_some());
+        assert!(registry.get("cmd:docs_browser.open_external").is_some());
+        assert!(registry
+            .get("cmd:secret_broker.open_credential_review")
+            .is_some());
+        assert!(registry
+            .get("cmd:infrastructure.reconcile_workspace")
+            .is_some());
     }
 
     #[test]

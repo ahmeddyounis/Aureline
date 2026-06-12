@@ -453,6 +453,42 @@ fn feature_family_rows() -> Vec<FeatureFamilyGovernanceRow> {
                 .collect(),
         },
         FeatureFamilyGovernanceRow {
+            family_class: Family::SecretBroker,
+            display_label: "Secret-broker command surfaces".to_owned(),
+            claimed_stable: true,
+            effective_claim: Claim::Preview,
+            published_stable_copy_allowed: false,
+            descriptor_proof_ref: "proof:secret_broker:descriptor".to_owned(),
+            descriptor_contract_current: true,
+            invocation_session_proof_ref: "proof:secret_broker:invocation".to_owned(),
+            invocation_session_contract_current: true,
+            result_packet_proof_ref: "proof:secret_broker:result".to_owned(),
+            result_packet_contract_current: true,
+            disabled_reason_vocabulary_current: true,
+            preview_semantics_current: true,
+            rollout_owner_ref: "owner:secret_broker".to_owned(),
+            evidence_packet_ref: "evidence:secret_broker".to_owned(),
+            evidence_freshness: EvidenceFreshnessClass::Current,
+            lifecycle_dependencies: vec![dependency(
+                "marker:secret_broker:rotation-preview",
+                Dependency::PreviewDependency,
+                "cap:secret_broker.rotation.preview",
+                "owner:secret-broker",
+            )],
+            downgrade_reasons: vec![Trigger::LifecycleDependencyPresent],
+            surface_rows: CommandGovernanceSurfaceClass::required_coverage()
+                .into_iter()
+                .map(|surface| {
+                    narrowed_surface(
+                        surface,
+                        Claim::Preview,
+                        Some("marker:secret_broker:rotation-preview"),
+                        Trigger::LifecycleDependencyPresent,
+                    )
+                })
+                .collect(),
+        },
+        FeatureFamilyGovernanceRow {
             family_class: Family::Infrastructure,
             display_label: "Infrastructure command surfaces".to_owned(),
             claimed_stable: true,

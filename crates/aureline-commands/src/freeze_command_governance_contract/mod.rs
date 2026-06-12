@@ -290,6 +290,8 @@ pub enum FeatureFamilyClass {
     Sync,
     /// Incident, advisory, and response actions.
     Incident,
+    /// Secret-broker and credential-governance actions.
+    SecretBroker,
     /// Infrastructure and managed-control actions.
     Infrastructure,
 }
@@ -307,12 +309,13 @@ impl FeatureFamilyClass {
             Self::Companion => "companion",
             Self::Sync => "sync",
             Self::Incident => "incident",
+            Self::SecretBroker => "secret_broker",
             Self::Infrastructure => "infrastructure",
         }
     }
 
     /// Required feature-family coverage.
-    pub const fn required_coverage() -> [Self; 10] {
+    pub const fn required_coverage() -> [Self; 11] {
         [
             Self::Notebook,
             Self::DataApi,
@@ -323,6 +326,7 @@ impl FeatureFamilyClass {
             Self::Companion,
             Self::Sync,
             Self::Incident,
+            Self::SecretBroker,
             Self::Infrastructure,
         ]
     }

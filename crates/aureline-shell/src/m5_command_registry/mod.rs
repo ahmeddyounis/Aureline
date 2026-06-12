@@ -64,6 +64,7 @@
 
 use std::collections::BTreeSet;
 
+use aureline_commands::{registry::seeded_registry, CommandRegistryEntryRecord};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -134,6 +135,10 @@ pub enum M5FeatureFamily {
     Sync,
     /// Offboarding / export-and-wipe surface.
     Offboarding,
+    /// Secret-broker review and rotation surface.
+    SecretBroker,
+    /// Infrastructure and managed-control surface.
+    Infrastructure,
 }
 
 impl M5FeatureFamily {
@@ -145,13 +150,15 @@ impl M5FeatureFamily {
             Self::Profiler => "profiler",
             Self::TraceReplay => "trace_replay",
             Self::DocsBrowser => "docs_browser",
-            Self::TemplateScaffold => "template_scaffold",
+            Self::TemplateScaffold => "framework_pack",
             Self::ReviewPipeline => "review_pipeline",
             Self::Preview => "preview",
             Self::Companion => "companion",
             Self::Incident => "incident",
             Self::Sync => "sync",
             Self::Offboarding => "offboarding",
+            Self::SecretBroker => "secret_broker",
+            Self::Infrastructure => "infrastructure",
         }
     }
 
@@ -163,13 +170,15 @@ impl M5FeatureFamily {
             Self::Profiler => "Profiler",
             Self::TraceReplay => "Trace / replay",
             Self::DocsBrowser => "Docs / browser",
-            Self::TemplateScaffold => "Template / scaffold",
+            Self::TemplateScaffold => "Framework pack",
             Self::ReviewPipeline => "Review / pipeline",
             Self::Preview => "Preview",
             Self::Companion => "Companion",
             Self::Incident => "Incident",
             Self::Sync => "Sync",
             Self::Offboarding => "Offboarding",
+            Self::SecretBroker => "Secret broker",
+            Self::Infrastructure => "Infrastructure",
         }
     }
 }
@@ -303,6 +312,10 @@ pub enum M5CapabilityScope {
     DestructiveBulkMutation,
     /// Irreversible publish / network mutation.
     IrreversiblePublish,
+    /// Secret-bearing or credential-authoring action.
+    CredentialOrSecretBearing,
+    /// Managed workspace or control-plane mutation.
+    ManagedWorkspaceControl,
 }
 
 impl M5CapabilityScope {
@@ -315,6 +328,8 @@ impl M5CapabilityScope {
             Self::RecoverableDurableMutation => "recoverable_durable_mutation",
             Self::DestructiveBulkMutation => "destructive_bulk_mutation",
             Self::IrreversiblePublish => "irreversible_publish",
+            Self::CredentialOrSecretBearing => "credential_or_secret_bearing",
+            Self::ManagedWorkspaceControl => "managed_workspace_control",
         }
     }
 
@@ -325,7 +340,44 @@ impl M5CapabilityScope {
             Self::RecoverableDurableMutation
                 | Self::DestructiveBulkMutation
                 | Self::IrreversiblePublish
+                | Self::CredentialOrSecretBearing
+                | Self::ManagedWorkspaceControl
         )
+    }
+}
+
+/// Mutability class projected from the canonical descriptor and side effect lane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum M5MutabilityClass {
+    /// Read-only or metadata-only action.
+    ReadOnly,
+    /// Local undoable mutation.
+    SessionMutation,
+    /// Durable but recoverable mutation.
+    DurableMutation,
+    /// Destructive bulk mutation.
+    DestructiveMutation,
+    /// External publish or provider-visible mutation.
+    ExternalPublish,
+    /// Secret-bearing review or rotation flow.
+    SensitiveMutation,
+    /// Managed control-plane mutation.
+    ManagedControl,
+}
+
+impl M5MutabilityClass {
+    /// Stable schema token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "read_only",
+            Self::SessionMutation => "session_mutation",
+            Self::DurableMutation => "durable_mutation",
+            Self::DestructiveMutation => "destructive_mutation",
+            Self::ExternalPublish => "external_publish",
+            Self::SensitiveMutation => "sensitive_mutation",
+            Self::ManagedControl => "managed_control",
+        }
     }
 }
 
@@ -456,24 +508,44 @@ pub struct M5CommandDescriptor {
     pub descriptor_revision_ref: String,
     /// Canonical primary label ref.
     pub primary_label_ref: String,
+    /// Canonical discoverability summary text.
+    pub discoverability_summary: String,
     /// Canonical help anchor ref the audit can reopen the feature from.
     pub help_anchor_ref: String,
     /// Searchable discoverability keywords surfaced in palette and help
     /// search. MUST be non-empty.
     pub search_keywords: Vec<String>,
+    /// Category refs shared across palette, docs, onboarding, and support search.
+    pub category_refs: Vec<String>,
     /// Pinned lifecycle label.
     pub lifecycle_label: M5LifecycleLabel,
     /// Pinned preview class.
     pub preview_class: M5PreviewClass,
+    /// Pinned approval posture.
+    pub approval_posture_class: String,
     /// Pinned capability scope class.
     pub capability_scope_class: M5CapabilityScope,
+    /// Derived mutability class surfaces can disclose without reinterpreting the command.
+    pub mutability_class: M5MutabilityClass,
     /// Pinned disabled-reason mode.
     pub disabled_reason_mode: M5DisabledReasonMode,
     /// Pinned automation suitability.
     pub automation_suitability: M5AutomationSuitability,
+    /// Exact automation labels the canonical descriptor declares.
+    pub automation_labels: Vec<String>,
     /// Canonical alias set the descriptor owns. Channels MUST NOT expose
     /// aliases outside this set.
     pub canonical_aliases: Vec<String>,
+    /// Descriptor origin class disclosed to callers.
+    pub origin_class: String,
+    /// Optional origin source ref disclosed when trust depends on the source.
+    pub source_ref: Option<String>,
+    /// Optional origin publisher ref for packaged or bridged commands.
+    pub publisher_ref: Option<String>,
+    /// Invocation schema ref quoted into the descriptor packet.
+    pub invocation_schema_ref: String,
+    /// Result schema ref quoted into the descriptor packet.
+    pub result_schema_ref: String,
     /// `true` once the command id is promoted into the stable command
     /// graph (and not pane-local only). MUST be `true`.
     pub promoted_to_stable_graph: bool,
@@ -503,10 +575,14 @@ pub struct M5ChannelProjection {
     pub projected_lifecycle_label: Option<M5LifecycleLabel>,
     /// Projected preview class (`None` for non-claimed rows).
     pub projected_preview_class: Option<M5PreviewClass>,
+    /// Projected approval posture (`None` for non-claimed rows).
+    pub projected_approval_posture_class: Option<String>,
     /// Projected disabled-reason mode (`None` for non-claimed rows).
     pub projected_disabled_reason_mode: Option<M5DisabledReasonMode>,
     /// Projected automation suitability (`None` for non-claimed rows).
     pub projected_automation_suitability: Option<M5AutomationSuitability>,
+    /// Projected automation labels (`[]` for non-claimed rows).
+    pub projected_automation_labels: Vec<String>,
     /// Projected help anchor ref (`None` for non-claimed rows).
     pub projected_help_anchor_ref: Option<String>,
     /// Aliases the channel exposes. MUST be a subset of the canonical
@@ -567,6 +643,14 @@ pub enum M5ParityBlockingFinding {
         /// Projected preview class.
         projected_preview_class: M5PreviewClass,
     },
+    /// A claimed channel carries an approval posture that disagrees with
+    /// the descriptor.
+    ApprovalPostureDrift {
+        command_id: String,
+        channel: M5DiscoveryChannel,
+        /// Projected approval posture.
+        projected_approval_posture_class: String,
+    },
     /// A claimed channel drops typed disabled-reason disclosure.
     DisabledReasonDrift {
         command_id: String,
@@ -581,6 +665,14 @@ pub enum M5ParityBlockingFinding {
         channel: M5DiscoveryChannel,
         /// Projected automation suitability.
         projected_automation_suitability: M5AutomationSuitability,
+    },
+    /// A claimed channel projects automation labels that disagree with
+    /// the descriptor.
+    AutomationLabelDrift {
+        command_id: String,
+        channel: M5DiscoveryChannel,
+        /// First automation label seen that the descriptor does not own.
+        offending_automation_label: String,
     },
     /// A claimed channel cannot point back to the canonical help anchor.
     MissingHelpAnchor {
@@ -628,8 +720,10 @@ impl M5ParityBlockingFinding {
             Self::LabelDrift { .. } => "label_drift",
             Self::LifecycleLabelDrift { .. } => "lifecycle_label_drift",
             Self::PreviewClassDrift { .. } => "preview_class_drift",
+            Self::ApprovalPostureDrift { .. } => "approval_posture_drift",
             Self::DisabledReasonDrift { .. } => "disabled_reason_drift",
             Self::AutomationSuitabilityDrift { .. } => "automation_suitability_drift",
+            Self::AutomationLabelDrift { .. } => "automation_label_drift",
             Self::MissingHelpAnchor { .. } => "missing_help_anchor",
             Self::AliasDrift { .. } => "alias_drift",
             Self::MissingNarrowingReason { .. } => "missing_narrowing_reason",
@@ -650,8 +744,10 @@ impl M5ParityBlockingFinding {
             | Self::LabelDrift { command_id, .. }
             | Self::LifecycleLabelDrift { command_id, .. }
             | Self::PreviewClassDrift { command_id, .. }
+            | Self::ApprovalPostureDrift { command_id, .. }
             | Self::DisabledReasonDrift { command_id, .. }
             | Self::AutomationSuitabilityDrift { command_id, .. }
+            | Self::AutomationLabelDrift { command_id, .. }
             | Self::MissingHelpAnchor { command_id, .. }
             | Self::AliasDrift { command_id, .. }
             | Self::MissingNarrowingReason { command_id, .. }
@@ -672,8 +768,10 @@ impl M5ParityBlockingFinding {
             | Self::LabelDrift { channel, .. }
             | Self::LifecycleLabelDrift { channel, .. }
             | Self::PreviewClassDrift { channel, .. }
+            | Self::ApprovalPostureDrift { channel, .. }
             | Self::DisabledReasonDrift { channel, .. }
             | Self::AutomationSuitabilityDrift { channel, .. }
+            | Self::AutomationLabelDrift { channel, .. }
             | Self::MissingHelpAnchor { channel, .. }
             | Self::AliasDrift { channel, .. }
             | Self::MissingNarrowingReason { channel, .. }
@@ -722,10 +820,14 @@ pub struct M5ParityFindingSummary {
     pub lifecycle_label_drift: usize,
     /// Number of `preview_class_drift` findings.
     pub preview_class_drift: usize,
+    /// Number of `approval_posture_drift` findings.
+    pub approval_posture_drift: usize,
     /// Number of `disabled_reason_drift` findings.
     pub disabled_reason_drift: usize,
     /// Number of `automation_suitability_drift` findings.
     pub automation_suitability_drift: usize,
+    /// Number of `automation_label_drift` findings.
+    pub automation_label_drift: usize,
     /// Number of `missing_help_anchor` findings.
     pub missing_help_anchor: usize,
     /// Number of `alias_drift` findings.
@@ -754,8 +856,10 @@ impl M5ParityFindingSummary {
             label_drift: 0,
             lifecycle_label_drift: 0,
             preview_class_drift: 0,
+            approval_posture_drift: 0,
             disabled_reason_drift: 0,
             automation_suitability_drift: 0,
+            automation_label_drift: 0,
             missing_help_anchor: 0,
             alias_drift: 0,
             missing_narrowing_reason: 0,
@@ -778,9 +882,15 @@ impl M5ParityFindingSummary {
             M5ParityBlockingFinding::LabelDrift { .. } => self.label_drift += 1,
             M5ParityBlockingFinding::LifecycleLabelDrift { .. } => self.lifecycle_label_drift += 1,
             M5ParityBlockingFinding::PreviewClassDrift { .. } => self.preview_class_drift += 1,
+            M5ParityBlockingFinding::ApprovalPostureDrift { .. } => {
+                self.approval_posture_drift += 1
+            }
             M5ParityBlockingFinding::DisabledReasonDrift { .. } => self.disabled_reason_drift += 1,
             M5ParityBlockingFinding::AutomationSuitabilityDrift { .. } => {
                 self.automation_suitability_drift += 1
+            }
+            M5ParityBlockingFinding::AutomationLabelDrift { .. } => {
+                self.automation_label_drift += 1
             }
             M5ParityBlockingFinding::MissingHelpAnchor { .. } => self.missing_help_anchor += 1,
             M5ParityBlockingFinding::AliasDrift { .. } => self.alias_drift += 1,
@@ -1036,12 +1146,20 @@ impl M5CommandParityAuditReport {
             self.findings_summary.preview_class_drift
         ));
         out.push_str(&format!(
+            "| `approval_posture_drift` | {} |\n",
+            self.findings_summary.approval_posture_drift
+        ));
+        out.push_str(&format!(
             "| `disabled_reason_drift` | {} |\n",
             self.findings_summary.disabled_reason_drift
         ));
         out.push_str(&format!(
             "| `automation_suitability_drift` | {} |\n",
             self.findings_summary.automation_suitability_drift
+        ));
+        out.push_str(&format!(
+            "| `automation_label_drift` | {} |\n",
+            self.findings_summary.automation_label_drift
         ));
         out.push_str(&format!(
             "| `missing_help_anchor` | {} |\n",
@@ -1105,8 +1223,16 @@ impl M5CommandParityAuditReport {
                 row.descriptor.preview_class.as_str()
             ));
             out.push_str(&format!(
+                "- Approval posture: `{}`\n",
+                row.descriptor.approval_posture_class
+            ));
+            out.push_str(&format!(
                 "- Capability scope: `{}`\n",
                 row.descriptor.capability_scope_class.as_str()
+            ));
+            out.push_str(&format!(
+                "- Mutability class: `{}`\n",
+                row.descriptor.mutability_class.as_str()
             ));
             out.push_str(&format!(
                 "- Disabled reason mode: `{}`\n",
@@ -1116,6 +1242,11 @@ impl M5CommandParityAuditReport {
                 "- Automation suitability: `{}`\n",
                 row.descriptor.automation_suitability.as_str()
             ));
+            out.push_str(&format!(
+                "- Automation labels: `{}`\n",
+                row.descriptor.automation_labels.join(", ")
+            ));
+            out.push_str(&format!("- Origin: `{}`\n", row.descriptor.origin_class));
             out.push_str(&format!(
                 "- Help anchor: `{}`\n",
                 row.descriptor.help_anchor_ref
@@ -1341,6 +1472,22 @@ fn compute_row_findings(
                     }),
                 }
 
+                match &projection.projected_approval_posture_class {
+                    Some(approval) if approval == &descriptor.approval_posture_class => {}
+                    Some(approval) => {
+                        findings.push(M5ParityBlockingFinding::ApprovalPostureDrift {
+                            command_id: descriptor.command_id.clone(),
+                            channel,
+                            projected_approval_posture_class: approval.clone(),
+                        })
+                    }
+                    None => findings.push(M5ParityBlockingFinding::MissingProjection {
+                        command_id: descriptor.command_id.clone(),
+                        channel,
+                        field: "projected_approval_posture_class".to_owned(),
+                    }),
+                }
+
                 match projection.projected_disabled_reason_mode {
                     Some(mode) if mode == descriptor.disabled_reason_mode => {}
                     Some(mode) => findings.push(M5ParityBlockingFinding::DisabledReasonDrift {
@@ -1369,6 +1516,36 @@ fn compute_row_findings(
                         channel,
                         field: "projected_automation_suitability".to_owned(),
                     }),
+                }
+
+                let canonical_automation_labels: BTreeSet<&str> = descriptor
+                    .automation_labels
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                for label in &projection.projected_automation_labels {
+                    if !canonical_automation_labels.contains(label.as_str()) {
+                        findings.push(M5ParityBlockingFinding::AutomationLabelDrift {
+                            command_id: descriptor.command_id.clone(),
+                            channel,
+                            offending_automation_label: label.clone(),
+                        });
+                    }
+                }
+                if projection.projected_automation_labels.len()
+                    != descriptor.automation_labels.len()
+                {
+                    let missing_label = descriptor
+                        .automation_labels
+                        .iter()
+                        .find(|label| !projection.projected_automation_labels.contains(*label))
+                        .cloned()
+                        .unwrap_or_else(|| "automation_label_cardinality_mismatch".to_owned());
+                    findings.push(M5ParityBlockingFinding::AutomationLabelDrift {
+                        command_id: descriptor.command_id.clone(),
+                        channel,
+                        offending_automation_label: missing_label,
+                    });
                 }
 
                 match &projection.projected_help_anchor_ref {
@@ -1632,6 +1809,7 @@ pub fn validate_m5_command_parity_audit(
 }
 
 /// Seed row used by [`seeded_m5_command_parity_audit`].
+#[allow(dead_code)]
 struct CommandSeed {
     command_id: &'static str,
     feature_family: M5FeatureFamily,
@@ -2081,6 +2259,113 @@ const COMMAND_SEEDS: &[CommandSeed] = &[
             },
         ],
     },
+    // Secret broker: credential review. Sensitive review lane; human only.
+    CommandSeed {
+        command_id: "cmd:secret_broker.open_credential_review",
+        feature_family: M5FeatureFamily::SecretBroker,
+        descriptor_revision_ref: "cmd-rev:secret_broker.open_credential_review:2026.06.12-01",
+        primary_label_ref: "label:secret_broker.open_credential_review:primary",
+        help_anchor_ref: "help:anchor:secret_broker:open_credential_review",
+        search_keywords: &["secret", "credential", "review", "broker"],
+        lifecycle_label: M5LifecycleLabel::Beta,
+        preview_class: M5PreviewClass::NoPreviewRequired,
+        capability_scope_class: M5CapabilityScope::CredentialOrSecretBearing,
+        disabled_reason_mode: M5DisabledReasonMode::TypedReasonRequiredWhenUnavailable,
+        automation_suitability: M5AutomationSuitability::HumanOnly,
+        canonical_aliases: &["alias:secret_broker.open_credential_review:cli_secret_review"],
+        channels: &[
+            claimed(M5DiscoveryChannel::CommandPalette),
+            KEYBINDING_NARROWED,
+            claimed(M5DiscoveryChannel::HelpSearch),
+            claimed(M5DiscoveryChannel::OnboardingTour),
+            ChannelSeed {
+                channel: M5DiscoveryChannel::CliHeadless,
+                coverage_status: M5CoverageStatus::ExplicitlyNarrowed,
+                narrowing_reason: Some("ui_only_secret_review_requires_local_session"),
+                note: Some(
+                    "The review command is discoverable on CLI, but the sensitive sheet stays in the local session.",
+                ),
+                projected_aliases: &[],
+            },
+            ChannelSeed {
+                channel: M5DiscoveryChannel::AiAutomation,
+                coverage_status: M5CoverageStatus::ExplicitlyNarrowed,
+                narrowing_reason: Some("approval_required_sensitive_review"),
+                note: Some("AI may reference the review step; a human opens the sensitive route."),
+                projected_aliases: &[],
+            },
+        ],
+    },
+    // Secret broker: credential rotation. Sensitive preview lane; human approves.
+    CommandSeed {
+        command_id: "cmd:secret_broker.open_credential_rotation",
+        feature_family: M5FeatureFamily::SecretBroker,
+        descriptor_revision_ref: "cmd-rev:secret_broker.open_credential_rotation:2026.06.12-01",
+        primary_label_ref: "label:secret_broker.open_credential_rotation:primary",
+        help_anchor_ref: "help:anchor:secret_broker:open_credential_rotation",
+        search_keywords: &["secret", "credential", "rotation", "broker"],
+        lifecycle_label: M5LifecycleLabel::Beta,
+        preview_class: M5PreviewClass::StructuredDiffPreview,
+        capability_scope_class: M5CapabilityScope::CredentialOrSecretBearing,
+        disabled_reason_mode: M5DisabledReasonMode::TypedReasonRequiredWhenUnavailable,
+        automation_suitability: M5AutomationSuitability::HumanOnly,
+        canonical_aliases: &["alias:secret_broker.open_credential_rotation:cli_secret_rotate"],
+        channels: &[
+            claimed(M5DiscoveryChannel::CommandPalette),
+            KEYBINDING_NARROWED,
+            claimed(M5DiscoveryChannel::HelpSearch),
+            claimed(M5DiscoveryChannel::OnboardingTour),
+            ChannelSeed {
+                channel: M5DiscoveryChannel::CliHeadless,
+                coverage_status: M5CoverageStatus::Claimed,
+                narrowing_reason: None,
+                note: None,
+                projected_aliases: &["alias:secret_broker.open_credential_rotation:cli_secret_rotate"],
+            },
+            ChannelSeed {
+                channel: M5DiscoveryChannel::AiAutomation,
+                coverage_status: M5CoverageStatus::ExplicitlyNarrowed,
+                narrowing_reason: Some("approval_required_sensitive_rotation"),
+                note: Some("AI may prepare rotation details; a human approves the sensitive change."),
+                projected_aliases: &[],
+            },
+        ],
+    },
+    // Infrastructure: reconcile workspace. Managed control lane; preview and approval preserved.
+    CommandSeed {
+        command_id: "cmd:infrastructure.reconcile_workspace",
+        feature_family: M5FeatureFamily::Infrastructure,
+        descriptor_revision_ref: "cmd-rev:infrastructure.reconcile_workspace:2026.06.12-01",
+        primary_label_ref: "label:infrastructure.reconcile_workspace:primary",
+        help_anchor_ref: "help:anchor:infrastructure:reconcile_workspace",
+        search_keywords: &["infrastructure", "reconcile", "workspace", "control", "plane"],
+        lifecycle_label: M5LifecycleLabel::Beta,
+        preview_class: M5PreviewClass::StructuredDiffPreview,
+        capability_scope_class: M5CapabilityScope::ManagedWorkspaceControl,
+        disabled_reason_mode: M5DisabledReasonMode::TypedReasonRequiredWhenUnavailable,
+        automation_suitability: M5AutomationSuitability::PreviewThenConfirm,
+        canonical_aliases: &["alias:infrastructure.reconcile_workspace:cli_reconcile"],
+        channels: &[
+            claimed(M5DiscoveryChannel::CommandPalette),
+            KEYBINDING_NARROWED,
+            claimed(M5DiscoveryChannel::HelpSearch),
+            claimed(M5DiscoveryChannel::OnboardingTour),
+            ChannelSeed {
+                channel: M5DiscoveryChannel::CliHeadless,
+                coverage_status: M5CoverageStatus::Claimed,
+                narrowing_reason: None,
+                note: None,
+                projected_aliases: &["alias:infrastructure.reconcile_workspace:cli_reconcile"],
+            },
+            ChannelSeed {
+                channel: M5DiscoveryChannel::AiAutomation,
+                coverage_status: M5CoverageStatus::Claimed,
+                narrowing_reason: None,
+                note: Some("AI uses the same preview and approval boundary as desktop and CLI."),
+                projected_aliases: &[],
+            },
+        ],
+    },
 ];
 
 fn build_projection_from_seed(
@@ -2095,10 +2380,15 @@ fn build_projection_from_seed(
         projected_label_ref: projects_descriptor.then(|| descriptor.primary_label_ref.clone()),
         projected_lifecycle_label: projects_descriptor.then_some(descriptor.lifecycle_label),
         projected_preview_class: projects_descriptor.then_some(descriptor.preview_class),
+        projected_approval_posture_class: projects_descriptor
+            .then(|| descriptor.approval_posture_class.clone()),
         projected_disabled_reason_mode: projects_descriptor
             .then_some(descriptor.disabled_reason_mode),
         projected_automation_suitability: projects_descriptor
             .then_some(descriptor.automation_suitability),
+        projected_automation_labels: projects_descriptor
+            .then(|| descriptor.automation_labels.clone())
+            .unwrap_or_default(),
         projected_help_anchor_ref: projects_descriptor.then(|| descriptor.help_anchor_ref.clone()),
         projected_aliases: seed
             .projected_aliases
@@ -2110,30 +2400,156 @@ fn build_projection_from_seed(
     }
 }
 
-fn build_row_from_seed(seed: &CommandSeed) -> M5CommandParityRow {
-    let descriptor = M5CommandDescriptor {
-        command_id: seed.command_id.to_owned(),
+fn command_entry(command_id: &str) -> &'static CommandRegistryEntryRecord {
+    seeded_registry()
+        .get(command_id)
+        .unwrap_or_else(|| panic!("M5 audit command {command_id} must exist in canonical registry"))
+}
+
+fn discoverability_string_array(
+    entry: &CommandRegistryEntryRecord,
+    field_name: &str,
+) -> Vec<String> {
+    entry
+        .discoverability_record
+        .get(field_name)
+        .and_then(serde_json::Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn lifecycle_label(entry: &CommandRegistryEntryRecord) -> M5LifecycleLabel {
+    match entry.descriptor.lifecycle_state.as_str() {
+        "stable" => M5LifecycleLabel::Stable,
+        "beta" => M5LifecycleLabel::Beta,
+        "deprecated" => M5LifecycleLabel::Deprecated,
+        other => panic!(
+            "M5 audit command {} has unsupported lifecycle state {other}",
+            entry.descriptor.command_id
+        ),
+    }
+}
+
+fn preview_class(entry: &CommandRegistryEntryRecord) -> M5PreviewClass {
+    match entry.descriptor.preview_class.as_str() {
+        "no_preview_required" => M5PreviewClass::NoPreviewRequired,
+        "structured_diff_preview" => M5PreviewClass::StructuredDiffPreview,
+        "destructive_bulk_mutation_preview" => M5PreviewClass::DestructiveBulkMutationPreview,
+        "policy_authoring_or_waiver_preview" => M5PreviewClass::PolicyAuthoringOrWaiverPreview,
+        "irreversible_publish_preview" => M5PreviewClass::IrreversiblePublishPreview,
+        other => panic!(
+            "M5 audit command {} has unsupported preview class {other}",
+            entry.descriptor.command_id
+        ),
+    }
+}
+
+fn capability_scope(entry: &CommandRegistryEntryRecord) -> M5CapabilityScope {
+    match entry.descriptor.capability_scope_class.as_str() {
+        "inert_metadata_only" => M5CapabilityScope::InertMetadataOnly,
+        "reversible_local_read" => M5CapabilityScope::ReversibleLocalRead,
+        "reversible_local_mutation" => M5CapabilityScope::ReversibleLocalMutation,
+        "recoverable_durable_mutation" => M5CapabilityScope::RecoverableDurableMutation,
+        "destructive_bulk_mutation" => M5CapabilityScope::DestructiveBulkMutation,
+        "irreversible_publish" => M5CapabilityScope::IrreversiblePublish,
+        "credential_or_secret_bearing" => M5CapabilityScope::CredentialOrSecretBearing,
+        "managed_workspace_control" => M5CapabilityScope::ManagedWorkspaceControl,
+        other => panic!(
+            "M5 audit command {} has unsupported capability scope {other}",
+            entry.descriptor.command_id
+        ),
+    }
+}
+
+fn mutability_class(capability_scope: M5CapabilityScope) -> M5MutabilityClass {
+    match capability_scope {
+        M5CapabilityScope::InertMetadataOnly | M5CapabilityScope::ReversibleLocalRead => {
+            M5MutabilityClass::ReadOnly
+        }
+        M5CapabilityScope::ReversibleLocalMutation => M5MutabilityClass::SessionMutation,
+        M5CapabilityScope::RecoverableDurableMutation => M5MutabilityClass::DurableMutation,
+        M5CapabilityScope::DestructiveBulkMutation => M5MutabilityClass::DestructiveMutation,
+        M5CapabilityScope::IrreversiblePublish => M5MutabilityClass::ExternalPublish,
+        M5CapabilityScope::CredentialOrSecretBearing => M5MutabilityClass::SensitiveMutation,
+        M5CapabilityScope::ManagedWorkspaceControl => M5MutabilityClass::ManagedControl,
+    }
+}
+
+fn disabled_reason_mode(entry: &CommandRegistryEntryRecord) -> M5DisabledReasonMode {
+    if entry.disabled_reason_records.is_empty() {
+        M5DisabledReasonMode::AlwaysInvokable
+    } else {
+        M5DisabledReasonMode::TypedReasonRequiredWhenUnavailable
+    }
+}
+
+fn automation_labels(entry: &CommandRegistryEntryRecord) -> Vec<String> {
+    if entry.descriptor.automation_labels.is_empty() {
+        entry.automation_labels.clone()
+    } else {
+        entry.descriptor.automation_labels.clone()
+    }
+}
+
+fn build_descriptor_from_registry(seed: &CommandSeed) -> M5CommandDescriptor {
+    let entry = command_entry(seed.command_id);
+    let capability_scope_class = capability_scope(entry);
+    let origin = entry.descriptor.origin.as_ref();
+    let canonical_aliases = entry
+        .descriptor
+        .aliases
+        .iter()
+        .map(|alias| alias.alias_id.clone())
+        .collect();
+
+    M5CommandDescriptor {
+        command_id: entry.descriptor.command_id.clone(),
         feature_family: seed.feature_family,
-        descriptor_revision_ref: seed.descriptor_revision_ref.to_owned(),
-        primary_label_ref: seed.primary_label_ref.to_owned(),
-        help_anchor_ref: seed.help_anchor_ref.to_owned(),
-        search_keywords: seed
-            .search_keywords
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect(),
-        lifecycle_label: seed.lifecycle_label,
-        preview_class: seed.preview_class,
-        capability_scope_class: seed.capability_scope_class,
-        disabled_reason_mode: seed.disabled_reason_mode,
+        descriptor_revision_ref: entry.descriptor.command_revision_ref.clone(),
+        primary_label_ref: entry.descriptor.primary_label_ref.clone(),
+        discoverability_summary: entry.summary.clone(),
+        help_anchor_ref: entry.descriptor.docs_help_anchor_ref.anchor_id.clone(),
+        search_keywords: discoverability_string_array(entry, "search_keywords"),
+        category_refs: if entry.descriptor.category_refs.is_empty() {
+            discoverability_string_array(entry, "category_refs")
+        } else {
+            entry.descriptor.category_refs.clone()
+        },
+        lifecycle_label: lifecycle_label(entry),
+        preview_class: preview_class(entry),
+        approval_posture_class: entry.descriptor.approval_posture_class.clone(),
+        capability_scope_class,
+        mutability_class: mutability_class(capability_scope_class),
+        disabled_reason_mode: disabled_reason_mode(entry),
         automation_suitability: seed.automation_suitability,
-        canonical_aliases: seed
-            .canonical_aliases
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect(),
+        automation_labels: automation_labels(entry),
+        canonical_aliases,
+        origin_class: origin
+            .map(|origin| origin.origin_class.clone())
+            .unwrap_or_else(|| entry.namespace_class.clone()),
+        source_ref: origin.and_then(|origin| origin.source_ref.clone()),
+        publisher_ref: origin.and_then(|origin| origin.publisher_ref.clone()),
+        invocation_schema_ref: entry
+            .descriptor
+            .invocation_schema_ref
+            .clone()
+            .unwrap_or_default(),
+        result_schema_ref: entry
+            .descriptor
+            .result_schema_ref
+            .clone()
+            .unwrap_or_default(),
         promoted_to_stable_graph: true,
-    };
+    }
+}
+
+fn build_row_from_seed(seed: &CommandSeed) -> M5CommandParityRow {
+    let descriptor = build_descriptor_from_registry(seed);
     let channels: Vec<M5ChannelProjection> = seed
         .channels
         .iter()

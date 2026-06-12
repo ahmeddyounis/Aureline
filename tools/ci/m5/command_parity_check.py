@@ -80,6 +80,8 @@ HIGH_RISK_CAPABILITY_SCOPES = {
     "recoverable_durable_mutation",
     "destructive_bulk_mutation",
     "irreversible_publish",
+    "credential_or_secret_bearing",
+    "managed_workspace_control",
 }
 
 DOC_BACKLINKS = (
