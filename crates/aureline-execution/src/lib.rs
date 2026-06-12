@@ -60,7 +60,22 @@
 //! stale context, an unbound host, or a broken export continuity narrows, flags, or
 //! withholds the published origin instead of letting a browser, companion, preview,
 //! or managed surface imply that work ran locally.
+//!
+//! The companion [`m5_mutation_and_handoff_review`] module narrows the same discipline to
+//! a fourth question — *who is acting, was it approved, how is it recovered, and what does
+//! it do before it commits?* — across the M5 mutation paths that can widen authority or
+//! side effects: request-workspace mutations, browser-runtime actions, preview-route
+//! actions, live-resource operations, remote mutations, and the browser/companion and
+//! vendor-console handoffs that carry them. Its non-inheriting commit gate resolves each
+//! path through one reviewed preview/apply/handoff sheet — surfacing actor, approval,
+//! target context, duration, time-bound route effect, rollback class, and a fallback or
+//! open-in-provider path — so an inherited authority, a bypassed approval, an unknown
+//! rollback, an unbounded route, or a severed handoff narrows, flags, or withholds the
+//! commit instead of letting a request, browser, or handoff path inherit hidden authority
+//! or bypass review, and it exports a machine-readable mutation receipt so support and
+//! audit can reconstruct which reviewed action class actually ran.
 
 pub mod m5_build_and_host_governance;
 pub mod m5_host_boundary;
+pub mod m5_mutation_and_handoff_review;
 pub mod m5_target_discovery;

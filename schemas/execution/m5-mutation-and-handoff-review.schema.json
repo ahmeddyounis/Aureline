@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/m5-mutation-and-handoff-review.schema.json",
+  "title": "Aureline M5 mutation-and-handoff review matrix",
+  "description": "Schema for the m5_mutation_and_handoff_review_matrix packet. The packet freezes one reviewed preview/apply/handoff row per M5 mutation path that can widen authority or side effects (request-workspace mutation, browser-runtime action, preview-route action, live-resource operation, remote mutation, companion handoff, tunnel-route action, vendor-console handoff). Each row names who is acting and whether that authority is established, whether approval is satisfied, the rollback class that applies, the time-bound route or tunnel effect the action opens, and whether a browser/companion handoff preserves the same authority and rollback semantics; it surfaces the actor, target context, expected duration, and a fallback or open-in-provider path, and it exports a machine-readable mutation receipt so support and audit can reconstruct which reviewed action class ran. A non-inheriting commit gate derives the commit readiness that may be published: an inherited or unverified actor, a bypassed or pending approval, an unknown or provider-managed rollback, an unbounded route, or a severed handoff cannot publish a reviewed apply, and the review decision records whether the gate applied, required approval, allowed preview only, flagged a renegotiated handoff for review, or withheld it. A path that crosses a handoff boundary must declare a handoff continuity so the handoff is reviewed rather than bypassed, one row is required per claimed path so no path inherits a reviewed apply, and the recorded published readiness, decision, and narrowing reasons must equal the recomputed gate decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "mutation_paths",
+    "commit_readinesses",
+    "actor_authority_states",
+    "approval_states",
+    "rollback_classes",
+    "route_effects",
+    "handoff_continuities",
+    "duration_classes",
+    "fallback_paths",
+    "narrowing_reasons",
+    "review_decisions",
+    "paths",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_mutation_and_handoff_review_matrix" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "mutation_paths": { "type": "array", "items": { "$ref": "#/$defs/mutation_path" } },
+    "commit_readinesses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commit_readiness" }
+    },
+    "actor_authority_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/actor_authority_state" }
+    },
+    "approval_states": { "type": "array", "items": { "$ref": "#/$defs/approval_state" } },
+    "rollback_classes": { "type": "array", "items": { "$ref": "#/$defs/rollback_class" } },
+    "route_effects": { "type": "array", "items": { "$ref": "#/$defs/route_effect" } },
+    "handoff_continuities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handoff_continuity" }
+    },
+    "duration_classes": { "type": "array", "items": { "$ref": "#/$defs/duration_class" } },
+    "fallback_paths": { "type": "array", "items": { "$ref": "#/$defs/fallback_path" } },
+    "narrowing_reasons": { "type": "array", "items": { "$ref": "#/$defs/narrowing_reason" } },
+    "review_decisions": { "type": "array", "items": { "$ref": "#/$defs/review_decision" } },
+    "paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "mutation_path": {
+      "enum": [
+        "request_workspace_mutation",
+        "browser_runtime_action",
+        "preview_route_action",
+        "live_resource_operation",
+        "remote_mutation",
+        "companion_handoff",
+        "tunnel_route_action",
+        "provider_console_handoff"
+      ]
+    },
+    "commit_readiness": {
+      "enum": ["reviewed_apply", "approval_required", "preview_only", "blocked"]
+    },
+    "actor_authority_state": {
+      "enum": ["verified", "delegated", "inherited", "unestablished"]
+    },
+    "approval_state": {
+      "enum": ["approved", "not_required", "required", "bypassed"]
+    },
+    "rollback_class": {
+      "enum": ["reversible", "compensable", "provider_managed", "unknown"]
+    },
+    "route_effect": {
+      "enum": ["none", "time_bound", "persistent", "unbounded"]
+    },
+    "handoff_continuity": {
+      "enum": ["not_handoff", "preserved", "renegotiated", "severed"]
+    },
+    "duration_class": {
+      "enum": ["instant", "short", "extended", "open_ended"]
+    },
+    "fallback_path": {
+      "enum": ["reviewed_retry", "open_in_provider", "vendor_console", "no_fallback"]
+    },
+    "narrowing_reason": {
+      "enum": [
+        "unverified_actor",
+        "inherited_authority",
+        "approval_bypassed",
+        "rollback_unknown",
+        "unbounded_route",
+        "handoff_severed"
+      ]
+    },
+    "review_decision": {
+      "enum": ["apply", "require_approval", "preview_only", "flag_for_review", "withhold"]
+    },
+    "path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_id",
+        "mutation_path",
+        "actor_authority",
+        "approval_state",
+        "rollback_class",
+        "route_effect",
+        "handoff_continuity",
+        "expected_duration",
+        "fallback_path",
+        "declared_readiness",
+        "published_readiness",
+        "review_decision",
+        "actor_ref",
+        "target_context_ref",
+        "review_sheet_ref",
+        "mutation_receipt_ref",
+        "execution_ref",
+        "support_export_ref",
+        "note"
+      ],
+      "properties": {
+        "path_id": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_path": { "$ref": "#/$defs/mutation_path" },
+        "actor_authority": { "$ref": "#/$defs/actor_authority_state" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "rollback_class": { "$ref": "#/$defs/rollback_class" },
+        "route_effect": { "$ref": "#/$defs/route_effect" },
+        "handoff_continuity": { "$ref": "#/$defs/handoff_continuity" },
+        "expected_duration": { "$ref": "#/$defs/duration_class" },
+        "fallback_path": { "$ref": "#/$defs/fallback_path" },
+        "declared_readiness": { "$ref": "#/$defs/commit_readiness" },
+        "published_readiness": { "$ref": "#/$defs/commit_readiness" },
+        "review_decision": { "$ref": "#/$defs/review_decision" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "review_sheet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_ref": { "type": "string" },
+        "rollback_plan_ref": { "type": "string" },
+        "route_expiry_ref": { "type": "string" },
+        "execution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_paths",
+        "path_count",
+        "committable_paths",
+        "approval_required_paths",
+        "preview_only_paths",
+        "blocked_paths",
+        "applied_paths",
+        "require_approval_paths",
+        "flagged_paths",
+        "preview_decision_paths",
+        "withheld_paths",
+        "handoff_paths",
+        "approved_paths",
+        "bypassed_approval_paths",
+        "unknown_rollback_paths",
+        "time_bound_route_paths",
+        "paths_with_narrowing_reasons"
+      ],
+      "properties": {
+        "total_paths": { "type": "integer", "minimum": 0 },
+        "path_count": { "type": "integer", "minimum": 0 },
+        "committable_paths": { "type": "integer", "minimum": 0 },
+        "approval_required_paths": { "type": "integer", "minimum": 0 },
+        "preview_only_paths": { "type": "integer", "minimum": 0 },
+        "blocked_paths": { "type": "integer", "minimum": 0 },
+        "applied_paths": { "type": "integer", "minimum": 0 },
+        "require_approval_paths": { "type": "integer", "minimum": 0 },
+        "flagged_paths": { "type": "integer", "minimum": 0 },
+        "preview_decision_paths": { "type": "integer", "minimum": 0 },
+        "withheld_paths": { "type": "integer", "minimum": 0 },
+        "handoff_paths": { "type": "integer", "minimum": 0 },
+        "approved_paths": { "type": "integer", "minimum": 0 },
+        "bypassed_approval_paths": { "type": "integer", "minimum": 0 },
+        "unknown_rollback_paths": { "type": "integer", "minimum": 0 },
+        "time_bound_route_paths": { "type": "integer", "minimum": 0 },
+        "paths_with_narrowing_reasons": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
