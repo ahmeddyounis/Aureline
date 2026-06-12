@@ -47,7 +47,9 @@ The object packet instantiates the matrix as actual infrastructure facts instead
 - Derived objects preserve authored lineage through `authored_object_refs`, `source_input_refs`, and `known_path_back_to_source_refs`; rendered and planned objects additionally preserve tool identity and version where known.
 - Stable identities capture selectors and owners directly, so Terraform addresses, Kubernetes selectors, devcontainer/workspace handles, CI environment selectors, and policy scopes are not trapped inside raw text viewers.
 - Relation edges stay in the shared vocabulary and bind concrete objects rather than private caches.
-- Consumer projections for graph, review, docs, and incident surfaces resolve object and relation refs from the shared packet and explicitly forbid hidden side caches.
+- Consumer projections for code/graph, review, docs, and incident surfaces resolve object and relation refs from the shared packet and explicitly forbid hidden side caches.
+- Every claimed surface reuses the same packet to serve `show live counterpart`, `show applied-by`, `show owned-by`, `show impacts`, and `explain this environment slice` flows instead of silently falling back to raw search or browser tabs.
+- If a surface narrows one environment slice or drops an edge needed by those flows, the validator marks the packet underqualified rather than letting the UI imply stable coverage.
 
 ## Support Export Posture
 

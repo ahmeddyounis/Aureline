@@ -15,6 +15,7 @@ use crate::target_context_and_control_plane_boundary::{
 };
 
 use super::{
+    flows::{projection_covers_context_slice, projection_covers_relation_flow},
     required_edges_for, ConsoleHandoffPosture, InfrastructureFamily, RelationEdgeClass, TruthLayer,
     REQUIRED_FAMILIES, REQUIRED_TRUTH_LAYERS, SOURCE_INTELLIGENCE_RELATIONSHIP_PACKET_RECORD_KIND,
 };
@@ -653,6 +654,22 @@ fn validate_projection(
             }
         }
     }
+
+    if !projection_covers_contexts(packet, projection) {
+        findings.push(error(
+            "projection_environment_slice_coverage",
+            "Consumer projection must preserve every object in each projected environment slice.",
+        ));
+    }
+
+    for required_edge in required_flow_edges(projection.surface) {
+        if !projection_covers_relation_flow(packet, projection, *required_edge) {
+            findings.push(error(
+                "projection_flow_coverage",
+                "Consumer projection drops relation edges required for shared infrastructure flows.",
+            ));
+        }
+    }
 }
 
 fn projection_has_edge(
@@ -735,6 +752,62 @@ fn edge_requires_handoff(edge_class: RelationEdgeClass) -> bool {
             | RelationEdgeClass::ReviewAnchor
             | RelationEdgeClass::ProviderOverlayOf
     )
+}
+
+fn projection_covers_contexts(
+    packet: &SourceIntelligenceObjectPacket,
+    projection: &InfrastructureConsumerProjection,
+) -> bool {
+    projection
+        .object_refs
+        .iter()
+        .filter_map(|object_ref| packet.object(object_ref))
+        .map(|object| object.context_ref.as_str())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .all(|context_ref| projection_covers_context_slice(packet, projection, context_ref))
+}
+
+fn required_flow_edges(surface: InfrastructureConsumerSurface) -> &'static [RelationEdgeClass] {
+    match surface {
+        InfrastructureConsumerSurface::Graph => &[
+            RelationEdgeClass::SourceOfRender,
+            RelationEdgeClass::LiveCounterpartOf,
+            RelationEdgeClass::AppliedBy,
+            RelationEdgeClass::OwnedBy,
+            RelationEdgeClass::Impacts,
+            RelationEdgeClass::RunbookReference,
+            RelationEdgeClass::ReviewAnchor,
+            RelationEdgeClass::ProviderOverlayOf,
+        ],
+        InfrastructureConsumerSurface::Review => &[
+            RelationEdgeClass::LiveCounterpartOf,
+            RelationEdgeClass::AppliedBy,
+            RelationEdgeClass::OwnedBy,
+            RelationEdgeClass::Impacts,
+            RelationEdgeClass::RunbookReference,
+            RelationEdgeClass::ReviewAnchor,
+            RelationEdgeClass::ProviderOverlayOf,
+        ],
+        InfrastructureConsumerSurface::Docs => &[
+            RelationEdgeClass::SourceOfRender,
+            RelationEdgeClass::LiveCounterpartOf,
+            RelationEdgeClass::AppliedBy,
+            RelationEdgeClass::OwnedBy,
+            RelationEdgeClass::Impacts,
+            RelationEdgeClass::RunbookReference,
+            RelationEdgeClass::ReviewAnchor,
+            RelationEdgeClass::ProviderOverlayOf,
+        ],
+        InfrastructureConsumerSurface::Incident => &[
+            RelationEdgeClass::LiveCounterpartOf,
+            RelationEdgeClass::AppliedBy,
+            RelationEdgeClass::OwnedBy,
+            RelationEdgeClass::Impacts,
+            RelationEdgeClass::RunbookReference,
+            RelationEdgeClass::ProviderOverlayOf,
+        ],
+    }
 }
 
 fn error(check_id: &str, message: &str) -> InfraBoundaryFinding {
@@ -822,8 +895,14 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
         parameter_refs: &[&str],
     ) -> InfrastructureObjectLineage {
         InfrastructureObjectLineage {
-            authored_object_refs: authored_refs.iter().map(|value| (*value).to_string()).collect(),
-            source_input_refs: source_inputs.iter().map(|value| (*value).to_string()).collect(),
+            authored_object_refs: authored_refs
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
+            source_input_refs: source_inputs
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
             known_path_back_to_source_refs: source_paths
                 .iter()
                 .map(|value| (*value).to_string())
@@ -864,7 +943,10 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
             authority_posture,
             provider_owned,
             lineage,
-            provenance_refs: provenance_refs.iter().map(|value| (*value).to_string()).collect(),
+            provenance_refs: provenance_refs
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
             support_summary: support_summary.to_string(),
         }
     }
@@ -1155,7 +1237,10 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
             false,
             lineage(
                 &["obj:k8s:authored"],
-                &["repo://deploy/checkout/chart", "repo://deploy/checkout/values.yaml"],
+                &[
+                    "repo://deploy/checkout/chart",
+                    "repo://deploy/checkout/values.yaml",
+                ],
                 &[
                     "repo://deploy/checkout/chart/templates/deployment.yaml",
                     "repo://deploy/checkout/values.yaml",
@@ -1297,7 +1382,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "devcontainer_resolved",
                 "resolved:workspace",
                 Some("workspace"),
-                &["devcontainer=workspace", "service=app", "image=ghcr.io/acme/app"],
+                &[
+                    "devcontainer=workspace",
+                    "service=app",
+                    "image=ghcr.io/acme/app",
+                ],
                 &["team/devexp"],
                 Some("repo://.devcontainer/devcontainer.json"),
                 None,
@@ -1453,7 +1542,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "ci_expanded_workflow",
                 "expanded:deploy-checkout",
                 Some("production"),
-                &["workflow=deploy-checkout", "environment=production", "matrix=linux"],
+                &[
+                    "workflow=deploy-checkout",
+                    "environment=production",
+                    "matrix=linux",
+                ],
                 &["team/release"],
                 Some("repo://.github/workflows/deploy.yml"),
                 None,
@@ -1483,7 +1576,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "ci_rollout_preview",
                 "preview:deploy-checkout",
                 Some("production"),
-                &["workflow=deploy-checkout", "environment=production", "target=checkout"],
+                &[
+                    "workflow=deploy-checkout",
+                    "environment=production",
+                    "target=checkout",
+                ],
                 &["team/release"],
                 Some("repo://.github/workflows/deploy.yml"),
                 None,
@@ -1513,7 +1610,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "ci_run",
                 "run:7421",
                 Some("production"),
-                &["workflow=deploy-checkout", "run=7421", "environment=production"],
+                &[
+                    "workflow=deploy-checkout",
+                    "run=7421",
+                    "environment=production",
+                ],
                 &["team/release"],
                 Some("repo://.github/workflows/deploy.yml"),
                 Some("gh://actions/runs/7421"),
@@ -1603,7 +1704,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "compiled_policy_bundle",
                 "compiled:checkout-deny-privileged",
                 Some("payments"),
-                &["policy=checkout-deny-privileged", "namespace=payments", "bundle=rego"],
+                &[
+                    "policy=checkout-deny-privileged",
+                    "namespace=payments",
+                    "bundle=rego",
+                ],
                 &["team/security"],
                 Some("repo://policy/checkout/deny-privileged.rego"),
                 None,
@@ -1633,7 +1738,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "policy_evaluation",
                 "eval:checkout-deny-privileged",
                 Some("payments"),
-                &["policy=checkout-deny-privileged", "namespace=payments", "resource=deployment/checkout"],
+                &[
+                    "policy=checkout-deny-privileged",
+                    "namespace=payments",
+                    "resource=deployment/checkout",
+                ],
                 &["team/security"],
                 Some("repo://policy/checkout/deny-privileged.rego"),
                 None,
@@ -1663,7 +1772,11 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
                 "policy_observation",
                 "live:admission/checkout-deny-privileged",
                 Some("payments"),
-                &["policy=checkout-deny-privileged", "namespace=payments", "resource=deployment/checkout"],
+                &[
+                    "policy=checkout-deny-privileged",
+                    "namespace=payments",
+                    "resource=deployment/checkout",
+                ],
                 &["team/security"],
                 Some("repo://policy/checkout/deny-privileged.rego"),
                 Some("opa://decisions/checkout"),
@@ -2060,7 +2173,10 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
             "obj:policy:planned",
             DryRunOnly,
             ExplicitOptionalBoundary,
-            &["policy=checkout-deny-privileged", "resource=deployment/checkout"],
+            &[
+                "policy=checkout-deny-privileged",
+                "resource=deployment/checkout",
+            ],
             &["team/security"],
             "Compiled policy resolves to the evaluation preview.",
         ),
@@ -2130,7 +2246,10 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
         projection_id: "projection:graph".to_string(),
         surface: InfrastructureConsumerSurface::Graph,
         source_packet_ref: "infra-source-intelligence:m5:objects".to_string(),
-        object_refs: objects.iter().map(|object| object.object_id.clone()).collect(),
+        object_refs: objects
+            .iter()
+            .map(|object| object.object_id.clone())
+            .collect(),
         relation_refs: relations
             .iter()
             .map(|relation| relation.relation_id.clone())
@@ -2144,99 +2263,46 @@ pub fn seeded_source_intelligence_object_packet() -> SourceIntelligenceObjectPac
         projection_id: "projection:review".to_string(),
         surface: InfrastructureConsumerSurface::Review,
         source_packet_ref: "infra-source-intelligence:m5:objects".to_string(),
-        object_refs: objects
-            .iter()
-            .filter(|object| {
-                matches!(
-                    object.truth_layer,
-                    TruthLayer::AuthoredDesired
-                        | TruthLayer::PlannedValidated
-                        | TruthLayer::ProviderOverlay
-                )
-            })
-            .map(|object| object.object_id.clone())
-            .collect(),
+        object_refs: objects.iter().map(|object| object.object_id.clone()).collect(),
         relation_refs: relations
             .iter()
-            .filter(|relation| {
-                matches!(
-                    relation.edge_class,
-                    RelationEdgeClass::ReviewAnchor | RelationEdgeClass::PlanFor
-                )
-            })
             .map(|relation| relation.relation_id.clone())
             .collect(),
         uses_shared_packet: true,
         hidden_side_cache_created: false,
-        support_summary: "Review projection reuses planned and review-anchor relations."
-            .to_string(),
+        support_summary:
+            "Review projection reuses the shared object packet so live counterpart, applied-by, owned-by, impacts, and review anchors stay explicit."
+                .to_string(),
     };
     let docs_projection = InfrastructureConsumerProjection {
         projection_id: "projection:docs".to_string(),
         surface: InfrastructureConsumerSurface::Docs,
         source_packet_ref: "infra-source-intelligence:m5:objects".to_string(),
-        object_refs: objects
-            .iter()
-            .filter(|object| {
-                matches!(
-                    object.truth_layer,
-                    TruthLayer::AuthoredDesired
-                        | TruthLayer::RenderedExpanded
-                        | TruthLayer::ObservedLive
-                        | TruthLayer::ProviderOverlay
-                )
-            })
-            .map(|object| object.object_id.clone())
-            .collect(),
+        object_refs: objects.iter().map(|object| object.object_id.clone()).collect(),
         relation_refs: relations
             .iter()
-            .filter(|relation| {
-                matches!(
-                    relation.edge_class,
-                    RelationEdgeClass::SourceOfRender
-                        | RelationEdgeClass::RunbookReference
-                        | RelationEdgeClass::ProviderOverlayOf
-                )
-            })
             .map(|relation| relation.relation_id.clone())
             .collect(),
         uses_shared_packet: true,
         hidden_side_cache_created: false,
-        support_summary: "Docs projection reuses render-lineage and runbook edges.".to_string(),
+        support_summary:
+            "Docs projection reuses the shared object packet so lineage, live counterpart, ownership, impact, runbook, and review cues stay in one vocabulary."
+                .to_string(),
     };
     let incident_projection = InfrastructureConsumerProjection {
         projection_id: "projection:incident".to_string(),
         surface: InfrastructureConsumerSurface::Incident,
         source_packet_ref: "infra-source-intelligence:m5:objects".to_string(),
-        object_refs: objects
-            .iter()
-            .filter(|object| {
-                matches!(
-                    object.truth_layer,
-                    TruthLayer::PlannedValidated
-                        | TruthLayer::ObservedLive
-                        | TruthLayer::ProviderOverlay
-                )
-            })
-            .map(|object| object.object_id.clone())
-            .collect(),
+        object_refs: objects.iter().map(|object| object.object_id.clone()).collect(),
         relation_refs: relations
             .iter()
-            .filter(|relation| {
-                matches!(
-                    relation.edge_class,
-                    RelationEdgeClass::LiveCounterpartOf
-                        | RelationEdgeClass::Impacts
-                        | RelationEdgeClass::RunbookReference
-                        | RelationEdgeClass::ProviderOverlayOf
-                )
-            })
             .map(|relation| relation.relation_id.clone())
             .collect(),
         uses_shared_packet: true,
         hidden_side_cache_created: false,
-        support_summary: "Incident projection reuses live-counterpart, impact, and runbook edges."
-            .to_string(),
+        support_summary:
+            "Incident projection reuses the shared object packet so live counterpart, applied-by, owned-by, impacts, runbooks, and overlays stay target-scoped."
+                .to_string(),
     };
 
     SourceIntelligenceObjectPacket {

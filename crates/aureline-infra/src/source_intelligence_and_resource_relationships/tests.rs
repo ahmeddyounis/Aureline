@@ -301,7 +301,11 @@ fn packet() -> SourceIntelligenceRelationshipMatrixPacket {
 fn seeded_object_packet_validates() {
     let packet = seeded_source_intelligence_object_packet();
     let report = packet.validate();
-    assert!(report.passed, "object packet must pass: {:#?}", report.findings);
+    assert!(
+        report.passed,
+        "object packet must pass: {:#?}",
+        report.findings
+    );
 }
 
 #[test]
