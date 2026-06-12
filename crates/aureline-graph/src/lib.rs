@@ -15,6 +15,7 @@ pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 pub mod m5_explainer_and_architecture_maps;
+pub mod m5_graph_certification;
 pub mod m5_graph_governance;
 pub mod m5_impact_query;
 pub mod m5_ownership_and_contracts;
@@ -114,6 +115,19 @@ pub use m5_explainer_and_architecture_maps::{
     M5_EXPLAINER_ARCHITECTURE_RECORD_KIND, M5_EXPLAINER_ARCHITECTURE_SCHEMA_REF,
     M5_EXPLAINER_ARCHITECTURE_SCHEMA_VERSION, M5_EXPLAINER_ARCHITECTURE_SCOPE_PACKET_REF,
     M5_EXPLAINER_ARCHITECTURE_TOPOLOGY_PACKET_REF,
+};
+pub use m5_graph_certification::{
+    current_m5_graph_certification_report, CertificationConsumerBinding,
+    CertificationConsumerSurface, CertificationDowngradePath, CertificationDowngradeReason,
+    CertificationDrill, CertificationDrillResult, CertificationRow, DrillOutcome,
+    EvidenceFreshness, M5GraphCertificationExportProjection, M5GraphCertificationExportRow,
+    M5GraphCertificationReport, M5GraphCertificationSummary, M5GraphCertificationSupportExport,
+    M5GraphCertificationViolation, M5_GRAPH_CERTIFICATION_ARTIFACT_DOC_REF,
+    M5_GRAPH_CERTIFICATION_DOC_REF, M5_GRAPH_CERTIFICATION_FIXTURE_DIR,
+    M5_GRAPH_CERTIFICATION_GOVERNANCE_PACKET_REF, M5_GRAPH_CERTIFICATION_JSON,
+    M5_GRAPH_CERTIFICATION_PATH, M5_GRAPH_CERTIFICATION_RECORD_KIND,
+    M5_GRAPH_CERTIFICATION_SCHEMA_REF, M5_GRAPH_CERTIFICATION_SCHEMA_VERSION,
+    M5_GRAPH_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_graph_governance::{
     current_m5_graph_governance_matrix, DowngradePath as GraphGovernanceDowngradePath,
