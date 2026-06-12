@@ -29,6 +29,7 @@ pub mod history;
 pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
 pub mod m5_entry_and_bundle_governance;
+pub mod m5_source_acquisition_review;
 pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
 pub mod portable_state_lineage;
@@ -212,6 +213,21 @@ pub use m5_entry_and_bundle_governance::{
     M5_ENTRY_BUNDLE_GOVERNANCE_JSON, M5_ENTRY_BUNDLE_GOVERNANCE_PATH,
     M5_ENTRY_BUNDLE_GOVERNANCE_RECORD_KIND, M5_ENTRY_BUNDLE_GOVERNANCE_SCHEMA_REF,
     M5_ENTRY_BUNDLE_GOVERNANCE_SCHEMA_VERSION,
+};
+
+pub use m5_source_acquisition_review::{
+    current_m5_source_acquisition_review_packet, CheckoutMode as AcquisitionCheckoutMode,
+    CostBand as AcquisitionCostBand, EntryVerb as SourceAcquisitionVerb, FollowUpKind,
+    FollowUpQueueItem, FollowUpRunPosture, HostOrMirrorClass,
+    M5SourceAcquisitionReviewExportProjection, M5SourceAcquisitionReviewExportRow,
+    M5SourceAcquisitionReviewPacket, M5SourceAcquisitionReviewSummary,
+    M5SourceAcquisitionReviewViolation, ProtocolClass, RecoveryActionClass,
+    SourceAcquisitionReviewSheet, SourceKind as AcquisitionSourceKind, StarterFamily, TopologyCue,
+    TopologyCueKind, TopologyCueState, TrustStage as AcquisitionTrustStage,
+    M5_SOURCE_ACQUISITION_REVIEW_DOC_REF, M5_SOURCE_ACQUISITION_REVIEW_FIXTURE_DIR,
+    M5_SOURCE_ACQUISITION_REVIEW_JSON, M5_SOURCE_ACQUISITION_REVIEW_PATH,
+    M5_SOURCE_ACQUISITION_REVIEW_RECORD_KIND, M5_SOURCE_ACQUISITION_REVIEW_SCHEMA_REF,
+    M5_SOURCE_ACQUISITION_REVIEW_SCHEMA_VERSION,
 };
 
 pub use admission::{
