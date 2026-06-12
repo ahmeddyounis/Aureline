@@ -8,6 +8,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Schema version for infrastructure boundary qualification packets.
@@ -28,6 +38,8 @@ pub const CONTROL_PLANE_BOUNDARY_DOC_REF: &str =
 /// Fixture corpus directory for qualification and downgrade drills.
 pub const CONTROL_PLANE_BOUNDARY_FIXTURE_DIR: &str =
     "fixtures/infra/target-context-and-control-plane-boundary";
+
+const INFRA_CONNECTOR_MATRIX_ROW_ID: &str = "m5.secret.infra_connector.target_context";
 
 /// Architecture-level connector classes for infrastructure surfaces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -459,6 +471,175 @@ impl InfraBoundaryPacket {
     /// Validate this packet against target-context and handoff invariants.
     pub fn validate(&self) -> InfraBoundaryValidationReport {
         validate_packet(self)
+    }
+
+    /// Projects the shared M5 secret-boundary state for the infrastructure
+    /// connector target-context surface.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(review) = self.action_reviews.first() else {
+            return Vec::new();
+        };
+
+        let credential_mode = infra_credential_mode(self.environment_context.credential_handle_class.as_str());
+        let storage_class = infra_storage_class(self.environment_context.issuance_source.as_str());
+        let projection_mode = infra_projection_mode(review.connector_class);
+        let health_state = infra_health_state(review.action_posture);
+        let target_label = format!(
+            "{} / {}",
+            self.environment_context.provider, self.environment_context.account_subscription_project
+        );
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Keep inspect-only target context".to_owned(),
+            still_works_summary:
+                "Declining keeps manifest review, drift inspection, and policy explanation local-safe while live connector actions stay closed."
+                    .to_owned(),
+        };
+        let workflows = vec![
+            infra_workflow("workflow:infra.inspect", "Inspect target context"),
+            infra_workflow("workflow:infra.live", "Connect live infra or control-plane action"),
+        ];
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Infrastructure connector".to_owned(),
+                secret_class: SecretBoundarySecretClass::SshOrClientCertMaterial,
+                target_workflow_label: target_label.clone(),
+                storage_class,
+                credential_mode,
+                projection_mode,
+                lifetime_label: "Connector-scoped infra auth".to_owned(),
+                expires_at: self.environment_context.expiry.clone(),
+                dependent_workflows: workflows.clone(),
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Infrastructure connector credential state".to_owned(),
+                secret_class: SecretBoundarySecretClass::SshOrClientCertMaterial,
+                source_class: credential_mode,
+                target_boundary_label: target_label.clone(),
+                storage_class,
+                projection_mode,
+                health_state,
+                expires_at: self.environment_context.expiry.clone(),
+                rotate_action_label: "Rotate connector credential".to_owned(),
+                revoke_action_label: "Revoke connector access".to_owned(),
+                test_action_label: "Test connector trust".to_owned(),
+                dependent_workflows: workflows,
+                decline_path,
+            },
+            vault_picker: Some(SecretBoundaryVaultPickerState {
+                matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                picker_label: "Infrastructure credential source picker".to_owned(),
+                options: vec![
+                    SecretBoundaryVaultPickerOption {
+                        option_id: "infra-connector:os-store".to_owned(),
+                        option_label: "OS store or SSH agent".to_owned(),
+                        source_class: SecretBoundaryCredentialMode::HandleOnly,
+                        storage_class: SecretBoundaryStorageClass::OsStore,
+                        access_scope_label: "Connector-scoped host auth".to_owned(),
+                        reveal_policy_label: "No raw key or cert reveal".to_owned(),
+                        portability_note: "Portable exports preserve handles only.".to_owned(),
+                        open_source_of_truth_action_label: "Open host proof detail".to_owned(),
+                        selectable: true,
+                    },
+                    SecretBoundaryVaultPickerOption {
+                        option_id: "infra-connector:vault".to_owned(),
+                        option_label: "Enterprise vault".to_owned(),
+                        source_class: SecretBoundaryCredentialMode::EnterpriseVault,
+                        storage_class: SecretBoundaryStorageClass::EnterpriseVault,
+                        access_scope_label: "Managed connector auth".to_owned(),
+                        reveal_policy_label: "Vault ref or client-cert binding only".to_owned(),
+                        portability_note: "Exports omit raw values and trust roots.".to_owned(),
+                        open_source_of_truth_action_label: "Open vault source".to_owned(),
+                        selectable: true,
+                    },
+                ],
+            }),
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: INFRA_CONNECTOR_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class: match review.connector_class {
+                    ConnectorClass::AgentMediatedLive => {
+                        SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+                    }
+                    ConnectorClass::ProviderConsoleOverlay => {
+                        SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+                    }
+                    ConnectorClass::CliMediated => {
+                        SecretBoundaryDelegatedUseClass::ForwardedLocalCredential
+                    }
+                    ConnectorClass::StaticFileOnly => {
+                        SecretBoundaryDelegatedUseClass::LocalSecretHandle
+                    }
+                },
+                target_host_or_workspace_label: target_label,
+                expires_at: self.environment_context.expiry.clone(),
+                policy_owner_label: self.environment_context.execution_context_profile.clone(),
+                stop_forwarding_action_label: "Stop connector credential projection".to_owned(),
+            }),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                INFRA_CONNECTOR_MATRIX_ROW_ID,
+                "Raw SSH material, client-certificate bytes, delegated connector tokens, and trust roots remain excluded from support bundles and portable target-context exports.",
+            ),
+        }]
+    }
+}
+
+fn infra_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn infra_credential_mode(handle_class: &str) -> SecretBoundaryCredentialMode {
+    if handle_class.contains("delegated") {
+        SecretBoundaryCredentialMode::Delegated
+    } else if handle_class.contains("vault") {
+        SecretBoundaryCredentialMode::EnterpriseVault
+    } else if handle_class.contains("session") {
+        SecretBoundaryCredentialMode::SessionOnly
+    } else {
+        SecretBoundaryCredentialMode::HandleOnly
+    }
+}
+
+fn infra_storage_class(issuance_source: &str) -> SecretBoundaryStorageClass {
+    if issuance_source.contains("vault") {
+        SecretBoundaryStorageClass::EnterpriseVault
+    } else if issuance_source.contains("remote") {
+        SecretBoundaryStorageClass::RemoteVault
+    } else {
+        SecretBoundaryStorageClass::OsStore
+    }
+}
+
+fn infra_projection_mode(connector_class: ConnectorClass) -> SecretBoundaryProjectionMode {
+    match connector_class {
+        ConnectorClass::StaticFileOnly => SecretBoundaryProjectionMode::HandleOnly,
+        ConnectorClass::CliMediated => SecretBoundaryProjectionMode::MountRef,
+        ConnectorClass::AgentMediatedLive => SecretBoundaryProjectionMode::SignOnly,
+        ConnectorClass::ProviderConsoleOverlay => SecretBoundaryProjectionMode::RemoteVaultFetch,
+    }
+}
+
+fn infra_health_state(action_posture: ActionPosture) -> SecretBoundaryHealthStateClass {
+    match action_posture {
+        ActionPosture::Blocked | ActionPosture::NotClaimed => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        ActionPosture::HandoffOnly => SecretBoundaryHealthStateClass::Unavailable,
+        _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }
 

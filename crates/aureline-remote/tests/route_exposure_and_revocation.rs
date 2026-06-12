@@ -81,6 +81,15 @@ fn route_exposure_and_revocation_fixtures_validate_and_match_manifest() {
             findings.is_empty(),
             "{scope}: route must validate clean, found {findings:?}"
         );
+        let secret_boundary_state = case.route.secret_boundary_state(case.review.as_ref());
+        assert_eq!(
+            secret_boundary_state.matrix_row_id,
+            "m5.secret.preview_route.remote_preview",
+            "{scope}: route projects the shared preview-route matrix row"
+        );
+        assert!(!secret_boundary_state
+            .export_safety_banner
+            .raw_secret_values_included);
         assert_eq!(
             case.__fixture__.expected.findings,
             Vec::<String>::new(),

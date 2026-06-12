@@ -121,6 +121,16 @@ fn boundary_actions_show_duration_scope_and_revocation() {
     }
 }
 
+#[test]
+fn packet_projects_m5_secret_boundary_state() {
+    let packet = load_fixture("qualified_context_parity_packet.json");
+    let states = packet.secret_boundary_states();
+    assert_eq!(states.len(), 1);
+    assert_eq!(states[0].matrix_row_id, "m5.secret.infra_connector.target_context");
+    assert!(states[0].delegated_credential_row.is_some());
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}
+
 fn load_fixture(name: &str) -> InfraBoundaryPacket {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/infra/target-context-and-control-plane-boundary")

@@ -76,6 +76,18 @@ fn checked_in_packet_parses_and_validates() {
 }
 
 #[test]
+fn packet_projects_m5_secret_boundary_states() {
+    let states = packet().secret_boundary_states();
+    assert_eq!(states.len(), 2);
+    assert_eq!(states[0].matrix_row_id, "m5.secret.database.connection_picker");
+    assert_eq!(
+        states[1].matrix_row_id,
+        "m5.secret.database.query_history_portability"
+    );
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}
+
+#[test]
 fn stable_surfaces_have_complete_proof_and_guards() {
     let packet = packet();
     let stable_surfaces: Vec<_> = packet

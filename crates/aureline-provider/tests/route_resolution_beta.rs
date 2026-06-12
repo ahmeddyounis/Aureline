@@ -188,3 +188,16 @@ fn support_export_excludes_raw_material() {
     assert!(!json.contains("Bearer "));
     assert!(!json.contains("ssh://"));
 }
+
+#[test]
+fn seeded_page_projects_m5_secret_boundary_state() {
+    let page = seeded_route_resolution_beta_page();
+    let states = page.secret_boundary_states();
+    assert_eq!(states.len(), 1);
+    assert_eq!(
+        states[0].matrix_row_id,
+        "m5.secret.provider_model.route_resolution"
+    );
+    assert!(states[0].delegated_credential_row.is_some());
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}

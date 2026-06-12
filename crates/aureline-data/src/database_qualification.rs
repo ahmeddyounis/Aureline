@@ -4,6 +4,16 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Supported schema version for database qualification packets.
@@ -22,6 +32,9 @@ pub const DATABASE_QUALIFICATION_PACKET_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../artifacts/release/m4/database-statement-safety-and-result-grid-qualification.json"
 ));
+
+const DATABASE_CONNECTION_MATRIX_ROW_ID: &str = "m5.secret.database.connection_picker";
+const DATABASE_HISTORY_MATRIX_ROW_ID: &str = "m5.secret.database.query_history_portability";
 
 /// Qualification label shown on promoted database tooling surfaces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -797,6 +810,289 @@ impl DatabaseQualificationPacket {
         }
 
         violations
+    }
+
+    /// Projects the shared M5 secret-boundary state for the connection-picker
+    /// and query-history database surfaces.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(connection_row) = self
+            .connection_corpus
+            .iter()
+            .find(|row| row.picker_row && row.auth_source_mode != DatabaseAuthSourceMode::ImportedNoLiveAuth)
+            .or_else(|| self.connection_corpus.first())
+        else {
+            return Vec::new();
+        };
+        let history_row = self
+            .connection_corpus
+            .iter()
+            .find(|row| row.history_row)
+            .unwrap_or(connection_row);
+
+        vec![
+            database_surface_state(
+                DATABASE_CONNECTION_MATRIX_ROW_ID,
+                "Database connection picker",
+                connection_row,
+                vec![
+                    db_workflow("workflow:database.connect", "Open live database session"),
+                    db_workflow("workflow:database.schema", "Browse schema and target context"),
+                ],
+                "Declining keeps schema inspection, statement review, and imported-result browsing available.",
+            ),
+            database_surface_state(
+                DATABASE_HISTORY_MATRIX_ROW_ID,
+                "Database query history",
+                history_row,
+                vec![
+                    db_workflow("workflow:database.history", "Inspect query history"),
+                    db_workflow("workflow:database.replay", "Replay stored query metadata"),
+                ],
+                "Declining keeps history review, redacted exports, and replay preparation available.",
+            ),
+        ]
+    }
+}
+
+fn database_surface_state(
+    matrix_row_id: &str,
+    requester_label: &str,
+    row: &DatabaseConnectionCorpusRow,
+    dependent_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    decline_summary: &str,
+) -> SecretBoundarySurfaceState {
+    let credential_mode = database_credential_mode(row.auth_source_mode);
+    let storage_class = database_storage_class(row.auth_source_mode);
+    let projection_mode = database_projection_mode(row.auth_source_mode);
+    let secret_class = database_secret_class(row.auth_source_mode);
+    let health_state = database_health_state(row.auth_source_mode, row.write_posture);
+    let decline_path = SecretBoundaryDeclinePath {
+        decline_label: "Stay local-only".to_owned(),
+        still_works_summary: decline_summary.to_owned(),
+    };
+    let target_label = format!("{} on {}", row.engine, row.current_database_or_schema_ref);
+    let delegated_credential_row = database_delegated_row(matrix_row_id, row);
+
+    SecretBoundarySurfaceState {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        secret_access_prompt: SecretBoundarySecretAccessPrompt {
+            matrix_row_id: matrix_row_id.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            requester_label: requester_label.to_owned(),
+            secret_class,
+            target_workflow_label: target_label.clone(),
+            storage_class,
+            credential_mode,
+            projection_mode,
+            lifetime_label: database_lifetime_label(row.auth_source_mode).to_owned(),
+            expires_at: database_expires_at(row.auth_source_mode),
+            dependent_workflows: dependent_workflows.clone(),
+            decline_path: decline_path.clone(),
+        },
+        credential_state_row: SecretBoundaryCredentialStateRow {
+            matrix_row_id: matrix_row_id.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            display_label: format!("{requester_label} credential state"),
+            secret_class,
+            source_class: credential_mode,
+            target_boundary_label: target_label,
+            storage_class,
+            projection_mode,
+            health_state,
+            expires_at: database_expires_at(row.auth_source_mode),
+            rotate_action_label: "Rotate connection credential".to_owned(),
+            revoke_action_label: "Revoke live DB auth".to_owned(),
+            test_action_label: "Test DB auth".to_owned(),
+            dependent_workflows,
+            decline_path,
+        },
+        vault_picker: Some(database_picker_state(matrix_row_id, row)),
+        delegated_credential_row,
+        export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+            matrix_row_id,
+            "Raw database credentials remain excluded from profiles, support bundles, query history, and result handoff exports.",
+        ),
+    }
+}
+
+fn db_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn database_picker_state(
+    matrix_row_id: &str,
+    row: &DatabaseConnectionCorpusRow,
+) -> SecretBoundaryVaultPickerState {
+    let uses_delegated = matches!(
+        row.auth_source_mode,
+        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::ManagedServiceIdentity
+    );
+    SecretBoundaryVaultPickerState {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        picker_label: "Database credential source picker".to_owned(),
+        options: vec![
+            SecretBoundaryVaultPickerOption {
+                option_id: format!("{matrix_row_id}:os-store"),
+                option_label: "OS credential store".to_owned(),
+                source_class: SecretBoundaryCredentialMode::OsStore,
+                storage_class: SecretBoundaryStorageClass::OsStore,
+                access_scope_label: "Connection-scoped database auth".to_owned(),
+                reveal_policy_label: "Handle only".to_owned(),
+                portability_note: "Exports aliases and posture only.".to_owned(),
+                open_source_of_truth_action_label: "Open keychain detail".to_owned(),
+                selectable: !uses_delegated,
+            },
+            SecretBoundaryVaultPickerOption {
+                option_id: format!("{matrix_row_id}:vault"),
+                option_label: "Enterprise vault".to_owned(),
+                source_class: SecretBoundaryCredentialMode::EnterpriseVault,
+                storage_class: SecretBoundaryStorageClass::EnterpriseVault,
+                access_scope_label: "Connection-scoped database auth".to_owned(),
+                reveal_policy_label: "Vault or cert binding only".to_owned(),
+                portability_note: "Portable exports omit raw values.".to_owned(),
+                open_source_of_truth_action_label: "Open vault source".to_owned(),
+                selectable: true,
+            },
+            SecretBoundaryVaultPickerOption {
+                option_id: format!("{matrix_row_id}:delegated"),
+                option_label: "Delegated or managed identity".to_owned(),
+                source_class: SecretBoundaryCredentialMode::Delegated,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Session-bounded remote database auth".to_owned(),
+                reveal_policy_label: "No raw value reveal".to_owned(),
+                portability_note: "Reauth or session refresh may be required.".to_owned(),
+                open_source_of_truth_action_label: "Open identity detail".to_owned(),
+                selectable: true,
+            },
+        ],
+    }
+}
+
+fn database_delegated_row(
+    matrix_row_id: &str,
+    row: &DatabaseConnectionCorpusRow,
+) -> Option<SecretBoundaryDelegatedCredentialRow> {
+    let delegated_use_class = match row.auth_source_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity => {
+            SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+        }
+        _ => return None,
+    };
+
+    Some(SecretBoundaryDelegatedCredentialRow {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        delegated_use_class,
+        target_host_or_workspace_label: row.target_identity_ref.clone(),
+        expires_at: database_expires_at(row.auth_source_mode),
+        policy_owner_label: "Data or platform operator".to_owned(),
+        stop_forwarding_action_label: "Stop delegated DB auth".to_owned(),
+    })
+}
+
+fn database_secret_class(auth_mode: DatabaseAuthSourceMode) -> SecretBoundarySecretClass {
+    match auth_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundarySecretClass::CloudDelegatedIdentity
+        }
+        DatabaseAuthSourceMode::NoAuthLocalFile | DatabaseAuthSourceMode::ImportedNoLiveAuth => {
+            SecretBoundarySecretClass::SessionScopedSecretInput
+        }
+        _ => SecretBoundarySecretClass::DatabaseCredential,
+    }
+}
+
+fn database_credential_mode(auth_mode: DatabaseAuthSourceMode) -> SecretBoundaryCredentialMode {
+    match auth_mode {
+        DatabaseAuthSourceMode::NoAuthLocalFile => SecretBoundaryCredentialMode::SessionOnly,
+        DatabaseAuthSourceMode::SecretBrokerHandle => SecretBoundaryCredentialMode::HandleOnly,
+        DatabaseAuthSourceMode::DelegatedIdentity => SecretBoundaryCredentialMode::Delegated,
+        DatabaseAuthSourceMode::PolicyInjectedCredential => {
+            SecretBoundaryCredentialMode::EnterpriseVault
+        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryCredentialMode::RemoteVaultFetch
+        }
+        DatabaseAuthSourceMode::ImportedNoLiveAuth | DatabaseAuthSourceMode::PolicyBlocked => {
+            SecretBoundaryCredentialMode::NotConfigured
+        }
+    }
+}
+
+fn database_storage_class(auth_mode: DatabaseAuthSourceMode) -> SecretBoundaryStorageClass {
+    match auth_mode {
+        DatabaseAuthSourceMode::PolicyInjectedCredential => {
+            SecretBoundaryStorageClass::EnterpriseVault
+        }
+        DatabaseAuthSourceMode::ManagedServiceIdentity => SecretBoundaryStorageClass::RemoteVault,
+        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::NoAuthLocalFile => {
+            SecretBoundaryStorageClass::SessionOnly
+        }
+        DatabaseAuthSourceMode::ImportedNoLiveAuth | DatabaseAuthSourceMode::PolicyBlocked => {
+            SecretBoundaryStorageClass::NotConfigured
+        }
+        _ => SecretBoundaryStorageClass::OsStore,
+    }
+}
+
+fn database_projection_mode(auth_mode: DatabaseAuthSourceMode) -> SecretBoundaryProjectionMode {
+    match auth_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity => SecretBoundaryProjectionMode::Delegated,
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryProjectionMode::RemoteVaultFetch
+        }
+        DatabaseAuthSourceMode::NoAuthLocalFile
+        | DatabaseAuthSourceMode::SecretBrokerHandle
+        | DatabaseAuthSourceMode::ImportedNoLiveAuth
+        | DatabaseAuthSourceMode::PolicyBlocked => SecretBoundaryProjectionMode::FileDescriptor,
+        DatabaseAuthSourceMode::PolicyInjectedCredential => SecretBoundaryProjectionMode::SignOnly,
+    }
+}
+
+fn database_health_state(
+    auth_mode: DatabaseAuthSourceMode,
+    write_posture: DatabaseWritePosture,
+) -> SecretBoundaryHealthStateClass {
+    match auth_mode {
+        DatabaseAuthSourceMode::PolicyBlocked => SecretBoundaryHealthStateClass::PolicyBlocked,
+        DatabaseAuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::NotConfigured,
+        _ if write_posture == DatabaseWritePosture::PolicyBlocked => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        _ => SecretBoundaryHealthStateClass::Healthy,
+    }
+}
+
+fn database_lifetime_label(auth_mode: DatabaseAuthSourceMode) -> &'static str {
+    match auth_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity | DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            "Session-bounded delegated database auth"
+        }
+        DatabaseAuthSourceMode::ImportedNoLiveAuth | DatabaseAuthSourceMode::PolicyBlocked => {
+            "No live credential"
+        }
+        _ => "Connection-scoped database auth",
+    }
+}
+
+fn database_expires_at(auth_mode: DatabaseAuthSourceMode) -> Option<String> {
+    match auth_mode {
+        DatabaseAuthSourceMode::DelegatedIdentity => Some("2026-06-12T18:30:00Z".to_owned()),
+        DatabaseAuthSourceMode::ManagedServiceIdentity => {
+            Some("2026-06-12T19:15:00Z".to_owned())
+        }
+        _ => None,
     }
 }
 

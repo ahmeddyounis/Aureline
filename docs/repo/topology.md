@@ -61,6 +61,18 @@ than relocating it.
 | `aureline-reactive-state` | `crates/aureline-reactive-state/`     | Off-cone prototype for reactive state and subscription-envelope lanes. |
 | `aureline-graph-proto`    | `crates/aureline-graph-proto/`        | Off-cone prototype for semantic workspace graph and query vocabularies. |
 
+## Additional governed contract crates
+
+| Crate               | Path                        | Role |
+|---------------------|-----------------------------|------|
+| `aureline-auth`     | `crates/aureline-auth/`     | Auth, secret-broker, approval, credential-state, and M5 secret-boundary contracts. |
+| `aureline-api`      | `crates/aureline-api/`      | Request-workspace, response, result-grid, and API/data-tooling contract packets. |
+| `aureline-data`     | `crates/aureline-data/`     | Database and notebook-adjacent data-tooling qualification packets. |
+| `aureline-infra`    | `crates/aureline-infra/`    | Infrastructure target-context, connector, and control-plane boundary packets. |
+| `aureline-provider` | `crates/aureline-provider/` | Provider, registry, delegated-scope, and route-resolution contract packets. |
+| `aureline-remote`   | `crates/aureline-remote/`   | Preview-route, transport-governance, managed-runtime, and remote qualification packets. |
+| `aureline-support`  | `crates/aureline-support/`  | Support-export, redaction, and recovery contract packets consumed across product surfaces. |
+
 ## Layering at a glance
 
 ```

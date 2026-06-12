@@ -23,6 +23,16 @@
 //!   show the same answer to "what was exposed, to whom, for how long, and
 //!   under what auth/expiry posture?".
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag for serialized [`RouteObject`] payloads.
@@ -36,6 +46,8 @@ pub const EXPOSURE_REVIEW_RECORD_KIND: &str = "exposure_review_record";
 
 /// Schema version for the [`ExposureReview`] payload shape.
 pub const EXPOSURE_REVIEW_SCHEMA_VERSION: u32 = 1;
+
+const PREVIEW_ROUTE_MATRIX_ROW_ID: &str = "m5.secret.preview_route.remote_preview";
 
 macro_rules! closed_vocab {
     (
@@ -794,6 +806,196 @@ impl RouteObject {
         }
 
         findings
+    }
+
+    /// Projects the shared M5 secret-boundary state for a preview-route
+    /// object plus its optional exposure review.
+    pub fn secret_boundary_state(
+        &self,
+        review: Option<&ExposureReview>,
+    ) -> SecretBoundarySurfaceState {
+        let credential_mode = route_credential_mode(self.auth.auth_source_class);
+        let storage_class = route_storage_class(self.auth.auth_source_class);
+        let projection_mode = route_projection_mode(self.auth.auth_source_class);
+        let health_state = route_health_state(self.lifecycle_state);
+        let target_label = format!(
+            "{} / {}",
+            self.source.service_label, self.controlled_exposure_label.as_str()
+        );
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Keep local preview only".to_owned(),
+            still_works_summary:
+                "Declining keeps local preview, route review, and exact desktop handoff instructions available."
+                    .to_owned(),
+        };
+
+        SecretBoundarySurfaceState {
+            matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Preview route exposure review".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                target_workflow_label: target_label.clone(),
+                storage_class,
+                credential_mode,
+                projection_mode,
+                lifetime_label: "Preview route session".to_owned(),
+                expires_at: self.expiry.expires_at.clone(),
+                dependent_workflows: vec![
+                    route_workflow("workflow:preview.route", "Open preview route"),
+                    route_workflow("workflow:preview.share", "Share or revoke preview route"),
+                ],
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Preview route credential state".to_owned(),
+                secret_class: SecretBoundarySecretClass::CloudDelegatedIdentity,
+                source_class: credential_mode,
+                target_boundary_label: target_label.clone(),
+                storage_class,
+                projection_mode,
+                health_state,
+                expires_at: self.expiry.expires_at.clone(),
+                rotate_action_label: "Refresh preview route".to_owned(),
+                revoke_action_label: "Revoke preview route".to_owned(),
+                test_action_label: "Validate preview trust".to_owned(),
+                dependent_workflows: vec![
+                    route_workflow("workflow:preview.route", "Open preview route"),
+                    route_workflow("workflow:preview.share", "Share or revoke preview route"),
+                ],
+                decline_path,
+            },
+            vault_picker: Some(route_picker_state()),
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class: route_delegated_use(self.auth.auth_source_class),
+                target_host_or_workspace_label: self.host_identity.workspace_identity_ref.clone(),
+                expires_at: self.expiry.expires_at.clone(),
+                policy_owner_label: review
+                    .map(|review| review.summary.clone())
+                    .unwrap_or_else(|| self.revocation.summary.clone()),
+                stop_forwarding_action_label: "Stop preview route exposure".to_owned(),
+            }),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                PREVIEW_ROUTE_MATRIX_ROW_ID,
+                "Raw preview credentials, signed-link material, and callback payloads stay excluded from support bundles, route shares, and exported route history.",
+            ),
+        }
+    }
+}
+
+fn route_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn route_picker_state() -> SecretBoundaryVaultPickerState {
+    SecretBoundaryVaultPickerState {
+        matrix_row_id: PREVIEW_ROUTE_MATRIX_ROW_ID.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        picker_label: "Preview route auth picker".to_owned(),
+        options: vec![
+            SecretBoundaryVaultPickerOption {
+                option_id: "preview-route:delegated".to_owned(),
+                option_label: "Delegated preview identity".to_owned(),
+                source_class: SecretBoundaryCredentialMode::Delegated,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Preview route session".to_owned(),
+                reveal_policy_label: "No raw token reveal".to_owned(),
+                portability_note: "Signed links and session handles stay redacted.".to_owned(),
+                open_source_of_truth_action_label: "Open route review".to_owned(),
+                selectable: true,
+            },
+            SecretBoundaryVaultPickerOption {
+                option_id: "preview-route:browser".to_owned(),
+                option_label: "Browser handoff".to_owned(),
+                source_class: SecretBoundaryCredentialMode::BrowserHandoff,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Step-up route share".to_owned(),
+                reveal_policy_label: "No raw callback export".to_owned(),
+                portability_note: "Callback and signed-link material stay excluded.".to_owned(),
+                open_source_of_truth_action_label: "Open browser handoff detail".to_owned(),
+                selectable: true,
+            },
+        ],
+    }
+}
+
+fn route_credential_mode(auth_source: AuthSourceClass) -> SecretBoundaryCredentialMode {
+    match auth_source {
+        AuthSourceClass::NoAuthLoopbackOnly => SecretBoundaryCredentialMode::SessionOnly,
+        AuthSourceClass::WorkspaceSessionAuth => SecretBoundaryCredentialMode::HandleOnly,
+        AuthSourceClass::OrganizationSso => SecretBoundaryCredentialMode::Delegated,
+        AuthSourceClass::SignedPreviewLink => SecretBoundaryCredentialMode::BrowserHandoff,
+        AuthSourceClass::MachineToMachineAllowlist => SecretBoundaryCredentialMode::RemoteVaultFetch,
+        AuthSourceClass::ExternalAuthPassthrough => SecretBoundaryCredentialMode::Delegated,
+        AuthSourceClass::ApprovalTicketRequired => SecretBoundaryCredentialMode::Delegated,
+        AuthSourceClass::AuthUnknownRequiresReview => SecretBoundaryCredentialMode::NotConfigured,
+    }
+}
+
+fn route_storage_class(auth_source: AuthSourceClass) -> SecretBoundaryStorageClass {
+    match auth_source {
+        AuthSourceClass::SignedPreviewLink
+        | AuthSourceClass::WorkspaceSessionAuth
+        | AuthSourceClass::OrganizationSso
+        | AuthSourceClass::ApprovalTicketRequired
+        | AuthSourceClass::ExternalAuthPassthrough
+        | AuthSourceClass::NoAuthLoopbackOnly => SecretBoundaryStorageClass::SessionOnly,
+        AuthSourceClass::MachineToMachineAllowlist => SecretBoundaryStorageClass::RemoteVault,
+        AuthSourceClass::AuthUnknownRequiresReview => SecretBoundaryStorageClass::NotConfigured,
+    }
+}
+
+fn route_projection_mode(auth_source: AuthSourceClass) -> SecretBoundaryProjectionMode {
+    match auth_source {
+        AuthSourceClass::SignedPreviewLink => SecretBoundaryProjectionMode::BrowserHandoff,
+        AuthSourceClass::MachineToMachineAllowlist => SecretBoundaryProjectionMode::RemoteVaultFetch,
+        AuthSourceClass::OrganizationSso
+        | AuthSourceClass::ExternalAuthPassthrough
+        | AuthSourceClass::ApprovalTicketRequired => SecretBoundaryProjectionMode::Delegated,
+        _ => SecretBoundaryProjectionMode::HandleOnly,
+    }
+}
+
+fn route_delegated_use(auth_source: AuthSourceClass) -> SecretBoundaryDelegatedUseClass {
+    match auth_source {
+        AuthSourceClass::MachineToMachineAllowlist => {
+            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+        }
+        AuthSourceClass::OrganizationSso
+        | AuthSourceClass::ExternalAuthPassthrough
+        | AuthSourceClass::ApprovalTicketRequired => {
+            SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+        }
+        _ => SecretBoundaryDelegatedUseClass::LocalSecretHandle,
+    }
+}
+
+fn route_health_state(lifecycle_state: LifecycleState) -> SecretBoundaryHealthStateClass {
+    match lifecycle_state {
+        LifecycleState::Expired | LifecycleState::ApprovalExpired => {
+            SecretBoundaryHealthStateClass::Expired
+        }
+        LifecycleState::Revoked => SecretBoundaryHealthStateClass::Revoked,
+        LifecycleState::PolicyDenied | LifecycleState::CapabilityNarrowed => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        LifecycleState::ProviderUnavailable
+        | LifecycleState::SuspendedReconnect
+        | LifecycleState::StaleTarget
+        | LifecycleState::Blocked => SecretBoundaryHealthStateClass::Unavailable,
+        _ => SecretBoundaryHealthStateClass::Healthy,
     }
 }
 

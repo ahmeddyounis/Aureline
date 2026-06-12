@@ -31,6 +31,16 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::account_scope::ActingIdentityClass;
@@ -57,6 +67,8 @@ pub const STABLE_REGISTRY_RECORD_KIND: &str = "providers_stable_registry_record"
 
 /// Stable record-kind tag for [`StableProviderAccountRecord`].
 pub const STABLE_PROVIDER_ACCOUNT_RECORD_KIND: &str = "providers_stable_provider_account_record";
+
+const REGISTRY_AUTH_MATRIX_ROW_ID: &str = "m5.secret.registry.package_auth";
 
 /// Stable record-kind tag for [`StableInstallGrantRecord`].
 pub const STABLE_INSTALL_GRANT_RECORD_KIND: &str = "providers_stable_install_grant_record";
@@ -782,6 +794,122 @@ impl StableProviderAccountInstallGrantRegistryPacket {
         Ok(())
     }
 
+    /// Projects the shared M5 secret-boundary state for registry auth.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let account = self.provider_accounts.first();
+        let grant = self.install_grants.first();
+
+        let (display_label, health_state, credential_mode, storage_class, delegated_use_class) =
+            if let Some(row) = grant {
+                (
+                    row.summary_label.clone(),
+                    registry_health_state(row.health_state),
+                    SecretBoundaryCredentialMode::HandleOnly,
+                    SecretBoundaryStorageClass::SessionOnly,
+                    SecretBoundaryDelegatedUseClass::RemoteVaultFetch,
+                )
+            } else if let Some(row) = account {
+                (
+                    row.summary_label.clone(),
+                    registry_health_state(row.health_state),
+                    SecretBoundaryCredentialMode::OsStore,
+                    SecretBoundaryStorageClass::OsStore,
+                    SecretBoundaryDelegatedUseClass::LocalSecretHandle,
+                )
+            } else {
+                return Vec::new();
+            };
+
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Continue with local dependency review".to_owned(),
+            still_works_summary:
+                "Declining keeps lockfile review, offline handoff, and metadata-only registry inspection available."
+                    .to_owned(),
+        };
+        let workflows = vec![
+            registry_workflow("workflow:registry.install", "Authenticate install or restore"),
+            registry_workflow("workflow:registry.publish", "Authenticate publish or queue"),
+        ];
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Registry auth".to_owned(),
+                secret_class: SecretBoundarySecretClass::CodeHostOrRegistryToken,
+                target_workflow_label: display_label.clone(),
+                storage_class,
+                credential_mode,
+                projection_mode: SecretBoundaryProjectionMode::RequestHeader,
+                lifetime_label: "Registry token or grant".to_owned(),
+                expires_at: None,
+                dependent_workflows: workflows.clone(),
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Registry credential state".to_owned(),
+                secret_class: SecretBoundarySecretClass::CodeHostOrRegistryToken,
+                source_class: credential_mode,
+                target_boundary_label: display_label.clone(),
+                storage_class,
+                projection_mode: SecretBoundaryProjectionMode::RequestHeader,
+                health_state,
+                expires_at: None,
+                rotate_action_label: "Rotate registry token".to_owned(),
+                revoke_action_label: "Revoke registry auth".to_owned(),
+                test_action_label: "Test registry auth".to_owned(),
+                dependent_workflows: workflows,
+                decline_path,
+            },
+            vault_picker: Some(SecretBoundaryVaultPickerState {
+                matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                picker_label: "Registry auth source picker".to_owned(),
+                options: vec![
+                    SecretBoundaryVaultPickerOption {
+                        option_id: "registry-auth:os-store".to_owned(),
+                        option_label: "OS credential store".to_owned(),
+                        source_class: SecretBoundaryCredentialMode::OsStore,
+                        storage_class: SecretBoundaryStorageClass::OsStore,
+                        access_scope_label: "Registry host auth".to_owned(),
+                        reveal_policy_label: "Handle only".to_owned(),
+                        portability_note: "Portable exports omit raw values.".to_owned(),
+                        open_source_of_truth_action_label: "Open keychain detail".to_owned(),
+                        selectable: true,
+                    },
+                    SecretBoundaryVaultPickerOption {
+                        option_id: "registry-auth:vault".to_owned(),
+                        option_label: "Enterprise vault".to_owned(),
+                        source_class: SecretBoundaryCredentialMode::EnterpriseVault,
+                        storage_class: SecretBoundaryStorageClass::EnterpriseVault,
+                        access_scope_label: "Registry host auth".to_owned(),
+                        reveal_policy_label: "Vault ref only".to_owned(),
+                        portability_note: "Exports preserve aliases and posture only.".to_owned(),
+                        open_source_of_truth_action_label: "Open vault source".to_owned(),
+                        selectable: true,
+                    },
+                ],
+            }),
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: REGISTRY_AUTH_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class,
+                target_host_or_workspace_label: display_label,
+                expires_at: None,
+                policy_owner_label: "Registry or release operator".to_owned(),
+                stop_forwarding_action_label: "Stop registry auth reuse".to_owned(),
+            }),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                REGISTRY_AUTH_MATRIX_ROW_ID,
+                "Raw registry tokens stay excluded from profiles, lockfile handoffs, support bundles, and publish evidence packets.",
+            ),
+        }]
+    }
+
     /// Returns true when no raw escape hatch crosses the support boundary.
     pub fn raw_escape_hatches_absent(&self) -> bool {
         !self.support_export.raw_url_export_allowed
@@ -1484,6 +1612,36 @@ fn ensure_eq(
         )))
     } else {
         Ok(())
+    }
+}
+
+fn registry_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn registry_health_state(health_state: RegistryHealthStateClass) -> SecretBoundaryHealthStateClass {
+    match health_state {
+        RegistryHealthStateClass::Healthy => SecretBoundaryHealthStateClass::Healthy,
+        RegistryHealthStateClass::DegradedStaleCredentials => {
+            SecretBoundaryHealthStateClass::ExpiringSoon
+        }
+        RegistryHealthStateClass::DegradedLimitedScopeSession => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        RegistryHealthStateClass::BlockedPolicyLockedMapping => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        RegistryHealthStateClass::BlockedProviderUnreachable => {
+            SecretBoundaryHealthStateClass::Unavailable
+        }
+        RegistryHealthStateClass::BlockedAuthLoss => SecretBoundaryHealthStateClass::Revoked,
+        RegistryHealthStateClass::OfflineCaptureOnly => SecretBoundaryHealthStateClass::NotConfigured,
     }
 }
 

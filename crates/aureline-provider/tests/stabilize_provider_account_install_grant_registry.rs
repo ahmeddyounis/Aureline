@@ -113,3 +113,13 @@ fn audit_returns_empty_for_valid_packet() {
     let defects = audit_stable_registry_packet(&packet);
     assert!(defects.is_empty());
 }
+
+#[test]
+fn packet_projects_m5_secret_boundary_state() {
+    let packet = load_or_seed_packet();
+    let states = packet.secret_boundary_states();
+    assert_eq!(states.len(), 1);
+    assert_eq!(states[0].matrix_row_id, "m5.secret.registry.package_auth");
+    assert!(states[0].vault_picker.is_some());
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}

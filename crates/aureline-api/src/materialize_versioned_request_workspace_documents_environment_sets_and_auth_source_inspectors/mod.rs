@@ -5,6 +5,16 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Supported schema version for request-workspace qualification packets.
@@ -23,6 +33,9 @@ pub const REQUEST_QUALIFICATION_PACKET_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../artifacts/data/m5/materialize-versioned-request-workspace-documents-environment-sets-and-auth-source-inspectors.json"
 ));
+
+const REQUEST_SEND_MATRIX_ROW_ID: &str = "m5.secret.request_workspace.send_http";
+const REQUEST_HISTORY_MATRIX_ROW_ID: &str = "m5.secret.request_workspace.history_replay";
 
 /// Qualification label shown on promoted request-workspace surfaces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -680,6 +693,304 @@ impl RequestQualificationPacket {
         }
 
         violations
+    }
+
+    /// Projects the shared M5 secret-boundary prompt, credential row, picker,
+    /// delegated-row, and export banner state for the request-workspace send
+    /// and history/replay surfaces.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(primary_document) = self.documents.first() else {
+            return Vec::new();
+        };
+
+        let send_auth = self
+            .auth_sources
+            .iter()
+            .find(|row| {
+                matches!(
+                    row.auth_mode,
+                    AuthSourceMode::SecretBrokerHandle
+                        | AuthSourceMode::DelegatedIdentity
+                        | AuthSourceMode::Mtls
+                        | AuthSourceMode::ManagedServiceIdentity
+                )
+            })
+            .unwrap_or_else(|| self.auth_sources.first().expect("request auth source exists"));
+        let history_auth = self
+            .auth_sources
+            .iter()
+            .find(|row| !matches!(row.auth_mode, AuthSourceMode::PolicyBlocked))
+            .unwrap_or(send_auth);
+
+        vec![
+            request_surface_state(
+                REQUEST_SEND_MATRIX_ROW_ID,
+                "Request send",
+                primary_document,
+                send_auth,
+                vec![
+                    workflow_dependency(
+                        "workflow:request.send",
+                        format!(
+                            "Send {} {}",
+                            primary_document.method_kind, primary_document.path_template
+                        ),
+                    ),
+                    workflow_dependency(
+                        "workflow:request.assertions",
+                        "Run request assertions".to_owned(),
+                    ),
+                ],
+                "Declining keeps editing, effective-request review, and metadata-only history available.",
+            ),
+            request_surface_state(
+                REQUEST_HISTORY_MATRIX_ROW_ID,
+                "Request history and replay",
+                primary_document,
+                history_auth,
+                vec![
+                    workflow_dependency(
+                        "workflow:request.replay",
+                        "Replay request from history".to_owned(),
+                    ),
+                    workflow_dependency(
+                        "workflow:request.diff",
+                        "Diff replay inputs before dispatch".to_owned(),
+                    ),
+                ],
+                "Declining keeps history review, diff, and metadata-only export available.",
+            ),
+        ]
+    }
+}
+
+fn request_surface_state(
+    matrix_row_id: &str,
+    requester_label: &str,
+    document: &RequestWorkspaceDocumentRow,
+    auth_source: &AuthSourceInspectorRow,
+    dependent_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    decline_summary: &str,
+) -> SecretBoundarySurfaceState {
+    let credential_mode = request_credential_mode(auth_source.auth_mode);
+    let storage_class = request_storage_class(auth_source.auth_mode);
+    let projection_mode = request_projection_mode(auth_source.auth_mode);
+    let secret_class = request_secret_class(auth_source.auth_mode);
+    let health_state = request_health_state(auth_source.auth_mode);
+    let target_label = format!("{} {}", document.method_kind, document.path_template);
+    let decline_path = SecretBoundaryDeclinePath {
+        decline_label: "Continue local-only".to_owned(),
+        still_works_summary: decline_summary.to_owned(),
+    };
+    let delegated_credential_row = request_delegated_row(matrix_row_id, auth_source);
+
+    SecretBoundarySurfaceState {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        secret_access_prompt: SecretBoundarySecretAccessPrompt {
+            matrix_row_id: matrix_row_id.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            requester_label: requester_label.to_owned(),
+            secret_class,
+            target_workflow_label: target_label.clone(),
+            storage_class,
+            credential_mode,
+            projection_mode,
+            lifetime_label: request_lifetime_label(auth_source.auth_mode).to_owned(),
+            expires_at: request_expires_at(auth_source.auth_mode),
+            dependent_workflows: dependent_workflows.clone(),
+            decline_path: decline_path.clone(),
+        },
+        credential_state_row: SecretBoundaryCredentialStateRow {
+            matrix_row_id: matrix_row_id.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            display_label: format!("{requester_label} credential state"),
+            secret_class,
+            source_class: credential_mode,
+            target_boundary_label: target_label,
+            storage_class,
+            projection_mode,
+            health_state,
+            expires_at: request_expires_at(auth_source.auth_mode),
+            rotate_action_label: "Rotate and rebind handle".to_owned(),
+            revoke_action_label: "Revoke current request auth".to_owned(),
+            test_action_label: "Test request auth".to_owned(),
+            dependent_workflows,
+            decline_path,
+        },
+        vault_picker: Some(request_picker_state(matrix_row_id, auth_source)),
+        delegated_credential_row,
+        export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+            matrix_row_id,
+            "Raw credentials stay excluded from profiles, support bundles, request history exports, and portable workspace artifacts.",
+        ),
+    }
+}
+
+fn workflow_dependency(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn request_picker_state(
+    matrix_row_id: &str,
+    auth_source: &AuthSourceInspectorRow,
+) -> SecretBoundaryVaultPickerState {
+    let selected = request_credential_mode(auth_source.auth_mode);
+    let options = vec![
+        SecretBoundaryVaultPickerOption {
+            option_id: format!("{matrix_row_id}:os-store"),
+            option_label: "OS credential store".to_owned(),
+            source_class: SecretBoundaryCredentialMode::OsStore,
+            storage_class: SecretBoundaryStorageClass::OsStore,
+            access_scope_label: "Workspace request auth".to_owned(),
+            reveal_policy_label: "Handle only by default".to_owned(),
+            portability_note: "Exports only aliases and source labels.".to_owned(),
+            open_source_of_truth_action_label: "Open keychain detail".to_owned(),
+            selectable: matches!(
+                selected,
+                SecretBoundaryCredentialMode::OsStore | SecretBoundaryCredentialMode::HandleOnly
+            ),
+        },
+        SecretBoundaryVaultPickerOption {
+            option_id: format!("{matrix_row_id}:vault"),
+            option_label: "Enterprise vault".to_owned(),
+            source_class: SecretBoundaryCredentialMode::EnterpriseVault,
+            storage_class: SecretBoundaryStorageClass::EnterpriseVault,
+            access_scope_label: "Workspace request auth".to_owned(),
+            reveal_policy_label: "Vault handle only".to_owned(),
+            portability_note: "Portable exports omit raw values.".to_owned(),
+            open_source_of_truth_action_label: "Open vault source".to_owned(),
+            selectable: true,
+        },
+        SecretBoundaryVaultPickerOption {
+            option_id: format!("{matrix_row_id}:browser"),
+            option_label: "Browser or device-code handoff".to_owned(),
+            source_class: SecretBoundaryCredentialMode::BrowserHandoff,
+            storage_class: SecretBoundaryStorageClass::SessionOnly,
+            access_scope_label: "Session-bounded request auth".to_owned(),
+            reveal_policy_label: "No raw secret reveal".to_owned(),
+            portability_note: "Session expires and re-prompts after sign-out.".to_owned(),
+            open_source_of_truth_action_label: "Open handoff detail".to_owned(),
+            selectable: true,
+        },
+    ];
+
+    SecretBoundaryVaultPickerState {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        picker_label: "Request auth source picker".to_owned(),
+        options,
+    }
+}
+
+fn request_delegated_row(
+    matrix_row_id: &str,
+    auth_source: &AuthSourceInspectorRow,
+) -> Option<SecretBoundaryDelegatedCredentialRow> {
+    let delegated_use_class = match auth_source.auth_mode {
+        AuthSourceMode::DelegatedIdentity => {
+            SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+        }
+        AuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+        }
+        _ => return None,
+    };
+
+    Some(SecretBoundaryDelegatedCredentialRow {
+        matrix_row_id: matrix_row_id.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        delegated_use_class,
+        target_host_or_workspace_label: "Request workspace".to_owned(),
+        expires_at: request_expires_at(auth_source.auth_mode),
+        policy_owner_label: "Workspace or provider policy".to_owned(),
+        stop_forwarding_action_label: "Stop delegated request auth".to_owned(),
+    })
+}
+
+fn request_secret_class(auth_mode: AuthSourceMode) -> SecretBoundarySecretClass {
+    match auth_mode {
+        AuthSourceMode::NoAuth | AuthSourceMode::ImportedNoLiveAuth => {
+            SecretBoundarySecretClass::SessionScopedSecretInput
+        }
+        AuthSourceMode::Mtls => SecretBoundarySecretClass::SshOrClientCertMaterial,
+        AuthSourceMode::DelegatedIdentity | AuthSourceMode::ManagedServiceIdentity => {
+            SecretBoundarySecretClass::CloudDelegatedIdentity
+        }
+        _ => SecretBoundarySecretClass::CodeHostOrRegistryToken,
+    }
+}
+
+fn request_credential_mode(auth_mode: AuthSourceMode) -> SecretBoundaryCredentialMode {
+    match auth_mode {
+        AuthSourceMode::NoAuth => SecretBoundaryCredentialMode::SessionOnly,
+        AuthSourceMode::SecretBrokerHandle => SecretBoundaryCredentialMode::HandleOnly,
+        AuthSourceMode::DelegatedIdentity => SecretBoundaryCredentialMode::Delegated,
+        AuthSourceMode::PolicyInjectedCredential => SecretBoundaryCredentialMode::EnterpriseVault,
+        AuthSourceMode::ManagedServiceIdentity => SecretBoundaryCredentialMode::RemoteVaultFetch,
+        AuthSourceMode::Mtls => SecretBoundaryCredentialMode::HandleOnly,
+        AuthSourceMode::ImportedNoLiveAuth | AuthSourceMode::PolicyBlocked => {
+            SecretBoundaryCredentialMode::NotConfigured
+        }
+    }
+}
+
+fn request_storage_class(auth_mode: AuthSourceMode) -> SecretBoundaryStorageClass {
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity
+        | AuthSourceMode::ManagedServiceIdentity
+        | AuthSourceMode::NoAuth => SecretBoundaryStorageClass::SessionOnly,
+        AuthSourceMode::PolicyInjectedCredential => SecretBoundaryStorageClass::EnterpriseVault,
+        AuthSourceMode::ImportedNoLiveAuth | AuthSourceMode::PolicyBlocked => {
+            SecretBoundaryStorageClass::NotConfigured
+        }
+        _ => SecretBoundaryStorageClass::OsStore,
+    }
+}
+
+fn request_projection_mode(auth_mode: AuthSourceMode) -> SecretBoundaryProjectionMode {
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity => SecretBoundaryProjectionMode::Delegated,
+        AuthSourceMode::ManagedServiceIdentity => SecretBoundaryProjectionMode::RemoteVaultFetch,
+        AuthSourceMode::Mtls => SecretBoundaryProjectionMode::ClientCert,
+        AuthSourceMode::ImportedNoLiveAuth | AuthSourceMode::PolicyBlocked => {
+            SecretBoundaryProjectionMode::HandleOnly
+        }
+        _ => SecretBoundaryProjectionMode::RequestHeader,
+    }
+}
+
+fn request_health_state(auth_mode: AuthSourceMode) -> SecretBoundaryHealthStateClass {
+    match auth_mode {
+        AuthSourceMode::PolicyBlocked => SecretBoundaryHealthStateClass::PolicyBlocked,
+        AuthSourceMode::ImportedNoLiveAuth => SecretBoundaryHealthStateClass::NotConfigured,
+        _ => SecretBoundaryHealthStateClass::Healthy,
+    }
+}
+
+fn request_lifetime_label(auth_mode: AuthSourceMode) -> &'static str {
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity | AuthSourceMode::ManagedServiceIdentity => {
+            "Session-scoped delegated identity"
+        }
+        AuthSourceMode::ImportedNoLiveAuth | AuthSourceMode::PolicyBlocked => {
+            "No live credential"
+        }
+        _ => "Short-lived request projection",
+    }
+}
+
+fn request_expires_at(auth_mode: AuthSourceMode) -> Option<String> {
+    match auth_mode {
+        AuthSourceMode::DelegatedIdentity => Some("2026-06-12T18:00:00Z".to_owned()),
+        AuthSourceMode::ManagedServiceIdentity => Some("2026-06-12T19:00:00Z".to_owned()),
+        _ => None,
     }
 }
 

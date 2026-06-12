@@ -49,6 +49,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 /// Beta schema version exported with every account-scope beta record.
@@ -56,6 +66,8 @@ pub const ACCOUNT_SCOPE_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Stable shared contract ref consumed by every account-scope beta record.
 pub const ACCOUNT_SCOPE_BETA_SHARED_CONTRACT_REF: &str = "providers:account_scope_beta:v1";
+
+const PROVIDER_SCOPE_MATRIX_ROW_ID: &str = "m5.secret.provider_model.scope_registry";
 
 /// Source matrix ref consumed by this beta projection.
 pub const ACCOUNT_SCOPE_BETA_SOURCE_MATRIX_REF: &str =
@@ -1220,6 +1232,250 @@ pub struct AccountScopeBetaPage {
     pub defects: Vec<AccountScopeBetaDefect>,
     /// Aggregate summary.
     pub summary: AccountScopeBetaSummary,
+}
+
+impl AccountScopeBetaPage {
+    /// Projects the shared M5 secret-boundary state for the provider scope
+    /// registry and delegated-identity surface.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let delegated = self.delegated_credential_rows.first();
+        let installation = self.installation_grant_rows.first();
+        let connected = self.connected_account_rows.first();
+        let resolution = self.resolution_rows.first();
+
+        let (display_label, auth_source, target_label, expires_at, policy_owner_label, health_state) =
+            if let Some(row) = delegated {
+                (
+                    row.display_label.clone(),
+                    row.auth_source,
+                    row.provider_host.host_label.clone(),
+                    row.expires_at.clone(),
+                    row.delegator_label.clone(),
+                    delegated_health_state(row.lifecycle_state),
+                )
+            } else if let Some(row) = installation {
+                (
+                    row.display_label.clone(),
+                    row.auth_source,
+                    row.provider_host.host_label.clone(),
+                    row.secret_expires_at.clone(),
+                    row.issuer_label.clone(),
+                    installation_health_state(row.lifecycle_state),
+                )
+            } else if let Some(row) = connected {
+                (
+                    row.display_label.clone(),
+                    row.auth_source,
+                    row.provider_host.host_label.clone(),
+                    row.expires_at.clone(),
+                    row.subject.subject_label.clone(),
+                    connected_health_state(row.lifecycle_state),
+                )
+            } else {
+                return Vec::new();
+            };
+
+        let credential_mode = account_scope_credential_mode(auth_source);
+        let storage_class = account_scope_storage_class(auth_source);
+        let projection_mode = account_scope_projection_mode(auth_source);
+        let secret_class = account_scope_secret_class(auth_source);
+        let delegated_use_class = if delegated.is_some() {
+            SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+        } else if installation.is_some() {
+            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+        } else {
+            SecretBoundaryDelegatedUseClass::LocalSecretHandle
+        };
+        let decline_summary = match resolution.map(|row| row.decision) {
+            Some(AuthorityDecisionClass::Allowed) => {
+                "Declining keeps local draft and scope inspection available while live mutation authority stays closed."
+            }
+            _ => {
+                "Declining keeps scope inspection, drift review, and local draft fallback available."
+            }
+        };
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Continue with local draft".to_owned(),
+            still_works_summary: decline_summary.to_owned(),
+        };
+        let workflows = vec![
+            account_scope_workflow("workflow:provider.scope.inspect", "Inspect provider scope"),
+            account_scope_workflow("workflow:provider.scope.repair", "Repair scope or delegated identity"),
+        ];
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Provider scope registry".to_owned(),
+                secret_class,
+                target_workflow_label: display_label.clone(),
+                storage_class,
+                credential_mode,
+                projection_mode,
+                lifetime_label: "Delegated or provider-scoped authority".to_owned(),
+                expires_at: expires_at.clone(),
+                dependent_workflows: workflows.clone(),
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Provider scope credential state".to_owned(),
+                secret_class,
+                source_class: credential_mode,
+                target_boundary_label: target_label,
+                storage_class,
+                projection_mode,
+                health_state,
+                expires_at: expires_at.clone(),
+                rotate_action_label: "Rotate or reissue scoped auth".to_owned(),
+                revoke_action_label: "Revoke provider scope auth".to_owned(),
+                test_action_label: "Test provider scope".to_owned(),
+                dependent_workflows: workflows,
+                decline_path,
+            },
+            vault_picker: Some(account_scope_picker_state()),
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class,
+                target_host_or_workspace_label: display_label,
+                expires_at,
+                policy_owner_label,
+                stop_forwarding_action_label: "Stop delegated provider scope".to_owned(),
+            }),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                PROVIDER_SCOPE_MATRIX_ROW_ID,
+                "Raw provider grants, delegated credentials, and vault-backed values remain excluded from support bundles, scope exports, and portable registry packets.",
+            ),
+        }]
+    }
+}
+
+fn account_scope_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn account_scope_picker_state() -> SecretBoundaryVaultPickerState {
+    SecretBoundaryVaultPickerState {
+        matrix_row_id: PROVIDER_SCOPE_MATRIX_ROW_ID.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        picker_label: "Provider scope source picker".to_owned(),
+        options: vec![
+            SecretBoundaryVaultPickerOption {
+                option_id: "provider-scope:delegated".to_owned(),
+                option_label: "Delegated credential".to_owned(),
+                source_class: SecretBoundaryCredentialMode::Delegated,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Provider scope or installation grant".to_owned(),
+                reveal_policy_label: "No raw delegated token reveal".to_owned(),
+                portability_note: "Exports preserve scope and lifecycle only.".to_owned(),
+                open_source_of_truth_action_label: "Open scope lineage".to_owned(),
+                selectable: true,
+            },
+            SecretBoundaryVaultPickerOption {
+                option_id: "provider-scope:vault".to_owned(),
+                option_label: "Enterprise vault or policy service".to_owned(),
+                source_class: SecretBoundaryCredentialMode::EnterpriseVault,
+                storage_class: SecretBoundaryStorageClass::EnterpriseVault,
+                access_scope_label: "Managed provider scope".to_owned(),
+                reveal_policy_label: "Vault ref or policy injection only".to_owned(),
+                portability_note: "Portable exports omit raw values.".to_owned(),
+                open_source_of_truth_action_label: "Open policy owner detail".to_owned(),
+                selectable: true,
+            },
+        ],
+    }
+}
+
+fn account_scope_secret_class(auth_source: AccountAuthSourceClass) -> SecretBoundarySecretClass {
+    match auth_source {
+        AccountAuthSourceClass::DelegatedCredential | AccountAuthSourceClass::PolicyInjectedService => {
+            SecretBoundarySecretClass::CloudDelegatedIdentity
+        }
+        AccountAuthSourceClass::InstallationGrant | AccountAuthSourceClass::ProjectScopedGrant => {
+            SecretBoundarySecretClass::CodeHostOrRegistryToken
+        }
+        AccountAuthSourceClass::HumanSession => SecretBoundarySecretClass::AiProviderToken,
+    }
+}
+
+fn account_scope_credential_mode(auth_source: AccountAuthSourceClass) -> SecretBoundaryCredentialMode {
+    match auth_source {
+        AccountAuthSourceClass::HumanSession => SecretBoundaryCredentialMode::OsStore,
+        AccountAuthSourceClass::InstallationGrant | AccountAuthSourceClass::ProjectScopedGrant => {
+            SecretBoundaryCredentialMode::HandleOnly
+        }
+        AccountAuthSourceClass::DelegatedCredential => SecretBoundaryCredentialMode::Delegated,
+        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryCredentialMode::EnterpriseVault,
+    }
+}
+
+fn account_scope_storage_class(auth_source: AccountAuthSourceClass) -> SecretBoundaryStorageClass {
+    match auth_source {
+        AccountAuthSourceClass::HumanSession => SecretBoundaryStorageClass::OsStore,
+        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryStorageClass::EnterpriseVault,
+        AccountAuthSourceClass::DelegatedCredential
+        | AccountAuthSourceClass::InstallationGrant
+        | AccountAuthSourceClass::ProjectScopedGrant => SecretBoundaryStorageClass::SessionOnly,
+    }
+}
+
+fn account_scope_projection_mode(
+    auth_source: AccountAuthSourceClass,
+) -> SecretBoundaryProjectionMode {
+    match auth_source {
+        AccountAuthSourceClass::DelegatedCredential => SecretBoundaryProjectionMode::Delegated,
+        AccountAuthSourceClass::PolicyInjectedService => SecretBoundaryProjectionMode::RemoteVaultFetch,
+        _ => SecretBoundaryProjectionMode::RequestHeader,
+    }
+}
+
+fn connected_health_state(state: AccountLifecycleStateClass) -> SecretBoundaryHealthStateClass {
+    match state {
+        AccountLifecycleStateClass::Active => SecretBoundaryHealthStateClass::Healthy,
+        AccountLifecycleStateClass::ReauthRequired => SecretBoundaryHealthStateClass::ExpiringSoon,
+        AccountLifecycleStateClass::Revoked => SecretBoundaryHealthStateClass::Revoked,
+        AccountLifecycleStateClass::Suspended => SecretBoundaryHealthStateClass::PolicyBlocked,
+        AccountLifecycleStateClass::Unreachable => SecretBoundaryHealthStateClass::Unavailable,
+    }
+}
+
+fn installation_health_state(
+    state: InstallationGrantLifecycleStateClass,
+) -> SecretBoundaryHealthStateClass {
+    match state {
+        InstallationGrantLifecycleStateClass::Installed => SecretBoundaryHealthStateClass::Healthy,
+        InstallationGrantLifecycleStateClass::SecretExpired => SecretBoundaryHealthStateClass::Expired,
+        InstallationGrantLifecycleStateClass::ScopeNarrowed
+        | InstallationGrantLifecycleStateClass::Suspended => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        InstallationGrantLifecycleStateClass::Uninstalled => SecretBoundaryHealthStateClass::Revoked,
+    }
+}
+
+fn delegated_health_state(
+    state: DelegatedCredentialLifecycleStateClass,
+) -> SecretBoundaryHealthStateClass {
+    match state {
+        DelegatedCredentialLifecycleStateClass::Active => SecretBoundaryHealthStateClass::Healthy,
+        DelegatedCredentialLifecycleStateClass::Expired => SecretBoundaryHealthStateClass::Expired,
+        DelegatedCredentialLifecycleStateClass::Revoked => SecretBoundaryHealthStateClass::Revoked,
+        DelegatedCredentialLifecycleStateClass::ScopeNarrowed
+        | DelegatedCredentialLifecycleStateClass::DelegatorLostGrant => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+    }
 }
 
 /// Support-export wrapper for the account-scope beta page.
@@ -2562,6 +2818,19 @@ mod tests {
             .collect();
         assert!(downgrades.contains("force_admin_review"));
         assert!(downgrades.contains("force_local_draft_only"));
+    }
+
+    #[test]
+    fn seeded_page_projects_m5_secret_boundary_state() {
+        let page = seeded_account_scope_beta_page();
+        let states = page.secret_boundary_states();
+        assert_eq!(states.len(), 1);
+        assert_eq!(
+            states[0].matrix_row_id,
+            "m5.secret.provider_model.scope_registry"
+        );
+        assert!(states[0].delegated_credential_row.is_some());
+        assert!(!states[0].export_safety_banner.raw_secret_values_included);
     }
 
     #[test]

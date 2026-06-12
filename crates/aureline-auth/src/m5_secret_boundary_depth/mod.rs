@@ -400,6 +400,311 @@ impl SecretBoundaryConsumerSurface {
     }
 }
 
+/// Stable secret-class vocabulary reused by prompts, credential rows, pickers,
+/// delegated rows, and export-safe summaries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundarySecretClass {
+    /// AI-provider or model-routing token.
+    AiProviderToken,
+    /// Code-host, package-registry, or release-publish token.
+    CodeHostOrRegistryToken,
+    /// Database credential or warehouse session.
+    DatabaseCredential,
+    /// SSH material or client-certificate binding.
+    SshOrClientCertMaterial,
+    /// Cloud, remote, or service-issued delegated identity.
+    CloudDelegatedIdentity,
+    /// Session-scoped secret material entered for one operation.
+    SessionScopedSecretInput,
+}
+
+impl SecretBoundarySecretClass {
+    /// Stable token recorded in projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AiProviderToken => "ai_provider_token",
+            Self::CodeHostOrRegistryToken => "code_host_or_registry_token",
+            Self::DatabaseCredential => "database_credential",
+            Self::SshOrClientCertMaterial => "ssh_or_client_cert_material",
+            Self::CloudDelegatedIdentity => "cloud_delegated_identity",
+            Self::SessionScopedSecretInput => "session_scoped_secret_input",
+        }
+    }
+}
+
+/// Health or expiry posture surfaced on a credential-state row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryHealthStateClass {
+    /// Credential is healthy and current.
+    Healthy,
+    /// Credential is healthy but within a renew/rotate horizon.
+    ExpiringSoon,
+    /// Credential expired and must be renewed.
+    Expired,
+    /// Credential or handle was revoked.
+    Revoked,
+    /// Store, trust root, or source is unavailable.
+    Unavailable,
+    /// Policy or scope now blocks the credential.
+    PolicyBlocked,
+    /// No usable source exists.
+    NotConfigured,
+}
+
+impl SecretBoundaryHealthStateClass {
+    /// Stable token recorded in projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::ExpiringSoon => "expiring_soon",
+            Self::Expired => "expired",
+            Self::Revoked => "revoked",
+            Self::Unavailable => "unavailable",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::NotConfigured => "not_configured",
+        }
+    }
+}
+
+/// Delegated-credential posture that must remain visible across local, remote,
+/// vault, and service-issued flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretBoundaryDelegatedUseClass {
+    /// Consumer uses a local broker handle only.
+    LocalSecretHandle,
+    /// Consumer forwards a local credential into a remote runtime.
+    ForwardedLocalCredential,
+    /// Consumer fetches the credential from a remote vault on demand.
+    RemoteVaultFetch,
+    /// Consumer acts through a service-issued delegated identity.
+    ServiceIssuedDelegatedIdentity,
+}
+
+impl SecretBoundaryDelegatedUseClass {
+    /// Stable token recorded in projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalSecretHandle => "local_secret_handle",
+            Self::ForwardedLocalCredential => "forwarded_local_credential",
+            Self::RemoteVaultFetch => "remote_vault_fetch",
+            Self::ServiceIssuedDelegatedIdentity => "service_issued_delegated_identity",
+        }
+    }
+}
+
+/// One workflow that depends on a credential-bearing surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryWorkflowDependency {
+    /// Stable workflow ref safe for export.
+    pub workflow_ref: String,
+    /// User-facing workflow label safe for export.
+    pub workflow_label: String,
+}
+
+/// Decline-path truth shown on prompts and rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryDeclinePath {
+    /// Reviewable decline label.
+    pub decline_label: String,
+    /// Export-safe summary of what remains available after decline.
+    pub still_works_summary: String,
+}
+
+/// Shared secret-access prompt shown before a credential-bearing action uses
+/// a handle, delegated identity, browser handoff, or vault fetch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundarySecretAccessPrompt {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Requesting actor label.
+    pub requester_label: String,
+    /// Credential or identity class requested.
+    pub secret_class: SecretBoundarySecretClass,
+    /// Target workflow label.
+    pub target_workflow_label: String,
+    /// Storage class the prompt will use.
+    pub storage_class: SecretBoundaryStorageClass,
+    /// Credential mode the prompt will use.
+    pub credential_mode: SecretBoundaryCredentialMode,
+    /// Projection mode the prompt will use.
+    pub projection_mode: SecretBoundaryProjectionMode,
+    /// Reviewable lifetime label.
+    pub lifetime_label: String,
+    /// Optional expiry timestamp or duration label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    /// Workflows that depend on this approval.
+    pub dependent_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    /// Decline-path truth.
+    pub decline_path: SecretBoundaryDeclinePath,
+}
+
+/// Shared credential-state row projected by M5 surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryCredentialStateRow {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Reviewable row label.
+    pub display_label: String,
+    /// Credential or identity class in use.
+    pub secret_class: SecretBoundarySecretClass,
+    /// Source class shown to the user.
+    pub source_class: SecretBoundaryCredentialMode,
+    /// Target boundary label.
+    pub target_boundary_label: String,
+    /// Storage class shown to the user.
+    pub storage_class: SecretBoundaryStorageClass,
+    /// Projection mode shown to the user.
+    pub projection_mode: SecretBoundaryProjectionMode,
+    /// Health or expiry posture.
+    pub health_state: SecretBoundaryHealthStateClass,
+    /// Optional expiry timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    /// Rotate affordance label.
+    pub rotate_action_label: String,
+    /// Revoke affordance label.
+    pub revoke_action_label: String,
+    /// Test or validate affordance label.
+    pub test_action_label: String,
+    /// Workflows that depend on this credential state.
+    pub dependent_workflows: Vec<SecretBoundaryWorkflowDependency>,
+    /// Export-safe decline/local-safe continuity note.
+    pub decline_path: SecretBoundaryDeclinePath,
+}
+
+/// One selectable vault, keychain, session-only, or delegated source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryVaultPickerOption {
+    /// Stable option id.
+    pub option_id: String,
+    /// Reviewable option label.
+    pub option_label: String,
+    /// Source class offered by the picker.
+    pub source_class: SecretBoundaryCredentialMode,
+    /// Backing storage class.
+    pub storage_class: SecretBoundaryStorageClass,
+    /// Access-scope label.
+    pub access_scope_label: String,
+    /// Reveal-policy label.
+    pub reveal_policy_label: String,
+    /// Portability/export note.
+    pub portability_note: String,
+    /// Source-of-truth/open detail affordance.
+    pub open_source_of_truth_action_label: String,
+    /// Whether this option is currently selectable.
+    pub selectable: bool,
+}
+
+/// Shared vault/keychain picker state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryVaultPickerState {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Picker title.
+    pub picker_label: String,
+    /// Available picker options.
+    pub options: Vec<SecretBoundaryVaultPickerOption>,
+}
+
+/// Shared delegated-credential row projected by remote, provider, and managed
+/// surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryDelegatedCredentialRow {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Delegated-use class.
+    pub delegated_use_class: SecretBoundaryDelegatedUseClass,
+    /// Target host or workspace label.
+    pub target_host_or_workspace_label: String,
+    /// Optional expiry timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    /// Policy or operator owner label.
+    pub policy_owner_label: String,
+    /// Stop-forwarding or revoke action label.
+    pub stop_forwarding_action_label: String,
+}
+
+/// Export-safety banner shared by M5 credential-bearing surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundaryExportSafetyBanner {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Banner summary text.
+    pub summary: String,
+    /// Export classes from which raw values are excluded.
+    pub excluded_exports: Vec<String>,
+    /// `false` when raw secret material is excluded.
+    pub raw_secret_values_included: bool,
+}
+
+/// Shared secret-boundary state bundle projected by the first consuming M5
+/// surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SecretBoundarySurfaceState {
+    /// Shared matrix row id.
+    pub matrix_row_id: String,
+    /// Shared vocabulary ref.
+    pub vocabulary_ref: String,
+    /// Shared secret-access prompt.
+    pub secret_access_prompt: SecretBoundarySecretAccessPrompt,
+    /// Shared credential-state row.
+    pub credential_state_row: SecretBoundaryCredentialStateRow,
+    /// Optional shared picker state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vault_picker: Option<SecretBoundaryVaultPickerState>,
+    /// Optional delegated-credential row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delegated_credential_row: Option<SecretBoundaryDelegatedCredentialRow>,
+    /// Shared export-safety banner.
+    pub export_safety_banner: SecretBoundaryExportSafetyBanner,
+}
+
+impl SecretBoundaryExportSafetyBanner {
+    /// Returns the default export-safety banner shared by M5 rows.
+    pub fn standard(
+        matrix_row_id: impl Into<String>,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            matrix_row_id: matrix_row_id.into(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            summary: summary.into(),
+            excluded_exports: vec![
+                "profiles".to_owned(),
+                "support bundles".to_owned(),
+                "handoff packets".to_owned(),
+                "recipes".to_owned(),
+                "portable workspace exports".to_owned(),
+            ],
+            raw_secret_values_included: false,
+        }
+    }
+}
+
 /// One credential-bearing surface row in the M5 matrix.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

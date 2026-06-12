@@ -53,6 +53,23 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | `aureline-reactive-state` | (no internal deps today; experimental/off-cone)          |
 | `aureline-graph-proto`  | (no internal deps today; experimental/off-cone)             |
 
+## Incremental contract-crate edges
+
+The following governed contract crates landed after the initial seed table.
+Until the full layer map is rewritten around the broader workspace, these
+crate-local edges are the allowed internal dependency deltas for the touched
+M5 surface packets:
+
+| From                | May depend on |
+|---------------------|---------------|
+| `aureline-auth`     | (no additional internal deps in this lane) |
+| `aureline-api`      | `aureline-auth` |
+| `aureline-data`     | `aureline-auth` |
+| `aureline-infra`    | `aureline-auth` |
+| `aureline-provider` | `aureline-auth`, `aureline-support` |
+| `aureline-remote`   | `aureline-auth` |
+| `aureline-support`  | (no additional internal deps in this lane) |
+
 ## Forbidden edges (non-exhaustive)
 
 The following edges are explicitly disallowed and should fail review:

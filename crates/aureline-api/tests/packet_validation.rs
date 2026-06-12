@@ -37,6 +37,26 @@ fn embedded_workspace_summary_matches_computed() {
 }
 
 #[test]
+fn workspace_packet_projects_m5_secret_boundary_states() {
+    let packet = current_request_workspace_qualification().expect("embedded packet must parse");
+    let states = packet.secret_boundary_states();
+    assert_eq!(states.len(), 2);
+    assert_eq!(
+        states[0].matrix_row_id,
+        "m5.secret.request_workspace.send_http"
+    );
+    assert_eq!(
+        states[1].matrix_row_id,
+        "m5.secret.request_workspace.history_replay"
+    );
+    assert_eq!(
+        states[0].secret_access_prompt.vocabulary_ref,
+        "docs/security/m5/m5-secret-boundary-depth.md#shared-vocabulary"
+    );
+    assert!(!states[0].export_safety_banner.raw_secret_values_included);
+}
+
+#[test]
 fn embedded_composer_packet_parses() {
     let packet =
         current_request_composer_qualification().expect("embedded composer packet must parse");

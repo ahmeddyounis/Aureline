@@ -32,6 +32,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_auth::{
+    SecretBoundaryCredentialMode, SecretBoundaryCredentialStateRow,
+    SecretBoundaryDeclinePath, SecretBoundaryDelegatedCredentialRow,
+    SecretBoundaryDelegatedUseClass, SecretBoundaryExportSafetyBanner,
+    SecretBoundaryHealthStateClass, SecretBoundaryProjectionMode,
+    SecretBoundarySecretAccessPrompt, SecretBoundarySecretClass,
+    SecretBoundaryStorageClass, SecretBoundarySurfaceState, SecretBoundaryVaultPickerOption,
+    SecretBoundaryVaultPickerState, SecretBoundaryWorkflowDependency,
+    M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::account_scope::{AccountScopeBetaProfileClass, ActingIdentityClass};
@@ -77,6 +87,8 @@ pub const ROUTE_RESOLUTION_BETA_DEFECT_RECORD_KIND: &str =
 /// Stable record kind for [`RouteResolutionBetaSupportExport`] payloads.
 pub const ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
     "providers_route_resolution_beta_support_export_record";
+
+const PROVIDER_ROUTE_MATRIX_ROW_ID: &str = "m5.secret.provider_model.route_resolution";
 
 /// Lane class the row claims. The vocabulary distinguishes managed lanes
 /// (which honour managed-policy authority) from external lanes (which act
@@ -939,6 +951,239 @@ pub struct RouteResolutionBetaPage {
     pub defects: Vec<RouteResolutionBetaDefect>,
     /// Aggregate summary.
     pub summary: RouteResolutionBetaSummary,
+}
+
+impl RouteResolutionBetaPage {
+    /// Projects the shared M5 secret-boundary state for the provider/model
+    /// route-resolution surface.
+    pub fn secret_boundary_states(&self) -> Vec<SecretBoundarySurfaceState> {
+        let Some(row) = self.rows.first() else {
+            return Vec::new();
+        };
+
+        let credential_mode = provider_route_credential_mode(row.grant.auth_source);
+        let storage_class = provider_route_storage_class(row.grant.auth_source);
+        let projection_mode = provider_route_projection_mode(row.grant.auth_source);
+        let secret_class = provider_route_secret_class(row.grant.auth_source);
+        let health_state = provider_route_health_state(row.route_degraded_state);
+        let target_label = format!(
+            "{} via {}",
+            row.display_label, row.route.transport_label
+        );
+        let decline_path = SecretBoundaryDeclinePath {
+            decline_label: "Keep local route only".to_owned(),
+            still_works_summary:
+                "Declining keeps cached metadata, route review, and local draft or publish-later fallback available."
+                    .to_owned(),
+        };
+
+        vec![SecretBoundarySurfaceState {
+            matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
+            vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+            secret_access_prompt: SecretBoundarySecretAccessPrompt {
+                matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                requester_label: "Provider/model route resolution".to_owned(),
+                secret_class,
+                target_workflow_label: target_label.clone(),
+                storage_class,
+                credential_mode,
+                projection_mode,
+                lifetime_label: "Delegated or routed provider auth".to_owned(),
+                expires_at: row.freshness.stale_after.clone(),
+                dependent_workflows: vec![
+                    provider_route_workflow("workflow:provider.route", "Resolve provider route"),
+                    provider_route_workflow(
+                        "workflow:provider.publish",
+                        "Publish, mutate, or queue provider action",
+                    ),
+                ],
+                decline_path: decline_path.clone(),
+            },
+            credential_state_row: SecretBoundaryCredentialStateRow {
+                matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                display_label: "Provider route credential state".to_owned(),
+                secret_class,
+                source_class: credential_mode,
+                target_boundary_label: target_label,
+                storage_class,
+                projection_mode,
+                health_state,
+                expires_at: row.freshness.stale_after.clone(),
+                rotate_action_label: "Reissue delegated grant".to_owned(),
+                revoke_action_label: "Revoke provider route auth".to_owned(),
+                test_action_label: "Test provider route".to_owned(),
+                dependent_workflows: vec![
+                    provider_route_workflow("workflow:provider.route", "Resolve provider route"),
+                    provider_route_workflow(
+                        "workflow:provider.publish",
+                        "Publish, mutate, or queue provider action",
+                    ),
+                ],
+                decline_path,
+            },
+            vault_picker: Some(provider_route_picker_state()),
+            delegated_credential_row: Some(SecretBoundaryDelegatedCredentialRow {
+                matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
+                vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+                delegated_use_class: provider_route_delegated_use(row.grant.acting_identity_class),
+                target_host_or_workspace_label: row.route.target_identity_ref.clone(),
+                expires_at: row.freshness.stale_after.clone(),
+                policy_owner_label: row.owner.owner_label.clone(),
+                stop_forwarding_action_label: "Stop routed provider auth".to_owned(),
+            }),
+            export_safety_banner: SecretBoundaryExportSafetyBanner::standard(
+                PROVIDER_ROUTE_MATRIX_ROW_ID,
+                "Raw provider tokens remain excluded from route-resolution exports, support bundles, publish queues, and browser handoff packets.",
+            ),
+        }]
+    }
+}
+
+fn provider_route_workflow(
+    workflow_ref: impl Into<String>,
+    workflow_label: impl Into<String>,
+) -> SecretBoundaryWorkflowDependency {
+    SecretBoundaryWorkflowDependency {
+        workflow_ref: workflow_ref.into(),
+        workflow_label: workflow_label.into(),
+    }
+}
+
+fn provider_route_picker_state() -> SecretBoundaryVaultPickerState {
+    SecretBoundaryVaultPickerState {
+        matrix_row_id: PROVIDER_ROUTE_MATRIX_ROW_ID.to_owned(),
+        vocabulary_ref: M5_SECRET_BOUNDARY_DEPTH_VOCABULARY_REF.to_owned(),
+        picker_label: "Provider route auth picker".to_owned(),
+        options: vec![
+            SecretBoundaryVaultPickerOption {
+                option_id: "provider-route:delegated".to_owned(),
+                option_label: "Delegated provider identity".to_owned(),
+                source_class: SecretBoundaryCredentialMode::Delegated,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Provider lane action scope".to_owned(),
+                reveal_policy_label: "No raw token reveal".to_owned(),
+                portability_note: "Exports row ids, posture, and owner only.".to_owned(),
+                open_source_of_truth_action_label: "Open route owner detail".to_owned(),
+                selectable: true,
+            },
+            SecretBoundaryVaultPickerOption {
+                option_id: "provider-route:browser".to_owned(),
+                option_label: "Browser handoff".to_owned(),
+                source_class: SecretBoundaryCredentialMode::BrowserHandoff,
+                storage_class: SecretBoundaryStorageClass::SessionOnly,
+                access_scope_label: "Provider route step-up".to_owned(),
+                reveal_policy_label: "No raw callback or token export".to_owned(),
+                portability_note: "Callback payloads stay excluded from exports.".to_owned(),
+                open_source_of_truth_action_label: "Open handoff detail".to_owned(),
+                selectable: true,
+            },
+        ],
+    }
+}
+
+fn provider_route_secret_class(auth_source: ProviderAuthSourceClass) -> SecretBoundarySecretClass {
+    match auth_source {
+        ProviderAuthSourceClass::DelegatedCredential => {
+            SecretBoundarySecretClass::CloudDelegatedIdentity
+        }
+        ProviderAuthSourceClass::InstallationGrant => {
+            SecretBoundarySecretClass::CodeHostOrRegistryToken
+        }
+        ProviderAuthSourceClass::HumanSession => {
+            SecretBoundarySecretClass::AiProviderToken
+        }
+        ProviderAuthSourceClass::ProjectScopedGrant => {
+            SecretBoundarySecretClass::CodeHostOrRegistryToken
+        }
+        ProviderAuthSourceClass::PolicyInjectedService => {
+            SecretBoundarySecretClass::CloudDelegatedIdentity
+        }
+        ProviderAuthSourceClass::BrowserOnly => SecretBoundarySecretClass::CloudDelegatedIdentity,
+        ProviderAuthSourceClass::UnknownAuthSource => {
+            SecretBoundarySecretClass::SessionScopedSecretInput
+        }
+    }
+}
+
+fn provider_route_credential_mode(
+    auth_source: ProviderAuthSourceClass,
+) -> SecretBoundaryCredentialMode {
+    match auth_source {
+        ProviderAuthSourceClass::HumanSession => SecretBoundaryCredentialMode::OsStore,
+        ProviderAuthSourceClass::InstallationGrant => SecretBoundaryCredentialMode::HandleOnly,
+        ProviderAuthSourceClass::DelegatedCredential => SecretBoundaryCredentialMode::Delegated,
+        ProviderAuthSourceClass::ProjectScopedGrant => SecretBoundaryCredentialMode::HandleOnly,
+        ProviderAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryCredentialMode::EnterpriseVault
+        }
+        ProviderAuthSourceClass::BrowserOnly => SecretBoundaryCredentialMode::BrowserHandoff,
+        ProviderAuthSourceClass::UnknownAuthSource => SecretBoundaryCredentialMode::NotConfigured,
+    }
+}
+
+fn provider_route_storage_class(
+    auth_source: ProviderAuthSourceClass,
+) -> SecretBoundaryStorageClass {
+    match auth_source {
+        ProviderAuthSourceClass::HumanSession => SecretBoundaryStorageClass::OsStore,
+        ProviderAuthSourceClass::InstallationGrant => SecretBoundaryStorageClass::SessionOnly,
+        ProviderAuthSourceClass::DelegatedCredential => SecretBoundaryStorageClass::SessionOnly,
+        ProviderAuthSourceClass::ProjectScopedGrant => SecretBoundaryStorageClass::SessionOnly,
+        ProviderAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryStorageClass::EnterpriseVault
+        }
+        ProviderAuthSourceClass::BrowserOnly => SecretBoundaryStorageClass::SessionOnly,
+        ProviderAuthSourceClass::UnknownAuthSource => SecretBoundaryStorageClass::NotConfigured,
+    }
+}
+
+fn provider_route_projection_mode(
+    auth_source: ProviderAuthSourceClass,
+) -> SecretBoundaryProjectionMode {
+    match auth_source {
+        ProviderAuthSourceClass::HumanSession
+        | ProviderAuthSourceClass::InstallationGrant
+        | ProviderAuthSourceClass::ProjectScopedGrant
+        | ProviderAuthSourceClass::PolicyInjectedService => {
+            SecretBoundaryProjectionMode::RequestHeader
+        }
+        ProviderAuthSourceClass::DelegatedCredential => SecretBoundaryProjectionMode::Delegated,
+        ProviderAuthSourceClass::BrowserOnly => SecretBoundaryProjectionMode::BrowserHandoff,
+        ProviderAuthSourceClass::UnknownAuthSource => SecretBoundaryProjectionMode::HandleOnly,
+    }
+}
+
+fn provider_route_health_state(
+    degraded_state: RouteDegradedStateClass,
+) -> SecretBoundaryHealthStateClass {
+    match degraded_state {
+        RouteDegradedStateClass::ManagedPolicyBoundaryClosed => {
+            SecretBoundaryHealthStateClass::PolicyBlocked
+        }
+        RouteDegradedStateClass::TunnelSessionExpired => SecretBoundaryHealthStateClass::Expired,
+        RouteDegradedStateClass::RouteUnreachable
+        | RouteDegradedStateClass::MirrorLagBeyondTolerance
+        | RouteDegradedStateClass::SnapshotOlderThanRetentionFloor => {
+            SecretBoundaryHealthStateClass::Unavailable
+        }
+        _ => SecretBoundaryHealthStateClass::Healthy,
+    }
+}
+
+fn provider_route_delegated_use(
+    identity_class: ActingIdentityClass,
+) -> SecretBoundaryDelegatedUseClass {
+    match identity_class {
+        ActingIdentityClass::DelegatedCredential => {
+            SecretBoundaryDelegatedUseClass::ServiceIssuedDelegatedIdentity
+        }
+        ActingIdentityClass::InstallationGrant => {
+            SecretBoundaryDelegatedUseClass::RemoteVaultFetch
+        }
+        ActingIdentityClass::ConnectedAccount => SecretBoundaryDelegatedUseClass::LocalSecretHandle,
+    }
 }
 
 /// Support-export wrapper for the route-resolution beta page.
