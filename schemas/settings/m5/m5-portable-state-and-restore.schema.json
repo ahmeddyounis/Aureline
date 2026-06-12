@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/m5/m5-portable-state-and-restore.schema.json",
+  "title": "Aureline M5 portable-state export/import and restore-provenance certification",
+  "description": "Boundary schema for the governed portable-state record. The record classifies each M5-owned artifact class as portable, redacted, restore-only, or machine-local with explicit exclusions for secrets, live handles, and machine-unique state; carries restore-provenance cards with schema-migration labels (exact, compatible, layout-only, recovered-drafts, evidence-only); keeps missing-extension, missing-remote-target, and unsupported-client dependencies visible as placeholders; and derives a fail-closed fidelity ceiling that can never claim exact restore when a dependency or schema row is missing or downgraded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "summary",
+    "package_classes",
+    "restore_cards",
+    "surface_truth",
+    "migration_label_coverage",
+    "missing_dependency_coverage",
+    "pillars",
+    "fidelity_qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_portable_state_restore_certification_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "settings:m5_portable_state_and_restore:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "package_classes": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/package_class_row" }
+    },
+    "restore_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/restore_provenance_card" }
+    },
+    "surface_truth": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/surface_truth_row" }
+    },
+    "migration_label_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration_label" }
+    },
+    "missing_dependency_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/missing_dependency_kind" }
+    },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "fidelity_qualification": { "$ref": "#/$defs/fidelity_qualification" }
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://[^/]+/.+"
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "selected_settings",
+        "profiles",
+        "manifests",
+        "bundle_selections",
+        "docs_packs",
+        "evidence_references"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": ["portable", "redacted", "restore_only", "machine_local"]
+    },
+    "exclusion_reason": {
+      "type": "string",
+      "enum": [
+        "secret_material",
+        "live_authority_handle",
+        "machine_unique_trust_anchor",
+        "volatile_machine_state"
+      ]
+    },
+    "migration_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "recovered_drafts", "evidence_only"]
+    },
+    "missing_dependency_kind": {
+      "type": "string",
+      "enum": ["missing_extension", "missing_remote_target", "unsupported_client"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["desktop_settings", "cli_inspect", "support_export", "help_docs", "admin_docs"]
+    },
+    "claim_class": {
+      "type": "string",
+      "enum": ["exact_restore", "degraded_restore", "unsupported"]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "package_classes_incomplete",
+        "secret_boundary_failed",
+        "provenance_unlabeled",
+        "placeholder_dropped",
+        "restore_not_checkpointed",
+        "fidelity_below_exact",
+        "surface_truth_incomplete"
+      ]
+    },
+    "package_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "disposition", "content_ref", "rationale"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "disposition": { "$ref": "#/$defs/disposition" },
+        "content_ref": { "$ref": "#/$defs/canonical_ref" },
+        "exclusion_reason": { "$ref": "#/$defs/exclusion_reason" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "missing_dependency_placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "affected_artifact_class",
+        "placeholder_ref",
+        "visible_in_layout",
+        "silently_dropped",
+        "recovery_hint"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/missing_dependency_kind" },
+        "affected_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "placeholder_ref": { "$ref": "#/$defs/canonical_ref" },
+        "visible_in_layout": { "type": "boolean" },
+        "silently_dropped": { "type": "boolean" },
+        "recovery_hint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "restore_provenance_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "source_package_ref",
+        "artifact_class",
+        "migration_label",
+        "source_schema_version",
+        "target_schema_version",
+        "integrity_ref",
+        "rollback_checkpoint_ref",
+        "placeholders",
+        "previewable_before_apply",
+        "overwrites_local_state"
+      ],
+      "properties": {
+        "card_id": { "type": "string", "minLength": 1 },
+        "source_package_ref": { "$ref": "#/$defs/canonical_ref" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "migration_label": { "$ref": "#/$defs/migration_label" },
+        "source_schema_version": { "type": "string", "minLength": 1 },
+        "target_schema_version": { "type": "string", "minLength": 1 },
+        "integrity_ref": { "$ref": "#/$defs/canonical_ref" },
+        "rollback_checkpoint_ref": { "type": "string" },
+        "unmappable_sidecar_ref": { "$ref": "#/$defs/canonical_ref" },
+        "placeholders": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_dependency_placeholder" }
+        },
+        "previewable_before_apply": { "type": "boolean" },
+        "overwrites_local_state": { "type": "boolean" }
+      }
+    },
+    "surface_truth_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "consumes_shared_record",
+        "shows_disposition",
+        "shows_migration_label",
+        "shows_placeholders",
+        "shows_rollback_checkpoint"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "consumes_shared_record": { "type": "boolean" },
+        "shows_disposition": { "type": "boolean" },
+        "shows_migration_label": { "type": "boolean" },
+        "shows_placeholders": { "type": "boolean" },
+        "shows_rollback_checkpoint": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_classes_complete",
+        "secret_boundary_held",
+        "provenance_labeled",
+        "placeholders_visible",
+        "restore_checkpointed",
+        "surface_truth_complete"
+      ],
+      "properties": {
+        "package_classes_complete": { "type": "boolean" },
+        "secret_boundary_held": { "type": "boolean" },
+        "provenance_labeled": { "type": "boolean" },
+        "placeholders_visible": { "type": "boolean" },
+        "restore_checkpointed": { "type": "boolean" },
+        "surface_truth_complete": { "type": "boolean" }
+      }
+    },
+    "fidelity_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_class",
+        "effective_fidelity_ceiling",
+        "qualifies_exact",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "effective_fidelity_ceiling": { "$ref": "#/$defs/migration_label" },
+        "qualifies_exact": { "type": "boolean" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        }
+      }
+    }
+  }
+}

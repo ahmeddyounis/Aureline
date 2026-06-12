@@ -39,6 +39,7 @@ pub mod finalize_settings_definition_registry;
 pub mod inspector;
 pub mod keybindings;
 pub mod locale_beta;
+pub mod m5_portable_state_and_restore;
 pub mod repair_review;
 pub mod resolver;
 pub mod schema;
@@ -113,6 +114,15 @@ pub use keybindings::{
     KEYBINDING_SETTINGS_SCHEMA_VERSION,
 };
 pub use locale_beta::project_locale_beta_settings_panel;
+pub use m5_portable_state_and_restore::{
+    portable_state_restore_corpus, ExclusionReason, M5PortableStateRestoreCertification,
+    M5PortableStateRestoreInput, MigrationLabel, MissingDependencyKind,
+    MissingDependencyPlaceholder, PortabilityDisposition, PortableArtifactClass,
+    PortablePackageClassRow, PortableRestoreClaim, PortableRestorePillars,
+    PortableRestoreQualification, PortableStateRestoreScenario, RestoreProvenanceCard,
+    M5_PORTABLE_STATE_RESTORE_RECORD_KIND, M5_PORTABLE_STATE_RESTORE_SCHEMA_VERSION,
+    M5_PORTABLE_STATE_RESTORE_SHARED_CONTRACT_REF,
+};
 pub use repair_review::{
     build_repair_plan, project_review_sheet,
     project_support_export as project_repair_support_export, HiddenResetGuard,
