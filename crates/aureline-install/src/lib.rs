@@ -15,6 +15,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
 pub mod harden_installation_topology_state_root_audits_silent_deployment;
+pub mod m5_coexistence_and_fleet_rollout;
 pub mod m5_install_and_portability_governance;
 pub mod m5_install_diagnostics;
 pub mod ownership_audit;
@@ -158,4 +159,20 @@ pub use m5_install_diagnostics::{
     M5_INSTALL_DIAGNOSTICS_JSON, M5_INSTALL_DIAGNOSTICS_PATH, M5_INSTALL_DIAGNOSTICS_RECORD_KIND,
     M5_INSTALL_DIAGNOSTICS_SCHEMA_REF, M5_INSTALL_DIAGNOSTICS_SCHEMA_VERSION,
     M5_INSTALL_DIAGNOSTICS_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_coexistence_and_fleet_rollout::{
+    current_m5_coexistence_and_fleet_rollout, CoexistenceFamily, CoexistenceLaneRow,
+    CoexistenceNarrowReason, CoexistenceRecoveryPath, EvidenceFreshness, HandlerPrecedenceClass,
+    HandlerPrecedenceRow, HandlerSurface, ImportChoice, M5CoexistenceFleetExportProjection,
+    M5CoexistenceFleetExportRow, M5CoexistenceFleetRollout, M5CoexistenceFleetSummary,
+    M5CoexistenceFleetSupportExport, M5CoexistenceFleetViolation, MirrorImportRow,
+    MirrorReviewState, MirrorSignatureVerification, MirrorSource, RingPosture, RolloutConsumer,
+    RolloutConsumerBinding, RolloutDrill, RolloutIncident, RolloutRing, RolloutRingRow,
+    StateRootSeparation, UpdateMarkerOwnership, M5_COEXISTENCE_FLEET_ROLLOUT_ARTIFACT_DOC_REF,
+    M5_COEXISTENCE_FLEET_ROLLOUT_DOC_REF, M5_COEXISTENCE_FLEET_ROLLOUT_FIXTURE_DIR,
+    M5_COEXISTENCE_FLEET_ROLLOUT_JSON, M5_COEXISTENCE_FLEET_ROLLOUT_PATH,
+    M5_COEXISTENCE_FLEET_ROLLOUT_RECORD_KIND, M5_COEXISTENCE_FLEET_ROLLOUT_SCHEMA_REF,
+    M5_COEXISTENCE_FLEET_ROLLOUT_SCHEMA_VERSION,
+    M5_COEXISTENCE_FLEET_ROLLOUT_SUPPORT_EXPORT_RECORD_KIND,
 };
