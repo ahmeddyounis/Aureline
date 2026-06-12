@@ -31,6 +31,7 @@ pub mod local_history_export_replay_lineage;
 pub mod m5_admission_and_routing;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_source_acquisition_review;
+pub mod m5_workflow_bundle_manifests;
 pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
 pub mod portable_state_lineage;
@@ -241,6 +242,17 @@ pub use m5_source_acquisition_review::{
     M5_SOURCE_ACQUISITION_REVIEW_JSON, M5_SOURCE_ACQUISITION_REVIEW_PATH,
     M5_SOURCE_ACQUISITION_REVIEW_RECORD_KIND, M5_SOURCE_ACQUISITION_REVIEW_SCHEMA_REF,
     M5_SOURCE_ACQUISITION_REVIEW_SCHEMA_VERSION,
+};
+
+pub use m5_workflow_bundle_manifests::{
+    current_m5_workflow_bundle_manifests_packet, BundleComponent, BundleComponentKind,
+    CertificationTarget, LifecycleStage, M5WorkflowBundleManifestsExportProjection,
+    M5WorkflowBundleManifestsExportRow, M5WorkflowBundleManifestsPacket,
+    M5WorkflowBundleManifestsSummary, M5WorkflowBundleManifestsViolation, ManifestPublicationState,
+    WorkflowBundleManifest, M5_WORKFLOW_BUNDLE_MANIFESTS_DOC_REF,
+    M5_WORKFLOW_BUNDLE_MANIFESTS_FIXTURE_DIR, M5_WORKFLOW_BUNDLE_MANIFESTS_JSON,
+    M5_WORKFLOW_BUNDLE_MANIFESTS_PATH, M5_WORKFLOW_BUNDLE_MANIFESTS_RECORD_KIND,
+    M5_WORKFLOW_BUNDLE_MANIFESTS_SCHEMA_REF, M5_WORKFLOW_BUNDLE_MANIFESTS_SCHEMA_VERSION,
 };
 
 pub use admission::{
