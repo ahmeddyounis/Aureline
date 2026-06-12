@@ -30,6 +30,7 @@ pub mod lifecycle;
 pub mod local_history_export_replay_lineage;
 pub mod m5_admission_and_routing;
 pub mod m5_bundle_review_and_rollback;
+pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;
@@ -254,6 +255,17 @@ pub use m5_workflow_bundle_manifests::{
     M5_WORKFLOW_BUNDLE_MANIFESTS_FIXTURE_DIR, M5_WORKFLOW_BUNDLE_MANIFESTS_JSON,
     M5_WORKFLOW_BUNDLE_MANIFESTS_PATH, M5_WORKFLOW_BUNDLE_MANIFESTS_RECORD_KIND,
     M5_WORKFLOW_BUNDLE_MANIFESTS_SCHEMA_REF, M5_WORKFLOW_BUNDLE_MANIFESTS_SCHEMA_VERSION,
+};
+
+pub use m5_bundle_scorecards::{
+    current_m5_bundle_scorecards_packet, BundleDependency as BundleScorecardDependency,
+    BundleScorecard as M5BundleScorecard, BundleScorecardClass, EvidenceFreshness,
+    ImportedVsNativeConfidence, M5BundleScorecardsExportProjection, M5BundleScorecardsExportRow,
+    M5BundleScorecardsPacket, M5BundleScorecardsSummary, M5BundleScorecardsViolation,
+    PlatformClass as ScorecardPlatformClass, M5_BUNDLE_SCORECARDS_DOC_REF,
+    M5_BUNDLE_SCORECARDS_FIXTURE_DIR, M5_BUNDLE_SCORECARDS_JSON, M5_BUNDLE_SCORECARDS_PATH,
+    M5_BUNDLE_SCORECARDS_RECORD_KIND, M5_BUNDLE_SCORECARDS_SCHEMA_REF,
+    M5_BUNDLE_SCORECARDS_SCHEMA_VERSION,
 };
 
 pub use admission::{
