@@ -5,6 +5,12 @@ configuration, rendered outputs, plan/validation results, and observed live
 resources so DevOps-class navigation surfaces stay explainable and
 source-faithful.
 
+The canonical M5 packet for later implementation rows now lives in
+[`/docs/infra/source-intelligence-and-resource-relationships.md`](../infra/source-intelligence-and-resource-relationships.md)
+with its matching schema and fixtures. This document remains useful background
+and predecessor context, but later M5 infra rows should cite the infra packet
+first.
+
 The contract is normative. If it disagrees with the PRD, Technical
 Architecture Document, Technical Design Document, UI / UX Spec, or Design
 System Style Guide, those source documents win and this document plus its
@@ -186,4 +192,3 @@ The worked fixture cases are under
 Each case includes an explicit source set, tool identity/version, and
 invalidation epoch for any generated objects, plus explicit `no_source_match`
 when applicable.
-

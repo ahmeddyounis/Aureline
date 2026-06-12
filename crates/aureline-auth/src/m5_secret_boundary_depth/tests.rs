@@ -214,8 +214,7 @@ fn support_export_preserves_doctor_and_support_lineage() {
     assert!(!export.workflow_history_rows.is_empty());
     assert!(!export.activity_rows.is_empty());
     assert_eq!(
-        export.artifact_export_rules,
-        packet.artifact_export_rules,
+        export.artifact_export_rules, packet.artifact_export_rules,
         "support export must preserve canonical artifact export rules"
     );
     assert!(export

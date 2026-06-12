@@ -1638,10 +1638,8 @@ impl SecretBoundaryLineageBundle {
         let workflow_history_rows = events
             .iter()
             .flat_map(|event| {
-                event
-                    .impacted_workflows
-                    .iter()
-                    .map(move |workflow| SecretBoundaryWorkflowHistoryRow {
+                event.impacted_workflows.iter().map(move |workflow| {
+                    SecretBoundaryWorkflowHistoryRow {
                         row_id: format!(
                             "workflow_history:{}:{}",
                             event.event_id, workflow.workflow_ref
@@ -1656,9 +1654,12 @@ impl SecretBoundaryLineageBundle {
                         durable_reopen_target_ref: event.durable_reopen_target_ref.clone(),
                         export_safe_summary: format!(
                             "{} is blocked by {}. {}",
-                            workflow.workflow_label, event.target_boundary_label, event.local_safe_behavior
+                            workflow.workflow_label,
+                            event.target_boundary_label,
+                            event.local_safe_behavior
                         ),
-                    })
+                    }
+                })
             })
             .collect();
         let activity_rows = events
@@ -2145,20 +2146,23 @@ impl M5SecretBoundaryDepthPacket {
                 || !rule.preserves_source_labels
                 || !rule.preserves_consumer_identity
             {
-                violations.push(M5SecretBoundaryDepthViolation::IncompleteArtifactExportRule(
-                    rule.artifact_family,
-                ));
+                violations.push(
+                    M5SecretBoundaryDepthViolation::IncompleteArtifactExportRule(
+                        rule.artifact_family,
+                    ),
+                );
             }
             if rule.omission_marker_label.trim().is_empty()
                 || rule.omission_banner.trim().is_empty()
                 || rule.rebind_action_label.trim().is_empty()
                 || rule.rebind_failure_label.trim().is_empty()
-                || (!rule.requires_typed_rebind_on_import
-                    && !rule.requires_typed_rebind_on_replay)
+                || (!rule.requires_typed_rebind_on_import && !rule.requires_typed_rebind_on_replay)
             {
-                violations.push(M5SecretBoundaryDepthViolation::ArtifactRuleMissingBannerOrRebind(
-                    rule.artifact_family,
-                ));
+                violations.push(
+                    M5SecretBoundaryDepthViolation::ArtifactRuleMissingBannerOrRebind(
+                        rule.artifact_family,
+                    ),
+                );
             }
             let omitted = rule
                 .omitted_material_classes
@@ -2443,9 +2447,11 @@ impl M5SecretBoundaryDepthPacket {
                 ));
             }
             let Some(surface_row) = row_lookup.get(qualification.matrix_row_id.as_str()) else {
-                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownMatrixRow(
-                    qualification.qualification_row_id.clone(),
-                ));
+                violations.push(
+                    M5SecretBoundaryDepthViolation::QualificationUnknownMatrixRow(
+                        qualification.qualification_row_id.clone(),
+                    ),
+                );
                 continue;
             };
             if qualification.domain != surface_row.domain {
@@ -2456,9 +2462,11 @@ impl M5SecretBoundaryDepthPacket {
             let Some(profile_row) = surface_row.profile_parity_rows.iter().find(|profile_row| {
                 profile_row.deployment_profile == qualification.deployment_profile
             }) else {
-                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
-                    qualification.qualification_row_id.clone(),
-                ));
+                violations.push(
+                    M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
+                        qualification.qualification_row_id.clone(),
+                    ),
+                );
                 continue;
             };
             let expected_profile_parity_ref = format!(
@@ -2467,9 +2475,11 @@ impl M5SecretBoundaryDepthPacket {
                 qualification.deployment_profile.as_str()
             );
             if qualification.profile_parity_ref != expected_profile_parity_ref {
-                violations.push(M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
-                    qualification.qualification_row_id.clone(),
-                ));
+                violations.push(
+                    M5SecretBoundaryDepthViolation::QualificationUnknownProfileParity(
+                        qualification.qualification_row_id.clone(),
+                    ),
+                );
             }
             covered_qualifications.insert((
                 qualification.matrix_row_id.clone(),
@@ -2531,10 +2541,12 @@ impl M5SecretBoundaryDepthPacket {
         for row in &self.surface_rows {
             for profile in SecretBoundaryDeploymentProfileClass::ALL {
                 if !covered_qualifications.contains(&(row.matrix_row_id.clone(), profile)) {
-                    violations.push(M5SecretBoundaryDepthViolation::MissingQualificationCoverage(
-                        row.matrix_row_id.clone(),
-                        profile,
-                    ));
+                    violations.push(
+                        M5SecretBoundaryDepthViolation::MissingQualificationCoverage(
+                            row.matrix_row_id.clone(),
+                            profile,
+                        ),
+                    );
                 }
             }
         }
@@ -2555,7 +2567,9 @@ impl M5SecretBoundaryDepthPacket {
                 || projection.current_qualification_count
                     != self.recompute_summary().current_qualification_count
                 || projection.narrowed_qualification_count
-                    != self.recompute_summary().qualification_count
+                    != self
+                        .recompute_summary()
+                        .qualification_count
                         .saturating_sub(self.recompute_summary().current_qualification_count)
                 || projection
                     .qualification_row_refs
@@ -2616,9 +2630,8 @@ impl M5SecretBoundaryDepthPacket {
                 .iter()
                 .any(|token| token == label.as_str())
             {
-                violations.push(
-                    M5SecretBoundaryDepthViolation::MissingRequiredQualificationLabel(label),
-                );
+                violations
+                    .push(M5SecretBoundaryDepthViolation::MissingRequiredQualificationLabel(label));
             }
         }
 
@@ -2632,9 +2645,8 @@ impl M5SecretBoundaryDepthPacket {
                 .iter()
                 .any(|token| token == freshness.as_str())
             {
-                violations.push(
-                    M5SecretBoundaryDepthViolation::MissingRequiredProofFreshness(freshness),
-                );
+                violations
+                    .push(M5SecretBoundaryDepthViolation::MissingRequiredProofFreshness(freshness));
             }
         }
 
@@ -2664,9 +2676,8 @@ impl M5SecretBoundaryDepthPacket {
                 .iter()
                 .any(|token| token == family.as_str())
             {
-                violations.push(M5SecretBoundaryDepthViolation::MissingRequiredArtifactFamily(
-                    family,
-                ));
+                violations
+                    .push(M5SecretBoundaryDepthViolation::MissingRequiredArtifactFamily(family));
             }
         }
 
@@ -2677,9 +2688,8 @@ impl M5SecretBoundaryDepthPacket {
                 .iter()
                 .any(|token| token == material.as_str())
             {
-                violations.push(
-                    M5SecretBoundaryDepthViolation::MissingRequiredOmittedMaterial(material),
-                );
+                violations
+                    .push(M5SecretBoundaryDepthViolation::MissingRequiredOmittedMaterial(material));
             }
         }
 
@@ -2931,13 +2941,9 @@ fn derived_lineage_events_from_surface_state(
         )];
     }
 
-    if let Some(repairable_state) = state
-        .repairable_states
-        .iter()
-        .find(|repairable_state| {
-            repairable_state.triggering_health_state == state.credential_state_row.health_state
-        })
-    {
+    if let Some(repairable_state) = state.repairable_states.iter().find(|repairable_state| {
+        repairable_state.triggering_health_state == state.credential_state_row.health_state
+    }) {
         return vec![lineage_event_from_repairable_state(
             state.matrix_row_id.clone(),
             state.consumer_identity_receipt.actor_identity,
@@ -3026,7 +3032,9 @@ fn generic_lineage_event_from_surface_state(
         SecretBoundaryHealthStateClass::ForwardingPaused => {
             SecretBoundaryLineageEventClass::ForwardingPaused
         }
-        SecretBoundaryHealthStateClass::Expired => SecretBoundaryLineageEventClass::RotationRequired,
+        SecretBoundaryHealthStateClass::Expired => {
+            SecretBoundaryLineageEventClass::RotationRequired
+        }
         SecretBoundaryHealthStateClass::Missing
         | SecretBoundaryHealthStateClass::Unavailable
         | SecretBoundaryHealthStateClass::RemoteVaultUnavailable
@@ -3092,7 +3100,9 @@ fn event_class_for_repairable_state(
         SecretBoundaryRepairableChangeClass::CredentialRevoked => {
             SecretBoundaryLineageEventClass::CredentialRevoked
         }
-        _ if repairable_state.triggering_health_state == SecretBoundaryHealthStateClass::PolicyBlocked => {
+        _ if repairable_state.triggering_health_state
+            == SecretBoundaryHealthStateClass::PolicyBlocked =>
+        {
             SecretBoundaryLineageEventClass::PolicyDeniedProjection
         }
         _ => SecretBoundaryLineageEventClass::RebindRequired,
@@ -3125,7 +3135,9 @@ fn failure_dimension_for_health(
     health_state: SecretBoundaryHealthStateClass,
 ) -> SecretBoundaryFailureDimensionClass {
     match health_state {
-        SecretBoundaryHealthStateClass::PolicyBlocked => SecretBoundaryFailureDimensionClass::Policy,
+        SecretBoundaryHealthStateClass::PolicyBlocked => {
+            SecretBoundaryFailureDimensionClass::Policy
+        }
         SecretBoundaryHealthStateClass::ForwardingPaused => {
             SecretBoundaryFailureDimensionClass::RuntimeHealth
         }
@@ -5310,8 +5322,9 @@ pub fn seeded_m5_secret_boundary_depth_packet() -> M5SecretBoundaryDepthPacket {
         .iter()
         .filter(|row| row.displayed_label.is_current())
         .count();
-    let narrowed_qualification_count =
-        qualification_rows.len().saturating_sub(current_qualification_count);
+    let narrowed_qualification_count = qualification_rows
+        .len()
+        .saturating_sub(current_qualification_count);
     let qualification_row_refs = qualification_rows
         .iter()
         .map(|row| row.qualification_row_id.clone())

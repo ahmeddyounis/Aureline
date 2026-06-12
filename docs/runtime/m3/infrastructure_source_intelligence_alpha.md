@@ -6,6 +6,11 @@ Kubernetes, container, CI, and policy connectors expose read-only topology and
 relationship intelligence while keeping active control-plane mutation authority
 outside the packet.
 
+For M5 work, the canonical cross-surface vocabulary now lives in
+[`/docs/infra/source-intelligence-and-resource-relationships.md`](../../infra/source-intelligence-and-resource-relationships.md).
+This alpha page remains the provider-owned read-only projection layer that
+should reuse that matrix rather than drifting from it.
+
 The Rust implementation lives at
 [`/crates/aureline-provider/src/infrastructure_intelligence/`](../../../crates/aureline-provider/src/infrastructure_intelligence/mod.rs).
 The boundary schema lives at

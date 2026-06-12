@@ -8,6 +8,12 @@
 //! and freshness labels; and search, review, AI-context, and support
 //! projections are derived from the same [`InfrastructureIntelligenceAlphaPage`]
 //! instead of separate per-surface truth stores.
+//!
+//! The canonical M5 vocabulary for infrastructure truth layers and
+//! relationship classes is frozen in
+//! [`docs/infra/source-intelligence-and-resource-relationships.md`](../../../../docs/infra/source-intelligence-and-resource-relationships.md).
+//! This alpha contract should remain a provider-owned projection over that
+//! vocabulary, not a parallel source of truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 

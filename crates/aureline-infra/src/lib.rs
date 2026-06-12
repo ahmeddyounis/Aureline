@@ -1,14 +1,16 @@
-//! Infrastructure target-context and control-plane boundary packets.
+//! Infrastructure target-context, source-intelligence, and control-plane packets.
 //!
 //! This crate owns the qualification model that keeps infrastructure-facing
-//! surfaces honest about target identity, connector class, action safety, and
-//! vendor-console handoff posture. It does not implement live Kubernetes,
-//! cloud, or console connectors; it validates the packet evidence those
-//! surfaces must emit before any stable ops claim can be promoted.
+//! surfaces honest about target identity, truth layers, relationship edges,
+//! action safety, and vendor-console handoff posture. It does not implement
+//! live Kubernetes, cloud, or console connectors; it validates the packet
+//! evidence those surfaces must emit before any stable ops claim can be
+//! promoted.
 
 #![doc(html_root_url = "https://docs.rs/aureline-infra/0.0.0")]
 
 pub mod cluster_context_and_live_resource;
+pub mod source_intelligence_and_resource_relationships;
 pub mod target_context_and_control_plane_boundary;
 
 pub use cluster_context_and_live_resource::{
@@ -18,6 +20,17 @@ pub use cluster_context_and_live_resource::{
     CLUSTER_LIVE_RESOURCE_DOC_REF, CLUSTER_LIVE_RESOURCE_FIXTURE_DIR,
     CLUSTER_LIVE_RESOURCE_PACKET_RECORD_KIND, CLUSTER_LIVE_RESOURCE_SCHEMA_REF,
     CLUSTER_LIVE_RESOURCE_SCHEMA_VERSION,
+};
+pub use source_intelligence_and_resource_relationships::{
+    validate_packet as validate_source_intelligence_relationship_packet, ConsoleHandoffPosture,
+    DowngradeProfile, ExportFidelity, InfrastructureFamily, InfrastructureFamilyMatrixRow,
+    LiveAccessPrerequisite, RelationEdgeBinding, RelationEdgeClass,
+    SourceIntelligenceRelationshipMatrixPacket,
+    SourceIntelligenceRelationshipMatrixValidationReport, TargetContextField,
+    TargetContextRequirement, TargetContextRequirementClass, TruthLayer, TruthLayerBinding,
+    SOURCE_INTELLIGENCE_RELATIONSHIP_DOC_REF, SOURCE_INTELLIGENCE_RELATIONSHIP_FIXTURE_DIR,
+    SOURCE_INTELLIGENCE_RELATIONSHIP_PACKET_RECORD_KIND,
+    SOURCE_INTELLIGENCE_RELATIONSHIP_SCHEMA_REF, SOURCE_INTELLIGENCE_RELATIONSHIP_SCHEMA_VERSION,
 };
 pub use target_context_and_control_plane_boundary::{
     validate_packet, ActionEnvelope, ActionKind, ActionPosture, BoundaryActionReview,
