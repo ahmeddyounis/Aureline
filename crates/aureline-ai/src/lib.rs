@@ -291,6 +291,18 @@
 //! shadow telemetry store, never widening locality past its scope, and degrading a
 //! missing or policy-blocked object to a precise label rather than one generic
 //! "memory unavailable" state.
+//! The reusable semantic-memory and embedding-index records lane exposes one
+//! [`ship_reusable_semantic_memory_and_embedding_index_records_with_epoch_invalidation_locality_and_no_mixed_generation_truth::SemanticRecallRecordsPacket`]
+//! object that materializes the derived retrieval artifacts those memory objects
+//! read — reusable semantic memory and embedding indexes — each binding its
+//! graph/docs/model epoch lineage and embedding generation, the epochs whose bump
+//! invalidates it, its retrieval generation state, its local-versus-managed
+//! locality cue, and its delete/export posture, so a graph, docs, or model epoch
+//! bump invalidates the records bound to it, mixed-generation or stale retrieval
+//! is labeled mixed-blocked or invalidated instead of masquerading as current
+//! truth, and the local, mirrored, managed, and policy-blocked locality states
+//! stay distinct and export-safe rather than collapsing into one generic
+//! semantic-search state.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
@@ -337,6 +349,7 @@ pub mod ship_ai_explain_debug_and_test_flows_with_evidence_links_to_logs_traces_
 pub mod ship_evidence_rich_patch_review_with_diff_packets_validation_receipts_and_rollback_handles_across_apply_flows;
 pub mod ship_provider_and_model_graduation_packets_rollout_rings_and_kill_switch_or_backout_paths;
 pub mod ship_repo_defined_ai_instruction_packs_per_tool_approvals_and_tainted_context_fence_enforcement;
+pub mod ship_reusable_semantic_memory_and_embedding_index_records_with_epoch_invalidation_locality_and_no_mixed_generation_truth;
 pub mod ship_the_external_tool_gateway_and_connector_manifests_with_capability_classes_and_side_effect_disclosure;
 pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
