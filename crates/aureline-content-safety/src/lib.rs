@@ -37,6 +37,7 @@
 pub mod content_integrity;
 pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
+pub mod m5_suspicious_text_detector_parity;
 pub mod records;
 pub mod representation_copy_export;
 pub mod representation_labels;
@@ -76,6 +77,19 @@ pub use freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_ex
     M5_CONTENT_INTEGRITY_MATRIX_SUMMARY_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TEXT_REPRESENTATION_CONTRACT_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TRUST_CLASS_CONTRACT_REF,
+};
+pub use m5_suspicious_text_detector_parity::{
+    current_m5_suspicious_text_parity_export, frozen_m5_suspicious_text_parity_packet,
+    project_m5_suspicious_text_parity, M5SuspiciousTextDisplayMode,
+    M5SuspiciousTextParityExportError, M5SuspiciousTextParityPacket, M5SuspiciousTextParitySeed,
+    M5SuspiciousTextParityViolation, M5SuspiciousTextSupportAdminExport, M5SuspiciousTextSurface,
+    M5SuspiciousTextSurfaceProjection, M5SuspiciousTextThreatClass, M5SuspiciousTextThreatCue,
+    M5SuspiciousTextThreatCueSummary, M5SuspiciousTextThreatSeverity,
+    M5SuspiciousTextTransferChoice, M5SuspiciousTextWarning,
+    M5_SUSPICIOUS_TEXT_PARITY_ARTIFACT_REF, M5_SUSPICIOUS_TEXT_PARITY_DOC_REF,
+    M5_SUSPICIOUS_TEXT_PARITY_FIXTURE_DIR, M5_SUSPICIOUS_TEXT_PARITY_PACKET_ID,
+    M5_SUSPICIOUS_TEXT_PARITY_RECORD_KIND, M5_SUSPICIOUS_TEXT_PARITY_SCHEMA_REF,
+    M5_SUSPICIOUS_TEXT_PARITY_SCHEMA_VERSION, M5_SUSPICIOUS_TEXT_SUPPORT_ADMIN_RECORD_KIND,
 };
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
