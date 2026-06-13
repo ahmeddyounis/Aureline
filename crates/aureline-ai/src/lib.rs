@@ -271,6 +271,12 @@
 //! Semantic navigation citations use [`aureline_navigation::target_model`] so
 //! AI context rows carry relation, access, proof, freshness, ambiguity, and
 //! scope-completeness labels instead of copied UI strings.
+//! The AI recall matrix lane exposes one
+//! [`freeze_the_m5_ai_memory_prompt_result_cache_hybrid_retrieval_and_retrieval_locality_matrix::M5AiRecallMatrixPacket`]
+//! object that freezes, for every claimed M5 AI or recall surface, its
+//! memory/cache classes, retrieval lanes, locality posture, cache-invalidation
+//! classes, delete/export posture, budget/receipt expectation, and consumer
+//! parity, auto-narrowing any Stable claim whose recall evidence is incomplete.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
@@ -289,6 +295,7 @@ pub mod context_inspector;
 pub mod evidence;
 pub mod finalize_ai_evidence_packets;
 pub mod finalize_tainted_context_fences;
+pub mod freeze_the_m5_ai_memory_prompt_result_cache_hybrid_retrieval_and_retrieval_locality_matrix;
 pub mod freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents;
 pub mod graduation;
 pub mod harden_ai_scoped_apply;
@@ -482,6 +489,21 @@ pub use finalize_tainted_context_fences::{
     FINALIZE_TAINTED_CONTEXT_FIXTURE_DIR, FINALIZE_TAINTED_CONTEXT_RECORD_KIND,
     FINALIZE_TAINTED_CONTEXT_SCHEMA_REF, FINALIZE_TAINTED_CONTEXT_SCHEMA_VERSION,
     FINALIZE_TAINTED_CONTEXT_SUMMARY_REF, FINALIZE_TAINTED_CONTEXT_TAINT_CONTRACT_REF,
+};
+pub use freeze_the_m5_ai_memory_prompt_result_cache_hybrid_retrieval_and_retrieval_locality_matrix::{
+    current_stable_m5_ai_recall_matrix_export, M5AiRecallMatrixArtifactError,
+    M5AiRecallMatrixConsumerProjection, M5AiRecallMatrixGuardrails, M5AiRecallMatrixPacket,
+    M5AiRecallMatrixPacketInput, M5AiRecallMatrixProofFreshness, M5AiRecallMatrixSurfaceRow,
+    M5AiRecallMatrixViolation, M5BudgetReceiptExpectation, M5CacheInvalidationClass,
+    M5DeleteExportPosture, M5LocalityPosture, M5MemoryCacheClass, M5RecallConsumerSurface,
+    M5RecallDowngradeTrigger, M5RecallEvidenceRequirement, M5RecallQualificationClass,
+    M5RecallSurface, M5RetrievalLane, M5_AI_RECALL_MATRIX_ARTIFACT_REF,
+    M5_AI_RECALL_MATRIX_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    M5_AI_RECALL_MATRIX_DELETE_EXPORT_CONTRACT_REF, M5_AI_RECALL_MATRIX_DOC_REF,
+    M5_AI_RECALL_MATRIX_FIXTURE_DIR, M5_AI_RECALL_MATRIX_MEMORY_CLASS_CONTRACT_REF,
+    M5_AI_RECALL_MATRIX_RECORD_KIND, M5_AI_RECALL_MATRIX_RETRIEVAL_CONTRACT_REF,
+    M5_AI_RECALL_MATRIX_SCHEMA_REF, M5_AI_RECALL_MATRIX_SCHEMA_VERSION,
+    M5_AI_RECALL_MATRIX_SPEND_RECEIPT_CONTRACT_REF, M5_AI_RECALL_MATRIX_SUMMARY_REF,
 };
 pub use freeze_the_m5_ai_workflow_matrix_for_inline_assist_patch_review_and_branch_or_worktree_agents::{
     current_stable_m5_ai_workflow_matrix_export, M5AiWorkflowConsumerSurface,
