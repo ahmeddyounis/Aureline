@@ -1,0 +1,59 @@
+# M5 AI/Docs/Recall Row Certification
+
+- Packet: `m5-recall-row-certification:stable:0001`
+- Label: `M5 AI/Docs/Recall Row Certification`
+- Rows: 8 (8 claimed, 1 narrowed)
+- Surfaces: 8 / 8
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-07T00:00:00Z)
+
+## Rows
+
+- **recall-row:composer-inline-assist:0001** (composer_inline_assist): claim `stable` -> effective `stable`
+  - Composer inline assist recall over turn/thread memory, prompt cache, and hybrid retrieval
+  - memory_class: `current` (local_on_device)
+  - prompt_cache_session_artifact: `current` (local_on_device)
+  - hybrid_retrieval_locality: `current` (local_on_device)
+  - spend_receipt: `current` (local_on_device)
+- **recall-row:patch-review:0001** (patch_review): claim `stable` -> effective `stable`
+  - Evidence-rich patch review recall with session-artifact provenance and spend receipts
+  - memory_class: `current` (local_on_device)
+  - prompt_cache_session_artifact: `current` (local_on_device)
+  - hybrid_retrieval_locality: `current` (local_on_device)
+  - spend_receipt: `current` (local_on_device)
+- **recall-row:branch-worktree-agent:0001** (branch_worktree_agent): claim `beta` -> effective `beta`
+  - Side-branch agent recall under cumulative budget ceilings and checkpoint-aware receipts
+  - memory_class: `current` (managed_hosted)
+  - prompt_cache_session_artifact: `current` (managed_hosted)
+  - hybrid_retrieval_locality: `current` (managed_hosted)
+  - spend_receipt: `current` (managed_hosted)
+- **recall-row:docs-browser-recall:0001** (docs_browser_recall): claim `beta` -> effective `beta`
+  - Docs and in-app browser recall with provenance, locality cues, and retention posture
+  - memory_class: `current` (managed_hosted)
+  - prompt_cache_session_artifact: `current` (managed_hosted)
+  - hybrid_retrieval_locality: `current` (managed_hosted)
+  - spend_receipt: `current` (managed_hosted)
+- **recall-row:code-understanding:0001** (code_understanding): claim `beta` -> effective `beta`
+  - Codebase-understanding recall over the workspace graph and reusable semantic memory
+  - memory_class: `current` (local_on_device)
+  - prompt_cache_session_artifact: `current` (local_on_device)
+  - hybrid_retrieval_locality: `current` (local_on_device)
+  - spend_receipt: `current` (local_on_device)
+- **recall-row:semantic-hybrid-search:0001** (semantic_hybrid_search): claim `stable` -> effective `stable`
+  - Semantic and hybrid search recall blending lexical, graph, and embedding lanes
+  - memory_class: `current` (mixed_labeled)
+  - prompt_cache_session_artifact: `current` (mixed_labeled)
+  - hybrid_retrieval_locality: `current` (mixed_labeled)
+  - spend_receipt: `current` (mixed_labeled)
+- **recall-row:managed-offline-report:0001** (managed_offline_report): claim `stable` -> effective `stable`
+  - Managed and offline usage/locality reporting with mirror-safe fallback truth
+  - memory_class: `current` (mirrored_offline)
+  - prompt_cache_session_artifact: `current` (mirrored_offline)
+  - hybrid_retrieval_locality: `current` (mirrored_offline)
+  - spend_receipt: `current` (mirrored_offline)
+- **recall-row:support-export:0001** (support_export): claim `stable` -> effective `beta`
+  - Support/export projection of recall provenance, retention, and spend receipts
+  - memory_class: `current` (managed_hosted)
+  - prompt_cache_session_artifact: `current` (managed_hosted)
+  - hybrid_retrieval_locality: `current` (managed_hosted)
+  - spend_receipt: `stale` (managed_hosted)
+  - Degraded: Spend-receipt proof aged past its freshness bound; export narrowed to Beta until refreshed

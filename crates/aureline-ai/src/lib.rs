@@ -329,6 +329,7 @@ pub mod ai_pack_rollout;
 pub mod ai_review_assist;
 pub mod ai_test_generation;
 pub mod audit_optional_ai_adjacent_surfaces;
+pub mod certify_ai_memory_classes_prompt_result_cache_and_session_artifact_governance_hybrid_retrieval_or_embedding_locality_and;
 pub mod certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode;
 pub mod certify_local_model_provider_recipe_connector_and_spend_governance_lanes_on_every_claimed_m5_profile;
 pub mod composer;
@@ -479,6 +480,16 @@ pub use ai_test_generation::{
     AI_TEST_GENERATION_TRUTH_SCHEMA_VERSION, AI_TEST_GENERATION_TRUTH_SUMMARY_REF,
 };
 pub use aureline_navigation::target_model as navigation_target_model;
+pub use certify_ai_memory_classes_prompt_result_cache_and_session_artifact_governance_hybrid_retrieval_or_embedding_locality_and::{
+    current_m5_recall_row_certification_export, CertificationPillar, CertifiedRecallRow,
+    LocalityClass, M5RecallRowCertificationArtifactError, M5RecallRowCertificationPacket,
+    M5RecallRowCertificationPacketInput, M5RecallRowCertificationViolation, PillarProof, ProofState,
+    RecallSurface, RowCertConsumerProjection, RowCertGuardrails, RowCertProofFreshness,
+    M5_RECALL_ROW_CERTIFICATION_ARTIFACT_REF, M5_RECALL_ROW_CERTIFICATION_DOC_REF,
+    M5_RECALL_ROW_CERTIFICATION_FIXTURE_DIR, M5_RECALL_ROW_CERTIFICATION_RECORD_KIND,
+    M5_RECALL_ROW_CERTIFICATION_SCHEMA_REF, M5_RECALL_ROW_CERTIFICATION_SCHEMA_VERSION,
+    M5_RECALL_ROW_CERTIFICATION_SUMMARY_REF,
+};
 pub use certify_ai_workflow_scorecards_red_team_packs_and_downgrade_rules_for_each_shipped_m5_ai_mode::{
     current_ai_mode_certification_export, AiModeCertification, AiModeCertificationArtifactError,
     AiModeCertificationPacket, AiModeCertificationPacketInput, AiModeCertificationProofFreshness,
