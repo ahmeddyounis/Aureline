@@ -38,6 +38,7 @@ pub mod content_integrity;
 pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
 pub mod m5_raw_rendered_handoff;
+pub mod m5_safe_preview_limited_mode;
 pub mod m5_suspicious_text_detector_parity;
 pub mod m5_trust_class_ladder;
 pub mod records;
@@ -92,6 +93,20 @@ pub use m5_raw_rendered_handoff::{
     M5_RAW_RENDERED_HANDOFF_PACKET_ID, M5_RAW_RENDERED_HANDOFF_PRESERVATION_RECORD_KIND,
     M5_RAW_RENDERED_HANDOFF_RECORD_KIND, M5_RAW_RENDERED_HANDOFF_SCHEMA_REF,
     M5_RAW_RENDERED_HANDOFF_SCHEMA_VERSION,
+};
+pub use m5_safe_preview_limited_mode::{
+    current_m5_safe_preview_limited_mode_export, frozen_m5_safe_preview_limited_mode_packet,
+    project_m5_safe_preview_limited_mode, M5ActionPosture, M5LimitedModeAction,
+    M5LimitedModeActionKind, M5LimitedModeArtifactFamily, M5LimitedModeArtifactInput,
+    M5LimitedModeArtifactProjection, M5LimitedModeBanner, M5LimitedModeBannerKind,
+    M5LimitedModeReview, M5LimitedModeSeed, M5OpenMode, M5RenderCost,
+    M5SafePreviewLimitedModeExportError, M5SafePreviewLimitedModePacket,
+    M5SafePreviewLimitedModeViolation, M5_SAFE_PREVIEW_BYTE_BUDGET,
+    M5_SAFE_PREVIEW_LIMITED_ARTIFACT_REF, M5_SAFE_PREVIEW_LIMITED_DOC_REF,
+    M5_SAFE_PREVIEW_LIMITED_FIXTURE_DIR, M5_SAFE_PREVIEW_LIMITED_PACKET_ID,
+    M5_SAFE_PREVIEW_LIMITED_RAW_RENDERED_CONTRACT_REF, M5_SAFE_PREVIEW_LIMITED_RECORD_KIND,
+    M5_SAFE_PREVIEW_LIMITED_SCHEMA_REF, M5_SAFE_PREVIEW_LIMITED_SCHEMA_VERSION,
+    M5_SAFE_PREVIEW_LIMITED_TRUST_CLASS_CONTRACT_REF, M5_SAFE_PREVIEW_LINE_BUDGET,
 };
 pub use m5_suspicious_text_detector_parity::{
     current_m5_suspicious_text_parity_export, frozen_m5_suspicious_text_parity_packet,

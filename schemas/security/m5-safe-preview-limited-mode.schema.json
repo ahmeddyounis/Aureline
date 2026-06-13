@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/m5-safe-preview-limited-mode.schema.json",
+  "title": "Aureline M5 safe-preview limited-mode and expensive-render-guard packet",
+  "description": "Export-safe packet that keeps every large or generated M5 artifact family (build logs, dependency lockfiles, test snapshots, distribution bundles, evidence packets, and generated artifacts) from jumping straight into an expensive or unsafe render. Oversized or generated artifacts open in a bounded safe-preview limited mode first, with an oversized banner, a generated-artifact banner that names the canonical source or generator, and explicit open-raw / open-canonical-source / expand-full-render actions. The fuller, more expensive or unsafe render is gated behind an explicit opt-in and never fires silently; the default view is always cheap; open-raw stays reachable immediately on every artifact; the canonical-source or generator relationship is preserved so the derived artifact never pretends to be the only truth; and suspicious bytes are never normalized away. The packet carries only metadata: no raw artifact bytes, raw rendered trees, raw provider payloads, or credentials cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "case_id",
+    "limited_mode_artifact_count",
+    "guarded_render_count",
+    "oversized_count",
+    "generated_count",
+    "open_modes",
+    "byte_budget",
+    "line_budget",
+    "normalization_applied",
+    "artifacts",
+    "review",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_safe_preview_limited_mode_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "case_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "limited_mode_artifact_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "guarded_render_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "oversized_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "generated_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "open_modes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/open_mode"
+      }
+    },
+    "byte_budget": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "line_budget": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "normalization_applied": {
+      "const": false
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "$ref": "#/$defs/artifact_projection"
+      }
+    },
+    "review": {
+      "$ref": "#/$defs/review"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "artifact_family": {
+      "type": "string",
+      "enum": [
+        "build_log",
+        "dependency_lockfile",
+        "test_snapshot",
+        "distribution_bundle",
+        "evidence_packet",
+        "generated_artifact"
+      ]
+    },
+    "open_mode": {
+      "type": "string",
+      "enum": [
+        "safe_preview_limited",
+        "full_render_inline"
+      ]
+    },
+    "render_cost": {
+      "type": "string",
+      "enum": [
+        "cheap",
+        "expensive",
+        "unsafe"
+      ]
+    },
+    "banner_kind": {
+      "type": "string",
+      "enum": [
+        "oversized",
+        "generated_artifact",
+        "limited_preview",
+        "expensive_render_guarded",
+        "active_content_guarded"
+      ]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "open_raw",
+        "open_canonical_source",
+        "expand_full_render"
+      ]
+    },
+    "action_posture": {
+      "type": "string",
+      "enum": [
+        "available_immediately",
+        "requires_explicit_opt_in"
+      ]
+    },
+    "banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "kind_token",
+        "message"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/banner_kind"
+        },
+        "kind_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "message": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "kind_token",
+        "posture",
+        "posture_token",
+        "render_cost",
+        "render_cost_token",
+        "target_ref",
+        "label"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/action_kind"
+        },
+        "kind_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "posture": {
+          "$ref": "#/$defs/action_posture"
+        },
+        "posture_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "render_cost": {
+          "$ref": "#/$defs/render_cost"
+        },
+        "render_cost_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "artifact_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "family_token",
+        "subject_ref",
+        "canonical_source_ref",
+        "byte_size",
+        "line_count",
+        "generated",
+        "oversized",
+        "open_mode",
+        "open_mode_token",
+        "default_render_cost",
+        "default_render_cost_token",
+        "banners",
+        "actions",
+        "expensive_render_guarded",
+        "raw_inspection_reachable",
+        "raw_copy_reachable",
+        "canonical_relationship_preserved",
+        "visible_representation_cue",
+        "rationale"
+      ],
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/artifact_family"
+        },
+        "family_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "canonical_source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "byte_size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "line_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "generated": {
+          "type": "boolean"
+        },
+        "oversized": {
+          "type": "boolean"
+        },
+        "open_mode": {
+          "$ref": "#/$defs/open_mode"
+        },
+        "open_mode_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "default_render_cost": {
+          "const": "cheap"
+        },
+        "default_render_cost_token": {
+          "const": "cheap"
+        },
+        "banners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/banner"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "expensive_render_guarded": {
+          "type": "boolean"
+        },
+        "raw_inspection_reachable": {
+          "const": true
+        },
+        "raw_copy_reachable": {
+          "const": true
+        },
+        "canonical_relationship_preserved": {
+          "const": true
+        },
+        "visible_representation_cue": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "one_shared_policy_library_governs_all_surfaces",
+        "oversized_or_generated_open_in_limited_mode_first",
+        "no_silent_expensive_or_unsafe_render",
+        "expensive_and_unsafe_render_require_explicit_opt_in",
+        "open_raw_always_reachable",
+        "canonical_source_or_generator_relationship_preserved",
+        "visible_trust_or_representation_cue_in_limited_mode",
+        "default_view_is_never_expensive_or_unsafe",
+        "suspicious_bytes_never_normalized_away",
+        "generated_artifact_not_presented_as_only_truth"
+      ],
+      "properties": {
+        "one_shared_policy_library_governs_all_surfaces": {
+          "const": true
+        },
+        "oversized_or_generated_open_in_limited_mode_first": {
+          "const": true
+        },
+        "no_silent_expensive_or_unsafe_render": {
+          "const": true
+        },
+        "expensive_and_unsafe_render_require_explicit_opt_in": {
+          "const": true
+        },
+        "open_raw_always_reachable": {
+          "const": true
+        },
+        "canonical_source_or_generator_relationship_preserved": {
+          "const": true
+        },
+        "visible_trust_or_representation_cue_in_limited_mode": {
+          "const": true
+        },
+        "default_view_is_never_expensive_or_unsafe": {
+          "const": true
+        },
+        "suspicious_bytes_never_normalized_away": {
+          "const": true
+        },
+        "generated_artifact_not_presented_as_only_truth": {
+          "const": true
+        }
+      }
+    }
+  }
+}
