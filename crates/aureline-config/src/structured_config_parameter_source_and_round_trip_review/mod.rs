@@ -195,6 +195,50 @@ pub enum ReviewActionClass {
     CompareLive,
 }
 
+/// Lifecycle-sensitive dependency marker shown on a parameter row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LifecycleMarkerClass {
+    /// The parameter still depends on a Labs-only capability.
+    LabsDependency,
+    /// The parameter still depends on a Preview-only capability.
+    PreviewDependency,
+    /// Policy, entitlement, or signed ownership narrows the parameter.
+    PolicyGatedDependency,
+    /// The current target cannot supply the full claimed capability.
+    UnsupportedDependency,
+    /// A stale experiment or rollout cohort still narrows the parameter.
+    StaleExperiment,
+    /// An expired kill switch still affects the parameter's effective behavior.
+    ExpiredKillSwitch,
+}
+
+/// Hidden-flag spill verdict for one artifact review row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HiddenFlagSpillVerdict {
+    /// Stable-facing truth is clean.
+    ClearStableSurface,
+    /// Narrowing exists and is explicitly disclosed.
+    DisclosedNarrowing,
+    /// Stable-facing treatment is blocked until the dependency is repaired.
+    BlockedStableFacingRow,
+}
+
+/// Typed reset/repair/import/migration review class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MutationReviewClass {
+    /// Reset or clear only the current layer.
+    ResetCurrentLayer,
+    /// Repair drift or stale resolved state.
+    RepairDrift,
+    /// Import or re-apply a fragment or bundle.
+    ImportFragment,
+    /// Apply a migration or schema rewrite.
+    MigrateArtifact,
+}
+
 /// Round-trip-loss class shown on risk banners and compare sheets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -284,6 +328,67 @@ pub struct ReviewActionRow {
     pub action_label: String,
 }
 
+/// One visible lifecycle-sensitive dependency marker on a parameter row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LifecycleDependencyMarker {
+    /// Marker classification.
+    pub marker_class: LifecycleMarkerClass,
+    /// Human-readable dependency label.
+    pub dependency_label: String,
+    /// Stable ref for the dependency or rollout entry.
+    pub dependency_ref: String,
+    /// Lifecycle state still required by the dependency.
+    pub required_lifecycle_label: String,
+    /// Exact effect on the current parameter row.
+    pub effect_summary: String,
+    /// Repair or fallback route.
+    pub fallback_path: String,
+    /// Whether the marker is visible on the surface.
+    pub visible: bool,
+}
+
+/// Guard proving hidden flag or rollout state does not silently spill onto a row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HiddenFlagSpillGuard {
+    /// Guard verdict for the row.
+    pub verdict: HiddenFlagSpillVerdict,
+    /// Stable-facing surface label protected by the guard.
+    pub stable_facing_surface_label: String,
+    /// Whether hidden dependency state was detected.
+    pub hidden_dependency_detected: bool,
+    /// Stale experiment or rollout ref when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stale_experiment_ref: Option<String>,
+    /// Expired kill-switch ref when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expired_kill_switch_ref: Option<String>,
+    /// Reviewer-facing summary.
+    pub review_summary: String,
+}
+
+/// Scope-explicit mutation review row reused across repair/import flows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeExplicitMutationReview {
+    /// Typed review class.
+    pub review_class: MutationReviewClass,
+    /// Exact artifact or fragment scope affected.
+    pub scope_label: String,
+    /// Key set the flow would touch.
+    pub selected_key_set: Vec<String>,
+    /// Named winning layers or authored sources that would change.
+    pub affected_layer_labels: Vec<String>,
+    /// Named bundles, policies, or signed artifacts that would change.
+    pub affected_bundle_refs: Vec<String>,
+    /// Opaque ref to the preview or review sheet.
+    pub preview_ref: String,
+    /// Rollback checkpoint created before apply, when mutation may proceed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollback_checkpoint_ref: Option<String>,
+    /// Policy denial reason when the flow is blocked before apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_denied_reason: Option<String>,
+}
+
 /// One per-parameter source row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParameterSourceRow {
@@ -303,6 +408,9 @@ pub struct ParameterSourceRow {
     pub copy_export_posture: CopyExportPosture,
     /// Whether this row is the effective winner.
     pub wins_effective_value: bool,
+    /// Lifecycle-sensitive dependency marker, when one narrows the row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifecycle_dependency: Option<LifecycleDependencyMarker>,
 }
 
 /// One visible value chip.
@@ -401,6 +509,8 @@ pub struct ArtifactReviewRow {
     pub artifact_surface_ref: String,
     /// Per-parameter source rows.
     pub parameter_source_rows: Vec<ParameterSourceRow>,
+    /// Guard proving hidden lifecycle state is disclosed or blocked.
+    pub hidden_flag_spill_guard: HiddenFlagSpillGuard,
     /// Value chips rendered for the artifact.
     pub value_chips: Vec<ValueChipRow>,
     /// Round-trip-risk banner when structured save is risky.
@@ -413,6 +523,8 @@ pub struct ArtifactReviewRow {
     pub effective_value_review_sheet: EffectiveValueReviewSheet,
     /// Export summary reused by export and support flows.
     pub export_summary: ExportSummary,
+    /// Scope-explicit reset/repair/import/migration reviews for the artifact.
+    pub mutation_reviews: Vec<ScopeExplicitMutationReview>,
     /// True when support/export reuses the same summary metadata.
     pub support_export_reuses_export_summary: bool,
 }
@@ -438,6 +550,14 @@ pub struct PacketSummary {
     pub output_disclosure_coverage_count: usize,
     /// Required shared surfaces covered by the packet.
     pub shared_surface_count: usize,
+    /// Count of visible lifecycle dependency markers on parameter rows.
+    pub lifecycle_dependency_marker_count: usize,
+    /// Count of rows guarded against hidden-flag spill.
+    pub hidden_flag_guarded_family_count: usize,
+    /// Count of scope-explicit mutation reviews.
+    pub mutation_review_count: usize,
+    /// Count of mutation reviews blocked by policy before apply.
+    pub policy_denied_mutation_review_count: usize,
     /// True when raw secret export stays blocked everywhere it should.
     pub raw_secret_export_blocked_everywhere: bool,
     /// True when support/export always reuses the same summary metadata.
@@ -505,6 +625,22 @@ impl StructuredConfigParameterSourceRoundTripReviewPacket {
                 self.summary.output_disclosure_coverage_count
             ),
             format!(
+                "lifecycle_dependency_marker_count: {}",
+                self.summary.lifecycle_dependency_marker_count
+            ),
+            format!(
+                "hidden_flag_guarded_family_count: {}",
+                self.summary.hidden_flag_guarded_family_count
+            ),
+            format!(
+                "mutation_review_count: {}",
+                self.summary.mutation_review_count
+            ),
+            format!(
+                "policy_denied_mutation_review_count: {}",
+                self.summary.policy_denied_mutation_review_count
+            ),
+            format!(
                 "raw_secret_export_blocked_everywhere: {}",
                 self.summary.raw_secret_export_blocked_everywhere
             ),
@@ -536,12 +672,32 @@ pub enum PacketValidationError {
     },
     /// A family omits an effective winner.
     MissingEffectiveWinner(ArtifactFamilyKind),
+    /// A row hides a required lifecycle dependency marker.
+    MissingLifecycleDependencyMarker(ArtifactFamilyKind),
+    /// A lifecycle dependency marker is malformed.
+    InvalidLifecycleDependencyMarker {
+        /// Family owning the row.
+        family: ArtifactFamilyKind,
+        /// Key/path identity.
+        key_path: String,
+    },
+    /// A hidden-flag spill guard is inconsistent with the row evidence.
+    InvalidHiddenFlagSpillGuard(ArtifactFamilyKind),
     /// A chip row is malformed.
     InvalidValueChip {
         /// Family owning the chip.
         family: ArtifactFamilyKind,
         /// Key/path identity.
         key_path: String,
+    },
+    /// A family omits scope-explicit mutation reviews.
+    MissingMutationReview(ArtifactFamilyKind),
+    /// A mutation review is malformed.
+    InvalidMutationReview {
+        /// Family owning the review.
+        family: ArtifactFamilyKind,
+        /// Review class that failed validation.
+        review_class: MutationReviewClass,
     },
     /// A family leaked raw secret export posture.
     RawSecretExportNotBlocked(ArtifactFamilyKind),
@@ -588,9 +744,31 @@ impl fmt::Display for PacketValidationError {
             Self::MissingEffectiveWinner(family) => {
                 write!(f, "{family:?} does not expose an effective winner")
             }
+            Self::MissingLifecycleDependencyMarker(family) => {
+                write!(f, "{family:?} hides a required lifecycle dependency marker")
+            }
+            Self::InvalidLifecycleDependencyMarker { family, key_path } => {
+                write!(
+                    f,
+                    "invalid lifecycle dependency marker for {family:?} / {key_path}"
+                )
+            }
+            Self::InvalidHiddenFlagSpillGuard(family) => {
+                write!(f, "{family:?} has an invalid hidden-flag spill guard")
+            }
             Self::InvalidValueChip { family, key_path } => {
                 write!(f, "invalid value chip for {family:?} / {key_path}")
             }
+            Self::MissingMutationReview(family) => {
+                write!(f, "{family:?} omits scope-explicit mutation reviews")
+            }
+            Self::InvalidMutationReview {
+                family,
+                review_class,
+            } => write!(
+                f,
+                "{family:?} has an invalid scope-explicit mutation review {review_class:?}"
+            ),
             Self::RawSecretExportNotBlocked(family) => {
                 write!(f, "{family:?} exposes raw secret export")
             }
@@ -746,6 +924,39 @@ pub fn audit_structured_config_parameter_source_and_round_trip_review(
             defects.push(PacketValidationError::MissingEffectiveWinner(review.family));
         }
 
+        let has_lifecycle_markers = review
+            .parameter_source_rows
+            .iter()
+            .any(|row| row.lifecycle_dependency.is_some());
+        let requires_lifecycle_marker = review.qualification_label != QualificationLabel::Stable
+            || review.hidden_flag_spill_guard.verdict != HiddenFlagSpillVerdict::ClearStableSurface;
+        if requires_lifecycle_marker && !has_lifecycle_markers {
+            defects.push(PacketValidationError::MissingLifecycleDependencyMarker(
+                review.family,
+            ));
+        }
+        if review
+            .hidden_flag_spill_guard
+            .stable_facing_surface_label
+            .trim()
+            .is_empty()
+            || review
+                .hidden_flag_spill_guard
+                .review_summary
+                .trim()
+                .is_empty()
+            || (review.hidden_flag_spill_guard.verdict
+                == HiddenFlagSpillVerdict::ClearStableSurface
+                && review.hidden_flag_spill_guard.hidden_dependency_detected)
+            || (review.hidden_flag_spill_guard.verdict
+                != HiddenFlagSpillVerdict::ClearStableSurface
+                && !has_lifecycle_markers)
+        {
+            defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                review.family,
+            ));
+        }
+
         for row in &review.parameter_source_rows {
             if row.key_path.trim().is_empty()
                 || row.display_value.trim().is_empty()
@@ -757,6 +968,35 @@ pub fn audit_structured_config_parameter_source_and_round_trip_review(
                     family: review.family,
                     key_path: row.key_path.clone(),
                 });
+            }
+            if let Some(marker) = &row.lifecycle_dependency {
+                if marker.dependency_label.trim().is_empty()
+                    || marker.dependency_ref.trim().is_empty()
+                    || marker.required_lifecycle_label.trim().is_empty()
+                    || marker.effect_summary.trim().is_empty()
+                    || marker.fallback_path.trim().is_empty()
+                    || !marker.visible
+                {
+                    defects.push(PacketValidationError::InvalidLifecycleDependencyMarker {
+                        family: review.family,
+                        key_path: row.key_path.clone(),
+                    });
+                }
+                if review.qualification_label == QualificationLabel::Stable
+                    && matches!(
+                        marker.marker_class,
+                        LifecycleMarkerClass::LabsDependency
+                            | LifecycleMarkerClass::PreviewDependency
+                            | LifecycleMarkerClass::StaleExperiment
+                            | LifecycleMarkerClass::ExpiredKillSwitch
+                    )
+                    && review.hidden_flag_spill_guard.verdict
+                        == HiddenFlagSpillVerdict::ClearStableSurface
+                {
+                    defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                        review.family,
+                    ));
+                }
             }
         }
 
@@ -858,6 +1098,32 @@ pub fn audit_structured_config_parameter_source_and_round_trip_review(
         if review_disclosures != export_disclosures {
             defects.push(PacketValidationError::ExportSummaryMismatch(review.family));
         }
+
+        if review.mutation_reviews.is_empty() {
+            defects.push(PacketValidationError::MissingMutationReview(review.family));
+        }
+        for mutation_review in &review.mutation_reviews {
+            if mutation_review.scope_label.trim().is_empty()
+                || mutation_review.selected_key_set.is_empty()
+                || (mutation_review.affected_layer_labels.is_empty()
+                    && mutation_review.affected_bundle_refs.is_empty())
+                || mutation_review.preview_ref.trim().is_empty()
+                || (mutation_review.policy_denied_reason.is_none()
+                    && mutation_review
+                        .rollback_checkpoint_ref
+                        .as_deref()
+                        .is_none_or(|value| value.trim().is_empty()))
+                || mutation_review
+                    .policy_denied_reason
+                    .as_deref()
+                    .is_some_and(|value| value.trim().is_empty())
+            {
+                defects.push(PacketValidationError::InvalidMutationReview {
+                    family: review.family,
+                    review_class: mutation_review.review_class,
+                });
+            }
+        }
     }
 
     let expected_summary = derive_summary(&packet.surface_vocabulary, &packet.artifact_reviews);
@@ -914,6 +1180,30 @@ pub fn audit_structured_config_parameter_source_and_round_trip_review(
         "shared_surface_count",
         expected_summary.shared_surface_count,
         packet.summary.shared_surface_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "lifecycle_dependency_marker_count",
+        expected_summary.lifecycle_dependency_marker_count,
+        packet.summary.lifecycle_dependency_marker_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "hidden_flag_guarded_family_count",
+        expected_summary.hidden_flag_guarded_family_count,
+        packet.summary.hidden_flag_guarded_family_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "mutation_review_count",
+        expected_summary.mutation_review_count,
+        packet.summary.mutation_review_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "policy_denied_mutation_review_count",
+        expected_summary.policy_denied_mutation_review_count,
+        packet.summary.policy_denied_mutation_review_count,
     );
     compare_summary_flag(
         &mut defects,
@@ -1058,6 +1348,26 @@ fn derive_summary(
         chip_class_coverage_count: chip_classes.len(),
         output_disclosure_coverage_count: output_classes.len(),
         shared_surface_count: surface_vocabulary.len(),
+        lifecycle_dependency_marker_count: artifact_reviews
+            .iter()
+            .flat_map(|review| review.parameter_source_rows.iter())
+            .filter(|row| row.lifecycle_dependency.is_some())
+            .count(),
+        hidden_flag_guarded_family_count: artifact_reviews
+            .iter()
+            .filter(|review| {
+                review.hidden_flag_spill_guard.verdict != HiddenFlagSpillVerdict::ClearStableSurface
+            })
+            .count(),
+        mutation_review_count: artifact_reviews
+            .iter()
+            .map(|review| review.mutation_reviews.len())
+            .sum(),
+        policy_denied_mutation_review_count: artifact_reviews
+            .iter()
+            .flat_map(|review| review.mutation_reviews.iter())
+            .filter(|review| review.policy_denied_reason.is_some())
+            .count(),
         raw_secret_export_blocked_everywhere: artifact_reviews.iter().all(|review| {
             review.value_chips.iter().all(|chip| {
                 !matches!(
@@ -1266,6 +1576,14 @@ fn request_workspace_environment_review() -> ArtifactReviewRow {
                 false,
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::ClearStableSurface,
+            "Request environment review",
+            false,
+            None,
+            None,
+            "Request environment review is stable and does not depend on hidden lifecycle state.",
+        ),
         value_chips: vec![
             chip(
                 "env.DB_HOST",
@@ -1323,6 +1641,28 @@ fn request_workspace_environment_review() -> ArtifactReviewRow {
                 "Runtime-only values export as key-path metadata.",
             ],
         ),
+        mutation_reviews: vec![
+            mutation_review(
+                MutationReviewClass::ResetCurrentLayer,
+                "workspace env set: production",
+                &["env.DB_HOST", "env.DB_PASSWORD"],
+                &["workspace source", "profile override"],
+                &[],
+                "aureline://preview/request-workspace-env-reset",
+                Some("aureline://checkpoint/request-workspace-env-reset"),
+                None,
+            ),
+            mutation_review(
+                MutationReviewClass::ImportFragment,
+                "imported env fragment: production",
+                &["env.DB_HOST", "env.DB_PASSWORD", "env.REQUEST_ID"],
+                &["profile override"],
+                &["aureline://bundle/request-workspace-env-import"],
+                "aureline://preview/request-workspace-env-import",
+                Some("aureline://checkpoint/request-workspace-env-import"),
+                None,
+            ),
+        ],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1353,7 +1693,7 @@ fn database_profile_review() -> ArtifactReviewRow {
                 CopyExportPosture::ReferenceHandleOnly,
                 true,
             ),
-            row(
+            row_with_marker(
                 "ssl.mode",
                 "verify-full",
                 ValueChipClass::PolicyInjected,
@@ -1362,8 +1702,24 @@ fn database_profile_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ViewPolicySource, "View policy"),
                 CopyExportPosture::MetadataSummaryOnly,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Policy TLS floor",
+                    "aureline://policy/database-profile-tls-floor",
+                    "Stable",
+                    "The effective TLS posture remains policy-owned and visible on the row.",
+                    "Open the policy source or repair under the same scope.",
+                )),
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "Database profile review",
+            false,
+            None,
+            None,
+            "Database review stays explicit about the policy-owned TLS floor instead of hiding it behind a stable-looking winner.",
+        ),
         value_chips: vec![
             chip(
                 "connection.host",
@@ -1421,6 +1777,16 @@ fn database_profile_review() -> ArtifactReviewRow {
                 "Policy-owned rows downgrade to redacted placeholders in support/export.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::RepairDrift,
+            "workspace database profile: warehouse.production",
+            &["connection.host", "credentials.password", "ssl.mode"],
+            &["workspace source", "managed policy"],
+            &["aureline://policy/database-profile-tls-floor"],
+            "aureline://preview/database-profile-repair",
+            Some("aureline://checkpoint/database-profile-repair"),
+            None,
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1431,7 +1797,7 @@ fn api_profile_review() -> ArtifactReviewRow {
         qualification_label: QualificationLabel::Stable,
         artifact_surface_ref: family_ref(ArtifactFamilyKind::ApiProfile),
         parameter_source_rows: vec![
-            row(
+            row_with_marker(
                 "base_url",
                 "https://api.internal",
                 ValueChipClass::LiteralValue,
@@ -1440,6 +1806,14 @@ fn api_profile_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ResetCurrentLayer, "Reset current layer"),
                 CopyExportPosture::LocalLiteralAfterReview,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Policy route floor",
+                    "aureline://policy/api-profile-route-floor",
+                    "Stable",
+                    "The effective base URL is still narrowed by the managed route floor.",
+                    "View the policy source or request an admin-authored route change.",
+                )),
             ),
             row(
                 "auth.token",
@@ -1472,6 +1846,14 @@ fn api_profile_review() -> ArtifactReviewRow {
                 false,
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "API profile review",
+            false,
+            None,
+            None,
+            "API profile review keeps the policy-owned routing winner explicit and refuses a hidden local-override story.",
+        ),
         value_chips: vec![
             chip(
                 "base_url",
@@ -1545,6 +1927,16 @@ fn api_profile_review() -> ArtifactReviewRow {
                 "Runtime-only rows export as key-path metadata.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::ResetCurrentLayer,
+            "workspace API profile: payments.production",
+            &["base_url", "auth.token", "headers.X-Tenant", "oauth.audience"],
+            &["workspace source", "managed policy"],
+            &["aureline://policy/api-profile-route-floor"],
+            "aureline://preview/api-profile-reset",
+            None,
+            Some("Signed policy ownership blocks local reset of the winning route."),
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1586,7 +1978,7 @@ fn notebook_runtime_manifest_review() -> ArtifactReviewRow {
                 CopyExportPosture::ReferenceHandleOnly,
                 true,
             ),
-            row(
+            row_with_marker(
                 "kernel.metadata.custom.runtimeClass",
                 "gpu-preview",
                 ValueChipClass::LiteralValue,
@@ -1595,8 +1987,24 @@ fn notebook_runtime_manifest_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::OpenSource, "Open source"),
                 CopyExportPosture::LocalLiteralAfterReview,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::StaleExperiment,
+                    "Notebook runtime rollout cohort",
+                    "aureline://experiments/notebook-runtime-rollout",
+                    "Beta",
+                    "The runtime class remains narrowed by a stale rollout cohort and must stay visible on the row.",
+                    "Refresh the rollout inventory or pin a non-cohort runtime class.",
+                )),
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "Notebook runtime manifest review",
+            true,
+            Some("aureline://experiments/notebook-runtime-rollout"),
+            None,
+            "Notebook runtime review remains beta-scoped because stale rollout state still narrows the runtime class.",
+        ),
         value_chips: vec![
             chip(
                 "kernel.env.PYTHONPATH",
@@ -1670,6 +2078,32 @@ fn notebook_runtime_manifest_review() -> ArtifactReviewRow {
                 "Support packets may further redact namespace-heavy rows instead of rewriting them.",
             ],
         ),
+        mutation_reviews: vec![
+            mutation_review(
+                MutationReviewClass::RepairDrift,
+                "notebook runtime manifest: etl",
+                &[
+                    "kernel.env.PYTHONPATH",
+                    "kernel.auth.api_key",
+                    "kernel.metadata.custom.runtimeClass",
+                ],
+                &["workspace source", "extension namespace"],
+                &["aureline://experiments/notebook-runtime-rollout"],
+                "aureline://preview/notebook-runtime-repair",
+                Some("aureline://checkpoint/notebook-runtime-repair"),
+                None,
+            ),
+            mutation_review(
+                MutationReviewClass::MigrateArtifact,
+                "runtime manifest migration: etl",
+                &["kernel.metadata.custom.runtimeClass"],
+                &["extension namespace"],
+                &[],
+                "aureline://preview/notebook-runtime-migration",
+                Some("aureline://checkpoint/notebook-runtime-migration"),
+                None,
+            ),
+        ],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1690,7 +2124,7 @@ fn preview_runtime_config_review() -> ArtifactReviewRow {
         qualification_label: QualificationLabel::Preview,
         artifact_surface_ref: family_ref(ArtifactFamilyKind::PreviewRuntimeConfig),
         parameter_source_rows: vec![
-            row(
+            row_with_marker(
                 "preview.proxy.origin",
                 "https://preview.internal",
                 ValueChipClass::LiteralValue,
@@ -1699,8 +2133,16 @@ fn preview_runtime_config_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ResetCurrentLayer, "Reset current layer"),
                 CopyExportPosture::LocalLiteralAfterReview,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::PreviewDependency,
+                    "Preview runtime browser lane",
+                    "aureline://feature/preview-runtime-browser",
+                    "Preview",
+                    "The authored preview origin still depends on the preview-runtime lane and must not inherit stable-looking defaults.",
+                    "Stay on the preview-qualified flow or edit the canonical source directly.",
+                )),
             ),
-            row(
+            row_with_marker(
                 "preview.auth.cookie",
                 "policy-backed handle",
                 ValueChipClass::PolicyInjected,
@@ -1709,6 +2151,14 @@ fn preview_runtime_config_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ViewPolicySource, "View policy"),
                 CopyExportPosture::MetadataSummaryOnly,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Managed preview auth floor",
+                    "aureline://policy/preview-runtime-auth-floor",
+                    "Stable",
+                    "Managed preview auth narrows the effective cookie state and stays explicit on the row.",
+                    "Open the policy source or continue in review-only preview mode.",
+                )),
             ),
             row(
                 "preview.device_token",
@@ -1721,6 +2171,14 @@ fn preview_runtime_config_review() -> ArtifactReviewRow {
                 false,
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::BlockedStableFacingRow,
+            "Preview runtime review",
+            true,
+            Some("aureline://experiments/preview-runtime-rollout"),
+            None,
+            "Preview runtime review blocks stable-facing treatment until the preview rollout dependency is removed or graduated.",
+        ),
         value_chips: vec![
             chip(
                 "preview.proxy.origin",
@@ -1786,6 +2244,16 @@ fn preview_runtime_config_review() -> ArtifactReviewRow {
                 "Runtime device tokens export as key-path metadata only.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::RepairDrift,
+            "preview runtime config: frontpage",
+            &["preview.proxy.origin", "preview.auth.cookie", "preview.device_token"],
+            &["workspace source", "managed policy"],
+            &["aureline://policy/preview-runtime-auth-floor"],
+            "aureline://preview/preview-runtime-repair",
+            Some("aureline://checkpoint/preview-runtime-repair"),
+            None,
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1826,7 +2294,7 @@ fn workflow_bundle_manifest_review() -> ArtifactReviewRow {
                 CopyExportPosture::LocalLiteralAfterReview,
                 true,
             ),
-            row(
+            row_with_marker(
                 "bundle.policy.target",
                 "release-approved only",
                 ValueChipClass::PolicyInjected,
@@ -1835,8 +2303,24 @@ fn workflow_bundle_manifest_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ViewPolicySource, "View policy"),
                 CopyExportPosture::MetadataSummaryOnly,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::LabsDependency,
+                    "Imported execution bundle lane",
+                    "aureline://feature/workflow-bundle-import",
+                    "Labs",
+                    "The effective policy target still depends on the Labs-only imported bundle lane.",
+                    "Open the canonical bundle source or keep the import in review-only mode.",
+                )),
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "Workflow bundle manifest review",
+            true,
+            Some("aureline://experiments/workflow-bundle-import"),
+            None,
+            "Workflow bundle review keeps Labs-only imported execution state explicit instead of leaking it into a stable-looking bundle row.",
+        ),
         value_chips: vec![
             chip(
                 "bundle.inputs.REGISTRY_TOKEN",
@@ -1910,6 +2394,20 @@ fn workflow_bundle_manifest_review() -> ArtifactReviewRow {
                 "Policy targets narrow to redacted placeholders in export/support.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::ImportFragment,
+            "workflow bundle import: data-api",
+            &[
+                "bundle.inputs.REGISTRY_TOKEN",
+                "bundle.steps[0].env.NODE_OPTIONS",
+                "bundle.policy.target",
+            ],
+            &["bundle source", "managed policy"],
+            &["aureline://bundle/workflow-data-api"],
+            "aureline://preview/workflow-bundle-import",
+            Some("aureline://checkpoint/workflow-bundle-import"),
+            None,
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -1940,7 +2438,7 @@ fn ci_environment_descriptor_review() -> ArtifactReviewRow {
                 CopyExportPosture::ReferenceHandleOnly,
                 true,
             ),
-            row(
+            row_with_marker(
                 "jobs.deploy.env.AWS_REGION",
                 "eu-west-1",
                 ValueChipClass::PolicyInjected,
@@ -1949,6 +2447,14 @@ fn ci_environment_descriptor_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ViewPolicySource, "View policy"),
                 CopyExportPosture::MetadataSummaryOnly,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::UnsupportedDependency,
+                    "Mirror-backed CI observation",
+                    "aureline://runtime/ci-mirror-observation",
+                    "Stable",
+                    "The effective CI environment still depends on mirrored observation and cannot quietly overclaim authoritative live truth.",
+                    "Refresh the mirror or stay on source/effective review.",
+                )),
             ),
             row(
                 "jobs.test.matrix.OS",
@@ -1961,6 +2467,14 @@ fn ci_environment_descriptor_review() -> ArtifactReviewRow {
                 true,
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "CI environment descriptor review",
+            false,
+            None,
+            None,
+            "CI review keeps mirrored-live dependence explicit instead of letting a stale mirror look like current live truth.",
+        ),
         value_chips: vec![
             chip(
                 "jobs.build.env.NPM_TOKEN",
@@ -2034,6 +2548,16 @@ fn ci_environment_descriptor_review() -> ArtifactReviewRow {
                 "Policy-owned region state narrows to redacted placeholders in support/export.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::MigrateArtifact,
+            "ci descriptor migration: release.pipeline",
+            &["jobs.build.env.NPM_TOKEN", "jobs.deploy.env.AWS_REGION", "jobs.test.matrix.OS"],
+            &["workspace source", "managed policy"],
+            &["aureline://policy/ci-managed-overlay"],
+            "aureline://preview/ci-descriptor-migration",
+            Some("aureline://checkpoint/ci-descriptor-migration"),
+            None,
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -2074,7 +2598,7 @@ fn infra_environment_descriptor_review() -> ArtifactReviewRow {
                 CopyExportPosture::ReferenceHandleOnly,
                 true,
             ),
-            row(
+            row_with_marker(
                 "stacks.prod.endpoint",
                 "observed from runtime",
                 ValueChipClass::RuntimeDiscovered,
@@ -2083,8 +2607,24 @@ fn infra_environment_descriptor_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::CompareLive, "Compare live"),
                 CopyExportPosture::KeyPathMetadataOnly,
                 false,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::UnsupportedDependency,
+                    "Mirrored cluster observation",
+                    "aureline://runtime/infra-mirror-observation",
+                    "Stable",
+                    "Observed cluster state is mirrored and may not stand in for authoritative live infrastructure truth.",
+                    "Inspect the target context or continue from source/effective review.",
+                )),
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "Infrastructure environment descriptor review",
+            false,
+            None,
+            None,
+            "Infrastructure review stays beta-scoped because mirrored observations may diverge from authoritative live state.",
+        ),
         value_chips: vec![
             chip(
                 "providers.aws.profile",
@@ -2155,6 +2695,16 @@ fn infra_environment_descriptor_review() -> ArtifactReviewRow {
                 "Observed runtime endpoints export as key-path metadata only.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::RepairDrift,
+            "infra descriptor repair: payments.prod",
+            &["providers.aws.profile", "providers.aws.assume_role", "stacks.prod.endpoint"],
+            &["workspace source", "runtime discovery"],
+            &["aureline://policy/infra-environment-floor"],
+            "aureline://preview/infra-descriptor-repair",
+            Some("aureline://checkpoint/infra-descriptor-repair"),
+            None,
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -2165,7 +2715,7 @@ fn managed_policy_overlay_review() -> ArtifactReviewRow {
         qualification_label: QualificationLabel::Beta,
         artifact_surface_ref: family_ref(ArtifactFamilyKind::ManagedPolicyOverlay),
         parameter_source_rows: vec![
-            row(
+            row_with_marker(
                 "network.egress.allowlist",
                 "key-path only",
                 ValueChipClass::PolicyInjected,
@@ -2174,6 +2724,14 @@ fn managed_policy_overlay_review() -> ArtifactReviewRow {
                 action(ReviewActionClass::ViewPolicySource, "Open signed bundle"),
                 CopyExportPosture::KeyPathMetadataOnly,
                 true,
+                Some(lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Signed policy ownership",
+                    "aureline://bundle/admin-policy-primary",
+                    "Stable",
+                    "The allowlist remains policy-owned and cannot silently collapse into a writable local row.",
+                    "Open the signed bundle or continue with inspect-only effective truth.",
+                )),
             ),
             row(
                 "credentials.registry_token",
@@ -2196,6 +2754,14 @@ fn managed_policy_overlay_review() -> ArtifactReviewRow {
                 false,
             ),
         ],
+        hidden_flag_spill_guard: hidden_flag_guard(
+            HiddenFlagSpillVerdict::DisclosedNarrowing,
+            "Managed policy overlay review",
+            false,
+            None,
+            None,
+            "Managed policy overlay review stays explicit about signed ownership and does not leak a hidden reset path.",
+        ),
         value_chips: vec![
             chip(
                 "network.egress.allowlist",
@@ -2254,6 +2820,20 @@ fn managed_policy_overlay_review() -> ArtifactReviewRow {
                 "Observed entitlement cache state remains metadata-only.",
             ],
         ),
+        mutation_reviews: vec![mutation_review(
+            MutationReviewClass::ResetCurrentLayer,
+            "managed policy overlay: org-defaults",
+            &[
+                "network.egress.allowlist",
+                "credentials.registry_token",
+                "entitlement.offline_grace",
+            ],
+            &["signed policy bundle"],
+            &["aureline://bundle/admin-policy-primary"],
+            "aureline://preview/managed-policy-overlay-reset",
+            None,
+            Some("Signed policy ownership denies local reset of the active overlay."),
+        )],
         support_export_reuses_export_summary: true,
     }
 }
@@ -2268,6 +2848,30 @@ fn row(
     copy_export_posture: CopyExportPosture,
     wins_effective_value: bool,
 ) -> ParameterSourceRow {
+    row_with_marker(
+        key_path,
+        display_value,
+        source_class,
+        resolution_time_label,
+        winner_label,
+        override_action,
+        copy_export_posture,
+        wins_effective_value,
+        None,
+    )
+}
+
+fn row_with_marker(
+    key_path: &str,
+    display_value: &str,
+    source_class: ValueChipClass,
+    resolution_time_label: &str,
+    winner_label: &str,
+    override_action: ReviewActionRow,
+    copy_export_posture: CopyExportPosture,
+    wins_effective_value: bool,
+    lifecycle_dependency: Option<LifecycleDependencyMarker>,
+) -> ParameterSourceRow {
     ParameterSourceRow {
         key_path: key_path.to_owned(),
         display_value: display_value.to_owned(),
@@ -2277,6 +2881,72 @@ fn row(
         override_action,
         copy_export_posture,
         wins_effective_value,
+        lifecycle_dependency,
+    }
+}
+
+fn lifecycle_marker(
+    marker_class: LifecycleMarkerClass,
+    dependency_label: &str,
+    dependency_ref: &str,
+    required_lifecycle_label: &str,
+    effect_summary: &str,
+    fallback_path: &str,
+) -> LifecycleDependencyMarker {
+    LifecycleDependencyMarker {
+        marker_class,
+        dependency_label: dependency_label.to_owned(),
+        dependency_ref: dependency_ref.to_owned(),
+        required_lifecycle_label: required_lifecycle_label.to_owned(),
+        effect_summary: effect_summary.to_owned(),
+        fallback_path: fallback_path.to_owned(),
+        visible: true,
+    }
+}
+
+fn hidden_flag_guard(
+    verdict: HiddenFlagSpillVerdict,
+    stable_facing_surface_label: &str,
+    hidden_dependency_detected: bool,
+    stale_experiment_ref: Option<&str>,
+    expired_kill_switch_ref: Option<&str>,
+    review_summary: &str,
+) -> HiddenFlagSpillGuard {
+    HiddenFlagSpillGuard {
+        verdict,
+        stable_facing_surface_label: stable_facing_surface_label.to_owned(),
+        hidden_dependency_detected,
+        stale_experiment_ref: stale_experiment_ref.map(str::to_owned),
+        expired_kill_switch_ref: expired_kill_switch_ref.map(str::to_owned),
+        review_summary: review_summary.to_owned(),
+    }
+}
+
+fn mutation_review(
+    review_class: MutationReviewClass,
+    scope_label: &str,
+    selected_key_set: &[&str],
+    affected_layer_labels: &[&str],
+    affected_bundle_refs: &[&str],
+    preview_ref: &str,
+    rollback_checkpoint_ref: Option<&str>,
+    policy_denied_reason: Option<&str>,
+) -> ScopeExplicitMutationReview {
+    ScopeExplicitMutationReview {
+        review_class,
+        scope_label: scope_label.to_owned(),
+        selected_key_set: selected_key_set.iter().map(ToString::to_string).collect(),
+        affected_layer_labels: affected_layer_labels
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        affected_bundle_refs: affected_bundle_refs
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        preview_ref: preview_ref.to_owned(),
+        rollback_checkpoint_ref: rollback_checkpoint_ref.map(str::to_owned),
+        policy_denied_reason: policy_denied_reason.map(str::to_owned),
     }
 }
 

@@ -119,3 +119,44 @@ fn support_and_export_reuse_the_same_metadata() {
         );
     }
 }
+
+#[test]
+fn lifecycle_markers_and_mutation_reviews_stay_visible() {
+    let packet = load_packet();
+    assert!(packet.summary.lifecycle_dependency_marker_count > 0);
+    assert!(packet.summary.mutation_review_count > 0);
+    assert!(packet.summary.policy_denied_mutation_review_count > 0);
+    for review in &packet.artifact_reviews {
+        if review.hidden_flag_spill_guard.verdict
+            != aureline_config::structured_config_parameter_source_and_round_trip_review::HiddenFlagSpillVerdict::ClearStableSurface
+        {
+            assert!(
+                review
+                    .parameter_source_rows
+                    .iter()
+                    .any(|row| row.lifecycle_dependency.is_some()),
+                "{:?}",
+                review.family
+            );
+        }
+        for mutation_review in &review.mutation_reviews {
+            assert!(
+                !mutation_review.scope_label.is_empty(),
+                "{:?}",
+                review.family
+            );
+            assert!(
+                !mutation_review.preview_ref.is_empty(),
+                "{:?}",
+                review.family
+            );
+            if mutation_review.policy_denied_reason.is_none() {
+                assert!(
+                    mutation_review.rollback_checkpoint_ref.is_some(),
+                    "{:?}",
+                    review.family
+                );
+            }
+        }
+    }
+}

@@ -171,3 +171,50 @@ fn environment_bearing_rows_expose_in_ide_layer_actions() {
         }
     }
 }
+
+#[test]
+fn lifecycle_markers_and_hidden_flag_guards_stay_visible() {
+    let packet = seeded_structured_config_artifact_modes_and_layers();
+    assert!(packet.summary.lifecycle_dependency_marker_count > 0);
+    assert!(packet.summary.hidden_flag_guarded_family_count > 0);
+    for row in &packet.artifact_surfaces {
+        if row.hidden_flag_spill_guard.verdict != super::HiddenFlagSpillVerdict::ClearStableSurface
+        {
+            assert!(
+                !row.lifecycle_dependency_markers.is_empty(),
+                "{:?} must carry visible lifecycle markers when guarded",
+                row.family
+            );
+        }
+        for marker in &row.lifecycle_dependency_markers {
+            assert!(marker.visible, "{:?} marker hidden", row.family);
+        }
+    }
+}
+
+#[test]
+fn mutation_flows_are_scope_explicit_and_checkpointed_or_denied() {
+    let packet = seeded_structured_config_artifact_modes_and_layers();
+    assert!(packet.summary.mutation_scope_flow_count > 0);
+    assert!(packet.summary.policy_denied_mutation_flow_count > 0);
+    for row in &packet.artifact_surfaces {
+        assert!(!row.mutation_scope_flows.is_empty(), "{:?}", row.family);
+        for flow in &row.mutation_scope_flows {
+            assert!(!flow.scope_label.is_empty(), "{:?}", row.family);
+            assert!(!flow.preview_ref.is_empty(), "{:?}", row.family);
+            assert!(
+                !flow.affected_layer_labels.is_empty() || !flow.affected_bundle_refs.is_empty(),
+                "{:?}",
+                row.family
+            );
+            if flow.policy_denied_reason.is_none() {
+                assert!(
+                    flow.rollback_checkpoint_ref.is_some(),
+                    "{:?} {:?}",
+                    row.family,
+                    flow.flow_class
+                );
+            }
+        }
+    }
+}

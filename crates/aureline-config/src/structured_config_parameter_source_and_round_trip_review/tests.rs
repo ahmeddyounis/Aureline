@@ -170,3 +170,53 @@ fn secret_and_policy_chips_block_raw_secret_export() {
         }
     }
 }
+
+#[test]
+fn lifecycle_markers_and_hidden_flag_guards_stay_visible() {
+    let packet = seeded_structured_config_parameter_source_and_round_trip_review();
+    assert!(packet.summary.lifecycle_dependency_marker_count > 0);
+    assert!(packet.summary.hidden_flag_guarded_family_count > 0);
+    for review in &packet.artifact_reviews {
+        if review.hidden_flag_spill_guard.verdict
+            != super::HiddenFlagSpillVerdict::ClearStableSurface
+        {
+            assert!(
+                review
+                    .parameter_source_rows
+                    .iter()
+                    .any(|row| row.lifecycle_dependency.is_some()),
+                "{:?}",
+                review.family
+            );
+        }
+    }
+}
+
+#[test]
+fn mutation_reviews_are_scope_explicit_and_checkpointed_or_denied() {
+    let packet = seeded_structured_config_parameter_source_and_round_trip_review();
+    assert!(packet.summary.mutation_review_count > 0);
+    assert!(packet.summary.policy_denied_mutation_review_count > 0);
+    for review in &packet.artifact_reviews {
+        assert!(!review.mutation_reviews.is_empty(), "{:?}", review.family);
+        for mutation_review in &review.mutation_reviews {
+            assert!(
+                !mutation_review.scope_label.is_empty(),
+                "{:?}",
+                review.family
+            );
+            assert!(
+                !mutation_review.preview_ref.is_empty(),
+                "{:?}",
+                review.family
+            );
+            if mutation_review.policy_denied_reason.is_none() {
+                assert!(
+                    mutation_review.rollback_checkpoint_ref.is_some(),
+                    "{:?}",
+                    review.family
+                );
+            }
+        }
+    }
+}

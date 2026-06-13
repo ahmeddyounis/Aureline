@@ -132,3 +132,25 @@ fn shared_surfaces_reuse_all_header_mode_and_layer_terms() {
         }
     }
 }
+
+#[test]
+fn lifecycle_markers_and_checkpointed_mutation_flows_are_visible() {
+    let packet = load_packet();
+    assert!(packet.summary.lifecycle_dependency_marker_count > 0);
+    assert!(packet.summary.mutation_scope_flow_count > 0);
+    assert!(packet.summary.policy_denied_mutation_flow_count > 0);
+    for row in &packet.artifact_surfaces {
+        if row.hidden_flag_spill_guard.verdict
+            != aureline_config::structured_config_artifact_modes_and_layers::HiddenFlagSpillVerdict::ClearStableSurface
+        {
+            assert!(!row.lifecycle_dependency_markers.is_empty(), "{:?}", row.family);
+        }
+        for flow in &row.mutation_scope_flows {
+            assert!(!flow.scope_label.is_empty(), "{:?}", row.family);
+            assert!(!flow.preview_ref.is_empty(), "{:?}", row.family);
+            if flow.policy_denied_reason.is_none() {
+                assert!(flow.rollback_checkpoint_ref.is_some(), "{:?}", row.family);
+            }
+        }
+    }
+}

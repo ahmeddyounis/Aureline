@@ -216,6 +216,50 @@ impl LayerVocabularyField {
     ];
 }
 
+/// Lifecycle-sensitive dependency marker shown on a config-bearing row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LifecycleMarkerClass {
+    /// The row depends on a Labs-only capability.
+    LabsDependency,
+    /// The row depends on a Preview-only capability.
+    PreviewDependency,
+    /// Signed policy or entitlement gates the visible behavior.
+    PolicyGatedDependency,
+    /// The target does not support the claimed capability depth.
+    UnsupportedDependency,
+    /// The row is still narrowed by stale experiment ownership or rollout state.
+    StaleExperiment,
+    /// An emergency disable or kill-switch window is expired and still active.
+    ExpiredKillSwitch,
+}
+
+/// Hidden-flag spill verdict for a stable-facing config row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HiddenFlagSpillVerdict {
+    /// Stable-facing truth is clean; no hidden lifecycle state remains.
+    ClearStableSurface,
+    /// Narrowing is present and explicitly disclosed on the row.
+    DisclosedNarrowing,
+    /// Stable-facing treatment is blocked until the hidden dependency is repaired.
+    BlockedStableFacingRow,
+}
+
+/// Typed mutation flow that must stay scope-explicit and checkpointed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MutationFlowClass {
+    /// Reset only the selected layer or override.
+    ResetLayer,
+    /// Repair a drifted or stale resolved value.
+    RepairConfig,
+    /// Import or re-apply a bundle/profile fragment.
+    ImportBundle,
+    /// Migrate or rotate the authored artifact.
+    MigrationApply,
+}
+
 /// Shared consuming surface for the vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -399,6 +443,65 @@ pub struct EnvironmentLayerStack {
     pub layers: Vec<EnvironmentLayerRow>,
 }
 
+/// One visible lifecycle-sensitive dependency on an artifact row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LifecycleDependencyMarker {
+    /// Marker classification.
+    pub marker_class: LifecycleMarkerClass,
+    /// Human-readable capability or rollout label.
+    pub dependency_label: String,
+    /// Stable ref for the dependency or rollout entry.
+    pub dependency_ref: String,
+    /// Lifecycle state the dependency still requires.
+    pub required_lifecycle_label: String,
+    /// Exact effect on the current row.
+    pub effect_summary: String,
+    /// Fallback or repair route the user can take.
+    pub fallback_path: String,
+    /// Whether the marker is rendered in-product.
+    pub visible: bool,
+}
+
+/// Guard proving stable-facing rows do not silently depend on hidden flags.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HiddenFlagSpillGuard {
+    /// Guard verdict for the current row.
+    pub verdict: HiddenFlagSpillVerdict,
+    /// Stable-facing surface or row label being protected.
+    pub stable_facing_surface_label: String,
+    /// Whether hidden lifecycle state was detected on the row.
+    pub hidden_dependency_detected: bool,
+    /// Stale experiment or rollout ref, when applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stale_experiment_ref: Option<String>,
+    /// Expired kill-switch ref, when applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expired_kill_switch_ref: Option<String>,
+    /// Reviewer-facing explanation for the verdict.
+    pub review_summary: String,
+}
+
+/// Scope-explicit mutation preview and checkpoint row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeExplicitMutationFlow {
+    /// Typed reset/repair/import/migration class.
+    pub flow_class: MutationFlowClass,
+    /// Exact scope the flow would touch.
+    pub scope_label: String,
+    /// Opaque ref to the preview sheet for this flow.
+    pub preview_ref: String,
+    /// Named layers or source fragments that would change.
+    pub affected_layer_labels: Vec<String>,
+    /// Named bundles or signed authorities that would change.
+    pub affected_bundle_refs: Vec<String>,
+    /// Rollback checkpoint created before apply, when the flow may mutate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollback_checkpoint_ref: Option<String>,
+    /// Denial reason when policy blocks the flow before apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_denied_reason: Option<String>,
+}
+
 /// One artifact family row in the packet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactSurfaceRow {
@@ -420,6 +523,13 @@ pub struct ArtifactSurfaceRow {
     pub environment_stack_required: bool,
     /// Layer stack when the family is environment-bearing.
     pub environment_layer_stack: Option<EnvironmentLayerStack>,
+    /// Visible lifecycle-sensitive dependency markers for the row.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lifecycle_dependency_markers: Vec<LifecycleDependencyMarker>,
+    /// Guard proving hidden feature-flag spill is disclosed or blocked.
+    pub hidden_flag_spill_guard: HiddenFlagSpillGuard,
+    /// Scope-explicit reset/repair/import/migration flows for the row.
+    pub mutation_scope_flows: Vec<ScopeExplicitMutationFlow>,
 }
 
 /// Derived packet summary.
@@ -445,6 +555,14 @@ pub struct PacketSummary {
     pub in_ide_layer_actions_available: bool,
     /// Whether all consuming surfaces reuse the shared vocabulary.
     pub shared_surface_vocabulary_consistent: bool,
+    /// Count of visible lifecycle dependency markers.
+    pub lifecycle_dependency_marker_count: usize,
+    /// Count of guarded rows with disclosed or blocked hidden-flag state.
+    pub hidden_flag_guarded_family_count: usize,
+    /// Count of scope-explicit mutation flows.
+    pub mutation_scope_flow_count: usize,
+    /// Count of mutation flows blocked by policy before apply.
+    pub policy_denied_mutation_flow_count: usize,
 }
 
 /// Canonical packet shared by shell, CLI inspect, docs/help, and support export.
@@ -532,6 +650,26 @@ pub enum PacketValidationError {
         /// Offending layer order.
         layer_order: u8,
     },
+    /// A row is narrower than stable but hides its lifecycle dependency.
+    MissingLifecycleDependencyMarker(ArtifactFamilyKind),
+    /// A lifecycle marker is malformed or hidden.
+    InvalidLifecycleDependencyMarker {
+        /// Family that failed validation.
+        family: ArtifactFamilyKind,
+        /// Marker label that failed validation.
+        dependency_label: String,
+    },
+    /// A hidden-flag spill guard is inconsistent with the row's evidence.
+    InvalidHiddenFlagSpillGuard(ArtifactFamilyKind),
+    /// A row omits a required scope-explicit mutation preview.
+    MissingMutationScopeFlow(ArtifactFamilyKind),
+    /// A scope-explicit mutation flow is malformed.
+    InvalidMutationScopeFlow {
+        /// Family that failed validation.
+        family: ArtifactFamilyKind,
+        /// Flow class that failed validation.
+        flow_class: MutationFlowClass,
+    },
     /// A required surface binding is missing.
     MissingSurfaceVocabulary(ConsumerSurfaceClass),
     /// A surface does not reuse the full shared vocabulary.
@@ -603,6 +741,32 @@ impl fmt::Display for PacketValidationError {
                 f,
                 "family {family:?} layer {layer_order} omits reset/open-source metadata"
             ),
+            Self::MissingLifecycleDependencyMarker(family) => {
+                write!(
+                    f,
+                    "family {family:?} hides a required lifecycle dependency marker"
+                )
+            }
+            Self::InvalidLifecycleDependencyMarker {
+                family,
+                dependency_label,
+            } => write!(
+                f,
+                "family {family:?} has an invalid lifecycle marker for {dependency_label}"
+            ),
+            Self::InvalidHiddenFlagSpillGuard(family) => {
+                write!(
+                    f,
+                    "family {family:?} has an invalid hidden-flag spill guard"
+                )
+            }
+            Self::MissingMutationScopeFlow(family) => {
+                write!(f, "family {family:?} omits scope-explicit mutation flows")
+            }
+            Self::InvalidMutationScopeFlow { family, flow_class } => write!(
+                f,
+                "family {family:?} has an invalid scope-explicit mutation flow {flow_class:?}"
+            ),
             Self::MissingSurfaceVocabulary(surface) => {
                 write!(f, "missing shared surface binding: {surface:?}")
             }
@@ -664,6 +828,22 @@ impl StructuredConfigArtifactModesAndLayersPacket {
             format!(
                 "shared_surface_vocabulary_consistent: {}",
                 self.summary.shared_surface_vocabulary_consistent
+            ),
+            format!(
+                "lifecycle_dependency_marker_count: {}",
+                self.summary.lifecycle_dependency_marker_count
+            ),
+            format!(
+                "hidden_flag_guarded_family_count: {}",
+                self.summary.hidden_flag_guarded_family_count
+            ),
+            format!(
+                "mutation_scope_flow_count: {}",
+                self.summary.mutation_scope_flow_count
+            ),
+            format!(
+                "policy_denied_mutation_flow_count: {}",
+                self.summary.policy_denied_mutation_flow_count
             ),
         ]
     }
@@ -845,6 +1025,95 @@ pub fn audit_structured_config_artifact_modes_and_layers(
             }
             (false, None) => {}
         }
+
+        let has_lifecycle_markers = !row.lifecycle_dependency_markers.is_empty();
+        let requires_lifecycle_marker = row.qualification_label != QualificationLabel::Stable
+            || row.hidden_flag_spill_guard.verdict != HiddenFlagSpillVerdict::ClearStableSurface;
+        if requires_lifecycle_marker && !has_lifecycle_markers {
+            defects.push(PacketValidationError::MissingLifecycleDependencyMarker(
+                row.family,
+            ));
+        }
+        for marker in &row.lifecycle_dependency_markers {
+            if marker.dependency_label.trim().is_empty()
+                || marker.dependency_ref.trim().is_empty()
+                || marker.required_lifecycle_label.trim().is_empty()
+                || marker.effect_summary.trim().is_empty()
+                || marker.fallback_path.trim().is_empty()
+                || !marker.visible
+            {
+                defects.push(PacketValidationError::InvalidLifecycleDependencyMarker {
+                    family: row.family,
+                    dependency_label: marker.dependency_label.clone(),
+                });
+            }
+        }
+
+        if row
+            .hidden_flag_spill_guard
+            .stable_facing_surface_label
+            .trim()
+            .is_empty()
+            || row.hidden_flag_spill_guard.review_summary.trim().is_empty()
+        {
+            defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                row.family,
+            ));
+        }
+        if row.hidden_flag_spill_guard.verdict == HiddenFlagSpillVerdict::ClearStableSurface
+            && row.hidden_flag_spill_guard.hidden_dependency_detected
+        {
+            defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                row.family,
+            ));
+        }
+        if row.hidden_flag_spill_guard.verdict != HiddenFlagSpillVerdict::ClearStableSurface
+            && !has_lifecycle_markers
+        {
+            defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                row.family,
+            ));
+        }
+        if row.qualification_label == QualificationLabel::Stable
+            && row.lifecycle_dependency_markers.iter().any(|marker| {
+                matches!(
+                    marker.marker_class,
+                    LifecycleMarkerClass::LabsDependency
+                        | LifecycleMarkerClass::PreviewDependency
+                        | LifecycleMarkerClass::StaleExperiment
+                        | LifecycleMarkerClass::ExpiredKillSwitch
+                )
+            })
+            && row.hidden_flag_spill_guard.verdict == HiddenFlagSpillVerdict::ClearStableSurface
+        {
+            defects.push(PacketValidationError::InvalidHiddenFlagSpillGuard(
+                row.family,
+            ));
+        }
+
+        if row.mutation_scope_flows.is_empty() {
+            defects.push(PacketValidationError::MissingMutationScopeFlow(row.family));
+        }
+        for flow in &row.mutation_scope_flows {
+            if flow.scope_label.trim().is_empty()
+                || flow.preview_ref.trim().is_empty()
+                || (flow.affected_layer_labels.is_empty() && flow.affected_bundle_refs.is_empty())
+                || (flow.policy_denied_reason.is_none()
+                    && flow
+                        .rollback_checkpoint_ref
+                        .as_deref()
+                        .is_none_or(|value| value.trim().is_empty()))
+                || flow
+                    .policy_denied_reason
+                    .as_deref()
+                    .is_some_and(|value| value.trim().is_empty())
+            {
+                defects.push(PacketValidationError::InvalidMutationScopeFlow {
+                    family: row.family,
+                    flow_class: flow.flow_class,
+                });
+            }
+        }
     }
 
     for binding in &packet.surface_vocabulary {
@@ -922,6 +1191,30 @@ pub fn audit_structured_config_artifact_modes_and_layers(
         "shared_surface_vocabulary_consistent",
         expected_summary.shared_surface_vocabulary_consistent,
         packet.summary.shared_surface_vocabulary_consistent,
+    );
+    compare_summary_count(
+        &mut defects,
+        "lifecycle_dependency_marker_count",
+        expected_summary.lifecycle_dependency_marker_count,
+        packet.summary.lifecycle_dependency_marker_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "hidden_flag_guarded_family_count",
+        expected_summary.hidden_flag_guarded_family_count,
+        packet.summary.hidden_flag_guarded_family_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "mutation_scope_flow_count",
+        expected_summary.mutation_scope_flow_count,
+        packet.summary.mutation_scope_flow_count,
+    );
+    compare_summary_count(
+        &mut defects,
+        "policy_denied_mutation_flow_count",
+        expected_summary.policy_denied_mutation_flow_count,
+        packet.summary.policy_denied_mutation_flow_count,
     );
 
     defects
@@ -1063,6 +1356,25 @@ fn derive_summary(
                 && covers_all(row.mode_labels.iter().copied(), ModeClass::ALL)
                 && covers_all(row.layer_fields.iter().copied(), LayerVocabularyField::ALL)
         }),
+        lifecycle_dependency_marker_count: artifact_surfaces
+            .iter()
+            .map(|row| row.lifecycle_dependency_markers.len())
+            .sum(),
+        hidden_flag_guarded_family_count: artifact_surfaces
+            .iter()
+            .filter(|row| {
+                row.hidden_flag_spill_guard.verdict != HiddenFlagSpillVerdict::ClearStableSurface
+            })
+            .count(),
+        mutation_scope_flow_count: artifact_surfaces
+            .iter()
+            .map(|row| row.mutation_scope_flows.len())
+            .sum(),
+        policy_denied_mutation_flow_count: artifact_surfaces
+            .iter()
+            .flat_map(|row| row.mutation_scope_flows.iter())
+            .filter(|flow| flow.policy_denied_reason.is_some())
+            .count(),
     }
 }
 
@@ -1278,6 +1590,52 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Secret broker handles", Source::SecretReference, Track::Tracked, LayerLock::None, "Carries broker handles only; raw secrets never render.", false, true, true),
                 ],
             )),
+            vec![
+                lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Policy egress overlay",
+                    "aureline://policy/request-egress-overlay",
+                    "Stable",
+                    "Effective request values remain narrowed by the signed egress overlay.",
+                    "Review the policy bundle or stay on source/effective mode.",
+                ),
+                lifecycle_marker(
+                    LifecycleMarkerClass::UnsupportedDependency,
+                    "Deferred live bind",
+                    "aureline://runtime/request-send-bind",
+                    "Stable",
+                    "Live truth is deferred until a request run captures the bound runtime values.",
+                    "Dispatch the request or inspect the effective projection.",
+                ),
+            ],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Request environment row",
+                false,
+                None,
+                None,
+                "Request-environment truth stays beta-scoped because policy and deferred runtime bind still narrow the row.",
+            ),
+            vec![
+                mutation_flow(
+                    MutationFlowClass::ResetLayer,
+                    "workspace env set: production",
+                    "aureline://preview/request-env-reset-production",
+                    &["Workspace defaults", "Imported profile fallback"],
+                    &[],
+                    Some("aureline://checkpoint/request-env-reset-production"),
+                    None,
+                ),
+                mutation_flow(
+                    MutationFlowClass::ImportBundle,
+                    "imported request env fragment: production",
+                    "aureline://preview/request-env-import-production",
+                    &["Imported profile fallback"],
+                    &["aureline://bundle/request-env-import-production"],
+                    Some("aureline://checkpoint/request-env-import-production"),
+                    None,
+                ),
+            ],
         ),
         artifact(
             Family::DatabaseProfile,
@@ -1312,6 +1670,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Credential handles", Source::SecretReference, Track::Tracked, LayerLock::None, "Carries credential handles only; raw credentials are excluded.", false, true, true),
                 ],
             )),
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::PolicyGatedDependency,
+                "Policy TLS floor",
+                "aureline://policy/database-profile-tls-floor",
+                "Stable",
+                "The live connection posture is narrowed by the signed TLS floor before any local override can win.",
+                "Inspect the policy source or repair the profile under the same scope.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Database profile row",
+                false,
+                None,
+                None,
+                "The profile is stable but still discloses its policy-gated transport floor instead of hiding it behind a healthy-looking live row.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::RepairConfig,
+                "workspace database profile: warehouse.production",
+                "aureline://preview/database-profile-repair",
+                &["Workspace profile file", "User override"],
+                &["aureline://policy/database-profile-tls-floor"],
+                Some("aureline://checkpoint/database-profile-repair"),
+                None,
+            )],
         ),
         artifact(
             Family::ApiProfile,
@@ -1346,6 +1729,33 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Credential handles", Source::SecretReference, Track::Tracked, LayerLock::None, "Carries broker handles only.", false, true, true),
                 ],
             )),
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::PolicyGatedDependency,
+                "Policy route and auth floor",
+                "aureline://policy/api-profile-route-floor",
+                "Stable",
+                "Effective API routing stays locked to the signed policy floor instead of silently widening to the ignored local override.",
+                "Open the policy source or request an admin-authored change.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "API profile row",
+                false,
+                None,
+                None,
+                "Stable-facing API rows stay explicit about locked policy routing and do not inherit a hidden local-override story.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::ResetLayer,
+                "workspace API profile: payments.production",
+                "aureline://preview/api-profile-reset",
+                &["User route override", "Policy route and auth floor"],
+                &["aureline://policy/api-profile-route-floor"],
+                None,
+                Some(
+                    "Signed policy ownership blocks local reset of the winning route and auth floor.",
+                ),
+            )],
         ),
         artifact(
             Family::NotebookRuntimeManifest,
@@ -1380,6 +1790,52 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Observed kernel session", Source::LiveObservation, Track::Ignored, LayerLock::None, "No secret material on this layer; ignored until reattach completes.", false, false, true),
                 ],
             )),
+            vec![
+                lifecycle_marker(
+                    LifecycleMarkerClass::StaleExperiment,
+                    "Notebook runtime rollout cohort",
+                    "aureline://experiments/notebook-runtime-rollout",
+                    "Beta",
+                    "Kernel selection is still narrowed by a stale rollout cohort until the runtime rollout metadata is refreshed.",
+                    "Refresh the experiments inventory or pin the authored kernelspec explicitly.",
+                ),
+                lifecycle_marker(
+                    LifecycleMarkerClass::UnsupportedDependency,
+                    "Live kernel reattach",
+                    "aureline://runtime/notebook-kernel-reattach",
+                    "Stable",
+                    "Live kernel truth is unresolved while the current session reattaches.",
+                    "Retry the kernel attach or continue from the effective manifest view.",
+                ),
+            ],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Notebook runtime manifest row",
+                true,
+                Some("aureline://experiments/notebook-runtime-rollout"),
+                None,
+                "Notebook runtime rows remain explicitly beta-scoped because stale rollout state and unresolved live attach would otherwise spill into a stable-looking kernel choice.",
+            ),
+            vec![
+                mutation_flow(
+                    MutationFlowClass::RepairConfig,
+                    "workspace notebook runtime manifest: etl",
+                    "aureline://preview/notebook-runtime-repair",
+                    &["Workspace kernelspec", "Interpreter discovery"],
+                    &["aureline://experiments/notebook-runtime-rollout"],
+                    Some("aureline://checkpoint/notebook-runtime-repair"),
+                    None,
+                ),
+                mutation_flow(
+                    MutationFlowClass::MigrationApply,
+                    "runtime manifest migration: etl",
+                    "aureline://preview/notebook-runtime-migration",
+                    &["Workspace kernelspec"],
+                    &[],
+                    Some("aureline://checkpoint/notebook-runtime-migration"),
+                    None,
+                ),
+            ],
         ),
         artifact(
             Family::PreviewRuntimeConfig,
@@ -1414,6 +1870,41 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Runtime discovery", Source::RuntimeDiscovery, Track::DerivedReadOnly, LayerLock::None, "No secret material on this layer; derived from preview runtime inspection.", false, false, true),
                 ],
             )),
+            vec![
+                lifecycle_marker(
+                    LifecycleMarkerClass::PreviewDependency,
+                    "Preview runtime browser lane",
+                    "aureline://feature/preview-runtime-browser",
+                    "Preview",
+                    "Authored preview config still depends on the preview-runtime lane and cannot inherit stable-facing defaults.",
+                    "Stay on the preview-qualified flow or edit the canonical source directly.",
+                ),
+                lifecycle_marker(
+                    LifecycleMarkerClass::PolicyGatedDependency,
+                    "Managed preview override",
+                    "aureline://policy/preview-runtime-override",
+                    "Stable",
+                    "Managed preview policy still narrows the effective runtime route.",
+                    "Inspect the policy source or continue with the authored preview source only.",
+                ),
+            ],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::BlockedStableFacingRow,
+                "Preview runtime row",
+                true,
+                Some("aureline://experiments/preview-runtime-rollout"),
+                None,
+                "Preview runtime rows are blocked from stable-facing treatment until the preview rollout dependency is removed or graduated.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::RepairConfig,
+                "workspace preview runtime config: frontpage",
+                "aureline://preview/preview-runtime-repair",
+                &["Workspace preview config", "Managed preview override"],
+                &["aureline://policy/preview-runtime-override"],
+                Some("aureline://checkpoint/preview-runtime-repair"),
+                None,
+            )],
         ),
         artifact(
             Family::WorkflowBundleManifest,
@@ -1448,6 +1939,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Runtime discovery", Source::RuntimeDiscovery, Track::DerivedReadOnly, LayerLock::None, "No secret material on this layer; derived from bundle runtime selection.", false, false, true),
                 ],
             )),
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::LabsDependency,
+                "Imported execution bundle lane",
+                "aureline://feature/workflow-bundle-import",
+                "Labs",
+                "Imported execution bundles still depend on the Labs-only bundle lane and remain visibly narrower than stable manifest rows.",
+                "Open the canonical bundle source or keep the import in review-only mode.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Workflow bundle manifest row",
+                true,
+                Some("aureline://experiments/workflow-bundle-import"),
+                None,
+                "Workflow bundle manifests keep Labs-only imported execution state explicit instead of leaking it into a stable-looking authored row.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::ImportBundle,
+                "workflow bundle import: data-api",
+                "aureline://preview/workflow-bundle-import",
+                &["Imported profile baseline", "Bundle manifest source"],
+                &["aureline://bundle/workflow-data-api"],
+                Some("aureline://checkpoint/workflow-bundle-import"),
+                None,
+            )],
         ),
         artifact(
             Family::CiEnvironmentDescriptor,
@@ -1482,6 +1998,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Mirror snapshot", Source::LiveObservation, Track::DerivedReadOnly, LayerLock::None, "No secret material on this layer; derived from mirrored CI observation.", false, false, true),
                 ],
             )),
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::UnsupportedDependency,
+                "Mirror-backed CI observation",
+                "aureline://runtime/ci-mirror-observation",
+                "Stable",
+                "Live CI truth is mirror-backed and stale, so the row stays beta-scoped instead of claiming authoritative live observation.",
+                "Refresh the mirror or inspect the authored descriptor and effective projection only.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "CI environment descriptor row",
+                false,
+                None,
+                None,
+                "CI descriptor rows stay beta-scoped because mirrored live truth can stale independently of the authored source.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::MigrationApply,
+                "ci descriptor migration: release.pipeline",
+                "aureline://preview/ci-descriptor-migration",
+                &["Repo descriptor source", "Managed CI overlay"],
+                &["aureline://policy/ci-managed-overlay"],
+                Some("aureline://checkpoint/ci-descriptor-migration"),
+                None,
+            )],
         ),
         artifact(
             Family::InfraEnvironmentDescriptor,
@@ -1516,6 +2057,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                     layer(40, "Observed resource overlay", Source::LiveObservation, Track::DerivedReadOnly, LayerLock::None, "No secret material on this layer; derived from mirrored cluster observation.", false, false, true),
                 ],
             )),
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::UnsupportedDependency,
+                "Mirrored cluster observation",
+                "aureline://runtime/infra-mirror-observation",
+                "Stable",
+                "Observed cluster state is mirrored and cannot silently stand in for authoritative live infrastructure truth.",
+                "Inspect the target context or continue from source/effective views.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Infrastructure environment descriptor row",
+                false,
+                None,
+                None,
+                "Infrastructure rows stay beta-scoped because mirrored observations may diverge from authoritative live target state.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::RepairConfig,
+                "infra descriptor repair: payments.prod",
+                "aureline://preview/infra-descriptor-repair",
+                &["Repo descriptor source", "Managed environment overlay"],
+                &["aureline://policy/infra-environment-floor"],
+                Some("aureline://checkpoint/infra-descriptor-repair"),
+                None,
+            )],
         ),
         artifact(
             Family::ManagedPolicyOverlay,
@@ -1542,6 +2108,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                 mode_row(Mode::Live, false, "No live mode for signed policy overlays", Boundary::PolicyCache, Write::SignedBundleReviewOnly, State::Unsupported, "Managed policy overlays do not claim a separate live text mode."),
             ],
             None,
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::PolicyGatedDependency,
+                "Signed policy ownership",
+                "aureline://bundle/admin-policy-primary",
+                "Stable",
+                "The winning overlay remains policy-owned and cannot silently collapse into a writable local row.",
+                "Open the signed bundle or continue with inspect-only effective truth.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Managed policy overlay row",
+                false,
+                None,
+                None,
+                "Managed policy overlays stay explicit about signed ownership and do not leak a hidden writable reset path.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::ResetLayer,
+                "managed policy overlay: org-defaults",
+                "aureline://preview/managed-policy-overlay-reset",
+                &["Signed policy overlay"],
+                &["aureline://bundle/admin-policy-primary"],
+                None,
+                Some("Signed policy ownership denies local reset of the active overlay."),
+            )],
         ),
         artifact(
             Family::AdminPolicyBundleArtifact,
@@ -1568,6 +2159,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                 mode_row(Mode::Live, false, "No live text mode for signed policy bundles", Boundary::PolicyCache, Write::SignedBundleReviewOnly, State::Unsupported, "Signed policy bundles do not expose a separate live text projection."),
             ],
             None,
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::PolicyGatedDependency,
+                "Signed bundle apply boundary",
+                "aureline://bundle/admin-policy-primary",
+                "Stable",
+                "Import and apply stay review-only until the signed policy boundary is explicitly accepted.",
+                "Open the signed bundle diff or import through the reviewed apply sheet.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Admin policy bundle row",
+                false,
+                None,
+                None,
+                "Admin policy bundle rows keep review-only import state explicit instead of presenting a stable-looking text editor.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::ImportBundle,
+                "admin policy bundle import: primary",
+                "aureline://preview/admin-policy-bundle-import",
+                &[],
+                &["aureline://bundle/admin-policy-primary"],
+                Some("aureline://checkpoint/admin-policy-bundle-import"),
+                None,
+            )],
         ),
         artifact(
             Family::OfflineEntitlementSnapshotArtifact,
@@ -1594,6 +2210,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                 mode_row(Mode::Live, false, "Live managed entitlement unavailable while offline", Boundary::OfflineEntitlementCache, Write::UnresolvedTarget, State::Unsupported, "Offline entitlement snapshots do not claim a live managed text projection."),
             ],
             None,
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::PolicyGatedDependency,
+                "Offline entitlement grace",
+                "aureline://bundle/offline-entitlement-seat-cache",
+                "Stable",
+                "Managed capability truth is narrowed to the signed grace snapshot while live authority is unavailable.",
+                "Refresh live authority or continue under the labeled grace snapshot.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::DisclosedNarrowing,
+                "Offline entitlement snapshot row",
+                false,
+                None,
+                None,
+                "Offline entitlement rows remain stable-qualified but keep grace-snapshot narrowing explicit instead of hiding it as generic auth freshness.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::MigrationApply,
+                "offline entitlement snapshot refresh: seat-cache",
+                "aureline://preview/offline-entitlement-refresh",
+                &[],
+                &["aureline://bundle/offline-entitlement-seat-cache"],
+                Some("aureline://checkpoint/offline-entitlement-refresh"),
+                None,
+            )],
         ),
         artifact(
             Family::EmergencyDisableBundleArtifact,
@@ -1620,6 +2261,31 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                 mode_row(Mode::Live, false, "No separate live text mode for emergency bundles", Boundary::PolicyCache, Write::SignedBundleReviewOnly, State::Unsupported, "Emergency bundles do not advertise a live text projection beyond the effective ratchet."),
             ],
             None,
+            vec![lifecycle_marker(
+                LifecycleMarkerClass::ExpiredKillSwitch,
+                "Expired emergency disable window",
+                "aureline://bundle/emergency-disable-primary",
+                "DisabledByPolicy",
+                "The emergency ratchet is still affecting the row after its planned expiry window and must stay visible instead of silently riding a stable row.",
+                "Import the successor bundle or revoke the expired kill switch explicitly.",
+            )],
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::BlockedStableFacingRow,
+                "Emergency disable bundle row",
+                true,
+                None,
+                Some("aureline://bundle/emergency-disable-primary"),
+                "Stable-facing publication is blocked until the expired emergency disable state is reconciled or replaced.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::ImportBundle,
+                "emergency disable bundle import: primary",
+                "aureline://preview/emergency-disable-bundle-import",
+                &[],
+                &["aureline://bundle/emergency-disable-primary"],
+                Some("aureline://checkpoint/emergency-disable-bundle-import"),
+                None,
+            )],
         ),
         artifact(
             Family::TrustRootSignerUpdateArtifact,
@@ -1646,6 +2312,24 @@ fn seeded_artifact_surfaces() -> Vec<ArtifactSurfaceRow> {
                 mode_row(Mode::Live, false, "No separate live text mode for trust-root updates", Boundary::TrustRootCache, Write::SignedBundleReviewOnly, State::Unsupported, "Trust-root updates do not claim a separate live text projection."),
             ],
             None,
+            Vec::new(),
+            hidden_flag_guard(
+                HiddenFlagSpillVerdict::ClearStableSurface,
+                "Trust-root signer update row",
+                false,
+                None,
+                None,
+                "Trust-root rotation review is stable and does not depend on hidden experiment or kill-switch state.",
+            ),
+            vec![mutation_flow(
+                MutationFlowClass::MigrationApply,
+                "trust-root rotation import: rotation",
+                "aureline://preview/trust-root-rotation-import",
+                &[],
+                &["aureline://bundle/trust-root-rotation"],
+                Some("aureline://checkpoint/trust-root-rotation-import"),
+                None,
+            )],
         ),
     ]
 }
@@ -1659,6 +2343,9 @@ fn artifact(
     header: ArtifactHeader,
     mode_switches: Vec<ModeSwitchRow>,
     environment_layer_stack: Option<EnvironmentLayerStack>,
+    lifecycle_dependency_markers: Vec<LifecycleDependencyMarker>,
+    hidden_flag_spill_guard: HiddenFlagSpillGuard,
+    mutation_scope_flows: Vec<ScopeExplicitMutationFlow>,
 ) -> ArtifactSurfaceRow {
     ArtifactSurfaceRow {
         family,
@@ -1670,6 +2357,9 @@ fn artifact(
         mode_switches,
         environment_stack_required: family_requires_environment_stack(family),
         environment_layer_stack,
+        lifecycle_dependency_markers,
+        hidden_flag_spill_guard,
+        mutation_scope_flows,
     }
 }
 
@@ -1714,6 +2404,69 @@ fn layer_stack(summary: &str, layers: Vec<EnvironmentLayerRow>) -> EnvironmentLa
         visible_without_leaving_ide: true,
         summary: summary.to_owned(),
         layers,
+    }
+}
+
+fn lifecycle_marker(
+    marker_class: LifecycleMarkerClass,
+    dependency_label: &str,
+    dependency_ref: &str,
+    required_lifecycle_label: &str,
+    effect_summary: &str,
+    fallback_path: &str,
+) -> LifecycleDependencyMarker {
+    LifecycleDependencyMarker {
+        marker_class,
+        dependency_label: dependency_label.to_owned(),
+        dependency_ref: dependency_ref.to_owned(),
+        required_lifecycle_label: required_lifecycle_label.to_owned(),
+        effect_summary: effect_summary.to_owned(),
+        fallback_path: fallback_path.to_owned(),
+        visible: true,
+    }
+}
+
+fn hidden_flag_guard(
+    verdict: HiddenFlagSpillVerdict,
+    stable_facing_surface_label: &str,
+    hidden_dependency_detected: bool,
+    stale_experiment_ref: Option<&str>,
+    expired_kill_switch_ref: Option<&str>,
+    review_summary: &str,
+) -> HiddenFlagSpillGuard {
+    HiddenFlagSpillGuard {
+        verdict,
+        stable_facing_surface_label: stable_facing_surface_label.to_owned(),
+        hidden_dependency_detected,
+        stale_experiment_ref: stale_experiment_ref.map(str::to_owned),
+        expired_kill_switch_ref: expired_kill_switch_ref.map(str::to_owned),
+        review_summary: review_summary.to_owned(),
+    }
+}
+
+fn mutation_flow(
+    flow_class: MutationFlowClass,
+    scope_label: &str,
+    preview_ref: &str,
+    affected_layer_labels: &[&str],
+    affected_bundle_refs: &[&str],
+    rollback_checkpoint_ref: Option<&str>,
+    policy_denied_reason: Option<&str>,
+) -> ScopeExplicitMutationFlow {
+    ScopeExplicitMutationFlow {
+        flow_class,
+        scope_label: scope_label.to_owned(),
+        preview_ref: preview_ref.to_owned(),
+        affected_layer_labels: affected_layer_labels
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        affected_bundle_refs: affected_bundle_refs
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        rollback_checkpoint_ref: rollback_checkpoint_ref.map(str::to_owned),
+        policy_denied_reason: policy_denied_reason.map(str::to_owned),
     }
 }
 
