@@ -1,0 +1,348 @@
+{
+  "record_kind": "add_hidden_retention_spill_guards_cross_workspace_or_cross_tenant_memory_fences_cache_policy_filters_and_offline_or_mirr",
+  "schema_version": 1,
+  "packet_id": "m5-memory-fence-fallback:stable:0001",
+  "records_label": "Memory Fences, Spill Guards, Cache-Policy Filters, and Fallback Truth",
+  "rows": [
+    {
+      "row_id": "local-prompt-result-cache-guarded",
+      "profile": "local_only",
+      "artifact_class": "prompt_result_cache",
+      "label_summary": "On-device prompt-result cache keyed by content hash with a bounded lifetime",
+      "spill_guard": {
+        "retention_class": "content_keyed_bounded",
+        "content_key_bound": true,
+        "max_lifetime_label": "24h",
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "thread",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "unfiltered"
+      },
+      "fallback": {
+        "fallback_state": "primary_available",
+        "fallback_chain": [
+          "offline_local_pack",
+          "non_ai_terminal"
+        ],
+        "offline_safe": true
+      },
+      "delete_posture": "user_scoped",
+      "export_posture": "user_scoped",
+      "consumer_surfaces": [
+        "composer_assist",
+        "code_understanding"
+      ],
+      "evidence_refs": [
+        "evidence:prompt-result-cache:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/memory_class_matrix.md"
+      ]
+    },
+    {
+      "row_id": "byok-prompt-result-cache-telemetry-blocked",
+      "profile": "byok_direct",
+      "artifact_class": "prompt_result_cache",
+      "label_summary": "BYOK prompt-result cache whose telemetry export attempt is refused",
+      "spill_guard": {
+        "retention_class": "content_keyed_bounded",
+        "content_key_bound": true,
+        "max_lifetime_label": "1h",
+        "telemetry_export_allowed": false,
+        "spill_state": "shadow_store_blocked"
+      },
+      "fence": {
+        "recall_scope": "workspace",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "unfiltered"
+      },
+      "fallback": {
+        "fallback_state": "primary_available",
+        "fallback_chain": [
+          "byok_direct",
+          "cached_prior_result",
+          "non_ai_terminal"
+        ],
+        "offline_safe": false
+      },
+      "delete_posture": "user_scoped",
+      "export_posture": "user_scoped",
+      "consumer_surfaces": [
+        "composer_assist"
+      ],
+      "degraded_label": "Prompt-result cache telemetry export refused: cache stays content-keyed and lifetime-bounded and is blocked from becoming a shadow-telemetry store",
+      "evidence_refs": [
+        "evidence:prompt-result-cache:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/ai-memory-delete-export.md"
+      ]
+    },
+    {
+      "row_id": "managed-semantic-memory-tenant-narrowed",
+      "profile": "managed_hosted",
+      "artifact_class": "reusable_semantic_memory",
+      "label_summary": "Managed reusable semantic memory narrowed to the tenant by tenant isolation",
+      "spill_guard": {
+        "retention_class": "durable_consented",
+        "content_key_bound": false,
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "tenant",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "narrowed",
+        "narrowed_reason": "tenant_isolation",
+        "narrowed_disclosure": "Cross-tenant rows withheld: tenant isolation narrows recall to this tenant's reusable semantic memory"
+      },
+      "fallback": {
+        "fallback_state": "primary_available",
+        "fallback_chain": [
+          "managed_primary",
+          "workspace_mirror",
+          "non_ai_terminal"
+        ],
+        "offline_safe": false
+      },
+      "delete_posture": "tenant_scoped",
+      "export_posture": "tenant_scoped",
+      "consumer_surfaces": [
+        "docs_browser_recall",
+        "semantic_search"
+      ],
+      "degraded_label": "Managed reusable semantic memory narrowed to this tenant; cross-tenant rows withheld by tenant isolation",
+      "evidence_refs": [
+        "evidence:reusable-semantic-memory:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/context_assembly_contract.md"
+      ]
+    },
+    {
+      "row_id": "managed-saved-memory-region-blocked",
+      "profile": "managed_hosted",
+      "artifact_class": "durable_saved_memory",
+      "label_summary": "Managed durable saved memory fully blocked by a region policy gate",
+      "spill_guard": {
+        "retention_class": "durable_consented",
+        "content_key_bound": false,
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "org",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "fully_blocked",
+        "narrowed_reason": "region_gate",
+        "narrowed_disclosure": "Recall fully blocked: a region policy gate forbids managed recall of saved memory in this region"
+      },
+      "fallback": {
+        "fallback_state": "policy_blocked_degraded",
+        "fallback_chain": [
+          "managed_primary",
+          "non_ai_terminal"
+        ],
+        "offline_safe": false,
+        "precise_label": "Managed saved-memory recall blocked by region gate; degraded to policy-blocked with no managed lane available in this region"
+      },
+      "delete_posture": "org_scoped",
+      "export_posture": "org_scoped",
+      "consumer_surfaces": [
+        "support_export",
+        "managed_offline_report"
+      ],
+      "degraded_label": "Managed durable saved memory withheld: region policy gate blocks managed recall in this region; delete and export remain org-scoped",
+      "evidence_refs": [
+        "evidence:durable-saved-memory:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/ai-memory-delete-export.md"
+      ]
+    },
+    {
+      "row_id": "offline-mirror-derived-cache-mirror-served",
+      "profile": "offline_mirror",
+      "artifact_class": "evictable_derived_cache",
+      "label_summary": "Offline-mirror evictable derived cache served from the workspace mirror",
+      "spill_guard": {
+        "retention_class": "content_keyed_bounded",
+        "content_key_bound": true,
+        "max_lifetime_label": "session",
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "workspace",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "unfiltered"
+      },
+      "fallback": {
+        "fallback_state": "mirror_served",
+        "fallback_chain": [
+          "managed_primary",
+          "workspace_mirror",
+          "non_ai_terminal"
+        ],
+        "offline_safe": true,
+        "precise_label": "Managed route unreachable offline; served from the workspace mirror and labeled mirror-served, not managed-current"
+      },
+      "delete_posture": "workspace_scoped",
+      "export_posture": "workspace_scoped",
+      "consumer_surfaces": [
+        "semantic_search",
+        "composer_assist"
+      ],
+      "degraded_label": "Managed route unreachable offline; recall served from the workspace mirror and labeled mirror-served rather than current managed truth",
+      "evidence_refs": [
+        "evidence:evictable-derived-cache:m5"
+      ],
+      "source_contract_refs": [
+        "docs/search/result_identity_and_ranking.md"
+      ]
+    },
+    {
+      "row_id": "hybrid-semantic-memory-offline-local-served",
+      "profile": "hybrid_managed",
+      "artifact_class": "reusable_semantic_memory",
+      "label_summary": "Hybrid reusable semantic memory served from the on-device pack after a blocked cross-tenant attempt",
+      "spill_guard": {
+        "retention_class": "durable_consented",
+        "content_key_bound": false,
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "tenant",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "breach_blocked",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "unfiltered"
+      },
+      "fallback": {
+        "fallback_state": "offline_local_served",
+        "fallback_chain": [
+          "managed_primary",
+          "byok_direct",
+          "offline_local_pack",
+          "non_ai_terminal"
+        ],
+        "offline_safe": true,
+        "precise_label": "Managed and BYOK legs unreachable; served from the on-device offline pack and labeled offline-local-served"
+      },
+      "delete_posture": "tenant_scoped",
+      "export_posture": "tenant_scoped",
+      "consumer_surfaces": [
+        "code_understanding",
+        "managed_offline_report"
+      ],
+      "degraded_label": "Cross-tenant recall attempt blocked at the tenant fence; managed and BYOK legs unreachable so recall served from the on-device offline pack and labeled offline-local-served",
+      "evidence_refs": [
+        "evidence:reusable-semantic-memory:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/routing_cost_alpha.md"
+      ]
+    },
+    {
+      "row_id": "local-ephemeral-turn-state-guarded",
+      "profile": "local_only",
+      "artifact_class": "ephemeral_turn_state",
+      "label_summary": "On-device ephemeral turn state dropped when the session ends",
+      "spill_guard": {
+        "retention_class": "session_scoped",
+        "content_key_bound": false,
+        "telemetry_export_allowed": false,
+        "spill_state": "guarded"
+      },
+      "fence": {
+        "recall_scope": "turn",
+        "cross_workspace_state": "fenced",
+        "cross_tenant_state": "fenced",
+        "fence_visible": true
+      },
+      "policy_filter": {
+        "filter_state": "unfiltered"
+      },
+      "fallback": {
+        "fallback_state": "primary_available",
+        "fallback_chain": [
+          "offline_local_pack",
+          "non_ai_terminal"
+        ],
+        "offline_safe": true
+      },
+      "delete_posture": "not_applicable",
+      "export_posture": "not_applicable",
+      "consumer_surfaces": [
+        "composer_assist"
+      ],
+      "evidence_refs": [
+        "evidence:ephemeral-turn-state:m5"
+      ],
+      "source_contract_refs": [
+        "docs/ai/memory_class_matrix.md"
+      ]
+    }
+  ],
+  "guardrails": {
+    "no_cross_workspace_recall_by_default": true,
+    "no_cross_tenant_recall_by_default": true,
+    "prompt_result_caches_are_not_shadow_telemetry": true,
+    "caches_content_keyed_and_lifetime_bounded": true,
+    "policy_filtered_paths_disclose_narrowing": true,
+    "fallback_truth_visible_in_export": true,
+    "spend_route_failures_keep_precise_fallback": true,
+    "every_durable_artifact_declares_delete_export": true
+  },
+  "consumer_projection": {
+    "composer_shows_fence_and_fallback": true,
+    "docs_browser_shows_policy_narrowing": true,
+    "search_shows_retrieval_fallback_state": true,
+    "support_export_shows_retention_and_fence": true,
+    "managed_offline_shows_fallback_truth": true,
+    "blocked_or_degraded_lanes_labeled_below_current": true
+  },
+  "proof_freshness": {
+    "proof_freshness_slo_hours": 168,
+    "last_proof_refresh": "2026-06-13T00:00:00Z",
+    "auto_narrow_on_stale": true
+  },
+  "source_contract_refs": [
+    "schemas/ai/add-hidden-retention-spill-guards-cross-workspace-or-cross-tenant-memory-fences-cache-policy-filters-and-offline-or-mirr.schema.json",
+    "docs/ai/m5/add_hidden_retention_spill_guards_cross_workspace_or_cross_tenant_memory_fences_cache_policy_filters_and_offline_or_mirr.md",
+    "docs/ai/m5/freeze_the_m5_ai_memory_prompt_result_cache_hybrid_retrieval_and_retrieval_locality_matrix.md",
+    "docs/ai/memory_class_matrix.md",
+    "docs/ai/ai-memory-delete-export.md",
+    "docs/ai/context_assembly_contract.md",
+    "docs/search/result_identity_and_ranking.md",
+    "docs/ai/routing_cost_alpha.md"
+  ],
+  "redaction_class_token": "metadata_safe_default",
+  "minted_at": "2026-06-13T00:00:00Z"
+}

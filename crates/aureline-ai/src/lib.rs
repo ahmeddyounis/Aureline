@@ -303,10 +303,24 @@
 //! truth, and the local, mirrored, managed, and policy-blocked locality states
 //! stay distinct and export-safe rather than collapsing into one generic
 //! semantic-search state.
+//! The memory-fence-and-fallback lane exposes one
+//! [`add_hidden_retention_spill_guards_cross_workspace_or_cross_tenant_memory_fences_cache_policy_filters_and_offline_or_mirr::MemoryFenceFallbackPacket`]
+//! object that, per claimed M5 profile, binds one governed memory or cache
+//! artifact to four interlocking truths: a hidden-retention spill guard that keeps
+//! a cache content-keyed and lifetime-bounded with telemetry export refused so it
+//! can never become a hidden retention or shadow-telemetry store; a
+//! cross-workspace-or-cross-tenant memory fence that neither crosses by default nor
+//! hides its state; a cache-policy filter that discloses what a policy, region,
+//! retention-floor, tenant-isolation, or BYOK boundary narrows and why; and an
+//! offline-or-mirror-safe retrieval fallback whose chain ends in a non-AI terminal
+//! and keeps a precise label on every non-primary lane, so a spend or route failure
+//! never collapses into a generic provider error when a more precise mirror,
+//! offline, cached, or policy-blocked fallback exists.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes;
+pub mod add_hidden_retention_spill_guards_cross_workspace_or_cross_tenant_memory_fences_cache_policy_filters_and_offline_or_mirr;
 pub mod add_recorded_macro_promotion_recipe_insertion_and_headless_safe_result_packets_for_user_automation;
 pub mod add_retrieval_locality_inspectors_contribution_lanes_ranking_or_chunking_reasons_and_lexical_or_graph_or_docs_pack_or_em;
 pub mod add_spend_ledgers_quota_warning_surfaces_and_wall_clock_or_token_or_tool_call_ceilings_for_long_running_agents;
@@ -376,6 +390,21 @@ pub use add_ai_assisted_test_generation_assumption_review_sandbox_validation_and
     GENERATED_TEST_REVIEW_SCHEMA_REF, GENERATED_TEST_REVIEW_SCHEMA_VERSION,
     GENERATED_TEST_REVIEW_SUMMARY_REF, GENERATED_TEST_REVIEW_TESTING_CONTRACT_REF,
     GENERATED_TEST_REVIEW_TEST_GENERATION_CONTRACT_REF,
+};
+pub use add_hidden_retention_spill_guards_cross_workspace_or_cross_tenant_memory_fences_cache_policy_filters_and_offline_or_mirr::{
+    current_stable_memory_fence_fallback_export, CachePolicyFilter, DeleteExportPosture,
+    FallbackHopKind, FallbackState, FenceFallbackConsumerProjection, FenceFallbackConsumerSurface,
+    FenceFallbackGuardrails, FenceFallbackProofFreshness, FenceState, FilterState, M5Profile,
+    MemoryArtifactClass as FenceFallbackMemoryArtifactClass, MemoryFence,
+    MemoryFenceFallbackArtifactError, MemoryFenceFallbackPacket, MemoryFenceFallbackPacketInput,
+    MemoryFenceFallbackRow, MemoryFenceFallbackViolation, NarrowReason, RecallScope, RetentionClass,
+    RetentionSpillGuard, RetrievalFallback, SpillState, MEMORY_FENCE_FALLBACK_ARTIFACT_REF,
+    MEMORY_FENCE_FALLBACK_CONTEXT_ASSEMBLY_CONTRACT_REF, MEMORY_FENCE_FALLBACK_DELETE_EXPORT_CONTRACT_REF,
+    MEMORY_FENCE_FALLBACK_DOC_REF, MEMORY_FENCE_FALLBACK_FIXTURE_DIR,
+    MEMORY_FENCE_FALLBACK_MEMORY_CLASS_CONTRACT_REF, MEMORY_FENCE_FALLBACK_RECALL_MATRIX_CONTRACT_REF,
+    MEMORY_FENCE_FALLBACK_RECORD_KIND, MEMORY_FENCE_FALLBACK_RETRIEVAL_CONTRACT_REF,
+    MEMORY_FENCE_FALLBACK_ROUTING_CONTRACT_REF, MEMORY_FENCE_FALLBACK_SCHEMA_REF,
+    MEMORY_FENCE_FALLBACK_SCHEMA_VERSION, MEMORY_FENCE_FALLBACK_SUMMARY_REF,
 };
 pub use add_retrieval_locality_inspectors_contribution_lanes_ranking_or_chunking_reasons_and_lexical_or_graph_or_docs_pack_or_em::{
     current_stable_retrieval_locality_inspector_export, CompletenessClass, ContributionLaneClass,
