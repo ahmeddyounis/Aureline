@@ -152,6 +152,10 @@
 //! - The [`crash_store`] packet — binds crash-envelope, dump/core metadata,
 //!   exact-build identity, redaction posture, and local preview/export/upload
 //!   actions into one local-first crash-store viewer for M5 host families.
+//! - The [`recovery_review`] packet — composes crash-loop center decisions,
+//!   scoped reset / reattach comparisons, quarantine and rollback reviews, and
+//!   bounded continuity rows into one metadata-only recovery-review export for
+//!   M5 host families.
 //!
 //! ## Failure-drill posture
 //!
@@ -195,6 +199,7 @@ pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod publish_supportability_runbooks_field_playbooks_and_incident_advisory;
 pub mod recovery_ladder;
+pub mod recovery_review;
 pub mod refactor_preview;
 pub mod release_evidence;
 pub mod repair;
@@ -256,6 +261,14 @@ pub use m5_fault_crash_governance::{
     RetentionClass, M5_FAULT_CRASH_GOVERNANCE_ARTIFACT_REF, M5_FAULT_CRASH_GOVERNANCE_DOC_REF,
     M5_FAULT_CRASH_GOVERNANCE_FIXTURE_DIR, M5_FAULT_CRASH_GOVERNANCE_PACKET_RECORD_KIND,
     M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use recovery_review::{
+    seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
+    RecoveryReviewPacket, RecoveryReviewViolation, ScopedResetReviewRow,
+    CRASH_LOOP_REVIEW_ROW_RECORD_KIND, QUARANTINE_REVIEW_ROW_RECORD_KIND,
+    RECOVERY_CONTINUITY_ROW_RECORD_KIND, RECOVERY_REVIEW_ARTIFACT_REF, RECOVERY_REVIEW_DOC_REF,
+    RECOVERY_REVIEW_FIXTURE_DIR, RECOVERY_REVIEW_PACKET_RECORD_KIND, RECOVERY_REVIEW_SCHEMA_REF,
+    RECOVERY_REVIEW_SCHEMA_VERSION, SCOPED_RESET_REVIEW_ROW_RECORD_KIND,
 };
 pub use route_exposure_beta::{
     audit_route_exposure_matrix, current_route_exposure_matrix, validate_route_exposure_matrix,
