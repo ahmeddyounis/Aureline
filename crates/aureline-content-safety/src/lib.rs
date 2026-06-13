@@ -39,6 +39,7 @@ pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
 pub mod m5_raw_rendered_handoff;
 pub mod m5_suspicious_text_detector_parity;
+pub mod m5_trust_class_ladder;
 pub mod records;
 pub mod representation_copy_export;
 pub mod representation_labels;
@@ -104,6 +105,18 @@ pub use m5_suspicious_text_detector_parity::{
     M5_SUSPICIOUS_TEXT_PARITY_FIXTURE_DIR, M5_SUSPICIOUS_TEXT_PARITY_PACKET_ID,
     M5_SUSPICIOUS_TEXT_PARITY_RECORD_KIND, M5_SUSPICIOUS_TEXT_PARITY_SCHEMA_REF,
     M5_SUSPICIOUS_TEXT_PARITY_SCHEMA_VERSION, M5_SUSPICIOUS_TEXT_SUPPORT_ADMIN_RECORD_KIND,
+};
+pub use m5_trust_class_ladder::{
+    current_m5_trust_class_ladder_export, frozen_m5_trust_class_ladder_packet,
+    m5_downgrade_rule_catalog, project_m5_trust_class_ladder, M5ActiveContentPosture,
+    M5DisplayMode, M5DowngradeRule, M5DowngradeTrigger, M5FallbackMode, M5TrustClass,
+    M5TrustClassLadderExportError, M5TrustClassLadderPacket, M5TrustClassLadderViolation,
+    M5TrustLadderReview, M5TrustLadderSeed, M5TrustLadderSurface, M5TrustLadderSurfaceInput,
+    M5TrustLadderSurfaceProjection, M5TrustSignals, M5_TRUST_CLASS_LADDER_ARTIFACT_REF,
+    M5_TRUST_CLASS_LADDER_DOC_REF, M5_TRUST_CLASS_LADDER_FIXTURE_DIR,
+    M5_TRUST_CLASS_LADDER_PACKET_ID, M5_TRUST_CLASS_LADDER_RECORD_KIND,
+    M5_TRUST_CLASS_LADDER_SAFE_PREVIEW_CONTRACT_REF, M5_TRUST_CLASS_LADDER_SCHEMA_REF,
+    M5_TRUST_CLASS_LADDER_SCHEMA_VERSION, M5_TRUST_CLASS_LADDER_TRUST_CLASS_CONTRACT_REF,
 };
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
