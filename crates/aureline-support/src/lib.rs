@@ -226,9 +226,12 @@ pub use export_review::{
     SUPPORT_EXPORT_REOPEN_MANIFEST_SEED_CASE_RECORD_KIND,
 };
 pub use fault_domain_views::{
-    seeded_fault_domain_view_packet, FaultDomainViewPacket, FaultDomainViewRow,
-    FaultDomainViewViolation, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND,
-    FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
+    seeded_fault_domain_view_packet, FaultDomainTopologyResultHostSummary,
+    FaultDomainTopologyResultRow, FaultDomainViewPacket, FaultDomainViewRow,
+    FaultDomainViewViolation, VisibleTruthResultRow, FAULT_DOMAIN_TOPOLOGY_RESULT_RECORD_KIND,
+    FAULT_DOMAIN_VIEW_ARTIFACT_REF, FAULT_DOMAIN_VIEW_DOC_REF,
+    FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND, FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
+    FAULT_DOMAIN_VIEW_SCHEMA_REF,
 };
 pub use locale_beta::current_locale_pack_support_export;
 pub use m5_fault_crash_governance::{

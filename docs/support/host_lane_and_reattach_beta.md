@@ -11,7 +11,8 @@ reattach review.
   checkpoints, and stale result refs.
 - `topology_inspector_record` maps visible results back to host lanes and
   carries inline host badge groups for logs, runs, debug views, notebook
-  outputs, previews, AI tool actions, and provider-backed summaries.
+  outputs, previews, profiler/replay views, data/API sessions, AI tool
+  actions, provider-backed summaries, and pipeline viewers.
 - `fault_domain_restart_card_record` exposes strike count, restart-budget
   state, affected capabilities, preserved checkpoints, and next-safe actions.
 - `reattach_review_sheet_record` compares previous and current host identity,
@@ -40,10 +41,22 @@ group or a linked topology detail action:
 - debug views
 - notebook outputs
 - previews
+- profiler/replay views
+- data/API sessions
 - AI tool actions
 - provider-backed runtime summaries
+- pipeline viewers
 
 Non-mutating analysis restarts can continue with stale labels and progressive
 refresh. Mutating lanes, debug disconnects, notebook-kernel restarts, and remote
 identity drift require review, explicit rerun, or reapproval before the lane is
 treated as current again.
+
+Visible labels must remain explicit in export packets as well as the shell:
+
+- `stale`
+- `rebuilding`
+- `provider unavailable`
+- `reconnecting`
+- `local fallback`
+- `captured snapshot`

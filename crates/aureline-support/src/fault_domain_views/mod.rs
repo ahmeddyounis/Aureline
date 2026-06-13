@@ -21,6 +21,120 @@ pub const FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND: &str = "fault_domain_view_packet
 /// Stable record-kind tag for one support fault-domain view row.
 pub const FAULT_DOMAIN_VIEW_ROW_RECORD_KIND: &str = "fault_domain_view_row";
 
+/// Stable record-kind tag for one support topology result row.
+pub const FAULT_DOMAIN_TOPOLOGY_RESULT_RECORD_KIND: &str = "fault_domain_topology_result_row";
+
+/// Stable schema path for the support topology inspector packet.
+pub const FAULT_DOMAIN_VIEW_SCHEMA_REF: &str = "schemas/support/topology_inspector.schema.json";
+
+/// Stable help document for the support topology inspector packet.
+pub const FAULT_DOMAIN_VIEW_DOC_REF: &str = "docs/support/topology_inspector.md";
+
+/// Stable reviewer artifact for the support topology inspector packet.
+pub const FAULT_DOMAIN_VIEW_ARTIFACT_REF: &str = "artifacts/support/m5/topology-inspector.md";
+
+/// One visible stale, rebuilding, reconnecting, or fallback result preserved on
+/// a lane row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VisibleTruthResultRow {
+    /// Result id this row describes.
+    pub result_ref: String,
+    /// Surface rendering the result.
+    pub surface_token: String,
+    /// Export-safe result summary.
+    pub result_summary: String,
+    /// Stable visible-truth token.
+    pub visible_truth_label_token: String,
+    /// Plain-language visible-truth label.
+    pub visible_truth_label_label: String,
+}
+
+/// One host summary nested under a topology result.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FaultDomainTopologyResultHostSummary {
+    /// Host lane id.
+    pub host_lane_ref: String,
+    /// Plain-language host family label.
+    pub host_family_label: String,
+    /// Plain-language role label.
+    pub role_label: String,
+    /// Locality summary.
+    pub locality_label: String,
+    /// Boundary badge labels shown inline.
+    pub boundary_badge_labels: Vec<String>,
+    /// Host health token.
+    pub health_token: String,
+    /// Fault-domain id.
+    pub fault_domain_id: String,
+    /// Detail action ref for the host.
+    pub detail_action_ref: String,
+}
+
+/// One support/export result row preserving topology mappings and visible truth
+/// labels.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FaultDomainTopologyResultRow {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Result id.
+    pub result_ref: String,
+    /// Surface rendering the result.
+    pub surface_token: String,
+    /// Export-safe result summary.
+    pub result_summary: String,
+    /// Stable visible-truth token.
+    pub visible_truth_label_token: String,
+    /// Plain-language visible-truth label.
+    pub visible_truth_label_label: String,
+    /// True when a current host confirmed the result.
+    pub current_host_confirmed: bool,
+    /// True when reattach review is required before the result is current.
+    pub requires_reattach_review: bool,
+    /// Host summaries for every contributing lane.
+    pub host_summaries: Vec<FaultDomainTopologyResultHostSummary>,
+}
+
+impl FaultDomainTopologyResultRow {
+    fn from_inspector_result(
+        inspector: &TopologyInspectorRecord,
+        result: &aureline_runtime::RuntimeSurfaceResult,
+    ) -> Self {
+        let host_summaries = result
+            .host_lane_ids
+            .iter()
+            .filter_map(|lane_id| inspector.lane(lane_id))
+            .map(|lane| FaultDomainTopologyResultHostSummary {
+                host_lane_ref: lane.lane_id.clone(),
+                host_family_label: lane.family_label.clone(),
+                role_label: lane.role_label.clone(),
+                locality_label: lane.locality_label.clone(),
+                boundary_badge_labels: lane
+                    .boundary_badges
+                    .iter()
+                    .map(|badge| badge.label.clone())
+                    .collect(),
+                health_token: lane.health_token.clone(),
+                fault_domain_id: lane.fault_domain_id.clone(),
+                detail_action_ref: lane.detail_action.action_ref.clone(),
+            })
+            .collect();
+        Self {
+            record_kind: FAULT_DOMAIN_TOPOLOGY_RESULT_RECORD_KIND.to_owned(),
+            schema_version: HOST_TOPOLOGY_SCHEMA_VERSION,
+            result_ref: result.result_id.clone(),
+            surface_token: result.surface_token.clone(),
+            result_summary: result.result_summary.clone(),
+            visible_truth_label_token: result.visible_truth_label_token.clone(),
+            visible_truth_label_label: result.visible_truth_label_label.clone(),
+            current_host_confirmed: result.current_host_confirmed,
+            requires_reattach_review: result.requires_reattach_review,
+            host_summaries,
+        }
+    }
+}
+
 /// One support/export row for a host lane and its fault-domain state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FaultDomainViewRow {
@@ -34,8 +148,18 @@ pub struct FaultDomainViewRow {
     pub host_lane_ref: String,
     /// Plain-language host family label.
     pub host_family_label: String,
+    /// Plain-language lane role.
+    pub role_label: String,
+    /// Plain-language host instance label.
+    pub host_label: String,
+    /// Locality summary for the lane.
+    pub locality_label: String,
+    /// Boundary badge labels shown inline.
+    pub boundary_badge_labels: Vec<String>,
     /// Host health token.
     pub health_token: String,
+    /// Plain-language host health label.
+    pub health_label: String,
     /// Fault-domain id.
     pub fault_domain_id: String,
     /// Fault-domain class token.
@@ -44,16 +168,26 @@ pub struct FaultDomainViewRow {
     pub restart_budget_ref: String,
     /// Restart-budget state token.
     pub restart_budget_state_token: String,
+    /// Plain-language restart-budget state label.
+    pub restart_budget_state_label: String,
     /// Counted restart strikes.
     pub restart_strike_count: u32,
     /// Automatic restarts allowed in the window.
     pub restart_budget_in_window: u32,
+    /// Restart strike window in minutes.
+    pub restart_window_minutes: u32,
+    /// Plain-language restart-window label.
+    pub restart_window_label: String,
     /// Capabilities affected by this lane state.
     pub affected_capability_tokens: Vec<String>,
     /// Checkpoints preserved for recovery or review.
     pub preserved_checkpoint_refs: Vec<String>,
+    /// Summary of the next quarantine or escalation trigger.
+    pub quarantine_trigger_summary: String,
     /// Result refs that are stale, partial, rebuilding, or awaiting refresh.
     pub partial_truth_result_refs: Vec<String>,
+    /// Visible stale, rebuilding, reconnecting, or fallback result labels.
+    pub partial_truth_results: Vec<VisibleTruthResultRow>,
     /// Surface tokens where this lane appeared.
     pub surface_tokens: Vec<String>,
     /// Event ids retained for this lane.
@@ -102,12 +236,21 @@ impl FaultDomainViewRow {
             .map(|review| review.decision_token.clone());
 
         let mut partial_truth_result_refs = lane.stale_result_refs.clone();
+        let mut partial_truth_results = Vec::new();
         for result in &inspector.results {
             if result.host_lane_ids.contains(&lane.lane_id)
                 && result.freshness_class.needs_disclosure()
-                && !partial_truth_result_refs.contains(&result.result_id)
             {
-                partial_truth_result_refs.push(result.result_id.clone());
+                if !partial_truth_result_refs.contains(&result.result_id) {
+                    partial_truth_result_refs.push(result.result_id.clone());
+                }
+                partial_truth_results.push(VisibleTruthResultRow {
+                    result_ref: result.result_id.clone(),
+                    surface_token: result.surface_token.clone(),
+                    result_summary: result.result_summary.clone(),
+                    visible_truth_label_token: result.visible_truth_label_token.clone(),
+                    visible_truth_label_label: result.visible_truth_label_label.clone(),
+                });
             }
         }
 
@@ -117,16 +260,33 @@ impl FaultDomainViewRow {
             row_id: format!("fault-domain-view:{}", lane.lane_id),
             host_lane_ref: lane.lane_id.clone(),
             host_family_label: lane.family_label.clone(),
+            role_label: lane.role_label.clone(),
+            host_label: lane.host_label.clone(),
+            locality_label: lane.locality_label.clone(),
+            boundary_badge_labels: lane
+                .boundary_badges
+                .iter()
+                .map(|badge| badge.label.clone())
+                .collect(),
             health_token: lane.health_token.clone(),
+            health_label: lane.health_label.clone(),
             fault_domain_id: lane.fault_domain_id.clone(),
             fault_domain_token: lane.fault_domain_token.clone(),
             restart_budget_ref: lane.restart_budget_ref.clone(),
             restart_budget_state_token: card.restart_budget_state_token.clone(),
+            restart_budget_state_label: card.restart_budget_state_label.clone(),
             restart_strike_count: lane.restart_strike_count,
             restart_budget_in_window: lane.restart_budget_in_window,
+            restart_window_minutes: lane.restart_window_minutes,
+            restart_window_label: format!(
+                "{} failures / {} min",
+                lane.restart_budget_in_window, lane.restart_window_minutes
+            ),
             affected_capability_tokens: lane.affected_capability_tokens.clone(),
             preserved_checkpoint_refs: lane.preserved_checkpoint_refs.clone(),
+            quarantine_trigger_summary: card.quarantine_trigger_summary.clone(),
             partial_truth_result_refs,
+            partial_truth_results,
             surface_tokens,
             lane_event_ids,
             reattach_decision_token,
@@ -145,12 +305,18 @@ pub struct FaultDomainViewPacket {
     pub schema_version: u32,
     /// Stable packet id.
     pub packet_id: String,
+    /// Help document consumed by support and QA reviewers.
+    pub doc_ref: String,
+    /// Boundary schema consumed by export-safe projections.
+    pub schema_ref: String,
     /// Workspace id.
     pub workspace_id: String,
     /// Capture timestamp.
     pub generated_at: String,
     /// Source topology inspector id.
     pub topology_inspector_ref: String,
+    /// Result-level topology mappings preserved for support export.
+    pub topology_results: Vec<FaultDomainTopologyResultRow>,
     /// Lane rows.
     pub rows: Vec<FaultDomainViewRow>,
     /// Fault-domain restart cards.
@@ -222,6 +388,11 @@ impl FaultDomainViewPacket {
                 )
             })
             .collect::<Vec<_>>();
+        let topology_results = inspector
+            .results
+            .iter()
+            .map(|result| FaultDomainTopologyResultRow::from_inspector_result(inspector, result))
+            .collect::<Vec<_>>();
 
         let partial_truth_row_count = rows
             .iter()
@@ -237,9 +408,12 @@ impl FaultDomainViewPacket {
             record_kind: FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND.to_owned(),
             schema_version: HOST_TOPOLOGY_SCHEMA_VERSION,
             packet_id: packet_id.into(),
+            doc_ref: FAULT_DOMAIN_VIEW_DOC_REF.to_owned(),
+            schema_ref: FAULT_DOMAIN_VIEW_SCHEMA_REF.to_owned(),
             workspace_id: inspector.workspace_id.clone(),
             generated_at: generated_at.into(),
             topology_inspector_ref: inspector.inspector_id.clone(),
+            topology_results,
             rows,
             restart_cards,
             reattach_reviews,
@@ -272,6 +446,30 @@ impl FaultDomainViewPacket {
                 "record_kind",
                 &self.packet_id,
                 "record_kind must be fault_domain_view_packet",
+            );
+        }
+        if self.doc_ref != FAULT_DOMAIN_VIEW_DOC_REF {
+            push_fault_view_violation(
+                &mut violations,
+                "doc_ref",
+                &self.packet_id,
+                "packet must quote the canonical topology inspector doc",
+            );
+        }
+        if self.schema_ref != FAULT_DOMAIN_VIEW_SCHEMA_REF {
+            push_fault_view_violation(
+                &mut violations,
+                "schema_ref",
+                &self.packet_id,
+                "packet must quote the canonical topology inspector schema",
+            );
+        }
+        if self.topology_results.len() != inspector.results.len() {
+            push_fault_view_violation(
+                &mut violations,
+                "topology_results",
+                &self.packet_id,
+                "packet must preserve one topology result row per visible runtime result",
             );
         }
         if self.rows.len() != inspector.lanes.len() {
@@ -308,6 +506,24 @@ impl FaultDomainViewPacket {
                 );
             }
         }
+        for result in &self.topology_results {
+            if result.host_summaries.is_empty() {
+                push_fault_view_violation(
+                    &mut violations,
+                    "topology_results.host_summaries",
+                    &result.result_ref,
+                    "topology result must preserve at least one host summary",
+                );
+            }
+            if !result.current_host_confirmed && result.visible_truth_label_token == "current" {
+                push_fault_view_violation(
+                    &mut violations,
+                    "topology_results.visible_truth_label_token",
+                    &result.result_ref,
+                    "non-current results must carry an explicit stale, rebuilding, reconnecting, provider-unavailable, local-fallback, or captured-snapshot label",
+                );
+            }
+        }
         for lane in &inspector.lanes {
             if lane.health_class.blocks_healthy_claim()
                 && !self
@@ -325,8 +541,7 @@ impl FaultDomainViewPacket {
             if lane.health_class != HostLaneHealthClass::Healthy
                 && !self.rows.iter().any(|row| {
                     row.host_lane_ref == lane.lane_id
-                        && (!row.partial_truth_result_refs.is_empty()
-                            || row.restart_strike_count > 0)
+                        && (!row.partial_truth_results.is_empty() || row.restart_strike_count > 0)
                 })
             {
                 push_fault_view_violation(
@@ -349,6 +564,10 @@ impl FaultDomainViewPacket {
         out.push_str(&format!("Generated: {}\n", self.generated_at));
         out.push_str(&format!("Rows: {}\n", self.rows.len()));
         out.push_str(&format!(
+            "Topology results: {}\n",
+            self.topology_results.len()
+        ));
+        out.push_str(&format!(
             "Partial-truth rows: {}\n",
             self.partial_truth_row_count
         ));
@@ -359,18 +578,39 @@ impl FaultDomainViewPacket {
         for row in &self.rows {
             out.push_str(&format!("\nLane: {}\n", row.host_lane_ref));
             out.push_str(&format!("  Host: {}\n", row.host_family_label));
-            out.push_str(&format!("  Health: {}\n", row.health_token));
+            out.push_str(&format!("  Role: {}\n", row.role_label));
+            out.push_str(&format!("  Host instance: {}\n", row.host_label));
+            out.push_str(&format!(
+                "  Host class: {}\n",
+                row.boundary_badge_labels.join(", ")
+            ));
+            out.push_str(&format!(
+                "  Health: {} ({})\n",
+                row.health_token, row.health_label
+            ));
             out.push_str(&format!("  Fault domain: {}\n", row.fault_domain_id));
             out.push_str(&format!(
-                "  Restart budget: {} {}/{}\n",
+                "  Restart budget: {} {}/{} in {} min\n",
                 row.restart_budget_state_token,
                 row.restart_strike_count,
-                row.restart_budget_in_window
+                row.restart_budget_in_window,
+                row.restart_window_minutes
+            ));
+            out.push_str(&format!(
+                "  Quarantine trigger: {}\n",
+                row.quarantine_trigger_summary
             ));
             if !row.partial_truth_result_refs.is_empty() {
                 out.push_str(&format!(
                     "  Partial truth: {}\n",
-                    row.partial_truth_result_refs.join(",")
+                    row.partial_truth_results
+                        .iter()
+                        .map(|result| format!(
+                            "{} ({})",
+                            result.result_ref, result.visible_truth_label_token
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ));
             }
             if let Some(decision) = &row.reattach_decision_token {

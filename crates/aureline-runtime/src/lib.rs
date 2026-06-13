@@ -1083,10 +1083,10 @@ pub use topology_inspector::{
     ReattachReviewDecisionClass, ReattachReviewInput, ReattachReviewSheet, RerunRequirementClass,
     RestartBudgetStateClass, RestartMarkerClass, RuntimeResultSeed, RuntimeSurfaceClass,
     RuntimeSurfaceResult, TopologyInspectorRecord, TopologyInspectorViolation,
-    CRASH_LOOP_QUARANTINE_BANNER_RECORD_KIND, FAULT_DOMAIN_RESTART_CARD_RECORD_KIND,
-    HOST_BADGE_GROUP_RECORD_KIND, HOST_LANE_RECORD_KIND, HOST_TOPOLOGY_SCHEMA_VERSION,
-    LANE_FILTERED_EVENT_VIEWER_RECORD_KIND, REATTACH_REVIEW_SHEET_RECORD_KIND,
-    TOPOLOGY_INSPECTOR_RECORD_KIND,
+    VisibleTruthLabelClass, CRASH_LOOP_QUARANTINE_BANNER_RECORD_KIND,
+    FAULT_DOMAIN_RESTART_CARD_RECORD_KIND, HOST_BADGE_GROUP_RECORD_KIND, HOST_LANE_RECORD_KIND,
+    HOST_TOPOLOGY_SCHEMA_VERSION, LANE_FILTERED_EVENT_VIEWER_RECORD_KIND,
+    REATTACH_REVIEW_SHEET_RECORD_KIND, TOPOLOGY_INSPECTOR_RECORD_KIND,
 };
 pub use trace_replay_alpha::{
     BuildRuntimeIdentity, CaptureMode, CaptureSource, CaptureWindow, ComparisonClass,

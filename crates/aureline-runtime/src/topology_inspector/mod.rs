@@ -113,6 +113,8 @@ pub enum HostBoundaryBadgeClass {
     Local,
     /// Lane is isolated from the shell process.
     Isolated,
+    /// Lane runs inside a container boundary.
+    ContainerBoundary,
     /// Lane is extension-owned.
     ExtensionOwned,
     /// Lane owns stateful kernel variables or outputs.
@@ -133,6 +135,7 @@ impl HostBoundaryBadgeClass {
         match self {
             Self::Local => "local",
             Self::Isolated => "isolated",
+            Self::ContainerBoundary => "container_boundary",
             Self::ExtensionOwned => "extension_owned",
             Self::KernelStateful => "kernel_stateful",
             Self::ExecutionFacing => "execution_facing",
@@ -147,11 +150,12 @@ impl HostBoundaryBadgeClass {
         match self {
             Self::Local => "Local",
             Self::Isolated => "Isolated",
-            Self::ExtensionOwned => "Extension-owned",
-            Self::KernelStateful => "Kernel state",
+            Self::ContainerBoundary => "Container",
+            Self::ExtensionOwned => "Extension sandbox",
+            Self::KernelStateful => "Kernel",
             Self::ExecutionFacing => "Execution-facing",
-            Self::RemoteBoundary => "Remote boundary",
-            Self::ManagedBoundary => "Managed boundary",
+            Self::RemoteBoundary => "Remote agent",
+            Self::ManagedBoundary => "Managed lane",
             Self::PartialTruth => "Partial truth",
         }
     }
@@ -371,6 +375,60 @@ impl HostResultFreshnessClass {
     }
 }
 
+/// Explicit visible label that must remain attached to a result after restart,
+/// reconnect, provider loss, or fallback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VisibleTruthLabelClass {
+    /// Result is current and confirmed by the active host.
+    Current,
+    /// Result is preserved but stale.
+    Stale,
+    /// Result is rebuilding after host restart.
+    Rebuilding,
+    /// Result is blocked by provider or broker unavailability.
+    ProviderUnavailable,
+    /// Result is waiting on reconnect or reattach.
+    Reconnecting,
+    /// Result is available through a local-only fallback.
+    LocalFallback,
+    /// Result is a captured snapshot rather than a live view.
+    CapturedSnapshot,
+}
+
+impl VisibleTruthLabelClass {
+    /// Stable token recorded in schemas, fixtures, and exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Current => "current",
+            Self::Stale => "stale",
+            Self::Rebuilding => "rebuilding",
+            Self::ProviderUnavailable => "provider_unavailable",
+            Self::Reconnecting => "reconnecting",
+            Self::LocalFallback => "local_fallback",
+            Self::CapturedSnapshot => "captured_snapshot",
+        }
+    }
+
+    /// Plain-language label shown beside visible results.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Current => "current",
+            Self::Stale => "stale",
+            Self::Rebuilding => "rebuilding",
+            Self::ProviderUnavailable => "provider unavailable",
+            Self::Reconnecting => "reconnecting",
+            Self::LocalFallback => "local fallback",
+            Self::CapturedSnapshot => "captured snapshot",
+        }
+    }
+
+    /// True when the label means the result must not be treated as current.
+    pub const fn requires_disclosure(self) -> bool {
+        !matches!(self, Self::Current)
+    }
+}
+
 /// Surface where a host badge group is rendered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -385,10 +443,18 @@ pub enum RuntimeSurfaceClass {
     NotebookOutput,
     /// Preview or browser-backed runtime strip.
     Preview,
+    /// Replay or profiling capture surface.
+    ProfilerReplay,
+    /// API request, database, or data-grid session.
+    DataApiSession,
     /// AI tool action row.
     AiToolAction,
     /// Provider-backed runtime summary row.
     ProviderRuntimeSummary,
+    /// Pipeline viewer or provider-backed CI summary.
+    PipelineViewer,
+    /// Docs or browser bridge surface.
+    DocsBrowserBridge,
     /// Runtime diagnostic row.
     RuntimeDiagnostic,
     /// Support/export row.
@@ -397,14 +463,17 @@ pub enum RuntimeSurfaceClass {
 
 impl RuntimeSurfaceClass {
     /// Surfaces that must expose inline host badges when host identity matters.
-    pub const REQUIRED_INLINE_BADGE_SURFACES: [Self; 7] = [
+    pub const REQUIRED_INLINE_BADGE_SURFACES: [Self; 10] = [
         Self::Logs,
         Self::Run,
         Self::DebugView,
         Self::NotebookOutput,
         Self::Preview,
+        Self::ProfilerReplay,
+        Self::DataApiSession,
         Self::AiToolAction,
         Self::ProviderRuntimeSummary,
+        Self::PipelineViewer,
     ];
 
     /// Stable token recorded in schemas, fixtures, and exports.
@@ -415,8 +484,12 @@ impl RuntimeSurfaceClass {
             Self::DebugView => "debug_view",
             Self::NotebookOutput => "notebook_output",
             Self::Preview => "preview",
+            Self::ProfilerReplay => "profiler_replay",
+            Self::DataApiSession => "data_api_session",
             Self::AiToolAction => "ai_tool_action",
             Self::ProviderRuntimeSummary => "provider_runtime_summary",
+            Self::PipelineViewer => "pipeline_viewer",
+            Self::DocsBrowserBridge => "docs_browser_bridge",
             Self::RuntimeDiagnostic => "runtime_diagnostic",
             Self::SupportExport => "support_export",
         }
@@ -430,8 +503,12 @@ impl RuntimeSurfaceClass {
             Self::DebugView => "Debug view",
             Self::NotebookOutput => "Notebook output",
             Self::Preview => "Preview",
+            Self::ProfilerReplay => "Profiler/replay",
+            Self::DataApiSession => "Data/API session",
             Self::AiToolAction => "AI tool action",
             Self::ProviderRuntimeSummary => "Provider runtime summary",
+            Self::PipelineViewer => "Pipeline viewer",
+            Self::DocsBrowserBridge => "Docs/browser bridge",
             Self::RuntimeDiagnostic => "Runtime diagnostic",
             Self::SupportExport => "Support export",
         }
@@ -546,6 +623,8 @@ pub struct HostLaneSeed {
     pub restart_strike_count: u32,
     /// Automatic restart budget in the current window.
     pub restart_budget_in_window: u32,
+    /// Length of the restart strike window in minutes.
+    pub restart_window_minutes: u32,
     /// User-visible capabilities affected by the current state.
     pub affected_capability_tokens: Vec<String>,
     /// Checkpoints preserved across restart or reattach.
@@ -604,6 +683,8 @@ pub struct HostLaneRecord {
     pub restart_strike_count: u32,
     /// Automatic restart budget in the current window.
     pub restart_budget_in_window: u32,
+    /// Length of the restart strike window in minutes.
+    pub restart_window_minutes: u32,
     /// User-visible capabilities affected by the current state.
     pub affected_capability_tokens: Vec<String>,
     /// Checkpoints preserved across restart or reattach.
@@ -658,6 +739,7 @@ impl HostLaneRecord {
             restart_budget_ref: seed.restart_budget_ref,
             restart_strike_count: seed.restart_strike_count,
             restart_budget_in_window: seed.restart_budget_in_window,
+            restart_window_minutes: seed.restart_window_minutes,
             affected_capability_tokens: seed.affected_capability_tokens,
             preserved_checkpoint_refs: seed.preserved_checkpoint_refs,
             stale_result_refs: seed.stale_result_refs,
@@ -722,6 +804,8 @@ pub struct RuntimeResultSeed {
     pub host_lane_ids: Vec<String>,
     /// Freshness state of the result.
     pub freshness_class: HostResultFreshnessClass,
+    /// Explicit visible truth label shown to users.
+    pub visible_truth_label_class: VisibleTruthLabelClass,
     /// Optional provenance or run reference.
     pub provenance_ref: Option<String>,
     /// Whether reattach review is required before this result can be current.
@@ -762,11 +846,18 @@ impl HostBadgeGroup {
         result_ref: &str,
         surface: RuntimeSurfaceClass,
         lane: &HostLaneRecord,
+        visible_truth_label_class: VisibleTruthLabelClass,
     ) -> Self {
-        let restart_note = if lane.restart_strike_count > 0 || lane.requires_disclosure() {
+        let restart_note = if lane.restart_strike_count > 0
+            || lane.requires_disclosure()
+            || visible_truth_label_class.requires_disclosure()
+        {
             Some(format!(
-                "{}; restart budget {}/{}",
-                lane.health_label, lane.restart_strike_count, lane.restart_budget_in_window
+                "{}; restart budget {}/{} in {} min",
+                visible_truth_label_class.label(),
+                lane.restart_strike_count,
+                lane.restart_budget_in_window,
+                lane.restart_window_minutes
             ))
         } else {
             None
@@ -783,7 +874,7 @@ impl HostBadgeGroup {
             surface,
             surface_token: surface.as_str().to_owned(),
             host_lane_ref: lane.lane_id.clone(),
-            primary_badge_label: lane.family_label.clone(),
+            primary_badge_label: preferred_inline_host_badge_label(lane),
             state_badge_label: lane.health_label.clone(),
             restart_note,
             boundary_badges: lane.boundary_badges.clone(),
@@ -813,6 +904,12 @@ pub struct RuntimeSurfaceResult {
     pub freshness_token: String,
     /// Visible freshness label.
     pub freshness_label: String,
+    /// Explicit visible truth label shown in-surface.
+    pub visible_truth_label_class: VisibleTruthLabelClass,
+    /// Stable visible-truth token.
+    pub visible_truth_label_token: String,
+    /// Plain-language visible-truth label.
+    pub visible_truth_label_label: String,
     /// Optional provenance or run reference.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provenance_ref: Option<String>,
@@ -828,9 +925,17 @@ impl RuntimeSurfaceResult {
             .host_lane_ids
             .iter()
             .filter_map(|lane_id| lanes_by_id.get(lane_id))
-            .map(|lane| HostBadgeGroup::from_lane(&seed.result_id, seed.surface, lane))
+            .map(|lane| {
+                HostBadgeGroup::from_lane(
+                    &seed.result_id,
+                    seed.surface,
+                    lane,
+                    seed.visible_truth_label_class,
+                )
+            })
             .collect::<Vec<_>>();
         let current_host_confirmed = !seed.freshness_class.needs_disclosure()
+            && !seed.visible_truth_label_class.requires_disclosure()
             && !seed.requires_reattach_review
             && seed
                 .host_lane_ids
@@ -847,6 +952,9 @@ impl RuntimeSurfaceResult {
             freshness_class: seed.freshness_class,
             freshness_token: seed.freshness_class.as_str().to_owned(),
             freshness_label: seed.freshness_class.label().to_owned(),
+            visible_truth_label_class: seed.visible_truth_label_class,
+            visible_truth_label_token: seed.visible_truth_label_class.as_str().to_owned(),
+            visible_truth_label_label: seed.visible_truth_label_class.label().to_owned(),
             provenance_ref: seed.provenance_ref,
             current_host_confirmed,
             requires_reattach_review: seed.requires_reattach_review,
@@ -1039,6 +1147,16 @@ impl TopologyInspectorRecord {
                     "reattach-review results cannot claim current host confirmation",
                 );
             }
+            if result.freshness_class.needs_disclosure()
+                && !result.visible_truth_label_class.requires_disclosure()
+            {
+                push_topology_violation(
+                    &mut violations,
+                    "results.visible_truth_label_token",
+                    &result.result_id,
+                    "stale, rebuilding, or disconnected results must carry an explicit visible truth label",
+                );
+            }
         }
 
         for missing in self.missing_required_surface_tokens() {
@@ -1152,6 +1270,8 @@ pub struct FaultDomainRestartCard {
     pub restart_strike_count: u32,
     /// Restart budget in the active window.
     pub restart_budget_in_window: u32,
+    /// Restart strike window in minutes.
+    pub restart_window_minutes: u32,
     /// Derived restart-budget state.
     pub restart_budget_state: RestartBudgetStateClass,
     /// Stable restart-budget state token.
@@ -1162,6 +1282,10 @@ pub struct FaultDomainRestartCard {
     pub affected_capability_tokens: Vec<String>,
     /// Preserved checkpoints.
     pub preserved_checkpoint_refs: Vec<String>,
+    /// Visible artifacts that remain stale, rebuilding, or inspect-only.
+    pub stale_visible_artifact_refs: Vec<String>,
+    /// Summary of the next quarantine or escalation trigger.
+    pub quarantine_trigger_summary: String,
     /// Safe next action classes.
     pub next_safe_actions: Vec<FaultDomainNextSafeActionClass>,
     /// Stable safe-action tokens.
@@ -1188,11 +1312,14 @@ impl FaultDomainRestartCard {
             restart_budget_ref: lane.restart_budget_ref.clone(),
             restart_strike_count: lane.restart_strike_count,
             restart_budget_in_window: lane.restart_budget_in_window,
+            restart_window_minutes: lane.restart_window_minutes,
             restart_budget_state,
             restart_budget_state_token: restart_budget_state.as_str().to_owned(),
             restart_budget_state_label: restart_budget_state.label().to_owned(),
             affected_capability_tokens: lane.affected_capability_tokens.clone(),
             preserved_checkpoint_refs: lane.preserved_checkpoint_refs.clone(),
+            stale_visible_artifact_refs: lane.stale_result_refs.clone(),
+            quarantine_trigger_summary: quarantine_trigger_summary_for(lane),
             next_safe_actions,
             next_safe_action_tokens,
         }
@@ -1242,6 +1369,52 @@ fn derive_next_safe_actions(lane: &HostLaneRecord) -> Vec<FaultDomainNextSafeAct
         ],
         HostLaneHealthClass::Starting => vec![FaultDomainNextSafeActionClass::OpenTopology],
     }
+}
+
+fn quarantine_trigger_summary_for(lane: &HostLaneRecord) -> String {
+    match lane.restart_budget_state() {
+        RestartBudgetStateClass::NoAutomaticRestart => {
+            "No automatic restart; user-directed recovery only.".to_owned()
+        }
+        RestartBudgetStateClass::BudgetExhausted | RestartBudgetStateClass::Quarantined => format!(
+            "Restart budget exhausted in {} min; quarantine or isolated recovery is active.",
+            lane.restart_window_minutes
+        ),
+        RestartBudgetStateClass::Disabled => {
+            "Lane is disabled until manual repair or policy change.".to_owned()
+        }
+        RestartBudgetStateClass::ReattachReviewRequired => {
+            "Live control stays blocked until reattach review completes.".to_owned()
+        }
+        RestartBudgetStateClass::BudgetWarning => format!(
+            "1 more failure in {} min triggers quarantine.",
+            lane.restart_window_minutes
+        ),
+        RestartBudgetStateClass::WithinBudget => format!(
+            "{} failures allowed in {} min; {} used.",
+            lane.restart_budget_in_window, lane.restart_window_minutes, lane.restart_strike_count
+        ),
+    }
+}
+
+fn preferred_inline_host_badge_label(lane: &HostLaneRecord) -> String {
+    for class in [
+        HostBoundaryBadgeClass::RemoteBoundary,
+        HostBoundaryBadgeClass::ContainerBoundary,
+        HostBoundaryBadgeClass::ManagedBoundary,
+        HostBoundaryBadgeClass::ExtensionOwned,
+        HostBoundaryBadgeClass::KernelStateful,
+        HostBoundaryBadgeClass::Local,
+    ] {
+        if let Some(badge) = lane
+            .boundary_badges
+            .iter()
+            .find(|badge| badge.class == class)
+        {
+            return badge.label.clone();
+        }
+    }
+    lane.family_label.clone()
 }
 
 /// Replay risk carried by a reattach review.
@@ -1861,6 +2034,7 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:shell:no-hidden-restart".into(),
             restart_strike_count: 0,
             restart_budget_in_window: 0,
+            restart_window_minutes: 0,
             affected_capability_tokens: vec![],
             preserved_checkpoint_refs: vec!["checkpoint:session-shell-layout".into()],
             stale_result_refs: vec![],
@@ -1884,6 +2058,7 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:workspace-knowledge:analysis".into(),
             restart_strike_count: 1,
             restart_budget_in_window: 3,
+            restart_window_minutes: 5,
             affected_capability_tokens: vec![
                 "diagnostics".into(),
                 "semantic_navigation".into(),
@@ -1914,6 +2089,7 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:extension-host:default".into(),
             restart_strike_count: 2,
             restart_budget_in_window: 2,
+            restart_window_minutes: 10,
             affected_capability_tokens: vec!["extension_commands".into(), "extension_views".into()],
             preserved_checkpoint_refs: vec!["checkpoint:extension-disable-state".into()],
             stale_result_refs: vec!["result:provider:summary".into()],
@@ -1937,6 +2113,7 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:session:debug".into(),
             restart_strike_count: 1,
             restart_budget_in_window: 2,
+            restart_window_minutes: 10,
             affected_capability_tokens: vec!["step_continue".into(), "expression_eval".into()],
             preserved_checkpoint_refs: vec!["checkpoint:debug-log-buffer".into()],
             stale_result_refs: vec!["result:debug:stale-frame".into()],
@@ -1960,10 +2137,86 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:session:notebook".into(),
             restart_strike_count: 2,
             restart_budget_in_window: 2,
+            restart_window_minutes: 10,
             affected_capability_tokens: vec!["cell_run".into(), "variable_explorer".into()],
             preserved_checkpoint_refs: vec!["checkpoint:notebook-output-snapshot".into()],
             stale_result_refs: vec!["result:notebook:output".into()],
             quarantine_ref: Some("crash:kern-112".into()),
+            current_host_confirmed: false,
+        }),
+        HostLaneRecord::from_seed(HostLaneSeed {
+            lane_id: "lane:preview-dev-server".into(),
+            family: HostLaneFamily::DebugTaskAdapterHost,
+            role_label: "Preview dev server session".into(),
+            host_label: "vite dev server".into(),
+            target_ref: Some("preview:dashboard-app".into()),
+            locality_label: "containerized preview runtime".into(),
+            boundary_badge_classes: vec![
+                HostBoundaryBadgeClass::ContainerBoundary,
+                HostBoundaryBadgeClass::ExecutionFacing,
+            ],
+            health_class: HostLaneHealthClass::Starting,
+            fault_domain_class: FaultDomainClass::SessionExecutionHost,
+            fault_domain_id: "fault-domain:preview-dev-server".into(),
+            restart_budget_ref: "restart-budget:session:preview".into(),
+            restart_strike_count: 1,
+            restart_budget_in_window: 3,
+            restart_window_minutes: 10,
+            affected_capability_tokens: vec!["preview_refresh".into(), "dom_inspect".into()],
+            preserved_checkpoint_refs: vec!["checkpoint:preview-source-map-cache".into()],
+            stale_result_refs: vec!["result:preview:dev-server".into()],
+            quarantine_ref: None,
+            current_host_confirmed: false,
+        }),
+        HostLaneRecord::from_seed(HostLaneSeed {
+            lane_id: "lane:provider-run".into(),
+            family: HostLaneFamily::ManagedServiceLane,
+            role_label: "Provider-run session".into(),
+            host_label: "provider route gpt-oss".into(),
+            target_ref: Some("provider-run:plan-42".into()),
+            locality_label: "managed provider session".into(),
+            boundary_badge_classes: vec![
+                HostBoundaryBadgeClass::ManagedBoundary,
+                HostBoundaryBadgeClass::ExecutionFacing,
+            ],
+            health_class: HostLaneHealthClass::Degraded,
+            fault_domain_class: FaultDomainClass::AiToolBroker,
+            fault_domain_id: "fault-domain:provider-run".into(),
+            restart_budget_ref: "restart-budget:provider-run:circuit-breaker".into(),
+            restart_strike_count: 1,
+            restart_budget_in_window: 1,
+            restart_window_minutes: 5,
+            affected_capability_tokens: vec!["provider_apply".into(), "tool_dispatch".into()],
+            preserved_checkpoint_refs: vec!["checkpoint:provider-run-request".into()],
+            stale_result_refs: vec![
+                "result:provider:summary".into(),
+                "result:ai:tool-action".into(),
+            ],
+            quarantine_ref: None,
+            current_host_confirmed: false,
+        }),
+        HostLaneRecord::from_seed(HostLaneSeed {
+            lane_id: "lane:profiler-replay".into(),
+            family: HostLaneFamily::DebugTaskAdapterHost,
+            role_label: "Profiler replay session".into(),
+            host_label: "replay capture viewer".into(),
+            target_ref: Some("replay:capture-991".into()),
+            locality_label: "inspect-only replay lane".into(),
+            boundary_badge_classes: vec![
+                HostBoundaryBadgeClass::Local,
+                HostBoundaryBadgeClass::ExecutionFacing,
+            ],
+            health_class: HostLaneHealthClass::StaleSnapshot,
+            fault_domain_class: FaultDomainClass::SessionExecutionHost,
+            fault_domain_id: "fault-domain:profiler-replay".into(),
+            restart_budget_ref: "restart-budget:session:profiler-replay".into(),
+            restart_strike_count: 1,
+            restart_budget_in_window: 2,
+            restart_window_minutes: 10,
+            affected_capability_tokens: vec!["replay_step".into(), "trace_compare".into()],
+            preserved_checkpoint_refs: vec!["checkpoint:replay-capture-manifest".into()],
+            stale_result_refs: vec!["result:profiler:replay".into()],
+            quarantine_ref: None,
             current_host_confirmed: false,
         }),
         HostLaneRecord::from_seed(HostLaneSeed {
@@ -1983,9 +2236,34 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:remote-connector:bounded-reconnect".into(),
             restart_strike_count: 1,
             restart_budget_in_window: 3,
+            restart_window_minutes: 15,
             affected_capability_tokens: vec!["remote_terminal".into(), "forwarded_ports".into()],
             preserved_checkpoint_refs: vec!["checkpoint:remote-route-witness".into()],
             stale_result_refs: vec!["result:preview:remote-web".into()],
+            quarantine_ref: None,
+            current_host_confirmed: false,
+        }),
+        HostLaneRecord::from_seed(HostLaneSeed {
+            lane_id: "lane:data-api-connector".into(),
+            family: HostLaneFamily::RemoteWorkspaceAgent,
+            role_label: "Data/API connector session".into(),
+            host_label: "orders staging connector".into(),
+            target_ref: Some("connector:orders-staging".into()),
+            locality_label: "managed remote connector".into(),
+            boundary_badge_classes: vec![
+                HostBoundaryBadgeClass::RemoteBoundary,
+                HostBoundaryBadgeClass::ManagedBoundary,
+            ],
+            health_class: HostLaneHealthClass::Degraded,
+            fault_domain_class: FaultDomainClass::RemoteConnector,
+            fault_domain_id: "fault-domain:data-api-connector".into(),
+            restart_budget_ref: "restart-budget:remote-connector:data-api".into(),
+            restart_strike_count: 2,
+            restart_budget_in_window: 3,
+            restart_window_minutes: 15,
+            affected_capability_tokens: vec!["api_send".into(), "query_grid".into()],
+            preserved_checkpoint_refs: vec!["checkpoint:data-request-plan".into()],
+            stale_result_refs: vec!["result:data:query-grid".into()],
             quarantine_ref: None,
             current_host_confirmed: false,
         }),
@@ -2003,12 +2281,34 @@ pub fn seeded_host_lanes() -> Vec<HostLaneRecord> {
             restart_budget_ref: "restart-budget:provider-broker:circuit-breaker".into(),
             restart_strike_count: 1,
             restart_budget_in_window: 1,
+            restart_window_minutes: 5,
             affected_capability_tokens: vec!["provider_status".into(), "ai_tool_dispatch".into()],
             preserved_checkpoint_refs: vec!["checkpoint:provider-evidence-packet".into()],
             stale_result_refs: vec![
                 "result:ai:tool-action".into(),
                 "result:provider:summary".into(),
             ],
+            quarantine_ref: None,
+            current_host_confirmed: false,
+        }),
+        HostLaneRecord::from_seed(HostLaneSeed {
+            lane_id: "lane:pipeline-viewer".into(),
+            family: HostLaneFamily::ManagedServiceLane,
+            role_label: "Pipeline viewer session".into(),
+            host_label: "GitHub Actions provider".into(),
+            target_ref: Some("pipeline:org/repo#2042".into()),
+            locality_label: "provider-backed pipeline status".into(),
+            boundary_badge_classes: vec![HostBoundaryBadgeClass::ManagedBoundary],
+            health_class: HostLaneHealthClass::Degraded,
+            fault_domain_class: FaultDomainClass::RemoteConnector,
+            fault_domain_id: "fault-domain:pipeline-viewer".into(),
+            restart_budget_ref: "restart-budget:remote-connector:pipeline".into(),
+            restart_strike_count: 1,
+            restart_budget_in_window: 2,
+            restart_window_minutes: 15,
+            affected_capability_tokens: vec!["pipeline_refresh".into(), "artifact_open".into()],
+            preserved_checkpoint_refs: vec!["checkpoint:pipeline-status-cache".into()],
+            stale_result_refs: vec!["result:pipeline:status".into()],
             quarantine_ref: None,
             current_host_confirmed: false,
         }),
@@ -2030,6 +2330,7 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Analysis host restart marker in event log".into(),
                 host_lane_ids: vec!["lane:language-analysis".into()],
                 freshness_class: HostResultFreshnessClass::Rebuilding,
+                visible_truth_label_class: VisibleTruthLabelClass::Rebuilding,
                 provenance_ref: Some("event:analysis:restart-scheduled".into()),
                 requires_reattach_review: false,
             },
@@ -2039,6 +2340,7 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Test run preserved with adapter identity".into(),
                 host_lane_ids: vec!["lane:debug-task-adapter".into()],
                 freshness_class: HostResultFreshnessClass::DisconnectedSnapshot,
+                visible_truth_label_class: VisibleTruthLabelClass::CapturedSnapshot,
                 provenance_ref: Some("run:pytest:42".into()),
                 requires_reattach_review: true,
             },
@@ -2048,6 +2350,7 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Last debug frame is a stale snapshot".into(),
                 host_lane_ids: vec!["lane:debug-task-adapter".into()],
                 freshness_class: HostResultFreshnessClass::DisconnectedSnapshot,
+                visible_truth_label_class: VisibleTruthLabelClass::CapturedSnapshot,
                 provenance_ref: Some("debug-session:17".into()),
                 requires_reattach_review: true,
             },
@@ -2057,8 +2360,19 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Notebook output predates kernel crash".into(),
                 host_lane_ids: vec!["lane:notebook-kernel".into()],
                 freshness_class: HostResultFreshnessClass::Stale,
+                visible_truth_label_class: VisibleTruthLabelClass::Stale,
                 provenance_ref: Some("notebook-output:analysis:cell-8".into()),
                 requires_reattach_review: true,
+            },
+            RuntimeResultSeed {
+                result_id: "result:preview:dev-server".into(),
+                surface: RuntimeSurfaceClass::Preview,
+                result_summary: "Preview dev server is rebuilding after restart".into(),
+                host_lane_ids: vec!["lane:preview-dev-server".into()],
+                freshness_class: HostResultFreshnessClass::Rebuilding,
+                visible_truth_label_class: VisibleTruthLabelClass::Rebuilding,
+                provenance_ref: Some("preview:dashboard-app".into()),
+                requires_reattach_review: false,
             },
             RuntimeResultSeed {
                 result_id: "result:preview:remote-web".into(),
@@ -2066,15 +2380,38 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Remote preview awaits agent reattach".into(),
                 host_lane_ids: vec!["lane:remote-agent".into()],
                 freshness_class: HostResultFreshnessClass::AwaitingRefresh,
+                visible_truth_label_class: VisibleTruthLabelClass::Reconnecting,
                 provenance_ref: Some("preview:remote-web".into()),
+                requires_reattach_review: true,
+            },
+            RuntimeResultSeed {
+                result_id: "result:profiler:replay".into(),
+                surface: RuntimeSurfaceClass::ProfilerReplay,
+                result_summary: "Replay remains inspectable as a captured snapshot".into(),
+                host_lane_ids: vec!["lane:profiler-replay".into()],
+                freshness_class: HostResultFreshnessClass::DisconnectedSnapshot,
+                visible_truth_label_class: VisibleTruthLabelClass::CapturedSnapshot,
+                provenance_ref: Some("replay:capture-991".into()),
+                requires_reattach_review: false,
+            },
+            RuntimeResultSeed {
+                result_id: "result:data:query-grid".into(),
+                surface: RuntimeSurfaceClass::DataApiSession,
+                result_summary: "Cached query results remain visible through a local fallback"
+                    .into(),
+                host_lane_ids: vec!["lane:data-api-connector".into()],
+                freshness_class: HostResultFreshnessClass::PartialTruth,
+                visible_truth_label_class: VisibleTruthLabelClass::LocalFallback,
+                provenance_ref: Some("query:orders:staging".into()),
                 requires_reattach_review: true,
             },
             RuntimeResultSeed {
                 result_id: "result:ai:tool-action".into(),
                 surface: RuntimeSurfaceClass::AiToolAction,
                 result_summary: "AI tool action held behind provider lane degradation".into(),
-                host_lane_ids: vec!["lane:managed-service".into()],
+                host_lane_ids: vec!["lane:provider-run".into(), "lane:managed-service".into()],
                 freshness_class: HostResultFreshnessClass::PartialTruth,
+                visible_truth_label_class: VisibleTruthLabelClass::LocalFallback,
                 provenance_ref: Some("tool-action:plan:19".into()),
                 requires_reattach_review: true,
             },
@@ -2083,12 +2420,26 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 surface: RuntimeSurfaceClass::ProviderRuntimeSummary,
                 result_summary: "Provider-backed runtime summary is partial".into(),
                 host_lane_ids: vec![
+                    "lane:provider-run".into(),
                     "lane:managed-service".into(),
                     "lane:extension-sandbox".into(),
                 ],
                 freshness_class: HostResultFreshnessClass::PartialTruth,
+                visible_truth_label_class: VisibleTruthLabelClass::ProviderUnavailable,
                 provenance_ref: Some("provider-summary:workspace-control".into()),
                 requires_reattach_review: true,
+            },
+            RuntimeResultSeed {
+                result_id: "result:pipeline:status".into(),
+                surface: RuntimeSurfaceClass::PipelineViewer,
+                result_summary:
+                    "Pipeline status is temporarily stale because the provider is unavailable"
+                        .into(),
+                host_lane_ids: vec!["lane:pipeline-viewer".into()],
+                freshness_class: HostResultFreshnessClass::PartialTruth,
+                visible_truth_label_class: VisibleTruthLabelClass::ProviderUnavailable,
+                provenance_ref: Some("pipeline:org/repo#2042".into()),
+                requires_reattach_review: false,
             },
             RuntimeResultSeed {
                 result_id: "result:diagnostic:language".into(),
@@ -2096,6 +2447,7 @@ pub fn seeded_host_topology_inspector() -> TopologyInspectorRecord {
                 result_summary: "Semantic diagnostics are stale until analysis confirms".into(),
                 host_lane_ids: vec!["lane:language-analysis".into()],
                 freshness_class: HostResultFreshnessClass::Stale,
+                visible_truth_label_class: VisibleTruthLabelClass::Stale,
                 provenance_ref: Some("diagnostic:semantic:ts".into()),
                 requires_reattach_review: false,
             },
@@ -2119,6 +2471,7 @@ pub fn seeded_reattach_review_sheet() -> ReattachReviewSheet {
         restart_budget_ref: "restart-budget:remote-connector:bounded-reconnect".into(),
         restart_strike_count: 0,
         restart_budget_in_window: 3,
+        restart_window_minutes: 15,
         affected_capability_tokens: vec![],
         preserved_checkpoint_refs: vec!["checkpoint:remote-route-witness:old".into()],
         stale_result_refs: vec![],

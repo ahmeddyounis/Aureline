@@ -59,6 +59,21 @@ fn topology_inspector_maps_required_surfaces_to_plain_language_host_lanes() {
             surface.as_str()
         );
     }
+
+    for (result_id, expected_label) in [
+        ("result:preview:dev-server", "rebuilding"),
+        ("result:profiler:replay", "captured_snapshot"),
+        ("result:data:query-grid", "local_fallback"),
+        ("result:provider:summary", "provider_unavailable"),
+        ("result:pipeline:status", "provider_unavailable"),
+    ] {
+        let result = inspector
+            .results
+            .iter()
+            .find(|result| result.result_id == result_id)
+            .unwrap_or_else(|| panic!("missing result {result_id}"));
+        assert_eq!(result.visible_truth_label_token, expected_label);
+    }
 }
 
 #[test]
@@ -73,6 +88,10 @@ fn restart_cards_distinguish_analysis_refresh_from_mutating_reattach() {
         analysis_card.restart_budget_state,
         RestartBudgetStateClass::WithinBudget
     );
+    assert_eq!(analysis_card.restart_window_minutes, 5);
+    assert!(analysis_card
+        .quarantine_trigger_summary
+        .contains("3 failures allowed in 5 min"));
     assert!(analysis_card
         .next_safe_actions
         .contains(&FaultDomainNextSafeActionClass::RefreshAnalysis));
@@ -99,6 +118,9 @@ fn restart_cards_distinguish_analysis_refresh_from_mutating_reattach() {
         RestartBudgetStateClass::Quarantined
     );
     assert!(notebook_card.blocks_healthy_claim());
+    assert!(notebook_card
+        .quarantine_trigger_summary
+        .contains("quarantine"));
 }
 
 #[test]

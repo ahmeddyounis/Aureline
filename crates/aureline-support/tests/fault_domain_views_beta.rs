@@ -5,7 +5,8 @@ use aureline_runtime::{
     seeded_reattach_review_sheet, HOST_TOPOLOGY_SCHEMA_VERSION,
 };
 use aureline_support::{
-    seeded_fault_domain_view_packet, FaultDomainViewPacket, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND,
+    seeded_fault_domain_view_packet, FaultDomainViewPacket, FAULT_DOMAIN_VIEW_DOC_REF,
+    FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND, FAULT_DOMAIN_VIEW_SCHEMA_REF,
 };
 
 fn repo_root() -> PathBuf {
@@ -23,6 +24,9 @@ fn fault_domain_view_packet_projects_topology_without_raw_payloads() {
 
     assert_eq!(packet.record_kind, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND);
     assert_eq!(packet.schema_version, HOST_TOPOLOGY_SCHEMA_VERSION);
+    assert_eq!(packet.doc_ref, FAULT_DOMAIN_VIEW_DOC_REF);
+    assert_eq!(packet.schema_ref, FAULT_DOMAIN_VIEW_SCHEMA_REF);
+    assert_eq!(packet.topology_results.len(), inspector.results.len());
     assert_eq!(packet.rows.len(), inspector.lanes.len());
     assert_eq!(packet.restart_cards.len(), inspector.lanes.len());
     assert!(packet.is_export_safe());
@@ -71,8 +75,26 @@ fn packet_preserves_banners_reattach_reviews_and_restart_markers() {
         Some("reapproval_required")
     );
     assert!(remote_row
+        .boundary_badge_labels
+        .contains(&"Remote agent".to_owned()));
+    assert_eq!(remote_row.restart_window_minutes, 15);
+    assert!(remote_row
         .partial_truth_result_refs
         .contains(&"result:preview:remote-web".to_owned()));
+
+    let pipeline_result = packet
+        .topology_results
+        .iter()
+        .find(|row| row.result_ref == "result:pipeline:status")
+        .expect("pipeline result exists");
+    assert_eq!(
+        pipeline_result.visible_truth_label_token,
+        "provider_unavailable"
+    );
+    assert!(pipeline_result
+        .host_summaries
+        .iter()
+        .any(|host| host.host_lane_ref == "lane:pipeline-viewer"));
 }
 
 #[test]
@@ -82,8 +104,9 @@ fn support_plaintext_keeps_fault_domain_and_partial_truth_labels() {
 
     assert!(plaintext.contains("Host lane and fault-domain packet"));
     assert!(plaintext.contains("Fault domain: fault-domain:notebook-kernel"));
-    assert!(plaintext.contains("Restart budget: quarantined 2/2"));
-    assert!(plaintext.contains("Partial truth: result:notebook:output"));
+    assert!(plaintext.contains("Restart budget: quarantined 2/2 in 10 min"));
+    assert!(plaintext.contains("Partial truth: result:notebook:output (stale)"));
+    assert!(plaintext.contains("Quarantine trigger:"));
     assert!(plaintext.contains("Reattach: reapproval_required"));
     assert!(!plaintext.contains("/Users/"));
 }
@@ -94,8 +117,13 @@ fn checked_in_support_docs_schemas_and_artifacts_exist() {
     for rel in [
         "schemas/runtime/host_lane.schema.json",
         "schemas/runtime/fault_domain_state.schema.json",
+        "schemas/support/topology_inspector.schema.json",
         "docs/support/host_lane_and_reattach_beta.md",
+        "docs/support/topology_inspector.md",
         "fixtures/runtime/host_topology_and_reattach/manifest.yaml",
+        "fixtures/support/m5/topology_inspector/manifest.yaml",
+        "fixtures/support/m5/topology_inspector/packet.json",
+        "artifacts/support/m5/topology-inspector.md",
         "artifacts/support/fault_domain_packets/host_lane_fault_domain_packet.json",
     ] {
         assert!(root.join(rel).is_file(), "{rel} must exist");
@@ -120,4 +148,8 @@ fn packet_builder_accepts_runtime_records_from_independent_callers() {
         .rows
         .iter()
         .all(|row| !row.fault_domain_id.is_empty()));
+    assert!(packet
+        .topology_results
+        .iter()
+        .all(|row| !row.host_summaries.is_empty()));
 }
