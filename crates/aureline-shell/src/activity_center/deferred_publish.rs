@@ -13,7 +13,9 @@ use aureline_review::{
     DeferredPublishQueueRecoveryPacket, DeferredPublishRetryPostureClass,
 };
 
-use crate::notifications::envelope::{PrivacyClass, RedactionClass, SeverityClass, SourceSubsystem};
+use crate::notifications::envelope::{
+    PrivacyClass, RedactionClass, SeverityClass, SourceSubsystem,
+};
 
 use super::alpha::{
     ActivityCancellabilityClass, ActivityCenterAlphaSnapshot, ActivityJobFamily,
@@ -60,12 +62,18 @@ fn activity_row_from_projection(
         || queue_row.replay_requires_current_effective_scope
         || queue_row.changed_boundary_review_required;
     let mut actions = vec![ActivityRowAction::open_details(
-        format!("action.activity.deferred_publish.open.{}", sanitize_id(&activity.row_id)),
+        format!(
+            "action.activity.deferred_publish.open.{}",
+            sanitize_id(&activity.row_id)
+        ),
         "Open deferred publish details",
         activity.exact_reopen_ref.clone(),
     )];
     actions.push(ActivityRowAction {
-        action_id: format!("action.activity.deferred_publish.retry.{}", sanitize_id(&activity.row_id)),
+        action_id: format!(
+            "action.activity.deferred_publish.retry.{}",
+            sanitize_id(&activity.row_id)
+        ),
         action_kind: ActivityRowActionKind::RetryJob,
         label: "Retry deferred publish".to_owned(),
         command_id: Some("cmd:deferred_publish.retry".to_owned()),
@@ -160,9 +168,8 @@ fn activity_row_from_projection(
 
 fn state_class_for(lifecycle_state: DeferredPublishLifecycleState) -> ActivityRowStateClass {
     match lifecycle_state {
-        DeferredPublishLifecycleState::DraftOnly | DeferredPublishLifecycleState::QueuedForPublish => {
-            ActivityRowStateClass::QueuedWaiting
-        }
+        DeferredPublishLifecycleState::DraftOnly
+        | DeferredPublishLifecycleState::QueuedForPublish => ActivityRowStateClass::QueuedWaiting,
         DeferredPublishLifecycleState::Blocked
         | DeferredPublishLifecycleState::StaleTarget
         | DeferredPublishLifecycleState::ConflictReviewRequired => {
@@ -185,9 +192,8 @@ fn severity_for(lifecycle_state: DeferredPublishLifecycleState) -> SeverityClass
 
 fn progress_form_for(lifecycle_state: DeferredPublishLifecycleState) -> ActivityProgressForm {
     match lifecycle_state {
-        DeferredPublishLifecycleState::DraftOnly | DeferredPublishLifecycleState::QueuedForPublish => {
-            ActivityProgressForm::QueueReason
-        }
+        DeferredPublishLifecycleState::DraftOnly
+        | DeferredPublishLifecycleState::QueuedForPublish => ActivityProgressForm::QueueReason,
         DeferredPublishLifecycleState::Blocked
         | DeferredPublishLifecycleState::StaleTarget
         | DeferredPublishLifecycleState::ConflictReviewRequired => {
@@ -199,7 +205,9 @@ fn progress_form_for(lifecycle_state: DeferredPublishLifecycleState) -> Activity
 
 fn queue_reason_label(activity: &DeferredPublishActivityProjectionRow) -> Option<String> {
     match activity.lifecycle_state {
-        DeferredPublishLifecycleState::DraftOnly => Some("Draft remains local-only until publish is reviewed.".to_owned()),
+        DeferredPublishLifecycleState::DraftOnly => {
+            Some("Draft remains local-only until publish is reviewed.".to_owned())
+        }
         DeferredPublishLifecycleState::QueuedForPublish => {
             Some("Queued for later publish after provider recovery.".to_owned())
         }
@@ -240,7 +248,9 @@ fn retry_action_availability(
         DeferredPublishRetryPostureClass::NotApplicableDraftOrPublished => {
             ActivityRowActionAvailability::NotApplicable
         }
-        DeferredPublishRetryPostureClass::OpenExternalOnly => ActivityRowActionAvailability::Disabled,
+        DeferredPublishRetryPostureClass::OpenExternalOnly => {
+            ActivityRowActionAvailability::Disabled
+        }
         _ if retry_requires_revalidation => ActivityRowActionAvailability::RequiresRevalidation,
         _ => ActivityRowActionAvailability::Enabled,
     }
@@ -298,20 +308,14 @@ mod tests {
             .filter(|row| row.state_class == ActivityRowStateClass::NeedsApproval)
             .collect::<Vec<_>>();
 
-        assert!(
-            attention_rows
-                .iter()
-                .any(|row| row.progress.phase_label == "blocked")
-        );
-        assert!(
-            attention_rows
-                .iter()
-                .any(|row| row.progress.phase_label == "stale_target")
-        );
-        assert!(
-            attention_rows
-                .iter()
-                .any(|row| row.progress.phase_label == "conflict_review_required")
-        );
+        assert!(attention_rows
+            .iter()
+            .any(|row| row.progress.phase_label == "blocked"));
+        assert!(attention_rows
+            .iter()
+            .any(|row| row.progress.phase_label == "stale_target"));
+        assert!(attention_rows
+            .iter()
+            .any(|row| row.progress.phase_label == "conflict_review_required"));
     }
 }

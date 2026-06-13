@@ -719,7 +719,10 @@ impl WorkItemMutationReviewPacket {
         );
         out.push_str(&format!("- Packet: `{}`\n", self.packet_id));
         out.push_str(&format!("- Surface: `{}`\n", self.surface_label));
-        out.push_str(&format!("- Detail headers: {}\n", self.detail_headers.len()));
+        out.push_str(&format!(
+            "- Detail headers: {}\n",
+            self.detail_headers.len()
+        ));
         out.push_str(&format!(
             "- Transition sheets: {} ({} blocked)\n",
             self.transition_reviews.len(),
@@ -730,11 +733,11 @@ impl WorkItemMutationReviewPacket {
             self.comment_publish_reviews.len(),
             deferred_comments
         ));
+        out.push_str(&format!("- Offline handoff packets: {}\n", offline_packets));
         out.push_str(&format!(
-            "- Offline handoff packets: {}\n",
-            offline_packets
+            "- Conflict or reconcile rows: {}\n",
+            conflict_rows
         ));
-        out.push_str(&format!("- Conflict or reconcile rows: {}\n", conflict_rows));
         out.push_str(&format!(
             "- Proof freshness SLO: {} hours (last refresh: {})\n",
             self.proof_freshness.proof_freshness_slo_hours, self.proof_freshness.last_proof_refresh
@@ -912,7 +915,9 @@ impl WorkItemMutationReviewViolation {
             Self::OrphanTransitionReference => "orphan_transition_reference",
             Self::CommentPublishReviewsMissing => "comment_publish_reviews_missing",
             Self::CommentPublishReviewIncomplete => "comment_publish_review_incomplete",
-            Self::CommentPublishReviewNotCommentAction => "comment_publish_review_not_comment_action",
+            Self::CommentPublishReviewNotCommentAction => {
+                "comment_publish_review_not_comment_action"
+            }
             Self::OrphanCommentReference => "orphan_comment_reference",
             Self::OfflineHandoffPacketsMissing => "offline_handoff_packets_missing",
             Self::OfflineHandoffPacketIncomplete => "offline_handoff_packet_incomplete",
@@ -984,15 +989,16 @@ pub fn canonical_work_item_mutation_review_packet() -> WorkItemMutationReviewPac
             let detail = detail_by_id
                 .get(review.work_item_detail_record_id_ref.as_str())
                 .expect("comment review detail exists");
-            let comment_sync = review
-                .comment_sync_state_record_id_ref
-                .as_deref()
-                .and_then(|sync_id| {
-                    sync_page
-                        .comment_sync_records
-                        .iter()
-                        .find(|record| record.comment_sync_id == sync_id)
-                });
+            let comment_sync =
+                review
+                    .comment_sync_state_record_id_ref
+                    .as_deref()
+                    .and_then(|sync_id| {
+                        sync_page
+                            .comment_sync_records
+                            .iter()
+                            .find(|record| record.comment_sync_id == sync_id)
+                    });
             project_comment_publish_review_row(detail, review, comment_sync)
         })
         .collect();
@@ -1153,7 +1159,9 @@ fn project_detail_header(detail: &WorkItemDetailRecord) -> WorkItemDetailHeaderR
         publish_posture_class: detail.publish_posture(),
         open_external_action_class: detail.open_external_action.action_class,
         open_external_action_label: detail.open_external_action.action_label.clone(),
-        linked_transition_review_ids: detail.linked_status_transition_packet_record_id_refs.clone(),
+        linked_transition_review_ids: detail
+            .linked_status_transition_packet_record_id_refs
+            .clone(),
         linked_offline_handoff_ids: detail.linked_offline_handoff_packet_record_id_refs.clone(),
         summary_label: detail.support_export_summary.clone(),
     }
@@ -1242,7 +1250,9 @@ fn project_comment_publish_review_row(
         publish_review_record_id_ref: review.publish_review_id.clone(),
         work_item_detail_record_id_ref: review.work_item_detail_record_id_ref.clone(),
         comment_sync_state_record_id_ref: review.comment_sync_state_record_id_ref.clone(),
-        status_transition_packet_record_id_ref: review.status_transition_packet_record_id_ref.clone(),
+        status_transition_packet_record_id_ref: review
+            .status_transition_packet_record_id_ref
+            .clone(),
         action_class: review.publish_review_action_class,
         publish_mode_class: review.publish_mode_class,
         disposition_class: review.publish_review_disposition_class,
@@ -1346,19 +1356,19 @@ fn project_offline_handoff_row(
         export_action_ref: packet.export_action_ref.clone(),
         packet_survives_restart: packet.packet_survives_restart,
         authority_labels: authority_labels.clone(),
-        browser_handoff: packet.linked_browser_handoff_packet_ref.as_ref().map(|handoff_ref| {
-            browser_handoff_continuity(
-                handoff_ref,
-                &detail.detail_id,
-                &packet.linked_status_transition_packet_record_id_ref,
-                "offline_handoff_browser_completion",
-                authority_labels.completion_summary_label.as_str(),
-            )
-        }),
-        summary_label: format!(
-            "{} · {}",
-            detail.canonical_id, packet.summary
-        ),
+        browser_handoff: packet
+            .linked_browser_handoff_packet_ref
+            .as_ref()
+            .map(|handoff_ref| {
+                browser_handoff_continuity(
+                    handoff_ref,
+                    &detail.detail_id,
+                    &packet.linked_status_transition_packet_record_id_ref,
+                    "offline_handoff_browser_completion",
+                    authority_labels.completion_summary_label.as_str(),
+                )
+            }),
+        summary_label: format!("{} · {}", detail.canonical_id, packet.summary),
     }
 }
 
@@ -1379,7 +1389,8 @@ fn project_conflict_reconcile_row(
         provider_drift_class: result.drift_class,
         next_action_class: result.next_action,
         local_authority_label: "local draft still preserved".to_owned(),
-        provider_authority_label: "provider state drifted and remains authoritative until review".to_owned(),
+        provider_authority_label: "provider state drifted and remains authoritative until review"
+            .to_owned(),
         compare_action_label: "Compare local draft against provider state".to_owned(),
         reconcile_action_label: "Re-review before replay or publish".to_owned(),
         requires_explicit_review: result.drift_class.requires_review(),
@@ -1567,7 +1578,8 @@ fn validate_offline_handoff_packets(
             HandoffProviderAcceptanceClass::ProviderAcceptConfirmedPublishLaterDrained
                 | HandoffProviderAcceptanceClass::ProviderAcceptRejectedWithTypedReason
         ) {
-            violations.push(WorkItemMutationReviewViolation::OfflineHandoffClaimsProviderAcceptance);
+            violations
+                .push(WorkItemMutationReviewViolation::OfflineHandoffClaimsProviderAcceptance);
             return;
         }
         if row.row_id.trim().is_empty()
@@ -1588,7 +1600,8 @@ fn validate_offline_handoff_packets(
             violations.push(WorkItemMutationReviewViolation::OfflineHandoffPacketIncomplete);
             return;
         }
-        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref()) {
+        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref())
+        {
             violations.push(WorkItemMutationReviewViolation::OfflineHandoffPacketIncomplete);
             return;
         }
@@ -1631,7 +1644,8 @@ fn validate_conflict_reconcile_rows(
             violations.push(WorkItemMutationReviewViolation::ConflictReconcileRowIncomplete);
             return;
         }
-        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref()) {
+        if row.browser_handoff.is_some() && !browser_handoff_complete(row.browser_handoff.as_ref())
+        {
             violations.push(WorkItemMutationReviewViolation::ConflictReconcileRowIncomplete);
             return;
         }
@@ -1674,7 +1688,10 @@ fn linked_branch_or_review_note(detail: &WorkItemDetailRecord) -> String {
 fn transition_fallback_label(review: &aureline_provider::TransitionReviewSheetRecord) -> String {
     if review.linked_offline_handoff_packet_record_id_ref.is_some() {
         "save local packet if publish fails".to_owned()
-    } else if review.linked_publish_later_queue_item_record_id_ref.is_some() {
+    } else if review
+        .linked_publish_later_queue_item_record_id_ref
+        .is_some()
+    {
         "queue for publish later and preserve the local draft".to_owned()
     } else if review.local_draft_preserved_on_failure {
         "preserve the local draft on failure".to_owned()
@@ -1689,7 +1706,10 @@ fn transition_fallback_label(review: &aureline_provider::TransitionReviewSheetRe
 fn comment_fallback_label(review: &aureline_provider::PublishReviewRecord) -> String {
     if review.linked_offline_handoff_packet_record_id_ref.is_some() {
         "offline handoff packet keeps the comment draft".to_owned()
-    } else if review.linked_publish_later_queue_item_record_id_ref.is_some() {
+    } else if review
+        .linked_publish_later_queue_item_record_id_ref
+        .is_some()
+    {
         "queue the comment for publish later".to_owned()
     } else if review.local_draft_preserved_on_failure {
         "preserve the local draft on failure".to_owned()
@@ -1807,7 +1827,9 @@ fn publish_review_disposition_label(
         PublishReviewDispositionClass::BlockedPendingConflictResolution => {
             "blocked pending conflict resolution"
         }
-        PublishReviewDispositionClass::BlockedProviderReadOnly => "blocked by provider read-only scope",
+        PublishReviewDispositionClass::BlockedProviderReadOnly => {
+            "blocked by provider read-only scope"
+        }
         PublishReviewDispositionClass::BlockedByPolicy => "blocked by policy",
         PublishReviewDispositionClass::BlockedFreshnessFloorUnsatisfied => {
             "blocked by freshness floor"
@@ -1827,14 +1849,18 @@ fn comment_visibility_target_label(mode: WorkItemMutationMode) -> String {
         WorkItemMutationMode::LocalDraft => "local draft only".to_owned(),
         WorkItemMutationMode::PublishNow => "provider work-item timeline".to_owned(),
         WorkItemMutationMode::OpenInProvider => "provider timeline via browser handoff".to_owned(),
-        WorkItemMutationMode::DeferredPublish => "provider timeline via publish-later queue".to_owned(),
+        WorkItemMutationMode::DeferredPublish => {
+            "provider timeline via publish-later queue".to_owned()
+        }
         WorkItemMutationMode::InspectOnly => "inspect only".to_owned(),
     }
 }
 
 fn transition_permission_label(scope: PermissionScopeClass) -> &'static str {
     match scope {
-        PermissionScopeClass::PermissionAdmissibleUserWritesProvider => "user may write provider state",
+        PermissionScopeClass::PermissionAdmissibleUserWritesProvider => {
+            "user may write provider state"
+        }
         PermissionScopeClass::PermissionAdmissibleAssigneeOnly => "assignee-only provider scope",
         PermissionScopeClass::PermissionAdmissibleUnderInstallOrAppGrant => {
             "install or app grant admits the write"
@@ -1932,15 +1958,11 @@ fn handoff_drain_state_label(state: HandoffDrainStateClass) -> &'static str {
         HandoffDrainStateClass::CapturedPendingExportUserInitiated => {
             "captured_pending_export_user_initiated"
         }
-        HandoffDrainStateClass::ExportedPendingExternalApply => {
-            "exported_pending_external_apply"
-        }
+        HandoffDrainStateClass::ExportedPendingExternalApply => "exported_pending_external_apply",
         HandoffDrainStateClass::DrainAdmittedToPublishLaterQueue => {
             "drain_admitted_to_publish_later_queue"
         }
-        HandoffDrainStateClass::DrainedPublishLaterCompleted => {
-            "drained_publish_later_completed"
-        }
+        HandoffDrainStateClass::DrainedPublishLaterCompleted => "drained_publish_later_completed",
         HandoffDrainStateClass::DrainedPublishLaterRejectedWithTypedReason => {
             "drained_publish_later_rejected_with_typed_reason"
         }

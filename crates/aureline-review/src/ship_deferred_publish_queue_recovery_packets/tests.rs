@@ -1,6 +1,7 @@
 use super::{
-    canonical_deferred_publish_queue_recovery_packet, current_deferred_publish_queue_recovery_export,
-    DeferredPublishBlockReasonClass, DeferredPublishLifecycleState,
+    canonical_deferred_publish_queue_recovery_packet,
+    current_deferred_publish_queue_recovery_export, DeferredPublishBlockReasonClass,
+    DeferredPublishLifecycleState,
 };
 
 #[test]
@@ -61,7 +62,11 @@ fn replay_rows_require_fresh_target_and_scope_and_never_auto_replay_high_impact(
         .filter(|row| row.lifecycle_state.requires_replay_review())
     {
         assert!(row.replay_requires_fresh_target_identity, "{}", row.row_id);
-        assert!(row.replay_requires_current_effective_scope, "{}", row.row_id);
+        assert!(
+            row.replay_requires_current_effective_scope,
+            "{}",
+            row.row_id
+        );
         if row.high_impact_provider_mutation || row.changed_boundary_review_required {
             assert!(!row.auto_replay_allowed, "{}", row.row_id);
         }

@@ -11,9 +11,7 @@ fn main() {
         Some("support-export") => Mode::SupportExport,
         Some(other) => {
             eprintln!("unknown subcommand: {other}");
-            eprintln!(
-                "usage: aureline_provider_event_ingestion [packet|validate|support-export]"
-            );
+            eprintln!("usage: aureline_provider_event_ingestion [packet|validate|support-export]");
             process::exit(2);
         }
     };

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_provider::{
     seeded_provider_event_ingestion_packet, ProviderEventIngestionConsumerSurface,
-    ProviderLinkedObjectStateClass, PROVIDER_EVENT_INGESTION_SCHEMA_VERSION,
-    TruthCompletenessClass,
+    ProviderLinkedObjectStateClass, TruthCompletenessClass,
+    PROVIDER_EVENT_INGESTION_SCHEMA_VERSION,
 };
 
 fn fixture_path() -> PathBuf {
@@ -113,6 +113,8 @@ fn schema_file_is_valid_json() {
 #[test]
 fn schema_version_is_stable() {
     let packet = load_packet();
-    assert_eq!(packet.schema_version, PROVIDER_EVENT_INGESTION_SCHEMA_VERSION);
+    assert_eq!(
+        packet.schema_version,
+        PROVIDER_EVENT_INGESTION_SCHEMA_VERSION
+    );
 }
-

@@ -28,7 +28,7 @@ use crate::registry::{ProviderActorClass, ProviderFamily, RedactionClass};
 use crate::route_resolution::ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF;
 use crate::work_item_sync::WORK_ITEM_SYNC_BETA_SHARED_CONTRACT_REF;
 use crate::work_items::{
-    TrustPosture, WORK_ITEM_TRANSITION_BETA_SHARED_CONTRACT_REF, WorkItemMutationMode,
+    TrustPosture, WorkItemMutationMode, WORK_ITEM_TRANSITION_BETA_SHARED_CONTRACT_REF,
 };
 
 /// Schema version exported by scope-review records.
@@ -57,12 +57,10 @@ pub const PROVIDER_SCOPE_REVIEW_CONSUMER_PROJECTION_RECORD_KIND: &str =
     "provider_scope_review_consumer_projection_record";
 
 /// Stable record kind for [`ProviderScopeReviewSummary`].
-pub const PROVIDER_SCOPE_REVIEW_SUMMARY_RECORD_KIND: &str =
-    "providers_scope_review_summary_record";
+pub const PROVIDER_SCOPE_REVIEW_SUMMARY_RECORD_KIND: &str = "providers_scope_review_summary_record";
 
 /// Stable record kind for [`ProviderScopeReviewDefect`].
-pub const PROVIDER_SCOPE_REVIEW_DEFECT_RECORD_KIND: &str =
-    "providers_scope_review_defect_record";
+pub const PROVIDER_SCOPE_REVIEW_DEFECT_RECORD_KIND: &str = "providers_scope_review_defect_record";
 
 /// Stable record kind for [`ProviderScopeReviewValidationReport`].
 pub const PROVIDER_SCOPE_REVIEW_VALIDATION_REPORT_RECORD_KIND: &str =
@@ -577,9 +575,7 @@ impl ScopeReviewDowngradeActionClass {
             Self::NoDowngradeRequired => "no_downgrade_required",
             Self::ForceInspectOnlyUntilRepair => "force_inspect_only_until_repair",
             Self::ForceLocalDraftOnlyUntilRepair => "force_local_draft_only_until_repair",
-            Self::ForceBrowserHandoffOnlyUntilRepair => {
-                "force_browser_handoff_only_until_repair"
-            }
+            Self::ForceBrowserHandoffOnlyUntilRepair => "force_browser_handoff_only_until_repair",
             Self::ForceStepUpAuthenticator => "force_step_up_authenticator",
             Self::ForceAccountReselection => "force_account_reselection",
             Self::ForceAdminReview => "force_admin_review",
@@ -935,25 +931,26 @@ impl ProviderScopeReviewSummary {
         for resolution in resolutions {
             provider_families_present
                 .insert(provider_family_token(resolution.provider_family).to_owned());
-            provider_classes_present
-                .insert(resolution.target_object_identity.provider_class.as_str().to_owned());
-            actor_classes_present.insert(provider_actor_class_token(resolution.actor_class).to_owned());
+            provider_classes_present.insert(
+                resolution
+                    .target_object_identity
+                    .provider_class
+                    .as_str()
+                    .to_owned(),
+            );
+            actor_classes_present
+                .insert(provider_actor_class_token(resolution.actor_class).to_owned());
             decision_classes_present.insert(resolution.decision_class.as_str().to_owned());
             *resolutions_by_decision
                 .entry(resolution.decision_class.as_str().to_owned())
                 .or_insert(0) += 1;
         }
         for alternative in alternatives {
-            alternative_classes_present
-                .insert(alternative.alternative_class.as_str().to_owned());
+            alternative_classes_present.insert(alternative.alternative_class.as_str().to_owned());
         }
         for invalidation in invalidations {
-            invalidation_triggers_present.insert(
-                invalidation
-                    .invalidation_trigger_class
-                    .as_str()
-                    .to_owned(),
-            );
+            invalidation_triggers_present
+                .insert(invalidation.invalidation_trigger_class.as_str().to_owned());
         }
         for projection in consumer_projections {
             consumer_surfaces_present.insert(projection.surface_class.as_str().to_owned());
@@ -1380,7 +1377,11 @@ pub fn audit_provider_scope_review_page(
         .map(|row| row.resolution_id.as_str())
         .chain(alternatives.iter().map(|row| row.alternative_id.as_str()))
         .chain(invalidation_events.iter().map(|row| row.event_id.as_str()))
-        .chain(consumer_projections.iter().map(|row| row.projection_id.as_str()))
+        .chain(
+            consumer_projections
+                .iter()
+                .map(|row| row.projection_id.as_str()),
+        )
     {
         if !seen_ids.insert(id) {
             defects.push(ProviderScopeReviewDefect::new(
@@ -1459,22 +1460,22 @@ pub fn audit_provider_scope_review_page(
 
         let reason_allowed = resolution.grant_resolution_reason.is_allowed_family();
         match resolution.decision_class {
-            ScopeReviewDecisionClass::Allowed if !reason_allowed => defects.push(
-                ProviderScopeReviewDefect::new(
+            ScopeReviewDecisionClass::Allowed if !reason_allowed => {
+                defects.push(ProviderScopeReviewDefect::new(
                     ProviderScopeReviewDefectKind::DecisionReasonMismatch,
                     &resolution.resolution_id,
                     "grant_resolution_reason",
                     "allowed decisions must use an allowed-family resolution reason",
-                ),
-            ),
-            ScopeReviewDecisionClass::Denied if reason_allowed => defects.push(
-                ProviderScopeReviewDefect::new(
+                ))
+            }
+            ScopeReviewDecisionClass::Denied if reason_allowed => {
+                defects.push(ProviderScopeReviewDefect::new(
                     ProviderScopeReviewDefectKind::DecisionReasonMismatch,
                     &resolution.resolution_id,
                     "grant_resolution_reason",
                     "denied decisions must use a denied-family resolution reason",
-                ),
-            ),
+                ))
+            }
             ScopeReviewDecisionClass::BrowserOnly
                 if resolution.grant_resolution_reason
                     != ScopeReviewGrantResolutionReasonClass::AllowedWithBrowserHandoff =>
@@ -1500,8 +1501,10 @@ pub fn audit_provider_scope_review_page(
             _ => {}
         }
 
-        if matches!(resolution.decision_class, ScopeReviewDecisionClass::BrowserOnly)
-            && resolution.browser_handoff_packet_ref.is_none()
+        if matches!(
+            resolution.decision_class,
+            ScopeReviewDecisionClass::BrowserOnly
+        ) && resolution.browser_handoff_packet_ref.is_none()
         {
             defects.push(ProviderScopeReviewDefect::new(
                 ProviderScopeReviewDefectKind::BrowserOnlyWithoutHandoffRef,
@@ -1511,8 +1514,10 @@ pub fn audit_provider_scope_review_page(
             ));
         }
 
-        if matches!(resolution.decision_class, ScopeReviewDecisionClass::LocalDraftOnly)
-            && resolution.publish_later_queue_item_ref.is_none()
+        if matches!(
+            resolution.decision_class,
+            ScopeReviewDecisionClass::LocalDraftOnly
+        ) && resolution.publish_later_queue_item_ref.is_none()
         {
             defects.push(ProviderScopeReviewDefect::new(
                 ProviderScopeReviewDefectKind::LocalDraftOnlyWithoutQueueRef,
@@ -1577,7 +1582,8 @@ pub fn audit_provider_scope_review_page(
             ));
         }
 
-        let must_offer_alternative = !matches!(resolution.decision_class, ScopeReviewDecisionClass::Allowed);
+        let must_offer_alternative =
+            !matches!(resolution.decision_class, ScopeReviewDecisionClass::Allowed);
         if must_offer_alternative && resolution.least_privilege_alternative_refs.is_empty() {
             defects.push(ProviderScopeReviewDefect::new(
                 ProviderScopeReviewDefectKind::AlternativeCoverageBroken,
@@ -1594,7 +1600,9 @@ pub fn audit_provider_scope_review_page(
                     "least_privilege_alternative_refs",
                     format!("unknown least-privilege alternative ref: {alternative_ref}"),
                 )),
-                Some(alternative) if alternative.originating_resolution_id != resolution.resolution_id => {
+                Some(alternative)
+                    if alternative.originating_resolution_id != resolution.resolution_id =>
+                {
                     defects.push(ProviderScopeReviewDefect::new(
                         ProviderScopeReviewDefectKind::AlternativeCoverageBroken,
                         &resolution.resolution_id,
@@ -1655,7 +1663,8 @@ pub fn audit_provider_scope_review_page(
                  cached decision",
             ));
         }
-        if invalidation.downgrade_action_class != ScopeReviewDowngradeActionClass::NoDowngradeRequired
+        if invalidation.downgrade_action_class
+            != ScopeReviewDowngradeActionClass::NoDowngradeRequired
             && invalidation.repair_hook_ref.is_none()
         {
             defects.push(ProviderScopeReviewDefect::new(
@@ -1685,7 +1694,8 @@ pub fn audit_provider_scope_review_page(
             )),
             Some(source) => {
                 if projection.projected_decision_class != source.decision_class
-                    || projection.projected_grant_resolution_reason != source.grant_resolution_reason
+                    || projection.projected_grant_resolution_reason
+                        != source.grant_resolution_reason
                     || projection.projected_decision_summary != source.decision_summary
                     || projection.projected_alternative_refs
                         != source.least_privilege_alternative_refs
@@ -1757,10 +1767,9 @@ pub fn seeded_provider_scope_review_page() -> ProviderScopeReviewPage {
     ProviderScopeReviewPage {
         fixture_metadata: Some(ProviderScopeReviewFixtureMetadata {
             name: "provider_scope_review".to_owned(),
-            scenario:
-                "Canonical M5 provider scope review with human, install, delegated, policy, \
+            scenario: "Canonical M5 provider scope review with human, install, delegated, policy, \
                  host-mismatch, and invalidation coverage."
-                    .to_owned(),
+                .to_owned(),
         }),
         record_kind: PROVIDER_SCOPE_REVIEW_PAGE_RECORD_KIND.to_owned(),
         schema_version: PROVIDER_SCOPE_REVIEW_SCHEMA_VERSION,
@@ -1916,7 +1925,9 @@ fn seed_resolutions() -> Vec<ProviderScopeResolutionRecord> {
                 "scope:repo:payments/backend:read".to_owned(),
             ],
             effective_scope_refs: vec![],
-            policy_lock_classes: vec![ScopeReviewPolicyLockClass::PolicyBundleRequiresBrowserHandoff],
+            policy_lock_classes: vec![
+                ScopeReviewPolicyLockClass::PolicyBundleRequiresBrowserHandoff,
+            ],
             trust_posture: TrustPosture::Trusted,
             decision_class: ScopeReviewDecisionClass::BrowserOnly,
             grant_resolution_reason:
@@ -2269,7 +2280,7 @@ fn seed_invalidations() -> Vec<EffectiveScopeInvalidationEventRecord> {
                  disconnected until the host and tenant are reviewed."
                     .to_owned(),
             invalidated_dependent_refs: vec![
-                "scope_review:resolution:release:host_mismatch:denied".to_owned()
+                "scope_review:resolution:release:host_mismatch:denied".to_owned(),
             ],
             policy_epoch: "policy-epoch:2026-06-12T20:11:20Z".to_owned(),
             trust_posture: TrustPosture::Trusted,
@@ -2316,7 +2327,9 @@ fn seed_invalidations() -> Vec<EffectiveScopeInvalidationEventRecord> {
                 "Required org membership was lost, so release authority downgrades to admin \
                  review and support/export keeps the degraded state visible."
                     .to_owned(),
-            invalidated_dependent_refs: vec!["scope_review:resolution:release:host_mismatch:denied".to_owned()],
+            invalidated_dependent_refs: vec![
+                "scope_review:resolution:release:host_mismatch:denied".to_owned(),
+            ],
             policy_epoch: "policy-epoch:2026-06-12T20:12:20Z".to_owned(),
             trust_posture: TrustPosture::Trusted,
             repair_hook_ref: Some("repair_hook:admin_review:org_membership".to_owned()),
@@ -2367,7 +2380,10 @@ fn seed_consumer_projections(
         record_kind: PROVIDER_SCOPE_REVIEW_CONSUMER_PROJECTION_RECORD_KIND.to_owned(),
         schema_version: PROVIDER_SCOPE_REVIEW_SCHEMA_VERSION,
         shared_contract_ref: PROVIDER_SCOPE_REVIEW_SHARED_CONTRACT_REF.to_owned(),
-        projection_id: format!("scope_review:projection:{}:release_host_mismatch", surface_class.as_str()),
+        projection_id: format!(
+            "scope_review:projection:{}:release_host_mismatch",
+            surface_class.as_str()
+        ),
         surface_class,
         originating_resolution_id: source.resolution_id.clone(),
         projected_decision_class: source.decision_class,
@@ -2393,9 +2409,7 @@ fn provider_actor_class_token(actor_class: ProviderActorClass) -> &'static str {
         ProviderActorClass::InstallationOrAppGrant => "installation_or_app_grant",
         ProviderActorClass::DelegatedUserToken => "delegated_user_token",
         ProviderActorClass::ProjectScopedGrant => "project_scoped_grant",
-        ProviderActorClass::PolicyInjectedServiceIdentity => {
-            "policy_injected_service_identity"
-        }
+        ProviderActorClass::PolicyInjectedServiceIdentity => "policy_injected_service_identity",
         ProviderActorClass::UnknownActorClass => "unknown_actor_class",
     }
 }

@@ -22,9 +22,9 @@ use crate::provider_event_ingestion_and_provenance::{
     ProviderEventIngestionProvenancePacket,
 };
 use crate::reconciliation::{
-    seeded_provider_event_reconciliation_page, CallbackDenyReasonClass,
-    EventDispositionClass, ProviderEventReconciliationPage, ProviderEventSourceClass,
-    ProviderEventTypeClass, TruthCompletenessClass,
+    seeded_provider_event_reconciliation_page, CallbackDenyReasonClass, EventDispositionClass,
+    ProviderEventReconciliationPage, ProviderEventSourceClass, ProviderEventTypeClass,
+    TruthCompletenessClass,
 };
 use crate::registry::{FreshnessLabel, ProviderFamily, ProviderObjectKind, RedactionClass};
 
@@ -69,8 +69,7 @@ pub const PROVIDER_EVENT_INGESTION_DOC_REF: &str = "docs/providers/m5/event_inge
 pub const PROVIDER_EVENT_INGESTION_FIXTURE_DIR: &str = "fixtures/providers/m5/event_ingestion";
 
 /// Repo-relative path of the Markdown artifact summarizing the seeded packet.
-pub const PROVIDER_EVENT_INGESTION_ARTIFACT_REF: &str =
-    "artifacts/provider/m5/event_ingestion.md";
+pub const PROVIDER_EVENT_INGESTION_ARTIFACT_REF: &str = "artifacts/provider/m5/event_ingestion.md";
 
 /// Repo-relative path of the checked support export artifact.
 pub const PROVIDER_EVENT_INGESTION_SUPPORT_EXPORT_ARTIFACT_REF: &str =
@@ -429,7 +428,10 @@ impl<'a> Validator<'a> {
             "provider_event_ingestion.packet_shared_contract_ref",
             "packet shared_contract_ref must match the canonical contract ref",
         );
-        self.expect_nonempty(&self.packet.packet_id, "provider_event_ingestion.packet_id_missing");
+        self.expect_nonempty(
+            &self.packet.packet_id,
+            "provider_event_ingestion.packet_id_missing",
+        );
         self.expect_nonempty(
             &self.packet.packet_label,
             "provider_event_ingestion.packet_label_missing",
@@ -794,15 +796,14 @@ pub fn seeded_provider_event_ingestion_packet() -> ProviderEventIngestionPacket 
         contract_refs: ProviderEventIngestionContractRefs {
             provider_event_ingestion_schema_ref: PROVIDER_EVENT_INGESTION_SCHEMA_REF.to_string(),
             provenance_packet_schema_ref:
-                "schemas/providers/provider_event_ingestion_and_provenance.schema.json"
-                    .to_string(),
+                "schemas/providers/provider_event_ingestion_and_provenance.schema.json".to_string(),
             provider_event_envelope_schema_ref:
                 "schemas/providers/provider_event_envelope.schema.json".to_string(),
             import_session_schema_ref: "schemas/providers/import_session.schema.json".to_string(),
-            replay_ledger_item_schema_ref:
-                "schemas/providers/replay_ledger_item.schema.json".to_string(),
-            reconciliation_result_schema_ref:
-                "schemas/providers/reconciliation_result.schema.json".to_string(),
+            replay_ledger_item_schema_ref: "schemas/providers/replay_ledger_item.schema.json"
+                .to_string(),
+            reconciliation_result_schema_ref: "schemas/providers/reconciliation_result.schema.json"
+                .to_string(),
             callback_deny_event_schema_ref:
                 "schemas/providers/provider_callback_deny_event.schema.json".to_string(),
             scope_review_schema_ref: "schemas/providers/provider_scope_review.schema.json"

@@ -20,31 +20,27 @@ fn canonical_packet_validates() {
 fn missing_detail_headers_fail() {
     let mut packet = packet();
     packet.detail_headers.clear();
-    assert!(
-        packet
-            .validate()
-            .contains(&WorkItemMutationReviewViolation::DetailHeadersMissing)
-    );
+    assert!(packet
+        .validate()
+        .contains(&WorkItemMutationReviewViolation::DetailHeadersMissing));
 }
 
 #[test]
 fn transition_without_side_effects_fails() {
     let mut packet = packet();
     packet.transition_reviews[0].side_effect_summaries.clear();
-    assert!(
-        packet
-            .validate()
-            .contains(&WorkItemMutationReviewViolation::TransitionReviewIncomplete)
-    );
+    assert!(packet
+        .validate()
+        .contains(&WorkItemMutationReviewViolation::TransitionReviewIncomplete));
 }
 
 #[test]
 fn publish_review_must_be_comment_action() {
     let mut packet = packet();
     packet.comment_publish_reviews[0].action_class = PublishReviewActionClass::LinkBranchOrReview;
-    assert!(packet.validate().contains(
-        &WorkItemMutationReviewViolation::CommentPublishReviewNotCommentAction
-    ));
+    assert!(packet
+        .validate()
+        .contains(&WorkItemMutationReviewViolation::CommentPublishReviewNotCommentAction));
 }
 
 #[test]
@@ -52,20 +48,18 @@ fn offline_handoff_cannot_claim_provider_acceptance() {
     let mut packet = packet();
     packet.offline_handoff_packets[0].provider_acceptance_class =
         HandoffProviderAcceptanceClass::ProviderAcceptConfirmedPublishLaterDrained;
-    assert!(packet.validate().contains(
-        &WorkItemMutationReviewViolation::OfflineHandoffClaimsProviderAcceptance
-    ));
+    assert!(packet
+        .validate()
+        .contains(&WorkItemMutationReviewViolation::OfflineHandoffClaimsProviderAcceptance));
 }
 
 #[test]
 fn trust_review_incomplete_fails() {
     let mut packet = packet();
     packet.trust_review.no_passive_inspection_external_publish = false;
-    assert!(
-        packet
-            .validate()
-            .contains(&WorkItemMutationReviewViolation::TrustReviewIncomplete)
-    );
+    assert!(packet
+        .validate()
+        .contains(&WorkItemMutationReviewViolation::TrustReviewIncomplete));
 }
 
 #[test]

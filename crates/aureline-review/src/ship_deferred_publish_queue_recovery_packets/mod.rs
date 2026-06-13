@@ -599,34 +599,44 @@ impl DeferredPublishQueueRecoveryPacket {
         let mut violations = Vec::new();
 
         if self.record_kind != DEFERRED_PUBLISH_QUEUE_RECOVERY_RECORD_KIND {
-            violations.push(DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
-                "record_kind".to_owned(),
-            ));
+            violations.push(
+                DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
+                    "record_kind".to_owned(),
+                ),
+            );
         }
         if self.schema_version != DEFERRED_PUBLISH_QUEUE_RECOVERY_SCHEMA_VERSION {
-            violations.push(DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
-                "schema_version".to_owned(),
-            ));
+            violations.push(
+                DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
+                    "schema_version".to_owned(),
+                ),
+            );
         }
         if self.packet_id.trim().is_empty()
             || self.surface_label.trim().is_empty()
             || self.redaction_class_token.trim().is_empty()
             || self.minted_at.trim().is_empty()
         {
-            violations.push(DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
-                "required_packet_field".to_owned(),
-            ));
+            violations.push(
+                DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
+                    "required_packet_field".to_owned(),
+                ),
+            );
         }
-        if self.queue_rows.is_empty() || self.local_packets.is_empty() || self.activity_rows.is_empty()
+        if self.queue_rows.is_empty()
+            || self.local_packets.is_empty()
+            || self.activity_rows.is_empty()
         {
             violations.push(DeferredPublishQueueRecoveryViolation::CoverageMissing(
                 "rows_missing".to_owned(),
             ));
         }
         if self.source_contract_refs != canonical_source_contract_refs() {
-            violations.push(DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
-                "source_contract_refs".to_owned(),
-            ));
+            violations.push(
+                DeferredPublishQueueRecoveryViolation::PacketContractInvalid(
+                    "source_contract_refs".to_owned(),
+                ),
+            );
         }
         if !self.support_export.raw_provider_material_excluded {
             violations.push(DeferredPublishQueueRecoveryViolation::SupportExportUnsafe(
@@ -665,9 +675,11 @@ impl DeferredPublishQueueRecoveryPacket {
                 ));
             }
             if !object_refs.insert(queue_row.canonical_object_ref.as_str()) {
-                violations.push(DeferredPublishQueueRecoveryViolation::DuplicateCanonicalObject(
-                    queue_row.canonical_object_ref.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::DuplicateCanonicalObject(
+                        queue_row.canonical_object_ref.clone(),
+                    ),
+                );
             }
             if queue_row.queue_id.trim().is_empty()
                 || queue_row.canonical_object_ref.trim().is_empty()
@@ -687,21 +699,27 @@ impl DeferredPublishQueueRecoveryPacket {
                 ));
             }
             if !activity_by_queue.contains_key(queue_row.row_id.as_str()) {
-                violations.push(DeferredPublishQueueRecoveryViolation::MissingActivityProjection(
-                    queue_row.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::MissingActivityProjection(
+                        queue_row.row_id.clone(),
+                    ),
+                );
             }
             if !export_by_queue.contains_key(queue_row.row_id.as_str()) {
-                violations.push(DeferredPublishQueueRecoveryViolation::MissingSupportExportRow(
-                    queue_row.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::MissingSupportExportRow(
+                        queue_row.row_id.clone(),
+                    ),
+                );
             }
             if queue_row.lifecycle_state == DeferredPublishLifecycleState::QueuedForPublish
                 && queue_row.linked_publish_later_queue_item_ref.is_none()
             {
-                violations.push(DeferredPublishQueueRecoveryViolation::QueueRowMissingQueueRef(
-                    queue_row.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::QueueRowMissingQueueRef(
+                        queue_row.row_id.clone(),
+                    ),
+                );
             }
             if queue_row.lifecycle_state.requires_replay_review()
                 && (!queue_row.replay_requires_fresh_target_identity
@@ -713,7 +731,8 @@ impl DeferredPublishQueueRecoveryPacket {
                     ),
                 );
             }
-            if (queue_row.high_impact_provider_mutation || queue_row.changed_boundary_review_required)
+            if (queue_row.high_impact_provider_mutation
+                || queue_row.changed_boundary_review_required)
                 && queue_row.auto_replay_allowed
             {
                 violations.push(
@@ -723,14 +742,18 @@ impl DeferredPublishQueueRecoveryPacket {
                 );
             }
             if !dependency_order_is_strict(&queue_row.dependency_chain) {
-                violations.push(DeferredPublishQueueRecoveryViolation::DependencyOrderInvalid(
-                    queue_row.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::DependencyOrderInvalid(
+                        queue_row.row_id.clone(),
+                    ),
+                );
             }
             if !has_all_action_classes(&queue_row.action_routes) {
-                violations.push(DeferredPublishQueueRecoveryViolation::StableActionSetMissing(
-                    queue_row.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::StableActionSetMissing(
+                        queue_row.row_id.clone(),
+                    ),
+                );
             }
             for route in &queue_row.action_routes {
                 action_coverage.insert(route.action_class);
@@ -755,14 +778,18 @@ impl DeferredPublishQueueRecoveryPacket {
                 || !packet.persisted_across_restart
                 || !packet.export_safe_support_handoff
             {
-                violations.push(DeferredPublishQueueRecoveryViolation::LocalPacketIncomplete(
-                    packet.packet_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::LocalPacketIncomplete(
+                        packet.packet_id.clone(),
+                    ),
+                );
             }
             if !has_all_action_classes(&packet.action_routes) {
-                violations.push(DeferredPublishQueueRecoveryViolation::StableActionSetMissing(
-                    packet.packet_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::StableActionSetMissing(
+                        packet.packet_id.clone(),
+                    ),
+                );
             }
         }
 
@@ -781,9 +808,11 @@ impl DeferredPublishQueueRecoveryPacket {
                 || activity.summary_label.trim().is_empty()
                 || activity.detail_label.trim().is_empty()
             {
-                violations.push(DeferredPublishQueueRecoveryViolation::ActivityProjectionIncomplete(
-                    activity.row_id.clone(),
-                ));
+                violations.push(
+                    DeferredPublishQueueRecoveryViolation::ActivityProjectionIncomplete(
+                        activity.row_id.clone(),
+                    ),
+                );
             }
             if activity.phase_label != activity.lifecycle_state.as_str() {
                 violations.push(DeferredPublishQueueRecoveryViolation::ActivityPhaseDrift(
@@ -947,7 +976,10 @@ impl fmt::Display for DeferredPublishQueueRecoveryViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PacketContractInvalid(field) => {
-                write!(f, "deferred-publish recovery packet contract invalid: {field}")
+                write!(
+                    f,
+                    "deferred-publish recovery packet contract invalid: {field}"
+                )
             }
             Self::CoverageMissing(field) => {
                 write!(f, "deferred-publish recovery coverage missing: {field}")
@@ -1002,10 +1034,9 @@ impl fmt::Display for DeferredPublishQueueRecoveryArtifactError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(error) => write!(f, "deferred-publish recovery export read failed: {error}"),
-            Self::SupportExport(error) => write!(
-                f,
-                "deferred-publish recovery export parse failed: {error}"
-            ),
+            Self::SupportExport(error) => {
+                write!(f, "deferred-publish recovery export parse failed: {error}")
+            }
             Self::Validation(violations) => write!(
                 f,
                 "deferred-publish recovery export failed validation: {}",
@@ -1485,8 +1516,8 @@ pub fn current_deferred_publish_queue_recovery_export(
         env!("CARGO_MANIFEST_DIR"),
         "/../../artifacts/review/m5/ship_deferred_publish_queue_recovery_packets/support_export.json"
     );
-    let payload = fs::read_to_string(export_path)
-        .map_err(DeferredPublishQueueRecoveryArtifactError::Io)?;
+    let payload =
+        fs::read_to_string(export_path).map_err(DeferredPublishQueueRecoveryArtifactError::Io)?;
     let packet: DeferredPublishQueueRecoveryPacket = serde_json::from_str(&payload)
         .map_err(DeferredPublishQueueRecoveryArtifactError::SupportExport)?;
     let violations = packet.validate();
@@ -1642,7 +1673,11 @@ fn activity_projection_from_queue_row(
         exact_reopen_ref: row.local_packet_id_ref.clone(),
         support_export_row_ref: format!("support_row:{}", row.row_id),
         phase_label: row.lifecycle_state.as_str().to_owned(),
-        summary_label: format!("{}: {}", row.canonical_object_label, row.lifecycle_state.as_str()),
+        summary_label: format!(
+            "{}: {}",
+            row.canonical_object_label,
+            row.lifecycle_state.as_str()
+        ),
         detail_label: row.summary_label.clone(),
     }
 }

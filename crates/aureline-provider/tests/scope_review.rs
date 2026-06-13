@@ -3,9 +3,9 @@
 use aureline_provider::{
     seeded_provider_scope_review_page, validate_provider_scope_review_page,
     ProviderScopeReviewDefectKind, ProviderScopeReviewPage, ProviderScopeReviewSupportExport,
-    ScopeReviewDecisionClass, ScopeReviewDowngradeActionClass,
-    ScopeReviewInvalidationTriggerClass, ScopeReviewSurfaceClass,
-    PROVIDER_SCOPE_REVIEW_PAGE_RECORD_KIND, PROVIDER_SCOPE_REVIEW_SCHEMA_VERSION,
+    ScopeReviewDecisionClass, ScopeReviewDowngradeActionClass, ScopeReviewInvalidationTriggerClass,
+    ScopeReviewSurfaceClass, PROVIDER_SCOPE_REVIEW_PAGE_RECORD_KIND,
+    PROVIDER_SCOPE_REVIEW_SCHEMA_VERSION,
 };
 
 #[test]
@@ -126,7 +126,8 @@ fn consumer_projection_must_mirror_canonical_decision_object() {
         .iter_mut()
         .find(|row| row.surface_class == ScopeReviewSurfaceClass::CliHeadless)
         .expect("cli projection");
-    projection.projected_decision_summary = "CLI-local wording drifted from canonical review".into();
+    projection.projected_decision_summary =
+        "CLI-local wording drifted from canonical review".into();
 
     let report = page.validate();
     assert!(!report.passed);
@@ -142,7 +143,8 @@ fn host_mismatch_and_tenant_switch_must_force_visible_downgrades() {
         .invalidation_events
         .iter_mut()
         .find(|row| {
-            row.invalidation_trigger_class == ScopeReviewInvalidationTriggerClass::TenantSwitchDetected
+            row.invalidation_trigger_class
+                == ScopeReviewInvalidationTriggerClass::TenantSwitchDetected
         })
         .expect("tenant-switch invalidation");
     event.downgrade_action_class = ScopeReviewDowngradeActionClass::NoDowngradeRequired;
@@ -150,7 +152,8 @@ fn host_mismatch_and_tenant_switch_must_force_visible_downgrades() {
 
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.defects.iter().any(|defect| {
-        defect.defect_kind == ProviderScopeReviewDefectKind::InvalidationBroken
-    }));
+    assert!(report
+        .defects
+        .iter()
+        .any(|defect| { defect.defect_kind == ProviderScopeReviewDefectKind::InvalidationBroken }));
 }
