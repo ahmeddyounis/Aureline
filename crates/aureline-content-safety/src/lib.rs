@@ -41,6 +41,7 @@ pub mod m5_raw_rendered_handoff;
 pub mod m5_safe_preview_limited_mode;
 pub mod m5_suspicious_text_detector_parity;
 pub mod m5_trust_class_ladder;
+pub mod m5_trust_decision_identity;
 pub mod records;
 pub mod representation_copy_export;
 pub mod representation_labels;
@@ -132,6 +133,21 @@ pub use m5_trust_class_ladder::{
     M5_TRUST_CLASS_LADDER_PACKET_ID, M5_TRUST_CLASS_LADDER_RECORD_KIND,
     M5_TRUST_CLASS_LADDER_SAFE_PREVIEW_CONTRACT_REF, M5_TRUST_CLASS_LADDER_SCHEMA_REF,
     M5_TRUST_CLASS_LADDER_SCHEMA_VERSION, M5_TRUST_CLASS_LADDER_TRUST_CLASS_CONTRACT_REF,
+};
+pub use m5_trust_decision_identity::{
+    current_m5_trust_decision_identity_export, frozen_m5_trust_decision_identity_packet,
+    project_m5_trust_decision_identity, M5IdentityInspectionAction, M5IdentityInspectionActionKind,
+    M5IdentityRenderMode, M5IdentityWarning, M5IdentityWarningKind, M5TrustDecisionAction,
+    M5TrustDecisionIdentityExportError, M5TrustDecisionIdentityInput,
+    M5TrustDecisionIdentityPacket, M5TrustDecisionIdentityProjection,
+    M5TrustDecisionIdentityReview, M5TrustDecisionIdentitySeed, M5TrustDecisionIdentityViolation,
+    M5TrustDecisionSurface, M5_ORDINARY_BROWSING_STRENGTH_RANK, M5_STRONG_DECISION_STRENGTH_RANK,
+    M5_TRUST_DECISION_IDENTITY_ARTIFACT_REF, M5_TRUST_DECISION_IDENTITY_DOC_REF,
+    M5_TRUST_DECISION_IDENTITY_FIXTURE_DIR, M5_TRUST_DECISION_IDENTITY_PACKET_ID,
+    M5_TRUST_DECISION_IDENTITY_RECORD_KIND, M5_TRUST_DECISION_IDENTITY_SCHEMA_REF,
+    M5_TRUST_DECISION_IDENTITY_SCHEMA_VERSION,
+    M5_TRUST_DECISION_IDENTITY_SUSPICIOUS_TEXT_CONTRACT_REF,
+    M5_TRUST_DECISION_IDENTITY_TRUST_CLASS_CONTRACT_REF,
 };
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
