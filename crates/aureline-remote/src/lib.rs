@@ -35,6 +35,15 @@
 //!   preview, companion, incident, and support/export surfaces. Mirrors the
 //!   boundary schema at
 //!   `/schemas/remote/managed_workspace_lifecycle.schema.json`.
+//! - [`networked_surface_transport_matrix::NetworkedSurfaceTransportMatrixPage`]
+//!   — the stable matrix proof packet that freezes the origin scope, endpoint
+//!   class, egress class, route choice, auth posture, trust material, denial
+//!   vocabulary, and mirror/offline behavior for every newer network-capable
+//!   surface (AI gateways, docs/browser fetchers, request/API clients,
+//!   database/cloud connectors, registry reads, companion handoffs, provider
+//!   mutation, sync/offboarding, and remote preview routes) through one shared
+//!   vocabulary. Mirrors the boundary schema at
+//!   `/schemas/network/networked_surface_transport_matrix.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -48,6 +57,7 @@
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
+pub mod networked_surface_transport_matrix;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
 
@@ -126,4 +136,22 @@ pub use stabilize_transport_governance_and_egress_classification_across_update::
     TRANSPORT_GOVERNANCE_SCHEMA_VERSION, TRANSPORT_GOVERNANCE_SHARED_CONTRACT_REF,
     TRANSPORT_GOVERNANCE_SUMMARY_RECORD_KIND, TRANSPORT_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
     TRANSPORT_POLICY_RECORD_KIND,
+};
+
+pub use networked_surface_transport_matrix::{
+    audit_networked_surface_matrix_page, seeded_networked_surface_matrix_page,
+    seeded_networked_surface_matrix_snapshot, validate_networked_surface_matrix_page,
+    AuthPostureClass, DenialReasonClass, EgressClass, EndpointClass, MatrixNarrowReasonClass,
+    MatrixQualificationClass, MirrorOfflineBehaviorClass, NetworkedSurfaceMatrixDefect,
+    NetworkedSurfaceMatrixRow, NetworkedSurfaceMatrixSnapshot, NetworkedSurfaceMatrixSummary,
+    NetworkedSurfaceMatrixSupportExport, NetworkedSurfaceRecord,
+    NetworkedSurfaceTransportMatrixPage, OriginScopeClass, ProofFreshnessClass, RouteChoiceClass,
+    SurfaceClass as NetworkedSurfaceClass, TrustMaterialClass,
+    NETWORKED_SURFACE_MATRIX_ARTIFACT_REF, NETWORKED_SURFACE_MATRIX_DEFECT_RECORD_KIND,
+    NETWORKED_SURFACE_MATRIX_DOC_REF, NETWORKED_SURFACE_MATRIX_EVIDENCE_INDEX_REF,
+    NETWORKED_SURFACE_MATRIX_PAGE_RECORD_KIND, NETWORKED_SURFACE_MATRIX_ROW_RECORD_KIND,
+    NETWORKED_SURFACE_MATRIX_SCHEMA_VERSION, NETWORKED_SURFACE_MATRIX_SHARED_CONTRACT_REF,
+    NETWORKED_SURFACE_MATRIX_SUMMARY_RECORD_KIND,
+    NETWORKED_SURFACE_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
+    NETWORKED_SURFACE_MATRIX_SURFACE_RECORD_KIND, REQUIRED_SURFACES as REQUIRED_NETWORKED_SURFACES,
 };
