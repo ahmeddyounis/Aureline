@@ -2,9 +2,11 @@
 
 Fixture corpus for the `m5_effective_settings` record. These fixtures pin the
 seeded M5 setting rows, their winning value and shadow chain, restart posture,
-validation state, lifecycle-dependency markers, and scope-explicit write
-previews so a change to the typed model, the fail-closed gate, or the records is
-caught against frozen evidence.
+validation state, source/effective/live review sheets, lifecycle-dependency
+markers, locked/constrained write explanations, per-family
+admin-distribution-audit rows, and scope-explicit write previews so a change to
+the typed model, the fail-closed gate, or the records is caught against frozen
+evidence.
 
 - Typed model: `crates/aureline-settings/src/m5_effective_settings/`
 - Schema: `schemas/settings/m5/m5-effective-settings.schema.json`
@@ -19,32 +21,47 @@ caught against frozen evidence.
   value with an explicit winning scope, shadow chain, restart posture, and a
   checkpointed write preview for each high-impact row.
 - `policy-locked-drill.json` — an admin policy locks the companion setting; the
-  winning value comes from the policy ceiling and the write preview is denied by
-  the lock rather than silently winning.
+  winning value comes from the policy ceiling, the write preview is denied by
+  the lock rather than silently winning, and the row explains the stale cached
+  bundle plus local-safe continuation.
+- `policy-constrained-drill.json` — an admin policy constrains the data/API
+  egress allowlist; the write preview shows that the proposed value would land
+  in a shadowed constrained posture rather than silently widening behavior.
 - `missing-capability-drill.json` — the profiler setting is narrowed by a
   missing capability, surfaced as a visible lifecycle-dependency marker.
 - `labs-preview-dependent-drill.json` — the notebook setting is narrowed because
   it depends on a Labs/Preview feature lifecycle.
-- `stale-schema-drill.json` — the bundle setting is read from a stale schema, so
-  its winning value is withheld until migrated instead of being trusted.
+- `stale-schema-drill.json` — the bundle setting is read from a stale schema,
+  and the governing bundle has expired, so both the resolved value and the
+  distribution audit narrow to local-safe posture instead of claiming fresh
+  live state.
 
 ## What the corpus proves
 
 - **Every M5 family is at resolver parity.** Notebooks, data/API, profiler,
   bundle, sync, and companion each share one effective-settings record with a
-  stable setting id, winning value, shadow chain, restart posture, and
-  validation state.
+  stable setting id, winning value, shadow chain, restart posture, validation
+  state, and active source/effective/live projection.
+- **Locked and constrained writes are inspectable.** Constrained and locked rows
+  name the governing bundle or scope, review/expiry posture where present, and
+  what still works under the local-safe fallback instead of hiding behind
+  generic denial text.
 - **Scope is explicit.** Every row names the scope that won and the candidates
   it shadowed; no row lists its own winning scope in the shadow chain.
 - **High-impact writes are reversible.** Every trust, AI/network-egress,
   extension-behavior, remote-exposure, or destructive-automation row carries a
   scope-explicit write preview with a rollback checkpoint and a confirmation
   requirement.
+- **Bundle provenance is auditable.** Every family has a distribution-audit row
+  that carries bundle ref, owner, scope, distribution path, last-applied and
+  last-validated timestamps, active projection mode, freshness, and local-safe
+  continuation facts.
 - **Non-stable behavior stays visible.** Policy locks, missing capabilities,
   Labs/Preview dependencies, and stale schemas narrow the record through visible
   markers and a published trust ceiling, never an opaque toggle.
-- **Surfaces agree.** Settings UI, CLI inspect, help links, policy explainers,
-  and support bundles all consume the same record.
+- **Surfaces agree.** Settings UI, CLI inspect, help links, Help/About,
+  policy explainers, admin-distribution audit, and support bundles all consume
+  the same record.
 
 The fixtures carry typed states and opaque refs only — no secrets, raw provider
 payloads, or workspace contents.

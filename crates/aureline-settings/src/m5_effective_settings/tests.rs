@@ -3,8 +3,8 @@
 use super::corpus::m5_effective_settings_corpus;
 use super::model::{
     BuildError, EffectiveSettingsClaim, HighImpactClass, M5EffectiveSettingsCertification,
-    M5EffectiveSettingsInput, M5SettingFamily, PolicyLockState, RowTrust, ValidationState,
-    WriteEffect,
+    M5EffectiveSettingsInput, M5SettingFamily, PolicyConstraintState, PolicyLockState,
+    ProjectionMode, ReviewAction, RowTrust, SurfaceClass, ValidationState, WriteEffect,
 };
 
 fn baseline_input() -> M5EffectiveSettingsInput {
@@ -18,6 +18,7 @@ fn baseline_input() -> M5EffectiveSettingsInput {
         as_of: record.as_of,
         summary: record.summary,
         setting_rows: record.setting_rows,
+        distribution_audit: record.distribution_audit,
         surface_truth: record.surface_truth,
     }
 }
@@ -47,6 +48,21 @@ fn every_required_family_must_be_present() {
     assert_eq!(
         err,
         BuildError::MissingFamily {
+            family: M5SettingFamily::Sync
+        }
+    );
+}
+
+#[test]
+fn every_required_family_must_have_distribution_audit() {
+    let mut input = baseline_input();
+    input
+        .distribution_audit
+        .retain(|row| row.family != M5SettingFamily::Sync);
+    let err = M5EffectiveSettingsCertification::build(input).unwrap_err();
+    assert_eq!(
+        err,
+        BuildError::MissingDistributionAudit {
             family: M5SettingFamily::Sync
         }
     );
@@ -95,8 +111,17 @@ fn policy_locked_row_cannot_preview_a_winning_write() {
         .find(|row| row.is_high_impact())
         .expect("a high-impact row");
     row.policy_lock = PolicyLockState {
-        locked: true,
+        constraint_state: PolicyConstraintState::Locked,
         policy_ref: Some("aureline://policy/lock".to_owned()),
+        source_bundle_ref: Some("aureline://policy-bundle/lock".to_owned()),
+        source_scope_ref: None,
+        bundle_owner_ref: Some("aureline://owner/policy".to_owned()),
+        distribution_source: None,
+        last_applied_at: Some("2026-06-12T08:00:00Z".to_owned()),
+        review_due_at: None,
+        expires_at: None,
+        constraint_summary: Some("locked".to_owned()),
+        local_safe_continuation: vec!["Inspect locally".to_owned()],
     };
     row.write_preview.as_mut().unwrap().effective_after_write = WriteEffect::BecomesWinningValue;
     let setting_id = row.setting_id.clone();
@@ -105,16 +130,84 @@ fn policy_locked_row_cannot_preview_a_winning_write() {
 }
 
 #[test]
-fn policy_locked_row_requires_a_policy_ref() {
+fn constrained_row_requires_source_bundle_or_scope() {
     let mut input = baseline_input();
     let row = input.setting_rows.iter_mut().next().expect("a row");
     row.policy_lock = PolicyLockState {
-        locked: true,
-        policy_ref: None,
+        constraint_state: PolicyConstraintState::Constrained,
+        policy_ref: Some("aureline://policy/constraint".to_owned()),
+        source_bundle_ref: None,
+        source_scope_ref: None,
+        bundle_owner_ref: None,
+        distribution_source: None,
+        last_applied_at: None,
+        review_due_at: None,
+        expires_at: None,
+        constraint_summary: Some("constrained".to_owned()),
+        local_safe_continuation: vec!["Inspect locally".to_owned()],
     };
     let setting_id = row.setting_id.clone();
     let err = M5EffectiveSettingsCertification::build(input).unwrap_err();
-    assert_eq!(err, BuildError::PolicyLockedWithoutRef { setting_id });
+    assert_eq!(
+        err,
+        BuildError::PolicyConstrainedWithoutSource { setting_id }
+    );
+}
+
+#[test]
+fn constrained_write_requires_explanation() {
+    let mut input = baseline_input();
+    let row = input
+        .setting_rows
+        .iter_mut()
+        .find(|row| row.setting_id == "data_api.outbound_egress_allowlist")
+        .expect("data api row");
+    row.policy_lock = PolicyLockState {
+        constraint_state: PolicyConstraintState::Constrained,
+        policy_ref: Some("aureline://policy/constraint".to_owned()),
+        source_bundle_ref: Some("aureline://policy-bundle/constraint".to_owned()),
+        source_scope_ref: None,
+        bundle_owner_ref: Some("aureline://owner/policy".to_owned()),
+        distribution_source: None,
+        last_applied_at: Some("2026-06-12T08:00:00Z".to_owned()),
+        review_due_at: None,
+        expires_at: None,
+        constraint_summary: Some("constrained".to_owned()),
+        local_safe_continuation: vec!["Inspect locally".to_owned()],
+    };
+    let preview = row.write_preview.as_mut().expect("preview");
+    preview.effective_after_write = WriteEffect::ShadowedByPolicy;
+    preview.explanation = None;
+    let setting_id = row.setting_id.clone();
+    let err = M5EffectiveSettingsCertification::build(input).unwrap_err();
+    assert_eq!(err, BuildError::MissingWriteExplanation { setting_id });
+}
+
+#[test]
+fn review_sheet_must_include_setting_id() {
+    let mut input = baseline_input();
+    let row = input.setting_rows.iter_mut().next().expect("a row");
+    row.effective_value_review.selected_keys.clear();
+    row.effective_value_review
+        .selected_keys
+        .push("wrong.key".to_owned());
+    let setting_id = row.setting_id.clone();
+    let err = M5EffectiveSettingsCertification::build(input).unwrap_err();
+    assert_eq!(err, BuildError::ReviewSheetMissingSettingId { setting_id });
+}
+
+#[test]
+fn review_sheet_must_include_active_projection_mode() {
+    let mut input = baseline_input();
+    let row = input.setting_rows.iter_mut().next().expect("a row");
+    row.effective_value_review.available_projection_modes = vec![ProjectionMode::Source];
+    row.effective_value_review.active_projection_mode = ProjectionMode::Live;
+    let setting_id = row.setting_id.clone();
+    let err = M5EffectiveSettingsCertification::build(input).unwrap_err();
+    assert_eq!(
+        err,
+        BuildError::ReviewSheetMissingProjectionMode { setting_id }
+    );
 }
 
 #[test]
@@ -167,6 +260,10 @@ fn stale_schema_row_withholds_trust() {
         .setting_rows
         .iter()
         .any(|row| row.validation_state == ValidationState::SchemaStale));
+    assert!(record
+        .distribution_audit
+        .iter()
+        .any(|row| row.freshness_state.as_str() == "expired"));
 }
 
 #[test]
@@ -192,19 +289,37 @@ fn drills_stay_narrowed_but_remain_resolvable() {
 }
 
 #[test]
-fn corpus_covers_every_family_high_impact_class_and_dependency_kind() {
+fn corpus_covers_every_family_high_impact_class_dependency_kind_and_projection_mode() {
     use std::collections::BTreeSet;
     let mut families = BTreeSet::new();
     let mut impacts = BTreeSet::new();
     let mut kinds = BTreeSet::new();
     let mut restarts = BTreeSet::new();
+    let mut modes = BTreeSet::new();
+    let mut surfaces = BTreeSet::new();
+    let mut actions = BTreeSet::new();
+
     for scenario in m5_effective_settings_corpus() {
         let record = scenario.record();
         families.extend(record.family_coverage);
         impacts.extend(record.high_impact_coverage);
         kinds.extend(record.lifecycle_dependency_coverage);
         restarts.extend(record.restart_posture_coverage);
+        modes.extend(record.projection_mode_coverage);
+        surfaces.extend(
+            record
+                .surface_truth
+                .into_iter()
+                .map(|row| row.surface_class),
+        );
+        actions.extend(
+            record
+                .setting_rows
+                .into_iter()
+                .flat_map(|row| row.effective_value_review.available_actions),
+        );
     }
+
     for family in M5SettingFamily::REQUIRED {
         assert!(families.contains(&family), "missing family {family:?}");
     }
@@ -223,5 +338,16 @@ fn corpus_covers_every_family_high_impact_class_and_dependency_kind() {
     ] {
         assert!(kinds.contains(&kind), "missing kind {kind:?}");
     }
+    for mode in [
+        ProjectionMode::Source,
+        ProjectionMode::Effective,
+        ProjectionMode::Live,
+    ] {
+        assert!(modes.contains(&mode), "missing mode {mode:?}");
+    }
+    for surface in SurfaceClass::REQUIRED {
+        assert!(surfaces.contains(&surface), "missing surface {surface:?}");
+    }
     assert_eq!(restarts.len(), 5, "every restart posture should appear");
+    assert!(actions.contains(&ReviewAction::OpenPolicyBundle));
 }

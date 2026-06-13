@@ -117,11 +117,13 @@ pub use keybindings::{
 };
 pub use locale_beta::project_locale_beta_settings_panel;
 pub use m5_effective_settings::{
-    m5_effective_settings_corpus, EffectiveSettingsClaim, EffectiveSettingsPillars,
-    EffectiveSettingsQualification, HighImpactClass, LifecycleDependencyKind,
-    M5EffectiveSettingRow, M5EffectiveSettingsCertification, M5EffectiveSettingsInput,
-    M5EffectiveSettingsScenario, M5SettingFamily, PolicyLockState, RowTrust,
-    ScopeExplicitWritePreview, ShadowReason, ShadowedCandidate, WinningValue, WriteEffect,
+    m5_effective_settings_corpus, AdminDistributionAuditRow, AuditFreshnessState,
+    EffectiveSettingsClaim, EffectiveSettingsPillars, EffectiveSettingsQualification,
+    EffectiveValueReviewSheet, HighImpactClass, LifecycleDependencyKind, M5EffectiveSettingRow,
+    M5EffectiveSettingsCertification, M5EffectiveSettingsInput, M5EffectiveSettingsScenario,
+    M5SettingFamily, PolicyConstraintState, PolicyDistributionSource, PolicyLockState,
+    ProjectionMode, ReviewAction, ReviewExportPosture, RowTrust, ScopeExplicitWritePreview,
+    ShadowReason, ShadowedCandidate, WinningValue, WriteConstraintExplanation, WriteEffect,
     M5_EFFECTIVE_SETTINGS_RECORD_KIND, M5_EFFECTIVE_SETTINGS_SCHEMA_VERSION,
     M5_EFFECTIVE_SETTINGS_SHARED_CONTRACT_REF,
 };

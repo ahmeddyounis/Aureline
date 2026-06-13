@@ -1,9 +1,10 @@
 //! Fixture replay and invariant tests for M5 effective-settings certification.
 
 use aureline_settings::m5_effective_settings::{
-    is_canonical_object_ref, m5_effective_settings_corpus, EffectiveSettingsClaim,
-    M5EffectiveSettingsCertification, M5SettingFamily, RowTrust, SurfaceClass, ValidationState,
-    WriteEffect, M5_EFFECTIVE_SETTINGS_RECORD_KIND, M5_EFFECTIVE_SETTINGS_SHARED_CONTRACT_REF,
+    is_canonical_object_ref, m5_effective_settings_corpus, AuditFreshnessState,
+    EffectiveSettingsClaim, M5EffectiveSettingsCertification, M5SettingFamily,
+    PolicyConstraintState, ProjectionMode, RowTrust, SurfaceClass, ValidationState, WriteEffect,
+    M5_EFFECTIVE_SETTINGS_RECORD_KIND, M5_EFFECTIVE_SETTINGS_SHARED_CONTRACT_REF,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -66,6 +67,15 @@ fn every_family_is_present_with_an_explicit_winning_value() {
             assert!(is_canonical_object_ref(&row.winning_value.value_ref));
             assert!(!row.winning_value.display.trim().is_empty());
             assert!(!row.title.trim().is_empty());
+            assert!(row
+                .effective_value_review
+                .selected_keys
+                .iter()
+                .any(|key| key == &row.setting_id));
+            assert!(row
+                .effective_value_review
+                .available_projection_modes
+                .contains(&row.effective_value_review.active_projection_mode));
             for shadow in &row.shadow_chain {
                 assert_ne!(
                     shadow.scope, row.winning_value.scope,
@@ -93,6 +103,15 @@ fn high_impact_rows_are_scope_explicit_and_checkpointed() {
             });
             assert!(is_canonical_object_ref(&preview.rollback_checkpoint_ref));
             assert!(preview.requires_confirmation);
+            if preview.effective_after_write != WriteEffect::BecomesWinningValue {
+                let explanation = preview.explanation.as_ref().unwrap_or_else(|| {
+                    panic!(
+                        "{}: {} lacks an explanation",
+                        scenario.scenario_id, row.setting_id
+                    )
+                });
+                assert!(!explanation.local_safe_continuation.is_empty());
+            }
         }
     }
 }
@@ -102,8 +121,12 @@ fn policy_locked_rows_never_preview_a_winning_write() {
     for scenario in m5_effective_settings_corpus() {
         let record = load_record(&scenario.fixture_filename);
         for row in &record.setting_rows {
-            if row.policy_lock.locked {
+            if row.policy_lock.constraint_state == PolicyConstraintState::Locked {
                 assert!(row.policy_lock.policy_ref.is_some());
+                assert!(
+                    row.policy_lock.source_bundle_ref.is_some()
+                        || row.policy_lock.source_scope_ref.is_some()
+                );
                 if let Some(preview) = &row.write_preview {
                     assert_ne!(
                         preview.effective_after_write,
@@ -113,6 +136,26 @@ fn policy_locked_rows_never_preview_a_winning_write() {
                         row.setting_id
                     );
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn constrained_rows_publish_explanations_and_local_safe_paths() {
+    for scenario in m5_effective_settings_corpus() {
+        let record = load_record(&scenario.fixture_filename);
+        for row in &record.setting_rows {
+            if row.policy_lock.constraint_state == PolicyConstraintState::Constrained {
+                assert!(row.policy_lock.policy_ref.is_some());
+                assert!(
+                    row.policy_lock.source_bundle_ref.is_some()
+                        || row.policy_lock.source_scope_ref.is_some()
+                );
+                assert!(!row.policy_lock.local_safe_continuation.is_empty());
+                let preview = row.write_preview.as_ref().expect("constrained row preview");
+                assert_eq!(preview.effective_after_write, WriteEffect::ShadowedByPolicy);
+                assert!(preview.explanation.is_some());
             }
         }
     }
@@ -146,8 +189,33 @@ fn all_required_surfaces_consume_the_same_record() {
             assert!(row.shows_winning_scope);
             assert!(row.shows_shadow_chain);
             assert!(row.shows_restart_posture);
+            assert!(row.shows_projection_mode);
             assert!(row.shows_lifecycle_dependency);
             assert!(row.shows_write_preview);
+            assert!(row.shows_write_explanation);
+            assert!(row.shows_distribution_audit);
+            assert!(row.shows_last_applied);
+            assert!(row.shows_local_safe_continuation);
+        }
+    }
+}
+
+#[test]
+fn distribution_audit_covers_every_family_with_projection_and_freshness() {
+    for scenario in m5_effective_settings_corpus() {
+        let record = load_record(&scenario.fixture_filename);
+        for family in M5SettingFamily::REQUIRED {
+            let audit = record
+                .distribution_audit
+                .iter()
+                .find(|row| row.family == family)
+                .unwrap_or_else(|| panic!("{} missing audit for {family:?}", scenario.scenario_id));
+            assert!(is_canonical_object_ref(&audit.bundle_ref));
+            assert!(is_canonical_object_ref(&audit.bundle_owner_ref));
+            assert!(is_canonical_object_ref(&audit.policy_scope_ref));
+            assert!(!audit.last_applied_at.trim().is_empty());
+            assert!(!audit.last_validated_at.trim().is_empty());
+            assert!(!audit.local_safe_continuation.is_empty());
         }
     }
 }
@@ -177,6 +245,10 @@ fn baseline_is_fully_active_and_drills_are_narrowed() {
                     .setting_rows
                     .iter()
                     .any(|row| row.validation_state == ValidationState::SchemaStale));
+                assert!(record
+                    .distribution_audit
+                    .iter()
+                    .any(|row| row.freshness_state == AuditFreshnessState::Expired));
             }
             _ => {
                 assert_eq!(
@@ -187,4 +259,16 @@ fn baseline_is_fully_active_and_drills_are_narrowed() {
             }
         }
     }
+}
+
+#[test]
+fn corpus_exposes_source_effective_and_live_projection_modes() {
+    let mut seen = std::collections::BTreeSet::new();
+    for scenario in m5_effective_settings_corpus() {
+        let record = load_record(&scenario.fixture_filename);
+        seen.extend(record.projection_mode_coverage);
+    }
+    assert!(seen.contains(&ProjectionMode::Source));
+    assert!(seen.contains(&ProjectionMode::Effective));
+    assert!(seen.contains(&ProjectionMode::Live));
 }

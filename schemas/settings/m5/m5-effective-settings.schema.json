@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/settings/m5/m5-effective-settings.schema.json",
   "title": "Aureline M5 effective-settings certification",
-  "description": "Boundary schema for the governed effective-settings record that brings M5-added settings families (notebooks, data/API, profiler, bundle, sync, companion) into parity with the stable resolver. Each row names a stable setting id, the winning value and the scope that won, the shadow chain that lost, the restart posture, the validation state, and any lifecycle-sensitive dependency marker. High-impact rows carry scope-explicit, checkpointed write previews; policy-locked rows can never preview a write that would silently win. The record derives a fail-closed trust ceiling that withholds a fully-active claim when a row is locked, narrowed, or read from a stale schema.",
+  "description": "Boundary schema for the governed effective-settings record that brings M5-added settings families (notebooks, data/API, profiler, bundle, sync, companion) into parity with the stable resolver. Each row names a stable setting id, the winning value and the scope that won, the shadow chain that lost, the restart posture, the validation state, the active source/effective/live review-sheet mode, and any lifecycle-sensitive dependency marker. Constrained and locked rows explain the governing bundle or scope, bundle owner, review or expiry facts, and local-safe continuation. High-impact rows carry scope-explicit, checkpointed write previews; policy-locked rows can never preview a write that would silently win. The record also carries one admin-distribution audit row per family so Help/About, CLI inspect, policy explainers, admin audit, and support export quote the same bundle-provenance facts.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,19 +13,23 @@
     "as_of",
     "summary",
     "setting_rows",
+    "distribution_audit",
     "surface_truth",
     "family_coverage",
     "restart_posture_coverage",
     "validation_state_coverage",
     "lifecycle_dependency_coverage",
     "high_impact_coverage",
+    "projection_mode_coverage",
+    "constraint_state_coverage",
+    "distribution_source_coverage",
     "pillars",
     "trust_qualification"
   ],
   "properties": {
     "record_kind": { "const": "m5_effective_settings_certification_record" },
-    "schema_version": { "type": "integer", "const": 1 },
-    "shared_contract_ref": { "type": "string", "const": "settings:m5_effective_settings:v1" },
+    "schema_version": { "type": "integer", "const": 2 },
+    "shared_contract_ref": { "type": "string", "const": "settings:m5_effective_settings:v2" },
     "record_id": { "type": "string", "minLength": 1 },
     "as_of": { "type": "string", "minLength": 1 },
     "summary": { "type": "string", "minLength": 1 },
@@ -34,9 +38,14 @@
       "minItems": 6,
       "items": { "$ref": "#/$defs/setting_row" }
     },
+    "distribution_audit": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/distribution_audit_row" }
+    },
     "surface_truth": {
       "type": "array",
-      "minItems": 5,
+      "minItems": 7,
       "items": { "$ref": "#/$defs/surface_truth_row" }
     },
     "family_coverage": {
@@ -58,6 +67,18 @@
     "high_impact_coverage": {
       "type": "array",
       "items": { "$ref": "#/$defs/high_impact_class" }
+    },
+    "projection_mode_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/projection_mode" }
+    },
+    "constraint_state_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/constraint_state" }
+    },
+    "distribution_source_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/distribution_source" }
     },
     "pillars": { "$ref": "#/$defs/pillars" },
     "trust_qualification": { "$ref": "#/$defs/trust_qualification" }
@@ -124,7 +145,58 @@
     },
     "surface_class": {
       "type": "string",
-      "enum": ["settings_ui", "cli_inspect", "help_links", "policy_explainer", "support_bundle"]
+      "enum": [
+        "settings_ui",
+        "cli_inspect",
+        "help_links",
+        "help_about",
+        "policy_explainer",
+        "admin_distribution_audit",
+        "support_bundle"
+      ]
+    },
+    "projection_mode": {
+      "type": "string",
+      "enum": ["source", "effective", "live"]
+    },
+    "constraint_state": {
+      "type": "string",
+      "enum": ["unlocked", "constrained", "locked"]
+    },
+    "distribution_source": {
+      "type": "string",
+      "enum": [
+        "managed_pull",
+        "mirror_publication",
+        "file_import",
+        "mdm_fleet_drop",
+        "air_gap_transfer",
+        "last_known_good_cache"
+      ]
+    },
+    "audit_freshness_state": {
+      "type": "string",
+      "enum": ["current", "stale", "expired"]
+    },
+    "review_export_posture": {
+      "type": "string",
+      "enum": [
+        "keys_and_sources_only",
+        "keys_sources_and_live_refs",
+        "metadata_only"
+      ]
+    },
+    "review_action": {
+      "type": "string",
+      "enum": [
+        "copy_redacted_summary",
+        "open_source",
+        "open_effective",
+        "open_live",
+        "open_policy_bundle",
+        "retry_policy_sync",
+        "continue_local"
+      ]
     },
     "row_trust": {
       "type": "string",
@@ -139,8 +211,11 @@
       "enum": [
         "families_incomplete",
         "shadow_chain_implicit",
+        "review_sheet_implicit",
         "high_impact_uncheckpointed",
+        "policy_explanation_incomplete",
         "lifecycle_dependency_hidden",
+        "distribution_audit_incomplete",
         "validation_dishonest",
         "row_trust_below_active",
         "surface_truth_incomplete"
@@ -166,13 +241,45 @@
         "reason": { "$ref": "#/$defs/shadow_reason" }
       }
     },
+    "write_constraint_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["denied_reason", "local_safe_continuation", "repair_hint"],
+      "properties": {
+        "source_bundle_ref": { "$ref": "#/$defs/canonical_ref" },
+        "source_scope_ref": { "$ref": "#/$defs/canonical_ref" },
+        "bundle_owner_ref": { "$ref": "#/$defs/canonical_ref" },
+        "review_ref": { "$ref": "#/$defs/canonical_ref" },
+        "review_due_at": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "minLength": 1 },
+        "denied_reason": { "type": "string", "minLength": 1 },
+        "local_safe_continuation": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "repair_hint": { "type": "string", "minLength": 1 }
+      }
+    },
     "policy_lock_state": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["locked"],
+      "required": ["constraint_state"],
       "properties": {
-        "locked": { "type": "boolean" },
-        "policy_ref": { "$ref": "#/$defs/canonical_ref" }
+        "constraint_state": { "$ref": "#/$defs/constraint_state" },
+        "policy_ref": { "$ref": "#/$defs/canonical_ref" },
+        "source_bundle_ref": { "$ref": "#/$defs/canonical_ref" },
+        "source_scope_ref": { "$ref": "#/$defs/canonical_ref" },
+        "bundle_owner_ref": { "$ref": "#/$defs/canonical_ref" },
+        "distribution_source": { "$ref": "#/$defs/distribution_source" },
+        "last_applied_at": { "type": "string", "minLength": 1 },
+        "review_due_at": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "minLength": 1 },
+        "constraint_summary": { "type": "string", "minLength": 1 },
+        "local_safe_continuation": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     },
     "lifecycle_dependency_marker": {
@@ -185,6 +292,46 @@
         "narrows_behavior": { "type": "string", "minLength": 1 },
         "recovery_hint": { "type": "string", "minLength": 1 },
         "visible": { "type": "boolean" }
+      }
+    },
+    "effective_value_review_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_keys",
+        "active_projection_mode",
+        "available_projection_modes",
+        "winning_layers",
+        "export_posture",
+        "available_actions"
+      ],
+      "properties": {
+        "selected_keys": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "active_projection_mode": { "$ref": "#/$defs/projection_mode" },
+        "available_projection_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/projection_mode" }
+        },
+        "winning_layers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope" }
+        },
+        "unresolved_values": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "export_posture": { "$ref": "#/$defs/review_export_posture" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/review_action" }
+        }
       }
     },
     "write_preview": {
@@ -206,7 +353,8 @@
         "effective_after_write": { "$ref": "#/$defs/write_effect" },
         "restart_posture_after": { "$ref": "#/$defs/restart_posture" },
         "requires_confirmation": { "type": "boolean" },
-        "rollback_checkpoint_ref": { "type": "string" }
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/canonical_ref" },
+        "explanation": { "$ref": "#/$defs/write_constraint_explanation" }
       }
     },
     "setting_row": {
@@ -220,7 +368,8 @@
         "shadow_chain",
         "restart_posture",
         "validation_state",
-        "policy_lock"
+        "policy_lock",
+        "effective_value_review"
       ],
       "properties": {
         "setting_id": { "type": "string", "minLength": 1 },
@@ -234,9 +383,44 @@
         "restart_posture": { "$ref": "#/$defs/restart_posture" },
         "validation_state": { "$ref": "#/$defs/validation_state" },
         "policy_lock": { "$ref": "#/$defs/policy_lock_state" },
+        "effective_value_review": { "$ref": "#/$defs/effective_value_review_sheet" },
         "lifecycle_dependency": { "$ref": "#/$defs/lifecycle_dependency_marker" },
         "high_impact_class": { "$ref": "#/$defs/high_impact_class" },
         "write_preview": { "$ref": "#/$defs/write_preview" }
+      }
+    },
+    "distribution_audit_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_id",
+        "family",
+        "bundle_ref",
+        "bundle_owner_ref",
+        "policy_scope_ref",
+        "distribution_source",
+        "last_applied_at",
+        "last_validated_at",
+        "active_projection_mode",
+        "freshness_state",
+        "local_safe_continuation"
+      ],
+      "properties": {
+        "audit_id": { "type": "string", "minLength": 1 },
+        "family": { "$ref": "#/$defs/family" },
+        "bundle_ref": { "$ref": "#/$defs/canonical_ref" },
+        "bundle_owner_ref": { "$ref": "#/$defs/canonical_ref" },
+        "policy_scope_ref": { "$ref": "#/$defs/canonical_ref" },
+        "distribution_source": { "$ref": "#/$defs/distribution_source" },
+        "last_applied_at": { "type": "string", "minLength": 1 },
+        "last_validated_at": { "type": "string", "minLength": 1 },
+        "active_projection_mode": { "$ref": "#/$defs/projection_mode" },
+        "freshness_state": { "$ref": "#/$defs/audit_freshness_state" },
+        "local_safe_continuation": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     },
     "surface_truth_row": {
@@ -248,8 +432,13 @@
         "shows_winning_scope",
         "shows_shadow_chain",
         "shows_restart_posture",
+        "shows_projection_mode",
         "shows_lifecycle_dependency",
-        "shows_write_preview"
+        "shows_write_preview",
+        "shows_write_explanation",
+        "shows_distribution_audit",
+        "shows_last_applied",
+        "shows_local_safe_continuation"
       ],
       "properties": {
         "surface_class": { "$ref": "#/$defs/surface_class" },
@@ -257,8 +446,13 @@
         "shows_winning_scope": { "type": "boolean" },
         "shows_shadow_chain": { "type": "boolean" },
         "shows_restart_posture": { "type": "boolean" },
+        "shows_projection_mode": { "type": "boolean" },
         "shows_lifecycle_dependency": { "type": "boolean" },
-        "shows_write_preview": { "type": "boolean" }
+        "shows_write_preview": { "type": "boolean" },
+        "shows_write_explanation": { "type": "boolean" },
+        "shows_distribution_audit": { "type": "boolean" },
+        "shows_last_applied": { "type": "boolean" },
+        "shows_local_safe_continuation": { "type": "boolean" }
       }
     },
     "pillars": {
@@ -267,16 +461,22 @@
       "required": [
         "families_complete",
         "shadow_chains_explicit",
+        "review_sheets_explicit",
         "high_impact_checkpointed",
+        "policy_explanations_complete",
         "lifecycle_dependencies_visible",
+        "distribution_audit_complete",
         "validation_honest",
         "surface_truth_complete"
       ],
       "properties": {
         "families_complete": { "type": "boolean" },
         "shadow_chains_explicit": { "type": "boolean" },
+        "review_sheets_explicit": { "type": "boolean" },
         "high_impact_checkpointed": { "type": "boolean" },
+        "policy_explanations_complete": { "type": "boolean" },
         "lifecycle_dependencies_visible": { "type": "boolean" },
+        "distribution_audit_complete": { "type": "boolean" },
         "validation_honest": { "type": "boolean" },
         "surface_truth_complete": { "type": "boolean" }
       }
