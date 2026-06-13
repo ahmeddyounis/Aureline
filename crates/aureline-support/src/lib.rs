@@ -126,6 +126,10 @@
 //!   records-governance matrix to the stable policy snapshot so support packets
 //!   can prove that durable managed/provider/support artifacts share one
 //!   record-class, chronology, deletion, export, and policy-governance source.
+//! - The [`records_export_delete_governance`] support export — consumes the
+//!   canonical export-job, request-case, delete-case, manifest, and receipt
+//!   packet so support exports can inspect partial, blocked, policy-retained,
+//!   redacted, and outside-scope outcomes directly instead of reading prose.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -229,6 +233,7 @@ pub mod portable_bundle_handoff;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod publish_supportability_runbooks_field_playbooks_and_incident_advisory;
+pub mod records_export_delete_governance;
 pub mod records_policy_governance;
 pub mod recovery_ladder;
 pub mod recovery_review;

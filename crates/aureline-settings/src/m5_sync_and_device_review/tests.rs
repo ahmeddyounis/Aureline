@@ -21,6 +21,7 @@ fn baseline_input() -> M5SyncAndDeviceReviewInput {
         device_actions: record.device_actions,
         drills: record.drills,
         surface_truth: record.surface_truth,
+        lifecycle_bindings: record.lifecycle_bindings,
     }
 }
 
@@ -227,6 +228,22 @@ fn every_required_drill_must_be_present() {
             kind: DrillKind::LocalOnlyFallback
         }
     );
+}
+
+#[test]
+fn every_scope_bundle_keeps_a_canonical_lifecycle_binding() {
+    let record = M5SyncAndDeviceReview::build(baseline_input()).expect("builds");
+    assert_eq!(record.lifecycle_bindings.len(), record.scope_bundles.len());
+    for bundle in &record.scope_bundles {
+        let binding = record
+            .lifecycle_bindings
+            .iter()
+            .find(|binding| binding.bundle_id == bundle.bundle_id)
+            .expect("binding present");
+        assert!(!binding.request_case_ref.trim().is_empty());
+        assert!(!binding.export_job_ref.trim().is_empty());
+        assert!(!binding.delete_case_ref.trim().is_empty());
+    }
 }
 
 #[test]

@@ -62,6 +62,28 @@ fn canonical_surface_handoffs_are_exact() {
 }
 
 #[test]
+fn every_surfaced_item_keeps_a_canonical_lifecycle_binding() {
+    let packet = packet();
+    assert_eq!(packet.lifecycle_bindings.len(), 13);
+    for binding in &packet.lifecycle_bindings {
+        assert!(!binding.request_case_ref.trim().is_empty());
+        assert!(!binding.export_job_ref.trim().is_empty());
+        assert!(!binding.delete_case_ref.trim().is_empty());
+        assert!(!binding.export_outcome_token.trim().is_empty());
+        assert!(!binding.delete_outcome_token.trim().is_empty());
+        assert!(!binding.lifecycle_scope_note.trim().is_empty());
+    }
+    assert!(packet.lifecycle_bindings.iter().any(|binding| {
+        binding.section == OffboardingSection::GraceWindowState
+            && binding.item_id == "grace:0003"
+            && binding.request_case_ref == "request-case:offboarding:0001"
+            && binding.export_job_ref == "export-job:offboarding:0001"
+            && binding.delete_case_ref == "delete-case:offboarding:0001"
+            && binding.delete_outcome_token == "policy_retained"
+    }));
+}
+
+#[test]
 fn every_section_is_read_only() {
     let packet = packet();
     assert!(packet
@@ -331,6 +353,28 @@ fn missing_handoff_ref_fails() {
     assert!(packet
         .validate()
         .contains(&OffboardingViolation::HandoffRefMissing));
+}
+
+#[test]
+fn missing_lifecycle_binding_fails() {
+    let mut packet = packet();
+    let missing_item_id = packet.usage_export_packages[0].item_id.clone();
+    packet
+        .lifecycle_bindings
+        .retain(|binding| binding.item_id != missing_item_id);
+    assert!(packet
+        .validate()
+        .contains(&OffboardingViolation::MissingLifecycleBinding));
+}
+
+#[test]
+fn terminal_lifecycle_delete_without_receipt_fails() {
+    let mut packet = packet();
+    packet.lifecycle_bindings[0].delete_outcome_token = "completed".to_owned();
+    packet.lifecycle_bindings[0].destruction_receipt_ref = None;
+    assert!(packet
+        .validate()
+        .contains(&OffboardingViolation::LifecycleReceiptMissing));
 }
 
 #[test]

@@ -778,6 +778,8 @@ pub struct UsageExportOffboardingSurfacePacketInput {
     pub grace_window_rows: Vec<GraceWindowStateItem>,
     /// Org-switch-semantics items.
     pub org_switch_rows: Vec<OrgSwitchSemanticsItem>,
+    /// Canonical export/delete lifecycle bindings for surfaced items.
+    pub lifecycle_bindings: Vec<OffboardingLifecycleBinding>,
     /// Read/write scope and authority contract.
     pub scope_contract: OffboardingScopeContract,
     /// Deletion/export honesty contract.
@@ -825,6 +827,8 @@ pub struct UsageExportOffboardingSurfacePacket {
     pub grace_window_rows: Vec<GraceWindowStateItem>,
     /// Org-switch-semantics items.
     pub org_switch_rows: Vec<OrgSwitchSemanticsItem>,
+    /// Canonical export/delete lifecycle bindings for surfaced items.
+    pub lifecycle_bindings: Vec<OffboardingLifecycleBinding>,
     /// Read/write scope and authority contract.
     pub scope_contract: OffboardingScopeContract,
     /// Deletion/export honesty contract.
@@ -851,6 +855,30 @@ pub struct UsageExportOffboardingSurfacePacket {
     pub minted_at: String,
 }
 
+/// Canonical export/delete lifecycle binding for one surfaced item.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OffboardingLifecycleBinding {
+    /// Section the binding belongs to.
+    pub section: OffboardingSection,
+    /// Stable item id.
+    pub item_id: String,
+    /// Linked canonical request-case ref.
+    pub request_case_ref: String,
+    /// Linked canonical export-job ref.
+    pub export_job_ref: String,
+    /// Linked canonical delete-case ref.
+    pub delete_case_ref: String,
+    /// Linked canonical destruction-receipt ref when delete emitted one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destruction_receipt_ref: Option<String>,
+    /// Closed export outcome token.
+    pub export_outcome_token: String,
+    /// Closed delete outcome token.
+    pub delete_outcome_token: String,
+    /// Review-safe scope note.
+    pub lifecycle_scope_note: String,
+}
+
 impl UsageExportOffboardingSurfacePacket {
     /// Builds a usage-export/offboarding surface packet from stable-lane input.
     pub fn new(input: UsageExportOffboardingSurfacePacketInput) -> Self {
@@ -865,6 +893,7 @@ impl UsageExportOffboardingSurfacePacket {
             offboarding_packages: input.offboarding_packages,
             grace_window_rows: input.grace_window_rows,
             org_switch_rows: input.org_switch_rows,
+            lifecycle_bindings: input.lifecycle_bindings,
             scope_contract: input.scope_contract,
             honesty_contract: input.honesty_contract,
             stale_state_honesty: input.stale_state_honesty,
@@ -1494,6 +1523,10 @@ pub enum OffboardingViolation {
     StaleStateNotLabeled,
     /// An item's desktop handoff is missing its deep-link ref.
     HandoffRefMissing,
+    /// A surfaced item is missing its canonical lifecycle binding.
+    MissingLifecycleBinding,
+    /// A lifecycle binding claims a destructive terminal outcome without a receipt ref.
+    LifecycleReceiptMissing,
     /// The read/write scope contract is not fully satisfied.
     ScopeContractIncomplete,
     /// The deletion/export honesty contract is not fully satisfied.
@@ -1541,6 +1574,8 @@ impl OffboardingViolation {
             Self::ItemIncomplete => "item_incomplete",
             Self::StaleStateNotLabeled => "stale_state_not_labeled",
             Self::HandoffRefMissing => "handoff_ref_missing",
+            Self::MissingLifecycleBinding => "missing_lifecycle_binding",
+            Self::LifecycleReceiptMissing => "lifecycle_receipt_missing",
             Self::ScopeContractIncomplete => "scope_contract_incomplete",
             Self::HonestyContractIncomplete => "honesty_contract_incomplete",
             Self::StaleStateHonestyIncomplete => "stale_state_honesty_incomplete",
@@ -2039,6 +2074,49 @@ pub fn canonical_org_switch_rows() -> Vec<OrgSwitchSemanticsItem> {
     ]
 }
 
+/// Canonical export/delete lifecycle bindings for every surfaced item.
+pub fn canonical_lifecycle_bindings() -> Vec<OffboardingLifecycleBinding> {
+    let request_case_ref = "request-case:offboarding:0001".to_owned();
+    let export_job_ref = "export-job:offboarding:0001".to_owned();
+    let delete_case_ref = "delete-case:offboarding:0001".to_owned();
+    let lifecycle_scope_note =
+        "Offboarding continuity keeps local work user-owned while managed export/delete claims stay policy-bounded."
+            .to_owned();
+    let export_outcome_token = "partial".to_owned();
+    let delete_outcome_token = "policy_retained".to_owned();
+    let binding = |section: OffboardingSection, item_id: &str| OffboardingLifecycleBinding {
+        section,
+        item_id: item_id.to_owned(),
+        request_case_ref: request_case_ref.clone(),
+        export_job_ref: export_job_ref.clone(),
+        delete_case_ref: delete_case_ref.clone(),
+        destruction_receipt_ref: None,
+        export_outcome_token: export_outcome_token.clone(),
+        delete_outcome_token: delete_outcome_token.clone(),
+        lifecycle_scope_note: lifecycle_scope_note.clone(),
+    };
+
+    canonical_usage_export_packages()
+        .into_iter()
+        .map(|item| binding(OffboardingSection::UsageExportPackage, &item.item_id))
+        .chain(
+            canonical_offboarding_packages()
+                .into_iter()
+                .map(|item| binding(OffboardingSection::OffboardingPackage, &item.item_id)),
+        )
+        .chain(
+            canonical_grace_window_rows()
+                .into_iter()
+                .map(|item| binding(OffboardingSection::GraceWindowState, &item.item_id)),
+        )
+        .chain(
+            canonical_org_switch_rows()
+                .into_iter()
+                .map(|item| binding(OffboardingSection::OrgSwitchSemantics, &item.item_id)),
+        )
+        .collect()
+}
+
 /// Builds the canonical surface packet.
 ///
 /// This is the first consumer: it mints the surface the checked-in support export and
@@ -2065,6 +2143,7 @@ pub fn canonical_usage_export_offboarding_surface(
         offboarding_packages: canonical_offboarding_packages(),
         grace_window_rows: canonical_grace_window_rows(),
         org_switch_rows: canonical_org_switch_rows(),
+        lifecycle_bindings: canonical_lifecycle_bindings(),
         scope_contract: canonical_scope_contract(),
         honesty_contract: canonical_honesty_contract(),
         stale_state_honesty: canonical_stale_state_honesty(),
@@ -2168,6 +2247,12 @@ fn validate_items(
         }
         validate_freshness_label(item.freshness, item.stale_label_shown, violations);
         validate_handoff(&item.handoff, violations);
+        validate_lifecycle_binding(
+            packet,
+            OffboardingSection::UsageExportPackage,
+            &item.item_id,
+            violations,
+        );
     }
 
     for item in &packet.offboarding_packages {
@@ -2191,6 +2276,12 @@ fn validate_items(
         }
         validate_freshness_label(item.freshness, item.stale_label_shown, violations);
         validate_handoff(&item.handoff, violations);
+        validate_lifecycle_binding(
+            packet,
+            OffboardingSection::OffboardingPackage,
+            &item.item_id,
+            violations,
+        );
     }
 
     for item in &packet.grace_window_rows {
@@ -2214,6 +2305,12 @@ fn validate_items(
         }
         validate_freshness_label(item.freshness, item.stale_label_shown, violations);
         validate_handoff(&item.handoff, violations);
+        validate_lifecycle_binding(
+            packet,
+            OffboardingSection::GraceWindowState,
+            &item.item_id,
+            violations,
+        );
     }
 
     for item in &packet.org_switch_rows {
@@ -2236,6 +2333,12 @@ fn validate_items(
         }
         validate_freshness_label(item.freshness, item.stale_label_shown, violations);
         validate_handoff(&item.handoff, violations);
+        validate_lifecycle_binding(
+            packet,
+            OffboardingSection::OrgSwitchSemantics,
+            &item.item_id,
+            violations,
+        );
     }
 }
 
@@ -2252,6 +2355,46 @@ fn validate_freshness_label(
 fn validate_handoff(handoff: &CompanionDesktopHandoff, violations: &mut Vec<OffboardingViolation>) {
     if handoff.deep_link_ref.trim().is_empty() {
         violations.push(OffboardingViolation::HandoffRefMissing);
+    }
+}
+
+fn validate_lifecycle_binding(
+    packet: &UsageExportOffboardingSurfacePacket,
+    section: OffboardingSection,
+    item_id: &str,
+    violations: &mut Vec<OffboardingViolation>,
+) {
+    let Some(binding) = packet
+        .lifecycle_bindings
+        .iter()
+        .find(|binding| binding.section == section && binding.item_id == item_id)
+    else {
+        violations.push(OffboardingViolation::MissingLifecycleBinding);
+        return;
+    };
+
+    if binding.request_case_ref.trim().is_empty()
+        || binding.export_job_ref.trim().is_empty()
+        || binding.delete_case_ref.trim().is_empty()
+        || binding.export_outcome_token.trim().is_empty()
+        || binding.delete_outcome_token.trim().is_empty()
+        || binding.lifecycle_scope_note.trim().is_empty()
+    {
+        violations.push(OffboardingViolation::MissingLifecycleBinding);
+        return;
+    }
+
+    if matches!(
+        binding.delete_outcome_token.as_str(),
+        "completed" | "partial"
+    ) && binding
+        .destruction_receipt_ref
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+    {
+        violations.push(OffboardingViolation::LifecycleReceiptMissing);
     }
 }
 

@@ -221,6 +221,15 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
     assert!(kinds.contains(&IncidentEvidenceKind::TaskHistory));
     assert_eq!(packet.linked_work_item_rows.len(), 1);
     assert_eq!(packet.linked_work_item_rows[0].canonical_id, "INC-246");
+    assert_eq!(
+        packet.lifecycle_binding.export_outcome_token,
+        "omitted_by_redaction"
+    );
+    assert_eq!(packet.lifecycle_binding.delete_outcome_token, "completed");
+    assert_eq!(
+        packet.lifecycle_binding.destruction_receipt_ref.as_deref(),
+        Some("receipt:incident-packet:0001")
+    );
 }
 
 #[test]

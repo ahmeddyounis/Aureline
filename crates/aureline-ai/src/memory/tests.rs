@@ -204,6 +204,12 @@ fn drills() -> Vec<DeleteExportDrillRow> {
     vec![
         DeleteExportDrillRow {
             drill_id: "drill:delete-thread".to_owned(),
+            request_case_ref: "request-case:ai-evidence:0001".to_owned(),
+            export_job_ref: "export-job:ai-evidence:0001".to_owned(),
+            delete_case_ref: "delete-case:ai-evidence:0001".to_owned(),
+            destruction_receipt_ref: Some("receipt:ai-evidence:0001".to_owned()),
+            export_outcome_token: "completed".to_owned(),
+            delete_outcome_token: "partial".to_owned(),
             selected_classes: vec![
                 AiStateClass::ConversationThread,
                 AiStateClass::PromptResultCache,
@@ -216,6 +222,12 @@ fn drills() -> Vec<DeleteExportDrillRow> {
         },
         DeleteExportDrillRow {
             drill_id: "drill:delete-workspace-ai-state".to_owned(),
+            request_case_ref: "request-case:ai-evidence:0001".to_owned(),
+            export_job_ref: "export-job:ai-evidence:0001".to_owned(),
+            delete_case_ref: "delete-case:ai-evidence:0001".to_owned(),
+            destruction_receipt_ref: Some("receipt:ai-evidence:0001".to_owned()),
+            export_outcome_token: "completed".to_owned(),
+            delete_outcome_token: "partial".to_owned(),
             selected_classes: vec![
                 AiStateClass::ConversationThread,
                 AiStateClass::PromptResultCache,
@@ -280,6 +292,18 @@ fn packet() -> AiMemoryStatePacket {
 fn stable_memory_state_packet_validates() {
     let packet = packet();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
+}
+
+#[test]
+fn delete_export_drills_keep_canonical_case_refs_visible() {
+    let packet = packet();
+    for drill in &packet.delete_export_drills {
+        assert!(!drill.request_case_ref.trim().is_empty());
+        assert!(!drill.export_job_ref.trim().is_empty());
+        assert!(!drill.delete_case_ref.trim().is_empty());
+        assert!(!drill.export_outcome_token.trim().is_empty());
+        assert!(!drill.delete_outcome_token.trim().is_empty());
+    }
 }
 
 #[test]

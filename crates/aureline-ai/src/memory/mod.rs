@@ -582,6 +582,19 @@ impl ReusableMemoryFence {
 pub struct DeleteExportDrillRow {
     /// Stable drill id.
     pub drill_id: String,
+    /// Linked canonical request-case ref.
+    pub request_case_ref: String,
+    /// Linked canonical export-job ref.
+    pub export_job_ref: String,
+    /// Linked canonical delete-case ref.
+    pub delete_case_ref: String,
+    /// Linked canonical destruction-receipt ref when delete emitted one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destruction_receipt_ref: Option<String>,
+    /// Closed export outcome token preserved from records governance.
+    pub export_outcome_token: String,
+    /// Closed delete outcome token preserved from records governance.
+    pub delete_outcome_token: String,
     /// Memory classes selected for this drill.
     pub selected_classes: Vec<AiStateClass>,
     /// Memory classes excluded because policy owns retention.
@@ -599,6 +612,11 @@ pub struct DeleteExportDrillRow {
 impl DeleteExportDrillRow {
     fn complete(&self) -> bool {
         !self.drill_id.trim().is_empty()
+            && !self.request_case_ref.trim().is_empty()
+            && !self.export_job_ref.trim().is_empty()
+            && !self.delete_case_ref.trim().is_empty()
+            && !self.export_outcome_token.trim().is_empty()
+            && !self.delete_outcome_token.trim().is_empty()
             && !self.selected_classes.is_empty()
             && self.invalidates_matching_durable_caches
             && self.retained_copies_labeled

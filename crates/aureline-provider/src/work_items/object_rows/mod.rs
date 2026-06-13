@@ -315,6 +315,28 @@ pub struct WorkItemObjectRowRecord {
     pub support_export_summary: String,
 }
 
+/// Canonical export/delete lifecycle binding for one projected work-item row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkItemLifecycleBinding {
+    /// Stable row id this binding belongs to.
+    pub row_id: String,
+    /// Linked canonical request-case ref.
+    pub request_case_ref: String,
+    /// Linked canonical export-job ref.
+    pub export_job_ref: String,
+    /// Linked canonical delete-case ref.
+    pub delete_case_ref: String,
+    /// Linked destruction-receipt ref when a receipt exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destruction_receipt_ref: Option<String>,
+    /// Closed export outcome token.
+    pub export_outcome_token: String,
+    /// Closed delete outcome token.
+    pub delete_outcome_token: String,
+    /// Review-safe boundary note.
+    pub lifecycle_scope_note: String,
+}
+
 /// Packet grouping the shared object rows for first-consumer surfaces.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkItemObjectRowsPacket {
@@ -330,6 +352,8 @@ pub struct WorkItemObjectRowsPacket {
     pub source_page_id_ref: String,
     /// Shared object rows.
     pub rows: Vec<WorkItemObjectRowRecord>,
+    /// Canonical lifecycle bindings for the projected rows.
+    pub lifecycle_bindings: Vec<WorkItemLifecycleBinding>,
     /// Export-safe summary.
     pub summary_label: String,
 }
@@ -347,6 +371,8 @@ pub enum WorkItemObjectRowsViolation {
     MissingLocalDraftMarker,
     /// A relation-bearing row dropped its relation strip.
     MissingRelationStrip,
+    /// A projected row is missing its canonical lifecycle binding.
+    MissingLifecycleBinding,
 }
 
 impl WorkItemObjectRowsPacket {
@@ -376,6 +402,17 @@ impl WorkItemObjectRowsPacket {
                 && row.relation_strip.items.is_empty()
             {
                 violations.push(WorkItemObjectRowsViolation::MissingRelationStrip);
+            }
+            if !self.lifecycle_bindings.iter().any(|binding| {
+                binding.row_id == row.row_id
+                    && !binding.request_case_ref.trim().is_empty()
+                    && !binding.export_job_ref.trim().is_empty()
+                    && !binding.delete_case_ref.trim().is_empty()
+                    && !binding.export_outcome_token.trim().is_empty()
+                    && !binding.delete_outcome_token.trim().is_empty()
+                    && !binding.lifecycle_scope_note.trim().is_empty()
+            }) {
+                violations.push(WorkItemObjectRowsViolation::MissingLifecycleBinding);
             }
         }
         violations
@@ -457,17 +494,33 @@ pub fn project_work_item_object_row(detail: &WorkItemDetailRecord) -> WorkItemOb
 /// Builds the seeded packet for first-consumer object-row fixtures and tests.
 pub fn seeded_work_item_object_rows_packet() -> WorkItemObjectRowsPacket {
     let page = super::seeded_work_item_transition_beta_page();
+    let rows = page
+        .detail_records
+        .iter()
+        .map(project_work_item_object_row)
+        .collect::<Vec<_>>();
     WorkItemObjectRowsPacket {
         record_kind: WORK_ITEM_OBJECT_ROWS_PACKET_RECORD_KIND.to_string(),
         schema_version: WORK_ITEM_OBJECT_ROWS_SCHEMA_VERSION,
         packet_id: "providers.work_item_object_rows.packet".to_string(),
         generated_at: "2026-05-18T09:00:00Z".to_string(),
         source_page_id_ref: page.page_id,
-        rows: page
-            .detail_records
+        lifecycle_bindings: rows
             .iter()
-            .map(project_work_item_object_row)
+            .map(|row| WorkItemLifecycleBinding {
+                row_id: row.row_id.clone(),
+                request_case_ref: "request-case:provider-work-item:0001".to_owned(),
+                export_job_ref: "export-job:provider-work-item:0001".to_owned(),
+                delete_case_ref: "delete-case:provider-work-item:0001".to_owned(),
+                destruction_receipt_ref: None,
+                export_outcome_token: "outside_platform_scope".to_owned(),
+                delete_outcome_token: "not_found".to_owned(),
+                lifecycle_scope_note:
+                    "Provider-owned payloads remain outside Aureline-managed delete/export authority; only local linkage metadata is governed here."
+                        .to_owned(),
+            })
             .collect(),
+        rows,
         summary_label: "Shared work-item rows preserve provider chips, canonical ids, provider-native state, freshness or local-draft truth, and compact relation strips for first-consumer surfaces.".to_string(),
     }
 }

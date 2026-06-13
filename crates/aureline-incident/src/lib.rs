@@ -1048,8 +1048,30 @@ pub struct IncidentWorkspacePacket {
     pub support_bundle_links: Vec<IncidentSupportBundleLink>,
     /// Linked provider-backed work-item rows reused by incident cards and detail surfaces.
     pub linked_work_item_rows: Vec<WorkItemObjectRowRecord>,
+    /// Canonical export/delete lifecycle binding for the incident lane.
+    pub lifecycle_binding: IncidentLifecycleBinding,
     /// Redaction-safe notes.
     pub notes: String,
+}
+
+/// Canonical export/delete lifecycle binding for an incident workspace packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IncidentLifecycleBinding {
+    /// Linked canonical request-case ref.
+    pub request_case_ref: String,
+    /// Linked canonical export-job ref.
+    pub export_job_ref: String,
+    /// Linked canonical delete-case ref.
+    pub delete_case_ref: String,
+    /// Linked canonical destruction-receipt ref when delete emitted one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destruction_receipt_ref: Option<String>,
+    /// Closed export outcome token.
+    pub export_outcome_token: String,
+    /// Closed delete outcome token.
+    pub delete_outcome_token: String,
+    /// Review-safe boundary note.
+    pub lifecycle_scope_note: String,
 }
 
 impl IncidentWorkspacePacket {
@@ -1370,6 +1392,7 @@ pub struct IncidentWorkspaceBuilder {
     runbook_packets: Vec<IncidentRunbookPacket>,
     support_bundle_links: Vec<IncidentSupportBundleLink>,
     linked_work_item_rows: Vec<WorkItemObjectRowRecord>,
+    lifecycle_binding: IncidentLifecycleBinding,
     notes: String,
 }
 
@@ -1398,6 +1421,17 @@ impl IncidentWorkspaceBuilder {
             runbook_packets: Vec::new(),
             support_bundle_links: Vec::new(),
             linked_work_item_rows: Vec::new(),
+            lifecycle_binding: IncidentLifecycleBinding {
+                request_case_ref: "request-case:incident-packet:0001".into(),
+                export_job_ref: "export-job:incident-packet:0001".into(),
+                delete_case_ref: "delete-case:incident-packet:0001".into(),
+                destruction_receipt_ref: Some("receipt:incident-packet:0001".into()),
+                export_outcome_token: "omitted_by_redaction".into(),
+                delete_outcome_token: "completed".into(),
+                lifecycle_scope_note:
+                    "Incident exports preserve omitted_by_redaction rows explicitly, and delete completion is proved by a durable receipt."
+                        .into(),
+            },
             notes: "Incident workspace packet is read-mostly; mutating actions stay in runbook and action-ledger refs.".into(),
         }
     }
@@ -1594,6 +1628,12 @@ impl IncidentWorkspaceBuilder {
         self
     }
 
+    /// Overrides the canonical export/delete lifecycle binding.
+    pub fn with_lifecycle_binding(mut self, lifecycle_binding: IncidentLifecycleBinding) -> Self {
+        self.lifecycle_binding = lifecycle_binding;
+        self
+    }
+
     /// Builds the incident workspace packet.
     pub fn build(self) -> IncidentWorkspacePacket {
         let span_coverage =
@@ -1624,6 +1664,7 @@ impl IncidentWorkspaceBuilder {
             runbook_packets: self.runbook_packets,
             support_bundle_links: self.support_bundle_links,
             linked_work_item_rows: self.linked_work_item_rows,
+            lifecycle_binding: self.lifecycle_binding,
             notes: self.notes,
         }
     }

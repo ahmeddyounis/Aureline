@@ -1,0 +1,520 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/records_export_delete_lifecycle.schema.json",
+  "title": "Records export/delete lifecycle packet",
+  "description": "Schema for the records_export_delete_lifecycle packet. The packet is the canonical export-job, privacy/delete-case, and destruction-receipt truth source for claimed M5 managed, provider-linked, AI-evidence, sync, incident, and offboarding rows. Export jobs always carry a manifest; delete cases either carry a destruction receipt or a typed blocker state. Local-only boundaries stay explicit so no consumer can imply remote export, remote delete, or managed hold coverage for artifacts the platform only knows locally. The packet is metadata-only and carries no raw payloads, secrets, or durable content bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "export_jobs",
+    "request_cases",
+    "delete_cases",
+    "family_links",
+    "summary"
+  ],
+  "$defs": {
+    "record_operation_outcome": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "queued",
+        "blocked_by_hold",
+        "completed",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "partial",
+        "not_found",
+        "omitted_by_redaction"
+      ]
+    },
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet",
+        "provider_linked_work_item_record",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "browser_handoff_manifest",
+        "support_export_packet",
+        "collaboration_session_record",
+        "collaboration_join_audit_event",
+        "collaboration_transcript_record",
+        "observer_only_archive",
+        "replayable_session_bundle",
+        "collaboration_review_evidence",
+        "operational_audit_record",
+        "managed_workspace_metadata",
+        "billing_usage_aggregate"
+      ]
+    },
+    "governed_artifact_family": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet",
+        "provider_linked_work_item",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "offboarding_record",
+        "browser_handoff_manifest",
+        "support_export_packet"
+      ]
+    },
+    "request_case_kind": {
+      "type": "string",
+      "enum": ["access_export", "privacy_delete", "offboarding_delete"]
+    },
+    "ref_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "outcome"],
+      "properties": {
+        "ref_id": { "type": "string", "minLength": 1 },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "reason": { "type": ["string", "null"] },
+        "record_class_id": {
+          "anyOf": [{ "$ref": "#/$defs/record_class_id" }, { "type": "null" }]
+        }
+      }
+    },
+    "ref_checksum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "algorithm", "hash"],
+      "properties": {
+        "ref_id": { "type": "string", "minLength": 1 },
+        "algorithm": { "type": "string", "minLength": 1 },
+        "hash": { "type": "string", "minLength": 1 }
+      }
+    },
+    "omission_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_class_id", "outcome"],
+      "properties": {
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "detail": { "type": ["string", "null"] }
+      }
+    },
+    "collab_bundle_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_ref",
+        "role",
+        "guest_boundary",
+        "consent_envelope_ref",
+        "transcript_classes",
+        "local_only_artifacts_excluded"
+      ],
+      "properties": {
+        "session_ref": { "type": "string" },
+        "role": { "type": "string" },
+        "guest_boundary": { "type": "boolean" },
+        "consent_envelope_ref": { "type": "string" },
+        "transcript_classes": { "type": "array", "items": { "type": "string" } },
+        "local_only_artifacts_excluded": { "type": "boolean" },
+        "local_only_artifact_note": { "type": ["string", "null"] }
+      }
+    },
+    "chronology_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "actor_ref",
+        "timestamp_utc",
+        "event_class",
+        "is_local_only",
+        "is_attributed"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "actor_ref": { "type": "string" },
+        "timestamp_utc": { "type": "string", "minLength": 1 },
+        "source_timezone_label": { "type": ["string", "null"] },
+        "event_class": { "type": "string" },
+        "record_class_id": {
+          "anyOf": [{ "$ref": "#/$defs/record_class_id" }, { "type": "null" }]
+        },
+        "is_local_only": { "type": "boolean" },
+        "is_attributed": { "type": "boolean" }
+      }
+    },
+    "chronology_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_id",
+        "scope_selector",
+        "policy_version",
+        "exported_at",
+        "actor_lineage_preserved",
+        "timezone_aware",
+        "entries"
+      ],
+      "properties": {
+        "export_id": { "type": "string", "minLength": 1 },
+        "scope_selector": { "type": "string" },
+        "policy_version": { "type": "string" },
+        "exported_at": { "type": "string" },
+        "actor_lineage_preserved": { "type": "boolean" },
+        "timezone_aware": { "type": "boolean" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/chronology_entry" }
+        }
+      }
+    },
+    "hold_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "status", "scope", "active_hold_refs", "policy_version"],
+      "properties": {
+        "phase": { "type": "string", "enum": ["planning", "execution"] },
+        "status": {
+          "type": "string",
+          "enum": ["active", "unknown_indeterminate", "cleared"]
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["managed_only", "local_only", "both"]
+        },
+        "active_hold_refs": { "type": "array", "items": { "type": "string" } },
+        "policy_version": { "type": "string" },
+        "local_only_artifact_note": { "type": ["string", "null"] }
+      }
+    },
+    "export_bundle_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "created_at",
+        "scope_selectors",
+        "included_classes",
+        "excluded_classes",
+        "omission_reasons",
+        "policy_version",
+        "hash_checksum_manifest",
+        "redaction_profile",
+        "signer_ref",
+        "refs"
+      ],
+      "properties": {
+        "bundle_id": { "type": "string", "minLength": 1 },
+        "created_at": { "type": "string" },
+        "scope_selectors": { "type": "array", "items": { "type": "string" } },
+        "time_range_start": { "type": ["string", "null"] },
+        "time_range_end": { "type": ["string", "null"] },
+        "included_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "excluded_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_reason" }
+        },
+        "policy_version": { "type": "string" },
+        "hash_checksum_manifest": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_checksum" }
+        },
+        "redaction_profile": { "type": "string" },
+        "signer_ref": { "type": "string" },
+        "refs": { "type": "array", "items": { "$ref": "#/$defs/ref_record" } },
+        "collab_metadata": {
+          "anyOf": [
+            { "$ref": "#/$defs/collab_bundle_metadata" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "destruction_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "executed_action",
+        "executed_at",
+        "policy_version",
+        "scope_selectors",
+        "included_classes",
+        "excluded_classes",
+        "deleted_refs",
+        "skipped_refs",
+        "retained_refs",
+        "held_refs",
+        "outside_scope_refs",
+        "total_destroyed_count",
+        "total_retained_count",
+        "total_outside_scope_count",
+        "hash_checksum_manifest",
+        "redaction_profile",
+        "verifier_ref"
+      ],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "executed_action": { "type": "string" },
+        "executed_at": { "type": "string" },
+        "policy_version": { "type": "string" },
+        "scope_selectors": { "type": "array", "items": { "type": "string" } },
+        "included_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "excluded_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "deleted_refs": { "type": "array", "items": { "$ref": "#/$defs/ref_record" } },
+        "skipped_refs": { "type": "array", "items": { "$ref": "#/$defs/ref_record" } },
+        "retained_refs": { "type": "array", "items": { "$ref": "#/$defs/ref_record" } },
+        "held_refs": { "type": "array", "items": { "$ref": "#/$defs/ref_record" } },
+        "outside_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_record" }
+        },
+        "total_destroyed_count": { "type": "integer", "minimum": 0 },
+        "total_retained_count": { "type": "integer", "minimum": 0 },
+        "total_outside_scope_count": { "type": "integer", "minimum": 0 },
+        "hash_checksum_manifest": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref_checksum" }
+        },
+        "redaction_profile": { "type": "string" },
+        "verifier_ref": { "type": "string" },
+        "local_only_not_held_note": { "type": ["string", "null"] },
+        "collab_metadata": {
+          "anyOf": [
+            { "$ref": "#/$defs/collab_bundle_metadata" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "case_blocker_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_id", "blocker_outcome", "blocker_ref", "detail"],
+      "properties": {
+        "blocker_id": { "type": "string", "minLength": 1 },
+        "blocker_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "blocker_ref": { "type": "string" },
+        "detail": { "type": "string" },
+        "next_state_change_hint": { "type": ["string", "null"] }
+      }
+    },
+    "export_job_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "job_id",
+        "requester_ref",
+        "request_case_id",
+        "scope_selector",
+        "record_class_ids",
+        "redaction_profile",
+        "manifest",
+        "outcome",
+        "partial_or_omission_reasons",
+        "bundle_refs",
+        "chronology",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "records_export_job_record" },
+        "schema_version": { "const": 1 },
+        "job_id": { "type": "string", "minLength": 1 },
+        "requester_ref": { "type": "string" },
+        "request_case_id": { "type": "string" },
+        "scope_selector": { "type": "string" },
+        "record_class_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "redaction_profile": { "type": "string" },
+        "manifest": { "$ref": "#/$defs/export_bundle_manifest" },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "partial_or_omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_reason" }
+        },
+        "bundle_refs": { "type": "array", "items": { "type": "string" } },
+        "chronology": { "$ref": "#/$defs/chronology_export" },
+        "summary": { "type": "string" }
+      }
+    },
+    "privacy_request_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_id",
+        "request_kind",
+        "requester_ref",
+        "subject_scope_ref",
+        "jurisdiction_or_policy_class",
+        "approval_log_refs",
+        "sla_target_at",
+        "status",
+        "export_job_ids",
+        "delete_case_ids",
+        "chronology_ref",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "records_request_case_record" },
+        "schema_version": { "const": 1 },
+        "case_id": { "type": "string", "minLength": 1 },
+        "request_kind": { "$ref": "#/$defs/request_case_kind" },
+        "requester_ref": { "type": "string" },
+        "subject_scope_ref": { "type": "string" },
+        "jurisdiction_or_policy_class": { "type": "string" },
+        "approval_log_refs": { "type": "array", "items": { "type": "string" } },
+        "blocker_state": {
+          "anyOf": [{ "$ref": "#/$defs/case_blocker_state" }, { "type": "null" }]
+        },
+        "sla_target_at": { "type": "string" },
+        "status": { "$ref": "#/$defs/record_operation_outcome" },
+        "export_job_ids": { "type": "array", "items": { "type": "string" } },
+        "delete_case_ids": { "type": "array", "items": { "type": "string" } },
+        "chronology_ref": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "delete_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_id",
+        "request_kind",
+        "requester_ref",
+        "subject_scope_ref",
+        "policy_version",
+        "planning_hold",
+        "execution_hold",
+        "prerequisite_export_job_ids",
+        "outcome",
+        "unresolved_outcomes",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "records_delete_case_record" },
+        "schema_version": { "const": 1 },
+        "case_id": { "type": "string", "minLength": 1 },
+        "request_kind": { "$ref": "#/$defs/request_case_kind" },
+        "requester_ref": { "type": "string" },
+        "subject_scope_ref": { "type": "string" },
+        "policy_version": { "type": "string" },
+        "planning_hold": { "$ref": "#/$defs/hold_evaluation" },
+        "execution_hold": { "$ref": "#/$defs/hold_evaluation" },
+        "prerequisite_export_job_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "unresolved_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_operation_outcome" }
+        },
+        "destruction_receipt": {
+          "anyOf": [{ "$ref": "#/$defs/destruction_receipt" }, { "type": "null" }]
+        },
+        "typed_blocker_state": {
+          "anyOf": [{ "$ref": "#/$defs/case_blocker_state" }, { "type": "null" }]
+        },
+        "summary": { "type": "string" }
+      }
+    },
+    "lifecycle_family_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "artifact_family",
+        "record_class_id",
+        "consumer_packet_ref",
+        "request_case_id",
+        "export_job_id",
+        "delete_case_id",
+        "export_outcome",
+        "delete_outcome",
+        "policy_owner_ref",
+        "chronology_ref"
+      ],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "artifact_family": { "$ref": "#/$defs/governed_artifact_family" },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "consumer_packet_ref": { "type": "string" },
+        "request_case_id": { "type": "string" },
+        "export_job_id": { "type": "string" },
+        "delete_case_id": { "type": "string" },
+        "export_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "delete_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "local_only_boundary_note": { "type": ["string", "null"] },
+        "policy_owner_ref": { "type": "string" },
+        "chronology_ref": { "type": "string" }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "records_export_delete_lifecycle_packet" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "export_jobs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/export_job_record" }
+    },
+    "request_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/privacy_request_case_record" }
+    },
+    "delete_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/delete_case_record" }
+    },
+    "family_links": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/lifecycle_family_link" }
+    },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}

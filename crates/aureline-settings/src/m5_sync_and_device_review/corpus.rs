@@ -12,8 +12,8 @@ use super::model::{
     BundleSyncTrust, ConflictClass, ConflictDisposition, DeviceAction, DeviceActionRecord,
     DeviceClass, DeviceParticipationState, DrillKind, FieldConflict, M5SyncAndDeviceReview,
     M5SyncAndDeviceReviewInput, RedactionMode, ScopeCapabilityDependency, ScopeRevisionSets,
-    SurfaceClass, SurfaceTruthRow, SyncDrill, SyncReviewClaim, SyncScopeBundle, SyncScopeFamily,
-    SyncTransportState, TrustWideningClass,
+    SurfaceClass, SurfaceTruthRow, SyncDrill, SyncLifecycleBinding, SyncReviewClaim,
+    SyncScopeBundle, SyncScopeFamily, SyncTransportState, TrustWideningClass,
 };
 
 /// Timestamp pinned for every record in this corpus.
@@ -95,6 +95,7 @@ fn build_scenario(spec: ScenarioSpec) -> M5SyncAndDeviceReviewScenario {
         device_actions: device_actions(),
         drills: drills(),
         surface_truth: surface_truth(),
+        lifecycle_bindings: lifecycle_bindings(),
     })
     .expect("scenario builds");
 
@@ -460,4 +461,69 @@ fn surface_truth() -> Vec<SurfaceTruthRow> {
             shows_local_only_fallback: true,
         })
         .collect()
+}
+
+fn lifecycle_bindings() -> Vec<SyncLifecycleBinding> {
+    vec![
+        SyncLifecycleBinding {
+            bundle_id: "sync.notebooks".to_owned(),
+            request_case_ref: "request-case:sync-ledger:0001".to_owned(),
+            export_job_ref: "export-job:sync-ledger:0001".to_owned(),
+            delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
+            destruction_receipt_ref: None,
+            export_outcome_token: "manual_local_capture_required".to_owned(),
+            delete_outcome_token: "blocked_by_hold".to_owned(),
+            lifecycle_scope_note:
+                "Notebook-local revisions and replay snapshots require manual local capture before managed export/delete can cover them."
+                    .to_owned(),
+        },
+        SyncLifecycleBinding {
+            bundle_id: "sync.data-api".to_owned(),
+            request_case_ref: "request-case:sync-ledger:0001".to_owned(),
+            export_job_ref: "export-job:sync-ledger:0001".to_owned(),
+            delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
+            destruction_receipt_ref: None,
+            export_outcome_token: "manual_local_capture_required".to_owned(),
+            delete_outcome_token: "blocked_by_hold".to_owned(),
+            lifecycle_scope_note:
+                "Per-device connection repair state remains local-only even when metadata is mirrored."
+                    .to_owned(),
+        },
+        SyncLifecycleBinding {
+            bundle_id: "sync.profiler".to_owned(),
+            request_case_ref: "request-case:sync-ledger:0001".to_owned(),
+            export_job_ref: "export-job:sync-ledger:0001".to_owned(),
+            delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
+            destruction_receipt_ref: None,
+            export_outcome_token: "manual_local_capture_required".to_owned(),
+            delete_outcome_token: "blocked_by_hold".to_owned(),
+            lifecycle_scope_note:
+                "Profiler snapshot selectors sync, but raw local captures stay user-controlled until captured explicitly."
+                    .to_owned(),
+        },
+        SyncLifecycleBinding {
+            bundle_id: "sync.extensions".to_owned(),
+            request_case_ref: "request-case:sync-ledger:0001".to_owned(),
+            export_job_ref: "export-job:sync-ledger:0001".to_owned(),
+            delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
+            destruction_receipt_ref: None,
+            export_outcome_token: "manual_local_capture_required".to_owned(),
+            delete_outcome_token: "blocked_by_hold".to_owned(),
+            lifecycle_scope_note:
+                "Extension enablement syncs, but local install artifacts still require manual local capture."
+                    .to_owned(),
+        },
+        SyncLifecycleBinding {
+            bundle_id: "sync.companion".to_owned(),
+            request_case_ref: "request-case:sync-ledger:0001".to_owned(),
+            export_job_ref: "export-job:sync-ledger:0001".to_owned(),
+            delete_case_ref: "delete-case:sync-ledger:0001".to_owned(),
+            destruction_receipt_ref: None,
+            export_outcome_token: "manual_local_capture_required".to_owned(),
+            delete_outcome_token: "blocked_by_hold".to_owned(),
+            lifecycle_scope_note:
+                "Companion follow-state and per-device queues remain explicit about local-only continuity."
+                    .to_owned(),
+        },
+    ]
 }

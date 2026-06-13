@@ -5,6 +5,7 @@ fn seeded_packet_validates() {
     let packet = seeded_work_item_object_rows_packet();
     assert!(packet.validate().is_empty(), "{:?}", packet.validate());
     assert!(!packet.rows.is_empty());
+    assert_eq!(packet.lifecycle_bindings.len(), packet.rows.len());
 }
 
 #[test]
@@ -53,4 +54,21 @@ fn queued_row_requires_local_draft_marker() {
     assert!(packet
         .validate()
         .contains(&WorkItemObjectRowsViolation::MissingLocalDraftMarker));
+}
+
+#[test]
+fn every_row_keeps_canonical_lifecycle_binding() {
+    let packet = seeded_work_item_object_rows_packet();
+    for row in &packet.rows {
+        let binding = packet
+            .lifecycle_bindings
+            .iter()
+            .find(|binding| binding.row_id == row.row_id)
+            .expect("binding present");
+        assert!(!binding.request_case_ref.trim().is_empty());
+        assert!(!binding.export_job_ref.trim().is_empty());
+        assert!(!binding.delete_case_ref.trim().is_empty());
+        assert!(!binding.export_outcome_token.trim().is_empty());
+        assert!(!binding.delete_outcome_token.trim().is_empty());
+    }
 }

@@ -575,6 +575,28 @@ pub struct SurfaceTruthRow {
     pub shows_local_only_fallback: bool,
 }
 
+/// Canonical export/delete lifecycle binding for one sync scope bundle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncLifecycleBinding {
+    /// Stable bundle id this binding belongs to.
+    pub bundle_id: String,
+    /// Linked canonical request-case ref.
+    pub request_case_ref: String,
+    /// Linked canonical export-job ref.
+    pub export_job_ref: String,
+    /// Linked canonical delete-case ref.
+    pub delete_case_ref: String,
+    /// Linked canonical destruction-receipt ref when delete emitted one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destruction_receipt_ref: Option<String>,
+    /// Closed export outcome token preserved from records governance.
+    pub export_outcome_token: String,
+    /// Closed delete outcome token preserved from records governance.
+    pub delete_outcome_token: String,
+    /// Review-safe scope note.
+    pub lifecycle_scope_note: String,
+}
+
 /// Derived sync trust state for one scope bundle.
 ///
 /// Ordered from [`Self::Synced`] (best) to [`Self::ReviewBlocked`] (weakest);
@@ -698,6 +720,8 @@ pub struct M5SyncAndDeviceReviewInput {
     pub drills: Vec<SyncDrill>,
     /// Surface truth rows.
     pub surface_truth: Vec<SurfaceTruthRow>,
+    /// Canonical lifecycle bindings for the scope bundles.
+    pub lifecycle_bindings: Vec<SyncLifecycleBinding>,
 }
 
 /// Canonical sync-and-device review record for M5-added feature families.
@@ -723,6 +747,8 @@ pub struct M5SyncAndDeviceReview {
     pub drills: Vec<SyncDrill>,
     /// Surface truth rows.
     pub surface_truth: Vec<SurfaceTruthRow>,
+    /// Canonical lifecycle bindings for the scope bundles.
+    pub lifecycle_bindings: Vec<SyncLifecycleBinding>,
     /// Families covered by the scope bundles.
     pub family_coverage: Vec<SyncScopeFamily>,
     /// Conflict classes surfaced by the bundles.
@@ -827,6 +853,16 @@ pub enum BuildError {
         /// The missing surface.
         surface: SurfaceClass,
     },
+    /// A scope bundle is missing its canonical lifecycle binding.
+    MissingLifecycleBinding {
+        /// The bundle missing the binding.
+        bundle_id: String,
+    },
+    /// A completed or partial delete outcome omitted its destruction receipt ref.
+    LifecycleReceiptMissing {
+        /// The bundle missing the receipt ref.
+        bundle_id: String,
+    },
 }
 
 impl core::fmt::Display for BuildError {
@@ -890,6 +926,14 @@ impl core::fmt::Display for BuildError {
             ),
             Self::MissingDrill { kind } => write!(f, "missing drill `{}`", kind.as_str()),
             Self::MissingSurface { surface } => write!(f, "missing surface `{surface:?}`"),
+            Self::MissingLifecycleBinding { bundle_id } => write!(
+                f,
+                "bundle `{bundle_id}` is missing its canonical export/delete lifecycle binding"
+            ),
+            Self::LifecycleReceiptMissing { bundle_id } => write!(
+                f,
+                "bundle `{bundle_id}` completed or partially completed delete without a receipt ref"
+            ),
         }
     }
 }
@@ -1058,12 +1102,52 @@ impl M5SyncAndDeviceReview {
             }
         }
 
+        for bundle in &input.scope_bundles {
+            let Some(binding) = input
+                .lifecycle_bindings
+                .iter()
+                .find(|binding| binding.bundle_id == bundle.bundle_id)
+            else {
+                return Err(BuildError::MissingLifecycleBinding {
+                    bundle_id: bundle.bundle_id.clone(),
+                });
+            };
+            if binding.request_case_ref.trim().is_empty()
+                || binding.export_job_ref.trim().is_empty()
+                || binding.delete_case_ref.trim().is_empty()
+                || binding.export_outcome_token.trim().is_empty()
+                || binding.delete_outcome_token.trim().is_empty()
+                || binding.lifecycle_scope_note.trim().is_empty()
+            {
+                return Err(BuildError::MissingLifecycleBinding {
+                    bundle_id: bundle.bundle_id.clone(),
+                });
+            }
+            if matches!(
+                binding.delete_outcome_token.as_str(),
+                "completed" | "partial"
+            ) && binding
+                .destruction_receipt_ref
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .is_empty()
+            {
+                return Err(BuildError::LifecycleReceiptMissing {
+                    bundle_id: bundle.bundle_id.clone(),
+                });
+            }
+        }
+
         input
             .scope_bundles
             .sort_by(|a, b| a.bundle_id.cmp(&b.bundle_id));
         input.device_actions.sort_by_key(|record| record.action);
         input.drills.sort_by_key(|drill| drill.kind);
         input.surface_truth.sort_by_key(|row| row.surface_class);
+        input
+            .lifecycle_bindings
+            .sort_by(|a, b| a.bundle_id.cmp(&b.bundle_id));
 
         let family_coverage = collect_sorted(input.scope_bundles.iter().map(|b| b.family));
         let conflict_class_coverage = collect_sorted(
@@ -1207,6 +1291,7 @@ impl M5SyncAndDeviceReview {
             device_actions: input.device_actions,
             drills: input.drills,
             surface_truth: input.surface_truth,
+            lifecycle_bindings: input.lifecycle_bindings,
             family_coverage,
             conflict_class_coverage,
             redaction_mode_coverage,
