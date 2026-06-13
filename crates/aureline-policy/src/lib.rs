@@ -22,6 +22,7 @@ pub mod freeze_the_m5_runtime_authority_approval_ticket_sandbox_profile_and_capa
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
+pub mod implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_expiry_enforcement_and_local_first_verification_f;
 pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
 pub mod m5_exception_expiry;
 pub mod policy_simulation_and_expiry;
@@ -374,6 +375,21 @@ pub use add_launch_inspector_and_command_runtime_explain_sheets_that_answer_wher
     M5_LAUNCH_INSPECTOR_DOC_REF, M5_LAUNCH_INSPECTOR_FIXTURE_DIR, M5_LAUNCH_INSPECTOR_PACKET_ID,
     M5_LAUNCH_INSPECTOR_RECORD_KIND, M5_LAUNCH_INSPECTOR_SCHEMA_REF,
     M5_LAUNCH_INSPECTOR_SCHEMA_VERSION, M5_LAUNCH_INSPECTOR_SUMMARY_REF,
+};
+
+pub use implement_approval_ticket_issuance_deny_reason_packets_replay_nonce_or_expiry_enforcement_and_local_first_verification_f::{
+    build_ledger_packet, current_stable_m5_approval_ticket_ledger_export, denied_tickets,
+    frozen_stable_m5_approval_ticket_ledger_packet, valid_tickets, M5ApprovalTicket,
+    M5ApprovalTicketConsumerProjection, M5ApprovalTicketLedgerArtifactError,
+    M5ApprovalTicketLedgerPacket, M5ApprovalTicketLedgerPacketInput,
+    M5ApprovalTicketLedgerViolation, M5ApprovalTicketProofFreshness, M5ApprovalTicketTrustReview,
+    M5LocalFirstVerification, M5LocalFirstVerificationMethod, M5ReplayProtection, M5TicketActionClass,
+    M5TicketActor, M5TicketBinding, M5TicketDenyDimension, M5TicketDenyReason,
+    M5TicketIssuanceLineage, M5TicketTarget, M5TicketValidity, M5TicketVerificationState,
+    M5_APPROVAL_TICKET_LEDGER_ARTIFACT_REF, M5_APPROVAL_TICKET_LEDGER_DOC_REF,
+    M5_APPROVAL_TICKET_LEDGER_FIXTURE_DIR, M5_APPROVAL_TICKET_LEDGER_PACKET_ID,
+    M5_APPROVAL_TICKET_LEDGER_RECORD_KIND, M5_APPROVAL_TICKET_LEDGER_SCHEMA_REF,
+    M5_APPROVAL_TICKET_LEDGER_SCHEMA_VERSION, M5_APPROVAL_TICKET_LEDGER_SUMMARY_REF,
 };
 
 pub use ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sinks_or_endpoints_secret_handle_refs_policy_epoch_e::{

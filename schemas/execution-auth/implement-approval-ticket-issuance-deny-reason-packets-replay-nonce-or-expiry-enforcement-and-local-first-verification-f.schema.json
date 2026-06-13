@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution-auth/implement-approval-ticket-issuance-deny-reason-packets-replay-nonce-or-expiry-enforcement-and-local-first-verification-f.schema.json",
+  "title": "M5 Approval-Ticket Issuance And Local-First Verification",
+  "description": "Export-safe ledger of short-lived approval tickets minted for mutating or privileged M5 actions. Each ticket binds actor, action class, target identity, policy epoch, sandbox and capability-envelope hash, expiry, and replay protection. Denied or expired tickets carry a deny reason that names the failed binding dimension and a concrete recovery action instead of collapsing into a generic permission error. A local-first verification descriptor proves an allowed local action verifies offline without depending on live control-plane reachability, skipping audit lineage, or widening authority. Metadata-only: carries no raw secret material, credential bodies, or live ticket signatures.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "tickets",
+    "trust_review",
+    "consumer_projection",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_m5_approval_ticket_issuance_and_local_first_verification"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "packet_label": { "type": "string", "minLength": 1 },
+    "tickets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ticket" }
+    },
+    "trust_review": { "$ref": "#/$defs/trustReview" },
+    "consumer_projection": { "$ref": "#/$defs/consumerProjection" },
+    "proof_freshness": { "$ref": "#/$defs/proofFreshness" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "executingSurface": {
+      "type": "string",
+      "enum": [
+        "request_api_send",
+        "database_action",
+        "notebook_kernel",
+        "scaffold_hook",
+        "preview_server",
+        "ai_tool",
+        "recipe",
+        "browser_routed_action",
+        "incident_flow",
+        "remote_mutation"
+      ]
+    },
+    "sandboxProfile": {
+      "type": "string",
+      "enum": [
+        "inert_no_execution",
+        "in_process_trusted_local",
+        "brokered_network_only",
+        "subprocess_isolated_local",
+        "container_isolated_local",
+        "isolated_remote_runtime"
+      ]
+    },
+    "capabilityClass": {
+      "type": "string",
+      "enum": [
+        "read_workspace",
+        "write_workspace",
+        "network_egress",
+        "process_spawn",
+        "secret_handle_projection",
+        "database_read",
+        "database_write",
+        "remote_mutation",
+        "browser_navigation"
+      ]
+    },
+    "secretScope": {
+      "type": "string",
+      "enum": ["no_secret_access", "handle_only_delegated", "scoped_brokered_secret"]
+    },
+    "approvalPosture": {
+      "type": "string",
+      "enum": [
+        "ticket_required_per_action",
+        "ticket_required_per_session",
+        "ticket_required_per_scope",
+        "standing_policy_ticket",
+        "no_ticket_required_read_only",
+        "blocked_no_self_issue"
+      ]
+    },
+    "actorClass": {
+      "type": "string",
+      "enum": [
+        "human_operator",
+        "system_automation",
+        "ai_tool",
+        "recipe",
+        "extension",
+        "browser_route",
+        "remote_helper"
+      ]
+    },
+    "issuerClass": {
+      "type": "string",
+      "enum": [
+        "policy_authority",
+        "approval_broker",
+        "standing_policy_epoch",
+        "remote_broker_runtime"
+      ]
+    },
+    "actionClass": {
+      "type": "string",
+      "enum": [
+        "workspace_mutation",
+        "process_execution",
+        "network_send",
+        "database_write",
+        "remote_mutation",
+        "browser_routed_action",
+        "secret_projection"
+      ]
+    },
+    "verificationState": {
+      "type": "string",
+      "enum": [
+        "valid_local_first",
+        "denied_expired",
+        "denied_replay_detected",
+        "denied_epoch_superseded",
+        "denied_binding_mismatch",
+        "denied_revoked"
+      ]
+    },
+    "denyDimension": {
+      "type": "string",
+      "enum": [
+        "expiry_elapsed",
+        "replay_nonce_consumed",
+        "replay_window_exceeded",
+        "policy_epoch_superseded",
+        "capability_hash_mismatch",
+        "sandbox_profile_mismatch",
+        "target_identity_mismatch",
+        "actor_binding_mismatch",
+        "ticket_revoked"
+      ]
+    },
+    "verificationMethod": {
+      "type": "string",
+      "enum": ["local_signature_chain", "cached_policy_bundle", "remote_broker_attestation"]
+    },
+    "degradedFallback": {
+      "type": "string",
+      "enum": [
+        "narrow_to_read_only",
+        "narrow_to_sanitized_preview",
+        "require_fresh_ticket",
+        "offline_local_core_only",
+        "fail_closed_block"
+      ]
+    },
+    "downgradeTrigger": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_expired",
+        "approval_ticket_replayed",
+        "sandbox_profile_unavailable",
+        "policy_epoch_superseded",
+        "secret_broker_unavailable",
+        "enforcement_backend_missing",
+        "target_identity_unverified",
+        "scope_expansion_unqualified",
+        "ambient_privilege_detected",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_ref", "on_behalf_of"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actorClass" },
+        "actor_ref": { "type": "string", "minLength": 1 },
+        "on_behalf_of": {
+          "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_identity", "off_device", "identity_verified"],
+      "properties": {
+        "target_identity": { "type": "string", "minLength": 1 },
+        "off_device": { "type": "boolean" },
+        "identity_verified": { "type": "boolean" }
+      }
+    },
+    "policyEpoch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch_id", "epoch_sequence", "superseded"],
+      "properties": {
+        "epoch_id": { "type": "string", "minLength": 1 },
+        "epoch_sequence": { "type": "integer", "minimum": 0 },
+        "superseded": { "type": "boolean" }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "sandbox_profile",
+        "capability_envelope_hash",
+        "capability_envelope_ref",
+        "bound_capability_classes",
+        "secret_scope"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/policyEpoch" },
+        "sandbox_profile": { "$ref": "#/$defs/sandboxProfile" },
+        "capability_envelope_hash": { "type": "string", "minLength": 1 },
+        "capability_envelope_ref": { "type": "string", "minLength": 1 },
+        "bound_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capabilityClass" }
+        },
+        "secret_scope": { "$ref": "#/$defs/secretScope" }
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issued_at", "expires_at", "ttl_seconds", "single_use"],
+      "properties": {
+        "issued_at": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "minLength": 1 },
+        "ttl_seconds": { "type": "integer", "minimum": 1 },
+        "single_use": { "type": "boolean" }
+      }
+    },
+    "replayProtection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "monotonic_counter", "replay_window_seconds", "nonce_consumed"],
+      "properties": {
+        "nonce": { "type": "string", "minLength": 1 },
+        "monotonic_counter": { "type": "integer", "minimum": 0 },
+        "replay_window_seconds": { "type": "integer", "minimum": 1 },
+        "nonce_consumed": { "type": "boolean" }
+      }
+    },
+    "issuanceLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issuer_class",
+        "issuer_ref",
+        "approval_posture",
+        "decision_chain",
+        "self_issued_by_executor"
+      ],
+      "properties": {
+        "issuer_class": { "$ref": "#/$defs/issuerClass" },
+        "issuer_ref": { "type": "string", "minLength": 1 },
+        "approval_posture": { "$ref": "#/$defs/approvalPosture" },
+        "decision_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "self_issued_by_executor": { "const": false }
+      }
+    },
+    "localFirstVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "verifiable_offline",
+        "requires_live_control_plane",
+        "audit_lineage_preserved",
+        "authority_widened_offline"
+      ],
+      "properties": {
+        "method": { "$ref": "#/$defs/verificationMethod" },
+        "verifiable_offline": { "type": "boolean" },
+        "requires_live_control_plane": { "type": "boolean" },
+        "audit_lineage_preserved": { "const": true },
+        "authority_widened_offline": { "const": false }
+      }
+    },
+    "denyReason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "narrowed_to", "explanation", "recovery_action"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/denyDimension" },
+        "narrowed_to": { "$ref": "#/$defs/degradedFallback" },
+        "explanation": { "type": "string", "minLength": 1 },
+        "recovery_action": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ticket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ticket_id",
+        "surface",
+        "action_class",
+        "actor",
+        "target",
+        "binding",
+        "validity",
+        "replay_protection",
+        "issuance_lineage",
+        "local_first_verification",
+        "verification_state",
+        "deny_reason",
+        "applied_downgrade_triggers",
+        "redaction_class_token"
+      ],
+      "properties": {
+        "ticket_id": { "type": "string", "minLength": 1 },
+        "surface": { "$ref": "#/$defs/executingSurface" },
+        "action_class": { "$ref": "#/$defs/actionClass" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "target": { "$ref": "#/$defs/target" },
+        "binding": { "$ref": "#/$defs/binding" },
+        "validity": { "$ref": "#/$defs/validity" },
+        "replay_protection": { "$ref": "#/$defs/replayProtection" },
+        "issuance_lineage": { "$ref": "#/$defs/issuanceLineage" },
+        "local_first_verification": { "$ref": "#/$defs/localFirstVerification" },
+        "verification_state": { "$ref": "#/$defs/verificationState" },
+        "deny_reason": {
+          "oneOf": [{ "$ref": "#/$defs/denyReason" }, { "type": "null" }]
+        },
+        "applied_downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgradeTrigger" }
+        },
+        "redaction_class_token": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trustReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_ambient_machine_privilege",
+        "no_self_issued_authority_by_helpers",
+        "every_ticket_binds_all_dimensions",
+        "deny_reasons_name_failed_dimension",
+        "deny_reasons_carry_recovery",
+        "replay_protection_present_on_every_ticket",
+        "local_first_verifies_without_control_plane",
+        "local_first_never_widens_authority",
+        "audit_lineage_preserved_offline",
+        "secret_refs_handle_only_no_raw_material",
+        "fail_closed_when_enforcement_unavailable",
+        "no_raw_secret_material_in_exports"
+      ],
+      "properties": {
+        "no_ambient_machine_privilege": { "type": "boolean" },
+        "no_self_issued_authority_by_helpers": { "type": "boolean" },
+        "every_ticket_binds_all_dimensions": { "type": "boolean" },
+        "deny_reasons_name_failed_dimension": { "type": "boolean" },
+        "deny_reasons_carry_recovery": { "type": "boolean" },
+        "replay_protection_present_on_every_ticket": { "type": "boolean" },
+        "local_first_verifies_without_control_plane": { "type": "boolean" },
+        "local_first_never_widens_authority": { "type": "boolean" },
+        "audit_lineage_preserved_offline": { "type": "boolean" },
+        "secret_refs_handle_only_no_raw_material": { "type": "boolean" },
+        "fail_closed_when_enforcement_unavailable": { "type": "boolean" },
+        "no_raw_secret_material_in_exports": { "type": "boolean" }
+      }
+    },
+    "consumerProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_shows_ticket_and_deny_reason",
+        "command_and_policy_reference_same_tickets",
+        "cli_headless_verifies_offline",
+        "support_export_shows_ticket_ledger",
+        "diagnostics_shows_ticket_ledger",
+        "help_about_shows_ticket_summary",
+        "release_evidence_consumes_ledger",
+        "remote_and_browser_preserve_ticket_semantics"
+      ],
+      "properties": {
+        "desktop_shows_ticket_and_deny_reason": { "type": "boolean" },
+        "command_and_policy_reference_same_tickets": { "type": "boolean" },
+        "cli_headless_verifies_offline": { "type": "boolean" },
+        "support_export_shows_ticket_ledger": { "type": "boolean" },
+        "diagnostics_shows_ticket_ledger": { "type": "boolean" },
+        "help_about_shows_ticket_summary": { "type": "boolean" },
+        "release_evidence_consumes_ledger": { "type": "boolean" },
+        "remote_and_browser_preserve_ticket_semantics": { "type": "boolean" }
+      }
+    },
+    "proofFreshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": { "type": "integer", "minimum": 1 },
+        "last_proof_refresh": { "type": "string", "minLength": 1 },
+        "auto_narrow_on_stale": { "type": "boolean" }
+      }
+    }
+  }
+}

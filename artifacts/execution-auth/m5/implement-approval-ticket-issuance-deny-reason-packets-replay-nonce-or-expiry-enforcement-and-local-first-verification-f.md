@@ -1,0 +1,68 @@
+# M5 Approval-Ticket Issuance And Local-First Verification
+
+- Packet: `m5-approval-ticket-ledger:stable:0001`
+- Label: `M5 Approval-Ticket Issuance And Local-First Verification`
+- Tickets: 11 (4 denied or expired)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Tickets
+
+- **workspace_mutation** (ticket:scaffold-hook:0001) — scaffold_hook on subprocess_isolated_local — state: valid_local_first
+  - Actor: system_automation (`actor:scaffold-generator`) · Posture: ticket_required_per_action · Issuer: approval_broker
+  - Target: workspace://project/templates (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:1a2b3c4d5e6f7081
+  - Expiry: 2026-06-10T00:10:00Z (ttl 600s, single-use true) · Replay nonce: nonce:scaffold-hook:0001:7f3a (window 600s)
+  - Local-first: local_signature_chain (offline true, control-plane false)
+- **process_execution** (ticket:notebook-kernel:0001) — notebook_kernel on subprocess_isolated_local — state: valid_local_first
+  - Actor: human_operator (`actor:notebook-author`) · Posture: ticket_required_per_session · Issuer: approval_broker
+  - Target: kernel://project/notebook-7 (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:2b3c4d5e6f708192
+  - Expiry: 2026-06-10T02:00:00Z (ttl 7200s, single-use false) · Replay nonce: nonce:notebook-kernel:0001:8c41 (window 7200s)
+  - Local-first: cached_policy_bundle (offline true, control-plane false)
+- **network_send** (ticket:request-api-send:0001) — request_api_send on brokered_network_only — state: valid_local_first
+  - Actor: extension (`actor:request-sender-extension`) · Posture: ticket_required_per_scope · Issuer: approval_broker
+  - Target: https://api.example.test/v1/orders (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:3c4d5e6f70819203
+  - Expiry: 2026-06-10T01:00:00Z (ttl 3600s, single-use false) · Replay nonce: nonce:request-api-send:0001:9d52 (window 3600s)
+  - Local-first: local_signature_chain (offline true, control-plane false)
+- **database_write** (ticket:database-action:0001) — database_action on brokered_network_only — state: valid_local_first
+  - Actor: human_operator (`actor:db-operator`) · Posture: ticket_required_per_action · Issuer: approval_broker
+  - Target: db://project/orders (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:4d5e6f7081920314
+  - Expiry: 2026-06-10T00:15:00Z (ttl 900s, single-use true) · Replay nonce: nonce:database-action:0001:ae63 (window 900s)
+  - Local-first: cached_policy_bundle (offline true, control-plane false)
+- **secret_projection** (ticket:ai-tool:0001) — ai_tool on subprocess_isolated_local — state: valid_local_first
+  - Actor: ai_tool (`actor:ai-tool-runtime`) · Posture: ticket_required_per_action · Issuer: approval_broker
+  - Target: workspace://project/src (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:5e6f708192031425
+  - Expiry: 2026-06-10T00:05:00Z (ttl 300s, single-use true) · Replay nonce: nonce:ai-tool:0001:bf74 (window 300s)
+  - Local-first: local_signature_chain (offline true, control-plane false)
+- **remote_mutation** (ticket:remote-mutation:0001) — remote_mutation on isolated_remote_runtime — state: valid_local_first
+  - Actor: remote_helper (`actor:remote-helper`) · Posture: ticket_required_per_action · Issuer: remote_broker_runtime
+  - Target: remote://managed-runtime/deployment (off-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:6f70819203142536
+  - Expiry: 2026-06-10T00:05:00Z (ttl 300s, single-use true) · Replay nonce: nonce:remote-mutation:0001:c085 (window 120s)
+  - Local-first: remote_broker_attestation (offline false, control-plane true)
+- **browser_routed_action** (ticket:browser-routed-action:0001) — browser_routed_action on isolated_remote_runtime — state: valid_local_first
+  - Actor: browser_route (`actor:browser-route`) · Posture: ticket_required_per_action · Issuer: remote_broker_runtime
+  - Target: https://app.example.test (off-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:70819203142536f7
+  - Expiry: 2026-06-10T00:05:00Z (ttl 300s, single-use true) · Replay nonce: nonce:browser-routed-action:0001:d196 (window 120s)
+  - Local-first: remote_broker_attestation (offline false, control-plane true)
+- **network_send** (ticket:request-api-send:0002) — request_api_send on brokered_network_only — state: denied_expired
+  - Actor: extension (`actor:request-sender-extension`) · Posture: ticket_required_per_scope · Issuer: approval_broker
+  - Target: https://api.example.test/v1/orders (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:3c4d5e6f70819203
+  - Expiry: 2026-06-09T23:00:00Z (ttl 3600s, single-use false) · Replay nonce: nonce:request-api-send:0002:e207 (window 3600s)
+  - Local-first: local_signature_chain (offline true, control-plane false)
+  - Denied: expiry_elapsed → narrows to require_fresh_ticket — The approval ticket expired at 2026-06-09T23:00:00Z, before this send. · Recover: Request a fresh per-scope approval ticket for this endpoint and resend.
+- **database_write** (ticket:database-action:0002) — database_action on brokered_network_only — state: denied_replay_detected
+  - Actor: human_operator (`actor:db-operator`) · Posture: ticket_required_per_action · Issuer: approval_broker
+  - Target: db://project/orders (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:4d5e6f7081920314
+  - Expiry: 2026-06-10T00:15:00Z (ttl 900s, single-use true) · Replay nonce: nonce:database-action:0002:f318 (window 900s)
+  - Local-first: cached_policy_bundle (offline true, control-plane false)
+  - Denied: replay_nonce_consumed → narrows to narrow_to_read_only — The single-use replay nonce was already consumed; this is a replay attempt. · Recover: Re-run the write as a fresh per-action request to mint a new nonce.
+- **secret_projection** (ticket:ai-tool:0002) — ai_tool on subprocess_isolated_local — state: denied_epoch_superseded
+  - Actor: ai_tool (`actor:ai-tool-runtime`) · Posture: ticket_required_per_action · Issuer: approval_broker
+  - Target: workspace://project/src (on-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:5e6f708192031425
+  - Expiry: 2026-06-10T00:05:00Z (ttl 300s, single-use true) · Replay nonce: nonce:ai-tool:0002:0429 (window 300s)
+  - Local-first: local_signature_chain (offline true, control-plane false)
+  - Denied: policy_epoch_superseded → narrows to narrow_to_sanitized_preview — Policy epoch policy-epoch:m5:0007 was superseded after this ticket was minted. · Recover: Re-issue the ticket under the current policy epoch before acting on workspace files.
+- **remote_mutation** (ticket:remote-mutation:0002) — remote_mutation on isolated_remote_runtime — state: denied_binding_mismatch
+  - Actor: remote_helper (`actor:remote-helper`) · Posture: ticket_required_per_action · Issuer: remote_broker_runtime
+  - Target: remote://managed-runtime/deployment (off-device) · Epoch: policy-epoch:m5:0007 · Hash: sha256:6f70819203142536
+  - Expiry: 2026-06-10T00:05:00Z (ttl 300s, single-use true) · Replay nonce: nonce:remote-mutation:0002:153a (window 120s)
+  - Local-first: remote_broker_attestation (offline false, control-plane true)
+  - Denied: capability_hash_mismatch → narrows to fail_closed_block — The presented capability-envelope hash did not match the envelope bound at issuance. · Recover: Re-issue the remote-mutation ticket against the current capability envelope and retry.
