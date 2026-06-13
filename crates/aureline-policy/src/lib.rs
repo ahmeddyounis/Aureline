@@ -10,6 +10,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
+pub mod add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces;
 pub mod authority;
 pub mod deployment_profile_continuity_truth;
 pub mod finalize_backup_restore_failover_and_local_core_continuity;
@@ -361,6 +362,18 @@ pub use implement_execution_surface_classes_sandbox_profile_descriptors_and_unsu
     M5_EXECUTION_SURFACE_RESOLUTION_RECORD_KIND, M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_REF,
     M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_VERSION, M5_EXECUTION_SURFACE_RESOLUTION_SUMMARY_REF,
     M5_SANDBOX_PROFILE_DESCRIPTOR_VERSION,
+};
+
+pub use add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces::{
+    current_stable_m5_launch_inspector_export, frozen_stable_m5_launch_inspector_packet,
+    M5ExplainDegradation, M5ExplainDegradationReason, M5ExplainStatus, M5LaunchExplainSheet,
+    M5LaunchInspectorArtifactError, M5LaunchInspectorConsumerProjection, M5LaunchInspectorPacket,
+    M5LaunchInspectorPacketInput, M5LaunchInspectorProofFreshness, M5LaunchInspectorTrustReview,
+    M5LaunchInspectorViolation, M5LaunchRoute, M5ToolchainSelectionReason, M5WhatItCanAccess,
+    M5WhereItRuns, M5WhoApprovedIt, M5WhyThisToolchain, M5_LAUNCH_INSPECTOR_ARTIFACT_REF,
+    M5_LAUNCH_INSPECTOR_DOC_REF, M5_LAUNCH_INSPECTOR_FIXTURE_DIR, M5_LAUNCH_INSPECTOR_PACKET_ID,
+    M5_LAUNCH_INSPECTOR_RECORD_KIND, M5_LAUNCH_INSPECTOR_SCHEMA_REF,
+    M5_LAUNCH_INSPECTOR_SCHEMA_VERSION, M5_LAUNCH_INSPECTOR_SUMMARY_REF,
 };
 
 pub use ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sinks_or_endpoints_secret_handle_refs_policy_epoch_e::{
