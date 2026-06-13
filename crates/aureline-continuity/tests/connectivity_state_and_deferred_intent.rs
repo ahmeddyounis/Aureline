@@ -4,8 +4,8 @@ use std::path::Path;
 use aureline_continuity::{
     admit_deferred_intent, replay_decision, seeded_connectivity_continuity_page,
     validate_connectivity_continuity_page, AuthScopeSnapshot, ConnectivityContinuityPage,
-    ConnectivityState, DriftDimension, QueueAdmissionOutcome, ReplayOutcome,
-    ReplayRevalidationInput, TargetIdentity,
+    ConnectivityState, DriftDimension, QueueAdmissionOutcome, ReconciliationDisposition,
+    ReplayOutcome, ReplayRevalidationInput, ServiceFamily, TargetIdentity,
 };
 
 #[test]
@@ -23,6 +23,21 @@ fn seeded_page_covers_required_states_and_validates() {
     ] {
         assert!(page.covered_states().contains(&state), "missing {state:?}");
     }
+
+    assert_eq!(page.connectivity_badges.len(), 6);
+    assert_eq!(page.connectivity_cards.len(), 6);
+    assert!(page
+        .connectivity_badges
+        .iter()
+        .any(|badge| badge.service_family == ServiceFamily::Provider));
+    assert!(page
+        .connectivity_badges
+        .iter()
+        .any(|badge| badge.service_family == ServiceFamily::ManagedWorkspace));
+    assert!(page
+        .connectivity_badges
+        .iter()
+        .any(|badge| badge.service_family == ServiceFamily::Remote));
 }
 
 #[test]
@@ -50,7 +65,7 @@ fn queue_admission_allows_only_explicit_idempotent_reviewable_intent() {
 }
 
 #[test]
-fn replay_blocks_on_target_policy_auth_region_endpoint_version_and_context_drift() {
+fn replay_blocks_on_target_policy_auth_region_endpoint_version_context_and_data_drift() {
     let page = seeded_connectivity_continuity_page();
     let intent = page.deferred_intents.first().expect("intent present");
     let revalidation = ReplayRevalidationInput {
@@ -71,6 +86,7 @@ fn replay_blocks_on_target_policy_auth_region_endpoint_version_and_context_drift
         entitlement_current: false,
         current_service_family: intent.service_family,
         current_context_hash: "sha256:current-context".to_string(),
+        current_data_fingerprint: "sha256:current-data".to_string(),
         command_metadata_complete: true,
         expired: false,
     };
@@ -90,6 +106,7 @@ fn replay_blocks_on_target_policy_auth_region_endpoint_version_and_context_drift
         DriftDimension::Version,
         DriftDimension::Entitlement,
         DriftDimension::Context,
+        DriftDimension::Data,
     ] {
         assert!(
             decision.drift_dimensions.contains(&dimension),
@@ -109,6 +126,7 @@ fn replay_allows_only_when_lineage_matches() {
         entitlement_current: true,
         current_service_family: intent.service_family,
         current_context_hash: intent.context_hash.clone(),
+        current_data_fingerprint: intent.data_fingerprint.clone(),
         command_metadata_complete: true,
         expired: false,
     };
@@ -117,6 +135,27 @@ fn replay_allows_only_when_lineage_matches() {
         replay_decision(intent, &revalidation).outcome,
         ReplayOutcome::ReplayAllowed
     );
+}
+
+#[test]
+fn seeded_page_includes_visible_receipts_and_reconciliation_packets() {
+    let page = seeded_connectivity_continuity_page();
+    assert!(page.idempotency_receipts.len() >= 5);
+    assert!(page.reconciliation_packets.iter().any(|packet| {
+        packet.disposition == ReconciliationDisposition::Blocked && packet.outcome_disclosed_to_user
+    }));
+    assert!(page.reconciliation_packets.iter().any(|packet| {
+        packet.disposition == ReconciliationDisposition::Replayed
+            && packet.idempotency_receipt_ref.is_some()
+    }));
+    assert!(page.reconciliation_packets.iter().any(|packet| {
+        packet.disposition == ReconciliationDisposition::Narrowed
+            && packet.reconciliation_review_ref.is_some()
+    }));
+    assert!(page.reconciliation_packets.iter().any(|packet| {
+        packet.disposition == ReconciliationDisposition::Discarded
+            && packet.idempotency_receipt_ref.is_some()
+    }));
 }
 
 #[test]
