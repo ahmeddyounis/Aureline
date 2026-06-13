@@ -149,6 +149,11 @@
 //!   diagnostics-schema governance rows, and downgrade rules used by notebook,
 //!   data/API, preview, provider, profiler/replay, pipeline, docs/browser,
 //!   and infrastructure helper hosts.
+//! - The [`schema_registry`] packet — freezes the M5 depth-surface telemetry,
+//!   diagnostics, consent-ledger inheritance, endpoint truth, and
+//!   redaction-default packet classes used by notebook, provider, profiler,
+//!   pipeline, preview, and data surfaces so support export stays explicit and
+//!   local-first.
 //! - The [`crash_store`] packet — binds crash-envelope, dump/core metadata,
 //!   exact-build identity, redaction posture, and local preview/export/upload
 //!   actions into one local-first crash-store viewer for M5 host families.
@@ -211,6 +216,7 @@ pub mod runtime_evidence;
 pub mod runtime_health_alpha;
 pub mod safe_mode;
 pub mod scenario_scorecard;
+pub mod schema_registry;
 pub mod stabilize_dashboard_queue_and_followup_bundle_truth;
 pub mod stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded;
 pub mod stabilize_runbook_source_step_envelope_and_handoff_truth;
@@ -276,6 +282,15 @@ pub use route_exposure_beta::{
     ROUTE_EXPOSURE_MATRIX_PATH, ROUTE_EXPOSURE_MATRIX_RECORD_KIND,
     ROUTE_EXPOSURE_MATRIX_SCHEMA_PATH, ROUTE_EXPOSURE_MATRIX_SCHEMA_VERSION,
     ROUTE_EXPOSURE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use schema_registry::{
+    seeded_depth_surface_schema_registry_packet, ConsentLedgerBindingRow, ConsentStateClass,
+    DepthSignalClass, DepthSurfaceClass, DepthSurfaceSchemaRegistryPacket,
+    DepthSurfaceSchemaRegistryViolation, EndpointStateClass, PacketClassManifestRow,
+    SchemaDeclarationRow, SurfaceInspectionRow, DEPTH_SCHEMA_REGISTRY_ARTIFACT_REF,
+    DEPTH_SCHEMA_REGISTRY_DOC_REF, DEPTH_SCHEMA_REGISTRY_FIXTURE_DIR,
+    DEPTH_SCHEMA_REGISTRY_PACKET_RECORD_KIND, DEPTH_SCHEMA_REGISTRY_SCHEMA_REF,
+    DEPTH_SCHEMA_REGISTRY_SCHEMA_VERSION,
 };
 pub use supervised_restart_evidence_pipeline::{
     seeded_supervised_restart_evidence_packet, FaultDomainRestartSummary, HostLaneIdentityRecord,
