@@ -308,6 +308,7 @@
 
 pub mod add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes;
 pub mod add_recorded_macro_promotion_recipe_insertion_and_headless_safe_result_packets_for_user_automation;
+pub mod add_retrieval_locality_inspectors_contribution_lanes_ranking_or_chunking_reasons_and_lexical_or_graph_or_docs_pack_or_em;
 pub mod add_spend_ledgers_quota_warning_surfaces_and_wall_clock_or_token_or_tool_call_ceilings_for_long_running_agents;
 pub mod add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes;
 pub mod ai_pack_rollout;
@@ -373,6 +374,27 @@ pub use add_ai_assisted_test_generation_assumption_review_sandbox_validation_and
     GENERATED_TEST_REVIEW_SCHEMA_REF, GENERATED_TEST_REVIEW_SCHEMA_VERSION,
     GENERATED_TEST_REVIEW_SUMMARY_REF, GENERATED_TEST_REVIEW_TESTING_CONTRACT_REF,
     GENERATED_TEST_REVIEW_TEST_GENERATION_CONTRACT_REF,
+};
+pub use add_retrieval_locality_inspectors_contribution_lanes_ranking_or_chunking_reasons_and_lexical_or_graph_or_docs_pack_or_em::{
+    current_stable_retrieval_locality_inspector_export, CompletenessClass, ContributionLaneClass,
+    ContributionLaneRow, ContributionState, InspectorConsumerSurface, InspectorDowngradeTrigger,
+    ProviderOverlayPosture, RetrievalGenerationState, RetrievalInspectorSurface,
+    RetrievalInspectorSurfaceRow, RetrievalLocalityClass,
+    RetrievalLocalityInspectorArtifactError, RetrievalLocalityInspectorConsumerProjection,
+    RetrievalLocalityInspectorGuardrails, RetrievalLocalityInspectorPacket,
+    RetrievalLocalityInspectorPacketInput, RetrievalLocalityInspectorProofFreshness,
+    RetrievalLocalityInspectorViolation, SelectionReasonClass as RetrievalSelectionReasonClass,
+    SelectionReasonKind,
+    RETRIEVAL_LOCALITY_INSPECTOR_ARTIFACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_CONTEXT_ASSEMBLY_CONTRACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_DOC_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_EXPLAINABILITY_CONTRACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_FIXTURE_DIR, RETRIEVAL_LOCALITY_INSPECTOR_RANKING_CONTRACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_RECALL_MATRIX_CONTRACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_RECORD_KIND, RETRIEVAL_LOCALITY_INSPECTOR_SCHEMA_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_SCHEMA_VERSION,
+    RETRIEVAL_LOCALITY_INSPECTOR_SPEND_RECEIPT_CONTRACT_REF,
+    RETRIEVAL_LOCALITY_INSPECTOR_SUMMARY_REF,
 };
 pub use add_the_ai_refactor_planner_with_impact_sets_candidate_previews_and_multi_file_safety_classes::{
     current_stable_refactor_planner_export, CandidatePreviewBlock, CandidateRow, CandidateState,
