@@ -144,6 +144,11 @@
 //!   secret-bearing material never embed by default; the local-only path
 //!   stays at equal prominence; and the reopen manifest preserves the
 //!   included/excluded class lists, build identity, and destination class.
+//! - The [`m5_fault_crash_governance`] packet — freezes the canonical M5
+//!   fault-domain classes, restart classes, crash-artifact vocabulary,
+//!   diagnostics-schema governance rows, and downgrade rules used by notebook,
+//!   data/API, preview, provider, profiler/replay, pipeline, docs/browser,
+//!   and infrastructure helper hosts.
 //!
 //! ## Failure-drill posture
 //!
@@ -178,6 +183,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
+pub mod m5_fault_crash_governance;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -225,6 +231,16 @@ pub use fault_domain_views::{
     FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
 };
 pub use locale_beta::current_locale_pack_support_export;
+pub use m5_fault_crash_governance::{
+    seeded_m5_fault_crash_governance_packet, CheckpointSourceClass, ClaimStateClass,
+    CrashArtifactClass, CrashArtifactGovernanceRow, DiagnosticDataClass, DiagnosticOptInScope,
+    DiagnosticSchemaGovernanceRow, DiagnosticSignalClass, DowngradeRuleRow, DowngradeTriggerClass,
+    FaultDomainClass, FaultDomainMatrixRow, HostFamilyGovernanceRow, M5FaultCrashGovernancePacket,
+    M5FaultCrashGovernanceViolation, RedactionProfileClass, RestartClass, RestartClassRow,
+    RetentionClass, M5_FAULT_CRASH_GOVERNANCE_ARTIFACT_REF, M5_FAULT_CRASH_GOVERNANCE_DOC_REF,
+    M5_FAULT_CRASH_GOVERNANCE_FIXTURE_DIR, M5_FAULT_CRASH_GOVERNANCE_PACKET_RECORD_KIND,
+    M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_VERSION,
+};
 pub use route_exposure_beta::{
     audit_route_exposure_matrix, current_route_exposure_matrix, validate_route_exposure_matrix,
     RouteExposureFinding, RouteExposureMatrix, RouteExposureSupportExport,

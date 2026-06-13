@@ -1,0 +1,873 @@
+{
+  "record_kind": "m5_fault_crash_governance_packet",
+  "schema_version": 1,
+  "packet_id": "support.m5.fault_crash_governance.v1",
+  "generated_at": "2026-06-13T00:05:00Z",
+  "doc_ref": "docs/help/support/m5-fault-crash-governance.md",
+  "schema_ref": "schemas/support/m5-fault-crash-governance.schema.json",
+  "source_spec_refs": [
+    ".t2/docs/Aureline_Technical_Architecture_Document.md#appendix-cd",
+    ".t2/docs/Aureline_Technical_Architecture_Document.md#appendix-ck",
+    ".t2/docs/Aureline_Technical_Design_Document.md#7126-telemetry-schema-registry-and-consent-ledger",
+    ".t2/docs/Aureline_Technical_Design_Document.md#7127-crash-capture-minidump-symbolication-and-symbol-service",
+    ".t2/docs/Aureline_UX_Design_System_Style_Guide.md#2729-diagnostic-data-classes-redaction-policy-and-collection-schema-ux"
+  ],
+  "supporting_contract_refs": [
+    "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+    "docs/help/support/supervised-restart-evidence-pipeline.md",
+    "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json",
+    "docs/support/m4/harden_crash_capture_exact_build_symbolication_crash_loop.md",
+    "artifacts/governance/telemetry_support_usage_schema_registry.json",
+    "artifacts/governance/consent_ledger_seed.yaml"
+  ],
+  "normative_rules": [
+    "worker failure stays local and legible; no host may inherit hidden shell-wide failure semantics",
+    "restart budgets and strike windows remain typed, inspectable, and never silently widen authority on retry",
+    "crash capture and symbolication stay local-first and exact-build; same-version guessing is forbidden",
+    "diagnostic and telemetry flows are schema-governed, redaction-aware, and never silently upload protected content",
+    "stale host-failure, crash-forensics, or diagnostics-schema proof narrows the claim instead of inheriting adjacent maturity"
+  ],
+  "fault_domains": [
+    {
+      "fault_domain_class": "shell_interaction_core",
+      "isolation_unit": "one shell process per app instance",
+      "restart_class": "authority_verifier",
+      "checkpoint_source": "session_restore_checkpoint",
+      "quarantine_or_hard_stop_triggers": [
+        "repeated_launch_crash",
+        "binary_integrity_failure",
+        "user_chosen_safe_mode"
+      ],
+      "minimum_diagnostic_exports": [
+        "shell_version_build_id",
+        "crash_marker",
+        "window_session_lineage",
+        "last_restore_checkpoint"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "workspace_knowledge_group",
+      "isolation_unit": "per workspace/workset watcher-search-graph-language cohort",
+      "restart_class": "workspace_knowledge",
+      "checkpoint_source": "vfs_truth_and_disposable_caches",
+      "quarantine_or_hard_stop_triggers": [
+        "restart_budget_exceeded",
+        "repeated_corrupt_cache_detection",
+        "contract_version_mismatch"
+      ],
+      "minimum_diagnostic_exports": [
+        "workspace_workset_id",
+        "worker_lineage",
+        "stale_rebuild_state",
+        "epoch_change_journal_refs"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "session_execution_host",
+      "isolation_unit": "per task/test/debug/pty/notebook/provider-run session",
+      "restart_class": "session_scoped",
+      "checkpoint_source": "explicit_rerun_or_metadata_restore",
+      "quarantine_or_hard_stop_triggers": [
+        "repeated_crash_or_stall",
+        "revoked_target_authority",
+        "lost_backend_contract"
+      ],
+      "minimum_diagnostic_exports": [
+        "session_id",
+        "target_identity",
+        "command_family",
+        "envelope_profile_id",
+        "last_artifact_log_refs"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "extension_or_external_tool_host",
+      "isolation_unit": "per host pool, package, or adapter family",
+      "restart_class": "stateless_helper",
+      "checkpoint_source": "manifest_restart_clean_state",
+      "quarantine_or_hard_stop_triggers": [
+        "repeated_crash",
+        "ui_thread_abuse",
+        "quota_breach",
+        "manifest_abi_violation"
+      ],
+      "minimum_diagnostic_exports": [
+        "package_id_version",
+        "host_lineage",
+        "budget_counters",
+        "quarantine_reason",
+        "manifest_refs"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "ai_tool_broker",
+      "isolation_unit": "per provider route, model worker, or gateway host",
+      "restart_class": "privileged_externally_mutating",
+      "checkpoint_source": "provider_registry_and_allowed_local_cache",
+      "quarantine_or_hard_stop_triggers": [
+        "quota_exhaustion",
+        "repeated_side_effect_failure",
+        "ticket_revoke",
+        "trust_policy_deny"
+      ],
+      "minimum_diagnostic_exports": [
+        "provider_model_id",
+        "tool_ids",
+        "breaker_state",
+        "ticket_lineage",
+        "evidence_packet_refs"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "remote_connector",
+      "isolation_unit": "per target/session/relay path",
+      "restart_class": "stateless_helper",
+      "checkpoint_source": "reconnect_token_and_target_metadata",
+      "quarantine_or_hard_stop_triggers": [
+        "repeated_auth_failure",
+        "target_mismatch",
+        "incompatible_capability_window"
+      ],
+      "minimum_diagnostic_exports": [
+        "target_uri_identity",
+        "transport_class",
+        "reconnect_lineage",
+        "last_good_capability_manifest"
+      ],
+      "supporting_contract_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ]
+    },
+    {
+      "fault_domain_class": "policy_verifier_helper",
+      "isolation_unit": "per fetch/verify/local-authority job",
+      "restart_class": "authority_verifier",
+      "checkpoint_source": "signed_bundle_cache_snapshot",
+      "quarantine_or_hard_stop_triggers": [
+        "signature_failure",
+        "epoch_rollback",
+        "signer_mismatch",
+        "replay_nonce_breach"
+      ],
+      "minimum_diagnostic_exports": [
+        "bundle_id",
+        "signer_set",
+        "epoch_numbers",
+        "verification_failure_code"
+      ],
+      "supporting_contract_refs": [
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ]
+    }
+  ],
+  "restart_classes": [
+    {
+      "restart_class": "stateless_helper",
+      "typical_fault_domains": [
+        "extension_or_external_tool_host",
+        "remote_connector"
+      ],
+      "default_strike_window_minutes": 5,
+      "default_automatic_restarts": 5,
+      "escalation_posture": "Open circuit or disable the helper while keeping dependent surfaces explicit.",
+      "hidden_authority_widening_forbidden": true
+    },
+    {
+      "restart_class": "workspace_knowledge",
+      "typical_fault_domains": [
+        "workspace_knowledge_group"
+      ],
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 3,
+      "escalation_posture": "Quarantine the workspace knowledge group and rebuild from source truth.",
+      "hidden_authority_widening_forbidden": true
+    },
+    {
+      "restart_class": "session_scoped",
+      "typical_fault_domains": [
+        "session_execution_host"
+      ],
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 2,
+      "escalation_posture": "Fail the session only, preserve logs and artifacts, and require explicit rerun.",
+      "hidden_authority_widening_forbidden": true
+    },
+    {
+      "restart_class": "privileged_externally_mutating",
+      "typical_fault_domains": [
+        "ai_tool_broker",
+        "remote_connector"
+      ],
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 1,
+      "escalation_posture": "Revoke authority, require a fresh ticket, and force explicit retry or reapproval.",
+      "hidden_authority_widening_forbidden": true
+    },
+    {
+      "restart_class": "authority_verifier",
+      "typical_fault_domains": [
+        "shell_interaction_core",
+        "policy_verifier_helper"
+      ],
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 0,
+      "escalation_posture": "Fail closed for managed-only actions and keep the local core available.",
+      "hidden_authority_widening_forbidden": true
+    }
+  ],
+  "crash_artifacts": [
+    {
+      "artifact_class": "crash_envelope",
+      "default_location": "local crash store",
+      "high_risk_content_class": "metadata_only",
+      "required_companion_metadata": [
+        "crash_id",
+        "build_id",
+        "fault_domain",
+        "policy_fingerprint"
+      ],
+      "local_first_by_default": true,
+      "exact_build_only": true,
+      "auto_upload_forbidden": true,
+      "mirrorable_when_claimed": true,
+      "supporting_contract_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    },
+    {
+      "artifact_class": "minidump_or_core_artifact",
+      "default_location": "local crash store",
+      "high_risk_content_class": "code_adjacent",
+      "required_companion_metadata": [
+        "architecture",
+        "signal_or_exception_class",
+        "module_build_ids",
+        "dump_format"
+      ],
+      "local_first_by_default": true,
+      "exact_build_only": true,
+      "auto_upload_forbidden": true,
+      "mirrorable_when_claimed": false,
+      "supporting_contract_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    },
+    {
+      "artifact_class": "symbol_or_source_map_manifest",
+      "default_location": "artifact graph, mirror, or symbol store",
+      "high_risk_content_class": "metadata_only",
+      "required_companion_metadata": [
+        "build_id",
+        "target_triple",
+        "debug_format",
+        "digest",
+        "retention_policy"
+      ],
+      "local_first_by_default": true,
+      "exact_build_only": true,
+      "auto_upload_forbidden": true,
+      "mirrorable_when_claimed": true,
+      "supporting_contract_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    },
+    {
+      "artifact_class": "local_symbolication_report",
+      "default_location": "local diagnostics store",
+      "high_risk_content_class": "code_adjacent",
+      "required_companion_metadata": [
+        "symbol_sources_used",
+        "match_quality",
+        "unresolved_frames",
+        "redaction_profile"
+      ],
+      "local_first_by_default": true,
+      "exact_build_only": true,
+      "auto_upload_forbidden": true,
+      "mirrorable_when_claimed": true,
+      "supporting_contract_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    },
+    {
+      "artifact_class": "mirrored_symbol_service",
+      "default_location": "regional or tenant-scoped symbol store",
+      "high_risk_content_class": "metadata_only",
+      "required_companion_metadata": [
+        "signer_identity",
+        "mirror_source",
+        "retention",
+        "access_policy",
+        "audit_trail"
+      ],
+      "local_first_by_default": false,
+      "exact_build_only": true,
+      "auto_upload_forbidden": true,
+      "mirrorable_when_claimed": true,
+      "supporting_contract_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ]
+    }
+  ],
+  "diagnostic_schemas": [
+    {
+      "signal_class": "crash",
+      "schema_id": "diagnostics.crash_payload",
+      "schema_ref": "schemas/support/crash_diagnostic_payload.schema.json",
+      "purpose": "Crash and diagnostic payloads for local failure triage, optional submission, and support-safe review.",
+      "data_class": "code_adjacent",
+      "opt_in_scope": "explicit_submission_or_policy",
+      "prohibited_content_classes": [
+        "raw_source_code",
+        "prompt_contents",
+        "terminal_history",
+        "clipboard_history",
+        "credential_bodies"
+      ],
+      "retention_class": "local_user_owned_until_delete_or_attach",
+      "redaction_profile": "operator_only_restricted",
+      "evidence_source_refs": [
+        "artifacts/governance/telemetry_support_usage_schema_registry.json",
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ]
+    },
+    {
+      "signal_class": "performance",
+      "schema_id": "performance.trace_support_bundle",
+      "schema_ref": "schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json",
+      "purpose": "Profile and trace artifacts attached to incident workspaces, AI explanations, and support bundles under reviewed export.",
+      "data_class": "code_adjacent",
+      "opt_in_scope": "user_initiated_export_only",
+      "prohibited_content_classes": [
+        "raw_source_code",
+        "full_environment_dump",
+        "credential_bodies",
+        "tenant_private_urls"
+      ],
+      "retention_class": "local_user_owned_until_delete_or_attach",
+      "redaction_profile": "local_only_review_required",
+      "evidence_source_refs": [
+        "schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json",
+        "artifacts/perf/m5/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.json"
+      ]
+    },
+    {
+      "signal_class": "usage",
+      "schema_id": "usage.metering_export_packet",
+      "schema_ref": "schemas/governance/usage_export_record.schema.json",
+      "purpose": "Managed billing, quota, and contract-facing usage export packets.",
+      "data_class": "metadata_only",
+      "opt_in_scope": "admin_policy_gated",
+      "prohibited_content_classes": [
+        "raw_prompt_contents",
+        "raw_query_text",
+        "credential_bodies",
+        "private_ticket_threads"
+      ],
+      "retention_class": "managed_contract_window",
+      "redaction_profile": "metadata_safe_default",
+      "evidence_source_refs": [
+        "artifacts/governance/telemetry_support_usage_schema_registry.json",
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ]
+    },
+    {
+      "signal_class": "support",
+      "schema_id": "support.bundle_manifest",
+      "schema_ref": "schemas/support/support_bundle_manifest.schema.json",
+      "purpose": "User-initiated support export manifest and preview surface for governed evidence handoff.",
+      "data_class": "metadata_only",
+      "opt_in_scope": "user_initiated_export_only",
+      "prohibited_content_classes": [
+        "raw_dump_bytes",
+        "credential_bodies",
+        "full_shell_history",
+        "ambient_authority_handles"
+      ],
+      "retention_class": "local_manifest_until_sent",
+      "redaction_profile": "metadata_safe_default",
+      "evidence_source_refs": [
+        "artifacts/governance/telemetry_support_usage_schema_registry.json",
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ]
+    }
+  ],
+  "host_families": [
+    {
+      "host_family_id": "notebook_kernel_host",
+      "host_family_label": "Notebook kernel session",
+      "fault_domain_class": "session_execution_host",
+      "restart_class": "session_scoped",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 2,
+      "checkpoint_source": "explicit_rerun_or_metadata_restore",
+      "quarantine_trigger_classes": [
+        "kernel_protocol_contract_lost",
+        "restart_budget_exhausted",
+        "repeated_crash_or_stall"
+      ],
+      "minimum_diagnostic_exports": [
+        "session_id",
+        "kernel_environment_ref",
+        "cell_artifact_refs",
+        "restart_lineage",
+        "quarantine_reason"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "minidump_or_core_artifact",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "performance",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim",
+        "symbolication_gap_forces_local_only_forensics"
+      ]
+    },
+    {
+      "host_family_id": "data_api_connector_host",
+      "host_family_label": "Data/API connector and query runtime",
+      "fault_domain_class": "remote_connector",
+      "restart_class": "privileged_externally_mutating",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 1,
+      "checkpoint_source": "reconnect_token_and_target_metadata",
+      "quarantine_trigger_classes": [
+        "repeated_auth_failure",
+        "credential_scope_revoked",
+        "target_mismatch"
+      ],
+      "minimum_diagnostic_exports": [
+        "connection_identity",
+        "statement_class",
+        "route_transport_class",
+        "approval_ticket_ref",
+        "quarantine_reason"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "artifacts/governance/telemetry_support_usage_schema_registry.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim",
+        "diagnostic_schema_stale_blocks_managed_export_claim"
+      ]
+    },
+    {
+      "host_family_id": "preview_dev_server_host",
+      "host_family_label": "Preview dev server",
+      "fault_domain_class": "session_execution_host",
+      "restart_class": "session_scoped",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 2,
+      "checkpoint_source": "explicit_rerun_or_metadata_restore",
+      "quarantine_trigger_classes": [
+        "repeated_crash_or_stall",
+        "port_binding_conflict_loop",
+        "target_authority_revoked"
+      ],
+      "minimum_diagnostic_exports": [
+        "preview_session_id",
+        "route_identity",
+        "log_refs",
+        "restart_lineage",
+        "stale_session_drift"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "minidump_or_core_artifact",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "performance",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim",
+        "symbolication_gap_forces_local_only_forensics"
+      ]
+    },
+    {
+      "host_family_id": "provider_run_session_host",
+      "host_family_label": "Provider-backed run session",
+      "fault_domain_class": "ai_tool_broker",
+      "restart_class": "privileged_externally_mutating",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 1,
+      "checkpoint_source": "provider_registry_and_allowed_local_cache",
+      "quarantine_trigger_classes": [
+        "quota_exhaustion",
+        "ticket_revoke",
+        "repeated_side_effect_failure"
+      ],
+      "minimum_diagnostic_exports": [
+        "provider_model_id",
+        "ticket_lineage",
+        "tool_evidence_refs",
+        "breaker_state",
+        "quarantine_reason",
+        "symbolication_gap_reason"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report",
+        "mirrored_symbol_service"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "usage",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "artifacts/governance/telemetry_support_usage_schema_registry.json"
+      ],
+      "claim_state": "narrowed_local_only",
+      "stale_proof_tokens": [
+        "stale_symbolication_proof"
+      ],
+      "downgrade_rule_ids": [
+        "symbolication_gap_forces_local_only_forensics",
+        "diagnostic_schema_stale_blocks_managed_export_claim"
+      ]
+    },
+    {
+      "host_family_id": "profiler_replay_session_host",
+      "host_family_label": "Profiler and replay session",
+      "fault_domain_class": "session_execution_host",
+      "restart_class": "session_scoped",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 2,
+      "checkpoint_source": "explicit_rerun_or_metadata_restore",
+      "quarantine_trigger_classes": [
+        "repeated_capture_failure",
+        "symbolication_drift",
+        "restart_budget_exhausted"
+      ],
+      "minimum_diagnostic_exports": [
+        "capture_session_id",
+        "trace_profile_artifact_refs",
+        "mapping_quality",
+        "restart_lineage",
+        "quarantine_reason",
+        "symbolication_gap_reason"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report",
+        "mirrored_symbol_service"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "performance",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json",
+        "schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json"
+      ],
+      "claim_state": "narrowed_local_only",
+      "stale_proof_tokens": [
+        "stale_symbolication_proof"
+      ],
+      "downgrade_rule_ids": [
+        "symbolication_gap_forces_local_only_forensics",
+        "crash_artifact_proof_stale_narrows_crash_claim"
+      ]
+    },
+    {
+      "host_family_id": "pipeline_viewer_host",
+      "host_family_label": "Pipeline viewer session",
+      "fault_domain_class": "remote_connector",
+      "restart_class": "stateless_helper",
+      "default_strike_window_minutes": 5,
+      "default_automatic_restarts": 5,
+      "checkpoint_source": "reconnect_token_and_target_metadata",
+      "quarantine_trigger_classes": [
+        "target_mismatch",
+        "repeated_auth_failure",
+        "capability_manifest_drift"
+      ],
+      "minimum_diagnostic_exports": [
+        "pipeline_identity",
+        "provider_transport_class",
+        "event_stream_lineage",
+        "reconnect_lineage"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim",
+        "diagnostic_schema_stale_blocks_managed_export_claim"
+      ]
+    },
+    {
+      "host_family_id": "query_runtime_host",
+      "host_family_label": "Query/request runtime",
+      "fault_domain_class": "session_execution_host",
+      "restart_class": "session_scoped",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 2,
+      "checkpoint_source": "explicit_rerun_or_metadata_restore",
+      "quarantine_trigger_classes": [
+        "repeated_crash_or_stall",
+        "request_contract_lost",
+        "restart_budget_exhausted"
+      ],
+      "minimum_diagnostic_exports": [
+        "runtime_session_id",
+        "request_family",
+        "artifact_log_refs",
+        "restart_lineage"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "performance",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "schemas/perf/integrate-profile-and-trace-artifacts-into-incident-workspaces-ai-explanations-and-support-bundles.schema.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim"
+      ]
+    },
+    {
+      "host_family_id": "docs_browser_bridge_host",
+      "host_family_label": "Docs and browser bridge",
+      "fault_domain_class": "remote_connector",
+      "restart_class": "stateless_helper",
+      "default_strike_window_minutes": 5,
+      "default_automatic_restarts": 5,
+      "checkpoint_source": "reconnect_token_and_target_metadata",
+      "quarantine_trigger_classes": [
+        "cross_origin_limit_change",
+        "session_drift",
+        "target_mismatch"
+      ],
+      "minimum_diagnostic_exports": [
+        "bridge_session_id",
+        "origin_boundary",
+        "session_freshness",
+        "last_good_capability_manifest"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "artifacts/governance/telemetry_support_usage_schema_registry.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "restart_evidence_stale_narrows_host_claim"
+      ]
+    },
+    {
+      "host_family_id": "registry_database_connector_host",
+      "host_family_label": "Registry or database connector",
+      "fault_domain_class": "remote_connector",
+      "restart_class": "privileged_externally_mutating",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 1,
+      "checkpoint_source": "reconnect_token_and_target_metadata",
+      "quarantine_trigger_classes": [
+        "credential_scope_revoked",
+        "signer_or_endpoint_mismatch",
+        "repeated_auth_failure"
+      ],
+      "minimum_diagnostic_exports": [
+        "connector_identity",
+        "approval_ticket_ref",
+        "target_identity",
+        "quarantine_reason"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest",
+        "local_symbolication_report"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "support",
+        "usage"
+      ],
+      "canonical_support_packet_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "artifacts/governance/telemetry_support_usage_schema_registry.json"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "diagnostic_schema_stale_blocks_managed_export_claim"
+      ]
+    },
+    {
+      "host_family_id": "infra_helper_job",
+      "host_family_label": "Infrastructure helper",
+      "fault_domain_class": "policy_verifier_helper",
+      "restart_class": "authority_verifier",
+      "default_strike_window_minutes": 10,
+      "default_automatic_restarts": 0,
+      "checkpoint_source": "signed_bundle_cache_snapshot",
+      "quarantine_trigger_classes": [
+        "signature_failure",
+        "epoch_rollback",
+        "replay_nonce_breach"
+      ],
+      "minimum_diagnostic_exports": [
+        "helper_job_id",
+        "bundle_id",
+        "verification_failure_code",
+        "epoch_numbers"
+      ],
+      "required_crash_artifacts": [
+        "crash_envelope",
+        "symbol_or_source_map_manifest"
+      ],
+      "required_diagnostic_signal_classes": [
+        "crash",
+        "support"
+      ],
+      "canonical_support_packet_refs": [
+        "artifacts/governance/telemetry_support_usage_schema_registry.json",
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ],
+      "claim_state": "qualified",
+      "stale_proof_tokens": [],
+      "downgrade_rule_ids": [
+        "diagnostic_schema_stale_blocks_managed_export_claim"
+      ]
+    }
+  ],
+  "downgrade_rules": [
+    {
+      "rule_id": "restart_evidence_stale_narrows_host_claim",
+      "applies_to": "all_m5_host_families",
+      "trigger_class": "restart_evidence_stale",
+      "source_claim_state": "qualified",
+      "downgraded_claim_state": "narrowed_preview",
+      "required_effect": "Host surfaces must show stale restart/quarantine proof and stop claiming stable recovery posture.",
+      "rationale": "If restart lineage, strike-window proof, or quarantine evidence goes stale, the host may remain inspectable but it cannot inherit current bounded-failure maturity.",
+      "evidence_refs": [
+        "schemas/support/supervised-restart-evidence-pipeline.schema.json",
+        "artifacts/support/m5/fault-crash-governance.md"
+      ]
+    },
+    {
+      "rule_id": "crash_artifact_proof_stale_narrows_crash_claim",
+      "applies_to": "crash_forensics_rows",
+      "trigger_class": "crash_artifact_proof_stale",
+      "source_claim_state": "qualified",
+      "downgraded_claim_state": "narrowed_preview",
+      "required_effect": "Crash viewers and support exports must label crash-artifact proof stale and stop claiming reproducible forensics.",
+      "rationale": "Stale crash envelope, dump-manifest, or symbol-manifest proof cannot support strong crash-forensics claims even when older artifacts still exist.",
+      "evidence_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json",
+        "artifacts/support/m5/fault-crash-governance.md"
+      ]
+    },
+    {
+      "rule_id": "symbolication_gap_forces_local_only_forensics",
+      "applies_to": "notebook_preview_provider_profiler_hosts",
+      "trigger_class": "symbolication_not_exact_build",
+      "source_claim_state": "qualified",
+      "downgraded_claim_state": "narrowed_local_only",
+      "required_effect": "The row may reference crash evidence by id, but exact-build symbolication and shareable forensic conclusions must narrow to local-only review.",
+      "rationale": "A missing or mismatched symbolication proof must never be upgraded into exact-build crash truth for shared diagnostics or release evidence.",
+      "evidence_refs": [
+        "schemas/support/harden_crash_capture_exact_build_symbolication_crash_loop.schema.json",
+        "artifacts/governance/telemetry_support_usage_schema_registry.json"
+      ]
+    },
+    {
+      "rule_id": "diagnostic_schema_stale_blocks_managed_export_claim",
+      "applies_to": "usage_and_support_governance_rows",
+      "trigger_class": "diagnostic_schema_stale",
+      "source_claim_state": "qualified",
+      "downgraded_claim_state": "blocked_unverified",
+      "required_effect": "Managed or shareable export claims must block until schema id, consent posture, retention class, and redaction profile proof is current again.",
+      "rationale": "If the schema/consent packet is stale, export-safe language cannot stay greener than the underlying governance proof.",
+      "evidence_refs": [
+        "artifacts/governance/telemetry_support_usage_schema_registry.json",
+        "artifacts/governance/consent_ledger_seed.yaml"
+      ]
+    }
+  ],
+  "export_safe_summary": "This M5 fault/crash governance packet is metadata-safe: it freezes fault-domain, restart-budget, crash-artifact, diagnostics-schema, and downgrade vocabulary without embedding raw dumps, raw logs, raw code bodies, or live authority."
+}
