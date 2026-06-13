@@ -36,6 +36,7 @@
 
 pub mod content_integrity;
 pub mod detector;
+pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
 pub mod records;
 pub mod representation_copy_export;
 pub mod representation_labels;
@@ -53,6 +54,28 @@ pub use content_integrity::{
 pub use detector::{
     detect_suspicious_content, escape_for_safe_inspection, has_suspicious_content,
     DetectorOutcomeClass, SuspiciousContentDetection, SuspiciousFinding,
+};
+pub use freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix::{
+    current_stable_m5_content_integrity_matrix_export,
+    frozen_stable_m5_content_integrity_matrix_packet, M5ContentIntegrityActiveContentPolicy,
+    M5ContentIntegrityArtifactFamily, M5ContentIntegrityConsumerSurface,
+    M5ContentIntegrityCopyExportRepresentation, M5ContentIntegrityDisplayMode,
+    M5ContentIntegrityDowngradeTrigger, M5ContentIntegrityEvidenceRequirement,
+    M5ContentIntegrityMatrixArtifactError, M5ContentIntegrityMatrixConsumerProjection,
+    M5ContentIntegrityMatrixFamilyRow, M5ContentIntegrityMatrixPacket,
+    M5ContentIntegrityMatrixPacketInput, M5ContentIntegrityMatrixProofFreshness,
+    M5ContentIntegrityMatrixTrustReview, M5ContentIntegrityMatrixViolation,
+    M5ContentIntegrityQualificationClass, M5ContentIntegrityRawRenderedPosture,
+    M5ContentIntegritySafePreviewMode, M5ContentIntegrityTrustClass,
+    M5_CONTENT_INTEGRITY_MATRIX_ARTIFACT_REF, M5_CONTENT_INTEGRITY_MATRIX_DOC_REF,
+    M5_CONTENT_INTEGRITY_MATRIX_FIXTURE_DIR, M5_CONTENT_INTEGRITY_MATRIX_PACKET_ID,
+    M5_CONTENT_INTEGRITY_MATRIX_RECORD_KIND,
+    M5_CONTENT_INTEGRITY_MATRIX_REPRESENTATION_EXPORT_CONTRACT_REF,
+    M5_CONTENT_INTEGRITY_MATRIX_SAFE_PREVIEW_TRUST_CONTRACT_REF,
+    M5_CONTENT_INTEGRITY_MATRIX_SCHEMA_REF, M5_CONTENT_INTEGRITY_MATRIX_SCHEMA_VERSION,
+    M5_CONTENT_INTEGRITY_MATRIX_SUMMARY_REF,
+    M5_CONTENT_INTEGRITY_MATRIX_TEXT_REPRESENTATION_CONTRACT_REF,
+    M5_CONTENT_INTEGRITY_MATRIX_TRUST_CLASS_CONTRACT_REF,
 };
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
