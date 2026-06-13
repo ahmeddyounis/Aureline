@@ -64,6 +64,18 @@
 //!   stack, a direct CA override, or a silent direct-connect fallback. Mirrors
 //!   the boundary schema at
 //!   `/schemas/network/networked_surface_proxy_resolution.schema.json`.
+//! - [`networked_surface_transport_trust::TransportTrustPage`] — the
+//!   transport-trust layer that makes the trust inputs and host proof behind
+//!   every network-capable surface a first-class governed object: for each
+//!   covered surface it freezes the trust-store source, the organization CA
+//!   bundle / pin-set review state, the SSH/TLS host-proof state and history
+//!   depth, the client-certificate binding posture, and the trust-root freshness
+//!   and rotation cue, emitting a typed
+//!   [`networked_surface_transport_trust::TrustDenialClass`] (`deny_trust`) or a
+//!   typed host-proof state when a trust input is missing or stale, so no helper,
+//!   client, or extension can ship a direct CA override or silently downgrade
+//!   trust. Mirrors the boundary schema at
+//!   `/schemas/network/networked_surface_transport_trust.schema.json`.
 //! - [`networked_surface_transport_explainability::TransportExplainabilityPage`]
 //!   — the explainability layer that projects the decision stream into
 //!   current-posture inspectors, a recent network-event ledger filterable by
@@ -89,6 +101,7 @@ pub mod networked_surface_proxy_resolution;
 pub mod networked_surface_transport_decision;
 pub mod networked_surface_transport_explainability;
 pub mod networked_surface_transport_matrix;
+pub mod networked_surface_transport_trust;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
 
@@ -217,6 +230,23 @@ pub use networked_surface_proxy_resolution::{
     PROXY_RESOLUTION_ROW_RECORD_KIND, PROXY_RESOLUTION_SCHEMA_VERSION,
     PROXY_RESOLUTION_SHARED_CONTRACT_REF, PROXY_RESOLUTION_SUMMARY_RECORD_KIND,
     PROXY_RESOLUTION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use networked_surface_transport_trust::{
+    audit_transport_trust_page, seeded_transport_trust_page, seeded_transport_trust_snapshot,
+    validate_transport_trust_page, CaBundleDescriptor, CaBundleReviewClass, ClientCertDescriptor,
+    ClientCertPostureClass, HostProofDescriptor, HostProofStateClass, RotationCueClass,
+    TransportTrustPage, TrustDefect, TrustDenialClass, TrustEvaluationRecord,
+    TrustNarrowReasonClass, TrustOutcomeClass, TrustQualificationClass, TrustRootDescriptor,
+    TrustRootFreshnessClass, TrustRow, TrustSnapshot, TrustStoreSourceClass, TrustSummary,
+    TrustSupportExport, TRANSPORT_TRUST_ARTIFACT_REF, TRANSPORT_TRUST_CA_BUNDLE_RECORD_KIND,
+    TRANSPORT_TRUST_CLIENT_CERT_RECORD_KIND, TRANSPORT_TRUST_DEFECT_RECORD_KIND,
+    TRANSPORT_TRUST_DOC_REF, TRANSPORT_TRUST_EVALUATION_RECORD_KIND,
+    TRANSPORT_TRUST_EVIDENCE_INDEX_REF, TRANSPORT_TRUST_HOST_PROOF_RECORD_KIND,
+    TRANSPORT_TRUST_PAGE_RECORD_KIND, TRANSPORT_TRUST_ROOT_RECORD_KIND,
+    TRANSPORT_TRUST_ROW_RECORD_KIND, TRANSPORT_TRUST_SCHEMA_VERSION,
+    TRANSPORT_TRUST_SHARED_CONTRACT_REF, TRANSPORT_TRUST_SUMMARY_RECORD_KIND,
+    TRANSPORT_TRUST_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use networked_surface_transport_explainability::{

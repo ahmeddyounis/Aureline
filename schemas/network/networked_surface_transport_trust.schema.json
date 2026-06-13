@@ -1,0 +1,601 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/networked_surface_transport_trust.schema.json",
+  "title": "Aureline networked-surface transport-trust governance packet",
+  "description": "Boundary schema for the stable TransportTrustPage proof packet. The packet makes the trust inputs and host proof behind every network-capable surface a first-class governed object: for each surface it freezes the trust-store source, the organization CA bundle / pin-set review state and pin count, the SSH/TLS host-proof state and history depth, the client-certificate binding posture, and the trust-root freshness and rotation cue, emitting a typed deny_trust reason or a typed host-proof state when a trust input is missing or stale, so no helper, client, or extension can ship a direct CA override or silently downgrade trust. Raw CA bundles, raw certificate bytes, raw private keys, raw SSH host or private keys, raw credentials, and raw bearer/session tokens are excluded; only closed-vocabulary tokens, opaque handles and refs, plain-language summary sentences, and schema-version integers cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "page_id",
+    "page_label",
+    "generated_at",
+    "evidence_index_ref",
+    "summary",
+    "rows",
+    "defects",
+    "trust_snapshot"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "record_kind": {
+      "type": "string",
+      "const": "remote_networked_surface_transport_trust_page_record"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "remote:networked_surface_transport_trust:v1"
+    },
+    "page_id": { "$ref": "#/$defs/opaque_id" },
+    "page_label": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "evidence_index_ref": { "$ref": "#/$defs/non_empty_string" },
+    "summary": { "$ref": "#/$defs/trust_summary" },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/trust_row" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/trust_defect" }
+    },
+    "trust_snapshot": { "$ref": "#/$defs/trust_snapshot" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 800 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "nullable_opaque_ref": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_ref" }]
+    },
+    "possibly_empty_handle": { "type": "string" },
+    "surface_token": {
+      "type": "string",
+      "enum": [
+        "ai_gateway",
+        "docs_browser_fetcher",
+        "request_api_client",
+        "database_cloud_connector",
+        "registry_read",
+        "companion_handoff",
+        "provider_mutation",
+        "sync_offboarding",
+        "remote_preview_route"
+      ]
+    },
+    "origin_scope_token": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "third_party",
+        "user_configured",
+        "managed_tenant",
+        "loopback_local"
+      ]
+    },
+    "egress_class_token": {
+      "type": "string",
+      "enum": [
+        "public_internet",
+        "managed_endpoint",
+        "mirror_only",
+        "loopback_only",
+        "air_gapped"
+      ]
+    },
+    "trust_store_source_token": {
+      "type": "string",
+      "enum": [
+        "system_trust_store",
+        "pinned_ca_set",
+        "managed_org_bundle",
+        "mirror_root",
+        "ssh_known_hosts",
+        "no_tls_loopback"
+      ]
+    },
+    "ca_review_state_token": {
+      "type": "string",
+      "enum": [
+        "system_default",
+        "org_reviewed",
+        "pinned_set",
+        "mirror_root",
+        "not_applicable"
+      ]
+    },
+    "host_proof_state_token": {
+      "type": "string",
+      "enum": [
+        "pinned_match",
+        "known_tofu",
+        "first_use_pending",
+        "changed_mismatch",
+        "revoked",
+        "not_applicable"
+      ]
+    },
+    "client_cert_posture_token": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "optional_presented",
+        "required_presented",
+        "managed_provisioned",
+        "required_absent"
+      ]
+    },
+    "trust_root_freshness_token": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "rotation_due",
+        "rotation_in_progress",
+        "expired",
+        "pinned_static"
+      ]
+    },
+    "rotation_cue_token": {
+      "type": "string",
+      "enum": [
+        "none",
+        "rotate_soon",
+        "rotating",
+        "rotate_now",
+        "pinned_no_rotation"
+      ]
+    },
+    "outcome_token": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "trusted_rotation_due",
+        "host_proof_pending",
+        "deny_trust",
+        "not_applicable_loopback"
+      ]
+    },
+    "denial_reason_token": {
+      "type": "string",
+      "enum": [
+        "trust_store_unavailable",
+        "ca_bundle_missing",
+        "ca_bundle_stale",
+        "managed_bundle_unverified",
+        "host_proof_missing",
+        "host_proof_changed",
+        "host_proof_revoked",
+        "client_cert_required_absent",
+        "trust_root_expired",
+        "pin_set_mismatch",
+        "mirror_root_mismatch"
+      ]
+    },
+    "nullable_denial_reason_token": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/denial_reason_token" }]
+    },
+    "denial_reason_row_token": {
+      "type": "string",
+      "description": "Denial reason token, or the empty string when trust was not denied.",
+      "enum": [
+        "",
+        "trust_store_unavailable",
+        "ca_bundle_missing",
+        "ca_bundle_stale",
+        "managed_bundle_unverified",
+        "host_proof_missing",
+        "host_proof_changed",
+        "host_proof_revoked",
+        "client_cert_required_absent",
+        "trust_root_expired",
+        "pin_set_mismatch",
+        "mirror_root_mismatch"
+      ]
+    },
+    "mirror_offline_behavior_token": {
+      "type": "string",
+      "enum": [
+        "mirror_first_then_deny",
+        "cached_offline",
+        "offline_grace",
+        "deny_all",
+        "local_core_only"
+      ]
+    },
+    "qualification_token": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "withdrawn"]
+    },
+    "narrow_reason_token": {
+      "type": "string",
+      "enum": [
+        "not_narrowed",
+        "raw_trust_material_exposed",
+        "private_key_material_exposed",
+        "direct_ca_override_shipped",
+        "silent_trust_downgrade",
+        "required_surface_missing",
+        "deny_reason_missing",
+        "trust_input_classification_incomplete",
+        "rotation_cue_missing",
+        "local_core_continuity_not_preserved",
+        "policy_epoch_ref_missing"
+      ]
+    },
+    "ca_bundle_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "trust_store_source",
+        "trust_store_source_token",
+        "review_state",
+        "review_state_token",
+        "pin_count",
+        "bundle_handle",
+        "is_direct_ca_override",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_ca_bundle_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_token" },
+        "trust_store_source_token": { "$ref": "#/$defs/trust_store_source_token" },
+        "review_state": { "$ref": "#/$defs/ca_review_state_token" },
+        "review_state_token": { "$ref": "#/$defs/ca_review_state_token" },
+        "pin_count": { "type": "integer", "minimum": 0 },
+        "bundle_handle": { "$ref": "#/$defs/opaque_ref" },
+        "is_direct_ca_override": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "host_proof_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "state",
+        "state_token",
+        "proof_handle",
+        "history_depth",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_host_proof_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "state": { "$ref": "#/$defs/host_proof_state_token" },
+        "state_token": { "$ref": "#/$defs/host_proof_state_token" },
+        "proof_handle": { "$ref": "#/$defs/opaque_ref" },
+        "history_depth": { "type": "integer", "minimum": 0 },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "client_cert_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "posture",
+        "posture_token",
+        "binding_handle",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_client_cert_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "posture": { "$ref": "#/$defs/client_cert_posture_token" },
+        "posture_token": { "$ref": "#/$defs/client_cert_posture_token" },
+        "binding_handle": { "$ref": "#/$defs/possibly_empty_handle" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_root_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "freshness",
+        "freshness_token",
+        "rotation_cue",
+        "rotation_cue_token",
+        "rotation_ref",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_root_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "freshness": { "$ref": "#/$defs/trust_root_freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/trust_root_freshness_token" },
+        "rotation_cue": { "$ref": "#/$defs/rotation_cue_token" },
+        "rotation_cue_token": { "$ref": "#/$defs/rotation_cue_token" },
+        "rotation_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_evaluation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "record_id",
+        "evaluated_at",
+        "surface",
+        "surface_token",
+        "origin_scope",
+        "origin_scope_token",
+        "egress_class",
+        "egress_class_token",
+        "ca_bundle",
+        "host_proof",
+        "client_cert",
+        "trust_root",
+        "outcome",
+        "outcome_token",
+        "denial_reason",
+        "denial_reason_token",
+        "mirror_offline_behavior",
+        "mirror_offline_behavior_token",
+        "policy_epoch_ref",
+        "no_direct_ca_override",
+        "no_silent_trust_downgrade",
+        "local_core_continuity_preserved",
+        "summary",
+        "raw_trust_material_excluded",
+        "private_key_material_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_evaluation_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "evaluated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_token": { "$ref": "#/$defs/surface_token" },
+        "origin_scope": { "$ref": "#/$defs/origin_scope_token" },
+        "origin_scope_token": { "$ref": "#/$defs/origin_scope_token" },
+        "egress_class": { "$ref": "#/$defs/egress_class_token" },
+        "egress_class_token": { "$ref": "#/$defs/egress_class_token" },
+        "ca_bundle": { "$ref": "#/$defs/ca_bundle_descriptor" },
+        "host_proof": { "$ref": "#/$defs/host_proof_descriptor" },
+        "client_cert": { "$ref": "#/$defs/client_cert_descriptor" },
+        "trust_root": { "$ref": "#/$defs/trust_root_descriptor" },
+        "outcome": { "$ref": "#/$defs/outcome_token" },
+        "outcome_token": { "$ref": "#/$defs/outcome_token" },
+        "denial_reason": { "$ref": "#/$defs/nullable_denial_reason_token" },
+        "denial_reason_token": { "$ref": "#/$defs/denial_reason_row_token" },
+        "mirror_offline_behavior": {
+          "$ref": "#/$defs/mirror_offline_behavior_token"
+        },
+        "mirror_offline_behavior_token": {
+          "$ref": "#/$defs/mirror_offline_behavior_token"
+        },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "no_direct_ca_override": { "type": "boolean" },
+        "no_silent_trust_downgrade": { "type": "boolean" },
+        "local_core_continuity_preserved": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "raw_trust_material_excluded": { "type": "boolean" },
+        "private_key_material_excluded": { "type": "boolean" }
+      }
+    },
+    "trust_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records"],
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_evaluation_record" }
+        }
+      }
+    },
+    "trust_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "record_id",
+        "surface_token",
+        "origin_scope_token",
+        "egress_class_token",
+        "trust_store_source_token",
+        "ca_review_state_token",
+        "ca_pin_count",
+        "host_proof_state_token",
+        "client_cert_posture_token",
+        "trust_root_freshness_token",
+        "rotation_cue_token",
+        "outcome_token",
+        "denial_reason_token",
+        "mirror_offline_behavior_token",
+        "no_direct_ca_override",
+        "no_silent_trust_downgrade",
+        "local_core_continuity_preserved",
+        "policy_epoch_present",
+        "raw_trust_material_excluded",
+        "private_key_material_excluded",
+        "qualification_token",
+        "narrow_reason_token",
+        "plain_language_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_row_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_token": { "$ref": "#/$defs/surface_token" },
+        "origin_scope_token": { "$ref": "#/$defs/origin_scope_token" },
+        "egress_class_token": { "$ref": "#/$defs/egress_class_token" },
+        "trust_store_source_token": { "$ref": "#/$defs/trust_store_source_token" },
+        "ca_review_state_token": { "$ref": "#/$defs/ca_review_state_token" },
+        "ca_pin_count": { "type": "integer", "minimum": 0 },
+        "host_proof_state_token": { "$ref": "#/$defs/host_proof_state_token" },
+        "client_cert_posture_token": { "$ref": "#/$defs/client_cert_posture_token" },
+        "trust_root_freshness_token": { "$ref": "#/$defs/trust_root_freshness_token" },
+        "rotation_cue_token": { "$ref": "#/$defs/rotation_cue_token" },
+        "outcome_token": { "$ref": "#/$defs/outcome_token" },
+        "denial_reason_token": { "$ref": "#/$defs/denial_reason_row_token" },
+        "mirror_offline_behavior_token": {
+          "$ref": "#/$defs/mirror_offline_behavior_token"
+        },
+        "no_direct_ca_override": { "type": "boolean" },
+        "no_silent_trust_downgrade": { "type": "boolean" },
+        "local_core_continuity_preserved": { "type": "boolean" },
+        "policy_epoch_present": { "type": "boolean" },
+        "raw_trust_material_excluded": { "type": "boolean" },
+        "private_key_material_excluded": { "type": "boolean" },
+        "qualification_token": { "$ref": "#/$defs/qualification_token" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_token" },
+        "plain_language_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "stable_row_count",
+        "beta_row_count",
+        "preview_row_count",
+        "withdrawn_row_count",
+        "surfaces_covered",
+        "no_direct_ca_override_count",
+        "no_silent_trust_downgrade_count",
+        "local_core_continuity_preserved_count",
+        "host_proof_state_exposed_count",
+        "trust_store_source_counts",
+        "host_proof_state_counts",
+        "outcome_counts",
+        "rotation_cue_counts",
+        "overall_qualification_token"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "stable_row_count": { "type": "integer", "minimum": 0 },
+        "beta_row_count": { "type": "integer", "minimum": 0 },
+        "preview_row_count": { "type": "integer", "minimum": 0 },
+        "withdrawn_row_count": { "type": "integer", "minimum": 0 },
+        "surfaces_covered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_token" }
+        },
+        "no_direct_ca_override_count": { "type": "integer", "minimum": 0 },
+        "no_silent_trust_downgrade_count": { "type": "integer", "minimum": 0 },
+        "local_core_continuity_preserved_count": { "type": "integer", "minimum": 0 },
+        "host_proof_state_exposed_count": { "type": "integer", "minimum": 0 },
+        "trust_store_source_counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 },
+          "propertyNames": { "$ref": "#/$defs/trust_store_source_token" }
+        },
+        "host_proof_state_counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 },
+          "propertyNames": { "$ref": "#/$defs/host_proof_state_token" }
+        },
+        "outcome_counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 },
+          "propertyNames": { "$ref": "#/$defs/outcome_token" }
+        },
+        "rotation_cue_counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 },
+          "propertyNames": { "$ref": "#/$defs/rotation_cue_token" }
+        },
+        "overall_qualification_token": { "$ref": "#/$defs/qualification_token" }
+      }
+    },
+    "trust_defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_networked_surface_transport_trust_defect_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "remote:networked_surface_transport_trust:v1"
+        },
+        "defect_id": { "$ref": "#/$defs/non_empty_string" },
+        "narrow_reason": { "$ref": "#/$defs/narrow_reason_token" },
+        "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_token" },
+        "source": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
