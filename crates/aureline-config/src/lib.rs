@@ -7,6 +7,7 @@
 //! vocabulary for files that are not ordinary settings.
 
 pub mod structured_config_artifact_modes_and_layers;
+pub mod structured_config_policy_entitlement_certification;
 pub mod structured_config_manifest_environment_editor_qualification;
 pub mod structured_config_parameter_source_and_round_trip_review;
 pub mod structured_config_policy_bundle_and_entitlement_matrix;
