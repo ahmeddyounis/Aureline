@@ -100,6 +100,20 @@
 //!   public internet and local work continues when a network action is denied or
 //!   deferred. Mirrors the boundary schema at
 //!   `/schemas/network/networked_surface_mirror_offline_continuity.schema.json`.
+//! - [`networked_surface_transport_automation::TransportAutomationPage`] — the
+//!   audit and automation truth source that gives network activity history,
+//!   support exports, and headless automation one canonical
+//!   [`networked_surface_transport_automation::TransportDenialClass`] denial
+//!   vocabulary (`proxy_misconfigured`, `proxy_auth_required`, `ca_untrusted`,
+//!   `ssh_host_key_unknown`, `egress_blocked_policy`, `mirror_unreachable`,
+//!   `offline_mode`, `origin_scope_ambiguous`), one set of network-activity
+//!   filters ([`networked_surface_transport_automation::ActivityFilter`]), and
+//!   one redaction-safe route/origin history join
+//!   ([`networked_surface_transport_automation::RouteOriginJoinRow`]), so an M5
+//!   network failure is explained from a single packet set and one vocabulary
+//!   rather than reconstructed from per-feature logs. Mirrors the boundary
+//!   schema at
+//!   `/schemas/network/networked_surface_transport_automation.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -115,6 +129,7 @@ pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
 pub mod networked_surface_mirror_offline_continuity;
 pub mod networked_surface_proxy_resolution;
+pub mod networked_surface_transport_automation;
 pub mod networked_surface_transport_decision;
 pub mod networked_surface_transport_explainability;
 pub mod networked_surface_transport_matrix;
@@ -298,4 +313,20 @@ pub use networked_surface_mirror_offline_continuity::{
     MIRROR_OFFLINE_CONTINUITY_SCHEMA_VERSION, MIRROR_OFFLINE_CONTINUITY_SHARED_CONTRACT_REF,
     MIRROR_OFFLINE_CONTINUITY_SUMMARY_RECORD_KIND,
     MIRROR_OFFLINE_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_ARTIFACT_FAMILIES,
+};
+
+pub use networked_surface_transport_automation::{
+    audit_transport_automation_page, seeded_transport_automation_page,
+    seeded_transport_automation_snapshot, validate_transport_automation_page,
+    ActivityDispositionClass, ActivityFilter, ActivityFilterDimension, ActivityFilterFacet,
+    AutomationNarrowReasonClass, AutomationQualificationClass, NetworkActivityRecord,
+    RouteOriginJoinRow, TransportAutomationDefect, TransportAutomationPage, TransportAutomationRow,
+    TransportAutomationSnapshot, TransportAutomationSummary, TransportAutomationSupportExport,
+    TransportDenialClass, ACTIVITY_FIELD_NAMES, ACTIVITY_FILTER_DIMENSIONS, REQUIRED_DENIAL_CODES,
+    TRANSPORT_AUTOMATION_ACTIVITY_RECORD_KIND, TRANSPORT_AUTOMATION_ARTIFACT_REF,
+    TRANSPORT_AUTOMATION_DEFECT_RECORD_KIND, TRANSPORT_AUTOMATION_DOC_REF,
+    TRANSPORT_AUTOMATION_EVIDENCE_INDEX_REF, TRANSPORT_AUTOMATION_JOIN_RECORD_KIND,
+    TRANSPORT_AUTOMATION_PAGE_RECORD_KIND, TRANSPORT_AUTOMATION_ROW_RECORD_KIND,
+    TRANSPORT_AUTOMATION_SCHEMA_VERSION, TRANSPORT_AUTOMATION_SHARED_CONTRACT_REF,
+    TRANSPORT_AUTOMATION_SUMMARY_RECORD_KIND, TRANSPORT_AUTOMATION_SUPPORT_EXPORT_RECORD_KIND,
 };
