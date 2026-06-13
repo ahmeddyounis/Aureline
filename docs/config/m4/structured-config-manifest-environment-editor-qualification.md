@@ -30,6 +30,13 @@ Live-state projections are inspect-only until a separate apply model qualifies
 them. A save to canonical source never implies live convergence when execution,
 deployment, provider runtime, or cluster observation is deferred.
 
+The M5 family-specific deepening of this contract lives in
+[`/docs/config/structured_config_parameter_source_and_round_trip_review.md`](../structured_config_parameter_source_and_round_trip_review.md).
+That packet reuses this generic source/effective/live and round-trip guardrail
+vocabulary, then freezes per-parameter rows, value chips, compare-before-save
+review sheets, and export/support disclosure for the newer structured-config
+families.
+
 Regenerate fixtures with:
 
 ```sh

@@ -25,6 +25,9 @@ Related contracts:
 - [`/docs/config/m4/structured-config-manifest-environment-editor-qualification.md`](./m4/structured-config-manifest-environment-editor-qualification.md)
   — source/effective/live vocabulary and round-trip-risk guardrails reused by
   this matrix.
+- [`/docs/config/structured_config_parameter_source_and_round_trip_review.md`](./structured_config_parameter_source_and_round_trip_review.md)
+  — per-parameter provenance, compare-before-save review, and export/support
+  disclosure built on top of this family matrix.
 - [`/docs/policy/admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md)
   — admin policy precedence, bundle-cache, last-known-good, and safe-default
   rules this matrix points to.

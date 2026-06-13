@@ -14,6 +14,9 @@ Related contracts:
 
 - [`docs/config/m4/structured-config-manifest-environment-editor-qualification.md`](./m4/structured-config-manifest-environment-editor-qualification.md)
   freezes the broader source/effective/live and round-trip-risk vocabulary.
+- [`docs/config/structured_config_parameter_source_and_round_trip_review.md`](./structured_config_parameter_source_and_round_trip_review.md)
+  freezes the per-parameter rows, value chips, compare-before-save sheets, and
+  export/support disclosure that build on these headers and mode switches.
 - [`docs/config/structured_config_policy_bundle_and_entitlement_matrix.md`](./structured_config_policy_bundle_and_entitlement_matrix.md)
   freezes the family, signed-bundle, and deployment-profile matrix this packet
   deepens.
