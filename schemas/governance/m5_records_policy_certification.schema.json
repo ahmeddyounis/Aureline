@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/m5_records_policy_certification.schema.json",
+  "title": "M5 records-policy certification packet",
+  "description": "Schema for the m5_records_policy_certification packet. The packet is the canonical certification and shiproom/public-claim truth source for the M5 record-governance lane. It aggregates the five lane proofs — record class, hold/delete honesty, chronology, policy simulation, and exception/expiry — into one verdict per governed M5 managed/enterprise family. A family certifies only when every proof cell is observed and current; any missing or stale cell, or a managed-control claim a local-only family cannot prove, auto-narrows the family and, when the family is release-blocking, holds the shiproom promotion gate. The packet is metadata-only and carries no credential bodies, raw provider payloads, or durable content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "schema_ref",
+    "upstream_contracts",
+    "proof_dimensions",
+    "freshness_states",
+    "verdict_states",
+    "narrow_kinds",
+    "consumer_bindings",
+    "rows",
+    "promotion",
+    "summary"
+  ],
+  "$defs": {
+    "governed_artifact_family": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet",
+        "provider_linked_work_item",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "offboarding_record",
+        "browser_handoff_manifest",
+        "support_export_packet"
+      ]
+    },
+    "authority_boundary_class": {
+      "type": "string",
+      "enum": ["local_only", "managed_only", "local_and_managed"]
+    },
+    "proof_freshness_class": {
+      "type": "string",
+      "enum": ["current", "stale", "missing"]
+    },
+    "proof_dimension": {
+      "type": "string",
+      "enum": [
+        "record_class",
+        "hold_delete",
+        "chronology",
+        "policy_simulation",
+        "exception_expiry"
+      ]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["certified", "narrowed"]
+    },
+    "narrow_kind": {
+      "type": "string",
+      "enum": [
+        "proof_missing",
+        "proof_stale",
+        "upstream_validation_failed",
+        "managed_claim_unproven"
+      ]
+    },
+    "promotion_decision": {
+      "type": "string",
+      "enum": ["promote", "hold"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": ["shiproom", "public_claim", "cli_headless", "support_export"]
+    },
+    "proof_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "source_record_kind",
+        "contract_ref",
+        "proof_ref",
+        "observed",
+        "freshness"
+      ],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "source_record_kind": { "type": "string", "minLength": 1 },
+        "contract_ref": { "type": "string", "minLength": 1 },
+        "proof_ref": { "type": "string", "minLength": 1 },
+        "observed": { "type": "boolean" },
+        "freshness": { "$ref": "#/$defs/proof_freshness_class" }
+      }
+    },
+    "narrow_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "kind"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "kind": { "$ref": "#/$defs/narrow_kind" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "consumer_ref", "projection_rule"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "consumer_ref": { "type": "string", "minLength": 1 },
+        "projection_rule": { "type": "string", "minLength": 1 }
+      }
+    },
+    "certification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "artifact_family",
+        "release_blocking",
+        "record_class_id",
+        "authority_boundary",
+        "claims_managed_hold",
+        "claims_managed_export",
+        "claims_managed_delete",
+        "matrix_row_ref",
+        "proof_cells",
+        "verdict",
+        "shiproom_label",
+        "public_claim_label",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "artifact_family": { "$ref": "#/$defs/governed_artifact_family" },
+        "release_blocking": { "type": "boolean" },
+        "record_class_id": { "type": "string", "minLength": 1 },
+        "authority_boundary": { "$ref": "#/$defs/authority_boundary_class" },
+        "claims_managed_hold": { "type": "boolean" },
+        "claims_managed_export": { "type": "boolean" },
+        "claims_managed_delete": { "type": "boolean" },
+        "matrix_row_ref": { "type": "string", "minLength": 1 },
+        "proof_cells": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/proof_cell" }
+        },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        },
+        "shiproom_label": { "type": "string", "minLength": 1 },
+        "public_claim_label": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": {
+      "type": "string",
+      "const": "m5_records_policy_certification_packet"
+    },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "schema_ref": { "type": "string", "minLength": 1 },
+    "upstream_contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_matrix_ref",
+        "hold_retention_contract_ref",
+        "policy_simulation_contract_ref",
+        "exception_expiry_contract_ref",
+        "chronology_contract_ref"
+      ],
+      "properties": {
+        "record_class_matrix_ref": { "type": "string", "minLength": 1 },
+        "hold_retention_contract_ref": { "type": "string", "minLength": 1 },
+        "policy_simulation_contract_ref": { "type": "string", "minLength": 1 },
+        "exception_expiry_contract_ref": { "type": "string", "minLength": 1 },
+        "chronology_contract_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "proof_dimensions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/proof_dimension" }
+    },
+    "freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/proof_freshness_class" }
+    },
+    "verdict_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verdict" }
+    },
+    "narrow_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/narrow_kind" }
+    },
+    "consumer_bindings": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/certification_row" }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_gate",
+        "decision",
+        "blocking_entry_ids",
+        "rationale"
+      ],
+      "properties": {
+        "promotion_gate": { "type": "string", "minLength": 1 },
+        "decision": { "$ref": "#/$defs/promotion_decision" },
+        "blocking_entry_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "total_families",
+        "release_blocking_rows",
+        "certified_rows",
+        "narrowed_rows",
+        "proof_current_cells",
+        "proof_stale_cells",
+        "proof_missing_cells",
+        "total_narrow_reasons",
+        "consumer_binding_count"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "total_families": { "type": "integer", "minimum": 0 },
+        "release_blocking_rows": { "type": "integer", "minimum": 0 },
+        "certified_rows": { "type": "integer", "minimum": 0 },
+        "narrowed_rows": { "type": "integer", "minimum": 0 },
+        "proof_current_cells": { "type": "integer", "minimum": 0 },
+        "proof_stale_cells": { "type": "integer", "minimum": 0 },
+        "proof_missing_cells": { "type": "integer", "minimum": 0 },
+        "total_narrow_reasons": { "type": "integer", "minimum": 0 },
+        "consumer_binding_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

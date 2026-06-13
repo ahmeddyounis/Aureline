@@ -26,10 +26,16 @@
 //! marks each delete/export action changed or unchanged, lists impacted
 //! objects, and makes expiry effects and downgrade paths visible before the
 //! draft publishes.
+//! The [`m5_records_policy_certification`] module is the canonical certification
+//! truth source for the lane: it aggregates the record-class, hold/delete,
+//! chronology, policy-simulation, and exception/expiry proofs into one verdict
+//! per governed family, auto-narrows any family whose proof is missing or stale,
+//! and exposes the shiproom and public-claim projections those surfaces ingest.
 
 pub mod export_delete_lifecycle;
 pub mod m5_policy_simulation;
 pub mod m5_records_policy;
+pub mod m5_records_policy_certification;
 pub mod records_policy_simulation_matrix;
 pub mod stabilize_record_class_registry_legal_hold_delete_honesty;
 
