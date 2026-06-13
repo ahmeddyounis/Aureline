@@ -84,6 +84,22 @@
 //!   CLI/headless, diagnostics, and support exports quote identical decision
 //!   codes and field names. Mirrors the boundary schema at
 //!   `/schemas/network/networked_surface_transport_explainability.schema.json`.
+//! - [`networked_surface_mirror_offline_continuity::MirrorOfflineContinuityPage`]
+//!   — the mirror/offline continuity layer that makes mirror-only,
+//!   local-file-bundle, public-direct, blocked, and deferred route handling
+//!   explicit across the claimed M5 artifact families (docs packs, registries,
+//!   model packs, request workspaces, and companion handoffs): for each family
+//!   it freezes the typed
+//!   [`networked_surface_mirror_offline_continuity::ContinuityRouteClass`] route
+//!   handling, the
+//!   [`networked_surface_mirror_offline_continuity::StaleMirrorWarningClass`]
+//!   stale-mirror warning, the declared
+//!   [`networked_surface_mirror_offline_continuity::PublicFallbackRuleClass`]
+//!   public-fallback rule, and the local-core workflow that stays usable, so a
+//!   mirror-only or deny-all profile can never silently fall through to the
+//!   public internet and local work continues when a network action is denied or
+//!   deferred. Mirrors the boundary schema at
+//!   `/schemas/network/networked_surface_mirror_offline_continuity.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -97,6 +113,7 @@
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
+pub mod networked_surface_mirror_offline_continuity;
 pub mod networked_surface_proxy_resolution;
 pub mod networked_surface_transport_decision;
 pub mod networked_surface_transport_explainability;
@@ -265,4 +282,20 @@ pub use networked_surface_transport_explainability::{
     TRANSPORT_EXPLAINABILITY_SCHEMA_VERSION, TRANSPORT_EXPLAINABILITY_SHARED_CONTRACT_REF,
     TRANSPORT_EXPLAINABILITY_SUMMARY_RECORD_KIND,
     TRANSPORT_EXPLAINABILITY_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use networked_surface_mirror_offline_continuity::{
+    audit_mirror_offline_continuity_page, seeded_mirror_offline_continuity_page,
+    seeded_mirror_offline_continuity_snapshot, validate_mirror_offline_continuity_page,
+    ArtifactFamilyClass, ContinuityNarrowReasonClass, ContinuityQualificationClass,
+    ContinuityRecord, ContinuityRouteClass, ContinuitySnapshot, MirrorOfflineContinuityDefect,
+    MirrorOfflineContinuityPage, MirrorOfflineContinuityRow, MirrorOfflineContinuitySummary,
+    MirrorOfflineContinuitySupportExport, PublicFallbackRuleClass, StaleMirrorWarningClass,
+    CONTINUITY_FIELD_NAMES, MIRROR_OFFLINE_CONTINUITY_ARTIFACT_REF,
+    MIRROR_OFFLINE_CONTINUITY_DEFECT_RECORD_KIND, MIRROR_OFFLINE_CONTINUITY_DOC_REF,
+    MIRROR_OFFLINE_CONTINUITY_EVIDENCE_INDEX_REF, MIRROR_OFFLINE_CONTINUITY_PAGE_RECORD_KIND,
+    MIRROR_OFFLINE_CONTINUITY_RECORD_KIND, MIRROR_OFFLINE_CONTINUITY_ROW_RECORD_KIND,
+    MIRROR_OFFLINE_CONTINUITY_SCHEMA_VERSION, MIRROR_OFFLINE_CONTINUITY_SHARED_CONTRACT_REF,
+    MIRROR_OFFLINE_CONTINUITY_SUMMARY_RECORD_KIND,
+    MIRROR_OFFLINE_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND, REQUIRED_ARTIFACT_FAMILIES,
 };
