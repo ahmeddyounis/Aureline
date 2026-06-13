@@ -1,0 +1,61 @@
+# M5 Issue-Use-Revoke Authority-Lifecycle Ledger
+
+- Packet: `m5-authority-lifecycle-ledger:stable:0001`
+- Label: `M5 Issue-Use-Revoke Authority-Lifecycle Ledger`
+- Entries: 8 (5 invalidated by drift, 1 revoked)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Authority grants
+
+- **workspace_mutation** (ledger:scaffold-hook:0001) — scaffold_hook on subprocess_isolated_local — state: active
+  - Flow: execution · Actor: system_automation (`actor:scaffold-generator`) · Issuer: approval_broker
+  - Target: workspace://project/templates (on-device) · Session: session:scaffold:0001 · Ticket: ticket:scaffold-hook:0001 · Envelope: envelope:scaffold-hook:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 600s) · Uses: 1
+    - Use #1 2026-06-10T00:00:30Z: allowed_executed — Generated project templates under the scoped workspace root.
+- **process_execution** (ledger:notebook-kernel:0001) — notebook_kernel on subprocess_isolated_local — state: active
+  - Flow: execution · Actor: human_operator (`actor:notebook-author`) · Issuer: approval_broker
+  - Target: kernel://project/notebook-7 (on-device) · Session: session:notebook:0001 · Ticket: ticket:notebook-kernel:0001 · Envelope: envelope:notebook-kernel:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 7200s) · Uses: 2
+    - Use #1 2026-06-10T00:01:00Z: allowed_executed — Ran notebook cell 3 in the isolated kernel subprocess.
+    - Use #2 2026-06-10T00:05:00Z: allowed_executed — Ran notebook cell 4 in the isolated kernel subprocess.
+- **network_send** (ledger:request-api-send:0001) — request_api_send on brokered_network_only — state: invalidated
+  - Flow: provider_linked · Actor: extension (`actor:request-sender-extension`) · Issuer: approval_broker
+  - Target: https://api.example.test/v1/orders (on-device) · Session: session:request:0001 · Ticket: ticket:request-api-send:0001 · Envelope: envelope:request-api-send:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 3600s) · Uses: 2
+    - Use #1 2026-06-10T00:10:00Z: allowed_executed — Sent the first order request to the verified endpoint.
+    - Use #2 2026-06-10T00:31:00Z: denied_invalidated — Blocked the retry after the endpoint identity drifted; required a fresh ticket.
+  - Invalidated: target_identity_drift → narrows to require_fresh_ticket — The bound endpoint identity https://api.example.test/v1/orders no longer matches the verified target. · Recover: Re-verify the endpoint identity and request a fresh ticket before sending again.
+- **database_write** (ledger:database-action:0001) — database_action on brokered_network_only — state: invalidated
+  - Flow: provider_linked · Actor: human_operator (`actor:db-operator`) · Issuer: approval_broker
+  - Target: db://project/orders (on-device) · Session: session:database:0001 · Ticket: ticket:database-action:0001 · Envelope: envelope:database-action:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 900s) · Uses: 2
+    - Use #1 2026-06-10T00:05:00Z: allowed_executed — Applied the first order-status write under the issued epoch.
+    - Use #2 2026-06-10T00:13:00Z: denied_invalidated — Narrowed the follow-up write to a sanitized preview after the epoch was superseded.
+  - Invalidated: policy_epoch_drift → narrows to narrow_to_sanitized_preview — Policy epoch policy-epoch:m5:0007 was superseded after this grant was issued. · Recover: Re-issue the database grant under the current policy epoch before writing again.
+- **remote_mutation** (ledger:remote-mutation:0001) — remote_mutation on isolated_remote_runtime — state: invalidated
+  - Flow: remote · Actor: remote_helper (`actor:remote-mutation-helper`) · Issuer: remote_broker_runtime
+  - Target: remote://managed-host/project/deploy (off-device) · Session: session:remote:0001 · Ticket: ticket:remote-mutation:0001 · Envelope: envelope:remote-mutation:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 1800s) · Uses: 2
+    - Use #1 2026-06-10T00:10:00Z: allowed_executed — Applied the first remote deploy step in the isolated runtime.
+    - Use #2 2026-06-10T00:21:00Z: denied_invalidated — Failed the remaining step closed after the isolated runtime profile drifted.
+  - Invalidated: sandbox_profile_drift → narrows to fail_closed_block — The isolated remote runtime profile became unavailable on the managed host. · Recover: Re-issue the remote-mutation grant once a supported isolated profile is available.
+- **network_send** (ledger:incident-flow:0001) — incident_flow on brokered_network_only — state: invalidated
+  - Flow: repair · Actor: system_automation (`actor:repair-runner`) · Issuer: policy_authority
+  - Target: https://incident.example.test/repair (on-device) · Session: session:incident:0001 · Ticket: ticket:incident-flow:0001 · Envelope: envelope:incident-flow:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 1800s) · Uses: 2
+    - Use #1 2026-06-10T00:03:00Z: allowed_executed — Wrote the first recovery checkpoint under the issued trust anchor.
+    - Use #2 2026-06-10T00:09:00Z: denied_invalidated — Failed the next repair step closed after the trust anchor drifted.
+  - Invalidated: trust_anchor_drift → narrows to fail_closed_block — The trust-store anchor backing this repair flow changed mid-session. · Recover: Re-establish the trust anchor and re-issue the repair grant before continuing.
+- **browser_routed_action** (ledger:browser-routed-action:0001) — browser_routed_action on isolated_remote_runtime — state: invalidated
+  - Flow: provider_linked · Actor: browser_route (`actor:browser-route-helper`) · Issuer: approval_broker
+  - Target: https://preview.example.test/session (on-device) · Session: session:browser:0001 · Ticket: ticket:browser-routed-action:0001 · Envelope: envelope:browser-routed-action:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 1800s) · Uses: 1
+    - Use #1 2026-06-10T00:07:00Z: denied_invalidated — Blocked the routed page action and fell back to offline local-core behavior after the egress route narrowed.
+  - Invalidated: network_posture_drift → narrows to offline_local_core_only — The egress route narrowed when the enterprise proxy posture changed. · Recover: Fall back to offline local-core behavior and re-issue once the route is restored.
+- **secret_projection** (ledger:ai-tool:0001) — ai_tool on subprocess_isolated_local — state: revoked
+  - Flow: ai_assisted · Actor: ai_tool (`actor:ai-tool:composer`) · Issuer: approval_broker
+  - Target: secret-handle://project/api-token (on-device) · Session: session:ai:0001 · Ticket: ticket:ai-tool:0001 · Envelope: envelope:ai-tool:0001
+  - Issued: 2026-06-10T00:00:00Z (epoch policy-epoch:m5:0007, ttl 1200s) · Uses: 2
+    - Use #1 2026-06-10T00:02:00Z: allowed_executed — Projected the handle-only token reference into one approved tool call.
+    - Use #2 2026-06-10T00:11:00Z: denied_revoked — Blocked a further projection after the operator revoked the AI tool grant.
+  - Revoked by operator:project-owner → narrows to fail_closed_block — Operator revoked the AI tool's standing secret-projection grant.

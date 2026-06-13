@@ -10,6 +10,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
+pub mod add_issue_use_revoke_audit_ledgers_invalidation_on_target_or_trust_or_policy_or_sandbox_drift_and_support_export_safe_au;
 pub mod add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces;
 pub mod authority;
 pub mod deployment_profile_continuity_truth;
@@ -364,6 +365,22 @@ pub use implement_execution_surface_classes_sandbox_profile_descriptors_and_unsu
     M5_EXECUTION_SURFACE_RESOLUTION_RECORD_KIND, M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_REF,
     M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_VERSION, M5_EXECUTION_SURFACE_RESOLUTION_SUMMARY_REF,
     M5_SANDBOX_PROFILE_DESCRIPTOR_VERSION,
+};
+
+pub use add_issue_use_revoke_audit_ledgers_invalidation_on_target_or_trust_or_policy_or_sandbox_drift_and_support_export_safe_au::{
+    active_entries, build_lifecycle_ledger_packet,
+    current_stable_m5_authority_lifecycle_ledger_export, expired_entries,
+    frozen_stable_m5_authority_lifecycle_ledger_packet, invalidated_entries, issued_entries,
+    revoked_entries, M5AuthorityLedgerEntry, M5AuthorityLifecycleConsumerProjection,
+    M5AuthorityLifecycleLedgerArtifactError, M5AuthorityLifecycleLedgerPacket,
+    M5AuthorityLifecycleLedgerPacketInput, M5AuthorityLifecycleLedgerViolation,
+    M5AuthorityLifecycleProofFreshness, M5AuthorityLifecycleState, M5AuthorityLifecycleTrustReview,
+    M5DriftDimension, M5Invalidation, M5IssueEvent, M5LedgerEventClass, M5LedgerLinkage,
+    M5OriginFlowClass, M5RevokeEvent, M5UseEvent, M5UseOutcome,
+    M5_AUTHORITY_LIFECYCLE_LEDGER_ARTIFACT_REF, M5_AUTHORITY_LIFECYCLE_LEDGER_DOC_REF,
+    M5_AUTHORITY_LIFECYCLE_LEDGER_FIXTURE_DIR, M5_AUTHORITY_LIFECYCLE_LEDGER_PACKET_ID,
+    M5_AUTHORITY_LIFECYCLE_LEDGER_RECORD_KIND, M5_AUTHORITY_LIFECYCLE_LEDGER_SCHEMA_REF,
+    M5_AUTHORITY_LIFECYCLE_LEDGER_SCHEMA_VERSION, M5_AUTHORITY_LIFECYCLE_LEDGER_SUMMARY_REF,
 };
 
 pub use add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces::{
