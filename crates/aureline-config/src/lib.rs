@@ -7,3 +7,4 @@
 //! vocabulary for files that are not ordinary settings.
 
 pub mod structured_config_manifest_environment_editor_qualification;
+pub mod structured_config_policy_bundle_and_entitlement_matrix;
