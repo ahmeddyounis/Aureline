@@ -1,0 +1,69 @@
+# M5 Runtime-Authority Parity Certification
+
+- Packet: `m5-runtime-authority-certification:stable:0001`
+- Label: `M5 Runtime-Authority Parity Certification`
+- Surfaces: 10 (10 certified, 0 auto-narrowed)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Certified surfaces
+
+- **request_api_send** — verdict: certified — claim: stable → effective: stable
+  - Isolation: brokered_network_only · Ticket: ticket_required_per_scope · Secret scope: handle_only_delegated
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **database_action** — verdict: certified — claim: beta → effective: beta
+  - Isolation: brokered_network_only · Ticket: ticket_required_per_action · Secret scope: handle_only_delegated
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **notebook_kernel** — verdict: certified — claim: beta → effective: beta
+  - Isolation: subprocess_isolated_local · Ticket: ticket_required_per_session · Secret scope: no_secret_access
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **scaffold_hook** — verdict: certified — claim: beta → effective: beta
+  - Isolation: subprocess_isolated_local · Ticket: ticket_required_per_action · Secret scope: no_secret_access
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **preview_server** — verdict: certified — claim: beta → effective: beta
+  - Isolation: container_isolated_local · Ticket: ticket_required_per_session · Secret scope: no_secret_access
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **ai_tool** — verdict: certified — claim: beta → effective: beta
+  - Isolation: subprocess_isolated_local · Ticket: ticket_required_per_action · Secret scope: handle_only_delegated
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **recipe** — verdict: certified — claim: beta → effective: beta
+  - Isolation: subprocess_isolated_local · Ticket: ticket_required_per_scope · Secret scope: no_secret_access
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **browser_routed_action** — verdict: certified — claim: preview → effective: preview
+  - Isolation: isolated_remote_runtime · Ticket: ticket_required_per_action · Secret scope: no_secret_access
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **incident_flow** — verdict: certified — claim: beta → effective: beta
+  - Isolation: brokered_network_only · Ticket: ticket_required_per_scope · Secret scope: handle_only_delegated
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)
+- **remote_mutation** — verdict: certified — claim: preview → effective: preview
+  - Isolation: isolated_remote_runtime · Ticket: ticket_required_per_action · Secret scope: scoped_brokered_secret
+    - execution_isolation: current (m5-execution-surface-resolution:stable:0001)
+    - approval_ticket_integrity: current (m5-approval-ticket-ledger:stable:0001)
+    - capability_envelope_parity: current (m5-capability-envelope-packets:stable:0001)
+    - runtime_authority_lineage: current (m5-runtime-authority-matrix:stable:0001)

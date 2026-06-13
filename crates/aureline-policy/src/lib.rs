@@ -13,6 +13,7 @@
 pub mod add_issue_use_revoke_audit_ledgers_invalidation_on_target_or_trust_or_policy_or_sandbox_drift_and_support_export_safe_au;
 pub mod add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces;
 pub mod authority;
+pub mod certify_runtime_authority_approval_ticket_integrity_execution_isolation_and_capability_envelope_parity_on_all_claimed_m5;
 pub mod deployment_profile_continuity_truth;
 pub mod finalize_backup_restore_failover_and_local_core_continuity;
 pub mod finalize_managed_workspace_lifecycle_truth;
@@ -381,6 +382,26 @@ pub use add_issue_use_revoke_audit_ledgers_invalidation_on_target_or_trust_or_po
     M5_AUTHORITY_LIFECYCLE_LEDGER_FIXTURE_DIR, M5_AUTHORITY_LIFECYCLE_LEDGER_PACKET_ID,
     M5_AUTHORITY_LIFECYCLE_LEDGER_RECORD_KIND, M5_AUTHORITY_LIFECYCLE_LEDGER_SCHEMA_REF,
     M5_AUTHORITY_LIFECYCLE_LEDGER_SCHEMA_VERSION, M5_AUTHORITY_LIFECYCLE_LEDGER_SUMMARY_REF,
+};
+
+pub use certify_runtime_authority_approval_ticket_integrity_execution_isolation_and_capability_envelope_parity_on_all_claimed_m5::{
+    build_certification_packet, certification_verdict_for, certified_entries,
+    current_stable_m5_runtime_authority_certification_export,
+    entries_with_missing_proof_surface, entries_with_stale_proof_surface,
+    entries_with_unsupported_backend_surface,
+    frozen_stable_m5_runtime_authority_certification_packet, recertify_surface,
+    M5CertificationProof, M5CertificationProofStatus, M5CertificationVerdict,
+    M5CertifiedAuthorityDimension, M5RuntimeAuthorityCertificationArtifactError,
+    M5RuntimeAuthorityCertificationConsumerProjection, M5RuntimeAuthorityCertificationPacket,
+    M5RuntimeAuthorityCertificationPacketInput, M5RuntimeAuthorityCertificationProofFreshness,
+    M5RuntimeAuthorityCertificationTrustReview, M5RuntimeAuthorityCertificationViolation,
+    M5SurfaceCertificationEntry, M5_RUNTIME_AUTHORITY_CERTIFICATION_ARTIFACT_REF,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_DOC_REF, M5_RUNTIME_AUTHORITY_CERTIFICATION_FIXTURE_DIR,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_PACKET_ID,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_RECORD_KIND,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_SCHEMA_REF,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_SCHEMA_VERSION,
+    M5_RUNTIME_AUTHORITY_CERTIFICATION_SUMMARY_REF,
 };
 
 pub use add_launch_inspector_and_command_runtime_explain_sheets_that_answer_where_this_runs_why_this_toolchain_what_it_can_acces::{
