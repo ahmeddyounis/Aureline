@@ -42,7 +42,7 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_provider::{
-    seeded_provider_event_reconciliation_page, seeded_work_item_sync_beta_page,
+    seeded_provider_event_ingestion_packet, seeded_work_item_sync_beta_page,
     seeded_work_item_transition_beta_page, HandoffAdmissionReasonClass, HandoffDrainStateClass,
     HandoffExportRouteClass, HandoffProviderAcceptanceClass, HandoffRetryRouteClass,
     OpenExternalActionClass, PermissionScopeClass, ProviderDriftClass, ProviderFamily,
@@ -91,6 +91,10 @@ pub const WORK_ITEM_MUTATION_REVIEW_HANDOFF_CONTRACT_REF: &str =
 /// Repo-relative path of the browser/provider handoff continuity contract.
 pub const WORK_ITEM_MUTATION_REVIEW_BROWSER_HANDOFF_CONTRACT_REF: &str =
     "schemas/review/ship-browser-provider-handoff-continuity-for-review-ci-logs-and-artifact-deep-links.schema.json";
+
+/// Repo-relative path of the canonical provider event-ingestion contract.
+pub const WORK_ITEM_MUTATION_REVIEW_EVENT_INGESTION_CONTRACT_REF: &str =
+    "schemas/providers/provider_event_ingestion.schema.json";
 
 /// Repo-relative path of the protected fixture directory.
 pub const WORK_ITEM_MUTATION_REVIEW_FIXTURE_DIR: &str =
@@ -939,6 +943,7 @@ pub fn canonical_source_contract_refs() -> Vec<String> {
         WORK_ITEM_MUTATION_REVIEW_COMMENT_CONTRACT_REF.to_owned(),
         WORK_ITEM_MUTATION_REVIEW_HANDOFF_CONTRACT_REF.to_owned(),
         WORK_ITEM_MUTATION_REVIEW_BROWSER_HANDOFF_CONTRACT_REF.to_owned(),
+        WORK_ITEM_MUTATION_REVIEW_EVENT_INGESTION_CONTRACT_REF.to_owned(),
     ]
 }
 
@@ -946,7 +951,8 @@ pub fn canonical_source_contract_refs() -> Vec<String> {
 pub fn canonical_work_item_mutation_review_packet() -> WorkItemMutationReviewPacket {
     let transition_page = seeded_work_item_transition_beta_page();
     let sync_page = seeded_work_item_sync_beta_page();
-    let reconciliation_page = seeded_provider_event_reconciliation_page();
+    let event_ingestion_packet = seeded_provider_event_ingestion_packet();
+    let reconciliation_page = &event_ingestion_packet.reconciliation_page;
     let detail_by_id: BTreeMap<&str, &WorkItemDetailRecord> = transition_page
         .detail_records
         .iter()

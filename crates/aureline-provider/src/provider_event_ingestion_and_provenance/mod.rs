@@ -872,13 +872,14 @@ impl<'a> Validator<'a> {
         for ingress in [
             ProviderEventIngressClass::Webhook,
             ProviderEventIngressClass::BrowserReturnCallback,
+            ProviderEventIngressClass::PollingRefresh,
             ProviderEventIngressClass::MirrorIngress,
             ProviderEventIngressClass::PublishLaterDrain,
         ] {
             self.expect(
                 self.coverage.ingress_classes.contains(&ingress),
                 "provider_event_ingestion.coverage_ingress_missing",
-                "coverage must include webhook, browser callback, mirror ingress, and publish-later drain paths",
+                "coverage must include webhook, browser callback, polling refresh, mirror ingress, and publish-later drain paths",
             );
         }
         self.expect(
@@ -1011,6 +1012,28 @@ pub fn seeded_provider_event_ingestion_provenance_packet() -> ProviderEventInges
             ImportedEventSurfaceState::Buffered,
             ProviderEventResultingStateClass::BufferedNoMutation,
             "Issue import was buffered until a missing page backfills.",
+        ),
+        imported_event(
+            "provider_event_ingestion.event.issue.polling",
+            ProviderEventAuthoritySourceClass::ConnectedAccount,
+            "account_scope.connected_account.issue_tracker",
+            ProviderEventIngressClass::PollingRefresh,
+            ImportedProviderEventClass::WorkItemMutation,
+            ProviderFamily::IssueTracker,
+            ProviderObjectKind::IssueOrWorkItem,
+            "provider.delivery.issue.8701",
+            "provider.object.issue.87",
+            "provider.dedupe.issue.8701",
+            ProviderEventReplayDecisionClass::ReplayFreshnessOnly,
+            1,
+            FreshnessLabel::StaleWithinWindow,
+            ProviderEventPolicyVerdictClass::AcceptedNarrowed,
+            ProviderEventOverlapClass::NoOverlap,
+            None,
+            None,
+            ImportedEventSurfaceState::Stale,
+            ProviderEventResultingStateClass::BufferedNoMutation,
+            "Polling refresh arrived late and stayed labeled as delayed or stale provider truth.",
         ),
         imported_event(
             "provider_event_ingestion.event.callback.denied",

@@ -18,6 +18,7 @@ pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 pub mod account_scope;
 pub mod approval_tickets;
 pub mod browser_handoff;
+pub mod event_ingestion;
 pub mod infrastructure_intelligence;
 pub mod object_model;
 pub mod project_mapping;
@@ -85,6 +86,20 @@ pub use browser_handoff::{
     PROVIDER_BROWSER_HANDOFF_ALPHA_SHARED_CONTRACT_REF,
     PROVIDER_BROWSER_HANDOFF_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     PROVIDER_BROWSER_HANDOFF_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use event_ingestion::{
+    seeded_provider_event_ingestion_packet, validate_provider_event_ingestion_packet,
+    ProviderEventIngestionConsumerProjectionRow, ProviderEventIngestionConsumerSurface,
+    ProviderEventIngestionContractRefs, ProviderEventIngestionPacket,
+    ProviderEventIngestionSupportExport, ProviderLinkedObjectStateClass,
+    ProviderLinkedObjectStateRow, ProviderLinkedObjectSupportSummary,
+    PROVIDER_EVENT_INGESTION_ARTIFACT_REF,
+    PROVIDER_EVENT_INGESTION_CONSUMER_PROJECTION_RECORD_KIND,
+    PROVIDER_EVENT_INGESTION_DOC_REF, PROVIDER_EVENT_INGESTION_FIXTURE_DIR,
+    PROVIDER_EVENT_INGESTION_PACKET_RECORD_KIND, PROVIDER_EVENT_INGESTION_SCHEMA_REF,
+    PROVIDER_EVENT_INGESTION_SCHEMA_VERSION, PROVIDER_EVENT_INGESTION_SHARED_CONTRACT_REF,
+    PROVIDER_EVENT_INGESTION_SUPPORT_EXPORT_ARTIFACT_REF,
+    PROVIDER_EVENT_INGESTION_SUPPORT_EXPORT_RECORD_KIND, PROVIDER_LINKED_OBJECT_STATE_ROW_RECORD_KIND,
 };
 pub use infrastructure_intelligence::{
     seeded_infrastructure_intelligence_alpha_page, InfrastructureConfidenceClass,

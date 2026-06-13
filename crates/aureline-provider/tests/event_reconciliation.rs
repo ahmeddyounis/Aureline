@@ -57,13 +57,21 @@ fn duplicate_deliveries_are_deduped_without_second_mutation() {
 }
 
 #[test]
-fn partial_and_mirror_truth_keep_labels_and_omissions() {
+fn partial_delayed_backfilled_and_mirror_truth_keep_labels_and_omissions() {
     let page = load_page();
     let report = page.validate();
     assert!(report
         .coverage
         .truth_classes
         .contains(&TruthCompletenessClass::BoundedPartialSnapshot));
+    assert!(report
+        .coverage
+        .truth_classes
+        .contains(&TruthCompletenessClass::DelayedDelivery));
+    assert!(report
+        .coverage
+        .truth_classes
+        .contains(&TruthCompletenessClass::BackfilledSnapshot));
     assert!(report
         .coverage
         .truth_classes
@@ -75,6 +83,14 @@ fn partial_and_mirror_truth_keep_labels_and_omissions() {
         .find(|session| session.truth_class == TruthCompletenessClass::BoundedPartialSnapshot)
         .expect("partial import session present");
     assert!(!partial.omissions.is_empty());
+    assert!(page
+        .import_sessions
+        .iter()
+        .any(|session| session.truth_class == TruthCompletenessClass::DelayedDelivery));
+    assert!(page
+        .import_sessions
+        .iter()
+        .any(|session| session.truth_class == TruthCompletenessClass::BackfilledSnapshot));
 }
 
 #[test]
@@ -150,7 +166,9 @@ fn fixture_covers_required_ingress_classes() {
     for source_class in [
         ProviderEventSourceClass::Webhook,
         ProviderEventSourceClass::BrowserReturnCallback,
+        ProviderEventSourceClass::PollingRefresh,
         ProviderEventSourceClass::MirrorSync,
+        ProviderEventSourceClass::ImportSession,
         ProviderEventSourceClass::DeferredPublishQueue,
     ] {
         assert!(

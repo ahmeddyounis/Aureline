@@ -1482,13 +1482,15 @@ impl<'a> Validator<'a> {
         for source_class in [
             ProviderEventSourceClass::Webhook,
             ProviderEventSourceClass::BrowserReturnCallback,
+            ProviderEventSourceClass::PollingRefresh,
             ProviderEventSourceClass::MirrorSync,
+            ProviderEventSourceClass::ImportSession,
             ProviderEventSourceClass::DeferredPublishQueue,
         ] {
             self.expect(
                 self.coverage.source_classes.contains(&source_class),
                 "provider_event_reconciliation.coverage_source_class_missing",
-                "coverage must include webhook, browser-return, mirror, and deferred-publish sources",
+                "coverage must include webhook, browser-return, polling, mirror, import-session, and deferred-publish sources",
             );
         }
         for disposition in [
@@ -1573,6 +1575,9 @@ pub fn seeded_provider_event_reconciliation_page() -> ProviderEventReconciliatio
     let identity_mirror = delivery_identity("provider.delivery.3001", "provider.object.check.510");
     let identity_deny = delivery_identity("provider.delivery.4001", "provider.object.pr.42");
     let identity_publish = delivery_identity("provider.delivery.5001", "provider.object.issue.84");
+    let identity_delayed = delivery_identity("provider.delivery.6001", "provider.object.issue.87");
+    let identity_backfilled =
+        delivery_identity("provider.delivery.7001", "provider.object.issue.86");
 
     ProviderEventReconciliationPage {
         fixture_metadata: Some(ProviderEventReconciliationFixtureMetadata {
@@ -1647,6 +1652,36 @@ pub fn seeded_provider_event_reconciliation_page() -> ProviderEventReconciliatio
                     "Second comments page was rate limited and remains omitted.",
                 )],
                 "Issue transition imported with an explicit bounded omission.",
+            ),
+            event_envelope(
+                "provider_event.event.issue.delayed",
+                ProviderEventSourceClass::PollingRefresh,
+                ProviderEventTypeClass::StatusTransition,
+                identity_delayed.clone(),
+                SourceProofClass::VerifiedSignature,
+                TruthCompletenessClass::DelayedDelivery,
+                EventDispositionClass::FreshnessRefreshedOnly,
+                RetryabilityClass::RetryableAfterRefresh,
+                Some("provider_import.session.issue.delayed"),
+                "provider_replay.ledger.issue.delayed",
+                None,
+                vec![],
+                "Polling refresh preserved delayed provider truth without claiming fresh state.",
+            ),
+            event_envelope(
+                "provider_event.event.issue.backfilled",
+                ProviderEventSourceClass::ImportSession,
+                ProviderEventTypeClass::ImportPageBackfilled,
+                identity_backfilled.clone(),
+                SourceProofClass::VerifiedSignature,
+                TruthCompletenessClass::BackfilledSnapshot,
+                EventDispositionClass::AppliedOnce,
+                RetryabilityClass::NoRetryNeeded,
+                Some("provider_import.session.issue.backfilled"),
+                "provider_replay.ledger.issue.backfilled",
+                None,
+                vec![],
+                "Historical issue state was backfilled and remains labeled as backfilled.",
             ),
             event_envelope(
                 "provider_event.event.check.mirror",
@@ -1746,6 +1781,28 @@ pub fn seeded_provider_event_reconciliation_page() -> ProviderEventReconciliatio
                 "Issue import disclosed bounded partial truth and omissions.",
             ),
             import_session(
+                "provider_import.session.issue.delayed",
+                vec!["provider_event.event.issue.delayed"],
+                "provider.scope.issue.87",
+                TruthCompletenessClass::DelayedDelivery,
+                RateLimitPostureClass::BoundedBackoff,
+                EventDispositionClass::FreshnessRefreshedOnly,
+                vec![],
+                vec!["provider.object.issue.87"],
+                "Polling refresh kept delayed issue truth explicit while awaiting a fresher provider pass.",
+            ),
+            import_session(
+                "provider_import.session.issue.backfilled",
+                vec!["provider_event.event.issue.backfilled"],
+                "provider.scope.issue.86",
+                TruthCompletenessClass::BackfilledSnapshot,
+                RateLimitPostureClass::NotRateLimited,
+                EventDispositionClass::AppliedOnce,
+                vec![],
+                vec!["provider.object.issue.86"],
+                "Historical issue state was backfilled through an explicit import session.",
+            ),
+            import_session(
                 "provider_import.session.check.mirror",
                 vec!["provider_event.event.check.mirror"],
                 "provider.scope.check.510",
@@ -1834,6 +1891,28 @@ pub fn seeded_provider_event_reconciliation_page() -> ProviderEventReconciliatio
                 Some("provider_import.session.issue.partial"),
                 vec!["audit.provider_event.issue.partial"],
                 "Partial import is retryable after missing page backfill.",
+            ),
+            replay_ledger_item(
+                "provider_replay.ledger.issue.delayed",
+                identity_delayed,
+                1,
+                EventDispositionClass::FreshnessRefreshedOnly,
+                RetryabilityClass::RetryableAfterRefresh,
+                vec!["provider_event.event.issue.delayed"],
+                Some("provider_import.session.issue.delayed"),
+                vec!["audit.provider_event.issue.delayed"],
+                "Delayed polling refresh updated freshness metadata without claiming fresh provider truth.",
+            ),
+            replay_ledger_item(
+                "provider_replay.ledger.issue.backfilled",
+                identity_backfilled,
+                0,
+                EventDispositionClass::AppliedOnce,
+                RetryabilityClass::NoRetryNeeded,
+                vec!["provider_event.event.issue.backfilled"],
+                Some("provider_import.session.issue.backfilled"),
+                vec!["audit.provider_event.issue.backfilled"],
+                "Backfill import recorded one explicit historical delivery.",
             ),
             replay_ledger_item(
                 "provider_replay.ledger.check.mirror",

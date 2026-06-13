@@ -88,6 +88,14 @@ pub const M5_PROVIDER_WORKITEM_HANDOFF_CONTRACT_REF: &str =
 pub const M5_PROVIDER_WORKITEM_PUBLISH_LATER_CONTRACT_REF: &str =
     "schemas/review/add-review-export-bundles-publish-later-packets-and-offline-follow-up-flows-for-code-review-and-ci-surfaces.schema.json";
 
+/// Repo-relative path of the canonical provider event-ingestion contract.
+pub const M5_PROVIDER_WORKITEM_EVENT_INGESTION_CONTRACT_REF: &str =
+    "schemas/providers/provider_event_ingestion.schema.json";
+
+/// Repo-relative path of the canonical provider event-ingestion contract doc.
+pub const M5_PROVIDER_WORKITEM_EVENT_INGESTION_DOC_REF: &str =
+    "docs/providers/m5/event_ingestion.md";
+
 /// Repo-relative path of the incident-workspace contract.
 pub const M5_PROVIDER_WORKITEM_INCIDENT_CONTRACT_REF: &str =
     "docs/ops/incident_workspace_contract.md";
@@ -1031,6 +1039,8 @@ pub fn canonical_source_contract_refs() -> Vec<String> {
         M5_PROVIDER_WORKITEM_LINKAGE_CONTRACT_REF.to_owned(),
         M5_PROVIDER_WORKITEM_HANDOFF_CONTRACT_REF.to_owned(),
         M5_PROVIDER_WORKITEM_PUBLISH_LATER_CONTRACT_REF.to_owned(),
+        M5_PROVIDER_WORKITEM_EVENT_INGESTION_CONTRACT_REF.to_owned(),
+        M5_PROVIDER_WORKITEM_EVENT_INGESTION_DOC_REF.to_owned(),
         M5_PROVIDER_WORKITEM_INCIDENT_CONTRACT_REF.to_owned(),
         M5_PROVIDER_WORKITEM_COMPANION_CONTRACT_REF.to_owned(),
     ]
@@ -1393,12 +1403,13 @@ fn canonical_lane_rows() -> Vec<M5ProviderWorkItemGovernanceLaneRow> {
         },
         M5ProviderWorkItemGovernanceLaneRow {
             lane: M5ProviderWorkItemGovernanceLane::ProviderEventReconciliation,
-            qualification: M5ProviderWorkItemGovernanceQualificationClass::Beta,
-            scope_summary: "Provider event reconciliation uses typed import sessions, event envelopes, dedupe windows, replay ledgers, and deny/audit events so external callbacks never mutate visible state invisibly".to_owned(),
+            qualification: M5ProviderWorkItemGovernanceQualificationClass::Stable,
+            scope_summary: "Provider event reconciliation uses one canonical event-ingestion packet with typed import sessions, event envelopes, dedupe windows, replay ledgers, deny or audit events, and linked-object freshness vocabulary so external callbacks never mutate visible state invisibly".to_owned(),
             evidence_requirement: M5ProviderWorkItemGovernanceEvidenceRequirement::Required,
             required_evidence_packet_refs: vec![
                 "evidence:provider-event-envelope-and-dedupe:m5".to_owned(),
                 "evidence:callback-deny-audit-visible:m5".to_owned(),
+                "evidence:linked-object-freshness-vocabulary-stable:m5".to_owned(),
             ],
             downgrade_triggers: vec![
                 M5ProviderWorkItemGovernanceDowngradeTrigger::CallbackReconciliationStale,
@@ -1408,11 +1419,15 @@ fn canonical_lane_rows() -> Vec<M5ProviderWorkItemGovernanceLaneRow> {
             ],
             rollback_posture: M5ProviderWorkItemGovernanceRollbackPosture::AuditOnlyNoMutation,
             source_contract_refs: vec![
-                M5_PROVIDER_WORKITEM_PROVIDER_LINK_CONTRACT_REF.to_owned(),
+                M5_PROVIDER_WORKITEM_EVENT_INGESTION_CONTRACT_REF.to_owned(),
+                M5_PROVIDER_WORKITEM_EVENT_INGESTION_DOC_REF.to_owned(),
                 M5_PROVIDER_WORKITEM_INCIDENT_CONTRACT_REF.to_owned(),
             ],
             consumer_surfaces: vec![
+                M5ProviderWorkItemGovernanceConsumerSurface::WorkItemDetail,
+                M5ProviderWorkItemGovernanceConsumerSurface::ReviewWorkspace,
                 M5ProviderWorkItemGovernanceConsumerSurface::IncidentWorkspace,
+                M5ProviderWorkItemGovernanceConsumerSurface::DocsHelp,
                 M5ProviderWorkItemGovernanceConsumerSurface::SupportExport,
                 M5ProviderWorkItemGovernanceConsumerSurface::ReleasePacket,
             ],

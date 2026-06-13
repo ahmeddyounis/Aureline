@@ -135,7 +135,7 @@ fn downgrade_automation_narrows_expected_lanes() {
     );
     assert_eq!(
         by_lane[&M5ProviderWorkItemGovernanceLane::ProviderEventReconciliation],
-        M5ProviderWorkItemGovernanceQualificationClass::Preview
+        M5ProviderWorkItemGovernanceQualificationClass::Beta
     );
 }
 

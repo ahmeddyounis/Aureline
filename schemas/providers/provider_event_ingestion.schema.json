@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_event_ingestion.schema.json",
+  "title": "Aureline provider event ingestion packet",
+  "description": "Canonical M5 packet for provider event ingestion, replay or redelivery dedupe, import-session lineage, callback-deny audit, and linked-object freshness or partiality vocabulary. The packet composes the lower-level provenance and reconciliation records while freezing one stable linked-object state vocabulary across product and support/export surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "packet_id",
+    "packet_label",
+    "generated_at",
+    "contract_refs",
+    "provenance_packet",
+    "reconciliation_page",
+    "linked_object_state_rows",
+    "consumer_projections",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "providers_event_ingestion_packet_record"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "const": "providers:event_ingestion:v1"
+    },
+    "packet_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "packet_label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contract_refs": {
+      "$ref": "#/$defs/contract_refs"
+    },
+    "provenance_packet": {
+      "type": "object",
+      "required": ["record_kind", "packet_id", "event_envelopes", "surface_projections", "support_export"]
+    },
+    "reconciliation_page": {
+      "type": "object",
+      "required": ["record_kind", "page_id", "event_envelopes", "import_sessions", "replay_ledger_items", "reconciliation_results", "callback_deny_events"]
+    },
+    "linked_object_state_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/linked_object_state_row"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "support_export": {
+      "$ref": "#/$defs/support_export"
+    }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_family": {
+      "type": "string",
+      "enum": ["code_host", "issue_tracker", "ci_checks"]
+    },
+    "provider_object_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "branch",
+        "issue_or_work_item",
+        "check_run",
+        "pipeline_run",
+        "pipeline_log",
+        "pipeline_artifact",
+        "pipeline_annotation"
+      ]
+    },
+    "authority_source": {
+      "type": "string",
+      "enum": [
+        "connected_account",
+        "installation_grant",
+        "delegated_credential",
+        "policy_injected_service"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "browser_return_callback",
+        "polling_refresh",
+        "mirror_sync",
+        "import_session",
+        "deferred_publish_queue",
+        "operator_replay"
+      ]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "object_created",
+        "object_updated",
+        "comment_created",
+        "status_transition",
+        "check_state_changed",
+        "permission_changed",
+        "callback_denied",
+        "import_page_backfilled",
+        "publish_drain_result"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window",
+        "never_observed",
+        "revoked_or_disconnected"
+      ]
+    },
+    "truth_class": {
+      "type": "string",
+      "enum": [
+        "full_snapshot",
+        "bounded_partial_snapshot",
+        "unbounded_partial_snapshot",
+        "delayed_delivery",
+        "backfilled_snapshot",
+        "mirror_derived_snapshot",
+        "no_state_imported",
+        "dry_run_no_write"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "freshness_refreshed_only",
+        "held_pending_sequence",
+        "partial_import_applied",
+        "denied_no_mutation",
+        "reconciliation_required",
+        "publish_drained_after_review",
+        "publish_blocked_drift",
+        "dry_run_only"
+      ]
+    },
+    "linked_state": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "partial",
+        "delayed",
+        "backfilled",
+        "stale",
+        "mirror_derived",
+        "callback_denied"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "work_item_detail",
+        "review_workspace",
+        "cli_headless",
+        "companion_triage",
+        "support_export",
+        "docs_help",
+        "audit_timeline"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deny_reason": {
+      "type": "string",
+      "enum": [
+        "origin_proof_invalid",
+        "host_mismatch",
+        "route_class_denied",
+        "policy_denied",
+        "tenant_or_target_mismatch",
+        "actor_scope_revoked",
+        "freshness_floor_denied"
+      ]
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_event_ingestion_schema_ref",
+        "provenance_packet_schema_ref",
+        "provider_event_envelope_schema_ref",
+        "import_session_schema_ref",
+        "replay_ledger_item_schema_ref",
+        "reconciliation_result_schema_ref",
+        "callback_deny_event_schema_ref",
+        "scope_review_schema_ref"
+      ],
+      "properties": {
+        "provider_event_ingestion_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "provenance_packet_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_event_envelope_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_session_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "replay_ledger_item_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "reconciliation_result_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "callback_deny_event_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_review_schema_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "linked_object_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "canonical_local_object_ref",
+        "provider_descriptor_ref",
+        "provider_family",
+        "object_kind",
+        "reconciliation_event_ref",
+        "replay_ledger_item_ref",
+        "authority_source_class",
+        "source_class",
+        "event_type",
+        "freshness_class",
+        "truth_class",
+        "linked_state",
+        "final_disposition",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_linked_object_state_row_record" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_local_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_family": { "$ref": "#/$defs/provider_family" },
+        "object_kind": { "$ref": "#/$defs/provider_object_kind" },
+        "provenance_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "reconciliation_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "replay_ledger_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "reconciliation_result_ref": { "$ref": "#/$defs/opaque_id" },
+        "deny_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_source_class": { "$ref": "#/$defs/authority_source" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "event_type": { "$ref": "#/$defs/event_type" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "linked_state": { "$ref": "#/$defs/linked_state" },
+        "final_disposition": { "$ref": "#/$defs/disposition" },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "surface",
+        "linked_object_state_row_ref",
+        "canonical_local_object_ref",
+        "linked_state",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_event_ingestion_consumer_projection_record" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "linked_object_state_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_local_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_state": { "$ref": "#/$defs/linked_state" },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "linked_object_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "canonical_local_object_ref",
+        "linked_state",
+        "source_class",
+        "event_type",
+        "truth_class",
+        "final_disposition",
+        "summary_label"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_local_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_state": { "$ref": "#/$defs/linked_state" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "event_type": { "$ref": "#/$defs/event_type" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "final_disposition": { "$ref": "#/$defs/disposition" },
+        "deny_reason": { "$ref": "#/$defs/deny_reason" },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "linked_object_summaries",
+        "raw_provider_payload_export_allowed",
+        "raw_callback_url_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "providers_event_ingestion_support_export_record" },
+        "schema_version": { "const": 1 },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "linked_object_summaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/linked_object_summary" }
+        },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "raw_callback_url_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
