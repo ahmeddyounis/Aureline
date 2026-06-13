@@ -114,6 +114,19 @@
 //!   rather than reconstructed from per-feature logs. Mirrors the boundary
 //!   schema at
 //!   `/schemas/network/networked_surface_transport_automation.schema.json`.
+//! - [`m5_transport_governance_certification::M5TransportGovernanceCertificationPage`]
+//!   — the certification layer that binds the six transport-governance lanes
+//!   (shared decision, proxy resolution, trust store, host proof, mirror/offline
+//!   continuity, and denial vocabulary) into one verdict per named M5 deployment
+//!   profile (`local_oss`, `self_hosted`, `managed`, `air_gapped`). For each
+//!   profile it binds one [`m5_transport_governance_certification::CertificationCell`]
+//!   per dimension to the sibling lane's canonical contract, derives a typed
+//!   [`m5_transport_governance_certification::CertificationVerdictClass`], and
+//!   auto-narrows any profile whose transport, proxy, trust, host-proof,
+//!   denial-vocabulary, or mirror/offline proof is missing, stale, or partial —
+//!   so a marketed enterprise/network/deployment row only hardens where every
+//!   proof dimension is current at once. Mirrors the boundary schema at
+//!   `/schemas/network/m5_transport_governance_certification.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -126,6 +139,7 @@
 
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
+pub mod m5_transport_governance_certification;
 pub mod managed_workspace_lifecycle;
 pub mod networked_surface_mirror_offline_continuity;
 pub mod networked_surface_proxy_resolution;
@@ -329,4 +343,22 @@ pub use networked_surface_transport_automation::{
     TRANSPORT_AUTOMATION_PAGE_RECORD_KIND, TRANSPORT_AUTOMATION_ROW_RECORD_KIND,
     TRANSPORT_AUTOMATION_SCHEMA_VERSION, TRANSPORT_AUTOMATION_SHARED_CONTRACT_REF,
     TRANSPORT_AUTOMATION_SUMMARY_RECORD_KIND, TRANSPORT_AUTOMATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_transport_governance_certification::{
+    audit_certification_page, dimension_bindings,
+    seeded_m5_transport_governance_certification_page,
+    seeded_m5_transport_governance_certification_snapshot, validate_certification_page,
+    CertificationCell, CertificationCellStateClass, CertificationDefect,
+    CertificationDimensionClass, CertificationNarrowReasonClass, CertificationProfileClass,
+    CertificationRow, CertificationSummary, CertificationSupportExport, CertificationVerdictClass,
+    DimensionBinding, M5TransportGovernanceCertificationPage,
+    M5TransportGovernanceCertificationSnapshot, ProfileCertificationSnapshot, CELL_FIELD_NAMES,
+    CERTIFICATION_ARTIFACT_REF, CERTIFICATION_BINDING_RECORD_KIND, CERTIFICATION_CELL_RECORD_KIND,
+    CERTIFICATION_DEFECT_RECORD_KIND, CERTIFICATION_DOC_REF, CERTIFICATION_EVIDENCE_INDEX_REF,
+    CERTIFICATION_PAGE_RECORD_KIND, CERTIFICATION_PROFILE_RECORD_KIND,
+    CERTIFICATION_ROW_RECORD_KIND, CERTIFICATION_SUMMARY_RECORD_KIND,
+    CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND, M5_TRANSPORT_GOVERNANCE_CERTIFICATION_SCHEMA_VERSION,
+    M5_TRANSPORT_GOVERNANCE_CERTIFICATION_SHARED_CONTRACT_REF, REQUIRED_DIMENSIONS,
+    REQUIRED_PROFILES,
 };
