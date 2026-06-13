@@ -10,7 +10,12 @@
 //! durable export/destruction receipt types that every surface reuses so
 //! delete-honesty, hold-honesty, and chronology integrity are consistent
 //! across UI, CLI/headless, support export, and admin audit views.
+//! The [`records_policy_simulation_matrix`] module freezes the governed M5-era
+//! artifact families that must share one record-class, chronology, deletion,
+//! export, and policy-simulation contract before managed/provider/support
+//! surfaces can widen their claims.
 
+pub mod records_policy_simulation_matrix;
 pub mod stabilize_record_class_registry_legal_hold_delete_honesty;
 
 use std::collections::{BTreeMap, BTreeSet};

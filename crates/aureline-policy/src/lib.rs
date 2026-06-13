@@ -22,6 +22,7 @@ pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
+pub mod records_policy_governance_snapshot;
 pub mod runtime_authority_issuers;
 pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
@@ -114,6 +115,14 @@ pub use policy_simulation_and_expiry::{
     POLICY_SIMULATION_AND_EXPIRY_SUPPORT_EXPORT_RECORD_KIND,
     POLICY_SIMULATION_EXCEPTION_EXPIRY_REVIEW_PACKET_RECORD_KIND,
     POLICY_SIMULATION_VIEW_RECORD_KIND,
+};
+
+pub use records_policy_governance_snapshot::{
+    seeded_records_policy_governance_snapshot, PolicyGovernanceCoverageRow, PolicyGovernanceFamily,
+    PolicyGovernanceScopeSnapshot, PolicyGovernanceSnapshotDefect,
+    PolicyGovernanceSnapshotDefectKind, RECORDS_POLICY_GOVERNANCE_SCOPE_ROW_RECORD_KIND,
+    RECORDS_POLICY_GOVERNANCE_SNAPSHOT_RECORD_KIND,
+    RECORDS_POLICY_GOVERNANCE_SNAPSHOT_SCHEMA_VERSION,
 };
 
 pub use harden_enterprise_network_proxy_pac_manual_system_proxy::{
