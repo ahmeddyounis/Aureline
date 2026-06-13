@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/m5-raw-rendered-handoff.schema.json",
+  "title": "Aureline M5 raw-versus-rendered representation and handoff packet",
+  "description": "Export-safe packet that makes raw-versus-rendered representation honesty explicit across the new M5 review, docs, AI, and structured viewer surfaces. Every surface whose render transform materially diverges from the canonical raw bytes exposes a distinct Raw label and Rendered label plus labeled Copy-raw, Copy-rendered, and Export-safe actions; the raw copy is the only action that preserves canonical bytes, and neither rendered copy nor export claims to be byte-identical raw. Strong-decision surfaces render stricter identity. A handoff-preservation block carries the raw/rendered labels, render transforms, and a divergence note across the support-export, screenshot-caption, and handoff-packet carriers, so a downstream reader can tell what the original surface warned about. Carriers carry escaped exemplars only; raw suspicious bytes never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "case_id",
+    "diverging_surface_count",
+    "divergence_kinds",
+    "render_transforms",
+    "normalization_applied",
+    "surfaces",
+    "handoff_preservation",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_raw_rendered_handoff_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "case_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "diverging_surface_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "divergence_kinds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/divergence"
+      }
+    },
+    "render_transforms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/render_transform"
+      }
+    },
+    "normalization_applied": {
+      "const": false
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "$ref": "#/$defs/surface_projection"
+      }
+    },
+    "handoff_preservation": {
+      "$ref": "#/$defs/handoff_preservation"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "display_mode": {
+      "type": "string",
+      "enum": [
+        "ordinary_browsing",
+        "strong_decision_strict_identity"
+      ]
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "docs_rendered_panel",
+        "notebook_rendered_output",
+        "ai_summary_evidence",
+        "review_structured_diff",
+        "structured_artifact_viewer",
+        "marketplace_install_review",
+        "policy_review_overlay"
+      ]
+    },
+    "render_transform": {
+      "type": "string",
+      "enum": [
+        "markdown_html_render",
+        "notebook_output_render",
+        "ai_summarization",
+        "diff_normalization",
+        "structured_pretty_print",
+        "manifest_render",
+        "policy_render",
+        "no_transform"
+      ]
+    },
+    "divergence": {
+      "type": "string",
+      "enum": [
+        "rendered_reflows_layout",
+        "rendered_applies_styling",
+        "rendered_summarizes_content",
+        "rendered_normalizes_for_comparison",
+        "byte_identical"
+      ]
+    },
+    "carrier": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "screenshot_caption",
+        "handoff_packet"
+      ]
+    },
+    "representation_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation_class",
+        "label",
+        "description",
+        "is_canonical_bytes"
+      ],
+      "properties": {
+        "representation_class": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "description": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "is_canonical_bytes": {
+          "type": "boolean"
+        }
+      }
+    },
+    "transfer_choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "representation_class",
+        "body_posture",
+        "label",
+        "preserves_canonical_bytes",
+        "implies_byte_identical_raw",
+        "export_safe"
+      ],
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "representation_class": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "body_posture": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_canonical_bytes": {
+          "type": "boolean"
+        },
+        "implies_byte_identical_raw": {
+          "type": "boolean"
+        },
+        "export_safe": {
+          "type": "boolean"
+        }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_token",
+        "subject_ref",
+        "display_mode",
+        "render_transform",
+        "render_transform_token",
+        "divergence",
+        "divergence_token",
+        "materially_diverges",
+        "representation_labels",
+        "copy_export_actions",
+        "raw_copy_reachable",
+        "raw_len_bytes",
+        "rendered_len_bytes"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "surface_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_mode": {
+          "$ref": "#/$defs/display_mode"
+        },
+        "render_transform": {
+          "$ref": "#/$defs/render_transform"
+        },
+        "render_transform_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "divergence": {
+          "$ref": "#/$defs/divergence"
+        },
+        "divergence_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "materially_diverges": {
+          "type": "boolean"
+        },
+        "representation_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/representation_label"
+          }
+        },
+        "copy_export_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/transfer_choice"
+          }
+        },
+        "raw_copy_reachable": {
+          "type": "boolean"
+        },
+        "raw_len_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rendered_len_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "carrier_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "carrier",
+        "carrier_token",
+        "captured_representation",
+        "preserved_labels",
+        "preserved_render_transforms",
+        "preserves_divergence_note",
+        "divergence_note",
+        "declares_rendered_not_raw",
+        "escaped_exemplar",
+        "surfaces_covered"
+      ],
+      "properties": {
+        "carrier": {
+          "$ref": "#/$defs/carrier"
+        },
+        "carrier_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_representation": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserved_labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "preserved_render_transforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/render_transform"
+          }
+        },
+        "preserves_divergence_note": {
+          "type": "boolean"
+        },
+        "divergence_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "declares_rendered_not_raw": {
+          "type": "boolean"
+        },
+        "escaped_exemplar": {
+          "type": "string"
+        },
+        "surfaces_covered": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    "handoff_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "case_id",
+        "carriers",
+        "preserves_divergence_warning",
+        "redaction_class_token"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "m5_representation_handoff_preservation"
+        },
+        "case_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "carriers": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/carrier_preservation"
+          }
+        },
+        "preserves_divergence_warning": {
+          "type": "boolean"
+        },
+        "redaction_class_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

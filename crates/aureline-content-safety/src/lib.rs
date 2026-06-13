@@ -37,6 +37,7 @@
 pub mod content_integrity;
 pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
+pub mod m5_raw_rendered_handoff;
 pub mod m5_suspicious_text_detector_parity;
 pub mod records;
 pub mod representation_copy_export;
@@ -77,6 +78,19 @@ pub use freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_ex
     M5_CONTENT_INTEGRITY_MATRIX_SUMMARY_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TEXT_REPRESENTATION_CONTRACT_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TRUST_CLASS_CONTRACT_REF,
+};
+pub use m5_raw_rendered_handoff::{
+    current_m5_raw_rendered_handoff_export, frozen_m5_raw_rendered_handoff_packet,
+    project_m5_raw_rendered_handoff, M5HandoffCarrier, M5HandoffCarrierPreservation,
+    M5RawRenderedDisplayMode, M5RawRenderedHandoffExportError, M5RawRenderedHandoffPacket,
+    M5RawRenderedHandoffSeed, M5RawRenderedHandoffViolation, M5RawRenderedSurface,
+    M5RawRenderedSurfaceInput, M5RawRenderedSurfaceProjection, M5RawRenderedTransferChoice,
+    M5RenderTransform, M5RepresentationDivergence, M5RepresentationHandoffPreservation,
+    M5RepresentationLabelView, M5_RAW_RENDERED_HANDOFF_ARTIFACT_REF,
+    M5_RAW_RENDERED_HANDOFF_DOC_REF, M5_RAW_RENDERED_HANDOFF_FIXTURE_DIR,
+    M5_RAW_RENDERED_HANDOFF_PACKET_ID, M5_RAW_RENDERED_HANDOFF_PRESERVATION_RECORD_KIND,
+    M5_RAW_RENDERED_HANDOFF_RECORD_KIND, M5_RAW_RENDERED_HANDOFF_SCHEMA_REF,
+    M5_RAW_RENDERED_HANDOFF_SCHEMA_VERSION,
 };
 pub use m5_suspicious_text_detector_parity::{
     current_m5_suspicious_text_parity_export, frozen_m5_suspicious_text_parity_packet,
