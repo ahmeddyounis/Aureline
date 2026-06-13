@@ -34,13 +34,57 @@ fn unresolved_exception_ref_is_flagged() {
         .push("m5-exception:does-not-exist".to_owned());
     let exception_expiry_packet =
         aureline_policy::m5_exception_expiry::seeded_m5_exception_expiry_packet();
+    let policy_simulation_packet =
+        aureline_records::m5_policy_simulation::seeded_m5_policy_simulation_packet();
 
     let violations = M5RecordsPolicyGovernanceSupportExport::cross_validate(
         &hold_retention_packet,
         &exception_expiry_packet,
+        &policy_simulation_packet,
     );
     assert!(violations.iter().any(|violation| matches!(
         violation,
         M5RecordsPolicyGovernanceViolation::ExceptionRefUnresolved { .. }
+    )));
+}
+
+#[test]
+fn simulation_previews_every_runtime_family() {
+    let export = M5RecordsPolicyGovernanceSupportExport::current();
+    assert_eq!(
+        export.simulation_projection_rows.len(),
+        export.hold_retention_packet.rows.len()
+    );
+    for runtime_row in &export.hold_retention_packet.rows {
+        assert!(
+            export
+                .policy_simulation_packet
+                .rows
+                .iter()
+                .any(|sim| sim.entry_id == runtime_row.entry_id),
+            "simulation missing runtime family: {}",
+            runtime_row.entry_id
+        );
+    }
+}
+
+#[test]
+fn missing_simulation_family_is_flagged() {
+    let hold_retention_packet =
+        aureline_records::m5_records_policy::seeded_m5_records_policy_packet();
+    let exception_expiry_packet =
+        aureline_policy::m5_exception_expiry::seeded_m5_exception_expiry_packet();
+    let mut policy_simulation_packet =
+        aureline_records::m5_policy_simulation::seeded_m5_policy_simulation_packet();
+    policy_simulation_packet.rows.remove(0);
+
+    let violations = M5RecordsPolicyGovernanceSupportExport::cross_validate(
+        &hold_retention_packet,
+        &exception_expiry_packet,
+        &policy_simulation_packet,
+    );
+    assert!(violations.iter().any(|violation| matches!(
+        violation,
+        M5RecordsPolicyGovernanceViolation::SimulationFamilyCoverageMismatch { .. }
     )));
 }

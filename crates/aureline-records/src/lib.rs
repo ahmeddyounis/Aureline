@@ -21,8 +21,14 @@
 //! truth source for those families: it binds legal-hold notices, hold selector
 //! scopes, retention/archive inspectors, and the pre-action delete/export truth
 //! a user must see before committing a destructive or support-sensitive action.
+//! The [`m5_policy_simulation`] module is the canonical *pre-apply* truth
+//! source for those families: it compares the current versus a draft policy,
+//! marks each delete/export action changed or unchanged, lists impacted
+//! objects, and makes expiry effects and downgrade paths visible before the
+//! draft publishes.
 
 pub mod export_delete_lifecycle;
+pub mod m5_policy_simulation;
 pub mod m5_records_policy;
 pub mod records_policy_simulation_matrix;
 pub mod stabilize_record_class_registry_legal_hold_delete_honesty;

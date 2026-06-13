@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/m5_policy_impact_simulation.schema.json",
+  "title": "M5 policy-impact simulation packet",
+  "description": "Schema for the m5_policy_simulation packet. The packet is the canonical pre-apply truth source for the durable M5 policy-bearing artifact families. Each governed family compares the current versus a draft policy, marks each delete/export action changed or unchanged, lists impacted saved objects, and makes expiry effects and downgrade paths visible before the draft publishes. The simulation reuses the runtime hold/retention object identities (governed family, record class, operation outcome). A local-only family's draft never claims a managed hold, export, or delete. The packet is metadata-only and carries no credential bodies, raw provider payloads, or durable content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "runtime_contract_ref",
+    "exception_expiry_contract_ref",
+    "rows",
+    "impact_summary",
+    "summary"
+  ],
+  "$defs": {
+    "record_operation_outcome": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "queued",
+        "blocked_by_hold",
+        "completed",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "partial",
+        "not_found",
+        "omitted_by_redaction"
+      ]
+    },
+    "simulated_action_class": {
+      "type": "string",
+      "enum": ["delete", "export"]
+    },
+    "expiry_effect_class": {
+      "type": "string",
+      "enum": ["unchanged", "extended", "shortened", "introduced", "removed"]
+    },
+    "downgrade_path_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "managed_to_local_only",
+        "completed_to_blocked",
+        "completed_to_policy_retained",
+        "export_to_manual_local_capture",
+        "export_to_omitted_by_redaction"
+      ]
+    },
+    "authority_boundary_class": {
+      "type": "string",
+      "enum": ["local_only", "managed_only", "local_and_managed"]
+    },
+    "local_vs_managed_copy": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "generated_packet_authoritative",
+        "managed_authoritative",
+        "mixed_local_managed",
+        "local_cache_only"
+      ]
+    },
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet",
+        "provider_linked_work_item_record",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "browser_handoff_manifest",
+        "support_export_packet",
+        "collaboration_session_record",
+        "collaboration_join_audit_event",
+        "collaboration_transcript_record",
+        "observer_only_archive",
+        "replayable_session_bundle",
+        "collaboration_review_evidence",
+        "operational_audit_record",
+        "managed_workspace_metadata",
+        "billing_usage_aggregate"
+      ]
+    },
+    "governed_artifact_family": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet",
+        "provider_linked_work_item",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "offboarding_record",
+        "browser_handoff_manifest",
+        "support_export_packet"
+      ]
+    },
+    "action_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "current_outcome",
+        "draft_outcome",
+        "changed",
+        "effect_summary"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/simulated_action_class" },
+        "current_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "draft_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "changed": { "type": "boolean" },
+        "effect_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "impacted_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_ref",
+        "record_class_id",
+        "producer_record_kinds",
+        "managed_copy",
+        "note"
+      ],
+      "properties": {
+        "object_ref": { "type": "string", "minLength": 1 },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "producer_record_kinds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "managed_copy": { "type": "boolean" },
+        "note": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+    "expiry_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effect_class",
+        "current_expiry_rule",
+        "draft_expiry_rule",
+        "runtime_consequence",
+        "effective_at"
+      ],
+      "properties": {
+        "effect_class": { "$ref": "#/$defs/expiry_effect_class" },
+        "current_expiry_rule": { "type": "string" },
+        "draft_expiry_rule": { "type": "string" },
+        "runtime_consequence": { "type": "string" },
+        "effective_at": { "type": "string" }
+      }
+    },
+    "downgrade_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_class",
+        "from_behavior",
+        "to_behavior",
+        "visible_before_publish"
+      ],
+      "properties": {
+        "path_class": { "$ref": "#/$defs/downgrade_path_class" },
+        "from_behavior": { "type": "string" },
+        "to_behavior": { "type": "string" },
+        "visible_before_publish": { "type": "boolean" }
+      }
+    },
+    "policy_simulation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "artifact_family",
+        "record_class_id",
+        "authority_boundary",
+        "local_truth_authority",
+        "current_policy_epoch",
+        "draft_policy_epoch",
+        "draft_claims_managed_hold",
+        "draft_claims_managed_export",
+        "draft_claims_managed_delete",
+        "action_diffs",
+        "impacted_objects",
+        "expiry_effect",
+        "downgrade_path",
+        "exception_refs",
+        "proof_ref",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "artifact_family": { "$ref": "#/$defs/governed_artifact_family" },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "authority_boundary": { "$ref": "#/$defs/authority_boundary_class" },
+        "local_truth_authority": { "$ref": "#/$defs/local_vs_managed_copy" },
+        "current_policy_epoch": { "type": "string", "minLength": 1 },
+        "draft_policy_epoch": { "type": "string", "minLength": 1 },
+        "draft_claims_managed_hold": { "type": "boolean" },
+        "draft_claims_managed_export": { "type": "boolean" },
+        "draft_claims_managed_delete": { "type": "boolean" },
+        "action_diffs": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/action_diff" }
+        },
+        "impacted_objects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impacted_object" }
+        },
+        "expiry_effect": { "$ref": "#/$defs/expiry_effect" },
+        "downgrade_path": { "$ref": "#/$defs/downgrade_path" },
+        "exception_refs": { "type": "array", "items": { "type": "string" } },
+        "proof_ref": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "impact_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_families",
+        "families_with_changes",
+        "families_unchanged",
+        "changed_action_count",
+        "unchanged_action_count",
+        "impacted_object_count",
+        "families_with_expiry_change",
+        "families_with_downgrade"
+      ],
+      "properties": {
+        "total_families": { "type": "integer", "minimum": 0 },
+        "families_with_changes": { "type": "integer", "minimum": 0 },
+        "families_unchanged": { "type": "integer", "minimum": 0 },
+        "changed_action_count": { "type": "integer", "minimum": 0 },
+        "unchanged_action_count": { "type": "integer", "minimum": 0 },
+        "impacted_object_count": { "type": "integer", "minimum": 0 },
+        "families_with_expiry_change": { "type": "integer", "minimum": 0 },
+        "families_with_downgrade": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": {
+      "type": "string",
+      "const": "m5_policy_impact_simulation_packet"
+    },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "records:m5_policy_impact_simulation:v1"
+    },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "runtime_contract_ref": {
+      "type": "string",
+      "const": "records:m5_hold_retention_truth:v1"
+    },
+    "exception_expiry_contract_ref": {
+      "type": "string",
+      "const": "policy:m5_exception_expiry_truth:v1"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/policy_simulation_row" }
+    },
+    "impact_summary": { "$ref": "#/$defs/impact_summary" },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}
