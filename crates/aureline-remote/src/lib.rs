@@ -44,6 +44,15 @@
 //!   mutation, sync/offboarding, and remote preview routes) through one shared
 //!   vocabulary. Mirrors the boundary schema at
 //!   `/schemas/network/networked_surface_transport_matrix.schema.json`.
+//! - [`networked_surface_transport_decision::TransportDecisionLogPage`] — the
+//!   runtime decision layer that pairs with the frozen matrix: for every
+//!   network-capable action it emits one inspectable
+//!   [`networked_surface_transport_decision::TransportDecision`] resolving a
+//!   [`networked_surface_transport_decision::TransportPolicySnapshot`] against
+//!   an [`networked_surface_transport_decision::EndpointDescriptor`] and a
+//!   typed [`networked_surface_transport_decision::TransportOutcomeClass`]
+//!   before any side effects leave the boundary. Mirrors the boundary schema at
+//!   `/schemas/network/networked_surface_transport_decision.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -57,6 +66,7 @@
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
+pub mod networked_surface_transport_decision;
 pub mod networked_surface_transport_matrix;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
@@ -154,4 +164,21 @@ pub use networked_surface_transport_matrix::{
     NETWORKED_SURFACE_MATRIX_SUMMARY_RECORD_KIND,
     NETWORKED_SURFACE_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
     NETWORKED_SURFACE_MATRIX_SURFACE_RECORD_KIND, REQUIRED_SURFACES as REQUIRED_NETWORKED_SURFACES,
+};
+
+pub use networked_surface_transport_decision::{
+    audit_transport_decision_page, seeded_transport_decision_page,
+    seeded_transport_decision_snapshot, validate_transport_decision_page,
+    DecisionNarrowReasonClass, DecisionQualificationClass, EndpointDescriptor,
+    ProxyResolutionSourceClass, TransportDecision, TransportDecisionDefect,
+    TransportDecisionLogPage, TransportDecisionRow, TransportDecisionSnapshot,
+    TransportDecisionSummary, TransportDecisionSupportExport, TransportOutcomeClass,
+    TransportPolicySnapshot as NetworkedSurfaceTransportPolicySnapshot,
+    TRANSPORT_DECISION_ARTIFACT_REF, TRANSPORT_DECISION_DEFECT_RECORD_KIND,
+    TRANSPORT_DECISION_DOC_REF, TRANSPORT_DECISION_ENDPOINT_RECORD_KIND,
+    TRANSPORT_DECISION_EVIDENCE_INDEX_REF, TRANSPORT_DECISION_PAGE_RECORD_KIND,
+    TRANSPORT_DECISION_POLICY_SNAPSHOT_RECORD_KIND, TRANSPORT_DECISION_RECORD_KIND,
+    TRANSPORT_DECISION_ROW_RECORD_KIND, TRANSPORT_DECISION_SCHEMA_VERSION,
+    TRANSPORT_DECISION_SHARED_CONTRACT_REF, TRANSPORT_DECISION_SUMMARY_RECORD_KIND,
+    TRANSPORT_DECISION_SUPPORT_EXPORT_RECORD_KIND,
 };
