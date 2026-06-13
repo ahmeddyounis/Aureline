@@ -1089,7 +1089,7 @@ pub fn seeded_accessibility_fixture() -> AccessibilityChronologyFixture {
     }
 }
 
-fn action_label(action: ActionVerb) -> &'static str {
+pub(crate) fn action_label(action: ActionVerb) -> &'static str {
     match action {
         ActionVerb::Started => "started",
         ActionVerb::Progressed => "progressed",

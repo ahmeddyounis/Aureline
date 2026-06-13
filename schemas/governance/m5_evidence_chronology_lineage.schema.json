@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/m5_evidence_chronology_lineage.schema.json",
+  "title": "M5 evidence-chronology, actor-lineage, and source/live/imported truth packet",
+  "description": "Schema for the m5_evidence_chronology packet emitted by aureline-chronology. The packet is the canonical evidence-time contract for the durable M5 evidence families (incident support, offboarding, AI evidence, managed sync, provider-linked work items). Each row carries an absolute timestamp, an IANA time-zone basis, a source class, a live/imported class, and the full actor lineage of who originated, relayed, imported, reviewed, approved, or now holds the evidence. Local-only evidence never claims a remote hold, remote export, or remote delete. The packet is metadata-only and carries opaque actor refs and review-safe labels, never credential bodies, raw provider payloads, or raw user identifiers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "schema_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "rows",
+    "summary"
+  ],
+  "$defs": {
+    "workflow_class": {
+      "type": "string",
+      "enum": [
+        "incident_support",
+        "offboarding",
+        "ai_evidence",
+        "managed_sync",
+        "provider_linked"
+      ]
+    },
+    "actor_kind": {
+      "type": "string",
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "ai_agent_actor",
+        "remote_service_actor",
+        "admin_policy_actor",
+        "extension_actor",
+        "unknown_actor"
+      ]
+    },
+    "actor_lineage_role": {
+      "type": "string",
+      "enum": [
+        "originator",
+        "relay",
+        "importer",
+        "exporter",
+        "reviewer",
+        "approver",
+        "custodian"
+      ]
+    },
+    "action_verb": {
+      "type": "string",
+      "enum": [
+        "started",
+        "progressed",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "unblocked",
+        "held",
+        "released",
+        "granted",
+        "narrowed",
+        "widened",
+        "revoked",
+        "presented",
+        "superseded",
+        "proposed",
+        "accepted",
+        "rejected",
+        "restored",
+        "recovered",
+        "published",
+        "unpublished",
+        "exported",
+        "imported",
+        "acknowledged",
+        "resolved",
+        "dismissed",
+        "snoozed",
+        "muted"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "first_party_direct_observation",
+        "first_party_synthesized_summary",
+        "provider_imported",
+        "provider_cached",
+        "provider_stale_cached",
+        "ai_assisted",
+        "ai_generated_summary",
+        "policy_authored",
+        "recovery_reconstructed",
+        "companion_delivered",
+        "imported_external_audit_trail"
+      ]
+    },
+    "imported_class": {
+      "type": "string",
+      "enum": ["live", "imported", "cached", "stale_cached", "reconstructed"]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["current", "fresh", "cached", "stale", "expired", "unknown"]
+    },
+    "residency_class": {
+      "type": "string",
+      "enum": ["local_only", "managed_copy", "local_and_managed"]
+    },
+    "provenance_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "badge_label", "export_marker_label"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "badge_label": { "type": "string", "minLength": 1 },
+        "export_marker_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "relative_age_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rendered_at",
+        "relative_label",
+        "freshness_class",
+        "visible_reason_label"
+      ],
+      "properties": {
+        "rendered_at": { "type": "string", "minLength": 1 },
+        "relative_label": { "type": "string", "minLength": 1 },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "visible_reason_label": { "type": "string", "minLength": 1 },
+        "stale_reason_label": { "type": ["string", "null"] }
+      }
+    },
+    "time_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absolute_timestamp",
+        "timezone_iana",
+        "utc_offset",
+        "local_time_label",
+        "imported_class",
+        "relative_age"
+      ],
+      "properties": {
+        "absolute_timestamp": { "type": "string", "minLength": 1 },
+        "timezone_iana": { "type": "string", "minLength": 1 },
+        "utc_offset": { "type": "string", "minLength": 1 },
+        "local_time_label": { "type": "string", "minLength": 1 },
+        "imported_class": { "$ref": "#/$defs/imported_class" },
+        "relative_age": { "$ref": "#/$defs/relative_age_hint" }
+      }
+    },
+    "lineage_step_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absolute_timestamp",
+        "timezone_iana",
+        "utc_offset",
+        "local_time_label",
+        "imported_class"
+      ],
+      "properties": {
+        "absolute_timestamp": { "type": "string", "minLength": 1 },
+        "timezone_iana": { "type": "string", "minLength": 1 },
+        "utc_offset": { "type": "string", "minLength": 1 },
+        "local_time_label": { "type": "string", "minLength": 1 },
+        "imported_class": { "$ref": "#/$defs/imported_class" }
+      }
+    },
+    "actor_lineage_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_index",
+        "role",
+        "actor_kind",
+        "actor_label",
+        "action",
+        "source_class",
+        "step_time"
+      ],
+      "properties": {
+        "step_index": { "type": "integer", "minimum": 0 },
+        "role": { "$ref": "#/$defs/actor_lineage_role" },
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_ref": { "type": ["string", "null"] },
+        "actor_label": { "type": "string", "minLength": 1 },
+        "action": { "$ref": "#/$defs/action_verb" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "step_time": { "$ref": "#/$defs/lineage_step_time" },
+        "note": { "type": ["string", "null"] }
+      }
+    },
+    "actor_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineage_id", "current_custodian_ref", "steps"],
+      "properties": {
+        "lineage_id": { "type": "string", "minLength": 1 },
+        "originator_actor_ref": { "type": ["string", "null"] },
+        "current_custodian_ref": { "type": "string", "minLength": 1 },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/actor_lineage_step" }
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "canonical_event_id",
+        "workflow_class",
+        "actor_kind",
+        "actor_label",
+        "action",
+        "object_label",
+        "outcome_label",
+        "grammar_sentence",
+        "source_class",
+        "imported_class",
+        "provenance_badges",
+        "time_posture",
+        "actor_lineage",
+        "residency",
+        "claims_remote_hold",
+        "claims_remote_export",
+        "claims_remote_delete",
+        "proof_ref"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "m5_evidence_chronology_row" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "row_id": { "type": "string", "minLength": 1 },
+        "canonical_event_id": { "type": "string", "minLength": 1 },
+        "workflow_class": { "$ref": "#/$defs/workflow_class" },
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_label": { "type": "string", "minLength": 1 },
+        "action": { "$ref": "#/$defs/action_verb" },
+        "object_label": { "type": "string", "minLength": 1 },
+        "outcome_label": { "type": "string", "minLength": 1 },
+        "grammar_sentence": { "type": "string", "minLength": 1 },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "imported_class": { "$ref": "#/$defs/imported_class" },
+        "provenance_badges": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance_badge" }
+        },
+        "time_posture": { "$ref": "#/$defs/time_posture" },
+        "actor_lineage": { "$ref": "#/$defs/actor_lineage" },
+        "residency": { "$ref": "#/$defs/residency_class" },
+        "claims_remote_hold": { "type": "boolean" },
+        "claims_remote_export": { "type": "boolean" },
+        "claims_remote_delete": { "type": "boolean" },
+        "local_only_boundary_note": { "type": ["string", "null"] },
+        "proof_ref": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "m5_evidence_chronology_packet" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "type": "string", "minLength": 1 },
+    "schema_ref": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "rows": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}

@@ -7,7 +7,19 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-chronology/0.0.0")]
 
+pub mod m5_evidence_chronology_lineage;
 pub mod stabilize_chronology_grammar_and_history_row_truth;
+
+pub use m5_evidence_chronology_lineage::{
+    seeded_m5_evidence_chronology_packet, ActorLineage, ActorLineageRole, ActorLineageStep,
+    AdminEvidenceRow, EvidenceResidencyClass, LineageStepTime, M5EvidenceChronologyPacket,
+    M5EvidenceChronologyRow, M5EvidenceChronologyViolation, M5EvidenceWorkflowClass,
+    ProductEvidenceRow, SupportExportEvidenceRow, M5_EVIDENCE_CHRONOLOGY_ARTIFACT_REF,
+    M5_EVIDENCE_CHRONOLOGY_DOC_REF, M5_EVIDENCE_CHRONOLOGY_FIXTURE_DIR,
+    M5_EVIDENCE_CHRONOLOGY_PACKET_RECORD_KIND, M5_EVIDENCE_CHRONOLOGY_ROW_RECORD_KIND,
+    M5_EVIDENCE_CHRONOLOGY_SCHEMA_REF, M5_EVIDENCE_CHRONOLOGY_SCHEMA_VERSION,
+    M5_EVIDENCE_CHRONOLOGY_SHARED_CONTRACT_REF,
+};
 
 pub use stabilize_chronology_grammar_and_history_row_truth::{
     seeded_accessibility_fixture, seeded_chronology_export_packet, seeded_chronology_packet,
