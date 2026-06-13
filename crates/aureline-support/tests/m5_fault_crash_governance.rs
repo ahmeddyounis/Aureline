@@ -89,6 +89,10 @@ fn seeded_packet_covers_required_m5_host_families() {
         "provider_run_session_host",
         "profiler_replay_session_host",
         "pipeline_viewer_host",
+        "query_runtime_host",
+        "docs_browser_bridge_host",
+        "registry_database_connector_host",
+        "infra_helper_job",
     ] {
         assert!(
             packet

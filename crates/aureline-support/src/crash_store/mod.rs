@@ -38,6 +38,10 @@ const REQUIRED_HOST_FAMILY_IDS: &[&str] = &[
     "profiler_replay_session_host",
     "pipeline_viewer_host",
     "query_runtime_host",
+    "data_api_connector_host",
+    "docs_browser_bridge_host",
+    "registry_database_connector_host",
+    "infra_helper_job",
 ];
 
 /// Closed preservation-class vocabulary shown in the crash-store viewer.

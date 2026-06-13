@@ -1,0 +1,112 @@
+{
+  "drill": {
+    "scenario_id": "scenario:notebook_kernel_crash_stall",
+    "scenario_class": "notebook_kernel_crash_stall",
+    "host_family_id": "notebook_kernel_host",
+    "host_family_label": "Notebook kernel session",
+    "restart_budget_ref": "restart-budget:notebook-kernel:session-scoped",
+    "restart_budget_enforced": true,
+    "scoped_failure_only": true,
+    "checkpoint_preserved": true,
+    "no_hidden_rerun": true,
+    "visible_fail_closed_state": true,
+    "forensic_packet_ref": "forensic:notebook-kernel-crash-stall",
+    "support_packet_refs": [
+      "schemas/support/m5-fault-crash-governance.schema.json",
+      "schemas/support/crash_store_viewer.schema.json",
+      "schemas/support/depth-surface-schema-registry.schema.json",
+      "schemas/support/recovery_review.schema.json"
+    ],
+    "upload_guard_assertions": [
+      "local_preview_precedes_export",
+      "explicit_user_or_policy_action_required_for_egress",
+      "retention_scope_change_requires_review"
+    ],
+    "evidence_fixture_ref": "fixtures/support/m5/host_failure_drills/notebook_kernel_crash_stall.json",
+    "summary": "Notebook kernel stall preserves the last cell-run checkpoint, narrows only the kernel lane, forbids hidden rerun, and keeps crash/support export local-first."
+  },
+  "forensic": {
+    "forensic_packet_id": "forensic:notebook-kernel-crash-stall",
+    "scenario_id": "scenario:notebook_kernel_crash_stall",
+    "host_family_id": "notebook_kernel_host",
+    "host_family_label": "Notebook kernel session",
+    "fault_domain_class": "session_execution_host",
+    "trigger_class": "stall_detected",
+    "runtime_forensic_packet_ref": "runtime.forensic:notebook-kernel:stall:0001",
+    "exact_build_identity_ref": "build-id:aureline:preview:notebook:001",
+    "restart_lineage_ref": "restart-lineage:notebook-kernel:0001",
+    "checkpoint_ref": "checkpoint:notebook-kernel:cell-run:0001",
+    "redaction_profile": "local_only_review_required",
+    "retention_class": "local_user_owned_until_delete_or_attach",
+    "artifact_states": [
+      {
+        "artifact_class": "runtime_forensic_packet",
+        "artifact_ref": "runtime.forensic:notebook-kernel:stall:0001",
+        "state_class": "local_only",
+        "retention_class": "local_user_owned_until_delete_or_attach",
+        "redaction_profile": "local_only_review_required",
+        "explicit_user_or_policy_action_required": true,
+        "scope_widening_without_review_forbidden": true,
+        "summary": "Bounded supervisor packet remains on-device until reviewed export."
+      },
+      {
+        "artifact_class": "crash_envelope",
+        "artifact_ref": "crash-envelope:notebook-kernel:0001",
+        "state_class": "local_only",
+        "retention_class": "local_user_owned_until_delete_or_attach",
+        "redaction_profile": "environment_summary_only",
+        "explicit_user_or_policy_action_required": true,
+        "scope_widening_without_review_forbidden": true,
+        "summary": "Crash envelope stays local and metadata-safe by default."
+      },
+      {
+        "artifact_class": "support_bundle_manifest",
+        "artifact_ref": "support.bundle.manifest:notebook-kernel:0001",
+        "state_class": "uploaded",
+        "retention_class": "managed_contract_window",
+        "redaction_profile": "local_only_review_required",
+        "explicit_user_or_policy_action_required": true,
+        "scope_widening_without_review_forbidden": true,
+        "summary": "Reviewed manifest was attached to support only after local preview confirmed the scoped export."
+      }
+    ],
+    "share_actions": [
+      {
+        "action_id": "action:notebook-kernel:preview",
+        "label": "Preview locally",
+        "destination_class": "local_preview",
+        "network_egress": false,
+        "explicit_user_or_policy_action_required": true,
+        "enabled": true,
+        "retention_or_scope_change_requires_review": true,
+        "note": "Local preview renders the exact metadata-safe packet before any share path."
+      },
+      {
+        "action_id": "action:notebook-kernel:export",
+        "label": "Export locally",
+        "destination_class": "local_export",
+        "network_egress": false,
+        "explicit_user_or_policy_action_required": true,
+        "enabled": true,
+        "retention_or_scope_change_requires_review": true,
+        "note": "Local export writes the reviewed packet without network egress."
+      },
+      {
+        "action_id": "action:notebook-kernel:upload",
+        "label": "Upload reviewed packet",
+        "destination_class": "managed_upload",
+        "network_egress": true,
+        "explicit_user_or_policy_action_required": true,
+        "enabled": true,
+        "retention_or_scope_change_requires_review": true,
+        "note": "Upload remains blocked until the reviewed export scope and retention note are accepted."
+      }
+    ],
+    "no_silent_upload_guards": [
+      "local_preview_required_before_egress",
+      "explicit_user_or_policy_action_required_for_upload",
+      "retention_or_export_scope_change_requires_review"
+    ],
+    "export_safe_summary": "Notebook stall packet keeps checkpoint, restart lineage, and reviewed upload scope visible; no kernel bytes leave the device silently."
+  }
+}

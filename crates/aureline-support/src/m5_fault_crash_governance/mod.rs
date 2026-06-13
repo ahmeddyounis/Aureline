@@ -62,6 +62,10 @@ const REQUIRED_HOST_FAMILY_IDS: &[&str] = &[
     "provider_run_session_host",
     "profiler_replay_session_host",
     "pipeline_viewer_host",
+    "query_runtime_host",
+    "docs_browser_bridge_host",
+    "registry_database_connector_host",
+    "infra_helper_job",
 ];
 
 /// Closed vocabulary for the M5 fault-domain classes frozen by Appendix CD.

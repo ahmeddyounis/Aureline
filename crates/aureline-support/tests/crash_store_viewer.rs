@@ -42,11 +42,15 @@ fn seeded_packet_covers_required_m5_crash_families() {
 
     for host in [
         "notebook_kernel_host",
+        "data_api_connector_host",
         "preview_dev_server_host",
         "provider_run_session_host",
         "profiler_replay_session_host",
         "pipeline_viewer_host",
         "query_runtime_host",
+        "docs_browser_bridge_host",
+        "registry_database_connector_host",
+        "infra_helper_job",
     ] {
         assert!(
             packet.rows.iter().any(|row| row.host_family_id == host),

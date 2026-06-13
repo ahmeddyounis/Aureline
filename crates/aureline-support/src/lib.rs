@@ -149,6 +149,14 @@
 //!   diagnostics-schema governance rows, and downgrade rules used by notebook,
 //!   data/API, preview, provider, profiler/replay, pipeline, docs/browser,
 //!   and infrastructure helper hosts.
+//! - The [`m5_forensic_packet`] packet — projects runtime forensic packets into
+//!   one support-side export-safe object that keeps locality (`local_only`,
+//!   `imported`, `mirrored`, `uploaded`), checkpoint lineage, exact-build
+//!   identity, redaction posture, and reviewed share actions explicit.
+//! - The [`m5_host_failure_drills`] packet — freezes the seeded M5 host-failure
+//!   drill corpus and proves restart-budget enforcement, scoped failure,
+//!   checkpoint preservation, no-hidden-rerun behavior, and no-silent-upload
+//!   posture across every claimed host family.
 //! - The [`schema_registry`] packet — freezes the M5 depth-surface telemetry,
 //!   diagnostics, consent-ledger inheritance, endpoint truth, and
 //!   redaction-default packet classes used by notebook, provider, profiler,
@@ -197,6 +205,8 @@ pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
 pub mod m5_fault_crash_governance;
+pub mod m5_forensic_packet;
+pub mod m5_host_failure_drills;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -267,6 +277,21 @@ pub use m5_fault_crash_governance::{
     RetentionClass, M5_FAULT_CRASH_GOVERNANCE_ARTIFACT_REF, M5_FAULT_CRASH_GOVERNANCE_DOC_REF,
     M5_FAULT_CRASH_GOVERNANCE_FIXTURE_DIR, M5_FAULT_CRASH_GOVERNANCE_PACKET_RECORD_KIND,
     M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use m5_forensic_packet::{
+    seeded_m5_forensic_packet, ForensicArtifactClass, ForensicArtifactStateClass,
+    ForensicArtifactStateRow, ForensicShareActionRow, ForensicShareDestinationClass,
+    ForensicTriggerClass, M5ForensicPacket, M5ForensicPacketViolation, M5ForensicRow,
+    M5_FORENSIC_PACKET_ARTIFACT_REF, M5_FORENSIC_PACKET_DOC_REF, M5_FORENSIC_PACKET_FIXTURE_DIR,
+    M5_FORENSIC_PACKET_RECORD_KIND, M5_FORENSIC_PACKET_SCHEMA_REF,
+    M5_FORENSIC_PACKET_SCHEMA_VERSION,
+};
+pub use m5_host_failure_drills::{
+    seeded_forensic_row, seeded_m5_host_failure_drill_packet, HostFailureDrillRow,
+    HostFailureScenarioClass, M5HostFailureDrillPacket, M5HostFailureDrillViolation,
+    M5_HOST_FAILURE_DRILL_ARTIFACT_REF, M5_HOST_FAILURE_DRILL_DOC_REF,
+    M5_HOST_FAILURE_DRILL_FIXTURE_DIR, M5_HOST_FAILURE_DRILL_PACKET_RECORD_KIND,
+    M5_HOST_FAILURE_DRILL_SCHEMA_REF, M5_HOST_FAILURE_DRILL_SCHEMA_VERSION,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
