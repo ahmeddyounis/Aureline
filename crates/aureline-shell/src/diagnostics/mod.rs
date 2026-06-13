@@ -6,5 +6,6 @@
 //! treating it as current live analysis.
 
 pub mod experiments_inventory;
+pub mod filesystem_continuity;
 pub mod imported;
 pub mod m5_rollout_inventory;

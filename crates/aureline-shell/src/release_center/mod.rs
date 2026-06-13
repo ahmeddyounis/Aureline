@@ -66,6 +66,8 @@ use aureline_support::bundle::ReleaseChannelClass;
 use crate::help_about::{InstallModeClass, ProvenanceRowClass, ProvenanceRowState, TreeStateClass};
 use crate::support_seed::SupportSeedSurface;
 
+pub mod filesystem_continuity;
+
 /// Stable record-kind tag carried in serialized release-center payloads.
 pub const RELEASE_CENTER_SURFACE_RECORD_KIND: &str = "release_center_surface_record";
 

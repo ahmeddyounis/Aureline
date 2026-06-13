@@ -162,6 +162,10 @@
 //!   crash, symbolication, schema-governance, and field-readiness proof, then
 //!   exposing the same certification index to Help/About, service-health,
 //!   support-export, and release-manifest consumers.
+//! - The [`m5_fs_mutation_lineage_certification`] packet — certifies the
+//!   claimed M5 filesystem-identity, watch/save, mutation-lineage,
+//!   state-class-recovery, and deferred-intent rows so Help, diagnostics,
+//!   support-bundle, and release-center surfaces read one narrowing packet.
 //! - The [`schema_registry`] packet — freezes the M5 depth-surface telemetry,
 //!   diagnostics, consent-ledger inheritance, endpoint truth, and
 //!   redaction-default packet classes used by notebook, provider, profiler,
@@ -212,6 +216,7 @@ pub mod m3_scenario_corpus;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
+pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod mutation_journal;
@@ -305,6 +310,30 @@ pub use m5_forensic_packet::{
     M5_FORENSIC_PACKET_ARTIFACT_REF, M5_FORENSIC_PACKET_DOC_REF, M5_FORENSIC_PACKET_FIXTURE_DIR,
     M5_FORENSIC_PACKET_RECORD_KIND, M5_FORENSIC_PACKET_SCHEMA_REF,
     M5_FORENSIC_PACKET_SCHEMA_VERSION,
+};
+pub use m5_fs_mutation_lineage_certification::{
+    seeded_m5_fs_mutation_lineage_certification_packet,
+    seeded_missing_recovery_linkage_m5_fs_mutation_lineage_certification_packet,
+    CertificationDowngradeRuleRow as FsMutationLineageCertificationDowngradeRuleRow,
+    CertificationDowngradeTriggerClass as FsMutationLineageCertificationDowngradeTriggerClass,
+    CertificationStateClass as FsMutationLineageCertificationStateClass,
+    CertificationSurfaceBinding as FsMutationLineageCertificationSurfaceBinding,
+    CertificationSurfaceClass as FsMutationLineageCertificationSurfaceClass,
+    DiagnosticsProjectionRow as FsMutationLineageDiagnosticsProjectionRow,
+    FixtureVariantClass as FsMutationLineageCertificationFixtureVariantClass,
+    HelpProjectionRow as FsMutationLineageHelpProjectionRow, M5FsMutationLineageCertificationError,
+    M5FsMutationLineageCertificationPacket, M5FsMutationLineageCertificationViolation,
+    M5FsMutationLineageDiagnosticsExportProjection, M5FsMutationLineageHelpSurfaceProjection,
+    M5FsMutationLineageReleaseCenterProjection, M5FsMutationLineageSupportBundleProjection,
+    ReleaseCenterProjectionRow as FsMutationLineageReleaseCenterProjectionRow,
+    SupportBundleProjectionRow as FsMutationLineageSupportBundleProjectionRow,
+    SurfaceCertificationRow as FsMutationLineageSurfaceCertificationRow,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_ARTIFACT_REF,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_DOC_REF, M5_FS_MUTATION_LINEAGE_CERTIFICATION_FIXTURE_DIR,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_PACKET_RECORD_KIND,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_SCHEMA_REF,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_SCHEMA_VERSION,
+    M5_FS_MUTATION_LINEAGE_CERTIFICATION_SUMMARY_REF,
 };
 pub use m5_host_failure_drills::{
     seeded_forensic_row, seeded_m5_host_failure_drill_packet, HostFailureDrillRow,
