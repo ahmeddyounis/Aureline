@@ -157,6 +157,11 @@
 //!   drill corpus and proves restart-budget enforcement, scoped failure,
 //!   checkpoint preservation, no-hidden-rerun behavior, and no-silent-upload
 //!   posture across every claimed host family.
+//! - The [`m5_fault_crash_certification`] packet — certifies the claimed M5
+//!   host families on each claimed profile by binding one shared row to restart,
+//!   crash, symbolication, schema-governance, and field-readiness proof, then
+//!   exposing the same certification index to Help/About, service-health,
+//!   support-export, and release-manifest consumers.
 //! - The [`schema_registry`] packet — freezes the M5 depth-surface telemetry,
 //!   diagnostics, consent-ledger inheritance, endpoint truth, and
 //!   redaction-default packet classes used by notebook, provider, profiler,
@@ -204,6 +209,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
+pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
 pub mod m5_host_failure_drills;
@@ -268,6 +274,18 @@ pub use fault_domain_views::{
     FAULT_DOMAIN_VIEW_SCHEMA_REF,
 };
 pub use locale_beta::current_locale_pack_support_export;
+pub use m5_fault_crash_certification::{
+    seeded_m5_fault_crash_certification_packet,
+    seeded_stale_schema_m5_fault_crash_certification_packet,
+    seeded_stale_symbolication_m5_fault_crash_certification_packet, CertificationDowngradeRuleRow,
+    CertificationDowngradeTriggerClass, CertificationStateClass, CertificationSurfaceBinding,
+    CertificationSurfaceClass, ClaimedM5Profile, DiagnosticsGovernancePostureClass,
+    HostProfileCertificationRow, M5FaultCrashCertificationPacket,
+    M5FaultCrashCertificationViolation, SymbolicationPostureClass,
+    M5_FAULT_CRASH_CERTIFICATION_ARTIFACT_REF, M5_FAULT_CRASH_CERTIFICATION_DOC_REF,
+    M5_FAULT_CRASH_CERTIFICATION_FIXTURE_DIR, M5_FAULT_CRASH_CERTIFICATION_PACKET_RECORD_KIND,
+    M5_FAULT_CRASH_CERTIFICATION_SCHEMA_REF, M5_FAULT_CRASH_CERTIFICATION_SCHEMA_VERSION,
+};
 pub use m5_fault_crash_governance::{
     seeded_m5_fault_crash_governance_packet, CheckpointSourceClass, ClaimStateClass,
     CrashArtifactClass, CrashArtifactGovernanceRow, DiagnosticDataClass, DiagnosticOptInScope,
