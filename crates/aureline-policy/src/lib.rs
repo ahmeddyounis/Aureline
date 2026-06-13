@@ -21,6 +21,7 @@ pub mod freeze_the_m5_runtime_authority_approval_ticket_sandbox_profile_and_capa
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
+pub mod implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth;
 pub mod m5_exception_expiry;
 pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
@@ -343,6 +344,22 @@ pub use freeze_the_m5_runtime_authority_approval_ticket_sandbox_profile_and_capa
     M5_RUNTIME_AUTHORITY_MATRIX_SECRET_BOUNDARY_CONTRACT_REF,
     M5_RUNTIME_AUTHORITY_MATRIX_SECRET_HANDLE_CONTRACT_REF,
     M5_RUNTIME_AUTHORITY_MATRIX_SUMMARY_REF,
+};
+
+pub use implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth::{
+    current_stable_m5_execution_surface_resolution_export,
+    frozen_stable_m5_execution_surface_resolution_packet, resolve_surface_on_platform,
+    M5ExecutionBackendClass, M5ExecutionLaunchPath, M5ExecutionLaunchPathBinding,
+    M5ExecutionPlatform, M5ExecutionSurfaceResolutionArtifactError,
+    M5ExecutionSurfaceResolutionConsumerProjection, M5ExecutionSurfaceResolutionPacket,
+    M5ExecutionSurfaceResolutionPacketInput, M5ExecutionSurfaceResolutionTrustReview,
+    M5ExecutionSurfaceResolutionViolation, M5PlatformResolution, M5ProfileResolutionStatus,
+    M5ResolvedSurfaceRow, M5SandboxProfileDescriptor,
+    M5_EXECUTION_SURFACE_RESOLUTION_ARTIFACT_REF, M5_EXECUTION_SURFACE_RESOLUTION_DOC_REF,
+    M5_EXECUTION_SURFACE_RESOLUTION_FIXTURE_DIR, M5_EXECUTION_SURFACE_RESOLUTION_PACKET_ID,
+    M5_EXECUTION_SURFACE_RESOLUTION_RECORD_KIND, M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_REF,
+    M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_VERSION, M5_EXECUTION_SURFACE_RESOLUTION_SUMMARY_REF,
+    M5_SANDBOX_PROFILE_DESCRIPTOR_VERSION,
 };
 
 pub use finalize_managed_workspace_lifecycle_truth::{

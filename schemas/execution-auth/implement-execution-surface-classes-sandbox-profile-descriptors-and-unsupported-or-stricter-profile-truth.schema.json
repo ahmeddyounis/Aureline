@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution-auth/implement-execution-surface-classes-sandbox-profile-descriptors-and-unsupported-or-stricter-profile-truth.schema.json",
+  "title": "M5 Execution-Surface Classes, Sandbox-Profile Descriptors, and Unsupported-or-Stricter-Profile Resolution",
+  "description": "Export-safe packet that resolves every claimed M5 executing surface, on every supported platform, to an effective sandbox profile. It binds concrete launch paths to their governing matrix surface, catalogs sandbox-profile descriptors (id, version, backend class, isolation rank, capability ceiling), and records the per-platform resolution: supported, narrowed to a stricter profile, failed closed, or disabled with reason. Metadata-only: carries no raw secret material, credential bodies, or live ticket signatures.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "resolution_label",
+    "matrix_packet_id",
+    "launch_path_bindings",
+    "profile_descriptors",
+    "platform_resolutions",
+    "trust_review",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_execution_surface_classes_sandbox_profile_descriptors_and_unsupported_or_stricter_profile_truth"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "resolution_label": { "type": "string", "minLength": 1 },
+    "matrix_packet_id": { "type": "string", "minLength": 1 },
+    "launch_path_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/launchPathBinding" }
+    },
+    "profile_descriptors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sandboxProfileDescriptor" }
+    },
+    "platform_resolutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/platformResolution" }
+    },
+    "trust_review": { "$ref": "#/$defs/trustReview" },
+    "consumer_projection": { "$ref": "#/$defs/consumerProjection" },
+    "source_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "redaction_class_token": { "type": "string", "minLength": 1 },
+    "minted_at": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "executingSurface": {
+      "type": "string",
+      "enum": [
+        "request_api_send",
+        "database_action",
+        "notebook_kernel",
+        "scaffold_hook",
+        "preview_server",
+        "ai_tool",
+        "recipe",
+        "browser_routed_action",
+        "incident_flow",
+        "remote_mutation"
+      ]
+    },
+    "launchPath": {
+      "type": "string",
+      "enum": [
+        "task_execution",
+        "terminal_session",
+        "notebook_cell",
+        "request_send",
+        "database_query",
+        "debug_session",
+        "connector_action",
+        "ai_tool_call",
+        "browser_routed_action",
+        "remote_mutation"
+      ]
+    },
+    "sandboxProfile": {
+      "type": "string",
+      "enum": [
+        "inert_no_execution",
+        "in_process_trusted_local",
+        "brokered_network_only",
+        "subprocess_isolated_local",
+        "container_isolated_local",
+        "isolated_remote_runtime"
+      ]
+    },
+    "backendClass": {
+      "type": "string",
+      "enum": [
+        "in_process",
+        "brokered_network",
+        "local_isolated",
+        "remote_isolated",
+        "inert"
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "linux_desktop",
+        "macos_desktop",
+        "windows_desktop",
+        "managed_remote_runtime",
+        "headless_ci"
+      ]
+    },
+    "resolutionStatus": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "narrowed_to_stricter_profile",
+        "unsupported_fail_closed",
+        "disabled_with_reason"
+      ]
+    },
+    "qualificationClass": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+    },
+    "capabilityClass": {
+      "type": "string",
+      "enum": [
+        "read_workspace",
+        "write_workspace",
+        "network_egress",
+        "process_spawn",
+        "secret_handle_projection",
+        "database_read",
+        "database_write",
+        "remote_mutation",
+        "browser_navigation"
+      ]
+    },
+    "launchPathBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["launch_path", "governing_surface", "default_backend_class", "note"],
+      "properties": {
+        "launch_path": { "$ref": "#/$defs/launchPath" },
+        "governing_surface": { "$ref": "#/$defs/executingSurface" },
+        "default_backend_class": { "$ref": "#/$defs/backendClass" },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sandboxProfileDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "profile_id",
+        "profile_version",
+        "backend_class",
+        "isolation_rank",
+        "network_lane",
+        "isolation_summary",
+        "capability_ceiling"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/sandboxProfile" },
+        "profile_id": { "type": "string", "minLength": 1 },
+        "profile_version": { "type": "integer", "minimum": 1 },
+        "backend_class": { "$ref": "#/$defs/backendClass" },
+        "isolation_rank": { "type": "integer", "minimum": 0 },
+        "network_lane": { "type": "boolean" },
+        "isolation_summary": { "type": "string", "minLength": 1 },
+        "capability_ceiling": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityClass" }
+        }
+      }
+    },
+    "resolvedSurfaceRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "default_profile",
+        "default_profile_id",
+        "default_profile_version",
+        "default_backend_class",
+        "resolution_status",
+        "effective_profile",
+        "effective_profile_id",
+        "effective_profile_version",
+        "effective_backend_class",
+        "effective_qualification",
+        "stripped_capability_classes",
+        "reduced_capability_explanation"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/executingSurface" },
+        "default_profile": { "$ref": "#/$defs/sandboxProfile" },
+        "default_profile_id": { "type": "string", "minLength": 1 },
+        "default_profile_version": { "type": "integer", "minimum": 1 },
+        "default_backend_class": { "$ref": "#/$defs/backendClass" },
+        "resolution_status": { "$ref": "#/$defs/resolutionStatus" },
+        "effective_profile": {
+          "oneOf": [{ "$ref": "#/$defs/sandboxProfile" }, { "type": "null" }]
+        },
+        "effective_profile_id": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "effective_profile_version": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "effective_backend_class": {
+          "oneOf": [{ "$ref": "#/$defs/backendClass" }, { "type": "null" }]
+        },
+        "effective_qualification": { "$ref": "#/$defs/qualificationClass" },
+        "stripped_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityClass" }
+        },
+        "reduced_capability_explanation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "platformResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "available_profiles", "resolved_rows"],
+      "properties": {
+        "platform": { "$ref": "#/$defs/platform" },
+        "available_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sandboxProfile" }
+        },
+        "resolved_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolvedSurfaceRow" }
+        }
+      }
+    },
+    "trustReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "never_widens_on_narrow",
+        "fail_closed_when_no_stricter_profile",
+        "missing_profile_coverage_narrows",
+        "same_descriptor_across_consumers",
+        "reduced_capability_explained",
+        "no_raw_secret_material_in_exports"
+      ],
+      "properties": {
+        "never_widens_on_narrow": { "type": "boolean" },
+        "fail_closed_when_no_stricter_profile": { "type": "boolean" },
+        "missing_profile_coverage_narrows": { "type": "boolean" },
+        "same_descriptor_across_consumers": { "type": "boolean" },
+        "reduced_capability_explained": { "type": "boolean" },
+        "no_raw_secret_material_in_exports": { "type": "boolean" }
+      }
+    },
+    "consumerProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_shows_profile_descriptor",
+        "cli_headless_shows_profile_descriptor",
+        "diagnostics_shows_profile_descriptor",
+        "support_export_shows_resolution",
+        "help_about_shows_backend_class",
+        "release_evidence_consumes_resolution",
+        "command_and_policy_reference_same_resolution",
+        "preview_labs_label_for_narrowed_surfaces"
+      ],
+      "properties": {
+        "desktop_shows_profile_descriptor": { "type": "boolean" },
+        "cli_headless_shows_profile_descriptor": { "type": "boolean" },
+        "diagnostics_shows_profile_descriptor": { "type": "boolean" },
+        "support_export_shows_resolution": { "type": "boolean" },
+        "help_about_shows_backend_class": { "type": "boolean" },
+        "release_evidence_consumes_resolution": { "type": "boolean" },
+        "command_and_policy_reference_same_resolution": { "type": "boolean" },
+        "preview_labs_label_for_narrowed_surfaces": { "type": "boolean" }
+      }
+    }
+  }
+}
