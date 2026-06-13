@@ -1,0 +1,69 @@
+# M5 Capability-Envelope Packets
+
+- Packet: `m5-capability-envelope-packets:stable:0001`
+- Label: `M5 Capability-Envelope Packets`
+- Envelopes: 10 (0 narrowed from default)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Issued envelopes
+
+- **request_api_send** (envelope:request-api-send:0001)
+  - Actor: human_operator (`actor:operator:local`) · Target: network_endpoint (`https://api.example.test/v1/orders`)
+  - Allowed scope: network_endpoint:https://api.example.test/v1=send_only
+  - Capabilities: network_egress, secret_handle_projection · Secret scope: handle_only_delegated
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T01:00:00Z (ttl 3600s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:request-api-send:0001 · Posture: ticket_required_per_scope
+- **database_action** (envelope:database-action:0001)
+  - Actor: human_operator (`actor:operator:local`) · Target: database (`db://primary/orders`)
+  - Allowed scope: data_sink:db://primary/orders=read_write, network_endpoint:tcp://db.example.test:5432=send_only
+  - Capabilities: database_read, database_write, network_egress, secret_handle_projection · Secret scope: handle_only_delegated
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:15:00Z (ttl 900s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:database-action:0001 · Posture: ticket_required_per_action
+- **notebook_kernel** (envelope:notebook-kernel:0001)
+  - Actor: human_operator (`actor:operator:local`) · Target: local_process (`kernel://project/notebook-7`)
+  - Allowed scope: filesystem_root:workspace://project=read_write, network_endpoint:broker://transport-plane=send_only
+  - Capabilities: read_workspace, write_workspace, process_spawn, network_egress · Secret scope: no_secret_access
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T02:00:00Z (ttl 7200s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:notebook-kernel:0001 · Posture: ticket_required_per_session
+- **scaffold_hook** (envelope:scaffold-hook:0001)
+  - Actor: system_automation (`actor:scaffold-runner:local`) · Target: local_workspace (`workspace://project/templates`)
+  - Allowed scope: filesystem_root:workspace://project/templates=read_write
+  - Capabilities: read_workspace, write_workspace, process_spawn · Secret scope: no_secret_access
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:10:00Z (ttl 600s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:scaffold-hook:0001 · Posture: ticket_required_per_action
+- **preview_server** (envelope:preview-server:0001)
+  - Actor: system_automation (`actor:preview-runner:local`) · Target: local_process (`preview://project/public`)
+  - Allowed scope: filesystem_root:workspace://project/public=read_only, network_endpoint:loopback://127.0.0.1:0=send_only
+  - Capabilities: read_workspace, process_spawn, network_egress · Secret scope: no_secret_access
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T02:00:00Z (ttl 7200s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:preview-server:0001 · Posture: ticket_required_per_session
+- **ai_tool** (envelope:ai-tool:0001)
+  - Actor: ai_tool (`actor:ai-tool:composer`) · Target: local_workspace (`workspace://project`)
+  - Allowed scope: filesystem_root:workspace://project/src=read_write, network_endpoint:broker://transport-plane=send_only
+  - Capabilities: read_workspace, write_workspace, network_egress, secret_handle_projection · Secret scope: handle_only_delegated
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:05:00Z (ttl 300s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:ai-tool:0001 · Posture: ticket_required_per_action
+- **recipe** (envelope:recipe:0001)
+  - Actor: recipe (`actor:recipe:nightly-format`) · Target: local_workspace (`workspace://project`)
+  - Allowed scope: filesystem_root:workspace://project/src=read_write
+  - Capabilities: read_workspace, write_workspace, process_spawn · Secret scope: no_secret_access
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:30:00Z (ttl 1800s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:recipe:0001 · Posture: ticket_required_per_scope
+- **browser_routed_action** (envelope:browser-routed-action:0001)
+  - Actor: browser_route (`actor:browser-route:agent`) · Target: browser_context (`https://app.example.test`, off-device)
+  - Allowed scope: network_endpoint:https://app.example.test=navigate
+  - Capabilities: browser_navigation, network_egress · Secret scope: no_secret_access
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:05:00Z (ttl 300s)
+  - Issuer: remote_broker_runtime (`issuer:remote-broker:managed`) · Ticket: ticket:browser-routed-action:0001 · Posture: ticket_required_per_action
+- **incident_flow** (envelope:incident-flow:0001)
+  - Actor: human_operator (`actor:operator:on-call`) · Target: network_endpoint (`https://incident.example.test/runbook`)
+  - Allowed scope: filesystem_root:workspace://project/runbooks=read_only, network_endpoint:broker://transport-plane=send_only
+  - Capabilities: read_workspace, network_egress, secret_handle_projection · Secret scope: handle_only_delegated
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T01:00:00Z (ttl 3600s)
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:incident-flow:0001 · Posture: ticket_required_per_scope
+- **remote_mutation** (envelope:remote-mutation:0001)
+  - Actor: remote_helper (`actor:remote-helper:managed`) · Target: remote_host (`remote://managed-runtime/deployment`, off-device)
+  - Allowed scope: data_sink:remote://managed-runtime/deployment=read_write, network_endpoint:https://managed-runtime.example.test/mutation=send_only
+  - Capabilities: remote_mutation, network_egress, secret_handle_projection · Secret scope: scoped_brokered_secret
+  - Policy epoch: policy-epoch:m5:0007 (seq 7) · Expires: 2026-06-10T00:05:00Z (ttl 300s)
+  - Issuer: remote_broker_runtime (`issuer:remote-broker:managed`) · Ticket: ticket:remote-mutation:0001 · Posture: ticket_required_per_action

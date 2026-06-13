@@ -27,6 +27,7 @@ pub mod policy_simulation_and_expiry;
 pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_limits;
 pub mod records_policy_governance_snapshot;
 pub mod runtime_authority_issuers;
+pub mod ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sinks_or_endpoints_secret_handle_refs_policy_epoch_e;
 pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
 pub mod stabilize_deployment_and_residency_truth;
@@ -360,6 +361,21 @@ pub use implement_execution_surface_classes_sandbox_profile_descriptors_and_unsu
     M5_EXECUTION_SURFACE_RESOLUTION_RECORD_KIND, M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_REF,
     M5_EXECUTION_SURFACE_RESOLUTION_SCHEMA_VERSION, M5_EXECUTION_SURFACE_RESOLUTION_SUMMARY_REF,
     M5_SANDBOX_PROFILE_DESCRIPTOR_VERSION,
+};
+
+pub use ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sinks_or_endpoints_secret_handle_refs_policy_epoch_e::{
+    current_stable_m5_capability_envelope_export, frozen_stable_m5_capability_envelope_packet,
+    M5AllowedScopeEntry, M5AllowedScopeKind, M5CapabilityEnvelope,
+    M5CapabilityEnvelopeArtifactError, M5CapabilityEnvelopeConsumerProjection,
+    M5CapabilityEnvelopePacket, M5CapabilityEnvelopePacketInput,
+    M5CapabilityEnvelopeProofFreshness, M5CapabilityEnvelopeTrustReview,
+    M5CapabilityEnvelopeViolation, M5EnvelopeActor, M5EnvelopeActorClass,
+    M5EnvelopeAuditLineage, M5EnvelopeExpiry, M5EnvelopeIssuerClass, M5EnvelopeTarget,
+    M5EnvelopeTargetClass, M5PolicyEpochBinding, M5ScopeAccessMode, M5SecretHandleRef,
+    M5_CAPABILITY_ENVELOPE_ARTIFACT_REF, M5_CAPABILITY_ENVELOPE_DOC_REF,
+    M5_CAPABILITY_ENVELOPE_FIXTURE_DIR, M5_CAPABILITY_ENVELOPE_PACKET_ID,
+    M5_CAPABILITY_ENVELOPE_RECORD_KIND, M5_CAPABILITY_ENVELOPE_SCHEMA_REF,
+    M5_CAPABILITY_ENVELOPE_SCHEMA_VERSION, M5_CAPABILITY_ENVELOPE_SUMMARY_REF,
 };
 
 pub use finalize_managed_workspace_lifecycle_truth::{
