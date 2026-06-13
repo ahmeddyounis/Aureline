@@ -277,6 +277,20 @@
 //! memory/cache classes, retrieval lanes, locality posture, cache-invalidation
 //! classes, delete/export posture, budget/receipt expectation, and consumer
 //! parity, auto-narrowing any Stable claim whose recall evidence is incomplete.
+//! The materialized memory-class lane exposes one
+//! [`implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth::MemoryClassMaterializationPacket`]
+//! object that materializes the individual turn-, thread-, workspace-, and
+//! org-scoped memory objects the recall matrix qualifies — each binding its
+//! artifact class (ephemeral turn state, evictable derived cache, prompt-result
+//! cache, reusable semantic memory, or durable saved memory) to a retention,
+//! delete, export, locality, and invalidation posture and the composer, review,
+//! docs, and agent flows that read it — keeping ephemeral state, evictable
+//! derived cache, reusable semantic memory, and durable saved memory distinct,
+//! holding every durable object to a real delete/export posture, bounding every
+//! prompt-result cache to a content-hash key and lifetime so it can never become a
+//! shadow telemetry store, never widening locality past its scope, and degrading a
+//! missing or policy-blocked object to a precise label rather than one generic
+//! "memory unavailable" state.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
@@ -308,6 +322,7 @@ pub mod implement_customer_visible_usage_export_budget_attribution_and_managed_o
 pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
 pub mod implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains;
 pub mod implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay;
+pub mod implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
 pub mod prompt_composer;
@@ -619,6 +634,23 @@ pub use implement_local_model_pack_install_provenance_hardware_fit_checks_and_of
     LOCAL_MODEL_PACK_ARTIFACT_REF, LOCAL_MODEL_PACK_DOC_REF, LOCAL_MODEL_PACK_FIXTURE_DIR,
     LOCAL_MODEL_PACK_RECORD_KIND, LOCAL_MODEL_PACK_SCHEMA_REF, LOCAL_MODEL_PACK_SCHEMA_VERSION,
     LOCAL_MODEL_PACK_SUMMARY_REF,
+};
+pub use implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth::{
+    current_stable_memory_class_materialization_export, MemoryArtifactClass,
+    MemoryAvailabilityClass, MemoryClassConsumerProjection, MemoryClassGuardrails,
+    MemoryClassMaterializationArtifactError, MemoryClassMaterializationPacket,
+    MemoryClassMaterializationPacketInput, MemoryClassMaterializationViolation,
+    MemoryClassObjectRecord, MemoryClassProofFreshness, MemoryConsumerFlow,
+    MemoryDeleteExportPosture, MemoryInvalidationClass, MemoryLocalityClass, MemoryRetentionClass,
+    MemoryScopeClass as MaterializedMemoryScopeClass, MEMORY_CLASS_MATERIALIZATION_ARTIFACT_REF,
+    MEMORY_CLASS_MATERIALIZATION_DELETE_EXPORT_CONTRACT_REF, MEMORY_CLASS_MATERIALIZATION_DOC_REF,
+    MEMORY_CLASS_MATERIALIZATION_FIXTURE_DIR,
+    MEMORY_CLASS_MATERIALIZATION_MEMORY_CLASS_CONTRACT_REF,
+    MEMORY_CLASS_MATERIALIZATION_RECALL_MATRIX_CONTRACT_REF,
+    MEMORY_CLASS_MATERIALIZATION_RECORD_KIND, MEMORY_CLASS_MATERIALIZATION_SCHEMA_REF,
+    MEMORY_CLASS_MATERIALIZATION_SCHEMA_VERSION,
+    MEMORY_CLASS_MATERIALIZATION_SPEND_RECEIPT_CONTRACT_REF,
+    MEMORY_CLASS_MATERIALIZATION_SUMMARY_REF,
 };
 pub use materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors::{
     current_provider_route_disclosure_export, ExecutionModeClass,
