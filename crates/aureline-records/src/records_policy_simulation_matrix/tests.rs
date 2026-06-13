@@ -60,7 +60,9 @@ fn matrix_covers_every_governed_family_and_consumer_surface() {
 fn cli_headless_help_and_release_projections_cover_every_row() {
     let matrix = matrix();
     assert_eq!(matrix.cli_headless_projection().len(), matrix.rows.len());
+    assert_eq!(matrix.product_projection().len(), matrix.rows.len());
     assert_eq!(matrix.help_docs_projection().len(), matrix.rows.len());
+    assert_eq!(matrix.support_export_projection().len(), matrix.rows.len());
     assert_eq!(
         matrix.release_evidence_projection().len(),
         matrix.rows.len()
@@ -98,6 +100,20 @@ fn remembered_decision_row_requires_all_reapproval_triggers() {
     assert!(matrix.validate().iter().any(|violation| matches!(
         violation,
         RecordsPolicyMatrixViolation::ReapprovalTriggerMissing { .. }
+    )));
+}
+
+#[test]
+fn row_requires_registered_producer_record_kinds() {
+    let mut matrix = matrix();
+    let row = matrix
+        .rows
+        .first_mut()
+        .expect("seeded matrix contains rows");
+    row.producer_record_kinds.clear();
+    assert!(matrix.validate().iter().any(|violation| matches!(
+        violation,
+        RecordsPolicyMatrixViolation::ProducerRecordKindsMissing { .. }
     )));
 }
 

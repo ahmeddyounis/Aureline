@@ -19,10 +19,17 @@ must not hide:
 This packet is the one control source for those answers across product,
 CLI/headless, help/docs, support export, and release evidence.
 
+Each governed row now also carries a family-specific record-class descriptor, a
+retention-policy assignment, a chronology row id with imported-versus-live
+disclosure, and the concrete producer `record_kind`s that must validate
+against the row's class.
+
 ## Required contract
 
 - Local-only rows must never imply remote delete, remote export, or remote
   legal hold.
+- Claimed M5 durable artifact families must bind to their concrete packet
+  `record_kind`s rather than generic managed-state placeholders.
 - Chronology must preserve absolute time, local context, source, actor lineage,
   and imported-versus-live distinction.
 - Policy-bearing rows must point to one policy owner and the four stable
@@ -33,12 +40,13 @@ CLI/headless, help/docs, support export, and release evidence.
 
 ## First consumers
 
-- Product surfaces render row qualification and delete/export honesty directly.
+- Product surfaces render row qualification, record class, retention
+  assignment, and delete/export honesty directly.
 - CLI/headless explain output uses the typed row projection instead of cloning
   prose.
 - Help/docs cite the packet by reference.
 - Support export embeds the packet and cross-checks it against the stable policy
-  snapshot.
+  snapshot while projecting the same record/retention/chronology fields.
 - Release evidence cites the packet directly for governed managed-depth rows.
 
 ## Current narrowing

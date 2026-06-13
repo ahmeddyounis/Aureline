@@ -58,6 +58,18 @@ pub enum RecordClassId {
     DestructionReceiptRecord,
     /// AI evidence packets retained under managed policy.
     AiRetainedEvidencePacket,
+    /// Provider-linked work-item mutation and handoff records.
+    ProviderLinkedWorkItemRecord,
+    /// Companion continuity packets spanning local-core and managed truth.
+    CompanionContinuityPacket,
+    /// Incident and support handoff packets.
+    IncidentSupportPacket,
+    /// Managed sync and mirror ledger records.
+    SyncMirrorLedger,
+    /// Browser handoff manifests and return-anchor continuity records.
+    BrowserHandoffManifest,
+    /// Support-export packets and managed case copies.
+    SupportExportPacket,
     /// Collaboration session records (local and managed copies distinct).
     CollaborationSessionRecord,
     /// Collaboration join, request, admit, and revoke audit events.
@@ -91,6 +103,12 @@ impl RecordClassId {
             Self::OffboardingExitPacket => "offboarding_exit_packet",
             Self::DestructionReceiptRecord => "destruction_receipt_record",
             Self::AiRetainedEvidencePacket => "ai_retained_evidence_packet",
+            Self::ProviderLinkedWorkItemRecord => "provider_linked_work_item_record",
+            Self::CompanionContinuityPacket => "companion_continuity_packet",
+            Self::IncidentSupportPacket => "incident_support_packet",
+            Self::SyncMirrorLedger => "sync_mirror_ledger",
+            Self::BrowserHandoffManifest => "browser_handoff_manifest",
+            Self::SupportExportPacket => "support_export_packet",
             Self::CollaborationSessionRecord => "collaboration_session_record",
             Self::CollaborationJoinAuditEvent => "collaboration_join_audit_event",
             Self::CollaborationTranscriptRecord => "collaboration_transcript_record",
@@ -115,6 +133,12 @@ impl RecordClassId {
             "offboarding_exit_packet" => Some(Self::OffboardingExitPacket),
             "destruction_receipt_record" => Some(Self::DestructionReceiptRecord),
             "ai_retained_evidence_packet" => Some(Self::AiRetainedEvidencePacket),
+            "provider_linked_work_item_record" => Some(Self::ProviderLinkedWorkItemRecord),
+            "companion_continuity_packet" => Some(Self::CompanionContinuityPacket),
+            "incident_support_packet" => Some(Self::IncidentSupportPacket),
+            "sync_mirror_ledger" => Some(Self::SyncMirrorLedger),
+            "browser_handoff_manifest" => Some(Self::BrowserHandoffManifest),
+            "support_export_packet" => Some(Self::SupportExportPacket),
             "collaboration_session_record" => Some(Self::CollaborationSessionRecord),
             "collaboration_join_audit_event" => Some(Self::CollaborationJoinAuditEvent),
             "collaboration_transcript_record" => Some(Self::CollaborationTranscriptRecord),
@@ -661,6 +685,38 @@ pub const PRODUCER_RECORD_KIND_BINDINGS: &[RecordKindBinding] = &[
         record_kind: "evidence_timeline_packet_record",
         record_class_id: RecordClassId::SupportBundleArchive,
     },
+    RecordKindBinding {
+        record_kind: "ai_evidence_packet_finalization",
+        record_class_id: RecordClassId::AiRetainedEvidencePacket,
+    },
+    RecordKindBinding {
+        record_kind: "ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews",
+        record_class_id: RecordClassId::ProviderLinkedWorkItemRecord,
+    },
+    RecordKindBinding {
+        record_kind: "ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes",
+        record_class_id: RecordClassId::CompanionContinuityPacket,
+    },
+    RecordKindBinding {
+        record_kind: "add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets",
+        record_class_id: RecordClassId::IncidentSupportPacket,
+    },
+    RecordKindBinding {
+        record_kind: "ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage",
+        record_class_id: RecordClassId::SyncMirrorLedger,
+    },
+    RecordKindBinding {
+        record_kind: "implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho",
+        record_class_id: RecordClassId::OffboardingExitPacket,
+    },
+    RecordKindBinding {
+        record_kind: "ship_browser_provider_handoff_continuity_for_review_ci_logs_and_artifact_deep_links",
+        record_class_id: RecordClassId::BrowserHandoffManifest,
+    },
+    RecordKindBinding {
+        record_kind: "records_policy_governance_support_export",
+        record_class_id: RecordClassId::SupportExportPacket,
+    },
 ];
 
 static CURRENT_REGISTRY: OnceLock<Result<RecordClassRegistry, RecordRegistryError>> =
@@ -772,7 +828,7 @@ mod tests {
             registry.schema_version,
             RECORD_CLASS_REGISTRY_SCHEMA_VERSION
         );
-        assert_eq!(registry.record_classes.len(), 18);
+        assert_eq!(registry.record_classes.len(), 24);
 
         for row in &registry.record_classes {
             let yaml = serde_yaml::to_string(row).expect("row serializes");
@@ -792,6 +848,12 @@ mod tests {
             RecordClassId::ObserverOnlyArchive,
             RecordClassId::ReplayableSessionBundle,
             RecordClassId::CollaborationReviewEvidence,
+            RecordClassId::ProviderLinkedWorkItemRecord,
+            RecordClassId::CompanionContinuityPacket,
+            RecordClassId::IncidentSupportPacket,
+            RecordClassId::SyncMirrorLedger,
+            RecordClassId::BrowserHandoffManifest,
+            RecordClassId::SupportExportPacket,
             RecordClassId::OperationalAuditRecord,
             RecordClassId::ManagedWorkspaceMetadata,
             RecordClassId::BillingUsageAggregate,
@@ -865,5 +927,49 @@ mod tests {
             error,
             RecordRegistryError::RecordKindClassMismatch { .. }
         ));
+    }
+
+    #[test]
+    fn m5_durable_artifact_record_kinds_bind_to_family_specific_classes() {
+        let cases = [
+            (
+                "ai_evidence_packet_finalization",
+                RecordClassId::AiRetainedEvidencePacket,
+            ),
+            (
+                "ship_work_item_detail_headers_status_transition_sheets_comment_publish_review_and_offline_handoff_packets_with_side_effect_previews",
+                RecordClassId::ProviderLinkedWorkItemRecord,
+            ),
+            (
+                "ship_companion_safe_redaction_local_core_continuity_and_offline_packet_flows_across_support_and_incident_lanes",
+                RecordClassId::CompanionContinuityPacket,
+            ),
+            (
+                "add_incident_workspace_headers_evidence_timelines_resource_slices_and_runbook_packets",
+                RecordClassId::IncidentSupportPacket,
+            ),
+            (
+                "ship_managed_sync_maturity_with_snapshot_classes_conflict_review_device_registry_and_end_to_end_encrypted_storage",
+                RecordClassId::SyncMirrorLedger,
+            ),
+            (
+                "implement_usage_export_and_offboarding_packages_grace_window_state_org_switch_semantics_and_deletion_export_ho",
+                RecordClassId::OffboardingExitPacket,
+            ),
+            (
+                "ship_browser_provider_handoff_continuity_for_review_ci_logs_and_artifact_deep_links",
+                RecordClassId::BrowserHandoffManifest,
+            ),
+            (
+                "records_policy_governance_support_export",
+                RecordClassId::SupportExportPacket,
+            ),
+        ];
+
+        for (record_kind, record_class_id) in cases {
+            let validated =
+                validate_typed(record_kind, record_class_id).expect("record kind validates");
+            assert_eq!(validated.record_class_id, record_class_id);
+        }
     }
 }

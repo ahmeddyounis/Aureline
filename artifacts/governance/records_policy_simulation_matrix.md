@@ -17,20 +17,25 @@ chronology, and policy-simulation coverage.
   `needs_review` because its proof packet is stale.
 - No release-blocking row is currently narrowed, so publication may proceed
   without widening the stale browser-handoff claim.
+- Every row also binds a family-specific record class, retention assignment,
+  chronology row id, and one or more concrete producer `record_kind`s.
 
 ## Rows
 
-- `ai_evidence_packet` uses `ai_retained_evidence_packet` and keeps managed
-  retention visible.
-- `provider_linked_work_item` uses `operational_audit_record` and keeps local
-  draft versus managed retained truth distinct.
-- `companion_continuity_packet` uses `managed_workspace_metadata` and treats the
-  local copy as a cache rather than the authority source.
-- `incident_support_packet` and `support_export_packet` use
-  `support_bundle_archive` and preserve held/queued/retained-evidence honesty.
-- `sync_mirror_ledger` uses `managed_copy_index_entry` and keeps imported/live
-  chronology distinct.
+- `ai_evidence_packet` uses `ai_retained_evidence_packet` and validates
+  `ai_evidence_packet_finalization`.
+- `provider_linked_work_item` uses
+  `provider_linked_work_item_record` and validates the work-item mutation
+  review packet record kind.
+- `companion_continuity_packet` uses `companion_continuity_packet` and
+  validates the companion continuity packet record kind.
+- `incident_support_packet` uses `incident_support_packet` and validates the
+  incident workspace surface packet record kind.
+- `sync_mirror_ledger` uses `sync_mirror_ledger` and validates the managed sync
+  maturity packet record kind.
 - `offboarding_record` uses `offboarding_exit_packet` and preserves local
   downloaded copies versus managed retained copies.
-- `browser_handoff_manifest` is local-only and explicitly does not claim remote
-  delete, export, or hold authority.
+- `browser_handoff_manifest` uses `browser_handoff_manifest`, validates the
+  browser/provider handoff continuity packet record kind, and is local-only.
+- `support_export_packet` uses `support_export_packet` and validates the
+  records-policy governance support-export packet record kind.

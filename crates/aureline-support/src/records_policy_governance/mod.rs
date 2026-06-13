@@ -14,7 +14,7 @@ use aureline_policy::{
 };
 use aureline_records::records_policy_simulation_matrix::{
     current_records_policy_matrix, GovernedArtifactFamily, RecordsPolicyGapReason,
-    RecordsPolicyPublicationDecision, RecordsPolicySimulationMatrix,
+    RecordsPolicyPublicationDecision, RecordsPolicySimulationMatrix, SupportExportProjectionRow,
 };
 
 #[cfg(test)]
@@ -58,6 +58,8 @@ pub struct RecordsPolicyGovernanceSupportExport {
     pub matrix: RecordsPolicySimulationMatrix,
     /// Embedded policy-governance snapshot.
     pub policy_snapshot: PolicyGovernanceScopeSnapshot,
+    /// Shared support/export projection rows for the governed families.
+    pub projection_rows: Vec<SupportExportProjectionRow>,
     /// Release-blocking rows that currently force publication hold.
     pub blocking_row_ids: Vec<String>,
     /// Narrowed rows that support surfaces must disclose.
@@ -97,9 +99,11 @@ impl RecordsPolicyGovernanceSupportExport {
             .map(|row| row.entry_id.clone())
             .collect::<Vec<_>>();
         let coherence_issues = coherence_issues(&matrix, &policy_snapshot);
+        let projection_rows = matrix.support_export_projection();
         let support_summary = format!(
-            "Records/policy governance export covering {} governed rows; {} narrowed rows; publication decision {}.",
+            "Records/policy governance export covering {} governed rows, {} support/export projections, {} narrowed rows; publication decision {}.",
             matrix.rows.len(),
+            projection_rows.len(),
             narrowed_row_ids.len(),
             matrix.publication.decision.as_str()
         );
@@ -114,6 +118,7 @@ impl RecordsPolicyGovernanceSupportExport {
             policy_snapshot_ref: "policy:records_policy_governance_snapshot:v1".to_owned(),
             matrix,
             policy_snapshot,
+            projection_rows,
             blocking_row_ids,
             narrowed_row_ids,
             coherence_issues,
@@ -145,6 +150,13 @@ impl RecordsPolicyGovernanceSupportExport {
                 entry_id: self.export_id.clone(),
                 issue_code: "raw_private_material_exposed".to_owned(),
                 message: "support export must remain metadata-only".to_owned(),
+            });
+        }
+        if self.projection_rows.len() != self.matrix.rows.len() {
+            issues.push(RecordsPolicyGovernanceIssue {
+                entry_id: self.export_id.clone(),
+                issue_code: "projection_row_count_mismatch".to_owned(),
+                message: "support/export projection rows must cover every matrix row".to_owned(),
             });
         }
         issues.extend(coherence_issues(&self.matrix, &self.policy_snapshot));

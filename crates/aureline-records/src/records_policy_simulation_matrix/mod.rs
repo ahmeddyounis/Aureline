@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::stabilize_record_class_registry_legal_hold_delete_honesty::RecordOperationOutcome;
 use crate::{
-    current_registry, LocalVsManagedCopy, ManagedCopyPosture, RecordClassId, RecordRegistryError,
+    current_registry, validate_typed, LocalVsManagedCopy, ManagedCopyPosture, RecordClassId,
+    RecordClassScope, RecordRegistryError,
 };
 
 #[cfg(test)]
@@ -276,10 +277,56 @@ pub struct ConsumerBinding {
     pub projection_rule: String,
 }
 
+/// Record-class descriptor exported for one governed row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecordClassDescriptor {
+    /// Stable record class governing the row.
+    pub record_class_id: RecordClassId,
+    /// Registry row reference that defines the class.
+    pub registry_row_ref: String,
+    /// Scope family declared by the registry.
+    pub class_scope: RecordClassScope,
+    /// Residency scope disclosed for this class.
+    pub residency_scope: String,
+    /// Whether the class may participate in hold semantics.
+    pub hold_eligible: bool,
+    /// Redaction profile disclosed for the class.
+    pub redaction_profile: String,
+    /// Reviewable managed-copy disclosure copied from the registry row.
+    pub managed_copy_label: String,
+}
+
+/// Retention-policy assignment projected for one governed row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RetentionPolicyAssignment {
+    /// Stable assignment id.
+    pub assignment_id: String,
+    /// Policy family governing the row.
+    pub policy_id: String,
+    /// Policy version or epoch applied to the row.
+    pub policy_version: String,
+    /// Scope selector naming the retained object family.
+    pub scope_selector: String,
+    /// Local retention owner reference.
+    pub local_owner_ref: String,
+    /// Managed retention owner reference.
+    pub managed_owner_ref: String,
+    /// Default retention trigger or duration rule.
+    pub retention_rule: String,
+    /// Delete, tombstone, or archive action taken when retention ends.
+    pub delete_action: String,
+    /// Grace or queueing rule before terminal destruction.
+    pub grace_rule: String,
+}
+
 /// Chronology contract a governed row must honor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChronologyContract {
+    /// Stable row id for the chronology surface.
+    pub row_id: String,
     /// Absolute time must always be preserved.
     pub absolute_time_required: bool,
     /// Local timezone context must be preserved.
@@ -288,6 +335,8 @@ pub struct ChronologyContract {
     pub source_required: bool,
     /// Actor lineage must be preserved.
     pub actor_lineage_required: bool,
+    /// Field token used to disclose imported/live chronology class.
+    pub imported_live_field: String,
     /// Chronology evidence classes the row can disclose.
     pub chronology_classes: Vec<ChronologyEvidenceClass>,
 }
@@ -295,10 +344,12 @@ pub struct ChronologyContract {
 impl ChronologyContract {
     /// Returns `true` when the contract preserves the required chronology fields.
     pub fn is_complete(&self) -> bool {
-        self.absolute_time_required
+        !self.row_id.trim().is_empty()
+            && self.absolute_time_required
             && self.local_context_required
             && self.source_required
             && self.actor_lineage_required
+            && !self.imported_live_field.trim().is_empty()
             && self
                 .chronology_classes
                 .contains(&ChronologyEvidenceClass::Live)
@@ -336,8 +387,14 @@ pub struct RecordsPolicyMatrixRow {
     pub artifact_family: GovernedArtifactFamily,
     /// Whether this row is release-blocking.
     pub release_blocking: bool,
+    /// Stable producer record kinds that must validate against the class.
+    pub producer_record_kinds: Vec<String>,
     /// Record class governing the row.
     pub record_class_id: RecordClassId,
+    /// Full record-class descriptor exported for this row.
+    pub record_class_descriptor: RecordClassDescriptor,
+    /// Retention-policy assignment exported for this row.
+    pub retention_policy_assignment: RetentionPolicyAssignment,
     /// Where the platform's destructive/export authority lives.
     pub authority_boundary: AuthorityBoundaryClass,
     /// Local versus managed truth relationship.
@@ -476,6 +533,14 @@ pub struct CliHeadlessProjectionRow {
     pub entry_id: String,
     /// Governed family.
     pub artifact_family: GovernedArtifactFamily,
+    /// Governing record class.
+    pub record_class_id: RecordClassId,
+    /// Retention assignment id.
+    pub retention_assignment_id: String,
+    /// Chronology row id.
+    pub chronology_row_id: String,
+    /// Where destructive/export authority lives.
+    pub authority_boundary: AuthorityBoundaryClass,
     /// Published qualification.
     pub qualification: RecordsPolicyQualificationClass,
     /// Delete-honesty posture.
@@ -495,6 +560,10 @@ pub struct HelpDocsProjectionRow {
     pub entry_id: String,
     /// Title shown in docs/help.
     pub title: String,
+    /// Governing record class.
+    pub record_class_id: RecordClassId,
+    /// Reviewable managed-copy disclosure.
+    pub managed_copy_label: String,
     /// Help/docs references that should cite the row.
     pub docs_refs: Vec<String>,
     /// Reviewable rationale for the row.
@@ -508,6 +577,8 @@ pub struct ReleaseEvidenceProjectionRow {
     pub entry_id: String,
     /// Governed family.
     pub artifact_family: GovernedArtifactFamily,
+    /// Governing record class.
+    pub record_class_id: RecordClassId,
     /// Whether the row is release-blocking.
     pub release_blocking: bool,
     /// Published qualification.
@@ -516,6 +587,58 @@ pub struct ReleaseEvidenceProjectionRow {
     pub proof_freshness: ProofFreshnessClass,
     /// Proof reference surfaced into release evidence.
     pub proof_ref: String,
+}
+
+/// Product-facing projection row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductProjectionRow {
+    /// Stable entry id.
+    pub entry_id: String,
+    /// Human-readable title.
+    pub title: String,
+    /// Governing record class.
+    pub record_class_id: RecordClassId,
+    /// Retention assignment id.
+    pub retention_assignment_id: String,
+    /// Chronology row id.
+    pub chronology_row_id: String,
+    /// Local versus managed authority boundary.
+    pub authority_boundary: AuthorityBoundaryClass,
+    /// Primary delete-honesty posture.
+    pub delete_state: RecordOperationOutcome,
+    /// Primary export-honesty posture.
+    pub export_state: RecordOperationOutcome,
+}
+
+/// Support/export projection row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupportExportProjectionRow {
+    /// Stable entry id.
+    pub entry_id: String,
+    /// Governing record class.
+    pub record_class_id: RecordClassId,
+    /// Stable producer record kinds covered by the row.
+    pub producer_record_kinds: Vec<String>,
+    /// Retention assignment id.
+    pub retention_assignment_id: String,
+    /// Local retention owner reference.
+    pub local_owner_ref: String,
+    /// Managed retention owner reference.
+    pub managed_owner_ref: String,
+    /// Chronology row id.
+    pub chronology_row_id: String,
+    /// Imported/live disclosure field.
+    pub imported_live_field: String,
+    /// Where destructive/export authority lives.
+    pub authority_boundary: AuthorityBoundaryClass,
+    /// Local versus managed truth relationship.
+    pub local_truth_authority: LocalVsManagedCopy,
+    /// Managed-copy posture.
+    pub managed_copy_posture: ManagedCopyPosture,
+    /// Delete-honesty posture.
+    pub delete_state: RecordOperationOutcome,
+    /// Export-honesty posture.
+    pub export_state: RecordOperationOutcome,
 }
 
 /// Validation violation emitted by the typed model.
@@ -537,10 +660,28 @@ pub enum RecordsPolicyMatrixViolation {
         entry_id: String,
         record_class_id: RecordClassId,
     },
+    /// A governed family is mapped to the wrong record class.
+    WrongRecordClassForFamily {
+        entry_id: String,
+        expected: RecordClassId,
+        found: RecordClassId,
+    },
+    /// A descriptor field drifts from the registry row.
+    RecordDescriptorMismatch { entry_id: String, field: String },
+    /// A producer record kind is missing.
+    ProducerRecordKindsMissing { entry_id: String },
+    /// A producer record kind is not registered to the row's class.
+    ProducerRecordKindMismatch {
+        entry_id: String,
+        record_kind: String,
+        message: String,
+    },
     /// A local-only row overclaims a managed control.
     ManagedControlOverclaimed { entry_id: String, control: String },
     /// A row omits required chronology truth.
     ChronologyContractIncomplete { entry_id: String },
+    /// A retention assignment drifts from the row's declared owners.
+    RetentionAssignmentMismatch { entry_id: String, field: String },
     /// A row requires policy governance but omits its owner.
     PolicyOwnerMissing { entry_id: String },
     /// A row requires remembered-decision revalidation but omits a trigger.
@@ -603,12 +744,113 @@ impl RecordsPolicySimulationMatrix {
 
         for row in &self.rows {
             if let Ok(registry) = &registry {
-                if registry.row(row.record_class_id).is_none() {
+                let expected_record_class = canonical_record_class_for_family(row.artifact_family);
+                if row.record_class_id != expected_record_class {
+                    violations.push(RecordsPolicyMatrixViolation::WrongRecordClassForFamily {
+                        entry_id: row.entry_id.clone(),
+                        expected: expected_record_class,
+                        found: row.record_class_id,
+                    });
+                }
+
+                let Some(registry_row) = registry.row(row.record_class_id) else {
                     violations.push(RecordsPolicyMatrixViolation::UnknownRecordClass {
                         entry_id: row.entry_id.clone(),
                         record_class_id: row.record_class_id,
                     });
+                    continue;
+                };
+
+                if row.record_class_descriptor.record_class_id != row.record_class_id {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "record_class_id".to_owned(),
+                    });
                 }
+                if row.record_class_descriptor.class_scope != registry_row.class_scope {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "class_scope".to_owned(),
+                    });
+                }
+                if row
+                    .record_class_descriptor
+                    .residency_scope
+                    .trim()
+                    .is_empty()
+                    || registry_row.residency_scope.as_deref()
+                        != Some(row.record_class_descriptor.residency_scope.as_str())
+                {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "residency_scope".to_owned(),
+                    });
+                }
+                if row.record_class_descriptor.hold_eligible
+                    != registry_row.hold_semantics.eligible.as_bool()
+                {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "hold_eligible".to_owned(),
+                    });
+                }
+                if row
+                    .record_class_descriptor
+                    .redaction_profile
+                    .trim()
+                    .is_empty()
+                    || registry_row.redaction_profile.as_deref()
+                        != Some(row.record_class_descriptor.redaction_profile.as_str())
+                {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "redaction_profile".to_owned(),
+                    });
+                }
+                if row
+                    .record_class_descriptor
+                    .managed_copy_label
+                    .trim()
+                    .is_empty()
+                    || normalized_whitespace(&row.record_class_descriptor.managed_copy_label)
+                        != normalized_whitespace(&registry_row.local_truth.managed_copy_label)
+                {
+                    violations.push(RecordsPolicyMatrixViolation::RecordDescriptorMismatch {
+                        entry_id: row.entry_id.clone(),
+                        field: "managed_copy_label".to_owned(),
+                    });
+                }
+
+                if row.producer_record_kinds.is_empty() {
+                    violations.push(RecordsPolicyMatrixViolation::ProducerRecordKindsMissing {
+                        entry_id: row.entry_id.clone(),
+                    });
+                } else {
+                    for record_kind in &row.producer_record_kinds {
+                        if let Err(error) = validate_typed(record_kind, row.record_class_id) {
+                            violations.push(
+                                RecordsPolicyMatrixViolation::ProducerRecordKindMismatch {
+                                    entry_id: row.entry_id.clone(),
+                                    record_kind: record_kind.clone(),
+                                    message: error.to_string(),
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+
+            if row.retention_policy_assignment.local_owner_ref != row.local_owner_ref {
+                violations.push(RecordsPolicyMatrixViolation::RetentionAssignmentMismatch {
+                    entry_id: row.entry_id.clone(),
+                    field: "local_owner_ref".to_owned(),
+                });
+            }
+            if row.retention_policy_assignment.managed_owner_ref != row.managed_owner_ref {
+                violations.push(RecordsPolicyMatrixViolation::RetentionAssignmentMismatch {
+                    entry_id: row.entry_id.clone(),
+                    field: "managed_owner_ref".to_owned(),
+                });
             }
 
             if row.authority_boundary == AuthorityBoundaryClass::LocalOnly {
@@ -843,6 +1085,10 @@ impl RecordsPolicySimulationMatrix {
             .map(|row| CliHeadlessProjectionRow {
                 entry_id: row.entry_id.clone(),
                 artifact_family: row.artifact_family,
+                record_class_id: row.record_class_id,
+                retention_assignment_id: row.retention_policy_assignment.assignment_id.clone(),
+                chronology_row_id: row.chronology_contract.row_id.clone(),
+                authority_boundary: row.authority_boundary,
                 qualification: row.published_qualification,
                 delete_state: row.delete_state,
                 export_state: row.export_state,
@@ -859,6 +1105,8 @@ impl RecordsPolicySimulationMatrix {
             .map(|row| HelpDocsProjectionRow {
                 entry_id: row.entry_id.clone(),
                 title: row.title.clone(),
+                record_class_id: row.record_class_id,
+                managed_copy_label: row.record_class_descriptor.managed_copy_label.clone(),
                 docs_refs: row.docs_refs.clone(),
                 rationale: row.rationale.clone(),
             })
@@ -872,10 +1120,50 @@ impl RecordsPolicySimulationMatrix {
             .map(|row| ReleaseEvidenceProjectionRow {
                 entry_id: row.entry_id.clone(),
                 artifact_family: row.artifact_family,
+                record_class_id: row.record_class_id,
                 release_blocking: row.release_blocking,
                 qualification: row.published_qualification,
                 proof_freshness: row.proof_freshness,
                 proof_ref: row.proof_ref.clone(),
+            })
+            .collect()
+    }
+
+    /// Returns the product-facing projection rows.
+    pub fn product_projection(&self) -> Vec<ProductProjectionRow> {
+        self.rows
+            .iter()
+            .map(|row| ProductProjectionRow {
+                entry_id: row.entry_id.clone(),
+                title: row.title.clone(),
+                record_class_id: row.record_class_id,
+                retention_assignment_id: row.retention_policy_assignment.assignment_id.clone(),
+                chronology_row_id: row.chronology_contract.row_id.clone(),
+                authority_boundary: row.authority_boundary,
+                delete_state: row.delete_state,
+                export_state: row.export_state,
+            })
+            .collect()
+    }
+
+    /// Returns the support/export projection rows.
+    pub fn support_export_projection(&self) -> Vec<SupportExportProjectionRow> {
+        self.rows
+            .iter()
+            .map(|row| SupportExportProjectionRow {
+                entry_id: row.entry_id.clone(),
+                record_class_id: row.record_class_id,
+                producer_record_kinds: row.producer_record_kinds.clone(),
+                retention_assignment_id: row.retention_policy_assignment.assignment_id.clone(),
+                local_owner_ref: row.retention_policy_assignment.local_owner_ref.clone(),
+                managed_owner_ref: row.retention_policy_assignment.managed_owner_ref.clone(),
+                chronology_row_id: row.chronology_contract.row_id.clone(),
+                imported_live_field: row.chronology_contract.imported_live_field.clone(),
+                authority_boundary: row.authority_boundary,
+                local_truth_authority: row.local_truth_authority,
+                managed_copy_posture: row.managed_copy_posture,
+                delete_state: row.delete_state,
+                export_state: row.export_state,
             })
             .collect()
     }
@@ -898,4 +1186,25 @@ pub const REQUIRED_REAPPROVAL_TRIGGER_TOKENS: &[&str] = &[
 pub fn records_policy_matrix_registry(
 ) -> Result<&'static crate::RecordClassRegistry, RecordRegistryError> {
     current_registry()
+}
+
+const fn canonical_record_class_for_family(family: GovernedArtifactFamily) -> RecordClassId {
+    match family {
+        GovernedArtifactFamily::AiEvidencePacket => RecordClassId::AiRetainedEvidencePacket,
+        GovernedArtifactFamily::ProviderLinkedWorkItem => {
+            RecordClassId::ProviderLinkedWorkItemRecord
+        }
+        GovernedArtifactFamily::CompanionContinuityPacket => {
+            RecordClassId::CompanionContinuityPacket
+        }
+        GovernedArtifactFamily::IncidentSupportPacket => RecordClassId::IncidentSupportPacket,
+        GovernedArtifactFamily::SyncMirrorLedger => RecordClassId::SyncMirrorLedger,
+        GovernedArtifactFamily::OffboardingRecord => RecordClassId::OffboardingExitPacket,
+        GovernedArtifactFamily::BrowserHandoffManifest => RecordClassId::BrowserHandoffManifest,
+        GovernedArtifactFamily::SupportExportPacket => RecordClassId::SupportExportPacket,
+    }
+}
+
+fn normalized_whitespace(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
 }

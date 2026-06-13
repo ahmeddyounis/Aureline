@@ -12,6 +12,7 @@ fn seeded_support_export_validates_and_preserves_narrowed_rows() {
     );
     assert!(export.raw_private_material_excluded);
     assert!(export.validate().is_empty(), "{:?}", export.validate());
+    assert_eq!(export.projection_rows.len(), export.matrix.rows.len());
     assert!(
         !export.narrowed_row_ids.is_empty(),
         "the checked-in matrix should expose at least one narrowed row"
