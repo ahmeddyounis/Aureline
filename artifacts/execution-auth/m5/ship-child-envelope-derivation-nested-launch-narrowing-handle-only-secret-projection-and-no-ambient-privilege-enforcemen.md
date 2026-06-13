@@ -1,0 +1,67 @@
+# M5 Child-Envelope Derivations
+
+- Packet: `m5-child-envelope-derivation:stable:0001`
+- Label: `M5 Child-Envelope Derivations`
+- Derivations: 8 (2 narrowed below baseline)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Nested launches
+
+- **notebook** (derivation:notebook:0001)
+  - Actor: human_operator (`actor:operator:local`)
+  - Parent caps: read_workspace, write_workspace, process_spawn, network_egress
+  - Child caps: read_workspace, write_workspace
+  - Sandbox: subprocess_isolated_local -> subprocess_isolated_local · Secret scope: no_secret_access -> no_secret_access
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:notebook-kernel:0001 · Self-issued: false
+- **scaffold** (derivation:scaffold:0001)
+  - Actor: system_automation (`actor:scaffold-runner:local`)
+  - Parent caps: read_workspace, write_workspace, process_spawn
+  - Child caps: read_workspace, write_workspace
+  - Sandbox: subprocess_isolated_local -> subprocess_isolated_local · Secret scope: no_secret_access -> no_secret_access
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:scaffold-hook:0001 · Self-issued: false
+- **request** (derivation:request:0001)
+  - Actor: human_operator (`actor:operator:local`)
+  - Parent caps: network_egress, secret_handle_projection
+  - Child caps: network_egress
+  - Sandbox: brokered_network_only -> brokered_network_only · Secret scope: handle_only_delegated -> no_secret_access
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:request-api-send:0001 · Self-issued: false
+- **database** (derivation:database:0001)
+  - Actor: human_operator (`actor:operator:local`)
+  - Parent caps: database_read, database_write, network_egress, secret_handle_projection
+  - Child caps: database_read, secret_handle_projection
+  - Sandbox: brokered_network_only -> brokered_network_only · Secret scope: handle_only_delegated -> handle_only_delegated
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:database-action:0001 · Self-issued: false
+- **ai** (derivation:ai:0001)
+  - Actor: ai_tool (`actor:ai-tool:composer`)
+  - Parent caps: read_workspace, write_workspace, network_egress, secret_handle_projection
+  - Child caps: read_workspace
+  - Sandbox: subprocess_isolated_local -> subprocess_isolated_local · Secret scope: handle_only_delegated -> no_secret_access
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:ai-tool:0001 · Self-issued: false
+- **debug** (derivation:debug:0001)
+  - Actor: human_operator (`actor:operator:local`)
+  - Parent caps: read_workspace, process_spawn, network_egress
+  - Child caps: read_workspace, process_spawn
+  - Sandbox: subprocess_isolated_local -> subprocess_isolated_local · Secret scope: no_secret_access -> no_secret_access
+  - Environment: allowlisted_handles_only · Enforcement: enforced
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:debug-session:0001 · Self-issued: false
+- **ai** (derivation:ai:narrowed:0001)
+  - Actor: ai_tool (`actor:ai-tool:composer`)
+  - Parent caps: read_workspace, write_workspace, network_egress, secret_handle_projection
+  - Child caps: read_workspace
+  - Sandbox: subprocess_isolated_local -> inert_no_execution · Secret scope: handle_only_delegated -> no_secret_access
+  - Environment: no_environment_inherited · Enforcement: narrowed_to_stricter_profile
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:ai-tool:0001 · Self-issued: false
+  - Narrowed: sandbox_tightened, capability_dropped, secret_scope_narrowed, environment_stripped
+- **debug** (derivation:debug:narrowed:0001)
+  - Actor: human_operator (`actor:operator:local`)
+  - Parent caps: read_workspace, process_spawn, network_egress
+  - Child caps: read_workspace, process_spawn
+  - Sandbox: subprocess_isolated_local -> inert_no_execution · Secret scope: no_secret_access -> no_secret_access
+  - Environment: no_environment_inherited · Enforcement: narrowed_to_stricter_profile
+  - Issuer: approval_broker (`issuer:approval-broker:local`) · Ticket: ticket:debug-session:0001 · Self-issued: false
+  - Narrowed: sandbox_tightened, capability_dropped, secret_scope_narrowed, environment_stripped

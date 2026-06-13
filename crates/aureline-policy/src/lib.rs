@@ -30,6 +30,7 @@ pub mod publish_enterprise_self_hosted_and_air_gapped_docs_matrices_and_known_li
 pub mod records_policy_governance_snapshot;
 pub mod runtime_authority_issuers;
 pub mod ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sinks_or_endpoints_secret_handle_refs_policy_epoch_e;
+pub mod ship_child_envelope_derivation_nested_launch_narrowing_handle_only_secret_projection_and_no_ambient_privilege_enforcemen;
 pub mod simulation;
 pub mod stabilize_approval_ticket_audit_and_target_identity_lineage;
 pub mod stabilize_deployment_and_residency_truth;
@@ -405,6 +406,22 @@ pub use ship_capability_envelope_packets_with_actor_target_allowed_roots_or_sink
     M5_CAPABILITY_ENVELOPE_FIXTURE_DIR, M5_CAPABILITY_ENVELOPE_PACKET_ID,
     M5_CAPABILITY_ENVELOPE_RECORD_KIND, M5_CAPABILITY_ENVELOPE_SCHEMA_REF,
     M5_CAPABILITY_ENVELOPE_SCHEMA_VERSION, M5_CAPABILITY_ENVELOPE_SUMMARY_REF,
+};
+
+pub use ship_child_envelope_derivation_nested_launch_narrowing_handle_only_secret_projection_and_no_ambient_privilege_enforcemen::{
+    build_derivation_packet, current_stable_m5_child_envelope_derivation_export,
+    frozen_stable_m5_child_envelope_derivation_packet, narrowed_derivations, nominal_derivations,
+    M5AmbientEnvironmentPosture, M5ChildEnvelope, M5ChildEnvelopeDerivation,
+    M5ChildEnvelopeDerivationArtifactError, M5ChildEnvelopeDerivationConsumerProjection,
+    M5ChildEnvelopeDerivationPacket, M5ChildEnvelopeDerivationPacketInput,
+    M5ChildEnvelopeDerivationProofFreshness, M5ChildEnvelopeDerivationTrustReview,
+    M5ChildEnvelopeDerivationViolation, M5DerivationActor, M5DerivationLineage,
+    M5DerivationNarrowingDimension, M5EnforcementBackendStatus, M5NestedLaunchLane,
+    M5ParentAuthoritySnapshot, M5_CHILD_ENVELOPE_DERIVATION_ARTIFACT_REF,
+    M5_CHILD_ENVELOPE_DERIVATION_DOC_REF, M5_CHILD_ENVELOPE_DERIVATION_FIXTURE_DIR,
+    M5_CHILD_ENVELOPE_DERIVATION_PACKET_ID, M5_CHILD_ENVELOPE_DERIVATION_RECORD_KIND,
+    M5_CHILD_ENVELOPE_DERIVATION_SCHEMA_REF, M5_CHILD_ENVELOPE_DERIVATION_SCHEMA_VERSION,
+    M5_CHILD_ENVELOPE_DERIVATION_SUMMARY_REF,
 };
 
 pub use finalize_managed_workspace_lifecycle_truth::{
