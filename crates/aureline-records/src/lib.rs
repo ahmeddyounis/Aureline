@@ -17,8 +17,13 @@
 //! artifact families that must share one record-class, chronology, deletion,
 //! export, and policy-simulation contract before managed/provider/support
 //! surfaces can widen their claims.
+//! The [`m5_records_policy`] module is the canonical legal-hold and retention
+//! truth source for those families: it binds legal-hold notices, hold selector
+//! scopes, retention/archive inspectors, and the pre-action delete/export truth
+//! a user must see before committing a destructive or support-sensitive action.
 
 pub mod export_delete_lifecycle;
+pub mod m5_records_policy;
 pub mod records_policy_simulation_matrix;
 pub mod stabilize_record_class_registry_legal_hold_delete_honesty;
 

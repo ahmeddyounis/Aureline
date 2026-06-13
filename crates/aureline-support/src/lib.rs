@@ -130,6 +130,12 @@
 //!   canonical export-job, request-case, delete-case, manifest, and receipt
 //!   packet so support exports can inspect partial, blocked, policy-retained,
 //!   redacted, and outside-scope outcomes directly instead of reading prose.
+//! - The [`m5_records_policy_governance`] support export — joins the canonical
+//!   M5 legal-hold/retention packet to the policy exception/expiry packet so
+//!   support exports can inspect hold notices, hold selector scopes, retention
+//!   owners, archive state, and the pre-action delete/export truth, and prove
+//!   every hold/retention claim is gated by a live, bounded, actor-scoped
+//!   exception instead of indefinite waiver prose.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -227,6 +233,7 @@ pub mod m5_forensic_packet;
 pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
+pub mod m5_records_policy_governance;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -357,6 +364,10 @@ pub use m5_mutation_lineage::{
     M5MutationLineageSupportExportEnvelope, M5MutationLineageSupportExportError,
     M5MutationLineageSupportExportRow, M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
     M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+pub use m5_records_policy_governance::{
+    M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,
+    M5_RECORDS_POLICY_GOVERNANCE_RECORD_KIND, M5_RECORDS_POLICY_GOVERNANCE_SCHEMA_VERSION,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,

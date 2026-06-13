@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/m5_records_policy_sim.schema.json",
+  "title": "M5 records-policy hold/retention truth packet",
+  "description": "Schema for the m5_records_policy packet. The packet is the canonical legal-hold and retention truth source for the durable M5 artifact families. Each governed family carries a legal-hold notice, a hold selector scope, retention and archive inspectors, and the pre-action delete/export truth a user must see before committing a destructive or support-sensitive action. Local-only artifacts never claim managed hold, managed export, or managed delete. The packet is metadata-only and carries no credential bodies, raw provider payloads, or durable content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "exception_expiry_contract_ref",
+    "rows",
+    "summary"
+  ],
+  "$defs": {
+    "record_operation_outcome": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "queued",
+        "blocked_by_hold",
+        "completed",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "partial",
+        "not_found",
+        "omitted_by_redaction"
+      ]
+    },
+    "hold_status": {
+      "type": "string",
+      "enum": ["active", "unknown_indeterminate", "cleared"]
+    },
+    "hold_scope": {
+      "type": "string",
+      "enum": ["managed_only", "local_only", "both"]
+    },
+    "archive_state_class": {
+      "type": "string",
+      "enum": ["active_local", "archived_local", "managed_archive", "no_archive"]
+    },
+    "destructive_action_class": {
+      "type": "string",
+      "enum": ["delete", "export"]
+    },
+    "authority_boundary_class": {
+      "type": "string",
+      "enum": ["local_only", "managed_only", "local_and_managed"]
+    },
+    "local_vs_managed_copy": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "generated_packet_authoritative",
+        "managed_authoritative",
+        "mixed_local_managed",
+        "local_cache_only"
+      ]
+    },
+    "retention_label": {
+      "type": "string",
+      "enum": [
+        "local_user_owned_until_cleared",
+        "local_user_owned_until_export_or_delete",
+        "support_case_retention",
+        "managed_policy_retained",
+        "generated_packet_delivery_window",
+        "receipt_metadata_retained"
+      ]
+    },
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet",
+        "provider_linked_work_item_record",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "browser_handoff_manifest",
+        "support_export_packet",
+        "collaboration_session_record",
+        "collaboration_join_audit_event",
+        "collaboration_transcript_record",
+        "observer_only_archive",
+        "replayable_session_bundle",
+        "collaboration_review_evidence",
+        "operational_audit_record",
+        "managed_workspace_metadata",
+        "billing_usage_aggregate"
+      ]
+    },
+    "governed_artifact_family": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet",
+        "provider_linked_work_item",
+        "companion_continuity_packet",
+        "incident_support_packet",
+        "sync_mirror_ledger",
+        "offboarding_record",
+        "browser_handoff_manifest",
+        "support_export_packet"
+      ]
+    },
+    "hold_notice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notice_id",
+        "hold_status",
+        "hold_scope",
+        "active_hold_refs",
+        "notice_text",
+        "retention_owner_ref",
+        "local_only_artifact_note",
+        "blocks_destructive_action"
+      ],
+      "properties": {
+        "notice_id": { "type": "string", "minLength": 1 },
+        "hold_status": { "$ref": "#/$defs/hold_status" },
+        "hold_scope": { "$ref": "#/$defs/hold_scope" },
+        "active_hold_refs": { "type": "array", "items": { "type": "string" } },
+        "notice_text": { "type": "string", "minLength": 1 },
+        "retention_owner_ref": { "type": "string", "minLength": 1 },
+        "local_only_artifact_note": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "blocks_destructive_action": { "type": "boolean" }
+      }
+    },
+    "hold_selector_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_id",
+        "scope",
+        "selector_expression",
+        "included_record_class_ids",
+        "managed_copy_covered",
+        "local_copy_covered",
+        "note"
+      ],
+      "properties": {
+        "selector_id": { "type": "string", "minLength": 1 },
+        "scope": { "$ref": "#/$defs/hold_scope" },
+        "selector_expression": { "type": "string", "minLength": 1 },
+        "included_record_class_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "managed_copy_covered": { "type": "boolean" },
+        "local_copy_covered": { "type": "boolean" },
+        "note": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+    "retention_inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inspector_id",
+        "retention_owner_ref",
+        "retention_label",
+        "retention_rule",
+        "delete_action",
+        "grace_rule",
+        "policy_version",
+        "local_owner_ref",
+        "managed_owner_ref"
+      ],
+      "properties": {
+        "inspector_id": { "type": "string", "minLength": 1 },
+        "retention_owner_ref": { "type": "string", "minLength": 1 },
+        "retention_label": { "$ref": "#/$defs/retention_label" },
+        "retention_rule": { "type": "string", "minLength": 1 },
+        "delete_action": { "type": "string", "minLength": 1 },
+        "grace_rule": { "type": "string", "minLength": 1 },
+        "policy_version": { "type": "string", "minLength": 1 },
+        "local_owner_ref": { "type": "string", "minLength": 1 },
+        "managed_owner_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "archive_inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inspector_id",
+        "archive_state",
+        "archive_location_label",
+        "managed_archive",
+        "local_only_archive_note"
+      ],
+      "properties": {
+        "inspector_id": { "type": "string", "minLength": 1 },
+        "archive_state": { "$ref": "#/$defs/archive_state_class" },
+        "archive_location_label": { "type": "string", "minLength": 1 },
+        "managed_archive": { "type": "boolean" },
+        "local_only_archive_note": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        }
+      }
+    },
+    "pre_action_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "projected_outcome",
+        "reason",
+        "confirmation_copy",
+        "outside_platform_scope",
+        "local_only_boundary_note"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/destructive_action_class" },
+        "projected_outcome": { "$ref": "#/$defs/record_operation_outcome" },
+        "reason": { "type": "string", "minLength": 1 },
+        "confirmation_copy": { "type": "string", "minLength": 1 },
+        "outside_platform_scope": { "type": "boolean" },
+        "local_only_boundary_note": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        }
+      }
+    },
+    "records_policy_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "artifact_family",
+        "record_class_id",
+        "authority_boundary",
+        "local_truth_authority",
+        "claims_managed_hold",
+        "claims_managed_export",
+        "claims_managed_delete",
+        "legal_hold_notice",
+        "hold_selector_scope",
+        "retention_inspector",
+        "archive_inspector",
+        "pre_delete_truth",
+        "pre_export_truth",
+        "exception_refs",
+        "proof_ref",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "artifact_family": { "$ref": "#/$defs/governed_artifact_family" },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "authority_boundary": { "$ref": "#/$defs/authority_boundary_class" },
+        "local_truth_authority": { "$ref": "#/$defs/local_vs_managed_copy" },
+        "claims_managed_hold": { "type": "boolean" },
+        "claims_managed_export": { "type": "boolean" },
+        "claims_managed_delete": { "type": "boolean" },
+        "legal_hold_notice": { "$ref": "#/$defs/hold_notice" },
+        "hold_selector_scope": { "$ref": "#/$defs/hold_selector_scope" },
+        "retention_inspector": { "$ref": "#/$defs/retention_inspector" },
+        "archive_inspector": { "$ref": "#/$defs/archive_inspector" },
+        "pre_delete_truth": { "$ref": "#/$defs/pre_action_truth" },
+        "pre_export_truth": { "$ref": "#/$defs/pre_action_truth" },
+        "exception_refs": { "type": "array", "items": { "type": "string" } },
+        "proof_ref": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_records_policy_packet" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "exception_expiry_contract_ref": { "type": "string", "minLength": 1 },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/records_policy_row" }
+    },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}
