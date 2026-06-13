@@ -37,6 +37,7 @@
 pub mod content_integrity;
 pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
+pub mod m5_content_integrity_certification;
 pub mod m5_mutation_path_fix_flow;
 pub mod m5_raw_rendered_handoff;
 pub mod m5_safe_preview_limited_mode;
@@ -82,6 +83,22 @@ pub use freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_ex
     M5_CONTENT_INTEGRITY_MATRIX_SUMMARY_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TEXT_REPRESENTATION_CONTRACT_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TRUST_CLASS_CONTRACT_REF,
+};
+pub use m5_content_integrity_certification::{
+    current_m5_content_integrity_certification_export,
+    frozen_m5_content_integrity_certification_packet, project_m5_content_integrity_certification,
+    M5CertificationConsumerProjection, M5CertificationDimensionApplicability,
+    M5CertificationDimensionInput, M5CertificationFamilySeed, M5CertificationNarrowingCause,
+    M5CertificationNarrowingReason, M5CertificationProofDimension, M5CertificationProofFreshness,
+    M5CertificationProofLane, M5CertificationProofState, M5CertificationReview,
+    M5CertificationSummary, M5CertifiedDimensionProof, M5CertifiedFamilyRow,
+    M5ContentIntegrityCertificationExportError, M5ContentIntegrityCertificationPacket,
+    M5ContentIntegrityCertificationPacketInput, M5ContentIntegrityCertificationViolation,
+    M5_CONTENT_INTEGRITY_CERTIFICATION_ARTIFACT_REF, M5_CONTENT_INTEGRITY_CERTIFICATION_DOC_REF,
+    M5_CONTENT_INTEGRITY_CERTIFICATION_FIXTURE_DIR, M5_CONTENT_INTEGRITY_CERTIFICATION_PACKET_ID,
+    M5_CONTENT_INTEGRITY_CERTIFICATION_RECORD_KIND, M5_CONTENT_INTEGRITY_CERTIFICATION_SCHEMA_REF,
+    M5_CONTENT_INTEGRITY_CERTIFICATION_SCHEMA_VERSION,
+    M5_CONTENT_INTEGRITY_CERTIFICATION_SUMMARY_REF,
 };
 pub use m5_mutation_path_fix_flow::{
     current_m5_mutation_path_fix_flow_export, frozen_m5_mutation_path_fix_flow_packet,
