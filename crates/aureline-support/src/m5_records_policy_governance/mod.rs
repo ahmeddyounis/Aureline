@@ -14,7 +14,8 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_policy::m5_exception_expiry::{
-    seeded_m5_exception_expiry_packet, M5ExceptionExpiryPacket, M5ExceptionExpiryViolation,
+    seeded_m5_exception_expiry_packet, ApprovalHistoryRow, ExceptionRequestSheet, ExpiryBanner,
+    M5ExceptionExpiryPacket, M5ExceptionExpiryViolation, RememberedDecisionRevalidation,
 };
 use aureline_records::m5_policy_simulation::{
     seeded_m5_policy_simulation_packet, M5PolicyImpactSimulationPacket,
@@ -80,6 +81,14 @@ pub struct M5RecordsPolicyGovernanceSupportExport {
     pub projection_rows: Vec<SupportExportInspectorRow>,
     /// Pre-apply policy-simulation support/export projection rows.
     pub simulation_projection_rows: Vec<SupportExportSimulationRow>,
+    /// Exception/waiver request sheets showing exact variance, scope, and expiry.
+    pub exception_request_sheets: Vec<ExceptionRequestSheet>,
+    /// Approval-history rows kept visible in the support export.
+    pub exception_approval_history: Vec<ApprovalHistoryRow>,
+    /// Expiry banners computed against the exception packet's `as_of`.
+    pub exception_expiry_banners: Vec<ExpiryBanner>,
+    /// Remembered-decision revalidation outcomes at the packet's `as_of`.
+    pub remembered_decision_revalidations: Vec<RememberedDecisionRevalidation>,
     /// Validation issues inherited from the hold/retention packet.
     pub hold_retention_violations: Vec<M5RecordsPolicyViolation>,
     /// Validation issues inherited from the exception/expiry packet.
@@ -179,6 +188,10 @@ impl M5RecordsPolicyGovernanceSupportExport {
         let policy_simulation_packet = seeded_m5_policy_simulation_packet();
         let projection_rows = hold_retention_packet.support_export_projection();
         let simulation_projection_rows = policy_simulation_packet.support_export_projection();
+        let exception_request_sheets = exception_expiry_packet.request_sheets();
+        let exception_approval_history = exception_expiry_packet.approval_history();
+        let exception_expiry_banners = exception_expiry_packet.expiry_banners();
+        let remembered_decision_revalidations = exception_expiry_packet.self_revalidation();
         let hold_retention_violations = hold_retention_packet.validate();
         let exception_expiry_violations = exception_expiry_packet.validate();
         let policy_simulation_violations = policy_simulation_packet.validate();
@@ -207,6 +220,10 @@ impl M5RecordsPolicyGovernanceSupportExport {
             policy_simulation_packet,
             projection_rows,
             simulation_projection_rows,
+            exception_request_sheets,
+            exception_approval_history,
+            exception_expiry_banners,
+            remembered_decision_revalidations,
             hold_retention_violations,
             exception_expiry_violations,
             policy_simulation_violations,

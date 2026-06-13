@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/m5_exception_expiry.schema.json",
+  "title": "M5 exception/expiry truth packet",
+  "description": "Schema for the m5_exception_expiry packet. The packet is the canonical, policy-side exception, waiver, and remembered-decision contract for the durable M5 artifact families. Every row is bound to an exact actor/object/target/policy-epoch/environment scope, carries an explicit expiry and approval-history lineage, and lists the reapproval triggers that automatically revalidate it on drift. A remembered decision never widens authority across any pinned dimension; on drift or expiry it must be re-reviewed rather than silently reused. The packet is metadata-only and carries no credential bodies, raw provider payloads, or durable content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "shared_contract_ref",
+    "as_of",
+    "overview_doc_ref",
+    "artifact_summary_ref",
+    "records_contract_ref",
+    "rows",
+    "summary"
+  ],
+  "$defs": {
+    "subject_class": {
+      "type": "string",
+      "enum": ["policy_exception", "policy_waiver", "remembered_decision"]
+    },
+    "reapproval_trigger": {
+      "type": "string",
+      "enum": ["target_drift", "policy_drift", "version_drift", "authority_drift"]
+    },
+    "approval_event_class": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "approved",
+        "renewed",
+        "revalidated",
+        "narrowed",
+        "revoked",
+        "expired"
+      ]
+    },
+    "scope_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_ref",
+        "object_ref",
+        "target_ref",
+        "policy_epoch",
+        "environment_ref"
+      ],
+      "properties": {
+        "actor_ref": { "type": "string", "minLength": 1 },
+        "object_ref": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "environment_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "approval_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_class", "at", "actor_ref", "note"],
+      "properties": {
+        "event_class": { "$ref": "#/$defs/approval_event_class" },
+        "at": { "type": "string", "minLength": 1 },
+        "actor_ref": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "exception_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exception_id",
+        "subject_class",
+        "artifact_family_token",
+        "record_class_token",
+        "exact_bypass_scope",
+        "owner_or_approver_ref",
+        "reason",
+        "mitigation",
+        "created_at",
+        "expires_at",
+        "review_target_at",
+        "scope_binding",
+        "reapproval_triggers",
+        "approval_history",
+        "current_state",
+        "fallback_behavior_on_lapse",
+        "bounded_by_expiry",
+        "widens_authority"
+      ],
+      "properties": {
+        "exception_id": { "type": "string", "minLength": 1 },
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "artifact_family_token": { "type": "string", "minLength": 1 },
+        "record_class_token": { "type": "string", "minLength": 1 },
+        "exact_bypass_scope": { "type": "string", "minLength": 1 },
+        "owner_or_approver_ref": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "mitigation": { "type": "string", "minLength": 1 },
+        "created_at": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "minLength": 1 },
+        "review_target_at": { "type": "string", "minLength": 1 },
+        "scope_binding": { "$ref": "#/$defs/scope_binding" },
+        "reapproval_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reapproval_trigger" }
+        },
+        "approval_history": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approval_event" }
+        },
+        "current_state": { "$ref": "#/$defs/approval_event_class" },
+        "fallback_behavior_on_lapse": { "type": "string", "minLength": 1 },
+        "bounded_by_expiry": { "const": true },
+        "widens_authority": { "const": false }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_kind": { "const": "m5_exception_expiry_packet" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "const": "policy:m5_exception_expiry_truth:v1" },
+    "as_of": { "type": "string", "minLength": 1 },
+    "overview_doc_ref": { "type": "string", "minLength": 1 },
+    "artifact_summary_ref": { "type": "string", "minLength": 1 },
+    "records_contract_ref": { "const": "records:m5_hold_retention_truth:v1" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/exception_row" }
+    },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}

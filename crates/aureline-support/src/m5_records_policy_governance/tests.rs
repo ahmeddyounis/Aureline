@@ -8,6 +8,27 @@ fn current_export_is_clean() {
 }
 
 #[test]
+fn exception_projections_are_visible_in_export() {
+    let export = M5RecordsPolicyGovernanceSupportExport::current();
+    let rows = export.exception_expiry_packet.rows.len();
+    assert_eq!(export.exception_request_sheets.len(), rows);
+    assert_eq!(export.exception_approval_history.len(), rows);
+    assert_eq!(export.exception_expiry_banners.len(), rows);
+    assert_eq!(export.remembered_decision_revalidations.len(), rows);
+    // Every approval-history row carries its lineage so support can replay it.
+    assert!(export
+        .exception_approval_history
+        .iter()
+        .all(|row| !row.events.is_empty()));
+    // At the packet's own as_of with no observed drift, every remembered
+    // decision still validates and none widens authority.
+    assert!(export
+        .remembered_decision_revalidations
+        .iter()
+        .all(|revalidation| !revalidation.must_reauthorize && !revalidation.widens_authority));
+}
+
+#[test]
 fn projection_covers_every_family() {
     let export = M5RecordsPolicyGovernanceSupportExport::current();
     assert_eq!(

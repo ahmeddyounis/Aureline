@@ -118,6 +118,19 @@ pub use policy_simulation_and_expiry::{
     POLICY_SIMULATION_VIEW_RECORD_KIND,
 };
 
+pub use m5_exception_expiry::{
+    seeded_m5_exception_expiry_packet, ApprovalEvent, ApprovalEventClass,
+    ApprovalHistoryRow as M5ApprovalHistoryRow, AuthorityDimension, ExceptionRequestSheet,
+    ExceptionScopeBinding, ExpiryBanner as M5ExpiryBanner, ExpiryState, M5ExceptionExpiryPacket,
+    M5ExceptionExpiryRow, M5ExceptionExpiryViolation, ObservedContext,
+    RememberedDecisionRevalidation, RevalidationOutcome, M5_APPROVAL_HISTORY_ROW_RECORD_KIND,
+    M5_EXCEPTION_EXPIRY_ARTIFACT_REF, M5_EXCEPTION_EXPIRY_DOC_REF,
+    M5_EXCEPTION_EXPIRY_RECORDS_CONTRACT_REF, M5_EXCEPTION_EXPIRY_RECORD_KIND,
+    M5_EXCEPTION_EXPIRY_SCHEMA_VERSION, M5_EXCEPTION_EXPIRY_SHARED_CONTRACT_REF,
+    M5_EXCEPTION_REQUEST_SHEET_RECORD_KIND, M5_EXPIRY_BANNER_RECORD_KIND,
+    M5_REMEMBERED_DECISION_REVALIDATION_RECORD_KIND,
+};
+
 pub use records_policy_governance_snapshot::{
     seeded_records_policy_governance_snapshot, PolicyGovernanceCoverageRow, PolicyGovernanceFamily,
     PolicyGovernanceScopeSnapshot, PolicyGovernanceSnapshotDefect,
