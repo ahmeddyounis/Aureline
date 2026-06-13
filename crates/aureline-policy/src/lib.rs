@@ -11,6 +11,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
 pub mod authority;
+pub mod deployment_profile_continuity_truth;
 pub mod finalize_backup_restore_failover_and_local_core_continuity;
 pub mod finalize_managed_workspace_lifecycle_truth;
 pub mod finalize_open_vs_paid_boundary_and_offboarding;
@@ -233,6 +234,23 @@ pub use stabilize_deployment_and_residency_truth::{
     DEPLOYMENT_RESIDENCY_STABILIZE_ROW_RECORD_KIND, DEPLOYMENT_RESIDENCY_STABILIZE_SCHEMA_VERSION,
     DEPLOYMENT_RESIDENCY_STABILIZE_SHARED_CONTRACT_REF,
     DEPLOYMENT_RESIDENCY_STABILIZE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use deployment_profile_continuity_truth::{
+    audit_deployment_profile_continuity_page, seeded_deployment_profile_continuity_input,
+    seeded_deployment_profile_continuity_page, validate_deployment_profile_continuity_page,
+    ContinuitySurfaceVisibility, DeploymentProfileContinuityDefect,
+    DeploymentProfileContinuityInput, DeploymentProfileContinuityNarrowReasonClass,
+    DeploymentProfileContinuityPage, DeploymentProfileContinuityQualificationClass,
+    DeploymentProfileContinuitySummary, DeploymentProfileContinuitySupportExport,
+    DeploymentServiceFact, FactFamilyClass, FreshnessStateClass, HostingPostureClass,
+    LocalSafeFallbackCard, LocalSafeStateClass, MirrorFreshnessCard, PlaneClass,
+    ResidualDependencyClass, ResidualDependencyRow, SignerContinuityClass, SurfaceReuseRow,
+    DEPLOYMENT_PROFILE_CONTINUITY_ARTIFACT_REF, DEPLOYMENT_PROFILE_CONTINUITY_DEFECT_RECORD_KIND,
+    DEPLOYMENT_PROFILE_CONTINUITY_DOC_REF, DEPLOYMENT_PROFILE_CONTINUITY_PAGE_RECORD_KIND,
+    DEPLOYMENT_PROFILE_CONTINUITY_SCHEMA_VERSION,
+    DEPLOYMENT_PROFILE_CONTINUITY_SHARED_CONTRACT_REF,
+    DEPLOYMENT_PROFILE_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use stabilize_organization_admin_provisioning_and_seat_lifecycle_truth::{
