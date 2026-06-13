@@ -17,6 +17,7 @@ pub mod finalize_managed_workspace_lifecycle_truth;
 pub mod finalize_open_vs_paid_boundary_and_offboarding;
 pub mod finalize_signed_policy_bundle_offline_entitlement_and_mirror;
 pub mod finalize_the_secret_broker_handle_only_delegated_and;
+pub mod freeze_the_m5_runtime_authority_approval_ticket_sandbox_profile_and_capability_envelope_matrix;
 pub mod harden_enterprise_network_proxy_pac_manual_system_proxy;
 pub mod harden_identity_and_admin_support_export_parity_audit;
 pub mod harden_os_keychain_and_trust_store_integration_trust;
@@ -320,6 +321,28 @@ pub use stabilize_approval_ticket_audit_and_target_identity_lineage::{
     STABILIZE_APPROVAL_TICKET_PAGE_RECORD_KIND, STABILIZE_APPROVAL_TICKET_ROW_RECORD_KIND,
     STABILIZE_APPROVAL_TICKET_SCHEMA_VERSION, STABILIZE_APPROVAL_TICKET_SHARED_CONTRACT_REF,
     STABILIZE_APPROVAL_TICKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use freeze_the_m5_runtime_authority_approval_ticket_sandbox_profile_and_capability_envelope_matrix::{
+    current_stable_m5_runtime_authority_matrix_export,
+    frozen_stable_m5_runtime_authority_matrix_packet, M5ApprovalTicketPosture, M5CapabilityClass,
+    M5DegradedFallback, M5ExecutingSurface, M5RuntimeAuthorityConsumerSurface,
+    M5RuntimeAuthorityDowngradeTrigger, M5RuntimeAuthorityMatrixArtifactError,
+    M5RuntimeAuthorityMatrixConsumerProjection, M5RuntimeAuthorityMatrixPacket,
+    M5RuntimeAuthorityMatrixPacketInput, M5RuntimeAuthorityMatrixProofFreshness,
+    M5RuntimeAuthorityMatrixSurfaceRow, M5RuntimeAuthorityMatrixTrustReview,
+    M5RuntimeAuthorityMatrixViolation, M5RuntimeAuthorityQualificationClass, M5SandboxProfile,
+    M5SecretScope, M5UnsupportedProfileBehavior,
+    M5_RUNTIME_AUTHORITY_MATRIX_APPROVAL_TICKET_CONTRACT_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_ARTIFACT_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_AUTHORITY_TICKET_CONTRACT_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_DOC_REF, M5_RUNTIME_AUTHORITY_MATRIX_FIXTURE_DIR,
+    M5_RUNTIME_AUTHORITY_MATRIX_ISSUER_CONTRACT_REF, M5_RUNTIME_AUTHORITY_MATRIX_PACKET_ID,
+    M5_RUNTIME_AUTHORITY_MATRIX_RECORD_KIND, M5_RUNTIME_AUTHORITY_MATRIX_SCHEMA_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_SCHEMA_VERSION,
+    M5_RUNTIME_AUTHORITY_MATRIX_SECRET_BOUNDARY_CONTRACT_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_SECRET_HANDLE_CONTRACT_REF,
+    M5_RUNTIME_AUTHORITY_MATRIX_SUMMARY_REF,
 };
 
 pub use finalize_managed_workspace_lifecycle_truth::{

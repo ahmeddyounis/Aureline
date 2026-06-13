@@ -1,0 +1,59 @@
+# M5 Runtime-Authority, Approval-Ticket, Sandbox-Profile, and Capability-Envelope Matrix
+
+- Packet: `m5-runtime-authority-matrix:stable:0001`
+- Label: `M5 Runtime-Authority, Approval-Ticket, Sandbox-Profile, and Capability-Envelope Matrix`
+- Surfaces: 10 (1 stable)
+- Proof freshness SLO: 168 hours (last refresh: 2026-06-10T00:00:00Z)
+
+## Executing surfaces
+
+- **request_api_send**: `stable`
+  - Scope: Request/API sends run with no local process under a brokered network-only profile; each send carries a scoped capability-envelope ticket, projects secrets handle-only through the broker, and narrows to a fresh-ticket prompt rather than reusing stale authority
+  - Sandbox: brokered_network_only · Ticket: ticket_required_per_scope (expiry 3600s)
+  - Secret scope: handle_only_delegated · Degraded: require_fresh_ticket · Unsupported: narrow_to_stricter_profile
+  - Capabilities: network_egress, secret_handle_projection
+- **database_action**: `beta`
+  - Scope: Database actions run through a brokered network-only profile; reads use a standing scope ticket while writes require a fresh per-action ticket, secrets stay handle-only, and the surface narrows to read-only when the write ticket cannot be honored
+  - Sandbox: brokered_network_only · Ticket: ticket_required_per_action (expiry 900s)
+  - Secret scope: handle_only_delegated · Degraded: narrow_to_read_only · Unsupported: narrow_to_stricter_profile
+  - Capabilities: database_read, database_write, network_egress, secret_handle_projection
+- **notebook_kernel**: `beta`
+  - Scope: Notebook kernels run in an isolated local subprocess with a per-session ticket; the envelope grants scoped workspace read/write, process spawn, and brokered network, with no secret access, and narrows to read-only when the sandbox profile is unavailable
+  - Sandbox: subprocess_isolated_local · Ticket: ticket_required_per_session (expiry 7200s)
+  - Secret scope: no_secret_access · Degraded: narrow_to_read_only · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, write_workspace, process_spawn, network_egress
+- **scaffold_hook**: `beta`
+  - Scope: Scaffold hooks run in an isolated local subprocess with a fresh per-action ticket; the envelope grants scoped workspace read/write and process spawn, holds no secrets, and narrows to a sanitized dry-run preview when the hook cannot be confined
+  - Sandbox: subprocess_isolated_local · Ticket: ticket_required_per_action (expiry 600s)
+  - Secret scope: no_secret_access · Degraded: narrow_to_sanitized_preview · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, write_workspace, process_spawn
+- **preview_server**: `beta`
+  - Scope: Preview servers run in a container-isolated local runtime with a per-session ticket; the envelope grants scoped workspace read, process spawn, and brokered network, holds no secrets, and narrows to read-only when isolation is unavailable
+  - Sandbox: container_isolated_local · Ticket: ticket_required_per_session (expiry 7200s)
+  - Secret scope: no_secret_access · Degraded: narrow_to_read_only · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, process_spawn, network_egress
+- **ai_tool**: `beta`
+  - Scope: AI tools never self-issue authority; every invocation runs in an isolated local subprocess behind a fresh per-action ticket with a scoped workspace and brokered-network envelope, handle-only secrets, and narrows to a sanitized preview rather than acting on stale or unverified authority
+  - Sandbox: subprocess_isolated_local · Ticket: ticket_required_per_action (expiry 300s)
+  - Secret scope: handle_only_delegated · Degraded: narrow_to_sanitized_preview · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, write_workspace, network_egress, secret_handle_projection
+- **recipe**: `beta`
+  - Scope: Recipes never self-issue authority; each run binds to a scoped capability-envelope ticket inside an isolated local subprocess granting scoped workspace read/write and process spawn, holds no secrets, and narrows to a sanitized preview when the envelope cannot be enforced
+  - Sandbox: subprocess_isolated_local · Ticket: ticket_required_per_scope (expiry 1800s)
+  - Secret scope: no_secret_access · Degraded: narrow_to_sanitized_preview · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, write_workspace, process_spawn
+- **browser_routed_action**: `preview`
+  - Scope: Browser-routed actions never self-issue authority; each routed action runs in an isolated remote runtime behind a fresh per-action ticket with a navigation-and-brokered-network envelope, holds no secrets, and fails closed when the isolated runtime is unavailable on this platform
+  - Sandbox: isolated_remote_runtime · Ticket: ticket_required_per_action (expiry 300s)
+  - Secret scope: no_secret_access · Degraded: narrow_to_read_only · Unsupported: fail_closed_unsupported
+  - Capabilities: browser_navigation, network_egress
+- **incident_flow**: `beta`
+  - Scope: Incident flows run under a brokered network-only profile with a scoped capability-envelope ticket; the envelope grants scoped workspace read and brokered network with handle-only secrets, and narrows to read-only when the policy epoch or ticket cannot be honored
+  - Sandbox: brokered_network_only · Ticket: ticket_required_per_scope (expiry 3600s)
+  - Secret scope: handle_only_delegated · Degraded: narrow_to_read_only · Unsupported: narrow_to_stricter_profile
+  - Capabilities: read_workspace, network_egress, secret_handle_projection
+- **remote_mutation**: `preview`
+  - Scope: Remote mutations are the highest-risk surface and never self-issue authority; each mutation runs in an isolated remote runtime behind a fresh per-action ticket with a scoped broker-minted secret, fails closed and blocks rather than degrading, and is unavailable when the isolated runtime is unsupported on this platform
+  - Sandbox: isolated_remote_runtime · Ticket: ticket_required_per_action (expiry 300s)
+  - Secret scope: scoped_brokered_secret · Degraded: fail_closed_block · Unsupported: fail_closed_unsupported
+  - Capabilities: remote_mutation, network_egress, secret_handle_projection
