@@ -40,6 +40,7 @@ pub mod admin_audit_export_beta;
 pub mod ai_context_inspector;
 pub mod ai_truth_strip;
 pub mod app_frame;
+pub mod artifact_save_truth;
 pub mod attention_router;
 pub mod background_work_status;
 pub mod badge_aggregate_stable;
