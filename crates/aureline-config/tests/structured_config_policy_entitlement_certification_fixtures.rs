@@ -16,7 +16,7 @@ const FIXTURE_DIR: &str = concat!(
     "/../../fixtures/config/structured_config_policy_entitlement_certification",
 );
 
-fn load_packet(path: &str) -> aureline_config::structured_config_policy_entitlement_certification::StructuredConfigPolicyEntitlementCertificationPacket {
+fn load_packet(path: &str) -> aureline_config::structured_config_policy_entitlement_certification::StructuredConfigPolicyEntitlementCertificationPacket{
     let body =
         std::fs::read_to_string(path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     parse_structured_config_policy_entitlement_certification(&body)

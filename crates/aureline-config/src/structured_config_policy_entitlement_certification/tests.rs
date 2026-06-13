@@ -80,15 +80,24 @@ fn signer_rotation_scenario_blocks_trust_root_rows() {
         .iter()
         .find(|row| row.family == ArtifactFamilyKind::TrustRootSignerUpdateArtifact)
         .expect("trust-root row");
-    assert_eq!(trust_root.published_state, CertificationState::RetestPending);
-    assert_eq!(trust_root.admin_auditability, AdminAuditabilityState::Incomplete);
+    assert_eq!(
+        trust_root.published_state,
+        CertificationState::RetestPending
+    );
+    assert_eq!(
+        trust_root.admin_auditability,
+        AdminAuditabilityState::Incomplete
+    );
 }
 
 #[test]
 fn every_publication_surface_quotes_the_checked_in_packet_path() {
     let packet = seeded_structured_config_policy_entitlement_certification();
     for row in &packet.surface_rows {
-        assert_eq!(row.packet_ref, STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_PATH);
+        assert_eq!(
+            row.packet_ref,
+            STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_PATH
+        );
         assert!(row.shows_published_state);
         assert!(row.shows_evidence_age);
         assert!(row.shows_local_safe_floor);

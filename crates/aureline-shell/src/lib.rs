@@ -68,6 +68,7 @@ pub mod desktop_continuity_alpha;
 pub mod desktop_handoff_conformance_stable;
 pub mod diagnostics;
 pub mod docs_browser;
+pub mod document_identity;
 pub mod drift_truth;
 pub mod durable_attention_beta;
 pub mod efficiency;

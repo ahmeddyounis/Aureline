@@ -244,9 +244,7 @@ impl CorruptionState {
             Self::OpenWithWarning => "open_with_warning",
             Self::RepairFlow => "repair_flow",
             Self::BackupRollback => "backup_rollback",
-            Self::FailClosedForPrivilegedOperations => {
-                "fail_closed_for_privileged_operations"
-            }
+            Self::FailClosedForPrivilegedOperations => "fail_closed_for_privileged_operations",
         }
     }
 }
@@ -1147,7 +1145,10 @@ pub fn validate_filesystem_mutation_lineage_matrix(
         report.push("packet.schema_version", "packet schema_version must be 1");
     }
     if packet.source_contract_refs.doc_ref != FILESYSTEM_MUTATION_LINEAGE_MATRIX_DOC_REF {
-        report.push("packet.doc_ref", "doc_ref drifted from the frozen reviewer doc");
+        report.push(
+            "packet.doc_ref",
+            "doc_ref drifted from the frozen reviewer doc",
+        );
     }
     if packet.source_contract_refs.schema_ref != FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_REF {
         report.push(
@@ -1156,10 +1157,16 @@ pub fn validate_filesystem_mutation_lineage_matrix(
         );
     }
     if packet.source_contract_refs.packet_ref != FILESYSTEM_MUTATION_LINEAGE_MATRIX_PACKET_REF {
-        report.push("packet.packet_ref", "packet_ref drifted from the frozen artifact");
+        report.push(
+            "packet.packet_ref",
+            "packet_ref drifted from the frozen artifact",
+        );
     }
     if packet.source_contract_refs.report_ref != FILESYSTEM_MUTATION_LINEAGE_MATRIX_REPORT_REF {
-        report.push("packet.report_ref", "report_ref drifted from the frozen artifact");
+        report.push(
+            "packet.report_ref",
+            "report_ref drifted from the frozen artifact",
+        );
     }
     if packet.source_contract_refs.fixture_manifest_ref
         != FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_MANIFEST_REF
@@ -1224,7 +1231,10 @@ pub fn validate_filesystem_mutation_lineage_matrix(
             );
         }
         if !row.coverage.deferred_intent_or_reconcile_exposure
-            && !matches!(row.reconciliation_posture, ReconciliationPosture::NotApplicable)
+            && !matches!(
+                row.reconciliation_posture,
+                ReconciliationPosture::NotApplicable
+            )
         {
             report.push(
                 "row.reconciliation_posture_inconsistent",
@@ -1235,7 +1245,10 @@ pub fn validate_filesystem_mutation_lineage_matrix(
             );
         }
         if row.coverage.deferred_intent_or_reconcile_exposure
-            && matches!(row.reconciliation_posture, ReconciliationPosture::NotApplicable)
+            && matches!(
+                row.reconciliation_posture,
+                ReconciliationPosture::NotApplicable
+            )
         {
             report.push(
                 "row.reconciliation_posture_missing",
@@ -1302,7 +1315,10 @@ pub fn validate_filesystem_mutation_lineage_matrix(
         if !seen_surfaces.contains(&required_surface) {
             report.push(
                 "coverage.surface_class",
-                format!("missing required surface class {}", required_surface.as_str()),
+                format!(
+                    "missing required surface class {}",
+                    required_surface.as_str()
+                ),
             );
         }
     }
@@ -1332,7 +1348,11 @@ pub fn validate_filesystem_mutation_lineage_fixture(
     if fixture.schema_version != FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_VERSION {
         report.push("fixture.schema_version", "fixture schema_version must be 1");
     }
-    let Some(row) = packet.rows.iter().find(|row| row.row_id == fixture.expected_row_id) else {
+    let Some(row) = packet
+        .rows
+        .iter()
+        .find(|row| row.row_id == fixture.expected_row_id)
+    else {
         report.push(
             "fixture.expected_row_id",
             format!("fixture {} references an unknown row", fixture.fixture_id),
@@ -1356,52 +1376,80 @@ pub fn validate_filesystem_mutation_lineage_fixture(
     if row.path_identity_class != fixture.path_identity_class {
         report.push(
             "fixture.path_identity_class",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.watch_state != fixture.watch_state {
         report.push(
             "fixture.watch_state",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.save_fallback != fixture.save_fallback {
         report.push(
             "fixture.save_fallback",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.undo_class != fixture.undo_class {
         report.push(
             "fixture.undo_class",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.corruption_state != fixture.corruption_state {
         report.push(
             "fixture.corruption_state",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.connectivity_state != fixture.connectivity_state {
         report.push(
             "fixture.connectivity_state",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.reconciliation_posture != fixture.reconciliation_posture {
         report.push(
             "fixture.reconciliation_posture",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
     if row.coverage != fixture.coverage {
         report.push(
             "fixture.coverage",
-            format!("fixture {} drifted from row {}", fixture.fixture_id, row.row_id),
+            format!(
+                "fixture {} drifted from row {}",
+                fixture.fixture_id, row.row_id
+            ),
         );
     }
-    if !row.consumer_refs.iter().any(|reference| reference == &fixture.consumer_ref) {
+    if !row
+        .consumer_refs
+        .iter()
+        .any(|reference| reference == &fixture.consumer_ref)
+    {
         report.push(
             "fixture.consumer_ref",
             format!(

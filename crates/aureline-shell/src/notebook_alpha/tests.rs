@@ -97,6 +97,18 @@ fn protected_lane_publishes_required_objects_and_scope_truth() {
         .object_refs
         .iter()
         .any(|object_ref| object_ref.starts_with("paired_export:")));
+    assert!(support_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "family:notebook_document"));
+    assert!(support_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "root:local"));
+    assert!(support_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "write_posture:editable_canonical_source"));
 
     for snippet in &fixture.expect.required_plaintext_snippets {
         assert!(

@@ -9,15 +9,14 @@ use aureline_vfs::{
     seeded_filesystem_mutation_lineage_matrix_packet, validate_filesystem_mutation_lineage_fixture,
     validate_filesystem_mutation_lineage_matrix, FilesystemMutationLineageMatrixPacket,
     MatrixFixture, MatrixRootClass, FILESYSTEM_MUTATION_LINEAGE_MATRIX_DOC_REF,
-    FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_DIR, FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_MANIFEST_REF,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_DIR,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_MANIFEST_REF,
     FILESYSTEM_MUTATION_LINEAGE_MATRIX_PACKET_REF, FILESYSTEM_MUTATION_LINEAGE_MATRIX_REPORT_REF,
     FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_REF,
 };
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
 
 fn load_packet() -> FilesystemMutationLineageMatrixPacket {
@@ -62,7 +61,10 @@ fn fixture_corpus_matches_seeded_projection_and_validates() {
     let on_disk = load_fixtures();
     let mut seeded = seeded_filesystem_mutation_lineage_matrix_fixtures();
     seeded.sort_by(|a, b| a.fixture_id.cmp(&b.fixture_id));
-    assert_eq!(on_disk, seeded, "fixture corpus drifted from seeded fixtures");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture corpus drifted from seeded fixtures"
+    );
     for fixture in &on_disk {
         validate_filesystem_mutation_lineage_fixture(&packet, fixture)
             .unwrap_or_else(|err| panic!("fixture {} must validate: {err}", fixture.fixture_id));
@@ -80,10 +82,15 @@ fn files_exist_on_disk() {
         FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_MANIFEST_REF,
     ] {
         let path = root.join(rel);
-        assert!(path.exists(), "required file must exist: {}", path.display());
+        assert!(
+            path.exists(),
+            "required file must exist: {}",
+            path.display()
+        );
     }
     assert!(
-        root.join(FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_DIR).is_dir(),
+        root.join(FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_DIR)
+            .is_dir(),
         "fixture directory must exist"
     );
 }

@@ -81,8 +81,9 @@ fn notebook_preview_separates_trust_risk_and_repair_lineage() {
     for token in &fixture.expect.required_support_tokens {
         assert!(
             support
-                .trust_layer_tokens
+                .identity_tokens
                 .iter()
+                .chain(support.trust_layer_tokens.iter())
                 .chain(support.round_trip_risk_tokens.iter())
                 .chain(support.repair_lineage_refs.iter())
                 .chain(support.safe_output_tokens.iter())
@@ -90,6 +91,32 @@ fn notebook_preview_separates_trust_risk_and_repair_lineage() {
             "support export should contain token {token:?}: {support:?}"
         );
     }
+}
+
+#[test]
+fn support_exports_preserve_identity_tokens() {
+    let notebook = seeded_notebook_preview_truth("workspace:test");
+    let config = seeded_structured_config_preview_truth("workspace:test");
+
+    let notebook_export = notebook.support_export();
+    assert!(notebook_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "family:notebook_preview_output"));
+    assert!(notebook_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "write_posture:export_before_write"));
+
+    let config_export = config.support_export();
+    assert!(config_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "family:structured_config_preview"));
+    assert!(config_export
+        .identity_tokens
+        .iter()
+        .any(|token| token == "write_posture:save_review_required"));
 }
 
 #[test]
@@ -178,9 +205,19 @@ fn seeded_records_are_valid_for_wedge_inspector() {
     assert!(config.validate().is_empty());
     assert!(notebook
         .support_export()
+        .identity_tokens
+        .iter()
+        .any(|token| token == "family:notebook_preview_output"));
+    assert!(notebook
+        .support_export()
         .trust_layer_tokens
         .iter()
         .any(|token| token.starts_with("runtime:")));
+    assert!(config
+        .support_export()
+        .identity_tokens
+        .iter()
+        .any(|token| token == "family:structured_config_preview"));
     assert!(config
         .support_export()
         .round_trip_risk_tokens

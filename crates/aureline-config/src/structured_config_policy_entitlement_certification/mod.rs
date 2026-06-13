@@ -45,8 +45,8 @@ use crate::structured_config_parameter_source_and_round_trip_review::{
     STRUCTURED_CONFIG_PARAMETER_SOURCE_ROUND_TRIP_REVIEW_SHARED_CONTRACT_REF,
 };
 use crate::structured_config_policy_bundle_and_entitlement_matrix::{
-    seeded_structured_config_policy_bundle_and_entitlement_matrix, ArtifactFamilyKind,
-    BundleClass, DeploymentProfileKind, DistributionPath, DowngradeLabelClass, KnownLimitClass,
+    seeded_structured_config_policy_bundle_and_entitlement_matrix, ArtifactFamilyKind, BundleClass,
+    DeploymentProfileKind, DistributionPath, DowngradeLabelClass, KnownLimitClass,
     LocalSafeLabelClass, ManagedAuthDependencyClass, QualificationLabel,
     StructuredConfigControlMatrix, STRUCTURED_CONFIG_POLICY_ENTITLEMENT_MATRIX_SHARED_CONTRACT_REF,
 };
@@ -475,7 +475,10 @@ impl fmt::Display for CertificationValidationError {
             Self::DuplicateProfile(profile) => write!(f, "duplicate profile row: {profile:?}"),
             Self::MissingSurface(surface) => write!(f, "missing surface row: {surface:?}"),
             Self::DuplicateSurface(surface) => write!(f, "duplicate surface row: {surface:?}"),
-            Self::MissingProfileDrill { profile, drill_kind } => write!(
+            Self::MissingProfileDrill {
+                profile,
+                drill_kind,
+            } => write!(
                 f,
                 "profile {profile:?} is missing required drill {drill_kind:?}"
             ),
@@ -486,7 +489,10 @@ impl fmt::Display for CertificationValidationError {
                 write!(f, "certified profile evidence is stale: {profile:?}")
             }
             Self::CertifiedRowHasNarrowingReasons(kind, id) => {
-                write!(f, "{kind} row {id} is certified but still records narrowing")
+                write!(
+                    f,
+                    "{kind} row {id} is certified but still records narrowing"
+                )
             }
             Self::NarrowedRowMissingReason(kind, id) => {
                 write!(f, "{kind} row {id} is narrowed without a reason")
@@ -550,7 +556,10 @@ impl StructuredConfigPolicyEntitlementCertificationPacket {
                 "narrowed_artifact_family_count: {}",
                 self.summary.narrowed_artifact_family_count
             ),
-            format!("certified_profile_count: {}", self.summary.certified_profile_count),
+            format!(
+                "certified_profile_count: {}",
+                self.summary.certified_profile_count
+            ),
             format!(
                 "publication_surface_count: {}",
                 self.summary.publication_surface_count
@@ -594,8 +603,8 @@ pub fn seeded_structured_config_policy_entitlement_certification_scenario(
         record_kind: STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_RECORD_KIND.to_owned(),
         schema_version: STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_SCHEMA_VERSION,
         packet_id: "config:structured-policy-entitlement-certification".to_owned(),
-        shared_contract_ref:
-            STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_SHARED_CONTRACT_REF.to_owned(),
+        shared_contract_ref: STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_SHARED_CONTRACT_REF
+            .to_owned(),
         as_of: PACKET_AS_OF.to_owned(),
         notice: STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_NOTICE.to_owned(),
         upstream_packets: vec![
@@ -628,9 +637,8 @@ pub fn seeded_structured_config_policy_entitlement_certification_scenario(
         summary,
         docs_ref: "docs/config/structured_config_policy_entitlement_certification.md".to_owned(),
         help_doc_ref: "docs/help/structured_config_policy_entitlement_certification.md".to_owned(),
-        schema_ref:
-            "schemas/config/structured_config_policy_entitlement_certification.schema.json"
-                .to_owned(),
+        schema_ref: "schemas/config/structured_config_policy_entitlement_certification.schema.json"
+            .to_owned(),
     }
 }
 
@@ -676,15 +684,16 @@ pub fn audit_structured_config_policy_entitlement_certification(
         let row_id = format!("{:?}", row.family);
         if row.published_state == CertificationState::Certified {
             if row.evidence_age_days > MAX_CERTIFIED_EVIDENCE_AGE_DAYS {
-                defects.push(CertificationValidationError::CertifiedArtifactEvidenceStale(
-                    row.family,
-                ));
+                defects
+                    .push(CertificationValidationError::CertifiedArtifactEvidenceStale(row.family));
             }
             if !row.narrowing_reasons.is_empty() {
-                defects.push(CertificationValidationError::CertifiedRowHasNarrowingReasons(
-                    "artifact",
-                    row_id.clone(),
-                ));
+                defects.push(
+                    CertificationValidationError::CertifiedRowHasNarrowingReasons(
+                        "artifact",
+                        row_id.clone(),
+                    ),
+                );
             }
             if row.admin_auditability != AdminAuditabilityState::ExplainableExportReady {
                 defects.push(
@@ -706,7 +715,9 @@ pub fn audit_structured_config_policy_entitlement_certification(
             ));
         }
 
-        if row.lane_class == ArtifactLaneClass::StructuredConfig && !row.parameter_provenance_reviewable {
+        if row.lane_class == ArtifactLaneClass::StructuredConfig
+            && !row.parameter_provenance_reviewable
+        {
             defects.push(
                 CertificationValidationError::StructuredFamilyMissingParameterProvenance(
                     row.family,
@@ -715,9 +726,9 @@ pub fn audit_structured_config_policy_entitlement_certification(
         }
 
         if row.lane_class == ArtifactLaneClass::SignedBundleReview && !row.signed_path_reviewable {
-            defects.push(CertificationValidationError::SignedBundleFamilyMissingPathReview(
-                row.family,
-            ));
+            defects.push(
+                CertificationValidationError::SignedBundleFamilyMissingPathReview(row.family),
+            );
         }
     }
 
@@ -730,10 +741,12 @@ pub fn audit_structured_config_policy_entitlement_certification(
                 ));
             }
             if !row.narrowing_reasons.is_empty() {
-                defects.push(CertificationValidationError::CertifiedRowHasNarrowingReasons(
-                    "profile",
-                    row_id.clone(),
-                ));
+                defects.push(
+                    CertificationValidationError::CertifiedRowHasNarrowingReasons(
+                        "profile",
+                        row_id.clone(),
+                    ),
+                );
             }
         } else if row.narrowing_reasons.is_empty() {
             defects.push(CertificationValidationError::NarrowedRowMissingReason(
@@ -767,7 +780,11 @@ pub fn audit_structured_config_policy_entitlement_certification(
         }
     }
 
-    let derived_summary = derive_summary(&packet.artifact_rows, &packet.profile_rows, &packet.surface_rows);
+    let derived_summary = derive_summary(
+        &packet.artifact_rows,
+        &packet.profile_rows,
+        &packet.surface_rows,
+    );
     compare_summary(
         &mut defects,
         "artifact_family_count",
@@ -947,7 +964,10 @@ fn apply_scenario(
                 row.evidence_age_days = 10;
                 row.narrowing_reasons = vec![NarrowingReason::StalePolicyEvidence];
                 row.admin_auditability = AdminAuditabilityState::ExplainableLocalSafeOnly;
-                if !row.visible_labels.contains(&DowngradeLabelClass::LastKnownGood) {
+                if !row
+                    .visible_labels
+                    .contains(&DowngradeLabelClass::LastKnownGood)
+                {
                     row.visible_labels.push(DowngradeLabelClass::LastKnownGood);
                 }
             }
@@ -985,7 +1005,10 @@ fn apply_scenario(
                 row.narrowing_reasons = vec![NarrowingReason::ReauthRequired];
                 row.admin_auditability = AdminAuditabilityState::ExplainableLocalSafeOnly;
             }
-            for row in profile_rows.iter_mut().filter(|row| row.profile == DeploymentProfileKind::Managed) {
+            for row in profile_rows
+                .iter_mut()
+                .filter(|row| row.profile == DeploymentProfileKind::Managed)
+            {
                 row.published_state = CertificationState::OfflineOnly;
                 row.narrowing_reasons = vec![NarrowingReason::ReauthRequired];
                 if let Some(drill) = row
@@ -1129,9 +1152,11 @@ fn derive_summary(
             .filter(|row| row.published_state == CertificationState::Certified)
             .count(),
         publication_surface_count: surface_rows.len(),
-        local_safe_floor_visible_everywhere: profile_rows
-            .iter()
-            .all(|row| !matches!(row.local_safe_label, LocalSafeLabelClass::ContinueLocalOnly) || row.profile == DeploymentProfileKind::LocalOnly || row.published_state.is_claimable()),
+        local_safe_floor_visible_everywhere: profile_rows.iter().all(|row| {
+            !matches!(row.local_safe_label, LocalSafeLabelClass::ContinueLocalOnly)
+                || row.profile == DeploymentProfileKind::LocalOnly
+                || row.published_state.is_claimable()
+        }),
         publication_surfaces_aligned: surface_rows.iter().all(|row| {
             row.packet_ref == STRUCTURED_CONFIG_POLICY_ENTITLEMENT_CERTIFICATION_PATH
                 && row.shows_published_state
@@ -1234,29 +1259,50 @@ fn seeded_profile_drills(profile: DeploymentProfileKind) -> Vec<ProfileDrillRow>
         .collect()
 }
 
-fn default_drill_status(profile: DeploymentProfileKind, drill_kind: ProfileDrillKind) -> DrillStatus {
+fn default_drill_status(
+    profile: DeploymentProfileKind,
+    drill_kind: ProfileDrillKind,
+) -> DrillStatus {
     match (profile, drill_kind) {
         (DeploymentProfileKind::LocalOnly, ProfileDrillKind::ManagedSelfHosted)
         | (DeploymentProfileKind::LocalOnly, ProfileDrillKind::ReauthRequired)
-        | (DeploymentProfileKind::LocalOnly, ProfileDrillKind::SignerRotation) => DrillStatus::NotApplicable,
+        | (DeploymentProfileKind::LocalOnly, ProfileDrillKind::SignerRotation) => {
+            DrillStatus::NotApplicable
+        }
         (DeploymentProfileKind::FullyAirGapped, ProfileDrillKind::ManagedSelfHosted)
-        | (DeploymentProfileKind::FullyAirGapped, ProfileDrillKind::ReauthRequired) => DrillStatus::NotApplicable,
+        | (DeploymentProfileKind::FullyAirGapped, ProfileDrillKind::ReauthRequired) => {
+            DrillStatus::NotApplicable
+        }
         _ => DrillStatus::PassedCurrent,
     }
 }
 
-fn executed_at_for_drill(profile: DeploymentProfileKind, drill_kind: ProfileDrillKind) -> &'static str {
+fn executed_at_for_drill(
+    profile: DeploymentProfileKind,
+    drill_kind: ProfileDrillKind,
+) -> &'static str {
     match (profile, drill_kind) {
-        (DeploymentProfileKind::LocalOnly, ProfileDrillKind::ReferenceWorkspace) => "2026-06-12T08:00:00Z",
+        (DeploymentProfileKind::LocalOnly, ProfileDrillKind::ReferenceWorkspace) => {
+            "2026-06-12T08:00:00Z"
+        }
         (DeploymentProfileKind::Managed, ProfileDrillKind::StalePolicy) => "2026-06-12T09:05:00Z",
-        (DeploymentProfileKind::Managed, ProfileDrillKind::ReauthRequired) => "2026-06-12T09:15:00Z",
-        (DeploymentProfileKind::Mirrored, ProfileDrillKind::MirrorOffline) => "2026-06-12T07:40:00Z",
-        (DeploymentProfileKind::FullyAirGapped, ProfileDrillKind::MirrorOffline) => "2026-06-11T19:10:00Z",
+        (DeploymentProfileKind::Managed, ProfileDrillKind::ReauthRequired) => {
+            "2026-06-12T09:15:00Z"
+        }
+        (DeploymentProfileKind::Mirrored, ProfileDrillKind::MirrorOffline) => {
+            "2026-06-12T07:40:00Z"
+        }
+        (DeploymentProfileKind::FullyAirGapped, ProfileDrillKind::MirrorOffline) => {
+            "2026-06-11T19:10:00Z"
+        }
         _ => "2026-06-12T10:00:00Z",
     }
 }
 
-fn evidence_ref_for_drill(profile: DeploymentProfileKind, drill_kind: ProfileDrillKind) -> &'static str {
+fn evidence_ref_for_drill(
+    profile: DeploymentProfileKind,
+    drill_kind: ProfileDrillKind,
+) -> &'static str {
     match (profile, drill_kind) {
         (DeploymentProfileKind::LocalOnly, ProfileDrillKind::ReferenceWorkspace) => {
             "evidence:config-profile:local-only:reference-workspace"

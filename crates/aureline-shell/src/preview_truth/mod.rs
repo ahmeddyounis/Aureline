@@ -10,6 +10,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::document_identity::{DocumentFamilyClass, DocumentIdentityDisclosure};
+
 /// Stable record-kind tag for [`PreviewTruthRecord`].
 pub const PREVIEW_TRUTH_RECORD_KIND: &str = "preview_truth_record";
 
@@ -701,6 +703,8 @@ pub struct PreviewTruthRecord {
     pub surface_class_token: String,
     /// Workspace or workset ref.
     pub workspace_ref: String,
+    /// Root/path/save-target disclosure for the retained preview object.
+    pub identity_disclosure: DocumentIdentityDisclosure,
     /// Claim manifest for preview or limited posture.
     pub claim_manifest: PreviewClaimManifest,
     /// Document/runtime/output trust layer rows.
@@ -723,6 +727,7 @@ impl PreviewTruthRecord {
         self.record_kind = PREVIEW_TRUTH_RECORD_KIND.to_owned();
         self.schema_version = PREVIEW_TRUTH_SCHEMA_VERSION;
         self.surface_class_token = self.surface_class.as_str().to_owned();
+        self.identity_disclosure = self.identity_disclosure.clone().normalized();
         self.claim_manifest.refresh_tokens();
         for layer in &mut self.trust_layers {
             layer.refresh_tokens();
@@ -758,6 +763,7 @@ impl PreviewTruthRecord {
         }
 
         self.validate_claim_manifest(&mut out);
+        self.validate_identity_disclosure(&mut out);
         self.validate_trust_layers(&mut out);
         self.validate_structured_views(&mut out);
         self.validate_round_trip_risks(&mut out);
@@ -785,6 +791,7 @@ impl PreviewTruthRecord {
             source_preview_id: self.preview_id.clone(),
             surface_class_token: self.surface_class.as_str().to_owned(),
             qualification_token: self.claim_manifest.qualification_class.as_str().to_owned(),
+            identity_tokens: self.identity_disclosure.identity_tokens(),
             trust_layer_tokens: self
                 .trust_layers
                 .iter()
@@ -861,6 +868,10 @@ impl PreviewTruthRecord {
             self.workspace_ref,
             self.claim_manifest.qualification_class.as_str()
         ));
+        out.push_str("identity:\n");
+        for line in self.identity_disclosure.render_plaintext_lines() {
+            out.push_str(&format!("  - {line}\n"));
+        }
         out.push_str("trust_layers:\n");
         for layer in &self.trust_layers {
             out.push_str(&format!(
@@ -965,6 +976,26 @@ impl PreviewTruthRecord {
             if !label.contains("preview") && !label.contains("limited") {
                 out.push(PreviewTruthViolation::PreviewOrLimitedLabelMissing);
             }
+        }
+    }
+
+    fn validate_identity_disclosure(&self, out: &mut Vec<PreviewTruthViolation>) {
+        for field in self.identity_disclosure.missing_fields() {
+            out.push(PreviewTruthViolation::IdentityDisclosureIncomplete {
+                field: field.to_owned(),
+            });
+        }
+
+        let expected_family = match self.surface_class {
+            PreviewSurfaceClass::NotebookPreview => DocumentFamilyClass::NotebookPreviewOutput,
+            PreviewSurfaceClass::StructuredConfigPreview => {
+                DocumentFamilyClass::StructuredConfigPreview
+            }
+        };
+        if self.identity_disclosure.document_family != expected_family {
+            out.push(PreviewTruthViolation::IdentityDisclosureFamilyMismatch {
+                family: self.identity_disclosure.document_family.as_str().to_owned(),
+            });
         }
     }
 
@@ -1226,6 +1257,8 @@ pub struct PreviewTruthSupportExportRecord {
     pub surface_class_token: String,
     /// Qualification token.
     pub qualification_token: String,
+    /// Identity tokens preserved for support.
+    pub identity_tokens: Vec<String>,
     /// Trust-layer tokens.
     pub trust_layer_tokens: Vec<String>,
     /// Round-trip risk tokens.
@@ -1256,6 +1289,10 @@ pub enum PreviewTruthViolation {
     PreviewOrLimitedLabelMissing,
     /// Stable qualification lacks evidence.
     StableQualificationMissingEvidence,
+    /// Identity disclosure lacks required path/save-target fields.
+    IdentityDisclosureIncomplete { field: String },
+    /// Identity disclosure names the wrong surface family.
+    IdentityDisclosureFamilyMismatch { family: String },
     /// Required trust layer is missing.
     TrustLayerMissing { layer: String },
     /// Trust layer lacks a state, action, or explanation.
@@ -1306,6 +1343,8 @@ impl PreviewTruthViolation {
             Self::ClaimManifestIncomplete => "claim_manifest_incomplete",
             Self::PreviewOrLimitedLabelMissing => "preview_or_limited_label_missing",
             Self::StableQualificationMissingEvidence => "stable_qualification_missing_evidence",
+            Self::IdentityDisclosureIncomplete { .. } => "identity_disclosure_incomplete",
+            Self::IdentityDisclosureFamilyMismatch { .. } => "identity_disclosure_family_mismatch",
             Self::TrustLayerMissing { .. } => "trust_layer_missing",
             Self::TrustLayerIncomplete { .. } => "trust_layer_incomplete",
             Self::StructuredViewMissing { .. } => "structured_view_missing",
@@ -1337,6 +1376,45 @@ pub fn seeded_notebook_preview_truth(workspace_ref: impl Into<String>) -> Previe
         surface_class: PreviewSurfaceClass::NotebookPreview,
         surface_class_token: PreviewSurfaceClass::NotebookPreview.as_str().to_owned(),
         workspace_ref: workspace_ref.into(),
+        identity_disclosure: DocumentIdentityDisclosure {
+            record_kind: String::new(),
+            schema_version: 0,
+            document_family: DocumentFamilyClass::NotebookPreviewOutput,
+            document_family_token: String::new(),
+            root_class: crate::document_identity::RootClassDisclosure::Generated,
+            root_class_token: String::new(),
+            document_labels: vec![
+                crate::document_identity::DocumentLabelClass::GeneratedDocument,
+                crate::document_identity::DocumentLabelClass::OverlayProjection,
+            ],
+            document_label_tokens: Vec::new(),
+            presentation_path: "preview://notebook/retained_mixed_trust/output/fit_model_chart"
+                .to_owned(),
+            logical_identity_ref: "logical:notebook_preview:retained_mixed_trust:fit_model_chart"
+                .to_owned(),
+            canonical_target: "generated:notebook_preview:retained_mixed_trust:fit_model_chart"
+                .to_owned(),
+            canonical_target_hint: Some(
+                "Preview row is derived from the notebook output lineage, not the canonical notebook file."
+                    .to_owned(),
+            ),
+            alias_status: crate::document_identity::AliasStatusClass::Projection,
+            alias_status_token: String::new(),
+            alias_status_label:
+                "Preview path is a generated projection over captured notebook output."
+                    .to_owned(),
+            save_target_class: crate::document_identity::SaveTargetClass::GeneratedTarget,
+            save_target_class_token: String::new(),
+            save_target_label:
+                "Current preview is generated; export or rerun before treating it as a durable file."
+                    .to_owned(),
+            write_posture: crate::document_identity::WritePostureClass::ExportBeforeWrite,
+            write_posture_token: String::new(),
+            write_posture_label: "Export before durable write".to_owned(),
+            backing_source_label: "Captured notebook output".to_owned(),
+            freshness_label: "Captured prior-session output".to_owned(),
+            docs_help_ref: "help:notebook:preview_identity".to_owned(),
+        },
         claim_manifest: PreviewClaimManifest {
             surface_label: "Notebook preview truth".to_owned(),
             qualification_class: PreviewQualificationClass::PreviewLimited,
@@ -1480,6 +1558,42 @@ pub fn seeded_structured_config_preview_truth(
             .as_str()
             .to_owned(),
         workspace_ref: workspace_ref.into(),
+        identity_disclosure: DocumentIdentityDisclosure {
+            record_kind: String::new(),
+            schema_version: 0,
+            document_family: DocumentFamilyClass::StructuredConfigPreview,
+            document_family_token: String::new(),
+            root_class: crate::document_identity::RootClassDisclosure::Local,
+            root_class_token: String::new(),
+            document_labels: vec![
+                crate::document_identity::DocumentLabelClass::DurableLocalFile,
+                crate::document_identity::DocumentLabelClass::OverlayProjection,
+            ],
+            document_label_tokens: Vec::new(),
+            presentation_path: "workspace://service-config/service.yaml".to_owned(),
+            logical_identity_ref: "logical:config_preview:service_yaml".to_owned(),
+            canonical_target: "config:source:service_yaml".to_owned(),
+            canonical_target_hint: Some(
+                "Authored YAML is the canonical target; effective and live rows are overlays."
+                    .to_owned(),
+            ),
+            alias_status: crate::document_identity::AliasStatusClass::Projection,
+            alias_status_token: String::new(),
+            alias_status_label:
+                "Surface combines authored source with effective and live overlay projections."
+                    .to_owned(),
+            save_target_class: crate::document_identity::SaveTargetClass::LocalFile,
+            save_target_class_token: String::new(),
+            save_target_label:
+                "Durable edits land on the authored YAML source after compare-first review."
+                    .to_owned(),
+            write_posture: crate::document_identity::WritePostureClass::SaveReviewRequired,
+            write_posture_token: String::new(),
+            write_posture_label: "Review required before save".to_owned(),
+            backing_source_label: "Authored YAML source with effective/live overlays".to_owned(),
+            freshness_label: "Authored current; live overlay stale".to_owned(),
+            docs_help_ref: "help:config:preview_identity".to_owned(),
+        },
         claim_manifest: PreviewClaimManifest {
             surface_label: "Structured config preview truth".to_owned(),
             qualification_class: PreviewQualificationClass::PreviewLimited,

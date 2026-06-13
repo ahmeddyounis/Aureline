@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use aureline_content_safety::{BodyPosture, RepresentationClass, TrustClass};
 use serde::{Deserialize, Serialize};
 
+use crate::document_identity::{DocumentFamilyClass, DocumentIdentityDisclosure};
 use crate::notebook_trust_badges::{
     CellContentClass, EscapeHatch, KernelAvailability, NotebookTrustRung, OutputTrustState,
     RepresentationState, WidgetTrustState, WorkspaceTrustState,
@@ -328,6 +329,8 @@ pub struct NotebookDocumentAlphaObject {
     pub nbformat: String,
     /// Whether `.ipynb` remains the canonical source for the lane.
     pub canonical_ipynb_is_source: bool,
+    /// Root/path/save-target disclosure for this notebook document.
+    pub identity_disclosure: DocumentIdentityDisclosure,
     /// Metadata namespace inventory.
     pub metadata_namespaces: Vec<NotebookMetadataNamespaceRecord>,
     /// Attachment survival rows.
@@ -336,6 +339,7 @@ pub struct NotebookDocumentAlphaObject {
 
 impl NotebookDocumentAlphaObject {
     fn refresh_tokens(&mut self) {
+        self.identity_disclosure = self.identity_disclosure.clone().normalized();
         for namespace in &mut self.metadata_namespaces {
             namespace.refresh_tokens();
         }
@@ -1045,6 +1049,7 @@ impl NotebookAlphaLaneRecord {
         self.validate_stable_ids(&mut out);
         self.validate_route_and_context_refs(&mut out);
         self.validate_trust_axes(&mut out);
+        self.validate_document_identity(&mut out);
         self.validate_metadata_and_attachments(&mut out);
         self.validate_outputs(&mut out);
         self.validate_diff_repair_and_exports(&mut out);
@@ -1134,6 +1139,7 @@ impl NotebookAlphaLaneRecord {
                     .as_str()
                     .to_owned(),
             ],
+            identity_tokens: self.document.identity_disclosure.identity_tokens(),
             export_scope_tokens: self
                 .export_scopes
                 .iter()
@@ -1162,6 +1168,10 @@ impl NotebookAlphaLaneRecord {
             self.document.document_id,
             self.document.canonical_ipynb_is_source
         ));
+        out.push_str("identity:\n");
+        for line in self.document.identity_disclosure.render_plaintext_lines() {
+            out.push_str(&format!("  - {line}\n"));
+        }
         out.push_str(&format!(
             "trust_axes: workspace={} notebook={} kernel={} output={} widget={} trust_class={}\n",
             self.trust_axes.workspace_token(),
@@ -1265,6 +1275,29 @@ impl NotebookAlphaLaneRecord {
         if self.paired_exports.is_empty() && self.reproducibility.is_empty() {
             out.push(NotebookAlphaViolation::MissingObject {
                 object_kind: "paired_export_or_reproducibility".to_owned(),
+            });
+        }
+    }
+
+    fn validate_document_identity(&self, out: &mut Vec<NotebookAlphaViolation>) {
+        for field in self.document.identity_disclosure.missing_fields() {
+            out.push(NotebookAlphaViolation::DocumentIdentityIncomplete {
+                document_id: self.document.document_id.clone(),
+                field: field.to_owned(),
+            });
+        }
+
+        if self.document.identity_disclosure.document_family
+            != DocumentFamilyClass::NotebookDocument
+        {
+            out.push(NotebookAlphaViolation::DocumentIdentityFamilyMismatch {
+                document_id: self.document.document_id.clone(),
+                family: self
+                    .document
+                    .identity_disclosure
+                    .document_family
+                    .as_str()
+                    .to_owned(),
             });
         }
     }
@@ -1663,6 +1696,8 @@ pub struct NotebookAlphaSupportExportRecord {
     pub object_refs: Vec<String>,
     /// Trust-axis tokens preserved for support.
     pub trust_axis_tokens: Vec<String>,
+    /// Identity tokens preserved for support.
+    pub identity_tokens: Vec<String>,
     /// Export-scope tokens preserved for support.
     pub export_scope_tokens: Vec<String>,
     /// Downgrade behaviors preserved for support.
@@ -1697,6 +1732,10 @@ pub enum NotebookAlphaViolation {
         object_id: String,
         field: String,
     },
+    /// The notebook document identity disclosure is incomplete.
+    DocumentIdentityIncomplete { document_id: String, field: String },
+    /// The notebook document identity disclosure names the wrong family.
+    DocumentIdentityFamilyMismatch { document_id: String, family: String },
     /// A trust axis collapsed or was left unavailable for a claimed object.
     TrustAxisCollapsed { axis: String, reason: String },
     /// The lane no longer treats the canonical `.ipynb` as source.
@@ -1768,6 +1807,8 @@ impl NotebookAlphaViolation {
             Self::MissingRouteOrExecutionContextRef { .. } => {
                 "missing_route_or_execution_context_ref"
             }
+            Self::DocumentIdentityIncomplete { .. } => "document_identity_incomplete",
+            Self::DocumentIdentityFamilyMismatch { .. } => "document_identity_family_mismatch",
             Self::TrustAxisCollapsed { .. } => "trust_axis_collapsed",
             Self::CanonicalNotebookNotSource { .. } => "canonical_notebook_not_source",
             Self::UnknownMetadataNotPreserved { .. } => "unknown_metadata_not_preserved",

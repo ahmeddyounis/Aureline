@@ -80,12 +80,12 @@ pub use capabilities::{
 };
 pub use filesystem_mutation_lineage_matrix::{
     seeded_filesystem_mutation_lineage_matrix_fixtures,
-    seeded_filesystem_mutation_lineage_matrix_packet,
-    validate_filesystem_mutation_lineage_fixture, validate_filesystem_mutation_lineage_matrix,
-    ConnectivityState as MatrixConnectivityState, CorruptionState as MatrixCorruptionState,
-    CoverageFlags as MatrixCoverageFlags,
+    seeded_filesystem_mutation_lineage_matrix_packet, validate_filesystem_mutation_lineage_fixture,
+    validate_filesystem_mutation_lineage_matrix, ConnectivityState as MatrixConnectivityState,
+    CorruptionState as MatrixCorruptionState, CoverageFlags as MatrixCoverageFlags,
     FilesystemMutationLineageMatrixPacket, MatrixFixture, MatrixRootClass, MatrixRow,
-    MatrixValidationReport, MatrixValidationViolation, PathIdentityClass as MatrixPathIdentityClass,
+    MatrixValidationReport, MatrixValidationViolation,
+    PathIdentityClass as MatrixPathIdentityClass,
     ReconciliationPosture as MatrixReconciliationPosture, SaveFallback as MatrixSaveFallback,
     SourceContractRefs as MatrixSourceContractRefs, SurfaceClass as MatrixSurfaceClass,
     UndoClass as MatrixUndoClass, WatchState as MatrixWatchState,
