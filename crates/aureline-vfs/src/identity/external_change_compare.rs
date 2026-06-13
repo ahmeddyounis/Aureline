@@ -12,9 +12,11 @@ use crate::hooks::HookCounters;
 use crate::roots::VfsRoot;
 use crate::save::{GenerationTokenKind, SaveOutcome, SaveTargetToken};
 use crate::uri_model::VfsUri;
+use serde::{Deserialize, Serialize};
 
 /// Result of comparing a pinned save target with the current target state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExternalChangeCompareOutcome {
     /// The current canonical target still matches the pinned token.
     Unchanged,
@@ -42,7 +44,8 @@ impl ExternalChangeCompareOutcome {
 }
 
 /// Diff availability for an external-change compare.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExternalChangeDiffAvailability {
     /// No diff is needed because the pinned token still matches.
     NotNeeded,
@@ -67,7 +70,8 @@ impl ExternalChangeDiffAvailability {
 }
 
 /// Content class for the external-change diff projection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExternalChangeContentKind {
     /// Both local and current target bytes decoded as UTF-8.
     Text,

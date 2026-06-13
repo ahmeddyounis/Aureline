@@ -61,6 +61,7 @@
 
 pub mod capabilities;
 pub mod filesystem_mutation_lineage_matrix;
+pub mod filesystem_truth_review;
 pub mod harness;
 pub mod hooks;
 pub mod identity;
@@ -96,6 +97,20 @@ pub use filesystem_mutation_lineage_matrix::{
     FILESYSTEM_MUTATION_LINEAGE_MATRIX_PACKET_REF, FILESYSTEM_MUTATION_LINEAGE_MATRIX_REPORT_REF,
     FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_REF,
     FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_VERSION,
+};
+pub use filesystem_truth_review::{
+    seeded_filesystem_truth_review_fixtures, seeded_filesystem_truth_review_packet,
+    validate_filesystem_truth_review_fixture, validate_filesystem_truth_review_packet,
+    BoundaryCrossingKind, ExternalChangeReviewRecord, FilesystemTruthReviewFixture,
+    FilesystemTruthReviewPacket, IgnoreResolutionDrawerRecord, IgnoreSourceClass,
+    IgnoreSourceEntry, IgnoreVisibilityClass, MetadataConsequence, MetadataDeltaKind,
+    MetadataDeltaNote, ReviewScenarioRecord, ReviewSurfaceValidationReport,
+    ReviewSurfaceValidationViolation, WatchFidelityStripRecord, WatchGuaranteeImpact,
+    WatchMode, WatchReason, FILESYSTEM_TRUTH_REVIEW_ARTIFACT_REF,
+    FILESYSTEM_TRUTH_REVIEW_DOC_REF, FILESYSTEM_TRUTH_REVIEW_FIXTURE_DIR,
+    FILESYSTEM_TRUTH_REVIEW_FIXTURE_MANIFEST_REF, FILESYSTEM_TRUTH_REVIEW_FIXTURE_RECORD_KIND,
+    FILESYSTEM_TRUTH_REVIEW_PACKET_RECORD_KIND, FILESYSTEM_TRUTH_REVIEW_REPORT_REF,
+    FILESYSTEM_TRUTH_REVIEW_SCHEMA_REF, FILESYSTEM_TRUTH_REVIEW_SCHEMA_VERSION,
 };
 pub use hooks::HookCounters;
 pub use identity::{
