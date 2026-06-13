@@ -53,6 +53,17 @@
 //!   typed [`networked_surface_transport_decision::TransportOutcomeClass`]
 //!   before any side effects leave the boundary. Mirrors the boundary schema at
 //!   `/schemas/network/networked_surface_transport_decision.schema.json`.
+//! - [`networked_surface_proxy_resolution::ProxyResolutionGovernancePage`] —
+//!   the proxy-resolution layer that makes the proxy-resolution step a
+//!   first-class governed object: for every network-capable surface it freezes
+//!   the ordered candidate chain resolution walked (PAC → manual → environment
+//!   → system → declared direct), the winning tier, and a typed
+//!   [`networked_surface_proxy_resolution::ProxyResolutionDenialClass`]
+//!   (`deny_proxy_resolution`) when no tier may be honored, so the precedence is
+//!   inspectable and no helper, client, or extension can ship a private proxy
+//!   stack, a direct CA override, or a silent direct-connect fallback. Mirrors
+//!   the boundary schema at
+//!   `/schemas/network/networked_surface_proxy_resolution.schema.json`.
 //! - [`networked_surface_transport_explainability::TransportExplainabilityPage`]
 //!   — the explainability layer that projects the decision stream into
 //!   current-posture inspectors, a recent network-event ledger filterable by
@@ -74,6 +85,7 @@
 pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
+pub mod networked_surface_proxy_resolution;
 pub mod networked_surface_transport_decision;
 pub mod networked_surface_transport_explainability;
 pub mod networked_surface_transport_matrix;
@@ -190,6 +202,21 @@ pub use networked_surface_transport_decision::{
     TRANSPORT_DECISION_ROW_RECORD_KIND, TRANSPORT_DECISION_SCHEMA_VERSION,
     TRANSPORT_DECISION_SHARED_CONTRACT_REF, TRANSPORT_DECISION_SUMMARY_RECORD_KIND,
     TRANSPORT_DECISION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use networked_surface_proxy_resolution::{
+    audit_proxy_resolution_page, seeded_proxy_resolution_page, seeded_proxy_resolution_snapshot,
+    validate_proxy_resolution_page, ProxyCandidate, ProxyNarrowReasonClass,
+    ProxyQualificationClass, ProxyResolutionDefect, ProxyResolutionDenialClass,
+    ProxyResolutionGovernancePage, ProxyResolutionOutcomeClass, ProxyResolutionRecord,
+    ProxyResolutionRow, ProxyResolutionSnapshot, ProxyResolutionSummary,
+    ProxyResolutionSupportExport, ProxyResolutionTierClass, PROXY_RESOLUTION_ARTIFACT_REF,
+    PROXY_RESOLUTION_CANDIDATE_RECORD_KIND, PROXY_RESOLUTION_DEFECT_RECORD_KIND,
+    PROXY_RESOLUTION_DOC_REF, PROXY_RESOLUTION_EVIDENCE_INDEX_REF,
+    PROXY_RESOLUTION_PAGE_RECORD_KIND, PROXY_RESOLUTION_RECORD_KIND,
+    PROXY_RESOLUTION_ROW_RECORD_KIND, PROXY_RESOLUTION_SCHEMA_VERSION,
+    PROXY_RESOLUTION_SHARED_CONTRACT_REF, PROXY_RESOLUTION_SUMMARY_RECORD_KIND,
+    PROXY_RESOLUTION_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use networked_surface_transport_explainability::{
