@@ -1,38 +1,24 @@
-//! Finalize signed policy-bundle, offline-entitlement grace, and
-//! mirror/manual-import verification flows.
+//! Finalize signed administrative bundle review, offline-entitlement grace,
+//! emergency-disable ratchets, and trust-root rotation across managed,
+//! mirrored, fleet, and air-gapped paths.
 //!
-//! This module produces a beta proof packet that demonstrates:
+//! This module produces one inspectable proof packet for the signed artifact
+//! lane that downstream shell, admin, support-export, and headless review
+//! surfaces can reuse instead of minting delivery-path-specific truth.
 //!
-//! 1. Signed policy bundles surface source, signer, last-known-good revision,
-//!    grace window, expiry, and blocked-capability consequences.
-//! 2. Offline entitlement staleness is labeled explicitly and never disguised
-//!    as a generic auth failure.
-//! 3. Mirror and manual-import verification flows preserve the same
-//!    inspect/export vocabulary as online policy distribution: policy epoch,
-//!    digest, trust root, and last successful validation time.
-//! 4. Enterprise, self-hosted, and air-gapped rows keep local-core continuity
-//!    explicit while surfacing which managed capabilities are outside grace or
-//!    now blocked.
-//! 5. Signed policy-bundle and manual-import flows expose a simulation packet
-//!    before apply: changed feature areas, previous versus simulated values,
-//!    affected surfaces, degraded-mode consequences, and offline or stale-policy
-//!    notes.
-//! 6. Bundle import or policy refresh may not widen enterprise-bearing or
-//!    managed-bearing claims until the simulation packet, approval owner, and
-//!    expiry posture are inspectable.
+//! The packet proves that:
 //!
-//! Surfaces (admin console, support export, shell trust center, headless
-//! inspector) read [`seeded_finalize_signed_policy_bundle_page`] rather than
-//! minting parallel bundle-signed checks. The seed covers all five required
-//! import flows (online, mirror, manual import, air-gapped, offline grace)
-//! for both policy bundles and entitlement snapshots and proves that:
-//!
-//! - every failure mode downgrades managed authority without losing the
-//!   local-editing floor;
-//! - entitlement staleness is never surfaced as a generic authentication
-//!   error;
-//! - pre-apply simulation packets are present and inspectable for all import
-//!   paths before any apply is permitted.
+//! 1. Admin policy bundles, offline entitlement snapshots, emergency-disable
+//!    bundles, and trust-root or signer updates share one signed review model.
+//! 2. Managed pull, mirror publication, file import, MDM or fleet drop, air-gap
+//!    transfer, and last-known-good cache paths preserve the same signature,
+//!    epoch, scope, supersedes or revokes, and delivery-source vocabulary.
+//! 3. Stale last-known-good state preserves local-safe continuity while new
+//!    privileged operations narrow until fresh verification lands.
+//! 4. Emergency disable and trust-root rotation remain explicit bundle classes
+//!    rather than hidden service-side behavior.
+//! 5. Bundle lifecycle events for apply, supersede, revoke, signer rotation
+//!    review, and emergency-disable activation remain export-safe and portable.
 //!
 //! **Canonical truth paths:**
 //! - Doc: `docs/enterprise/m4/finalize-signed-policy-bundle-offline-entitlement-and-mirror.md`
@@ -51,16 +37,12 @@ use aureline_auth::offline_entitlements::{
 #[cfg(test)]
 mod tests;
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 /// Schema version carried on every record in this module.
-pub const SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION: u32 = 1;
+pub const SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION: u32 = 2;
 
 /// Shared contract ref consumed by every record in this module.
 pub const SIGNED_POLICY_BUNDLE_FINALIZE_SHARED_CONTRACT_REF: &str =
-    "policy:signed_policy_bundle_finalize:v1";
+    "policy:signed_policy_bundle_finalize:v2";
 
 /// Record-kind tag for [`FinalizeSignedPolicyBundlePage`] payloads.
 pub const SIGNED_POLICY_BUNDLE_FINALIZE_PAGE_RECORD_KIND: &str =
@@ -69,6 +51,10 @@ pub const SIGNED_POLICY_BUNDLE_FINALIZE_PAGE_RECORD_KIND: &str =
 /// Record-kind tag for [`FinalizeSignedPolicyBundleRow`] payloads.
 pub const SIGNED_POLICY_BUNDLE_FINALIZE_ROW_RECORD_KIND: &str =
     "policy_signed_policy_bundle_finalize_row_record";
+
+/// Record-kind tag for [`BundleLifecycleAuditEvent`] payloads.
+pub const SIGNED_POLICY_BUNDLE_FINALIZE_LIFECYCLE_EVENT_RECORD_KIND: &str =
+    "policy_signed_policy_bundle_finalize_lifecycle_event_record";
 
 /// Record-kind tag for [`FinalizeSignedPolicyBundleDefect`] payloads.
 pub const SIGNED_POLICY_BUNDLE_FINALIZE_DEFECT_RECORD_KIND: &str =
@@ -94,15 +80,7 @@ pub const SIGNED_POLICY_BUNDLE_FINALIZE_ARTIFACT_REF: &str =
 pub const OFFLINE_ENTITLEMENT_VERIFIER_CONTRACT_REF: &str =
     "security:offline_entitlement_verifier_beta:v1";
 
-// ---------------------------------------------------------------------------
-// Import-flow vocabulary
-// ---------------------------------------------------------------------------
-
 /// Import flow that produced the bundle under inspection.
-///
-/// This is the delivery path for the signed artifact, not the runtime
-/// verification outcome. The verifier outcome is captured in the embedded
-/// [`OfflineEntitlementVerifierBetaPage`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BundleImportFlowClass {
@@ -114,9 +92,8 @@ pub enum BundleImportFlowClass {
     ManualImport,
     /// Bundle transferred via an air-gapped signed media exchange.
     AirGapped,
-    /// Bundle used under a declared offline-grace window; the primary path
-    /// is unavailable and the last-known-good bundle is extended within the
-    /// grace window.
+    /// Bundle used from a last-known-good cache within its declared stale
+    /// posture.
     OfflineGrace,
 }
 
@@ -141,52 +118,164 @@ impl BundleImportFlowClass {
         }
     }
 
-    /// True when this flow requires an explicit grace window declaration when
-    /// the bundle is operating outside its primary validation window.
+    /// True when stale rows on this flow must declare grace-window bounds.
     pub const fn requires_grace_window_when_stale(self) -> bool {
         matches!(self, Self::AirGapped | Self::OfflineGrace)
     }
-
-    /// True when this flow may result in widening managed claims (i.e., the
-    /// import could introduce capabilities not already active).
-    pub const fn may_widen_managed_claims(self) -> bool {
-        matches!(
-            self,
-            Self::Online | Self::Mirror | Self::ManualImport | Self::AirGapped
-        )
-    }
 }
 
-// ---------------------------------------------------------------------------
-// Bundle kind vocabulary
-// ---------------------------------------------------------------------------
-
-/// Kind of signed bundle the row inspects.
+/// Bundle kind frozen by the finalize packet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BundleKindClass {
-    /// Signed policy bundle authorising managed narrowing rules.
-    PolicyBundle,
-    /// Signed entitlement snapshot describing plan, seat, and quota state.
+    /// Signed administrative policy bundle.
+    AdminPolicyBundle,
+    /// Signed offline entitlement or org snapshot.
     EntitlementSnapshot,
+    /// Signed emergency-disable ratchet.
+    EmergencyDisableBundle,
+    /// Trust-root or signer-update review bundle.
+    TrustRootSignerUpdate,
 }
 
 impl BundleKindClass {
     /// All required bundle kinds in canonical order.
-    pub const ALL: [Self; 2] = [Self::PolicyBundle, Self::EntitlementSnapshot];
+    pub const ALL: [Self; 4] = [
+        Self::AdminPolicyBundle,
+        Self::EntitlementSnapshot,
+        Self::EmergencyDisableBundle,
+        Self::TrustRootSignerUpdate,
+    ];
 
     /// Stable token recorded on rows.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::PolicyBundle => "policy_bundle",
+            Self::AdminPolicyBundle => "admin_policy_bundle",
             Self::EntitlementSnapshot => "entitlement_snapshot",
+            Self::EmergencyDisableBundle => "emergency_disable_bundle",
+            Self::TrustRootSignerUpdate => "trust_root_signer_update",
+        }
+    }
+
+    fn signer_ref(self) -> &'static str {
+        match self {
+            Self::AdminPolicyBundle => "signer:policy-service:primary",
+            Self::EntitlementSnapshot => "signer:identity-service:primary",
+            Self::EmergencyDisableBundle => "signer:security-response:primary",
+            Self::TrustRootSignerUpdate => "signer:trust-root-council:primary",
+        }
+    }
+
+    fn issuer_ref(self) -> &'static str {
+        match self {
+            Self::AdminPolicyBundle => "issuer:policy-service:admin-bundle",
+            Self::EntitlementSnapshot => "issuer:identity-service:offline-entitlement",
+            Self::EmergencyDisableBundle => "issuer:security-response:disable-bundle",
+            Self::TrustRootSignerUpdate => "issuer:trust-root-council:rotation-review",
+        }
+    }
+
+    fn scope_ref(self) -> &'static str {
+        match self {
+            Self::AdminPolicyBundle => "scope:tenant:managed-alpha",
+            Self::EntitlementSnapshot => "scope:tenant:managed-alpha",
+            Self::EmergencyDisableBundle => "scope:artifact-supply-chain:global",
+            Self::TrustRootSignerUpdate => "scope:signing-root:global",
+        }
+    }
+
+    fn affected_surfaces(self) -> Vec<&'static str> {
+        match self {
+            Self::AdminPolicyBundle => {
+                vec![
+                    "policy_inspect_panel",
+                    "admin_trust_center",
+                    "settings_lock_strip",
+                ]
+            }
+            Self::EntitlementSnapshot => {
+                vec![
+                    "entitlement_inspect_panel",
+                    "seat_status_indicator",
+                    "usage_export_card",
+                ]
+            }
+            Self::EmergencyDisableBundle => vec![
+                "emergency_action_banner",
+                "extension_health_panel",
+                "provider_route_guardrail",
+            ],
+            Self::TrustRootSignerUpdate => vec![
+                "trust_root_review_panel",
+                "mirror_admission_strip",
+                "bundle_verify_history",
+            ],
+        }
+    }
+
+    fn blocked_capability_consequences(self) -> Vec<&'static str> {
+        match self {
+            Self::AdminPolicyBundle => vec![
+                "managed_admin_overrides (fresh review required)",
+                "fresh policy widening (paused until verification)",
+            ],
+            Self::EntitlementSnapshot => vec![
+                "seat-bound managed features (paused until refresh)",
+                "quota-bearing managed operations (paused until refresh)",
+            ],
+            Self::EmergencyDisableBundle => vec![
+                "disabled extensions remain blocked",
+                "blocked provider routes remain blocked",
+            ],
+            Self::TrustRootSignerUpdate => vec![
+                "new privileged imports denied until trust-root review completes",
+                "signer-rotated bundle apply denied until continuity is reviewed",
+            ],
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Grace posture vocabulary
-// ---------------------------------------------------------------------------
+/// Delivery source preserved across managed, mirrored, fleet, and offline paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BundleDeliverySourceClass {
+    /// Live managed pull from the signed origin.
+    ManagedPull,
+    /// Mirror publication or mirror-sync distribution.
+    MirrorPublication,
+    /// Local operator file import.
+    FileImport,
+    /// Device-management or fleet drop.
+    MdmFleetDrop,
+    /// Air-gapped transfer path.
+    AirGapTransfer,
+    /// Last-known-good cache selection.
+    LastKnownGoodCache,
+}
+
+impl BundleDeliverySourceClass {
+    /// All required delivery sources in canonical order.
+    pub const ALL: [Self; 6] = [
+        Self::ManagedPull,
+        Self::MirrorPublication,
+        Self::FileImport,
+        Self::MdmFleetDrop,
+        Self::AirGapTransfer,
+        Self::LastKnownGoodCache,
+    ];
+
+    /// Stable token recorded on rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ManagedPull => "managed_pull",
+            Self::MirrorPublication => "mirror_publication",
+            Self::FileImport => "file_import",
+            Self::MdmFleetDrop => "mdm_fleet_drop",
+            Self::AirGapTransfer => "air_gap_transfer",
+            Self::LastKnownGoodCache => "last_known_good_cache",
+        }
+    }
+}
 
 /// Offline-grace posture for the bundle under inspection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -194,10 +283,9 @@ impl BundleKindClass {
 pub enum GracePostureClass {
     /// Bundle is current and verified; no grace extension is active.
     NotInGrace,
-    /// Bundle is within its declared grace window; last-known-good authority
-    /// is extended while the primary path is unavailable.
+    /// Bundle is within its declared grace window.
     InGrace,
-    /// Bundle's grace window has expired; managed authority is now narrowed.
+    /// Bundle's grace window has expired and only local-safe continuity remains.
     GraceExpired,
 }
 
@@ -211,22 +299,75 @@ impl GracePostureClass {
         }
     }
 
-    /// True when the bundle is operating outside its verified window (either
-    /// within the grace extension or after the grace has expired).
+    /// True when the row is operating outside its fresh verification window.
     pub const fn is_stale(self) -> bool {
         matches!(self, Self::InGrace | Self::GraceExpired)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Qualification and narrow-reason vocabulary
-// ---------------------------------------------------------------------------
+/// Expiry guidance surfaced on the bundle envelope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpiryGuidanceClass {
+    /// Bundle is current and verified.
+    CurrentAndVerified,
+    /// Bundle must refresh before `valid_until`.
+    RefreshBeforeExpiry,
+    /// Bundle remains in a bounded grace window.
+    InGraceUntilRefresh,
+    /// Last-known-good may continue only for local-safe continuity.
+    LastKnownGoodOnly,
+    /// Signed successor or expiry must resolve the bundle.
+    SupersedeOrExpire,
+    /// Rotation overlap or explicit trust review is required.
+    RotationWindowRequired,
+}
+
+impl ExpiryGuidanceClass {
+    /// Stable token recorded on rows.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CurrentAndVerified => "current_and_verified",
+            Self::RefreshBeforeExpiry => "refresh_before_expiry",
+            Self::InGraceUntilRefresh => "in_grace_until_refresh",
+            Self::LastKnownGoodOnly => "last_known_good_only",
+            Self::SupersedeOrExpire => "supersede_or_expire",
+            Self::RotationWindowRequired => "rotation_window_required",
+        }
+    }
+}
+
+/// Privileged-operation posture while this bundle state is active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PrivilegedOperationPostureClass {
+    /// Fresh verification is present and new privileged operations are admitted.
+    AdmittedWithCurrentVerification,
+    /// New privileged operations pause until fresh verification lands.
+    DeniedPendingFreshVerification,
+    /// Trust-bearing privileged operations pause until trust-root review lands.
+    DeniedPendingTrustRootRepair,
+    /// Mutating managed actions pause under an emergency-disable ratchet.
+    PausedByEmergencyDisable,
+}
+
+impl PrivilegedOperationPostureClass {
+    /// Stable token recorded on rows and lifecycle events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AdmittedWithCurrentVerification => "admitted_with_current_verification",
+            Self::DeniedPendingFreshVerification => "denied_pending_fresh_verification",
+            Self::DeniedPendingTrustRootRepair => "denied_pending_trust_root_repair",
+            Self::PausedByEmergencyDisable => "paused_by_emergency_disable",
+        }
+    }
+
+    fn denies_new_privileged_operations(self) -> bool {
+        !matches!(self, Self::AdmittedWithCurrentVerification)
+    }
+}
 
 /// Qualification tier for the finalize page and its rows.
-///
-/// The tier is derived, not asserted: it is set by the audit against the six
-/// required conditions. A caller may never assert `stable` without a clean
-/// audit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FinalizeSignedPolicyBundleQualificationClass {
@@ -234,9 +375,9 @@ pub enum FinalizeSignedPolicyBundleQualificationClass {
     Stable,
     /// One or more non-critical conditions are unmet.
     Beta,
-    /// A required import flow has no row; coverage gap prevents a beta claim.
+    /// Required coverage is missing.
     Preview,
-    /// A hard guardrail was triggered; the page is withdrawn immediately.
+    /// A hard guardrail was triggered.
     Withdrawn,
 }
 
@@ -250,56 +391,54 @@ impl FinalizeSignedPolicyBundleQualificationClass {
             Self::Withdrawn => "withdrawn",
         }
     }
-
-    /// True when this tier claims the stable line.
-    pub const fn is_stable(self) -> bool {
-        matches!(self, Self::Stable)
-    }
-
-    /// True when this tier is claimable (stable or beta).
-    pub const fn is_claimable(self) -> bool {
-        matches!(self, Self::Stable | Self::Beta)
-    }
 }
 
-/// Typed reason a packet or row was narrowed below
-/// [`FinalizeSignedPolicyBundleQualificationClass::Stable`].
+/// Narrow reasons emitted by the finalize audit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FinalizeSignedPolicyBundleNarrowReasonClass {
-    /// No narrowing — the packet qualifies stable.
+    /// No narrowing applied.
     NotNarrowed,
-    /// The upstream offline-entitlement verifier page has defects.
+    /// The upstream offline-entitlement verifier has non-withdrawal defects.
     OfflineEntitlementVerifierHasDefects,
-    /// An offline or air-gapped row has no declared grace window when the
-    /// bundle is operating outside its primary validation window.
+    /// Grace-window bounds were not declared on a stale row.
     GraceWindowNotDeclared,
-    /// A stale bundle row has an empty `staleness_label`, making staleness
-    /// indistinguishable from a generic auth failure. This is a hard
-    /// guardrail and withdraws the packet.
+    /// Staleness was hidden behind a generic auth failure.
     StalenessDisguisedAsAuthFailure,
-    /// A row is missing one or more epoch inspection fields (epoch ref,
-    /// digest, trust root, or last-successful-validation time).
+    /// Epoch metadata was not inspectable.
     PolicyEpochNotInspectable,
-    /// A row's simulation packet has no affected surfaces, indicating the
-    /// pre-apply inspection was not run or was not exported.
+    /// The simulation packet lacked affected surfaces.
     SimulationPacketMissingBeforeApply,
-    /// A row's simulation packet reports `widens_managed_claims: true` but
-    /// the `approval_owner_ref` is empty.
+    /// The simulation packet was not marked inspectable before apply.
+    SimulationPacketNotInspectableBeforeApply,
+    /// Widening managed claims lacked an approval owner.
     ApprovalOwnerMissingOnWidening,
-    /// A row's simulation packet has an empty `expiry_posture_token`.
+    /// Expiry posture was not inspectable.
     ExpiryPostureNotInspectable,
-    /// A row does not carry `local_core_continuity_explicit: true`.
+    /// Local-core continuity was not explicit.
     LocalCoreContinuityNotExplicit,
-    /// A required import flow has no rows; narrows to preview.
+    /// Import-flow coverage was incomplete.
     ImportFlowCoverageGap,
-    /// Raw private material was exposed in the upstream verifier page;
-    /// withdraws the packet immediately.
+    /// Bundle-kind coverage was incomplete.
+    BundleKindCoverageGap,
+    /// Delivery-source coverage was incomplete.
+    DeliverySourceCoverageGap,
+    /// Required envelope metadata was missing.
+    BundleEnvelopeNotInspectable,
+    /// Required supersedes or revokes relations were not visible.
+    BundleRelationsNotInspectable,
+    /// Emergency-disable rows did not declare the minimum required version.
+    RequiredMinimumVersionMissing,
+    /// Stale rows failed to deny new privileged operations.
+    PrivilegedOperationsNotNarrowedOnStaleBundle,
+    /// Required lifecycle audit coverage was incomplete.
+    LifecycleCoverageGap,
+    /// Raw private material escaped from the upstream verifier page.
     RawPrivateMaterialExposed,
 }
 
 impl FinalizeSignedPolicyBundleNarrowReasonClass {
-    /// Stable token recorded on every serialized record.
+    /// Stable token recorded on defects and rows.
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::NotNarrowed => "not_narrowed",
@@ -310,33 +449,84 @@ impl FinalizeSignedPolicyBundleNarrowReasonClass {
             Self::StalenessDisguisedAsAuthFailure => "staleness_disguised_as_auth_failure",
             Self::PolicyEpochNotInspectable => "policy_epoch_not_inspectable",
             Self::SimulationPacketMissingBeforeApply => "simulation_packet_missing_before_apply",
+            Self::SimulationPacketNotInspectableBeforeApply => {
+                "simulation_packet_not_inspectable_before_apply"
+            }
             Self::ApprovalOwnerMissingOnWidening => "approval_owner_missing_on_widening",
             Self::ExpiryPostureNotInspectable => "expiry_posture_not_inspectable",
             Self::LocalCoreContinuityNotExplicit => "local_core_continuity_not_explicit",
             Self::ImportFlowCoverageGap => "import_flow_coverage_gap",
+            Self::BundleKindCoverageGap => "bundle_kind_coverage_gap",
+            Self::DeliverySourceCoverageGap => "delivery_source_coverage_gap",
+            Self::BundleEnvelopeNotInspectable => "bundle_envelope_not_inspectable",
+            Self::BundleRelationsNotInspectable => "bundle_relations_not_inspectable",
+            Self::RequiredMinimumVersionMissing => "required_minimum_version_missing",
+            Self::PrivilegedOperationsNotNarrowedOnStaleBundle => {
+                "privileged_operations_not_narrowed_on_stale_bundle"
+            }
+            Self::LifecycleCoverageGap => "lifecycle_coverage_gap",
             Self::RawPrivateMaterialExposed => "raw_private_material_exposed",
         }
     }
 
-    /// True when this reason triggers immediate withdrawal and cannot be
-    /// overridden.
+    /// True when this reason triggers immediate withdrawal.
     pub const fn is_withdrawal_reason(self) -> bool {
         matches!(
             self,
             Self::RawPrivateMaterialExposed | Self::StalenessDisguisedAsAuthFailure
         )
     }
+
+    fn is_preview_reason(self) -> bool {
+        matches!(
+            self,
+            Self::ImportFlowCoverageGap
+                | Self::BundleKindCoverageGap
+                | Self::DeliverySourceCoverageGap
+                | Self::LifecycleCoverageGap
+        )
+    }
 }
 
-// ---------------------------------------------------------------------------
-// Policy epoch state
-// ---------------------------------------------------------------------------
+/// Lifecycle audit event class that must remain reviewable and export-safe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BundleLifecycleEventClass {
+    /// A signed bundle was applied.
+    Apply,
+    /// A newer bundle superseded an older bundle.
+    Supersede,
+    /// A bundle or signer was revoked.
+    Revoke,
+    /// Signer rotation or trust-root review occurred.
+    SignerRotationReview,
+    /// Emergency-disable ratchet became active.
+    EmergencyDisableActivation,
+}
+
+impl BundleLifecycleEventClass {
+    /// All required lifecycle classes in canonical order.
+    pub const ALL: [Self; 5] = [
+        Self::Apply,
+        Self::Supersede,
+        Self::Revoke,
+        Self::SignerRotationReview,
+        Self::EmergencyDisableActivation,
+    ];
+
+    /// Stable token recorded on events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Apply => "apply",
+            Self::Supersede => "supersede",
+            Self::Revoke => "revoke",
+            Self::SignerRotationReview => "signer_rotation_review",
+            Self::EmergencyDisableActivation => "emergency_disable_activation",
+        }
+    }
+}
 
 /// Epoch inspection state for the bundle under inspection.
-///
-/// Preserves the same inspect/export vocabulary across all import flows so
-/// mirror, manual-import, and air-gapped rows carry the same fields as online
-/// rows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyEpochState {
     /// Opaque epoch ref for this bundle.
@@ -352,7 +542,7 @@ pub struct PolicyEpochState {
 }
 
 impl PolicyEpochState {
-    /// True when all four required epoch inspection fields are non-empty.
+    /// True when all required epoch inspection fields are non-empty.
     pub fn is_fully_inspectable(&self) -> bool {
         !self.epoch_ref.is_empty()
             && !self.epoch_digest.is_empty()
@@ -361,17 +551,7 @@ impl PolicyEpochState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Offline grace state
-// ---------------------------------------------------------------------------
-
 /// Grace-window and staleness state for the bundle under inspection.
-///
-/// When a bundle is operating outside its primary validation window (either
-/// within the declared grace period or after grace has expired), this block
-/// carries the grace window bounds, the last-known-good revision ref, an
-/// explicit staleness label, and the list of managed capabilities that will
-/// be blocked when the grace window closes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OfflineGraceState {
     /// Current grace posture.
@@ -380,26 +560,18 @@ pub struct OfflineGraceState {
     pub grace_posture_token: String,
     /// Timestamp when the grace window started; empty when `not_in_grace`.
     pub grace_window_start: String,
-    /// Timestamp when the grace window ends; must be non-empty when in grace
-    /// or grace-expired.
+    /// Timestamp when the grace window ends; must be non-empty when stale.
     pub grace_window_end: String,
     /// Opaque ref to the last-known-good verified bundle revision.
     pub last_known_good_revision: String,
-    /// Explicit staleness label surfaced in UI and support exports. Must be
-    /// non-empty when [`GracePostureClass::is_stale`] is true; the label
-    /// must not be a generic authentication-failure message.
+    /// Explicit staleness label surfaced in UI and support exports.
     pub staleness_label: String,
-    /// Export-safe labels for managed capabilities that are blocked when the
-    /// grace window expires or the bundle cannot be re-verified.
+    /// Export-safe labels for managed capabilities blocked when grace expires.
     pub blocked_capability_consequences: Vec<String>,
 }
 
 impl OfflineGraceState {
     /// True when the staleness label is explicit (non-empty) for stale rows.
-    ///
-    /// A stale row with an empty `staleness_label` would disguise entitlement
-    /// staleness as a generic failure; this function returns `false` in that
-    /// case.
     pub fn staleness_is_explicitly_labeled(&self) -> bool {
         if self.grace_posture.is_stale() {
             !self.staleness_label.is_empty()
@@ -409,9 +581,6 @@ impl OfflineGraceState {
     }
 
     /// True when the grace window bounds are declared for stale rows.
-    ///
-    /// A stale row without `grace_window_end` cannot prove the grace window
-    /// is finite.
     pub fn grace_window_is_declared(&self) -> bool {
         if self.grace_posture.is_stale() {
             !self.grace_window_end.is_empty()
@@ -421,21 +590,43 @@ impl OfflineGraceState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Pre-apply simulation packet
-// ---------------------------------------------------------------------------
+/// Reviewable envelope metadata for the signed bundle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BundleEnvelopeReview {
+    /// Stable opaque bundle ref.
+    pub bundle_ref: String,
+    /// Opaque issuer ref.
+    pub issuer_ref: String,
+    /// Opaque scope ref.
+    pub scope_ref: String,
+    /// Delivery source that carried the bundle.
+    pub delivery_source: BundleDeliverySourceClass,
+    /// Stable token for [`Self::delivery_source`].
+    pub delivery_source_token: String,
+    /// Expiry guidance carried by the bundle.
+    pub expiry_guidance: ExpiryGuidanceClass,
+    /// Stable token for [`Self::expiry_guidance`].
+    pub expiry_guidance_token: String,
+    /// Older bundle refs explicitly superseded by this bundle.
+    pub supersedes_refs: Vec<String>,
+    /// Bundle or signer refs revoked by this bundle.
+    pub revokes_refs: Vec<String>,
+    /// Minimum supported version forced by an emergency-disable ratchet.
+    pub required_minimum_version: String,
+}
 
-/// Pre-apply simulation packet required before any bundle import or policy
-/// refresh is applied.
-///
-/// Every row carries one simulation packet. For non-widening refreshes the
-/// packet summarises "no material change" with `changed_feature_areas` and
-/// `previous_values_summary` empty; `affected_surfaces` must still be
-/// non-empty to prove the inspection was run.
-///
-/// When `widens_managed_claims` is `true`, the packet must additionally carry
-/// a non-empty `approval_owner_ref` and a non-empty `expiry_posture_token`
-/// before any apply is permitted.
+impl BundleEnvelopeReview {
+    /// True when the envelope fields required for row review are present.
+    pub fn is_fully_inspectable(&self) -> bool {
+        !self.bundle_ref.is_empty()
+            && !self.issuer_ref.is_empty()
+            && !self.scope_ref.is_empty()
+            && !self.delivery_source_token.is_empty()
+            && !self.expiry_guidance_token.is_empty()
+    }
+}
+
+/// Pre-apply simulation packet required before any bundle apply is admitted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyBundleSimulationPacket {
     /// Stable opaque id for this packet.
@@ -448,35 +639,21 @@ pub struct PolicyBundleSimulationPacket {
     pub simulated_values_summary: BTreeMap<String, String>,
     /// Surfaces whose behaviour would be affected by the apply.
     pub affected_surfaces: Vec<String>,
-    /// Plain-language labels for degraded-mode consequences if the apply
-    /// is performed without a full verification path.
+    /// Plain-language labels for degraded-mode consequences.
     pub degraded_mode_consequences: Vec<String>,
     /// Notes specific to offline or stale-policy apply paths.
     pub offline_or_stale_policy_notes: Vec<String>,
     /// Opaque ref to the approval owner who authorised the apply.
-    /// Must be non-empty when `widens_managed_claims` is `true`.
     pub approval_owner_ref: String,
-    /// Stable token describing the expiry posture after apply. Must be
-    /// non-empty for all rows.
+    /// Stable token describing the expiry posture after apply.
     pub expiry_posture_token: String,
-    /// True when this import or refresh would widen enterprise-bearing or
-    /// managed-bearing claims beyond the currently active bundle.
+    /// True when this import or refresh would widen managed claims.
     pub widens_managed_claims: bool,
-    /// True when this packet is present and inspectable before the apply
-    /// is permitted.
+    /// True when this packet is inspectable before apply is permitted.
     pub inspectable_before_apply: bool,
 }
 
-// ---------------------------------------------------------------------------
-// Row, summary, defect
-// ---------------------------------------------------------------------------
-
 /// Finalize row for one `(import_flow × bundle_kind)` pair.
-///
-/// The row is the unit of qualification. Each row must carry a fully
-/// inspectable epoch state, an explicit grace state, and a pre-apply
-/// simulation packet. Failure on any required condition narrows the row
-/// and the page.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinalizeSignedPolicyBundleRow {
     /// Stable record kind.
@@ -505,13 +682,15 @@ pub struct FinalizeSignedPolicyBundleRow {
     pub epoch_state: PolicyEpochState,
     /// Grace posture and staleness state for this row.
     pub grace_state: OfflineGraceState,
+    /// Reviewable envelope metadata.
+    pub envelope_review: BundleEnvelopeReview,
+    /// Privileged-operation posture when this row is active.
+    pub privileged_operation_posture: PrivilegedOperationPostureClass,
+    /// Stable token for [`Self::privileged_operation_posture`].
+    pub privileged_operation_posture_token: String,
     /// Pre-apply simulation packet for this row.
     pub simulation_packet: PolicyBundleSimulationPacket,
     /// True when local-core continuity is stated explicitly on this row.
-    ///
-    /// Enterprise, self-hosted, and air-gapped rows must name the
-    /// local-editing floor explicitly so it cannot be silently removed by
-    /// a managed capability change.
     pub local_core_continuity_explicit: bool,
     /// Derived qualification tier for this row.
     pub qualification_token: String,
@@ -519,6 +698,75 @@ pub struct FinalizeSignedPolicyBundleRow {
     pub narrow_reason_token: String,
     /// Plain-language summary of the qualification for this row.
     pub plain_language_summary: String,
+}
+
+impl FinalizeSignedPolicyBundleRow {
+    fn relations_are_inspectable(&self) -> bool {
+        !self.envelope_review.supersedes_refs.is_empty()
+            || !self.envelope_review.revokes_refs.is_empty()
+    }
+
+    fn required_minimum_version_is_declared(&self) -> bool {
+        if self.bundle_kind == BundleKindClass::EmergencyDisableBundle {
+            !self.envelope_review.required_minimum_version.is_empty()
+        } else {
+            true
+        }
+    }
+
+    fn stale_row_denies_privileged_operations(&self) -> bool {
+        if self.grace_state.grace_posture.is_stale() {
+            self.privileged_operation_posture
+                .denies_new_privileged_operations()
+        } else {
+            true
+        }
+    }
+}
+
+/// Lifecycle audit event that support-export and offline review can quote.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BundleLifecycleAuditEvent {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version.
+    pub schema_version: u32,
+    /// Shared contract ref.
+    pub shared_contract_ref: String,
+    /// Stable event id.
+    pub event_id: String,
+    /// Lifecycle class.
+    pub event_class: BundleLifecycleEventClass,
+    /// Stable token for [`Self::event_class`].
+    pub event_class_token: String,
+    /// Bundle kind affected by the event.
+    pub bundle_kind: BundleKindClass,
+    /// Stable token for [`Self::bundle_kind`].
+    pub bundle_kind_token: String,
+    /// Opaque bundle ref affected by the event.
+    pub bundle_ref: String,
+    /// Opaque scope ref affected by the event.
+    pub scope_ref: String,
+    /// Delivery source involved in the event.
+    pub delivery_source: BundleDeliverySourceClass,
+    /// Stable token for [`Self::delivery_source`].
+    pub delivery_source_token: String,
+    /// Opaque actor or operator ref.
+    pub actor_ref: String,
+    /// Event timestamp.
+    pub event_time: String,
+    /// Superseded refs cited by the event.
+    pub supersedes_refs: Vec<String>,
+    /// Revoked refs cited by the event.
+    pub revokes_refs: Vec<String>,
+    /// Privileged-operation posture after the event.
+    pub privileged_operation_posture: PrivilegedOperationPostureClass,
+    /// Stable token for [`Self::privileged_operation_posture`].
+    pub privileged_operation_posture_token: String,
+    /// True when local-safe continuity remains preserved after the event.
+    pub local_safe_continuity_preserved: bool,
+    /// Export-safe event summary.
+    pub note: String,
 }
 
 /// Aggregate summary for the finalize page.
@@ -534,18 +782,28 @@ pub struct FinalizeSignedPolicyBundleSummary {
     pub preview_row_count: usize,
     /// Rows withdrawn.
     pub withdrawn_row_count: usize,
-    /// Import flow tokens present on the page.
+    /// Import-flow tokens present on the page.
     pub import_flows_covered: Vec<String>,
     /// Bundle-kind tokens present on the page.
     pub bundle_kinds_covered: Vec<String>,
-    /// Number of rows where the bundle is stale (in grace or grace-expired).
+    /// Delivery-source tokens present on the page.
+    pub delivery_sources_covered: Vec<String>,
+    /// Lifecycle-event class tokens present on the page.
+    pub lifecycle_classes_covered: Vec<String>,
+    /// Number of lifecycle events on the page.
+    pub lifecycle_event_count: usize,
+    /// Number of rows where the bundle is stale.
     pub stale_bundle_row_count: usize,
     /// Number of rows with fully inspectable epoch states.
     pub epoch_inspectable_row_count: usize,
+    /// Number of rows with inspectable envelope metadata.
+    pub envelope_inspectable_row_count: usize,
     /// Number of rows with a simulation packet that covers affected surfaces.
     pub simulation_packet_present_row_count: usize,
     /// Number of rows with `local_core_continuity_explicit: true`.
     pub local_core_continuity_explicit_row_count: usize,
+    /// Number of stale rows that deny new privileged operations.
+    pub stale_privileged_pause_row_count: usize,
     /// Defect count from the upstream offline-entitlement verifier page.
     pub upstream_verifier_defect_count: usize,
     /// Overall qualification token derived from all rows and defects.
@@ -553,20 +811,25 @@ pub struct FinalizeSignedPolicyBundleSummary {
 }
 
 impl FinalizeSignedPolicyBundleSummary {
-    fn from_rows(
+    fn from_rows_and_events(
         rows: &[FinalizeSignedPolicyBundleRow],
+        lifecycle_events: &[BundleLifecycleAuditEvent],
         verifier_page: &OfflineEntitlementVerifierBetaPage,
     ) -> Self {
         let mut stable = 0usize;
         let mut beta = 0usize;
         let mut preview = 0usize;
         let mut withdrawn = 0usize;
-        let mut import_flows: BTreeSet<String> = BTreeSet::new();
-        let mut bundle_kinds: BTreeSet<String> = BTreeSet::new();
+        let mut import_flows = BTreeSet::new();
+        let mut bundle_kinds = BTreeSet::new();
+        let mut delivery_sources = BTreeSet::new();
+        let mut lifecycle_classes = BTreeSet::new();
         let mut stale = 0usize;
         let mut epoch_ok = 0usize;
+        let mut envelope_ok = 0usize;
         let mut sim_ok = 0usize;
         let mut local_core_ok = 0usize;
+        let mut stale_privileged_pause_ok = 0usize;
 
         for row in rows {
             match row.qualification_token.as_str() {
@@ -578,18 +841,31 @@ impl FinalizeSignedPolicyBundleSummary {
             }
             import_flows.insert(row.import_flow_token.clone());
             bundle_kinds.insert(row.bundle_kind_token.clone());
+            delivery_sources.insert(row.envelope_review.delivery_source_token.clone());
             if row.grace_state.grace_posture.is_stale() {
                 stale += 1;
+                if row.stale_row_denies_privileged_operations() {
+                    stale_privileged_pause_ok += 1;
+                }
             }
             if row.epoch_state.is_fully_inspectable() {
                 epoch_ok += 1;
             }
-            if !row.simulation_packet.affected_surfaces.is_empty() {
+            if row.envelope_review.is_fully_inspectable() {
+                envelope_ok += 1;
+            }
+            if !row.simulation_packet.affected_surfaces.is_empty()
+                && row.simulation_packet.inspectable_before_apply
+            {
                 sim_ok += 1;
             }
             if row.local_core_continuity_explicit {
                 local_core_ok += 1;
             }
+        }
+
+        for event in lifecycle_events {
+            lifecycle_classes.insert(event.event_class_token.clone());
         }
 
         let overall = if withdrawn > 0 {
@@ -610,10 +886,15 @@ impl FinalizeSignedPolicyBundleSummary {
             withdrawn_row_count: withdrawn,
             import_flows_covered: import_flows.into_iter().collect(),
             bundle_kinds_covered: bundle_kinds.into_iter().collect(),
+            delivery_sources_covered: delivery_sources.into_iter().collect(),
+            lifecycle_classes_covered: lifecycle_classes.into_iter().collect(),
+            lifecycle_event_count: lifecycle_events.len(),
             stale_bundle_row_count: stale,
             epoch_inspectable_row_count: epoch_ok,
+            envelope_inspectable_row_count: envelope_ok,
             simulation_packet_present_row_count: sim_ok,
             local_core_continuity_explicit_row_count: local_core_ok,
+            stale_privileged_pause_row_count: stale_privileged_pause_ok,
             upstream_verifier_defect_count: verifier_page.defects.len(),
             overall_qualification_token: overall.as_str().to_owned(),
         }
@@ -635,7 +916,7 @@ pub struct FinalizeSignedPolicyBundleDefect {
     pub narrow_reason: FinalizeSignedPolicyBundleNarrowReasonClass,
     /// Stable token for [`Self::narrow_reason`].
     pub narrow_reason_token: String,
-    /// Subject id (row id, import flow, or `page`).
+    /// Subject id (row id, import flow, lifecycle class, or `page`).
     pub source: String,
     /// Export-safe explanation.
     pub note: String,
@@ -665,16 +946,7 @@ impl FinalizeSignedPolicyBundleDefect {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
-
-/// Beta proof packet for signed policy-bundle, offline-entitlement grace, and
-/// mirror/manual-import verification flows.
-///
-/// This is the single inspectable record that proves the claims for this lane.
-/// Dashboards, docs, Help/About surfaces, and support exports should ingest it
-/// rather than cloning status text.
+/// Proof packet for signed bundle review and offline continuity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinalizeSignedPolicyBundlePage {
     /// Stable record kind.
@@ -693,6 +965,8 @@ pub struct FinalizeSignedPolicyBundlePage {
     pub summary: FinalizeSignedPolicyBundleSummary,
     /// Per-row qualification rows (one per import_flow × bundle_kind pair).
     pub rows: Vec<FinalizeSignedPolicyBundleRow>,
+    /// Export-safe lifecycle audit events.
+    pub lifecycle_events: Vec<BundleLifecycleAuditEvent>,
     /// Typed validation defects for this packet.
     pub defects: Vec<FinalizeSignedPolicyBundleDefect>,
     /// Upstream offline-entitlement verifier page embedded as evidence.
@@ -700,21 +974,21 @@ pub struct FinalizeSignedPolicyBundlePage {
 }
 
 impl FinalizeSignedPolicyBundlePage {
-    /// Build the finalize page from a set of rows and an embedded verifier page.
-    ///
-    /// Defects are derived automatically from the audit. Rows are
-    /// re-qualified based on the combined audit result.
+    /// Build the finalize page from rows, lifecycle events, and embedded verifier evidence.
     pub fn new(
         page_id: impl Into<String>,
         page_label: impl Into<String>,
         generated_at: impl Into<String>,
         rows: Vec<FinalizeSignedPolicyBundleRow>,
+        lifecycle_events: Vec<BundleLifecycleAuditEvent>,
         offline_entitlement_verifier_page: OfflineEntitlementVerifierBetaPage,
     ) -> Self {
-        let defects = audit_finalize_rows(&rows, &offline_entitlement_verifier_page);
+        let defects =
+            audit_finalize_rows(&rows, &lifecycle_events, &offline_entitlement_verifier_page);
         let qualified_rows = qualify_rows(rows, &defects);
-        let summary = FinalizeSignedPolicyBundleSummary::from_rows(
+        let summary = FinalizeSignedPolicyBundleSummary::from_rows_and_events(
             &qualified_rows,
+            &lifecycle_events,
             &offline_entitlement_verifier_page,
         );
         Self {
@@ -726,6 +1000,7 @@ impl FinalizeSignedPolicyBundlePage {
             generated_at: generated_at.into(),
             summary,
             rows: qualified_rows,
+            lifecycle_events,
             defects,
             offline_entitlement_verifier_page,
         }
@@ -737,63 +1012,113 @@ impl FinalizeSignedPolicyBundlePage {
             == FinalizeSignedPolicyBundleQualificationClass::Stable.as_str()
     }
 
-    /// True when no withdrawn rows are present.
-    pub fn no_withdrawn_rows(&self) -> bool {
-        self.summary.withdrawn_row_count == 0
-    }
-
     /// True when all required import flows are covered.
     pub fn covers_all_required_import_flows(&self) -> bool {
         let covered: BTreeSet<&str> = self
             .rows
             .iter()
-            .map(|r| r.import_flow_token.as_str())
+            .map(|row| row.import_flow_token.as_str())
             .collect();
         BundleImportFlowClass::ALL
             .iter()
-            .all(|f| covered.contains(f.as_str()))
+            .all(|flow| covered.contains(flow.as_str()))
+    }
+
+    /// True when all required bundle kinds are covered.
+    pub fn covers_all_required_bundle_kinds(&self) -> bool {
+        let covered: BTreeSet<&str> = self
+            .rows
+            .iter()
+            .map(|row| row.bundle_kind_token.as_str())
+            .collect();
+        BundleKindClass::ALL
+            .iter()
+            .all(|kind| covered.contains(kind.as_str()))
+    }
+
+    /// True when all required delivery sources are covered.
+    pub fn covers_all_required_delivery_sources(&self) -> bool {
+        let covered: BTreeSet<&str> = self
+            .rows
+            .iter()
+            .map(|row| row.envelope_review.delivery_source_token.as_str())
+            .collect();
+        BundleDeliverySourceClass::ALL
+            .iter()
+            .all(|source| covered.contains(source.as_str()))
     }
 
     /// True when all rows carry fully inspectable epoch states.
     pub fn all_epoch_states_inspectable(&self) -> bool {
         self.rows
             .iter()
-            .all(|r| r.epoch_state.is_fully_inspectable())
+            .all(|row| row.epoch_state.is_fully_inspectable())
+    }
+
+    /// True when all rows carry fully inspectable envelope metadata.
+    pub fn all_rows_have_inspectable_envelopes(&self) -> bool {
+        self.rows
+            .iter()
+            .all(|row| row.envelope_review.is_fully_inspectable())
     }
 
     /// True when all simulation packets have at least one affected surface.
     pub fn all_simulation_packets_have_affected_surfaces(&self) -> bool {
         self.rows
             .iter()
-            .all(|r| !r.simulation_packet.affected_surfaces.is_empty())
+            .all(|row| !row.simulation_packet.affected_surfaces.is_empty())
     }
 
     /// True when all rows carry `local_core_continuity_explicit: true`.
     pub fn all_rows_explicit_on_local_core_continuity(&self) -> bool {
-        self.rows.iter().all(|r| r.local_core_continuity_explicit)
+        self.rows
+            .iter()
+            .all(|row| row.local_core_continuity_explicit)
     }
 
     /// True when all stale rows carry explicit staleness labels.
     pub fn stale_rows_are_explicitly_labeled(&self) -> bool {
         self.rows
             .iter()
-            .all(|r| r.grace_state.staleness_is_explicitly_labeled())
+            .all(|row| row.grace_state.staleness_is_explicitly_labeled())
     }
 
     /// True when all stale rows declare a bounded grace window.
     pub fn stale_rows_have_declared_grace_windows(&self) -> bool {
         self.rows
             .iter()
-            .all(|r| r.grace_state.grace_window_is_declared())
+            .all(|row| row.grace_state.grace_window_is_declared())
+    }
+
+    /// True when all stale rows deny new privileged operations.
+    pub fn stale_rows_deny_new_privileged_operations(&self) -> bool {
+        self.rows
+            .iter()
+            .all(FinalizeSignedPolicyBundleRow::stale_row_denies_privileged_operations)
+    }
+
+    /// True when emergency-disable rows declare a minimum required version.
+    pub fn emergency_disable_rows_declare_required_minimum_version(&self) -> bool {
+        self.rows
+            .iter()
+            .filter(|row| row.bundle_kind == BundleKindClass::EmergencyDisableBundle)
+            .all(FinalizeSignedPolicyBundleRow::required_minimum_version_is_declared)
+    }
+
+    /// True when lifecycle events cover all required classes.
+    pub fn lifecycle_events_cover_required_classes(&self) -> bool {
+        let covered: BTreeSet<&str> = self
+            .lifecycle_events
+            .iter()
+            .map(|event| event.event_class_token.as_str())
+            .collect();
+        BundleLifecycleEventClass::ALL
+            .iter()
+            .all(|class| covered.contains(class.as_str()))
     }
 }
 
-// ---------------------------------------------------------------------------
-// Support export
-// ---------------------------------------------------------------------------
-
-/// Support-export wrapper that quotes the finalize page plus a metadata-safe
-/// defect roll-up.
+/// Support-export wrapper that quotes the finalize page plus metadata-safe rollups.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinalizeSignedPolicyBundleSupportExport {
     /// Stable record kind.
@@ -812,6 +1137,8 @@ pub struct FinalizeSignedPolicyBundleSupportExport {
     pub narrow_reasons_present: Vec<FinalizeSignedPolicyBundleNarrowReasonClass>,
     /// Defect counts by narrow-reason token.
     pub defect_counts_by_narrow_reason: BTreeMap<String, usize>,
+    /// Lifecycle-event counts by lifecycle class.
+    pub lifecycle_event_counts_by_class: BTreeMap<String, usize>,
     /// True when raw private material is excluded from the export.
     pub raw_private_material_excluded: bool,
 }
@@ -823,17 +1150,27 @@ impl FinalizeSignedPolicyBundleSupportExport {
         generated_at: impl Into<String>,
         page: FinalizeSignedPolicyBundlePage,
     ) -> Self {
-        let mut reasons: Vec<FinalizeSignedPolicyBundleNarrowReasonClass> = Vec::new();
-        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+        let mut reasons = Vec::new();
+        let mut defect_counts = BTreeMap::new();
+        let mut lifecycle_counts = BTreeMap::new();
+
         for defect in &page.defects {
             if !reasons.contains(&defect.narrow_reason) {
                 reasons.push(defect.narrow_reason);
             }
-            *counts
+            *defect_counts
                 .entry(defect.narrow_reason_token.clone())
                 .or_insert(0) += 1;
         }
+
+        for event in &page.lifecycle_events {
+            *lifecycle_counts
+                .entry(event.event_class_token.clone())
+                .or_insert(0) += 1;
+        }
+
         reasons.sort();
+
         Self {
             record_kind: SIGNED_POLICY_BUNDLE_FINALIZE_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION,
@@ -842,21 +1179,22 @@ impl FinalizeSignedPolicyBundleSupportExport {
             generated_at: generated_at.into(),
             page,
             narrow_reasons_present: reasons,
-            defect_counts_by_narrow_reason: counts,
+            defect_counts_by_narrow_reason: defect_counts,
+            lifecycle_event_counts_by_class: lifecycle_counts,
             raw_private_material_excluded: true,
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Public audit and validate functions
-// ---------------------------------------------------------------------------
-
-/// Re-run the finalize audit over the rows and embedded verifier page.
+/// Re-run the finalize audit over the rows, lifecycle events, and verifier page.
 pub fn audit_finalize_signed_policy_bundle_page(
     page: &FinalizeSignedPolicyBundlePage,
 ) -> Vec<FinalizeSignedPolicyBundleDefect> {
-    audit_finalize_rows(&page.rows, &page.offline_entitlement_verifier_page)
+    audit_finalize_rows(
+        &page.rows,
+        &page.lifecycle_events,
+        &page.offline_entitlement_verifier_page,
+    )
 }
 
 /// Validate the finalize page; returns `Ok` when the audit is clean.
@@ -870,35 +1208,31 @@ pub fn validate_finalize_signed_policy_bundle_page(
     }
 }
 
-/// Build the seeded finalize page covering all five required import flows for
-/// both policy bundles and entitlement snapshots, including offline-grace and
-/// pre-apply simulation packets for every row.
+/// Build the seeded finalize page covering all required flows and bundle kinds.
 pub fn seeded_finalize_signed_policy_bundle_page() -> FinalizeSignedPolicyBundlePage {
     let verifier_page = seeded_offline_entitlement_verifier_beta_page();
     let rows = seeded_rows();
+    let lifecycle_events = seeded_lifecycle_events(&rows);
     FinalizeSignedPolicyBundlePage::new(
         "policy:signed-policy-bundle-finalize:seeded:0001",
-        "Signed policy-bundle, offline-entitlement, and mirror/manual-import finalize packet",
+        "Signed administrative bundle, offline entitlement, emergency-disable, and trust-root finalize packet",
         "2026-06-01T00:00:00Z",
         rows,
+        lifecycle_events,
         verifier_page,
     )
 }
 
-// ---------------------------------------------------------------------------
-// Internal audit helpers
-// ---------------------------------------------------------------------------
-
 fn audit_finalize_rows(
     rows: &[FinalizeSignedPolicyBundleRow],
+    lifecycle_events: &[BundleLifecycleAuditEvent],
     verifier_page: &OfflineEntitlementVerifierBetaPage,
 ) -> Vec<FinalizeSignedPolicyBundleDefect> {
-    let mut defects: Vec<FinalizeSignedPolicyBundleDefect> = Vec::new();
+    let mut defects = Vec::new();
 
-    // Hard guardrail: raw private material exposed in upstream verifier page.
     let upstream_defects = audit_offline_entitlement_verifier_beta_rows(&verifier_page.rows);
-    let has_raw_material = upstream_defects.iter().any(|d| {
-        d.defect_kind == OfflineEntitlementVerifierBetaDefectKind::RawPrivateMaterialExposed
+    let has_raw_material = upstream_defects.iter().any(|defect| {
+        defect.defect_kind == OfflineEntitlementVerifierBetaDefectKind::RawPrivateMaterialExposed
     });
     if has_raw_material {
         defects.push(FinalizeSignedPolicyBundleDefect::new(
@@ -909,17 +1243,15 @@ fn audit_finalize_rows(
         return defects;
     }
 
-    // Non-critical: upstream verifier page has other defects.
     if !verifier_page.defects.is_empty() {
         defects.push(FinalizeSignedPolicyBundleDefect::new(
             FinalizeSignedPolicyBundleNarrowReasonClass::OfflineEntitlementVerifierHasDefects,
             "offline_entitlement_verifier_page",
-            "upstream offline-entitlement verifier page has defects; packet is narrowed to beta",
+            "upstream offline-entitlement verifier page has non-withdrawal defects; packet is narrowed to beta",
         ));
     }
 
     for row in rows {
-        // Hard guardrail: stale bundle without explicit staleness label.
         if !row.grace_state.staleness_is_explicitly_labeled() {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::StalenessDisguisedAsAuthFailure,
@@ -928,27 +1260,56 @@ fn audit_finalize_rows(
             ));
         }
 
-        // Grace window not declared for flows that require it.
         if row.import_flow.requires_grace_window_when_stale()
             && !row.grace_state.grace_window_is_declared()
         {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::GraceWindowNotDeclared,
                 row.row_id.clone(),
-                "offline or air-gapped row has a stale bundle with no declared grace window end",
+                "offline or air-gapped row has stale bundle state with no declared grace-window end",
             ));
         }
 
-        // Policy epoch inspection fields must all be present.
         if !row.epoch_state.is_fully_inspectable() {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::PolicyEpochNotInspectable,
                 row.row_id.clone(),
-                "row is missing one or more required epoch inspection fields (epoch_ref, epoch_digest, trust_root_ref, last_successful_validation_time)",
+                "row is missing one or more required epoch inspection fields",
             ));
         }
 
-        // Simulation packet must have at least one affected surface.
+        if !row.envelope_review.is_fully_inspectable() {
+            defects.push(FinalizeSignedPolicyBundleDefect::new(
+                FinalizeSignedPolicyBundleNarrowReasonClass::BundleEnvelopeNotInspectable,
+                row.row_id.clone(),
+                "row is missing bundle_ref, issuer_ref, scope_ref, delivery_source, or expiry guidance metadata",
+            ));
+        }
+
+        if !row.relations_are_inspectable() {
+            defects.push(FinalizeSignedPolicyBundleDefect::new(
+                FinalizeSignedPolicyBundleNarrowReasonClass::BundleRelationsNotInspectable,
+                row.row_id.clone(),
+                "row has no visible supersedes or revokes relation",
+            ));
+        }
+
+        if !row.required_minimum_version_is_declared() {
+            defects.push(FinalizeSignedPolicyBundleDefect::new(
+                FinalizeSignedPolicyBundleNarrowReasonClass::RequiredMinimumVersionMissing,
+                row.row_id.clone(),
+                "emergency-disable row is missing required_minimum_version",
+            ));
+        }
+
+        if !row.stale_row_denies_privileged_operations() {
+            defects.push(FinalizeSignedPolicyBundleDefect::new(
+                FinalizeSignedPolicyBundleNarrowReasonClass::PrivilegedOperationsNotNarrowedOnStaleBundle,
+                row.row_id.clone(),
+                "stale row still admits new privileged operations instead of narrowing to local-safe continuity",
+            ));
+        }
+
         if row.simulation_packet.affected_surfaces.is_empty() {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::SimulationPacketMissingBeforeApply,
@@ -957,7 +1318,14 @@ fn audit_finalize_rows(
             ));
         }
 
-        // Widening rows require an approval owner.
+        if !row.simulation_packet.inspectable_before_apply {
+            defects.push(FinalizeSignedPolicyBundleDefect::new(
+                FinalizeSignedPolicyBundleNarrowReasonClass::SimulationPacketNotInspectableBeforeApply,
+                row.row_id.clone(),
+                "simulation packet is not marked inspectable_before_apply",
+            ));
+        }
+
         if row.simulation_packet.widens_managed_claims
             && row.simulation_packet.approval_owner_ref.is_empty()
         {
@@ -968,7 +1336,6 @@ fn audit_finalize_rows(
             ));
         }
 
-        // Expiry posture must be declared.
         if row.simulation_packet.expiry_posture_token.is_empty() {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::ExpiryPostureNotInspectable,
@@ -977,7 +1344,6 @@ fn audit_finalize_rows(
             ));
         }
 
-        // Local-core continuity must be stated explicitly.
         if !row.local_core_continuity_explicit {
             defects.push(FinalizeSignedPolicyBundleDefect::new(
                 FinalizeSignedPolicyBundleNarrowReasonClass::LocalCoreContinuityNotExplicit,
@@ -987,24 +1353,68 @@ fn audit_finalize_rows(
         }
     }
 
-    // Coverage check: all required import flows must appear at least once.
-    let required_flows: BTreeSet<&str> = BundleImportFlowClass::ALL
-        .iter()
-        .map(|f| f.as_str())
-        .collect();
-    let observed_flows: BTreeSet<&str> =
-        rows.iter().map(|r| r.import_flow_token.as_str()).collect();
-    for missing in required_flows.difference(&observed_flows) {
-        defects.push(FinalizeSignedPolicyBundleDefect::new(
-            FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap,
-            "page",
-            format!(
-                "missing rows for required import flow '{missing}'; packet is narrowed to preview"
-            ),
-        ));
-    }
+    push_coverage_gap_defects(
+        &mut defects,
+        rows.iter().map(|row| row.import_flow_token.as_str()),
+        BundleImportFlowClass::ALL.iter().map(|flow| flow.as_str()),
+        FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap,
+        "page",
+        "missing rows for required import flow",
+    );
+    push_coverage_gap_defects(
+        &mut defects,
+        rows.iter().map(|row| row.bundle_kind_token.as_str()),
+        BundleKindClass::ALL.iter().map(|kind| kind.as_str()),
+        FinalizeSignedPolicyBundleNarrowReasonClass::BundleKindCoverageGap,
+        "page",
+        "missing rows for required bundle kind",
+    );
+    push_coverage_gap_defects(
+        &mut defects,
+        rows.iter()
+            .map(|row| row.envelope_review.delivery_source_token.as_str()),
+        BundleDeliverySourceClass::ALL
+            .iter()
+            .map(|source| source.as_str()),
+        FinalizeSignedPolicyBundleNarrowReasonClass::DeliverySourceCoverageGap,
+        "page",
+        "missing rows for required delivery source",
+    );
+    push_coverage_gap_defects(
+        &mut defects,
+        lifecycle_events
+            .iter()
+            .map(|event| event.event_class_token.as_str()),
+        BundleLifecycleEventClass::ALL
+            .iter()
+            .map(|class| class.as_str()),
+        FinalizeSignedPolicyBundleNarrowReasonClass::LifecycleCoverageGap,
+        "page",
+        "missing lifecycle audit coverage for required event class",
+    );
 
     defects
+}
+
+fn push_coverage_gap_defects<'a>(
+    defects: &mut Vec<FinalizeSignedPolicyBundleDefect>,
+    observed: impl IntoIterator<Item = &'a str>,
+    required: impl IntoIterator<Item = &'a str>,
+    reason: FinalizeSignedPolicyBundleNarrowReasonClass,
+    source: &str,
+    prefix: &str,
+) {
+    let observed_set: BTreeSet<&str> = observed.into_iter().collect();
+    for missing in required
+        .into_iter()
+        .filter(|item| !observed_set.contains(item))
+    {
+        defects.push(FinalizeSignedPolicyBundleDefect::new(
+            reason,
+            source,
+            format!("{prefix} '{missing}'"),
+        ));
+    }
 }
 
 fn qualify_rows(
@@ -1013,61 +1423,60 @@ fn qualify_rows(
 ) -> Vec<FinalizeSignedPolicyBundleRow> {
     let has_withdrawal = page_defects
         .iter()
-        .any(|d| d.narrow_reason.is_withdrawal_reason());
-    let has_preview = page_defects.iter().any(|d| {
-        d.narrow_reason == FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap
-    });
+        .any(|defect| defect.narrow_reason.is_withdrawal_reason());
+    let has_preview = page_defects
+        .iter()
+        .any(|defect| defect.narrow_reason.is_preview_reason());
 
-    let (overall_qual, overall_reason) = if has_withdrawal {
-        let r = page_defects
-            .iter()
-            .find(|d| d.narrow_reason.is_withdrawal_reason())
-            .map(|d| d.narrow_reason)
-            .unwrap_or(FinalizeSignedPolicyBundleNarrowReasonClass::RawPrivateMaterialExposed);
-        (FinalizeSignedPolicyBundleQualificationClass::Withdrawn, r)
+    let overall_qual = if has_withdrawal {
+        FinalizeSignedPolicyBundleQualificationClass::Withdrawn
     } else if has_preview {
-        (
-            FinalizeSignedPolicyBundleQualificationClass::Preview,
-            FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap,
-        )
-    } else if !page_defects.is_empty() {
-        let r = page_defects[0].narrow_reason;
-        (FinalizeSignedPolicyBundleQualificationClass::Beta, r)
+        FinalizeSignedPolicyBundleQualificationClass::Preview
+    } else if page_defects.is_empty() {
+        FinalizeSignedPolicyBundleQualificationClass::Stable
     } else {
-        (
-            FinalizeSignedPolicyBundleQualificationClass::Stable,
-            FinalizeSignedPolicyBundleNarrowReasonClass::NotNarrowed,
-        )
+        FinalizeSignedPolicyBundleQualificationClass::Beta
     };
 
     for row in &mut rows {
-        // Per-row defects may narrow below the page overall, but for
-        // withdrawal and preview the page-level reason takes precedence.
-        let row_qual = if has_withdrawal {
-            FinalizeSignedPolicyBundleQualificationClass::Withdrawn
+        let row_reason = if has_withdrawal {
+            page_defects
+                .iter()
+                .find(|defect| defect.narrow_reason.is_withdrawal_reason())
+                .map(|defect| defect.narrow_reason)
+                .unwrap_or(FinalizeSignedPolicyBundleNarrowReasonClass::RawPrivateMaterialExposed)
         } else if has_preview {
-            FinalizeSignedPolicyBundleQualificationClass::Preview
-        } else {
-            let row_has_defect = page_defects.iter().any(|d| {
-                d.source == row.row_id
-                    && d.narrow_reason
-                        != FinalizeSignedPolicyBundleNarrowReasonClass::OfflineEntitlementVerifierHasDefects
-            });
-            if row_has_defect || !page_defects.is_empty() {
-                FinalizeSignedPolicyBundleQualificationClass::Beta
-            } else {
-                FinalizeSignedPolicyBundleQualificationClass::Stable
-            }
-        };
-
-        let row_reason = if row_qual == overall_qual {
-            overall_reason
+            page_defects
+                .iter()
+                .find(|defect| defect.narrow_reason.is_preview_reason())
+                .map(|defect| defect.narrow_reason)
+                .unwrap_or(FinalizeSignedPolicyBundleNarrowReasonClass::ImportFlowCoverageGap)
         } else {
             page_defects
                 .iter()
-                .find(|d| d.source == row.row_id)
-                .map(|d| d.narrow_reason)
+                .find(|defect| defect.source == row.row_id)
+                .map(|defect| defect.narrow_reason)
+                .or_else(|| {
+                    page_defects
+                        .iter()
+                        .find(|defect| {
+                            defect.source == "offline_entitlement_verifier_page"
+                                && defect.narrow_reason
+                                    == FinalizeSignedPolicyBundleNarrowReasonClass::OfflineEntitlementVerifierHasDefects
+                        })
+                        .map(|defect| defect.narrow_reason)
+                })
                 .unwrap_or(FinalizeSignedPolicyBundleNarrowReasonClass::NotNarrowed)
+        };
+
+        let row_qual = if row_reason == FinalizeSignedPolicyBundleNarrowReasonClass::NotNarrowed {
+            FinalizeSignedPolicyBundleQualificationClass::Stable
+        } else if row_reason.is_withdrawal_reason() {
+            FinalizeSignedPolicyBundleQualificationClass::Withdrawn
+        } else if row_reason.is_preview_reason() {
+            FinalizeSignedPolicyBundleQualificationClass::Preview
+        } else {
+            FinalizeSignedPolicyBundleQualificationClass::Beta
         };
 
         row.qualification_token = row_qual.as_str().to_owned();
@@ -1078,7 +1487,12 @@ fn qualify_rows(
             &row.bundle_kind_token,
             row_qual,
             row_reason,
+            row.privileged_operation_posture_token.as_str(),
         );
+
+        if overall_qual > row_qual {
+            row.qualification_token = overall_qual.as_str().to_owned();
+        }
     }
 
     rows
@@ -1090,130 +1504,218 @@ fn build_row_summary(
     bundle_kind_token: &str,
     qual: FinalizeSignedPolicyBundleQualificationClass,
     narrow_reason: FinalizeSignedPolicyBundleNarrowReasonClass,
+    privileged_posture_token: &str,
 ) -> String {
     match qual {
         FinalizeSignedPolicyBundleQualificationClass::Stable => format!(
-            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) qualifies stable: \
-             epoch state inspectable, grace state declared, simulation packet present, \
-             local-core continuity explicit, upstream verifier clean."
+            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) qualifies stable: signed envelope is inspectable, stale posture is explicit, privileged posture is '{privileged_posture_token}', and lifecycle review remains portable."
         ),
         FinalizeSignedPolicyBundleQualificationClass::Beta => format!(
-            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) narrowed to beta \
-             (reason: {}): one or more required conditions are unmet.",
+            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) narrowed to beta (reason: {}); inspectable local-safe continuity remains available.",
             narrow_reason.as_str()
         ),
         FinalizeSignedPolicyBundleQualificationClass::Preview => format!(
-            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) narrowed to preview: \
-             a required import flow is missing from the page."
+            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) narrowed to preview because required signed-artifact coverage is incomplete."
         ),
         FinalizeSignedPolicyBundleQualificationClass::Withdrawn => format!(
-            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) is withdrawn \
-             (reason: {}): hard guardrail triggered.",
+            "Row '{row_id}' ({import_flow_token}/{bundle_kind_token}) is withdrawn (reason: {}); hard guardrail triggered.",
             narrow_reason.as_str()
         ),
     }
 }
 
-// ---------------------------------------------------------------------------
-// Seeded rows
-// ---------------------------------------------------------------------------
-
 fn seeded_rows() -> Vec<FinalizeSignedPolicyBundleRow> {
-    vec![
-        row_online_policy(),
-        row_online_entitlement(),
-        row_mirror_policy(),
-        row_mirror_entitlement(),
-        row_manual_import_policy(),
-        row_manual_import_entitlement(),
-        row_air_gapped_policy(),
-        row_air_gapped_entitlement(),
-        row_offline_grace_policy(),
-        row_offline_grace_entitlement(),
-    ]
+    let mut rows = Vec::new();
+    for import_flow in BundleImportFlowClass::ALL {
+        for bundle_kind in BundleKindClass::ALL {
+            rows.push(make_seeded_row(import_flow, bundle_kind));
+        }
+    }
+    rows
 }
 
-fn make_row(
-    row_id: &str,
+fn make_seeded_row(
     import_flow: BundleImportFlowClass,
     bundle_kind: BundleKindClass,
-    signer_ref: &str,
-    signed_at: &str,
-    valid_until: &str,
-    epoch_ref: &str,
-    epoch_digest: &str,
-    trust_root_ref: &str,
-    last_validation: &str,
-    grace_posture: GracePostureClass,
-    grace_start: &str,
-    grace_end: &str,
-    last_known_good: &str,
-    staleness_label: &str,
-    blocked_consequences: Vec<&str>,
-    packet_id: &str,
-    changed_feature_areas: Vec<&str>,
-    affected_surfaces: Vec<&str>,
-    degraded_mode_consequences: Vec<&str>,
-    offline_or_stale_notes: Vec<&str>,
-    approval_owner_ref: &str,
-    expiry_posture_token: &str,
-    widens_managed_claims: bool,
 ) -> FinalizeSignedPolicyBundleRow {
+    let delivery_source = delivery_source_for(import_flow, bundle_kind);
+    let grace_posture = grace_posture_for(import_flow, bundle_kind);
+    let expiry_guidance = expiry_guidance_for(import_flow, bundle_kind, grace_posture);
+    let privileged_posture =
+        privileged_posture_for(import_flow, bundle_kind, grace_posture, delivery_source);
+    let staleness_label = staleness_label_for(import_flow, bundle_kind, grace_posture);
+    let bundle_ref = format!(
+        "bundle:{}:{}:2026.06.0001",
+        bundle_kind.as_str(),
+        import_flow.as_str()
+    );
+    let row_id = format!(
+        "signed-policy-bundle-finalize:{}:{}",
+        import_flow.as_str(),
+        bundle_kind.as_str()
+    );
+    let supersedes_refs = vec![format!(
+        "bundle:{}:{}:2026.05.0004",
+        bundle_kind.as_str(),
+        import_flow.as_str()
+    )];
+    let revokes_refs = match bundle_kind {
+        BundleKindClass::AdminPolicyBundle => {
+            vec![format!(
+                "revoke:policy:{}:2026.05.0001",
+                import_flow.as_str()
+            )]
+        }
+        BundleKindClass::EntitlementSnapshot => vec![format!(
+            "revoke:entitlement:{}:2026.05.0001",
+            import_flow.as_str()
+        )],
+        BundleKindClass::EmergencyDisableBundle => vec![
+            format!("revoke:extension-set:{}:payments-sdk", import_flow.as_str()),
+            format!("revoke:provider-route:{}:hosted-eval", import_flow.as_str()),
+        ],
+        BundleKindClass::TrustRootSignerUpdate => vec![
+            "revoke:signer:trust-root:2025-primary".to_owned(),
+            format!("revoke:root-pointer:{}:legacy", import_flow.as_str()),
+        ],
+    };
+    let changed_feature_areas = changed_feature_areas_for(import_flow, bundle_kind);
+    let affected_surfaces: Vec<String> = bundle_kind
+        .affected_surfaces()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    let degraded_mode_consequences = degraded_mode_consequences_for(bundle_kind, grace_posture);
+    let offline_notes = offline_notes_for(import_flow, bundle_kind, grace_posture);
+    let widens_managed_claims = matches!(
+        (import_flow, bundle_kind),
+        (
+            BundleImportFlowClass::ManualImport,
+            BundleKindClass::AdminPolicyBundle
+        )
+    );
+    let approval_owner_ref = if widens_managed_claims {
+        "owner:policy-review-board:managed-alpha"
+    } else {
+        ""
+    };
+    let signed_at = signed_at_for(import_flow);
+    let valid_until = valid_until_for(import_flow, bundle_kind);
+    let (grace_window_start, grace_window_end, last_known_good_revision) =
+        grace_window_for(import_flow, bundle_kind, grace_posture);
+
     FinalizeSignedPolicyBundleRow {
         record_kind: SIGNED_POLICY_BUNDLE_FINALIZE_ROW_RECORD_KIND.to_owned(),
         schema_version: SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION,
         shared_contract_ref: SIGNED_POLICY_BUNDLE_FINALIZE_SHARED_CONTRACT_REF.to_owned(),
-        row_id: row_id.to_owned(),
+        row_id: row_id.clone(),
         import_flow,
         import_flow_token: import_flow.as_str().to_owned(),
         bundle_kind,
         bundle_kind_token: bundle_kind.as_str().to_owned(),
-        signer_ref: signer_ref.to_owned(),
+        signer_ref: bundle_kind.signer_ref().to_owned(),
         signed_at: signed_at.to_owned(),
         valid_until: valid_until.to_owned(),
         epoch_state: PolicyEpochState {
-            epoch_ref: epoch_ref.to_owned(),
-            epoch_digest: epoch_digest.to_owned(),
-            trust_root_ref: trust_root_ref.to_owned(),
-            last_successful_validation_time: last_validation.to_owned(),
+            epoch_ref: format!(
+                "epoch:{}:{}:2026.06",
+                bundle_kind.as_str(),
+                import_flow.as_str()
+            ),
+            epoch_digest: format!(
+                "sha256:{}{}{}{}{}{}{}{}",
+                bundle_kind.as_str().len(),
+                import_flow.as_str().len(),
+                "a1b2c3d4",
+                "e5f6a7b8",
+                "c9d0e1f2",
+                "34567890",
+                "abcdef12",
+                "34567890abcdef12"
+            ),
+            trust_root_ref: match bundle_kind {
+                BundleKindClass::TrustRootSignerUpdate => {
+                    "trust_root:rotation-window:2026-primary".to_owned()
+                }
+                BundleKindClass::EmergencyDisableBundle => {
+                    "trust_root:security-response:2026-primary".to_owned()
+                }
+                _ => "trust_root:managed-baseline:2026-primary".to_owned(),
+            },
+            last_successful_validation_time: match import_flow {
+                BundleImportFlowClass::Online => "2026-05-31T12:00:00Z".to_owned(),
+                BundleImportFlowClass::Mirror => "2026-05-30T08:00:00Z".to_owned(),
+                BundleImportFlowClass::ManualImport => "2026-05-29T15:30:00Z".to_owned(),
+                BundleImportFlowClass::AirGapped => "2026-05-28T11:45:00Z".to_owned(),
+                BundleImportFlowClass::OfflineGrace => "2026-05-10T07:15:00Z".to_owned(),
+            },
             import_flow_token: import_flow.as_str().to_owned(),
         },
         grace_state: OfflineGraceState {
             grace_posture,
             grace_posture_token: grace_posture.as_str().to_owned(),
-            grace_window_start: grace_start.to_owned(),
-            grace_window_end: grace_end.to_owned(),
-            last_known_good_revision: last_known_good.to_owned(),
+            grace_window_start: grace_window_start.to_owned(),
+            grace_window_end: grace_window_end.to_owned(),
+            last_known_good_revision: last_known_good_revision.to_owned(),
             staleness_label: staleness_label.to_owned(),
-            blocked_capability_consequences: blocked_consequences
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
+            blocked_capability_consequences: if grace_posture.is_stale() {
+                bundle_kind
+                    .blocked_capability_consequences()
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect()
+            } else {
+                Vec::new()
+            },
         },
+        envelope_review: BundleEnvelopeReview {
+            bundle_ref: bundle_ref.clone(),
+            issuer_ref: bundle_kind.issuer_ref().to_owned(),
+            scope_ref: bundle_kind.scope_ref().to_owned(),
+            delivery_source,
+            delivery_source_token: delivery_source.as_str().to_owned(),
+            expiry_guidance,
+            expiry_guidance_token: expiry_guidance.as_str().to_owned(),
+            supersedes_refs,
+            revokes_refs,
+            required_minimum_version: if bundle_kind == BundleKindClass::EmergencyDisableBundle {
+                "2.8.4".to_owned()
+            } else {
+                String::new()
+            },
+        },
+        privileged_operation_posture: privileged_posture,
+        privileged_operation_posture_token: privileged_posture.as_str().to_owned(),
         simulation_packet: PolicyBundleSimulationPacket {
-            packet_id: packet_id.to_owned(),
+            packet_id: format!(
+                "sim-packet:{}:{}",
+                import_flow.as_str(),
+                bundle_kind.as_str()
+            ),
             changed_feature_areas: changed_feature_areas
-                .iter()
-                .map(|s| (*s).to_owned())
+                .into_iter()
+                .map(str::to_owned)
                 .collect(),
-            previous_values_summary: BTreeMap::new(),
-            simulated_values_summary: BTreeMap::new(),
-            affected_surfaces: affected_surfaces.iter().map(|s| (*s).to_owned()).collect(),
+            previous_values_summary: BTreeMap::from([(
+                "effective_posture".to_owned(),
+                "last-known-good".to_owned(),
+            )]),
+            simulated_values_summary: BTreeMap::from([(
+                "effective_posture".to_owned(),
+                expiry_guidance.as_str().to_owned(),
+            )]),
+            affected_surfaces,
             degraded_mode_consequences: degraded_mode_consequences
-                .iter()
-                .map(|s| (*s).to_owned())
+                .into_iter()
+                .map(str::to_owned)
                 .collect(),
-            offline_or_stale_policy_notes: offline_or_stale_notes
-                .iter()
-                .map(|s| (*s).to_owned())
-                .collect(),
+            offline_or_stale_policy_notes: offline_notes.into_iter().map(str::to_owned).collect(),
             approval_owner_ref: approval_owner_ref.to_owned(),
-            expiry_posture_token: expiry_posture_token.to_owned(),
+            expiry_posture_token: expiry_guidance.as_str().to_owned(),
             widens_managed_claims,
             inspectable_before_apply: true,
         },
         local_core_continuity_explicit: true,
-        // Qualification and summary are filled in by qualify_rows.
         qualification_token: FinalizeSignedPolicyBundleQualificationClass::Stable
             .as_str()
             .to_owned(),
@@ -1224,314 +1726,342 @@ fn make_row(
     }
 }
 
-fn row_online_policy() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:online:policy_bundle",
+fn signed_at_for(import_flow: BundleImportFlowClass) -> &'static str {
+    match import_flow {
+        BundleImportFlowClass::Online => "2026-05-31T12:00:00Z",
+        BundleImportFlowClass::Mirror => "2026-05-30T08:00:00Z",
+        BundleImportFlowClass::ManualImport => "2026-05-29T15:30:00Z",
+        BundleImportFlowClass::AirGapped => "2026-05-28T11:45:00Z",
+        BundleImportFlowClass::OfflineGrace => "2026-05-10T07:15:00Z",
+    }
+}
+
+fn valid_until_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+) -> &'static str {
+    match (import_flow, bundle_kind) {
+        (BundleImportFlowClass::OfflineGrace, BundleKindClass::TrustRootSignerUpdate) => {
+            "2026-05-15T00:00:00Z"
+        }
+        (BundleImportFlowClass::OfflineGrace, _) => "2026-06-15T00:00:00Z",
+        (BundleImportFlowClass::AirGapped, _) => "2026-10-01T00:00:00Z",
+        (BundleImportFlowClass::ManualImport, BundleKindClass::EmergencyDisableBundle) => {
+            "2026-07-15T00:00:00Z"
+        }
+        (BundleImportFlowClass::ManualImport, _) => "2026-08-15T00:00:00Z",
+        (_, BundleKindClass::TrustRootSignerUpdate) => "2026-08-01T00:00:00Z",
+        _ => "2026-09-01T00:00:00Z",
+    }
+}
+
+fn delivery_source_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+) -> BundleDeliverySourceClass {
+    match import_flow {
+        BundleImportFlowClass::Online => BundleDeliverySourceClass::ManagedPull,
+        BundleImportFlowClass::Mirror => BundleDeliverySourceClass::MirrorPublication,
+        BundleImportFlowClass::ManualImport => match bundle_kind {
+            BundleKindClass::EntitlementSnapshot | BundleKindClass::TrustRootSignerUpdate => {
+                BundleDeliverySourceClass::MdmFleetDrop
+            }
+            _ => BundleDeliverySourceClass::FileImport,
+        },
+        BundleImportFlowClass::AirGapped => BundleDeliverySourceClass::AirGapTransfer,
+        BundleImportFlowClass::OfflineGrace => BundleDeliverySourceClass::LastKnownGoodCache,
+    }
+}
+
+fn grace_posture_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+) -> GracePostureClass {
+    match (import_flow, bundle_kind) {
+        (BundleImportFlowClass::OfflineGrace, BundleKindClass::TrustRootSignerUpdate) => {
+            GracePostureClass::GraceExpired
+        }
+        (BundleImportFlowClass::OfflineGrace, _) => GracePostureClass::InGrace,
+        _ => GracePostureClass::NotInGrace,
+    }
+}
+
+fn expiry_guidance_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+) -> ExpiryGuidanceClass {
+    if grace_posture == GracePostureClass::GraceExpired {
+        return ExpiryGuidanceClass::LastKnownGoodOnly;
+    }
+    if grace_posture == GracePostureClass::InGrace {
+        return ExpiryGuidanceClass::InGraceUntilRefresh;
+    }
+    match bundle_kind {
+        BundleKindClass::AdminPolicyBundle => ExpiryGuidanceClass::RefreshBeforeExpiry,
+        BundleKindClass::EntitlementSnapshot => ExpiryGuidanceClass::RefreshBeforeExpiry,
+        BundleKindClass::EmergencyDisableBundle => ExpiryGuidanceClass::SupersedeOrExpire,
+        BundleKindClass::TrustRootSignerUpdate => {
+            if import_flow == BundleImportFlowClass::Online {
+                ExpiryGuidanceClass::RotationWindowRequired
+            } else {
+                ExpiryGuidanceClass::RotationWindowRequired
+            }
+        }
+    }
+}
+
+fn privileged_posture_for(
+    _import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+    _delivery_source: BundleDeliverySourceClass,
+) -> PrivilegedOperationPostureClass {
+    if bundle_kind == BundleKindClass::EmergencyDisableBundle {
+        return PrivilegedOperationPostureClass::PausedByEmergencyDisable;
+    }
+    if bundle_kind == BundleKindClass::TrustRootSignerUpdate
+        && grace_posture == GracePostureClass::GraceExpired
+    {
+        return PrivilegedOperationPostureClass::DeniedPendingTrustRootRepair;
+    }
+    if grace_posture.is_stale() {
+        return PrivilegedOperationPostureClass::DeniedPendingFreshVerification;
+    }
+    PrivilegedOperationPostureClass::AdmittedWithCurrentVerification
+}
+
+fn staleness_label_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+) -> String {
+    if !grace_posture.is_stale() {
+        return String::new();
+    }
+
+    match grace_posture {
+        GracePostureClass::InGrace => format!(
+            "{} on '{}' remains within its declared grace window; local-safe continuity remains available while new privileged operations wait for fresh verification.",
+            bundle_kind.as_str(),
+            import_flow.as_str()
+        ),
+        GracePostureClass::GraceExpired => format!(
+            "{} on '{}' is past grace; last-known-good local-safe continuity remains visible but trust-bearing actions are paused until signer review lands.",
+            bundle_kind.as_str(),
+            import_flow.as_str()
+        ),
+        GracePostureClass::NotInGrace => String::new(),
+    }
+}
+
+fn grace_window_for(
+    import_flow: BundleImportFlowClass,
+    _bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+) -> (&'static str, &'static str, String) {
+    let last_known_good_revision = format!(
+        "bundle:last-known-good:{}:2026.05.0004",
+        import_flow.as_str()
+    );
+    match grace_posture {
+        GracePostureClass::NotInGrace => ("", "", last_known_good_revision),
+        GracePostureClass::InGrace => (
+            "2026-06-15T00:00:00Z",
+            "2026-07-15T00:00:00Z",
+            last_known_good_revision,
+        ),
+        GracePostureClass::GraceExpired => (
+            "2026-05-01T00:00:00Z",
+            "2026-05-15T00:00:00Z",
+            last_known_good_revision,
+        ),
+    }
+}
+
+fn changed_feature_areas_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+) -> Vec<&'static str> {
+    match (import_flow, bundle_kind) {
+        (BundleImportFlowClass::ManualImport, BundleKindClass::AdminPolicyBundle) => {
+            vec!["provider_routing", "network_egress"]
+        }
+        (_, BundleKindClass::EmergencyDisableBundle) => {
+            vec!["extension_activation", "provider_routing"]
+        }
+        (_, BundleKindClass::TrustRootSignerUpdate) => {
+            vec!["bundle_verification", "mirror_admission"]
+        }
+        (
+            BundleImportFlowClass::ManualImport | BundleImportFlowClass::OfflineGrace,
+            BundleKindClass::EntitlementSnapshot,
+        ) => vec!["seat_entitlement", "managed_feature_quota"],
+        _ => Vec::new(),
+    }
+}
+
+fn degraded_mode_consequences_for(
+    bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+) -> Vec<&'static str> {
+    let mut notes = Vec::new();
+    if grace_posture.is_stale() {
+        notes.push(
+            "Fresh managed privilege is denied while last-known-good continuity remains visible.",
+        );
+    }
+    match bundle_kind {
+        BundleKindClass::EmergencyDisableBundle => notes.push(
+            "Emergency ratchet remains in force until a signed successor or expiry resolves the disable.",
+        ),
+        BundleKindClass::TrustRootSignerUpdate => notes.push(
+            "Trust-bearing bundle apply pauses until signer continuity and root rotation review complete.",
+        ),
+        _ => {}
+    }
+    notes
+}
+
+fn offline_notes_for(
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+    grace_posture: GracePostureClass,
+) -> Vec<&'static str> {
+    match (import_flow, grace_posture, bundle_kind) {
+        (BundleImportFlowClass::OfflineGrace, GracePostureClass::InGrace, _) => vec![
+            "Using last-known-good signed snapshot within the declared grace window.",
+            "Local-safe workflows remain available while managed privilege waits for refresh.",
+        ],
+        (
+            BundleImportFlowClass::OfflineGrace,
+            GracePostureClass::GraceExpired,
+            BundleKindClass::TrustRootSignerUpdate,
+        ) => vec![
+            "Trust-root review freshness expired; last-known-good continuity remains inspectable.",
+            "New privileged bundle apply is denied until trust-root rotation review lands.",
+        ],
+        (BundleImportFlowClass::AirGapped, _, _) => vec![
+            "Air-gapped transfer preserved the same signed envelope and review vocabulary as managed delivery.",
+        ],
+        (BundleImportFlowClass::Mirror, _, _) => vec![
+            "Mirror publication preserved signature verification and precedence without claiming authoritative live origin.",
+        ],
+        _ => Vec::new(),
+    }
+}
+
+fn seeded_lifecycle_events(
+    rows: &[FinalizeSignedPolicyBundleRow],
+) -> Vec<BundleLifecycleAuditEvent> {
+    let apply_row = find_row(
+        rows,
         BundleImportFlowClass::Online,
-        BundleKindClass::PolicyBundle,
-        "signer:vendor-managed-baseline",
-        "2026-05-01T00:00:00Z",
-        "2026-08-01T00:00:00Z",
-        "epoch:policy.online.2026.05.0001",
-        "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-        "trust_root:vendor-managed-root:2026",
-        "2026-05-31T12:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "policy_bundle.online.2026.05.0001",
-        "",
-        vec![],
-        "sim-packet:online:policy:2026.05.0001",
-        vec![],
-        vec!["policy_inspect_panel", "admin_trust_center"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_online_entitlement() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:online:entitlement_snapshot",
-        BundleImportFlowClass::Online,
-        BundleKindClass::EntitlementSnapshot,
-        "signer:vendor-managed-entitlement",
-        "2026-05-01T00:00:00Z",
-        "2026-06-01T00:00:00Z",
-        "epoch:entitlement.online.2026.05.0001",
-        "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-        "trust_root:vendor-managed-root:2026",
-        "2026-05-31T12:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "entitlement_snapshot.online.2026.05.0001",
-        "",
-        vec![],
-        "sim-packet:online:entitlement:2026.05.0001",
-        vec![],
-        vec!["entitlement_inspect_panel", "seat_status_indicator"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_mirror_policy() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:mirror:policy_bundle",
-        BundleImportFlowClass::Mirror,
-        BundleKindClass::PolicyBundle,
-        "signer:vendor-managed-baseline",
-        "2026-05-01T00:00:00Z",
-        "2026-08-01T00:00:00Z",
-        "epoch:policy.mirror.2026.05.0001",
-        "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-        "trust_root:signed-mirror-root:2026",
-        "2026-05-30T08:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "policy_bundle.mirror.2026.05.0001",
-        "",
-        vec![],
-        "sim-packet:mirror:policy:2026.05.0001",
-        vec![],
-        vec!["policy_inspect_panel", "mirror_trust_indicator"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_mirror_entitlement() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:mirror:entitlement_snapshot",
-        BundleImportFlowClass::Mirror,
-        BundleKindClass::EntitlementSnapshot,
-        "signer:vendor-managed-entitlement",
-        "2026-05-01T00:00:00Z",
-        "2026-06-01T00:00:00Z",
-        "epoch:entitlement.mirror.2026.05.0001",
-        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-        "trust_root:signed-mirror-root:2026",
-        "2026-05-30T08:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "entitlement_snapshot.mirror.2026.05.0001",
-        "",
-        vec![],
-        "sim-packet:mirror:entitlement:2026.05.0001",
-        vec![],
-        vec!["entitlement_inspect_panel", "mirror_trust_indicator"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_manual_import_policy() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:manual_import:policy_bundle",
-        BundleImportFlowClass::ManualImport,
-        BundleKindClass::PolicyBundle,
-        "signer:vendor-managed-baseline",
-        "2026-05-15T00:00:00Z",
-        "2026-09-15T00:00:00Z",
-        "epoch:policy.manual-import.2026.05.0002",
-        "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-        "trust_root:vendor-managed-root:2026",
-        "2026-05-15T14:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "policy_bundle.manual-import.2026.05.0002",
-        "",
-        vec![],
-        "sim-packet:manual-import:policy:2026.05.0002",
-        vec!["policy_inspect_panel"],
-        vec![
-            "policy_inspect_panel",
-            "admin_trust_center",
-            "import_review_panel",
-        ],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_manual_import_entitlement() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:manual_import:entitlement_snapshot",
+        BundleKindClass::AdminPolicyBundle,
+    );
+    let supersede_row = find_row(
+        rows,
         BundleImportFlowClass::ManualImport,
         BundleKindClass::EntitlementSnapshot,
-        "signer:vendor-managed-entitlement",
-        "2026-05-15T00:00:00Z",
-        "2026-07-15T00:00:00Z",
-        "epoch:entitlement.manual-import.2026.05.0002",
-        "sha256:5555555555555555555555555555555555555555555555555555555555555555",
-        "trust_root:vendor-managed-root:2026",
-        "2026-05-15T14:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "entitlement_snapshot.manual-import.2026.05.0002",
-        "",
-        vec![],
-        "sim-packet:manual-import:entitlement:2026.05.0002",
-        vec![],
-        vec!["entitlement_inspect_panel", "import_review_panel"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_air_gapped_policy() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:air_gapped:policy_bundle",
-        BundleImportFlowClass::AirGapped,
-        BundleKindClass::PolicyBundle,
-        "signer:vendor-managed-baseline",
-        "2026-04-01T00:00:00Z",
-        "2026-10-01T00:00:00Z",
-        "epoch:policy.airgapped.2026.04.0001",
-        "sha256:6666666666666666666666666666666666666666666666666666666666666666",
-        "trust_root:air-gapped-root:2026",
-        "2026-04-01T10:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "policy_bundle.airgapped.2026.04.0001",
-        "",
-        vec![],
-        "sim-packet:air-gapped:policy:2026.04.0001",
-        vec![],
-        vec!["policy_inspect_panel", "offline_trust_indicator"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_air_gapped_entitlement() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:air_gapped:entitlement_snapshot",
-        BundleImportFlowClass::AirGapped,
-        BundleKindClass::EntitlementSnapshot,
-        "signer:vendor-managed-entitlement",
-        "2026-04-01T00:00:00Z",
-        "2026-10-01T00:00:00Z",
-        "epoch:entitlement.airgapped.2026.04.0001",
-        "sha256:7777777777777777777777777777777777777777777777777777777777777777",
-        "trust_root:air-gapped-root:2026",
-        "2026-04-01T10:00:00Z",
-        GracePostureClass::NotInGrace,
-        "",
-        "",
-        "entitlement_snapshot.airgapped.2026.04.0001",
-        "",
-        vec![],
-        "sim-packet:air-gapped:entitlement:2026.04.0001",
-        vec![],
-        vec!["entitlement_inspect_panel", "offline_trust_indicator"],
-        vec![],
-        vec![],
-        "",
-        "current_and_verified",
-        false,
-    )
-}
-
-fn row_offline_grace_policy() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:offline_grace:policy_bundle",
+    );
+    let revoke_row = find_row(
+        rows,
         BundleImportFlowClass::OfflineGrace,
-        BundleKindClass::PolicyBundle,
-        "signer:vendor-managed-baseline",
-        "2026-03-01T00:00:00Z",
-        "2026-05-01T00:00:00Z",
-        "epoch:policy.offline-grace.2026.03.0001",
-        "sha256:8888888888888888888888888888888888888888888888888888888888888888",
-        "trust_root:vendor-managed-root:2026",
-        "2026-03-01T00:00:00Z",
-        GracePostureClass::InGrace,
-        "2026-05-01T00:00:00Z",
-        "2026-07-01T00:00:00Z",
-        "policy_bundle.offline-grace.2026.03.0001",
-        "Policy bundle is within the declared offline-grace window (expires 2026-07-01). \
-         Managed narrowing rules remain active at last-known-good revision. \
-         Bundle renewal is required before the grace window closes.",
-        vec![
-            "managed_ai_features (blocked after grace expiry)",
-            "policy_enforcement_admin_overrides (blocked after grace expiry)",
-        ],
-        "sim-packet:offline-grace:policy:2026.03.0001",
-        vec![],
-        vec!["policy_inspect_panel", "offline_grace_indicator"],
-        vec![
-            "Managed policy features remain at last-known-good revision; \
-             no new policy narrowing rules apply during the grace window.",
-        ],
-        vec!["Bundle is within offline grace window; renewal required before 2026-07-01."],
-        "",
-        "in_grace_until_2026_07_01",
-        false,
-    )
+        BundleKindClass::TrustRootSignerUpdate,
+    );
+    let rotation_row = find_row(
+        rows,
+        BundleImportFlowClass::Mirror,
+        BundleKindClass::TrustRootSignerUpdate,
+    );
+    let emergency_row = find_row(
+        rows,
+        BundleImportFlowClass::ManualImport,
+        BundleKindClass::EmergencyDisableBundle,
+    );
+
+    vec![
+        make_lifecycle_event(
+            "bundle-event:apply:0001",
+            BundleLifecycleEventClass::Apply,
+            apply_row,
+            "actor:policy-service:managed-sync",
+            "2026-05-31T12:10:00Z",
+            "Managed pull applied the current signed admin policy bundle after successful verification.",
+        ),
+        make_lifecycle_event(
+            "bundle-event:supersede:0002",
+            BundleLifecycleEventClass::Supersede,
+            supersede_row,
+            "actor:device-management:ops-alpha",
+            "2026-05-29T15:35:00Z",
+            "Fleet drop superseded the prior entitlement snapshot while preserving last-known-good lineage.",
+        ),
+        make_lifecycle_event(
+            "bundle-event:revoke:0003",
+            BundleLifecycleEventClass::Revoke,
+            revoke_row,
+            "actor:trust-root-council:on-call",
+            "2026-05-16T09:00:00Z",
+            "Expired trust-root pointer revoked the prior signer path and paused new privileged imports until review.",
+        ),
+        make_lifecycle_event(
+            "bundle-event:signer-rotation-review:0004",
+            BundleLifecycleEventClass::SignerRotationReview,
+            rotation_row,
+            "actor:security-trust-review:rotation-board",
+            "2026-05-30T08:15:00Z",
+            "Mirror-distributed signer rotation remained reviewable with old/new lineage and continuity evidence.",
+        ),
+        make_lifecycle_event(
+            "bundle-event:emergency-disable-activation:0005",
+            BundleLifecycleEventClass::EmergencyDisableActivation,
+            emergency_row,
+            "actor:security-response:break-glass",
+            "2026-05-29T16:00:00Z",
+            "Emergency-disable bundle activated the minimum-version ratchet and paused the affected managed actions without stranding local work.",
+        ),
+    ]
 }
 
-fn row_offline_grace_entitlement() -> FinalizeSignedPolicyBundleRow {
-    make_row(
-        "signed-policy-bundle-finalize:offline_grace:entitlement_snapshot",
-        BundleImportFlowClass::OfflineGrace,
-        BundleKindClass::EntitlementSnapshot,
-        "signer:vendor-managed-entitlement",
-        "2026-03-01T00:00:00Z",
-        "2026-05-01T00:00:00Z",
-        "epoch:entitlement.offline-grace.2026.03.0001",
-        "sha256:9999999999999999999999999999999999999999999999999999999999999999",
-        "trust_root:vendor-managed-root:2026",
-        "2026-03-01T00:00:00Z",
-        GracePostureClass::InGrace,
-        "2026-05-01T00:00:00Z",
-        "2026-07-01T00:00:00Z",
-        "entitlement_snapshot.offline-grace.2026.03.0001",
-        "Entitlement snapshot is within the declared offline-grace window (expires 2026-07-01). \
-         Seat remains active at last-known-good entitlement state. \
-         Snapshot renewal is required before the grace window closes.",
-        vec![
-            "seat_bound_extensions (suspended after grace expiry)",
-            "managed_ai_seat_quota (suspended after grace expiry)",
-        ],
-        "sim-packet:offline-grace:entitlement:2026.03.0001",
-        vec![],
-        vec!["entitlement_inspect_panel", "offline_grace_indicator"],
-        vec![
-            "Entitlement features remain at last-known-good state; \
-             no quota or seat changes apply during the grace window.",
-        ],
-        vec![
-            "Entitlement snapshot is within offline grace window; renewal required before 2026-07-01.",
-        ],
-        "",
-        "in_grace_until_2026_07_01",
-        false,
-    )
+fn find_row(
+    rows: &[FinalizeSignedPolicyBundleRow],
+    import_flow: BundleImportFlowClass,
+    bundle_kind: BundleKindClass,
+) -> &FinalizeSignedPolicyBundleRow {
+    rows.iter()
+        .find(|row| row.import_flow == import_flow && row.bundle_kind == bundle_kind)
+        .expect("seeded row present")
+}
+
+fn make_lifecycle_event(
+    event_id: &str,
+    event_class: BundleLifecycleEventClass,
+    row: &FinalizeSignedPolicyBundleRow,
+    actor_ref: &str,
+    event_time: &str,
+    note: &str,
+) -> BundleLifecycleAuditEvent {
+    BundleLifecycleAuditEvent {
+        record_kind: SIGNED_POLICY_BUNDLE_FINALIZE_LIFECYCLE_EVENT_RECORD_KIND.to_owned(),
+        schema_version: SIGNED_POLICY_BUNDLE_FINALIZE_SCHEMA_VERSION,
+        shared_contract_ref: SIGNED_POLICY_BUNDLE_FINALIZE_SHARED_CONTRACT_REF.to_owned(),
+        event_id: event_id.to_owned(),
+        event_class,
+        event_class_token: event_class.as_str().to_owned(),
+        bundle_kind: row.bundle_kind,
+        bundle_kind_token: row.bundle_kind_token.clone(),
+        bundle_ref: row.envelope_review.bundle_ref.clone(),
+        scope_ref: row.envelope_review.scope_ref.clone(),
+        delivery_source: row.envelope_review.delivery_source,
+        delivery_source_token: row.envelope_review.delivery_source_token.clone(),
+        actor_ref: actor_ref.to_owned(),
+        event_time: event_time.to_owned(),
+        supersedes_refs: row.envelope_review.supersedes_refs.clone(),
+        revokes_refs: row.envelope_review.revokes_refs.clone(),
+        privileged_operation_posture: row.privileged_operation_posture,
+        privileged_operation_posture_token: row.privileged_operation_posture_token.clone(),
+        local_safe_continuity_preserved: row.local_core_continuity_explicit,
+        note: note.to_owned(),
+    }
 }

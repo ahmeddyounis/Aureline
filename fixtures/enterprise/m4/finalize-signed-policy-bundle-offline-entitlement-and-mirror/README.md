@@ -1,12 +1,12 @@
-# Signed Policy-Bundle, Offline-Entitlement Grace, and Mirror/Manual-Import — Finalize Fixtures
+# Signed Bundle, Offline Entitlement, Emergency Disable, and Trust-Root Review — Finalize Fixtures
 
-Reviewer-facing fixtures for the beta proof packet that covers signed
-policy-bundle delivery, offline-entitlement grace-window inspection, and
-mirror/manual-import verification flows. The packet proves that every import
-path surfaces source, signer, last-known-good revision, grace window, expiry,
-blocked-capability consequences, and a pre-apply simulation packet — and that
-offline entitlement staleness is labeled explicitly rather than disguised as a
-generic auth failure.
+Reviewer-facing fixtures for the proof packet that covers signed administrative
+policy bundles, offline-entitlement snapshots, emergency-disable bundles, and
+trust-root or signer-update review across managed, mirrored, fleet, and
+air-gapped paths. The packet proves that every delivery path surfaces source,
+scope, issuer, signer, last-known-good revision, grace window, supersedes or
+revokes relations, expiry guidance, blocked-capability consequences, lifecycle
+audit events, and a pre-apply simulation packet.
 
 The canonical record kind is `policy_signed_policy_bundle_finalize_page_record`.
 The runtime module lives at
@@ -20,35 +20,46 @@ projection of the seeded `FinalizeSignedPolicyBundlePage` (no hand-written drift
 ```sh
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- page > page.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- rows > rows.json
+cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- lifecycle-events > lifecycle_events.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- defects > defects.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- summary > summary.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- support-export > support_export.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-staleness-disguised-withdrawn > drill_staleness_disguised_withdrawn.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-import-flow-preview > drill_missing_import_flow_preview.json
 cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-no-affected-surfaces-beta > drill_no_affected_surfaces_beta.json
+cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-bundle-kind-preview > drill_missing_bundle_kind_preview.json
+cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-minimum-version-beta > drill_missing_minimum_version_beta.json
+cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-lifecycle-preview > drill_missing_lifecycle_preview.json
 ```
 
 | File | Purpose |
 | --- | --- |
-| `page.json` | Full finalize page (10 rows + defects + summary + embedded verifier page). |
-| `rows.json` | Row array only (5 import flows × 2 bundle kinds). |
+| `page.json` | Full finalize page (20 rows + lifecycle events + defects + summary + embedded verifier page). |
+| `rows.json` | Row array only (5 import flows x 4 bundle kinds). |
+| `lifecycle_events.json` | Lifecycle audit events covering apply, supersede, revoke, signer rotation review, and emergency-disable activation. |
 | `defects.json` | Defect array (empty on the seeded page — all conditions hold). |
-| `summary.json` | Aggregate summary (row counts, import flows covered, stale counts). |
-| `support_export.json` | Support-export wrapper with metadata-safe defect roll-up. |
+| `summary.json` | Aggregate summary (row counts, bundle kinds covered, delivery sources, lifecycle coverage, stale counts). |
+| `support_export.json` | Support-export wrapper with metadata-safe defect and lifecycle roll-ups. |
 | `drill_staleness_disguised_withdrawn.json` | Drill: offline-grace row has empty staleness label — packet withdrawn. |
-| `drill_missing_import_flow_preview.json` | Drill: mirror and air-gapped rows removed — packet narrowed to preview. |
+| `drill_missing_import_flow_preview.json` | Drill: mirror import flow removed — packet narrowed to preview. |
 | `drill_no_affected_surfaces_beta.json` | Drill: simulation packet has no affected surfaces — narrowed to beta. |
+| `drill_missing_bundle_kind_preview.json` | Drill: trust-root signer-update rows removed — packet narrowed to preview. |
+| `drill_missing_minimum_version_beta.json` | Drill: emergency-disable row omits `required_minimum_version` — narrowed to beta. |
+| `drill_missing_lifecycle_preview.json` | Drill: signer-rotation lifecycle event removed — packet narrowed to preview. |
 
 ## Stability conditions verified
 
 1. **Upstream verifier clean** — the embedded `OfflineEntitlementVerifierBetaPage` audits with zero defects.
-2. **All five import flows covered** — `online`, `mirror`, `manual_import`, `air_gapped`, and `offline_grace` each have rows for both bundle kinds.
-3. **Epoch states inspectable** — every row carries non-empty `epoch_ref`, `epoch_digest`, `trust_root_ref`, and `last_successful_validation_time`, preserving the same inspect/export vocabulary across all import paths.
-4. **Grace windows declared** — stale rows carry explicit `grace_window_end` and a human-readable `staleness_label` that names the grace period; staleness is never presented as a generic authentication failure.
-5. **Simulation packets present before apply** — every row's simulation packet carries at least one `affected_surface`, proving the pre-apply inspection ran and was exported.
-6. **Widening rows require approval** — any row where `widens_managed_claims: true` must carry a non-empty `approval_owner_ref`; all seeded rows are non-widening.
-7. **Expiry posture declared** — every simulation packet carries a non-empty `expiry_posture_token`.
-8. **Local-core continuity explicit** — all rows carry `local_core_continuity_explicit: true`.
+2. **All five import flows covered** — `online`, `mirror`, `manual_import`, `air_gapped`, and `offline_grace` each have rows for all four bundle kinds.
+3. **All four bundle kinds covered** — `admin_policy_bundle`, `entitlement_snapshot`, `emergency_disable_bundle`, and `trust_root_signer_update`.
+4. **All delivery sources covered** — `managed_pull`, `mirror_publication`, `file_import`, `mdm_fleet_drop`, `air_gap_transfer`, and `last_known_good_cache`.
+5. **Epoch and envelope states inspectable** — every row carries non-empty epoch metadata, issuer, scope, expiry guidance, delivery source, and supersedes or revokes relations.
+6. **Grace windows declared** — stale rows carry explicit `grace_window_end` and a human-readable `staleness_label`; staleness is never presented as a generic authentication failure.
+7. **Simulation packets present before apply** — every row's simulation packet carries at least one `affected_surface`, proving the pre-apply inspection ran and was exported.
+8. **Widening rows require approval** — rows where `widens_managed_claims: true` carry a non-empty `approval_owner_ref`.
+9. **Emergency-disable minimum version declared** — emergency-disable rows carry a non-empty `required_minimum_version`.
+10. **Lifecycle audit coverage present** — `apply`, `supersede`, `revoke`, `signer_rotation_review`, and `emergency_disable_activation` all appear in the lifecycle event set.
+11. **Local-core continuity explicit** — all rows carry `local_core_continuity_explicit: true`, and stale rows deny new privileged operations while keeping local-safe work visible.
 
 ## Hard guardrails
 
@@ -66,5 +77,8 @@ Two conditions force `Withdrawn` immediately and cannot be overridden:
 Each `drill_*.json` fixture intentionally trips the validator:
 
 - `drill_staleness_disguised_withdrawn.json` raises `staleness_disguised_as_auth_failure` (withdrawal reason).
-- `drill_missing_import_flow_preview.json` raises `import_flow_coverage_gap` (preview narrowing — mirror and air-gapped rows removed).
+- `drill_missing_import_flow_preview.json` raises `import_flow_coverage_gap` (preview narrowing).
 - `drill_no_affected_surfaces_beta.json` raises `simulation_packet_missing_before_apply` (beta narrowing — no affected surfaces on first row).
+- `drill_missing_bundle_kind_preview.json` raises `bundle_kind_coverage_gap` (preview narrowing).
+- `drill_missing_minimum_version_beta.json` raises `required_minimum_version_missing` (beta narrowing).
+- `drill_missing_lifecycle_preview.json` raises `lifecycle_coverage_gap` (preview narrowing).

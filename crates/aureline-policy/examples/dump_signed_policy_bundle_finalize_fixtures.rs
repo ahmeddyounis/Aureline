@@ -1,19 +1,22 @@
-//! Emits the seeded signed-policy-bundle finalize fixtures.
+//! Emits the seeded signed-bundle finalize fixtures.
 //!
 //! ```sh
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- page
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- rows
+//! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- lifecycle-events
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- defects
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- summary
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- support-export
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-staleness-disguised-withdrawn
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-import-flow-preview
 //! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-no-affected-surfaces-beta
+//! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-bundle-kind-preview
+//! cargo run -q -p aureline-policy --example dump_signed_policy_bundle_finalize_fixtures -- drill-missing-minimum-version-beta
 //! ```
 
 use aureline_auth::offline_entitlements::seeded_offline_entitlement_verifier_beta_page;
 use aureline_policy::{
-    seeded_finalize_signed_policy_bundle_page, BundleImportFlowClass, BundleKindClass,
+    seeded_finalize_signed_policy_bundle_page, BundleKindClass, BundleLifecycleEventClass,
     FinalizeSignedPolicyBundlePage, FinalizeSignedPolicyBundleRow,
     FinalizeSignedPolicyBundleSupportExport,
 };
@@ -28,9 +31,11 @@ fn main() {
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let page = seeded_finalize_signed_policy_bundle_page();
+
     match args.first().map(String::as_str) {
         Some("page") | None => print_json(&page)?,
         Some("rows") => print_json(&page.rows)?,
+        Some("lifecycle-events") => print_json(&page.lifecycle_events)?,
         Some("defects") => print_json(&page.defects)?,
         Some("summary") => print_json(&page.summary)?,
         Some("support-export") => {
@@ -42,64 +47,124 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             print_json(&export)?;
         }
         Some("drill-staleness-disguised-withdrawn") => {
-            // Clears staleness label on the offline_grace policy row to trigger
-            // the staleness_disguised_as_auth_failure withdrawal guardrail.
-            let verifier_page = seeded_offline_entitlement_verifier_beta_page();
-            let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows;
-            if let Some(row) = rows.iter_mut().find(|r| {
-                r.import_flow == BundleImportFlowClass::OfflineGrace
-                    && r.bundle_kind == BundleKindClass::PolicyBundle
+            let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows.clone();
+            if let Some(row) = rows.iter_mut().find(|row| {
+                row.bundle_kind == BundleKindClass::AdminPolicyBundle
+                    && row.import_flow_token == "offline_grace"
             }) {
                 row.grace_state.staleness_label.clear();
             }
             let drill = FinalizeSignedPolicyBundlePage::new(
                 "policy:signed-policy-bundle-finalize:drill:staleness-disguised",
-                "Drill — staleness disguised as auth failure (withdrawn)",
+                "Drill - staleness disguised as auth failure",
                 "2026-06-01T00:00:00Z",
                 rows,
-                verifier_page,
+                page.lifecycle_events.clone(),
+                seeded_offline_entitlement_verifier_beta_page(),
             );
             print_json(&drill)?;
         }
         Some("drill-missing-import-flow-preview") => {
-            // Removes all mirror and air-gapped rows to trigger import-flow coverage gap.
-            let verifier_page = seeded_offline_entitlement_verifier_beta_page();
-            let rows: Vec<FinalizeSignedPolicyBundleRow> = page
+            let rows: Vec<_> = page
                 .rows
+                .clone()
                 .into_iter()
-                .filter(|r| {
-                    r.import_flow != BundleImportFlowClass::Mirror
-                        && r.import_flow != BundleImportFlowClass::AirGapped
-                })
+                .filter(|row| row.import_flow_token != "mirror")
+                .collect();
+            let lifecycle_events: Vec<_> = page
+                .lifecycle_events
+                .clone()
+                .into_iter()
+                .filter(|event| event.delivery_source_token != "mirror_publication")
                 .collect();
             let drill = FinalizeSignedPolicyBundlePage::new(
                 "policy:signed-policy-bundle-finalize:drill:missing-import-flow",
-                "Drill — required import flow missing (preview)",
+                "Drill - missing mirror import flow",
                 "2026-06-01T00:00:00Z",
                 rows,
-                verifier_page,
+                lifecycle_events,
+                seeded_offline_entitlement_verifier_beta_page(),
             );
             print_json(&drill)?;
         }
         Some("drill-no-affected-surfaces-beta") => {
-            // Clears affected_surfaces on the first row's simulation packet to
-            // trigger simulation_packet_missing_before_apply beta narrowing.
-            let verifier_page = seeded_offline_entitlement_verifier_beta_page();
-            let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows;
+            let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows.clone();
             if let Some(row) = rows.first_mut() {
                 row.simulation_packet.affected_surfaces.clear();
             }
             let drill = FinalizeSignedPolicyBundlePage::new(
                 "policy:signed-policy-bundle-finalize:drill:no-affected-surfaces",
-                "Drill — simulation packet missing affected surfaces (beta)",
+                "Drill - simulation packet missing affected surfaces",
                 "2026-06-01T00:00:00Z",
                 rows,
-                verifier_page,
+                page.lifecycle_events.clone(),
+                seeded_offline_entitlement_verifier_beta_page(),
+            );
+            print_json(&drill)?;
+        }
+        Some("drill-missing-bundle-kind-preview") => {
+            let rows: Vec<_> = page
+                .rows
+                .clone()
+                .into_iter()
+                .filter(|row| row.bundle_kind != BundleKindClass::TrustRootSignerUpdate)
+                .collect();
+            let lifecycle_events: Vec<_> = page
+                .lifecycle_events
+                .clone()
+                .into_iter()
+                .filter(|event| event.bundle_kind != BundleKindClass::TrustRootSignerUpdate)
+                .collect();
+            let drill = FinalizeSignedPolicyBundlePage::new(
+                "policy:signed-policy-bundle-finalize:drill:missing-bundle-kind",
+                "Drill - missing required bundle kind",
+                "2026-06-01T00:00:00Z",
+                rows,
+                lifecycle_events,
+                seeded_offline_entitlement_verifier_beta_page(),
+            );
+            print_json(&drill)?;
+        }
+        Some("drill-missing-minimum-version-beta") => {
+            let mut rows: Vec<FinalizeSignedPolicyBundleRow> = page.rows.clone();
+            if let Some(row) = rows.iter_mut().find(|row| {
+                row.bundle_kind == BundleKindClass::EmergencyDisableBundle
+                    && row.import_flow_token == "manual_import"
+            }) {
+                row.envelope_review.required_minimum_version.clear();
+            }
+            let drill = FinalizeSignedPolicyBundlePage::new(
+                "policy:signed-policy-bundle-finalize:drill:missing-minimum-version",
+                "Drill - emergency disable missing minimum version",
+                "2026-06-01T00:00:00Z",
+                rows,
+                page.lifecycle_events.clone(),
+                seeded_offline_entitlement_verifier_beta_page(),
+            );
+            print_json(&drill)?;
+        }
+        Some("drill-missing-lifecycle-preview") => {
+            let lifecycle_events: Vec<_> = page
+                .lifecycle_events
+                .clone()
+                .into_iter()
+                .filter(|event| {
+                    event.event_class != BundleLifecycleEventClass::SignerRotationReview
+                })
+                .collect();
+            let drill = FinalizeSignedPolicyBundlePage::new(
+                "policy:signed-policy-bundle-finalize:drill:missing-lifecycle",
+                "Drill - missing signer rotation lifecycle event",
+                "2026-06-01T00:00:00Z",
+                page.rows.clone(),
+                lifecycle_events,
+                seeded_offline_entitlement_verifier_beta_page(),
             );
             print_json(&drill)?;
         }
         Some(other) => return Err(format!("unknown subcommand: {other}").into()),
     }
+
     Ok(())
 }
 

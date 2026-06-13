@@ -1,33 +1,40 @@
-# Finalize signed policy-bundle, offline-entitlement grace, and mirror/manual-import verification flows
+# Finalize signed administrative bundles, offline entitlement grace, emergency-disable ratchets, and trust-root rotation review
 
-This lane makes signed policy-bundle delivery — including offline-entitlement
-grace-window handling and mirror/manual-import verification — visible and
-verifiable enough that product, security review, support export, and release
-packets can all explain: where the bundle came from, who signed it, what its
-last-known-good revision is, whether a grace window is active, what capability
-consequences follow when the grace window closes, and what the pre-apply
-simulation showed before the bundle was applied. The runtime owner is
+This lane makes signed administrative policy, offline-entitlement, emergency-disable,
+and trust-root rotation artifacts visible and verifiable enough that product,
+security review, support export, and release packets can all explain: where the
+bundle came from, who issued and signed it, what scope it binds, which prior
+bundle or signer it supersedes or revokes, what its last-known-good revision
+is, whether a grace window is active, what capability consequences follow when
+grace or trust freshness is lost, and what the pre-apply simulation showed
+before the bundle was applied. The runtime owner is
 `aureline_policy::finalize_signed_policy_bundle_offline_entitlement_and_mirror`.
 
 The packet does **not** re-derive raw policy rule text, raw entitlement
-payloads, or raw identity truth. The upstream
-`aureline_auth::offline_entitlements` verifier beta audit remains canonical for
-its own slice. This packet re-exports those qualification tokens verbatim and
-adds the finalize invariants needed for a single evidence packet.
+payloads, raw emergency payloads, raw trust-root bytes, or raw identity truth.
+The upstream `aureline_auth::offline_entitlements` verifier beta audit remains
+canonical for its own slice. This packet re-exports those qualification tokens
+verbatim and adds the finalize invariants needed for one evidence packet across
+managed, mirrored, fleet, and air-gapped paths.
 
 ## Contract
 
-For the stable claim to hold, **all eight** of the following conditions must be
-verified simultaneously:
+For the stable claim to hold, all of the following conditions must be verified
+simultaneously:
 
 1. **Upstream verifier clean** — `aureline_auth::offline_entitlements::audit_offline_entitlement_verifier_beta_rows` returns zero defects for the embedded verifier page.
 2. **All five import flows covered** — at least one row exists for each of: `online`, `mirror`, `manual_import`, `air_gapped`, and `offline_grace`.
-3. **Epoch states inspectable** — every row carries non-empty `epoch_ref`, `epoch_digest`, `trust_root_ref`, and `last_successful_validation_time`, preserving the same inspect/export vocabulary across all import paths.
-4. **Grace windows declared** — every stale row (in-grace or grace-expired) carries a non-empty `grace_window_end` and a human-readable `staleness_label`; staleness is never surfaced as a generic authentication failure.
-5. **Simulation packets present before apply** — every row's `PolicyBundleSimulationPacket` carries at least one `affected_surface`, proving the pre-apply inspection ran and was exported; `inspectable_before_apply` must be `true`.
-6. **Widening rows require approval** — when a row has `widens_managed_claims: true`, its simulation packet must carry a non-empty `approval_owner_ref` and a non-empty `expiry_posture_token`.
-7. **Expiry posture declared** — every simulation packet carries a non-empty `expiry_posture_token`.
-8. **Local-core continuity explicit** — all rows carry `local_core_continuity_explicit: true` so the local-editing floor cannot be silently removed by a managed capability change.
+3. **All four bundle kinds covered** — `admin_policy_bundle`, `entitlement_snapshot`, `emergency_disable_bundle`, and `trust_root_signer_update`.
+4. **All delivery sources covered** — `managed_pull`, `mirror_publication`, `file_import`, `mdm_fleet_drop`, `air_gap_transfer`, and `last_known_good_cache`.
+5. **Epoch and envelope states inspectable** — every row carries non-empty `epoch_ref`, `epoch_digest`, `trust_root_ref`, `last_successful_validation_time`, `bundle_ref`, `issuer_ref`, `scope_ref`, `delivery_source_token`, and `expiry_guidance_token`.
+6. **Relations visible** — every row carries at least one inspectable `supersedes_ref` or `revokes_ref`.
+7. **Grace windows declared** — every stale row (in-grace or grace-expired) carries a non-empty `grace_window_end` and a human-readable `staleness_label`; staleness is never surfaced as a generic authentication failure.
+8. **Stale rows pause new privileged operations** — stale rows narrow fresh privileged actions while keeping local-safe continuity explicit.
+9. **Simulation packets present before apply** — every row's `PolicyBundleSimulationPacket` carries at least one `affected_surface`, proving the pre-apply inspection ran and was exported; `inspectable_before_apply` must be `true`.
+10. **Widening rows require approval** — when a row has `widens_managed_claims: true`, its simulation packet must carry a non-empty `approval_owner_ref` and a non-empty `expiry_posture_token`.
+11. **Emergency-disable minimum version declared** — emergency-disable rows carry a non-empty `required_minimum_version`.
+12. **Lifecycle coverage present** — the packet carries export-safe lifecycle events for `apply`, `supersede`, `revoke`, `signer_rotation_review`, and `emergency_disable_activation`.
+13. **Local-core continuity explicit** — all rows carry `local_core_continuity_explicit: true` so the local-editing floor cannot be silently removed by a managed capability change.
 
 ## Required behavior
 
@@ -48,8 +55,9 @@ Two conditions force `Withdrawn` immediately and cannot be overridden:
   disguised as a generic authentication failure; when the staleness label is
   missing the packet cannot make a claimable qualification.
 
-A missing required import flow narrows to `Preview` rather than `Beta` because
-the coverage gap prevents any verifiable claim for that flow.
+A missing required import flow, bundle kind, delivery source, or lifecycle
+class narrows to `Preview` rather than `Beta` because the coverage gap prevents
+any verifiable claim for that slice.
 
 ## Import flows
 
@@ -70,10 +78,23 @@ compared directly with online rows by support and audit tooling.
 
 | Kind token | Description |
 | --- | --- |
-| `policy_bundle` | Signed policy bundle authorising managed narrowing rules. |
+| `admin_policy_bundle` | Signed policy bundle authorising managed narrowing rules. |
 | `entitlement_snapshot` | Signed entitlement snapshot describing plan, seat, and quota state. |
+| `emergency_disable_bundle` | Signed emergency-disable ratchet that may narrow or freeze affected capabilities immediately. |
+| `trust_root_signer_update` | Signed trust-root or signer-update review object with continuity metadata. |
 
-The seeded page covers both kinds for every import flow (10 rows total).
+The seeded page covers all four kinds for every import flow (20 rows total).
+
+## Delivery sources
+
+| Delivery token | Description |
+| --- | --- |
+| `managed_pull` | Live managed pull from the signed origin. |
+| `mirror_publication` | Signed mirror publication or mirror-sync distribution. |
+| `file_import` | Local operator file import. |
+| `mdm_fleet_drop` | MDM or fleet-managed artifact drop. |
+| `air_gap_transfer` | Offline or air-gapped transfer path. |
+| `last_known_good_cache` | Last-known-good cache selection under stale or degraded conditions. |
 
 ## Pre-apply simulation packet
 
@@ -97,6 +118,21 @@ Grace-window and staleness state is carried in `OfflineGraceState`:
 - `last_known_good_revision` — opaque ref to the last-verified bundle revision.
 - `staleness_label` — explicit human-readable label (must be non-empty when stale).
 - `blocked_capability_consequences` — export-safe labels for capabilities blocked when grace expires.
+
+## Lifecycle audit events
+
+Every packet carries `BundleLifecycleAuditEvent` rows for the required audit
+flows:
+
+- `apply`
+- `supersede`
+- `revoke`
+- `signer_rotation_review`
+- `emergency_disable_activation`
+
+Each event quotes bundle kind, bundle ref, scope, delivery source, actor,
+supersedes or revokes refs, resulting privileged-operation posture, and whether
+local-safe continuity remained preserved.
 
 ## Boundary
 

@@ -1,22 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/enterprise/finalize-signed-policy-bundle-offline-entitlement-and-mirror.schema.json",
-  "title": "Aureline signed policy-bundle finalize records",
-  "description": "Boundary schema for the beta proof packet covering signed policy-bundle delivery, offline-entitlement grace-window inspection, and mirror/manual-import verification flows. Raw policy bundle bodies, raw entitlement payloads, raw identities, raw credentials, and secret material never cross this boundary.",
+  "title": "Aureline signed bundle finalize records",
+  "description": "Boundary schema for the signed administrative bundle, offline entitlement, emergency-disable, and trust-root finalize packet. Raw bundle payloads, raw signatures, raw trust-root material, raw identities, raw credentials, and secret material never cross this boundary.",
   "oneOf": [
     { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_page_record" },
     { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_row_record" },
+    { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_lifecycle_event_record" },
     { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_defect_record" },
     { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_summary_record" },
     { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_support_export_record" }
   ],
   "$defs": {
-    "schema_version": { "type": "integer", "const": 1 },
+    "schema_version": { "type": "integer", "const": 2 },
     "non_empty": { "type": "string", "minLength": 1 },
-    "timestamp": { "type": "string", "format": "date-time" },
     "shared_contract_ref": {
       "type": "string",
-      "const": "policy:signed_policy_bundle_finalize:v1"
+      "const": "policy:signed_policy_bundle_finalize:v2"
     },
     "qualification_token": {
       "type": "string",
@@ -31,10 +31,18 @@
         "staleness_disguised_as_auth_failure",
         "policy_epoch_not_inspectable",
         "simulation_packet_missing_before_apply",
+        "simulation_packet_not_inspectable_before_apply",
         "approval_owner_missing_on_widening",
         "expiry_posture_not_inspectable",
         "local_core_continuity_not_explicit",
         "import_flow_coverage_gap",
+        "bundle_kind_coverage_gap",
+        "delivery_source_coverage_gap",
+        "bundle_envelope_not_inspectable",
+        "bundle_relations_not_inspectable",
+        "required_minimum_version_missing",
+        "privileged_operations_not_narrowed_on_stale_bundle",
+        "lifecycle_coverage_gap",
         "raw_private_material_exposed"
       ]
     },
@@ -44,15 +52,67 @@
     },
     "bundle_kind_token": {
       "type": "string",
-      "enum": ["policy_bundle", "entitlement_snapshot"]
+      "enum": [
+        "admin_policy_bundle",
+        "entitlement_snapshot",
+        "emergency_disable_bundle",
+        "trust_root_signer_update"
+      ]
+    },
+    "delivery_source_token": {
+      "type": "string",
+      "enum": [
+        "managed_pull",
+        "mirror_publication",
+        "file_import",
+        "mdm_fleet_drop",
+        "air_gap_transfer",
+        "last_known_good_cache"
+      ]
     },
     "grace_posture_token": {
       "type": "string",
       "enum": ["not_in_grace", "in_grace", "grace_expired"]
     },
+    "expiry_guidance_token": {
+      "type": "string",
+      "enum": [
+        "current_and_verified",
+        "refresh_before_expiry",
+        "in_grace_until_refresh",
+        "last_known_good_only",
+        "supersede_or_expire",
+        "rotation_window_required"
+      ]
+    },
+    "privileged_operation_posture_token": {
+      "type": "string",
+      "enum": [
+        "admitted_with_current_verification",
+        "denied_pending_fresh_verification",
+        "denied_pending_trust_root_repair",
+        "paused_by_emergency_disable"
+      ]
+    },
+    "lifecycle_event_class_token": {
+      "type": "string",
+      "enum": [
+        "apply",
+        "supersede",
+        "revoke",
+        "signer_rotation_review",
+        "emergency_disable_activation"
+      ]
+    },
     "policy_epoch_state": {
       "type": "object",
-      "required": ["epoch_ref", "epoch_digest", "trust_root_ref", "last_successful_validation_time", "import_flow_token"],
+      "required": [
+        "epoch_ref",
+        "epoch_digest",
+        "trust_root_ref",
+        "last_successful_validation_time",
+        "import_flow_token"
+      ],
       "additionalProperties": false,
       "properties": {
         "epoch_ref": { "$ref": "#/$defs/non_empty" },
@@ -64,7 +124,15 @@
     },
     "offline_grace_state": {
       "type": "object",
-      "required": ["grace_posture", "grace_posture_token", "grace_window_start", "grace_window_end", "last_known_good_revision", "staleness_label", "blocked_capability_consequences"],
+      "required": [
+        "grace_posture",
+        "grace_posture_token",
+        "grace_window_start",
+        "grace_window_end",
+        "last_known_good_revision",
+        "staleness_label",
+        "blocked_capability_consequences"
+      ],
       "additionalProperties": false,
       "properties": {
         "grace_posture": { "$ref": "#/$defs/grace_posture_token" },
@@ -77,6 +145,40 @@
           "type": "array",
           "items": { "type": "string" }
         }
+      }
+    },
+    "bundle_envelope_review": {
+      "type": "object",
+      "required": [
+        "bundle_ref",
+        "issuer_ref",
+        "scope_ref",
+        "delivery_source",
+        "delivery_source_token",
+        "expiry_guidance",
+        "expiry_guidance_token",
+        "supersedes_refs",
+        "revokes_refs",
+        "required_minimum_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "bundle_ref": { "$ref": "#/$defs/non_empty" },
+        "issuer_ref": { "$ref": "#/$defs/non_empty" },
+        "scope_ref": { "$ref": "#/$defs/non_empty" },
+        "delivery_source": { "$ref": "#/$defs/delivery_source_token" },
+        "delivery_source_token": { "$ref": "#/$defs/delivery_source_token" },
+        "expiry_guidance": { "$ref": "#/$defs/expiry_guidance_token" },
+        "expiry_guidance_token": { "$ref": "#/$defs/expiry_guidance_token" },
+        "supersedes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "revokes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "required_minimum_version": { "type": "string" }
       }
     },
     "policy_bundle_simulation_packet": {
@@ -122,7 +224,7 @@
           "items": { "type": "string" }
         },
         "approval_owner_ref": { "type": "string" },
-        "expiry_posture_token": { "type": "string" },
+        "expiry_posture_token": { "$ref": "#/$defs/non_empty" },
         "widens_managed_claims": { "type": "boolean" },
         "inspectable_before_apply": { "type": "boolean" }
       }
@@ -143,6 +245,9 @@
         "valid_until",
         "epoch_state",
         "grace_state",
+        "envelope_review",
+        "privileged_operation_posture",
+        "privileged_operation_posture_token",
         "simulation_packet",
         "local_core_continuity_explicit",
         "qualification_token",
@@ -151,7 +256,10 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "record_kind": { "type": "string", "const": "policy_signed_policy_bundle_finalize_row_record" },
+        "record_kind": {
+          "type": "string",
+          "const": "policy_signed_policy_bundle_finalize_row_record"
+        },
         "schema_version": { "$ref": "#/$defs/schema_version" },
         "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
         "row_id": { "$ref": "#/$defs/non_empty" },
@@ -159,24 +267,106 @@
         "import_flow_token": { "$ref": "#/$defs/import_flow_token" },
         "bundle_kind": { "$ref": "#/$defs/bundle_kind_token" },
         "bundle_kind_token": { "$ref": "#/$defs/bundle_kind_token" },
-        "signer_ref": { "type": "string" },
-        "signed_at": { "type": "string" },
-        "valid_until": { "type": "string" },
+        "signer_ref": { "$ref": "#/$defs/non_empty" },
+        "signed_at": { "$ref": "#/$defs/non_empty" },
+        "valid_until": { "$ref": "#/$defs/non_empty" },
         "epoch_state": { "$ref": "#/$defs/policy_epoch_state" },
         "grace_state": { "$ref": "#/$defs/offline_grace_state" },
-        "simulation_packet": { "$ref": "#/$defs/policy_bundle_simulation_packet" },
+        "envelope_review": { "$ref": "#/$defs/bundle_envelope_review" },
+        "privileged_operation_posture": {
+          "$ref": "#/$defs/privileged_operation_posture_token"
+        },
+        "privileged_operation_posture_token": {
+          "$ref": "#/$defs/privileged_operation_posture_token"
+        },
+        "simulation_packet": {
+          "$ref": "#/$defs/policy_bundle_simulation_packet"
+        },
         "local_core_continuity_explicit": { "type": "boolean" },
         "qualification_token": { "$ref": "#/$defs/qualification_token" },
         "narrow_reason_token": { "$ref": "#/$defs/narrow_reason_token" },
         "plain_language_summary": { "type": "string" }
       }
     },
-    "policy_signed_policy_bundle_finalize_defect_record": {
+    "policy_signed_policy_bundle_finalize_lifecycle_event_record": {
       "type": "object",
-      "required": ["record_kind", "schema_version", "shared_contract_ref", "defect_id", "narrow_reason", "narrow_reason_token", "source", "note"],
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "event_id",
+        "event_class",
+        "event_class_token",
+        "bundle_kind",
+        "bundle_kind_token",
+        "bundle_ref",
+        "scope_ref",
+        "delivery_source",
+        "delivery_source_token",
+        "actor_ref",
+        "event_time",
+        "supersedes_refs",
+        "revokes_refs",
+        "privileged_operation_posture",
+        "privileged_operation_posture_token",
+        "local_safe_continuity_preserved",
+        "note"
+      ],
       "additionalProperties": false,
       "properties": {
-        "record_kind": { "type": "string", "const": "policy_signed_policy_bundle_finalize_defect_record" },
+        "record_kind": {
+          "type": "string",
+          "const": "policy_signed_policy_bundle_finalize_lifecycle_event_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "event_id": { "$ref": "#/$defs/non_empty" },
+        "event_class": { "$ref": "#/$defs/lifecycle_event_class_token" },
+        "event_class_token": { "$ref": "#/$defs/lifecycle_event_class_token" },
+        "bundle_kind": { "$ref": "#/$defs/bundle_kind_token" },
+        "bundle_kind_token": { "$ref": "#/$defs/bundle_kind_token" },
+        "bundle_ref": { "$ref": "#/$defs/non_empty" },
+        "scope_ref": { "$ref": "#/$defs/non_empty" },
+        "delivery_source": { "$ref": "#/$defs/delivery_source_token" },
+        "delivery_source_token": { "$ref": "#/$defs/delivery_source_token" },
+        "actor_ref": { "$ref": "#/$defs/non_empty" },
+        "event_time": { "$ref": "#/$defs/non_empty" },
+        "supersedes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "revokes_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "privileged_operation_posture": {
+          "$ref": "#/$defs/privileged_operation_posture_token"
+        },
+        "privileged_operation_posture_token": {
+          "$ref": "#/$defs/privileged_operation_posture_token"
+        },
+        "local_safe_continuity_preserved": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "policy_signed_policy_bundle_finalize_defect_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "narrow_reason",
+        "narrow_reason_token",
+        "source",
+        "note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "policy_signed_policy_bundle_finalize_defect_record"
+        },
         "schema_version": { "$ref": "#/$defs/schema_version" },
         "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
         "defect_id": { "$ref": "#/$defs/non_empty" },
@@ -196,10 +386,15 @@
         "withdrawn_row_count",
         "import_flows_covered",
         "bundle_kinds_covered",
+        "delivery_sources_covered",
+        "lifecycle_classes_covered",
+        "lifecycle_event_count",
         "stale_bundle_row_count",
         "epoch_inspectable_row_count",
+        "envelope_inspectable_row_count",
         "simulation_packet_present_row_count",
         "local_core_continuity_explicit_row_count",
+        "stale_privileged_pause_row_count",
         "upstream_verifier_defect_count",
         "overall_qualification_token"
       ],
@@ -218,10 +413,27 @@
           "type": "array",
           "items": { "$ref": "#/$defs/bundle_kind_token" }
         },
+        "delivery_sources_covered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/delivery_source_token" }
+        },
+        "lifecycle_classes_covered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_event_class_token" }
+        },
+        "lifecycle_event_count": { "type": "integer", "minimum": 0 },
         "stale_bundle_row_count": { "type": "integer", "minimum": 0 },
         "epoch_inspectable_row_count": { "type": "integer", "minimum": 0 },
+        "envelope_inspectable_row_count": { "type": "integer", "minimum": 0 },
         "simulation_packet_present_row_count": { "type": "integer", "minimum": 0 },
-        "local_core_continuity_explicit_row_count": { "type": "integer", "minimum": 0 },
+        "local_core_continuity_explicit_row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stale_privileged_pause_row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "upstream_verifier_defect_count": { "type": "integer", "minimum": 0 },
         "overall_qualification_token": { "$ref": "#/$defs/qualification_token" }
       }
@@ -237,21 +449,29 @@
         "generated_at",
         "summary",
         "rows",
+        "lifecycle_events",
         "defects",
         "offline_entitlement_verifier_page"
       ],
       "additionalProperties": false,
       "properties": {
-        "record_kind": { "type": "string", "const": "policy_signed_policy_bundle_finalize_page_record" },
+        "record_kind": {
+          "type": "string",
+          "const": "policy_signed_policy_bundle_finalize_page_record"
+        },
         "schema_version": { "$ref": "#/$defs/schema_version" },
         "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
         "page_id": { "$ref": "#/$defs/non_empty" },
         "page_label": { "$ref": "#/$defs/non_empty" },
-        "generated_at": { "type": "string" },
+        "generated_at": { "$ref": "#/$defs/non_empty" },
         "summary": { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_summary_record" },
         "rows": {
           "type": "array",
           "items": { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_row_record" }
+        },
+        "lifecycle_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_lifecycle_event_record" }
         },
         "defects": {
           "type": "array",
@@ -271,21 +491,29 @@
         "page",
         "narrow_reasons_present",
         "defect_counts_by_narrow_reason",
+        "lifecycle_event_counts_by_class",
         "raw_private_material_excluded"
       ],
       "additionalProperties": false,
       "properties": {
-        "record_kind": { "type": "string", "const": "policy_signed_policy_bundle_finalize_support_export_record" },
+        "record_kind": {
+          "type": "string",
+          "const": "policy_signed_policy_bundle_finalize_support_export_record"
+        },
         "schema_version": { "$ref": "#/$defs/schema_version" },
         "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
         "export_id": { "$ref": "#/$defs/non_empty" },
-        "generated_at": { "type": "string" },
+        "generated_at": { "$ref": "#/$defs/non_empty" },
         "page": { "$ref": "#/$defs/policy_signed_policy_bundle_finalize_page_record" },
         "narrow_reasons_present": {
           "type": "array",
           "items": { "$ref": "#/$defs/narrow_reason_token" }
         },
         "defect_counts_by_narrow_reason": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "lifecycle_event_counts_by_class": {
           "type": "object",
           "additionalProperties": { "type": "integer", "minimum": 0 }
         },
