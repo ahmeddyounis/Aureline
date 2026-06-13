@@ -60,6 +60,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-vfs/0.0.0")]
 
 pub mod capabilities;
+pub mod filesystem_mutation_lineage_matrix;
 pub mod harness;
 pub mod hooks;
 pub mod identity;
@@ -76,6 +77,25 @@ pub use capabilities::{
     AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind,
     NormalizationForm, RootCapabilityEnvelope, RootClass, StrongestIdentityTokenKind,
     SymlinkEscapePolicy,
+};
+pub use filesystem_mutation_lineage_matrix::{
+    seeded_filesystem_mutation_lineage_matrix_fixtures,
+    seeded_filesystem_mutation_lineage_matrix_packet,
+    validate_filesystem_mutation_lineage_fixture, validate_filesystem_mutation_lineage_matrix,
+    ConnectivityState as MatrixConnectivityState, CorruptionState as MatrixCorruptionState,
+    CoverageFlags as MatrixCoverageFlags,
+    FilesystemMutationLineageMatrixPacket, MatrixFixture, MatrixRootClass, MatrixRow,
+    MatrixValidationReport, MatrixValidationViolation, PathIdentityClass as MatrixPathIdentityClass,
+    ReconciliationPosture as MatrixReconciliationPosture, SaveFallback as MatrixSaveFallback,
+    SourceContractRefs as MatrixSourceContractRefs, SurfaceClass as MatrixSurfaceClass,
+    UndoClass as MatrixUndoClass, WatchState as MatrixWatchState,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_DOC_REF, FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_DIR,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_MANIFEST_REF,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_FIXTURE_RECORD_KIND,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_PACKET_RECORD_KIND,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_PACKET_REF, FILESYSTEM_MUTATION_LINEAGE_MATRIX_REPORT_REF,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_REF,
+    FILESYSTEM_MUTATION_LINEAGE_MATRIX_SCHEMA_VERSION,
 };
 pub use hooks::HookCounters;
 pub use identity::{
