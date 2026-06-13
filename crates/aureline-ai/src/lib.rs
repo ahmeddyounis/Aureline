@@ -335,6 +335,7 @@ pub mod implement_customer_visible_usage_export_budget_attribution_and_managed_o
 pub mod implement_local_model_pack_install_provenance_hardware_fit_checks_and_offline_or_mirror_support;
 pub mod implement_routing_policy_quota_families_per_session_cost_bands_and_fallback_chains;
 pub mod implement_signed_and_shared_recipe_packs_safe_automation_graduation_and_preview_first_replay;
+pub mod implement_spend_and_route_receipts_budget_band_preflights_cumulative_branch_agent_ceilings_and_checkpoint_aware_cancella;
 pub mod implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
@@ -669,6 +670,16 @@ pub use implement_local_model_pack_install_provenance_hardware_fit_checks_and_of
     LOCAL_MODEL_PACK_ARTIFACT_REF, LOCAL_MODEL_PACK_DOC_REF, LOCAL_MODEL_PACK_FIXTURE_DIR,
     LOCAL_MODEL_PACK_RECORD_KIND, LOCAL_MODEL_PACK_SCHEMA_REF, LOCAL_MODEL_PACK_SCHEMA_VERSION,
     LOCAL_MODEL_PACK_SUMMARY_REF,
+};
+pub use implement_spend_and_route_receipts_budget_band_preflights_cumulative_branch_agent_ceilings_and_checkpoint_aware_cancella::{
+    current_ai_run_receipt_export, AiRunReceiptArtifactError, AiRunReceiptDowngradeRule,
+    AiRunReceiptPacket, AiRunReceiptPacketInput, AiRunReceiptProofFreshness, AiRunReceiptRow,
+    AiRunReceiptViolation, BudgetBandPreflight, CancellationClass, CancellationExport,
+    CancellationReasonClass, CumulativeCeiling, PostRunSpendReceipt, PreflightAcknowledgementClass,
+    RouteChangeClass, RouteDowngradeReasonClass, RouteReceipt, RunCheckpoint,
+    SpendReconciliationClass, AI_RUN_RECEIPT_ARTIFACT_REF, AI_RUN_RECEIPT_DOC_REF,
+    AI_RUN_RECEIPT_FIXTURE_DIR, AI_RUN_RECEIPT_RECORD_KIND, AI_RUN_RECEIPT_SCHEMA_REF,
+    AI_RUN_RECEIPT_SCHEMA_VERSION, AI_RUN_RECEIPT_SUMMARY_REF,
 };
 pub use implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth::{
     current_stable_memory_class_materialization_export, MemoryArtifactClass,

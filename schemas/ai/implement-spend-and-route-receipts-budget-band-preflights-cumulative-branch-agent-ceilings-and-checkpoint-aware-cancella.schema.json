@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/implement-spend-and-route-receipts-budget-band-preflights-cumulative-branch-agent-ceilings-and-checkpoint-aware-cancella.schema.json",
+  "title": "Aureline spend and route receipts, budget-band preflights, cumulative branch-agent ceilings, and checkpoint-aware cancellation-export parity",
+  "description": "Export-safe packet deepening the long-running-agent budget surface into per-run receipt rows across inline assist, patch review, and branch/worktree agents. Each row binds the budget-band preflight that prices the run before dispatch, the route receipt that records which provider/model/mode served it and why a downgrade or fallback fired, the post-run spend receipt that reconciles measured cost against the preflight, the cumulative ceiling and ordered checkpoints that bound a side-branch run across its whole lifetime, and the checkpoint-aware cancellation export that makes a cancellation a readable, export-safe receipt instead of an opaque kill. Every claimed run carries a preflight, a route receipt whose mode agrees with the run, and a post-run spend receipt; a claimed charged run must acknowledge its preflight and project the wall-clock, token, and tool-call ceilings; a route downgrade carries a precise reason rather than a generic provider error; a terminal spend receipt reconciles against its preflight and discloses overruns and charge owners; a branch/worktree agent carries a bounding cumulative ceiling and strictly-ordered accumulating checkpoints, and its cancellation names the checkpoint it stopped at, carries an export-safe receipt with support-export parity, and gives a precise reason. Raw provider endpoints, credential bodies, raw provider payloads, exact token counts, and exact spend amounts never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "catalogue_label",
+    "receipts",
+    "proof_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "implement_spend_and_route_receipts_budget_band_preflights_cumulative_branch_agent_ceilings_and_checkpoint_aware_cancella"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "catalogue_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "receipts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/receipt_row"
+      }
+    },
+    "proof_freshness": {
+      "$ref": "#/$defs/proof_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "qualification_class": {
+      "enum": ["stable", "beta", "preview", "experimental", "unavailable", "held"]
+    },
+    "rollback_posture": {
+      "enum": [
+        "fully_reversible",
+        "checkpoint_reversible",
+        "evidence_preserved_no_revert",
+        "not_applicable"
+      ]
+    },
+    "downgrade_trigger": {
+      "enum": [
+        "proof_stale",
+        "policy_blocked",
+        "provider_unavailable",
+        "trust_narrowing",
+        "scope_expansion_unqualified",
+        "upstream_dependency_narrowed"
+      ]
+    },
+    "workflow_lane": {
+      "enum": ["inline_assist", "patch_review", "branch_or_worktree_agent"]
+    },
+    "consumer_surface": {
+      "enum": [
+        "desktop_composer",
+        "desktop_review_workspace",
+        "cli_headless",
+        "browser_companion",
+        "support_export",
+        "diagnostics"
+      ]
+    },
+    "route_policy_mode": {
+      "enum": ["local", "byok", "managed", "enterprise_gateway"]
+    },
+    "cost_band": {
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_low_band",
+        "metered_medium_band",
+        "metered_high_band",
+        "flat_fee_subscription_band",
+        "estimated_unverified_band"
+      ]
+    },
+    "cost_measurement": {
+      "enum": ["estimate_band", "actual_measured", "actual_unverified"]
+    },
+    "charged_disclosure": {
+      "enum": [
+        "not_charged_local",
+        "not_charged_bundled",
+        "charged_user_metered",
+        "charged_user_subscription",
+        "charged_organisation_pooled",
+        "charge_unknown_unverified"
+      ]
+    },
+    "fallback_hop_reason": {
+      "enum": [
+        "primary_cheapest_qualifying",
+        "fallback_after_quota_exhausted",
+        "fallback_after_budget_exhausted",
+        "fallback_after_provider_unavailable",
+        "fallback_after_policy_blocked",
+        "non_ai_terminal_fallback"
+      ]
+    },
+    "fallback_hop_outcome": {
+      "enum": [
+        "selected",
+        "available_not_selected",
+        "exhausted_skipped",
+        "blocked_skipped",
+        "terminal_reachable"
+      ]
+    },
+    "ceiling_kind": {
+      "enum": [
+        "wall_clock",
+        "token_budget",
+        "tool_call_count",
+        "cost_budget",
+        "agent_step_count"
+      ]
+    },
+    "ceiling_consumption": {
+      "enum": [
+        "well_within_limit",
+        "approaching_warning",
+        "warning_raised",
+        "ceiling_reached"
+      ]
+    },
+    "ceiling_enforcement": {
+      "enum": [
+        "hard_stop_on_reach",
+        "soft_prompt_on_reach",
+        "advisory_warn_only",
+        "unenforced"
+      ]
+    },
+    "run_state": {
+      "enum": [
+        "running",
+        "completed_within_budget",
+        "stopped_at_ceiling",
+        "paused_awaiting_user",
+        "budget_exhausted_stopped",
+        "cancelled_by_user",
+        "cancelled_by_policy"
+      ]
+    },
+    "preflight_acknowledgement": {
+      "enum": [
+        "acknowledged_by_user",
+        "auto_approved_within_budget",
+        "pending_acknowledgement",
+        "not_required_local_unmetered"
+      ]
+    },
+    "route_change": {
+      "enum": [
+        "no_change",
+        "fallback_downgrade",
+        "mode_changed",
+        "quota_redirect",
+        "model_substituted"
+      ]
+    },
+    "route_downgrade_reason": {
+      "enum": [
+        "no_downgrade",
+        "quota_exhausted",
+        "provider_unavailable",
+        "policy_blocked_route",
+        "model_deprecated",
+        "latency_fallback",
+        "cost_band_fallback",
+        "generic_provider_error"
+      ]
+    },
+    "spend_reconciliation": {
+      "enum": [
+        "within_projection",
+        "under_projection",
+        "over_projection_disclosed",
+        "not_reconciled"
+      ]
+    },
+    "cancellation_class": {
+      "enum": [
+        "not_cancelled",
+        "cancelled_by_user",
+        "cancelled_by_policy",
+        "cancelled_at_ceiling",
+        "cancelled_at_budget_exhaustion"
+      ]
+    },
+    "cancellation_reason": {
+      "enum": [
+        "not_cancelled",
+        "user_requested",
+        "policy_blocked",
+        "ceiling_reached",
+        "budget_exhausted",
+        "provider_unavailable",
+        "generic_provider_error"
+      ]
+    },
+    "budget_band_preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projected_cost_band",
+        "projected_measurement",
+        "charged",
+        "budget_band_label",
+        "budget_owner_label",
+        "acknowledgement",
+        "projected_ceilings",
+        "explanation_label"
+      ],
+      "properties": {
+        "projected_cost_band": { "$ref": "#/$defs/cost_band" },
+        "projected_measurement": { "$ref": "#/$defs/cost_measurement" },
+        "charged": { "$ref": "#/$defs/charged_disclosure" },
+        "budget_band_label": { "$ref": "#/$defs/non_empty_string" },
+        "budget_owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "acknowledgement": { "$ref": "#/$defs/preflight_acknowledgement" },
+        "projected_ceilings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ceiling_kind" }
+        },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "route_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolved_mode",
+        "provider_label",
+        "model_label",
+        "selected_hop_reason",
+        "selected_hop_outcome",
+        "route_change",
+        "downgrade_reason",
+        "explanation_label"
+      ],
+      "properties": {
+        "resolved_mode": { "$ref": "#/$defs/route_policy_mode" },
+        "provider_label": { "$ref": "#/$defs/non_empty_string" },
+        "model_label": { "$ref": "#/$defs/non_empty_string" },
+        "selected_hop_reason": { "$ref": "#/$defs/fallback_hop_reason" },
+        "selected_hop_outcome": { "$ref": "#/$defs/fallback_hop_outcome" },
+        "route_change": { "$ref": "#/$defs/route_change" },
+        "downgrade_reason": { "$ref": "#/$defs/route_downgrade_reason" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "post_run_spend_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "final_cost_band",
+        "measurement",
+        "charged",
+        "budget_owner_label",
+        "reconciliation",
+        "budget_exhausted",
+        "explanation_label"
+      ],
+      "properties": {
+        "final_cost_band": { "$ref": "#/$defs/cost_band" },
+        "measurement": { "$ref": "#/$defs/cost_measurement" },
+        "charged": { "$ref": "#/$defs/charged_disclosure" },
+        "budget_owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "reconciliation": { "$ref": "#/$defs/spend_reconciliation" },
+        "budget_exhausted": { "type": "boolean" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cumulative_ceiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "cumulative_consumption",
+        "enforcement",
+        "cumulative_limit_label",
+        "explanation_label"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/ceiling_kind" },
+        "cumulative_consumption": { "$ref": "#/$defs/ceiling_consumption" },
+        "enforcement": { "$ref": "#/$defs/ceiling_enforcement" },
+        "cumulative_limit_label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "run_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "checkpoint_label",
+        "cumulative_cost_band",
+        "cumulative_consumption",
+        "cancellable"
+      ],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 0 },
+        "checkpoint_label": { "$ref": "#/$defs/non_empty_string" },
+        "cumulative_cost_band": { "$ref": "#/$defs/cost_band" },
+        "cumulative_consumption": { "$ref": "#/$defs/ceiling_consumption" },
+        "cancellable": { "type": "boolean" },
+        "notes_label": { "type": "string" }
+      }
+    },
+    "cancellation_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "reason",
+        "export_safe_receipt_available",
+        "surface_parity",
+        "explanation_label"
+      ],
+      "properties": {
+        "class": { "$ref": "#/$defs/cancellation_class" },
+        "reason": { "$ref": "#/$defs/cancellation_reason" },
+        "cancelled_at_checkpoint": { "type": "integer", "minimum": 0 },
+        "export_safe_receipt_available": { "type": "boolean" },
+        "receipt_ref": { "type": "string" },
+        "surface_parity": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "explanation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "narrowed_to", "auto_enforced", "rationale"],
+      "properties": {
+        "trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "narrowed_to": { "$ref": "#/$defs/qualification_class" },
+        "auto_enforced": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "receipt_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "agent_run_id",
+        "run_label",
+        "lane",
+        "resolved_mode",
+        "claimed_qualification",
+        "run_state",
+        "preflight",
+        "route_receipt",
+        "spend_receipt",
+        "cancellation",
+        "downgrade_rules",
+        "rollback_posture",
+        "rollback_verified",
+        "evidence_packet_refs"
+      ],
+      "properties": {
+        "receipt_id": { "$ref": "#/$defs/non_empty_string" },
+        "agent_run_id": { "$ref": "#/$defs/non_empty_string" },
+        "run_label": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/workflow_lane" },
+        "resolved_mode": { "$ref": "#/$defs/route_policy_mode" },
+        "claimed_qualification": { "$ref": "#/$defs/qualification_class" },
+        "run_state": { "$ref": "#/$defs/run_state" },
+        "preflight": { "$ref": "#/$defs/budget_band_preflight" },
+        "route_receipt": { "$ref": "#/$defs/route_receipt" },
+        "spend_receipt": { "$ref": "#/$defs/post_run_spend_receipt" },
+        "cumulative_ceiling": { "$ref": "#/$defs/cumulative_ceiling" },
+        "checkpoints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_checkpoint" }
+        },
+        "cancellation": { "$ref": "#/$defs/cancellation_export" },
+        "downgrade_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_rule" }
+        },
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "rollback_verified": { "type": "boolean" },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "proof_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_freshness_slo_hours", "last_proof_refresh", "auto_narrow_on_stale"],
+      "properties": {
+        "proof_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_proof_refresh": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "auto_narrow_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
