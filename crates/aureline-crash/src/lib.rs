@@ -33,11 +33,12 @@ pub use harden_crash_capture_exact_build_symbolication_crash_loop::{
     HARDEN_CRASH_CAPTURE_SCHEMA_VERSION,
 };
 pub use incident_trail::{
-    CrashDumpManifest, CrashEnvelope, CrashFrame, CrashIncidentTrail, CrashIncidentTrailInputs,
-    CrashModule, CrashModuleIdentity, IncidentEvidenceKind, IncidentEvidenceRef,
-    ModuleIncidentSummary, ModuleMappingQuality, NextSafeAction, NextSafeActionKind,
-    SupportBundleLinkage, SupportBundleLinkageState, SymbolicatedModuleResult, SymbolicationReport,
-    SymbolicationState, CRASH_INCIDENT_TRAIL_RECORD_KIND, CRASH_INCIDENT_TRAIL_SCHEMA_VERSION,
+    CrashDumpManifest, CrashDumpModuleIdentity, CrashEnvelope, CrashFrame, CrashIncidentTrail,
+    CrashIncidentTrailInputs, CrashModule, CrashModuleIdentity, IncidentEvidenceKind,
+    IncidentEvidenceRef, ModuleIncidentSummary, ModuleMappingQuality, NextSafeAction,
+    NextSafeActionKind, SupportBundleLinkage, SupportBundleLinkageState, SymbolicatedModuleResult,
+    SymbolicationReport, SymbolicationState, CRASH_INCIDENT_TRAIL_RECORD_KIND,
+    CRASH_INCIDENT_TRAIL_SCHEMA_VERSION,
 };
 pub use symbolication::{
     symbolicate_exact_build, ExactBuildSymbolicationError, ExactBuildSymbolicationInput,

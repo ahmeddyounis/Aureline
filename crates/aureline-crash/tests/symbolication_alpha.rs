@@ -2,10 +2,10 @@
 
 use aureline_build_info::exact_build_identity_ref;
 use aureline_crash::{
-    symbolicate_exact_build, CrashDumpManifest, CrashEnvelope, CrashFrame, CrashIncidentTrail,
-    CrashIncidentTrailInputs, CrashModule, CrashModuleIdentity, ExactBuildSymbolicationError,
-    ExactBuildSymbolicationInput, InTreeSymbolFile, InTreeSymbolFrame, InTreeSymbolModule,
-    ModuleMappingQuality, SymbolicationState,
+    symbolicate_exact_build, CrashDumpManifest, CrashDumpModuleIdentity, CrashEnvelope, CrashFrame,
+    CrashIncidentTrail, CrashIncidentTrailInputs, CrashModule, CrashModuleIdentity,
+    ExactBuildSymbolicationError, ExactBuildSymbolicationInput, InTreeSymbolFile,
+    InTreeSymbolFrame, InTreeSymbolModule, ModuleMappingQuality, SymbolicationState,
 };
 
 const GENERATED_AT: &str = "2026-05-15T18:00:00Z";
@@ -27,11 +27,20 @@ fn crash_envelope(primary_exact_build_identity_ref: String) -> CrashEnvelope {
         schema_version: 1,
         record_kind: "synthetic_crash_envelope".into(),
         fixture_id: Some("support.live_symbolication_alpha.renderer".into()),
+        crash_id: "crash:live-symbolication-alpha:renderer:0001".into(),
         crash_envelope_ref: CRASH_ENVELOPE_REF.into(),
         captured_at: CAPTURED_AT.into(),
+        build_id: primary_exact_build_identity_ref.clone(),
+        release_channel_class: "dev_local".into(),
         chronology_capture_state: "captured_without_recording".into(),
         fault_domain_id: "fd.renderer.live_symbolication_alpha".into(),
+        session_type_id: "preview_renderer_session".into(),
         primary_exact_build_identity_ref: primary_exact_build_identity_ref.clone(),
+        extension_or_host_set_hash: "hostset:live-symbolication-alpha:renderer:sha256:0011".into(),
+        policy_fingerprint: "policy:local-dev:sha256:renderer-live-symbolication".into(),
+        sandbox_profile: "sandbox_profile.local_preview_renderer".into(),
+        crash_window_started_at: "2026-05-15T17:59:12Z".into(),
+        crash_window_ended_at: CAPTURED_AT.into(),
         crash_dump_manifest_ref: CRASH_DUMP_MANIFEST_REF.into(),
         support_bundle_ref: SUPPORT_BUNDLE_REF.into(),
         trace_ids: vec!["trace:renderer:live-symbolication-alpha:0001".into()],
@@ -68,12 +77,16 @@ fn crash_envelope(primary_exact_build_identity_ref: String) -> CrashEnvelope {
 }
 
 fn crash_dump_manifest(primary_exact_build_identity_ref: String) -> CrashDumpManifest {
+    let renderer_identity = format!("{primary_exact_build_identity_ref}:source-map");
     CrashDumpManifest {
         schema_version: 1,
         record_kind: "crash_dump_manifest".into(),
         crash_dump_ref: CRASH_DUMP_REF.into(),
         captured_at: CAPTURED_AT.into(),
+        architecture: "x86_64-unknown-linux-gnu".into(),
+        signal_or_exception_class: "panic.renderer_state_invariant".into(),
         dump_format_class: "synthetic_stack".into(),
+        dump_format_identity: "synthetic_stack.v1".into(),
         record_class_id: "crash_diagnostic_payload".into(),
         data_class: "metadata_only".into(),
         redaction_class: "metadata_safe_default".into(),
@@ -85,6 +98,11 @@ fn crash_dump_manifest(primary_exact_build_identity_ref: String) -> CrashDumpMan
         primary_exact_build_identity_ref,
         fault_domain_refs: vec!["fd.renderer.live_symbolication_alpha".into()],
         module_refs: vec!["renderer.main.bundle.js".into()],
+        module_identities: vec![CrashDumpModuleIdentity {
+            module_id: "renderer.main.bundle.js".into(),
+            exact_build_identity_ref: renderer_identity,
+            build_id: None,
+        }],
         support_bundle_ref: SUPPORT_BUNDLE_REF.into(),
         notes: "Synthetic stack metadata only; no raw dump bytes are required.".into(),
     }

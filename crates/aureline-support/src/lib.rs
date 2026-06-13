@@ -149,6 +149,9 @@
 //!   diagnostics-schema governance rows, and downgrade rules used by notebook,
 //!   data/API, preview, provider, profiler/replay, pipeline, docs/browser,
 //!   and infrastructure helper hosts.
+//! - The [`crash_store`] packet — binds crash-envelope, dump/core metadata,
+//!   exact-build identity, redaction posture, and local preview/export/upload
+//!   actions into one local-first crash-store viewer for M5 host families.
 //!
 //! ## Failure-drill posture
 //!
@@ -166,6 +169,7 @@ pub mod bundle;
 pub mod capabilities;
 pub mod crash_loop_and_restore_fidelity;
 pub mod crash_loop_center;
+pub mod crash_store;
 pub mod distributed_compatibility;
 pub mod export_review;
 pub mod extension_bisect;
@@ -210,6 +214,15 @@ pub mod stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_an
 pub mod storage_inspector;
 pub mod supervised_restart_evidence_pipeline;
 
+pub use crash_store::{
+    seeded_crash_store_viewer_packet, seeded_expired_dump_crash_store_viewer_packet,
+    CrashPreservationClass, CrashStoreActionClass, CrashStoreActionRow,
+    CrashStoreRedactionPostureClass, CrashStoreViewerPacket, CrashStoreViewerRow,
+    CrashStoreViewerViolation, CRASH_STORE_VIEWER_ARTIFACT_REF, CRASH_STORE_VIEWER_DOC_REF,
+    CRASH_STORE_VIEWER_FIXTURE_DIR, CRASH_STORE_VIEWER_PACKET_RECORD_KIND,
+    CRASH_STORE_VIEWER_ROW_RECORD_KIND, CRASH_STORE_VIEWER_SCHEMA_REF,
+    CRASH_STORE_VIEWER_SCHEMA_VERSION,
+};
 pub use export_review::{
     current_escalation_packet_reviews, load_profile_corpus, load_reopen_corpus,
     BroadenEvidenceReviewClass, BuildIdentityBlock, CrashLinkageBlock, DataClassBoundaryClass,

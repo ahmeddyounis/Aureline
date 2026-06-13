@@ -21,6 +21,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::crash_store::{CRASH_STORE_VIEWER_DOC_REF, CRASH_STORE_VIEWER_SCHEMA_REF};
 use crate::supervised_restart_evidence_pipeline::{
     SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF, SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF,
 };
@@ -876,6 +877,8 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
             SUPERVISED_RESTART_EVIDENCE_PIPELINE_DOC_REF.to_owned(),
             HARDEN_CRASH_CAPTURE_SCHEMA_REF.to_owned(),
             HARDEN_CRASH_CAPTURE_DOC_REF.to_owned(),
+            CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
+            CRASH_STORE_VIEWER_DOC_REF.to_owned(),
             TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
             CONSENT_LEDGER_REF.to_owned(),
         ],
@@ -1282,6 +1285,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     HARDEN_CRASH_CAPTURE_SCHEMA_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1322,6 +1326,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1364,6 +1369,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     HARDEN_CRASH_CAPTURE_SCHEMA_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1406,6 +1412,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1448,6 +1455,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     HARDEN_CRASH_CAPTURE_SCHEMA_REF.to_owned(),
                     PERFORMANCE_SUPPORT_SCHEMA_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1486,6 +1494,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 ],
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1526,6 +1535,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     PERFORMANCE_SUPPORT_SCHEMA_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1564,6 +1574,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1603,6 +1614,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     SUPERVISED_RESTART_EVIDENCE_PIPELINE_SCHEMA_REF.to_owned(),
                     TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],
@@ -1640,6 +1652,7 @@ pub fn seeded_m5_fault_crash_governance_packet() -> M5FaultCrashGovernancePacket
                 canonical_support_packet_refs: vec![
                     TELEMETRY_SUPPORT_SCHEMA_REGISTRY_REF.to_owned(),
                     CONSENT_LEDGER_REF.to_owned(),
+                    CRASH_STORE_VIEWER_SCHEMA_REF.to_owned(),
                 ],
                 claim_state: ClaimStateClass::Qualified,
                 stale_proof_tokens: vec![],

@@ -6,9 +6,10 @@ use std::path::{Path, PathBuf};
 use aureline_support::{
     seeded_m5_fault_crash_governance_packet, ClaimStateClass, CrashArtifactClass,
     DiagnosticSignalClass, DowngradeTriggerClass, FaultDomainClass, M5FaultCrashGovernancePacket,
-    RestartClass, M5_FAULT_CRASH_GOVERNANCE_ARTIFACT_REF, M5_FAULT_CRASH_GOVERNANCE_DOC_REF,
-    M5_FAULT_CRASH_GOVERNANCE_FIXTURE_DIR, M5_FAULT_CRASH_GOVERNANCE_PACKET_RECORD_KIND,
-    M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_VERSION,
+    RestartClass, CRASH_STORE_VIEWER_SCHEMA_REF, M5_FAULT_CRASH_GOVERNANCE_ARTIFACT_REF,
+    M5_FAULT_CRASH_GOVERNANCE_DOC_REF, M5_FAULT_CRASH_GOVERNANCE_FIXTURE_DIR,
+    M5_FAULT_CRASH_GOVERNANCE_PACKET_RECORD_KIND, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF,
+    M5_FAULT_CRASH_GOVERNANCE_SCHEMA_VERSION,
 };
 
 fn repo_root() -> PathBuf {
@@ -44,6 +45,12 @@ fn seeded_packet_covers_all_fault_domains_and_restart_classes() {
     );
     assert_eq!(packet.doc_ref, M5_FAULT_CRASH_GOVERNANCE_DOC_REF);
     assert_eq!(packet.schema_ref, M5_FAULT_CRASH_GOVERNANCE_SCHEMA_REF);
+    assert!(
+        packet
+            .supporting_contract_refs
+            .contains(&CRASH_STORE_VIEWER_SCHEMA_REF.to_owned()),
+        "governance packet must cite the crash-store viewer contract"
+    );
 
     let fault_domains = packet
         .fault_domains

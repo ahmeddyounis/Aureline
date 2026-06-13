@@ -25,16 +25,45 @@ pub struct CrashEnvelope {
     /// Optional fixture id used by protected tests.
     #[serde(default)]
     pub fixture_id: Option<String>,
+    /// Stable crash id shared by the envelope, dump manifest, and crash store.
+    #[serde(default)]
+    pub crash_id: String,
     /// Stable crash envelope ref.
     pub crash_envelope_ref: String,
     /// RFC 3339 UTC capture time.
     pub captured_at: String,
+    /// Stable build id visible in support/export surfaces without parsing the
+    /// exact-build identity ref.
+    #[serde(default)]
+    pub build_id: String,
+    /// Release channel class such as `stable`, `preview`, or `dev_local`.
+    #[serde(default)]
+    pub release_channel_class: String,
     /// Chronology capture posture such as `captured_without_recording`.
     pub chronology_capture_state: String,
     /// Fault-domain id that bounded the crash.
     pub fault_domain_id: String,
+    /// Stable session-type id that lets crash-store viewers point back to the
+    /// affected runtime family.
+    #[serde(default)]
+    pub session_type_id: String,
     /// Primary exact-build identity for the crashing runtime.
     pub primary_exact_build_identity_ref: String,
+    /// Stable extension-set or host-set hash active during the crash window.
+    #[serde(default)]
+    pub extension_or_host_set_hash: String,
+    /// Stable policy fingerprint applied to the crashing host.
+    #[serde(default)]
+    pub policy_fingerprint: String,
+    /// Sandbox profile or isolation label applied to the crashing host.
+    #[serde(default)]
+    pub sandbox_profile: String,
+    /// RFC 3339 UTC start of the bounded crash window.
+    #[serde(default)]
+    pub crash_window_started_at: String,
+    /// RFC 3339 UTC end of the bounded crash window.
+    #[serde(default)]
+    pub crash_window_ended_at: String,
     /// Manifest ref for the raw dump or core metadata.
     pub crash_dump_manifest_ref: String,
     /// Support bundle ref selected by the crash capture path.
@@ -107,6 +136,18 @@ pub struct CrashFrame {
     pub symbol_hint: String,
 }
 
+/// Module identity summarized in a dump/core manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrashDumpModuleIdentity {
+    /// Stable module id present in the dump metadata.
+    pub module_id: String,
+    /// Exact-build identity ref observed for this module.
+    pub exact_build_identity_ref: String,
+    /// Optional build id copied from the raw dump metadata for native modules.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_id: Option<String>,
+}
+
 /// Metadata-only manifest for a dump or core artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrashDumpManifest {
@@ -118,8 +159,18 @@ pub struct CrashDumpManifest {
     pub crash_dump_ref: String,
     /// RFC 3339 UTC capture time.
     pub captured_at: String,
+    /// Architecture captured by the dump producer, for example
+    /// `x86_64-unknown-linux-gnu`.
+    #[serde(default)]
+    pub architecture: String,
+    /// Signal, exception, or panic class captured by the dump producer.
+    #[serde(default)]
+    pub signal_or_exception_class: String,
     /// Dump format class such as `minidump`.
     pub dump_format_class: String,
+    /// Stable dump-format identity for exact viewer and export joins.
+    #[serde(default)]
+    pub dump_format_identity: String,
     /// Record-class registry id.
     pub record_class_id: String,
     /// Diagnostic data class for the dump metadata.
@@ -146,6 +197,9 @@ pub struct CrashDumpManifest {
     /// Module refs observed in the dump manifest.
     #[serde(default)]
     pub module_refs: Vec<String>,
+    /// Module identities observed in the dump manifest.
+    #[serde(default)]
+    pub module_identities: Vec<CrashDumpModuleIdentity>,
     /// Support bundle ref selected by the dump manifest.
     pub support_bundle_ref: String,
     /// Redaction-safe reviewer note.
