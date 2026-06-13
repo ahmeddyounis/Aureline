@@ -61,6 +61,7 @@ pub mod envelope;
 pub mod generated_lineage;
 pub mod harness;
 pub mod hooks;
+pub mod m5_mutation_lineage;
 pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
@@ -76,6 +77,24 @@ pub use envelope::{
     StaleReason, SubscriptionEnvelope, TerminalReason, ViewClass, SUBSCRIPTION_SCHEMA_VERSION,
 };
 pub use hooks::HookCounters;
+pub use m5_mutation_lineage::{
+    seeded_m5_mutation_lineage_fixtures, seeded_m5_mutation_lineage_packet,
+    validate_m5_mutation_lineage_fixture, validate_m5_mutation_lineage_packet, ActorClass as M5MutationActorClass,
+    ArtifactClass as M5MutationArtifactClass, AutomationInfluence as M5MutationAutomationInfluence,
+    CheckpointClass as M5MutationCheckpointClass, CheckpointRef as M5MutationCheckpointRef,
+    CheckpointRole as M5MutationCheckpointRole, GroupPhaseClass as M5MutationGroupPhaseClass,
+    HistoryInspectorRow as M5MutationHistoryInspectorRow, M5MutationLineageFixture,
+    M5MutationLineagePacket, MutationEntry as M5MutationEntry, MutationGroupRecord as M5MutationGroupRecord,
+    MutationSurfaceClass as M5MutationSurfaceClass, PolicyInfluence as M5MutationPolicyInfluence,
+    ReversalClass as M5MutationReversalClass, ScopeClass as M5MutationScopeClass,
+    SourceClass as M5MutationSourceClass, SourceContractRefs as M5MutationSourceContractRefs,
+    SupportExportManifestRow as M5MutationSupportExportManifestRow, ValidationReport as M5MutationLineageValidationReport,
+    ValidationViolation as M5MutationLineageValidationViolation, M5_MUTATION_LINEAGE_DOC_REF,
+    M5_MUTATION_LINEAGE_FIXTURE_DIR, M5_MUTATION_LINEAGE_FIXTURE_MANIFEST_REF,
+    M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND, M5_MUTATION_LINEAGE_PACKET_RECORD_KIND,
+    M5_MUTATION_LINEAGE_PACKET_REF, M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
+    M5_MUTATION_LINEAGE_SCHEMA_VERSION,
+};
 pub use producers::{
     derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
     workspace, workspace_readiness,

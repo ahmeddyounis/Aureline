@@ -213,6 +213,7 @@ pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
 pub mod m5_host_failure_drills;
+pub mod m5_mutation_lineage;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -285,6 +286,12 @@ pub use m5_fault_crash_certification::{
     M5_FAULT_CRASH_CERTIFICATION_ARTIFACT_REF, M5_FAULT_CRASH_CERTIFICATION_DOC_REF,
     M5_FAULT_CRASH_CERTIFICATION_FIXTURE_DIR, M5_FAULT_CRASH_CERTIFICATION_PACKET_RECORD_KIND,
     M5_FAULT_CRASH_CERTIFICATION_SCHEMA_REF, M5_FAULT_CRASH_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use m5_mutation_lineage::{
+    compile_support_export_envelope as compile_m5_mutation_lineage_support_export_envelope,
+    M5MutationLineageSupportExportEnvelope, M5MutationLineageSupportExportError,
+    M5MutationLineageSupportExportRow, M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use m5_fault_crash_governance::{
     seeded_m5_fault_crash_governance_packet, CheckpointSourceClass, ClaimStateClass,

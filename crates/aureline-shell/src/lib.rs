@@ -114,6 +114,7 @@ pub mod m5_desktop_conformance;
 pub mod m5_embedded_boundaries;
 pub mod m5_entry_routes;
 pub mod m5_inclusive_depth;
+pub mod m5_mutation_history_inspector;
 pub mod m5_notification_routes;
 pub mod m5_rollout_governance;
 pub mod m5_start_center_and_switcher;
