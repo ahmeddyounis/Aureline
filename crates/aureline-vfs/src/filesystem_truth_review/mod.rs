@@ -47,8 +47,7 @@ pub const FILESYSTEM_TRUTH_REVIEW_ARTIFACT_REF: &str =
     "artifacts/state/filesystem_truth_review.json";
 
 /// Repo-relative reviewer artifact report.
-pub const FILESYSTEM_TRUTH_REVIEW_REPORT_REF: &str =
-    "artifacts/state/filesystem_truth_review.md";
+pub const FILESYSTEM_TRUTH_REVIEW_REPORT_REF: &str = "artifacts/state/filesystem_truth_review.md";
 
 /// Repo-relative fixture directory.
 pub const FILESYSTEM_TRUTH_REVIEW_FIXTURE_DIR: &str = "fixtures/state/filesystem_truth_review";
@@ -1381,14 +1380,20 @@ pub fn validate_filesystem_truth_review_packet(
         if !external_map.contains_key(scenario.external_change_review_id.as_str()) {
             report.push(
                 "scenario.external_change.missing",
-                format!("scenarios.{}.external_change_review_id", scenario.scenario_id),
+                format!(
+                    "scenarios.{}.external_change_review_id",
+                    scenario.scenario_id
+                ),
                 "scenario must reference an existing external-change review",
             );
         }
         if !move_map.contains_key(scenario.cross_root_move_review_id.as_str()) {
             report.push(
                 "scenario.cross_root_move.missing",
-                format!("scenarios.{}.cross_root_move_review_id", scenario.scenario_id),
+                format!(
+                    "scenarios.{}.cross_root_move_review_id",
+                    scenario.scenario_id
+                ),
                 "scenario must reference an existing cross-root move review",
             );
         }
@@ -1404,7 +1409,10 @@ pub fn validate_filesystem_truth_review_packet(
             report.push(
                 "scenario.root_coverage",
                 "scenarios",
-                format!("scenario coverage must include root class {}", required.as_str()),
+                format!(
+                    "scenario coverage must include root class {}",
+                    required.as_str()
+                ),
             );
         }
     }
@@ -1502,11 +1510,12 @@ pub fn validate_filesystem_truth_review_fixture(
         _ => {}
     }
     match drawer {
-        Some(drawer) if drawer.visibility_class != fixture.expected_ignore_visibility => report.push(
-            "fixture.ignore_visibility",
-            format!("fixtures.{}.expected_ignore_visibility", fixture.fixture_id),
-            "fixture expected_ignore_visibility must match the scenario drawer",
-        ),
+        Some(drawer) if drawer.visibility_class != fixture.expected_ignore_visibility => report
+            .push(
+                "fixture.ignore_visibility",
+                format!("fixtures.{}.expected_ignore_visibility", fixture.fixture_id),
+                "fixture expected_ignore_visibility must match the scenario drawer",
+            ),
         None => report.push(
             "fixture.ignore_drawer.missing",
             format!("fixtures.{}.expected_ignore_visibility", fixture.fixture_id),
@@ -1515,11 +1524,12 @@ pub fn validate_filesystem_truth_review_fixture(
         _ => {}
     }
     match external {
-        Some(external) if external.compare_outcome != fixture.expected_compare_outcome => report.push(
-            "fixture.compare_outcome",
-            format!("fixtures.{}.expected_compare_outcome", fixture.fixture_id),
-            "fixture expected_compare_outcome must match the scenario external-change review",
-        ),
+        Some(external) if external.compare_outcome != fixture.expected_compare_outcome => report
+            .push(
+                "fixture.compare_outcome",
+                format!("fixtures.{}.expected_compare_outcome", fixture.fixture_id),
+                "fixture expected_compare_outcome must match the scenario external-change review",
+            ),
         None => report.push(
             "fixture.external_change.missing",
             format!("fixtures.{}.expected_compare_outcome", fixture.fixture_id),
@@ -1528,9 +1538,7 @@ pub fn validate_filesystem_truth_review_fixture(
         _ => {}
     }
     match cross_root {
-        Some(cross_root)
-            if cross_root.boundary_crossing != fixture.expected_boundary_crossing =>
-        {
+        Some(cross_root) if cross_root.boundary_crossing != fixture.expected_boundary_crossing => {
             report.push(
                 "fixture.boundary_crossing",
                 format!("fixtures.{}.expected_boundary_crossing", fixture.fixture_id),
@@ -1621,7 +1629,10 @@ fn validate_actions(
             report.push(
                 "actions.allowed_set",
                 format!("{base}.action_id"),
-                format!("action_id {} is outside the closed vocabulary", action.action_id),
+                format!(
+                    "action_id {} is outside the closed vocabulary",
+                    action.action_id
+                ),
             );
         }
         if !seen.insert(action.action_id.as_str()) {
@@ -1697,8 +1708,17 @@ fn validate_watch_strip(
             }
         }
     }
-    validate_actions(&strip.actions, WATCH_ACTION_IDS, &format!("{base}.actions"), report);
-    validate_support_export(&strip.support_export, &format!("{base}.support_export"), report);
+    validate_actions(
+        &strip.actions,
+        WATCH_ACTION_IDS,
+        &format!("{base}.actions"),
+        report,
+    );
+    validate_support_export(
+        &strip.support_export,
+        &format!("{base}.support_export"),
+        report,
+    );
 }
 
 fn validate_ignore_drawer(
@@ -1726,8 +1746,17 @@ fn validate_ignore_drawer(
             "policy-hidden rows may not claim a direct override path",
         );
     }
-    validate_actions(&drawer.actions, IGNORE_ACTION_IDS, &format!("{base}.actions"), report);
-    validate_support_export(&drawer.support_export, &format!("{base}.support_export"), report);
+    validate_actions(
+        &drawer.actions,
+        IGNORE_ACTION_IDS,
+        &format!("{base}.actions"),
+        report,
+    );
+    validate_support_export(
+        &drawer.support_export,
+        &format!("{base}.support_export"),
+        report,
+    );
 }
 
 fn validate_external_change_review(
@@ -1770,7 +1799,11 @@ fn validate_external_change_review(
         &format!("{base}.actions"),
         report,
     );
-    validate_support_export(&review.support_export, &format!("{base}.support_export"), report);
+    validate_support_export(
+        &review.support_export,
+        &format!("{base}.support_export"),
+        report,
+    );
 }
 
 fn validate_cross_root_review(
@@ -1815,5 +1848,9 @@ fn validate_cross_root_review(
         &format!("{base}.actions"),
         report,
     );
-    validate_support_export(&review.support_export, &format!("{base}.support_export"), report);
+    validate_support_export(
+        &review.support_export,
+        &format!("{base}.support_export"),
+        report,
+    );
 }

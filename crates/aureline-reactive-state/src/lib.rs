@@ -67,6 +67,7 @@ pub mod producers;
 pub mod query_envelope;
 pub mod reactive_views;
 pub mod runtime;
+pub mod state_class_recovery;
 pub mod store;
 pub mod trace;
 pub mod verification;
@@ -79,16 +80,19 @@ pub use envelope::{
 pub use hooks::HookCounters;
 pub use m5_mutation_lineage::{
     seeded_m5_mutation_lineage_fixtures, seeded_m5_mutation_lineage_packet,
-    validate_m5_mutation_lineage_fixture, validate_m5_mutation_lineage_packet, ActorClass as M5MutationActorClass,
-    ArtifactClass as M5MutationArtifactClass, AutomationInfluence as M5MutationAutomationInfluence,
+    validate_m5_mutation_lineage_fixture, validate_m5_mutation_lineage_packet,
+    ActorClass as M5MutationActorClass, ArtifactClass as M5MutationArtifactClass,
+    AutomationInfluence as M5MutationAutomationInfluence,
     CheckpointClass as M5MutationCheckpointClass, CheckpointRef as M5MutationCheckpointRef,
     CheckpointRole as M5MutationCheckpointRole, GroupPhaseClass as M5MutationGroupPhaseClass,
     HistoryInspectorRow as M5MutationHistoryInspectorRow, M5MutationLineageFixture,
-    M5MutationLineagePacket, MutationEntry as M5MutationEntry, MutationGroupRecord as M5MutationGroupRecord,
-    MutationSurfaceClass as M5MutationSurfaceClass, PolicyInfluence as M5MutationPolicyInfluence,
-    ReversalClass as M5MutationReversalClass, ScopeClass as M5MutationScopeClass,
-    SourceClass as M5MutationSourceClass, SourceContractRefs as M5MutationSourceContractRefs,
-    SupportExportManifestRow as M5MutationSupportExportManifestRow, ValidationReport as M5MutationLineageValidationReport,
+    M5MutationLineagePacket, MutationEntry as M5MutationEntry,
+    MutationGroupRecord as M5MutationGroupRecord, MutationSurfaceClass as M5MutationSurfaceClass,
+    PolicyInfluence as M5MutationPolicyInfluence, ReversalClass as M5MutationReversalClass,
+    ScopeClass as M5MutationScopeClass, SourceClass as M5MutationSourceClass,
+    SourceContractRefs as M5MutationSourceContractRefs,
+    SupportExportManifestRow as M5MutationSupportExportManifestRow,
+    ValidationReport as M5MutationLineageValidationReport,
     ValidationViolation as M5MutationLineageValidationViolation, M5_MUTATION_LINEAGE_DOC_REF,
     M5_MUTATION_LINEAGE_FIXTURE_DIR, M5_MUTATION_LINEAGE_FIXTURE_MANIFEST_REF,
     M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND, M5_MUTATION_LINEAGE_PACKET_RECORD_KIND,
@@ -113,6 +117,27 @@ pub use runtime::{
     republish_workspace_readiness, workspace_readiness_producer, LiveReactiveStore,
     LiveSubscriptionToken, ReadinessLabel, ReadinessObserver, ReadinessProjection,
     WatcherHealthPhase, WorkspaceLifecyclePhase, WorkspaceReadinessSnapshot,
+};
+pub use state_class_recovery::{
+    seeded_state_class_recovery_fixtures, seeded_state_class_recovery_packet,
+    validate_state_class_recovery_fixture, validate_state_class_recovery_packet,
+    AuthorityClass as StateClassRecoveryAuthorityClass,
+    BlockedCapabilityClass as StateClassRecoveryBlockedCapabilityClass,
+    FailureMode as StateClassRecoveryFailureMode,
+    PlaceholderActionClass as StateClassRecoveryPlaceholderActionClass,
+    PlaceholderContinuityPlan as StateClassRecoveryPlaceholderContinuityPlan,
+    PlaceholderKind as StateClassRecoveryPlaceholderKind,
+    PreservedContextClass as StateClassRecoveryPreservedContextClass,
+    RecoveryFamilyRow as StateClassRecoveryFamilyRow, RecoveryRoute as StateClassRecoveryRoute,
+    SourceContractRefs as StateClassRecoverySourceContractRefs,
+    StateClass as StateClassRecoveryStateClass, StateClassRecoveryFixture,
+    StateClassRecoveryPacket, SurfaceFamily as StateClassRecoverySurfaceFamily,
+    ValidationReport as StateClassRecoveryValidationReport,
+    ValidationViolation as StateClassRecoveryValidationViolation, STATE_CLASS_RECOVERY_DOC_REF,
+    STATE_CLASS_RECOVERY_FIXTURE_DIR, STATE_CLASS_RECOVERY_FIXTURE_MANIFEST_REF,
+    STATE_CLASS_RECOVERY_FIXTURE_RECORD_KIND, STATE_CLASS_RECOVERY_PACKET_RECORD_KIND,
+    STATE_CLASS_RECOVERY_PACKET_REF, STATE_CLASS_RECOVERY_REPORT_REF,
+    STATE_CLASS_RECOVERY_SCHEMA_REF, STATE_CLASS_RECOVERY_SCHEMA_VERSION,
 };
 pub use store::{
     freshness_is_downgrade, ConsumerProjection, Emission, Producer, ReactiveStore, SamplePayload,

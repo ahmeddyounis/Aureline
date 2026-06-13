@@ -23,16 +23,13 @@ use serde::{Deserialize, Serialize};
 pub const M5_MUTATION_LINEAGE_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag carried by the packet.
-pub const M5_MUTATION_LINEAGE_PACKET_RECORD_KIND: &str =
-    "m5_mutation_lineage_packet_record";
+pub const M5_MUTATION_LINEAGE_PACKET_RECORD_KIND: &str = "m5_mutation_lineage_packet_record";
 
 /// Stable record-kind tag carried by fixtures.
-pub const M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND: &str =
-    "m5_mutation_lineage_fixture_record";
+pub const M5_MUTATION_LINEAGE_FIXTURE_RECORD_KIND: &str = "m5_mutation_lineage_fixture_record";
 
 /// Repo-relative schema ref.
-pub const M5_MUTATION_LINEAGE_SCHEMA_REF: &str =
-    "schemas/state/m5_mutation_lineage.schema.json";
+pub const M5_MUTATION_LINEAGE_SCHEMA_REF: &str = "schemas/state/m5_mutation_lineage.schema.json";
 
 /// Repo-relative reviewer doc ref.
 pub const M5_MUTATION_LINEAGE_DOC_REF: &str = "docs/state/m5_mutation_lineage.md";
@@ -1458,7 +1455,10 @@ pub fn validate_m5_mutation_lineage_packet(
     }
     if packet.source_contract_refs.fixture_manifest_ref != M5_MUTATION_LINEAGE_FIXTURE_MANIFEST_REF
     {
-        report.push("packet.fixture_manifest_ref", "fixture_manifest_ref drifted");
+        report.push(
+            "packet.fixture_manifest_ref",
+            "fixture_manifest_ref drifted",
+        );
     }
 
     let mut mutation_ids = BTreeSet::new();
@@ -1481,13 +1481,19 @@ pub fn validate_m5_mutation_lineage_packet(
         if entry.scope_id.trim().is_empty() {
             report.push(
                 "entry.scope_id",
-                format!("entry {} must carry a non-empty scope_id", entry.mutation_id),
+                format!(
+                    "entry {} must carry a non-empty scope_id",
+                    entry.mutation_id
+                ),
             );
         }
         if entry.affected_file_count == 0 {
             report.push(
                 "entry.file_count",
-                format!("entry {} must affect at least one file-like object", entry.mutation_id),
+                format!(
+                    "entry {} must affect at least one file-like object",
+                    entry.mutation_id
+                ),
             );
         }
         if entry.checkpoint_refs.is_empty() {
@@ -1512,7 +1518,10 @@ pub fn validate_m5_mutation_lineage_packet(
         if entry.consumer_refs.is_empty() {
             report.push(
                 "entry.consumer_refs",
-                format!("entry {} must carry at least one consumer ref", entry.mutation_id),
+                format!(
+                    "entry {} must carry at least one consumer ref",
+                    entry.mutation_id
+                ),
             );
             consumer_refs_ok = false;
         }
@@ -1549,7 +1558,10 @@ pub fn validate_m5_mutation_lineage_packet(
         ReversalClass::AuditOnly,
     ] {
         if !reversal_classes.contains(&required)
-            && !packet.groups.iter().any(|group| group.reversal_class == required)
+            && !packet
+                .groups
+                .iter()
+                .any(|group| group.reversal_class == required)
         {
             report.push(
                 "packet.required_reversal_missing",
@@ -1574,7 +1586,10 @@ pub fn validate_m5_mutation_lineage_packet(
         if group.member_mutation_ids.is_empty() {
             report.push(
                 "group.members_empty",
-                format!("group {} must cite at least one member mutation", group.group_id),
+                format!(
+                    "group {} must cite at least one member mutation",
+                    group.group_id
+                ),
             );
             continue;
         }
@@ -1587,7 +1602,10 @@ pub fn validate_m5_mutation_lineage_packet(
             let Some(entry) = entry_by_id.get(mutation_id.as_str()) else {
                 report.push(
                     "group.member_missing",
-                    format!("group {} cites missing mutation {}", group.group_id, mutation_id),
+                    format!(
+                        "group {} cites missing mutation {}",
+                        group.group_id, mutation_id
+                    ),
                 );
                 continue;
             };
@@ -1605,7 +1623,10 @@ pub fn validate_m5_mutation_lineage_packet(
                     "group.member_lineage_root_mismatch",
                     format!(
                         "entry {} points to lineage root {} but group {} uses {}",
-                        entry.mutation_id, entry.lineage_root_id, group.group_id, group.lineage_root_id
+                        entry.mutation_id,
+                        entry.lineage_root_id,
+                        group.group_id,
+                        group.lineage_root_id
                     ),
                 );
             }
@@ -1640,7 +1661,10 @@ pub fn validate_m5_mutation_lineage_packet(
         if collect_vec(group.artifact_classes.iter().copied()) != collect_vec(artifact_classes) {
             report.push(
                 "group.artifact_classes",
-                format!("group {} artifact_classes drifted from member entries", group.group_id),
+                format!(
+                    "group {} artifact_classes drifted from member entries",
+                    group.group_id
+                ),
             );
         }
         if collect_vec(group.automation_influences.iter().copied())
@@ -1672,16 +1696,20 @@ pub fn validate_m5_mutation_lineage_packet(
         if group.consumer_refs.is_empty() {
             report.push(
                 "group.consumer_refs",
-                format!("group {} must carry at least one consumer ref", group.group_id),
+                format!(
+                    "group {} must carry at least one consumer ref",
+                    group.group_id
+                ),
             );
             consumer_refs_ok = false;
         }
     }
 
-    if consumer_refs_ok && packet
-        .invariants
-        .iter()
-        .all(|invariant| invariant.trim().is_empty())
+    if consumer_refs_ok
+        && packet
+            .invariants
+            .iter()
+            .all(|invariant| invariant.trim().is_empty())
     {
         report.push("packet.invariants", "invariants must be non-empty");
     }
@@ -1794,7 +1822,10 @@ pub fn validate_m5_mutation_lineage_fixture(
     {
         report.push(
             "fixture.automation_influences",
-            format!("fixture {} automation_influences drifted", fixture.fixture_id),
+            format!(
+                "fixture {} automation_influences drifted",
+                fixture.fixture_id
+            ),
         );
     }
     if collect_vec(history_row.policy_influences.iter().copied())
@@ -1823,16 +1854,19 @@ pub fn validate_m5_mutation_lineage_fixture(
             ),
         );
     }
-    let consumer_visible = packet
-        .entries
-        .iter()
-        .any(|entry| entry.lineage_root_id == fixture.expected_lineage_root_id
-            && entry.consumer_refs.iter().any(|reference| reference == &fixture.consumer_ref))
-        || packet
-            .groups
-            .iter()
-            .any(|group| group.lineage_root_id == fixture.expected_lineage_root_id
-                && group.consumer_refs.iter().any(|reference| reference == &fixture.consumer_ref));
+    let consumer_visible = packet.entries.iter().any(|entry| {
+        entry.lineage_root_id == fixture.expected_lineage_root_id
+            && entry
+                .consumer_refs
+                .iter()
+                .any(|reference| reference == &fixture.consumer_ref)
+    }) || packet.groups.iter().any(|group| {
+        group.lineage_root_id == fixture.expected_lineage_root_id
+            && group
+                .consumer_refs
+                .iter()
+                .any(|reference| reference == &fixture.consumer_ref)
+    });
     if !consumer_visible {
         report.push(
             "fixture.consumer_ref",
@@ -1918,7 +1952,10 @@ fn validate_thread_rows(
         {
             report.push(
                 "support.safety_flags",
-                format!("support row {} violated metadata-safe export invariants", row.row_id),
+                format!(
+                    "support row {} violated metadata-safe export invariants",
+                    row.row_id
+                ),
             );
         }
         let thread_groups: Vec<_> = packet
@@ -1964,14 +2001,18 @@ fn validate_thread_row(
     group_by_id: BTreeMap<&str, &MutationGroupRecord>,
     report: &mut ValidationReport,
 ) {
-    let expected_group_ids: Vec<_> = collect_vec(thread_groups.iter().map(|group| group.group_id.clone()));
+    let expected_group_ids: Vec<_> =
+        collect_vec(thread_groups.iter().map(|group| group.group_id.clone()));
     if collect_vec(group_ids.iter().cloned()) != expected_group_ids {
         report.push(
             match prefix {
                 "history" => "history.group_ids",
                 _ => "support.group_ids",
             },
-            format!("{} row for {} drifted from grouped lineage ids", prefix, lineage_root_id),
+            format!(
+                "{} row for {} drifted from grouped lineage ids",
+                prefix, lineage_root_id
+            ),
         );
     }
 
@@ -1988,7 +2029,10 @@ fn validate_thread_row(
         if !group_by_id.contains_key(group.group_id.as_str()) {
             report.push(
                 "thread.group_id_missing",
-                format!("thread {} references unknown group {}", lineage_root_id, group.group_id),
+                format!(
+                    "thread {} references unknown group {}",
+                    lineage_root_id, group.group_id
+                ),
             );
         }
         for checkpoint in &group.checkpoint_refs {
@@ -2019,7 +2063,10 @@ fn validate_thread_row(
                 "history" => "history.mutation_ids",
                 _ => "support.mutation_ids",
             },
-            format!("{} row for {} drifted from mutation ids", prefix, lineage_root_id),
+            format!(
+                "{} row for {} drifted from mutation ids",
+                prefix, lineage_root_id
+            ),
         );
     }
     if collect_vec(artifact_classes.iter().copied()) != collect_vec(expected_artifact_classes) {
@@ -2028,7 +2075,10 @@ fn validate_thread_row(
                 "history" => "history.artifact_classes",
                 _ => "support.artifact_classes",
             },
-            format!("{} row for {} drifted from artifact classes", prefix, lineage_root_id),
+            format!(
+                "{} row for {} drifted from artifact classes",
+                prefix, lineage_root_id
+            ),
         );
     }
     if collect_vec(automation_influences.iter().copied())
@@ -2090,7 +2140,10 @@ fn validate_thread_row(
                 "history" => "history.reversal_classes",
                 _ => "support.reversal_classes",
             },
-            format!("{} row for {} drifted from reversal classes", prefix, lineage_root_id),
+            format!(
+                "{} row for {} drifted from reversal classes",
+                prefix, lineage_root_id
+            ),
         );
     }
     if prefix == "history"
@@ -2098,12 +2151,18 @@ fn validate_thread_row(
     {
         report.push(
             "history.checkpoint_ids",
-            format!("history row for {} drifted from checkpoint ids", lineage_root_id),
+            format!(
+                "history row for {} drifted from checkpoint ids",
+                lineage_root_id
+            ),
         );
     }
 }
 
-fn validate_required_thread_linkage(packet: &M5MutationLineagePacket, report: &mut ValidationReport) {
+fn validate_required_thread_linkage(
+    packet: &M5MutationLineagePacket,
+    report: &mut ValidationReport,
+) {
     let notebook_thread_entries: BTreeSet<_> = packet
         .entries
         .iter()
@@ -2205,8 +2264,7 @@ fn mutation_group(
         .collect();
     let total_file_count = members.iter().map(|entry| entry.affected_file_count).sum();
     let artifact_classes = collect_vec(members.iter().map(|entry| entry.artifact_class));
-    let automation_influences =
-        collect_vec(members.iter().map(|entry| entry.automation_influence));
+    let automation_influences = collect_vec(members.iter().map(|entry| entry.automation_influence));
     let policy_influences = collect_vec(members.iter().map(|entry| entry.policy_influence));
     let reversal_class = members
         .iter()
@@ -2253,7 +2311,10 @@ fn inspector_row(
         .iter()
         .filter(|group| group.lineage_root_id == lineage_root_id)
         .collect();
-    let group_ids = thread_groups.iter().map(|group| group.group_id.clone()).collect();
+    let group_ids = thread_groups
+        .iter()
+        .map(|group| group.group_id.clone())
+        .collect();
     let mutation_ids = thread_groups
         .iter()
         .flat_map(|group| group.member_mutation_ids.iter().cloned())
@@ -2273,8 +2334,11 @@ fn inspector_row(
         .map(|entry| entry.affected_file_count)
         .sum();
     let artifact_classes = collect_vec(thread_entries.iter().map(|entry| entry.artifact_class));
-    let automation_influences =
-        collect_vec(thread_entries.iter().map(|entry| entry.automation_influence));
+    let automation_influences = collect_vec(
+        thread_entries
+            .iter()
+            .map(|entry| entry.automation_influence),
+    );
     let policy_influences = collect_vec(thread_entries.iter().map(|entry| entry.policy_influence));
     let checkpoint_ids = collect_vec(thread_entries.iter().flat_map(|entry| {
         entry
@@ -2345,7 +2409,11 @@ fn collect_vec<T>(items: impl IntoIterator<Item = T>) -> Vec<T>
 where
     T: Ord,
 {
-    let mut items: Vec<_> = items.into_iter().collect::<BTreeSet<_>>().into_iter().collect();
+    let mut items: Vec<_> = items
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     items.sort();
     items
 }
@@ -2367,8 +2435,9 @@ mod tests {
         let fixtures = seeded_m5_mutation_lineage_fixtures();
         assert_eq!(fixtures.len(), 5);
         for fixture in &fixtures {
-            validate_m5_mutation_lineage_fixture(&packet, fixture)
-                .unwrap_or_else(|err| panic!("fixture {} must validate: {err}", fixture.fixture_id));
+            validate_m5_mutation_lineage_fixture(&packet, fixture).unwrap_or_else(|err| {
+                panic!("fixture {} must validate: {err}", fixture.fixture_id)
+            });
         }
     }
 

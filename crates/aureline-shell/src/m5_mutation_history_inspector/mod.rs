@@ -10,14 +10,14 @@ use std::fmt;
 
 use aureline_reactive_state::{
     seeded_m5_mutation_lineage_packet, validate_m5_mutation_lineage_packet,
-    M5MutationArtifactClass, M5MutationAutomationInfluence, M5MutationHistoryInspectorRow as PacketHistoryInspectorRow,
-    M5MutationLineagePacket, M5MutationLineageValidationReport, M5MutationPolicyInfluence,
-    M5MutationReversalClass, M5MutationSurfaceClass,
+    M5MutationArtifactClass, M5MutationAutomationInfluence,
+    M5MutationHistoryInspectorRow as PacketHistoryInspectorRow, M5MutationLineagePacket,
+    M5MutationLineageValidationReport, M5MutationPolicyInfluence, M5MutationReversalClass,
+    M5MutationSurfaceClass,
 };
 
 /// Presentation label rendered for the cross-surface history inspector.
-pub const M5_MUTATION_HISTORY_INSPECTOR_PRESENTATION_LABEL: &str =
-    "M5 mutation-history inspector";
+pub const M5_MUTATION_HISTORY_INSPECTOR_PRESENTATION_LABEL: &str = "M5 mutation-history inspector";
 
 /// Presentation subtitle rendered for the cross-surface history inspector.
 pub const M5_MUTATION_HISTORY_INSPECTOR_PRESENTATION_SUBTITLE: &str =
@@ -109,8 +109,7 @@ pub fn build_m5_mutation_history_rows(
 ///
 /// Returns [`M5MutationHistoryInspectorError`] when the packet fails
 /// validation.
-pub fn render_m5_mutation_history_plaintext(
-) -> Result<String, M5MutationHistoryInspectorError> {
+pub fn render_m5_mutation_history_plaintext() -> Result<String, M5MutationHistoryInspectorError> {
     let rows = build_m5_mutation_history_rows()?;
     let mut lines = vec![
         "M5 mutation-history inspector".to_string(),

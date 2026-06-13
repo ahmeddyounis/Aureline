@@ -9,11 +9,11 @@
 use std::fmt;
 
 use aureline_reactive_state::{
-    seeded_m5_mutation_lineage_packet, validate_m5_mutation_lineage_packet, M5MutationArtifactClass,
-    M5MutationAutomationInfluence, M5MutationLineagePacket,
-    M5MutationLineageValidationReport, M5MutationPolicyInfluence,
-    M5MutationReversalClass, M5MutationSupportExportManifestRow,
-    M5_MUTATION_LINEAGE_DOC_REF, M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
+    seeded_m5_mutation_lineage_packet, validate_m5_mutation_lineage_packet,
+    M5MutationArtifactClass, M5MutationAutomationInfluence, M5MutationLineagePacket,
+    M5MutationLineageValidationReport, M5MutationPolicyInfluence, M5MutationReversalClass,
+    M5MutationSupportExportManifestRow, M5_MUTATION_LINEAGE_DOC_REF,
+    M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
 };
 use serde::{Deserialize, Serialize};
 
@@ -160,7 +160,10 @@ impl M5MutationLineageSupportExportEnvelope {
             && self.schema_ref == M5_MUTATION_LINEAGE_SCHEMA_REF
             && self.report_ref == M5_MUTATION_LINEAGE_REPORT_REF
             && !self.rows.is_empty()
-            && self.rows.iter().all(M5MutationLineageSupportExportRow::is_export_safe)
+            && self
+                .rows
+                .iter()
+                .all(M5MutationLineageSupportExportRow::is_export_safe)
     }
 }
 
@@ -238,14 +241,12 @@ mod tests {
             row.highest_risk_reversal_class,
             M5MutationReversalClass::Manual
         );
-        assert!(
-            row.reversal_classes
-                .contains(&M5MutationReversalClass::Compensate)
-        );
-        assert!(
-            row.reversal_classes
-                .contains(&M5MutationReversalClass::Manual)
-        );
+        assert!(row
+            .reversal_classes
+            .contains(&M5MutationReversalClass::Compensate));
+        assert!(row
+            .reversal_classes
+            .contains(&M5MutationReversalClass::Manual));
         assert!(row.single_lineage_thread_preserved);
     }
 }

@@ -9,9 +9,8 @@ use aureline_reactive_state::{
     validate_m5_mutation_lineage_fixture, validate_m5_mutation_lineage_packet,
     M5MutationArtifactClass, M5MutationLineageFixture, M5MutationLineagePacket,
     M5MutationReversalClass, M5MutationSurfaceClass, M5_MUTATION_LINEAGE_DOC_REF,
-    M5_MUTATION_LINEAGE_FIXTURE_DIR,
-    M5_MUTATION_LINEAGE_FIXTURE_MANIFEST_REF, M5_MUTATION_LINEAGE_PACKET_REF,
-    M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
+    M5_MUTATION_LINEAGE_FIXTURE_DIR, M5_MUTATION_LINEAGE_FIXTURE_MANIFEST_REF,
+    M5_MUTATION_LINEAGE_PACKET_REF, M5_MUTATION_LINEAGE_REPORT_REF, M5_MUTATION_LINEAGE_SCHEMA_REF,
 };
 
 fn repo_root() -> PathBuf {
@@ -96,7 +95,11 @@ fn files_exist_on_disk() {
 #[test]
 fn packet_covers_required_surface_and_reversal_vocabularies() {
     let packet = load_packet();
-    let surfaces: BTreeSet<_> = packet.entries.iter().map(|entry| entry.surface_class).collect();
+    let surfaces: BTreeSet<_> = packet
+        .entries
+        .iter()
+        .map(|entry| entry.surface_class)
+        .collect();
     for required in [
         M5MutationSurfaceClass::NotebookDocument,
         M5MutationSurfaceClass::NotebookOutput,

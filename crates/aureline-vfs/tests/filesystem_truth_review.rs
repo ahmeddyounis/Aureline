@@ -54,8 +54,7 @@ fn packet_matches_seeded_projection_and_validates() {
     validate_filesystem_truth_review_packet(&packet)
         .expect("artifact packet must satisfy the frozen contract");
     assert_eq!(
-        packet.record_kind,
-        FILESYSTEM_TRUTH_REVIEW_PACKET_RECORD_KIND,
+        packet.record_kind, FILESYSTEM_TRUTH_REVIEW_PACKET_RECORD_KIND,
         "packet record_kind must stay stable"
     );
 }
@@ -102,7 +101,11 @@ fn files_exist_on_disk() {
 #[test]
 fn scenario_coverage_spans_required_root_classes() {
     let packet = load_packet();
-    let roots: BTreeSet<_> = packet.scenarios.iter().map(|scenario| scenario.root_class).collect();
+    let roots: BTreeSet<_> = packet
+        .scenarios
+        .iter()
+        .map(|scenario| scenario.root_class)
+        .collect();
     for required in [
         MatrixRootClass::LocalFilesystem,
         MatrixRootClass::RemoteAgent,
@@ -162,6 +165,9 @@ fn fixture_expectations_lock_the_required_review_truths() {
     assert!(fixtures.iter().any(|fixture| {
         fixture.expected_watch_mode == WatchMode::ProviderRefreshOnly
             && fixture.expected_ignore_visibility == IgnoreVisibilityClass::PolicyHidden
-            && fixture.required_action_ids.iter().any(|id| id == "open_policy_details")
+            && fixture
+                .required_action_ids
+                .iter()
+                .any(|id| id == "open_policy_details")
     }));
 }

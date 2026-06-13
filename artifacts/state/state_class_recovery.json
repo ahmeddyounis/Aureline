@@ -1,0 +1,363 @@
+{
+  "families": [
+    {
+      "authority_class": "user_authored_durable_truth",
+      "consumer_refs": [
+        "crates/aureline-shell/src/activity_center/deferred_publish.rs",
+        "crates/aureline-shell/src/m5_activity_objects/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "guided_repair"
+      ],
+      "family_id": "provider_local_draft",
+      "intact_state_summary": "The surrounding layout, local draft text, linked review context, and publish-later lineage remain intact.",
+      "notes": "Provider-linked drafts keep a truthful placeholder and a preserved rollback target instead of silently reissuing managed writes.",
+      "placeholder_plan": {
+        "actions": [
+          "restore_from_rollback",
+          "compare_preserved_artifact",
+          "start_repair_flow",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "managed_publish",
+          "direct_write"
+        ],
+        "placeholder_kind": "rollback_ready",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "draft_edits",
+          "last_known_metadata",
+          "mutation_lineage"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "The draft stays visible in place with its lineage and retained compare target while publish and direct writes remain blocked."
+      },
+      "primary_recovery_route": "rollback_to_preserved_artifact",
+      "safest_route_rationale": "Rolling back to the preserved draft is safer than reset or rebuild because this family carries user-authored content that the product does not own.",
+      "source_contract_refs": [
+        "crates/aureline-provider/src/lib.rs",
+        "artifacts/state/migration_playbook_index.yaml#provider_family:linked_drafts"
+      ],
+      "state_class": "durable_user_state",
+      "supported_failure_modes": [
+        "partial_corruption",
+        "missing_dependency"
+      ],
+      "surface_family": "provider_draft"
+    },
+    {
+      "authority_class": "user_authored_durable_truth",
+      "consumer_refs": [
+        "crates/aureline-shell/src/request_workspace/mod.rs",
+        "crates/aureline-shell/src/m5_activity_objects/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "rollback_to_preserved_artifact"
+      ],
+      "family_id": "request_workspace",
+      "intact_state_summary": "Workspace chrome, surrounding tabs, pinned inputs, and redaction-safe request history remain open.",
+      "notes": "Request workspace state keeps surrounding context and routes into compare-first repair rather than collapsing the whole workspace.",
+      "placeholder_plan": {
+        "actions": [
+          "start_repair_flow",
+          "compare_preserved_artifact",
+          "restore_from_rollback",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "direct_write",
+          "managed_publish"
+        ],
+        "placeholder_kind": "context_only",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "workspace_chrome",
+          "mutation_lineage",
+          "last_known_metadata"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Request panes reopen with their slot, identity, and request history intact while the broken document family waits for review."
+      },
+      "primary_recovery_route": "guided_repair",
+      "safest_route_rationale": "Request-workspace corruption can often be repaired or compared in place; a broader workspace reset would discard intact neighboring state for no gain.",
+      "source_contract_refs": [
+        "crates/aureline-shell/src/request_workspace/mod.rs",
+        "crates/aureline-shell/src/review_preview/mod.rs"
+      ],
+      "state_class": "workspace_state",
+      "supported_failure_modes": [
+        "partial_corruption",
+        "missing_dependency"
+      ],
+      "surface_family": "request_workspace"
+    },
+    {
+      "authority_class": "user_authored_durable_truth",
+      "consumer_refs": [
+        "crates/aureline-shell/src/notebook_alpha/mod.rs",
+        "crates/aureline-shell/src/window_topology_restore_stable/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "rollback_to_preserved_artifact"
+      ],
+      "family_id": "notebook_workspace",
+      "intact_state_summary": "The notebook pane, neighboring layout, and retained notebook lineage stay visible even when the structured notebook body is quarantined.",
+      "notes": "Notebook placeholder continuity keeps the pane honest about blocked runtime state instead of silently dropping it from restore.",
+      "placeholder_plan": {
+        "actions": [
+          "start_repair_flow",
+          "compare_preserved_artifact",
+          "restore_from_rollback",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "live_execution",
+          "direct_write"
+        ],
+        "placeholder_kind": "context_only",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "workspace_chrome",
+          "mutation_lineage",
+          "last_known_metadata"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Notebook panes keep their slot, identity, and notebook context while execution and writes stay blocked behind repair or rollback."
+      },
+      "primary_recovery_route": "guided_repair",
+      "safest_route_rationale": "Notebook state is durable workspace truth; guided repair preserves metadata and attachments more safely than any destructive rebuild.",
+      "source_contract_refs": [
+        "crates/aureline-notebook/src/materialize_the_canonical_ipynb_document_model_stable_cell_ids_attachments_and_no_kernel_editability/mod.rs",
+        "artifacts/state/migration_playbook_index.yaml#notebook_family:notebook_state"
+      ],
+      "state_class": "workspace_state",
+      "supported_failure_modes": [
+        "partial_corruption",
+        "missing_dependency"
+      ],
+      "surface_family": "notebook_workspace"
+    },
+    {
+      "authority_class": "disposable_derived_cache",
+      "consumer_refs": [
+        "crates/aureline-shell/src/preview_truth/mod.rs",
+        "crates/aureline-shell/src/window_topology_restore_stable/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "guided_repair"
+      ],
+      "family_id": "preview_cache",
+      "intact_state_summary": "The preview slot, route identity, and last-known metadata remain visible while only the broken cache shard is replaced.",
+      "notes": "Broken preview cache shards narrow only the preview lane and reopen the slot with a truthful stale placeholder.",
+      "placeholder_plan": {
+        "actions": [
+          "retry_rebuild",
+          "open_without_artifact",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "background_refresh",
+          "regeneration_claims"
+        ],
+        "placeholder_kind": "stale_derived_artifact",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "last_known_metadata",
+          "retained_evidence"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Preview surfaces reopen with a stale-artifact placeholder and retained evidence while rebuild reruns from authoritative source state."
+      },
+      "primary_recovery_route": "rebuild_automatically",
+      "safest_route_rationale": "Preview cache shards are derived state. Automatic rebuild is safer than rollback because the authoritative source remains elsewhere and user state is untouched.",
+      "source_contract_refs": [
+        "crates/aureline-preview/src/preview_origin/mod.rs",
+        "crates/aureline-shell/src/preview_truth/mod.rs"
+      ],
+      "state_class": "derived_cache_state",
+      "supported_failure_modes": [
+        "broken_cache_shard",
+        "missing_dependency"
+      ],
+      "surface_family": "preview_cache"
+    },
+    {
+      "authority_class": "disposable_derived_cache",
+      "consumer_refs": [
+        "crates/aureline-shell/src/preview_truth/mod.rs",
+        "crates/aureline-shell/src/support_center/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "guided_repair"
+      ],
+      "family_id": "generated_artifacts",
+      "intact_state_summary": "Notebook outputs, exports, traces, and other generated artifacts keep their lineage, metadata, and surrounding layout even when current bytes are stale.",
+      "notes": "Generated artifact drift is surfaced as stale or retained output, not as a silent claim that current output is still live truth.",
+      "placeholder_plan": {
+        "actions": [
+          "retry_rebuild",
+          "open_without_artifact",
+          "compare_preserved_artifact",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "direct_write",
+          "regeneration_claims"
+        ],
+        "placeholder_kind": "stale_derived_artifact",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "mutation_lineage",
+          "last_known_metadata",
+          "retained_evidence"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Generated outputs reopen as retained or stale artifacts with their lineage visible until regeneration succeeds or a repair review takes over."
+      },
+      "primary_recovery_route": "rebuild_automatically",
+      "safest_route_rationale": "Generated artifacts derive from notebook, query, preview, or trace sources. Regeneration is the narrowest safe action and avoids rewriting durable source state.",
+      "source_contract_refs": [
+        "crates/aureline-notebook/src/materialize_notebook_output_trust_classes_sanitized_or_sandboxed_viewer_lanes_and_large_output_virtualization/mod.rs",
+        "crates/aureline-data/src/database_qualification.rs",
+        "crates/aureline-profiler/src/integrate_profile_and_trace_artifacts_into_incident_workspaces_ai_explanations_and_support_bundles/mod.rs"
+      ],
+      "state_class": "generated_artifact_state",
+      "supported_failure_modes": [
+        "stale_derived_overlay",
+        "missing_dependency"
+      ],
+      "surface_family": "generated_artifacts"
+    },
+    {
+      "authority_class": "user_owned_recovery_state",
+      "consumer_refs": [
+        "crates/aureline-shell/src/activity_center/deferred_publish.rs",
+        "crates/aureline-shell/src/restore/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "rollback_to_preserved_artifact"
+      ],
+      "family_id": "sync_journal",
+      "intact_state_summary": "Queued sync intent, preserved unsaved work, and surrounding activity context stay reachable even when replay must stop for review.",
+      "notes": "Journal-preserved work must reopen as honest drafts or compare views; no managed action replays invisibly.",
+      "placeholder_plan": {
+        "actions": [
+          "compare_preserved_artifact",
+          "start_repair_flow",
+          "restore_from_rollback",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "managed_publish",
+          "direct_write"
+        ],
+        "placeholder_kind": "recovered_draft",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "draft_edits",
+          "mutation_lineage",
+          "last_known_metadata"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Journal-backed work reopens as recovered drafts with compare-first repair rather than replaying or discarding queued mutations."
+      },
+      "primary_recovery_route": "guided_repair",
+      "safest_route_rationale": "Recovery journals may hold unsent or unpublished user intent. Guided repair and recovered-draft placeholders are safer than reset because they preserve user-owned work for review.",
+      "source_contract_refs": [
+        "artifacts/state/state_objects.yaml#state_objects[id=sync_metadata]",
+        "crates/aureline-shell/src/activity_center/deferred_publish.rs"
+      ],
+      "state_class": "recovery_journal_state",
+      "supported_failure_modes": [
+        "journal_preserved_unsaved_work",
+        "missing_dependency",
+        "partial_corruption"
+      ],
+      "surface_family": "sync_journal"
+    },
+    {
+      "authority_class": "admin_or_control_artifact",
+      "consumer_refs": [
+        "crates/aureline-policy/src/lib.rs",
+        "crates/aureline-shell/src/policy_pack_beta/mod.rs"
+      ],
+      "fallback_recovery_routes": [
+        "guided_repair"
+      ],
+      "family_id": "trust_policy",
+      "intact_state_summary": "Ordinary local editing, layout context, and last-known managed metadata remain intact even while privileged routes stay blocked.",
+      "notes": "Trust and policy failures narrow managed capabilities in place instead of erasing surrounding context or silently widening authority.",
+      "placeholder_plan": {
+        "actions": [
+          "reauthenticate_managed_surface",
+          "start_repair_flow",
+          "export_support_packet",
+          "remove_placeholder"
+        ],
+        "blocked_capabilities": [
+          "privileged_apply",
+          "managed_publish"
+        ],
+        "placeholder_kind": "privileged_blocked",
+        "preserved_context": [
+          "layout_slot",
+          "logical_identity",
+          "workspace_chrome",
+          "last_known_metadata"
+        ],
+        "preserves_layout_slot": true,
+        "preserves_logical_identity": true,
+        "summary": "Managed surfaces stay visible with a blocked-privileged placeholder so local editing continues while trust or policy state is repaired."
+      },
+      "primary_recovery_route": "fail_closed_privileged_operations",
+      "safest_route_rationale": "Corrupted trust or policy state must fail closed for privileged operations only. Blocking the entire app would overreach when local editing remains safe.",
+      "source_contract_refs": [
+        "artifacts/state/state_objects.yaml#state_objects[id=admin_policy_bundle]",
+        "artifacts/state/corruption_routing_matrix.yaml#posture_rows[id=fail_closed_for_privileged_operations]"
+      ],
+      "state_class": "security_trust_state",
+      "supported_failure_modes": [
+        "quarantined_trust_state",
+        "missing_dependency"
+      ],
+      "surface_family": "trust_policy"
+    }
+  ],
+  "invariants": [
+    "Each covered state class degrades independently; damage in one family does not justify a wider workspace or whole-app reset.",
+    "Placeholder continuity preserves layout slot and logical identity when a family is missing, stale, quarantined, or under review.",
+    "Durable user and workspace state never rebuild automatically; derived caches and generated artifacts prefer rebuild because authoritative truth lives elsewhere.",
+    "Recovery journals preserve drafts and compare targets rather than silently replaying or discarding user-owned intent.",
+    "Trust and policy corruption fails closed for privileged operations while keeping ordinary local editing and support export available."
+  ],
+  "packet_id": "state.state_class_recovery.v1",
+  "record_kind": "state_class_recovery_packet_record",
+  "schema_version": 1,
+  "source_contract_refs": {
+    "doc_ref": "docs/state/state_class_recovery.md",
+    "fixture_manifest_ref": "fixtures/state/state_class_recovery/manifest.yaml",
+    "packet_ref": "artifacts/state/state_class_recovery.json",
+    "report_ref": "artifacts/state/state_class_recovery.md",
+    "schema_ref": "schemas/state/state_class_recovery.schema.json"
+  },
+  "title": "State-class recovery routing and placeholder continuity"
+}

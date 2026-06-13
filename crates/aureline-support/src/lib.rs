@@ -239,6 +239,7 @@ pub mod stabilize_extension_bisect_suspect_runtime_quarantine_and_bounded;
 pub mod stabilize_runbook_source_step_envelope_and_handoff_truth;
 pub mod stabilize_support_bundle_generation_with_redaction_default_manifests;
 pub mod stabilize_the_seeded_support_scenario_corpus_across_launch_archetypes_and_enterprise_network_rows;
+pub mod state_class_recovery;
 pub mod storage_inspector;
 pub mod supervised_restart_evidence_pipeline;
 
@@ -287,12 +288,6 @@ pub use m5_fault_crash_certification::{
     M5_FAULT_CRASH_CERTIFICATION_FIXTURE_DIR, M5_FAULT_CRASH_CERTIFICATION_PACKET_RECORD_KIND,
     M5_FAULT_CRASH_CERTIFICATION_SCHEMA_REF, M5_FAULT_CRASH_CERTIFICATION_SCHEMA_VERSION,
 };
-pub use m5_mutation_lineage::{
-    compile_support_export_envelope as compile_m5_mutation_lineage_support_export_envelope,
-    M5MutationLineageSupportExportEnvelope, M5MutationLineageSupportExportError,
-    M5MutationLineageSupportExportRow, M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
-    M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND,
-};
 pub use m5_fault_crash_governance::{
     seeded_m5_fault_crash_governance_packet, CheckpointSourceClass, ClaimStateClass,
     CrashArtifactClass, CrashArtifactGovernanceRow, DiagnosticDataClass, DiagnosticOptInScope,
@@ -318,6 +313,12 @@ pub use m5_host_failure_drills::{
     M5_HOST_FAILURE_DRILL_FIXTURE_DIR, M5_HOST_FAILURE_DRILL_PACKET_RECORD_KIND,
     M5_HOST_FAILURE_DRILL_SCHEMA_REF, M5_HOST_FAILURE_DRILL_SCHEMA_VERSION,
 };
+pub use m5_mutation_lineage::{
+    compile_support_export_envelope as compile_m5_mutation_lineage_support_export_envelope,
+    M5MutationLineageSupportExportEnvelope, M5MutationLineageSupportExportError,
+    M5MutationLineageSupportExportRow, M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
     RecoveryReviewPacket, RecoveryReviewViolation, ScopedResetReviewRow,
@@ -341,6 +342,12 @@ pub use schema_registry::{
     DEPTH_SCHEMA_REGISTRY_DOC_REF, DEPTH_SCHEMA_REGISTRY_FIXTURE_DIR,
     DEPTH_SCHEMA_REGISTRY_PACKET_RECORD_KIND, DEPTH_SCHEMA_REGISTRY_SCHEMA_REF,
     DEPTH_SCHEMA_REGISTRY_SCHEMA_VERSION,
+};
+pub use state_class_recovery::{
+    compile_support_export_envelope as compile_state_class_recovery_support_export_envelope,
+    StateClassRecoverySupportExportEnvelope, StateClassRecoverySupportExportError,
+    StateClassRecoverySupportExportRow, STATE_CLASS_RECOVERY_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
+    STATE_CLASS_RECOVERY_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use supervised_restart_evidence_pipeline::{
     seeded_supervised_restart_evidence_packet, FaultDomainRestartSummary, HostLaneIdentityRecord,
