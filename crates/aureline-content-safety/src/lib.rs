@@ -37,6 +37,7 @@
 pub mod content_integrity;
 pub mod detector;
 pub mod freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_export_matrix;
+pub mod m5_mutation_path_fix_flow;
 pub mod m5_raw_rendered_handoff;
 pub mod m5_safe_preview_limited_mode;
 pub mod m5_suspicious_text_detector_parity;
@@ -81,6 +82,19 @@ pub use freeze_the_m5_suspicious_content_safe_preview_and_representation_copy_ex
     M5_CONTENT_INTEGRITY_MATRIX_SUMMARY_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TEXT_REPRESENTATION_CONTRACT_REF,
     M5_CONTENT_INTEGRITY_MATRIX_TRUST_CLASS_CONTRACT_REF,
+};
+pub use m5_mutation_path_fix_flow::{
+    current_m5_mutation_path_fix_flow_export, frozen_m5_mutation_path_fix_flow_packet,
+    project_m5_mutation_path_fix_flow, M5FixFlow, M5FixFlowMode, M5FixKind, M5MutationPath,
+    M5MutationPathFixFlowExportError, M5MutationPathFixFlowPacket, M5MutationPathFixFlowReview,
+    M5MutationPathFixFlowSeed, M5MutationPathFixFlowViolation, M5MutationPathInput,
+    M5MutationPathProjection, M5SuppressionAudit, M5SuppressionRecord, M5SuppressionScope,
+    M5SuppressionSeed, M5_MUTATION_PATH_FIX_FLOW_ARTIFACT_REF,
+    M5_MUTATION_PATH_FIX_FLOW_CONTENT_INTEGRITY_MATRIX_CONTRACT_REF,
+    M5_MUTATION_PATH_FIX_FLOW_DOC_REF, M5_MUTATION_PATH_FIX_FLOW_FIXTURE_DIR,
+    M5_MUTATION_PATH_FIX_FLOW_PACKET_ID, M5_MUTATION_PATH_FIX_FLOW_RECORD_KIND,
+    M5_MUTATION_PATH_FIX_FLOW_SCHEMA_REF, M5_MUTATION_PATH_FIX_FLOW_SCHEMA_VERSION,
+    M5_MUTATION_PATH_FIX_FLOW_SUSPICIOUS_TEXT_CONTRACT_REF,
 };
 pub use m5_raw_rendered_handoff::{
     current_m5_raw_rendered_handoff_export, frozen_m5_raw_rendered_handoff_packet,
