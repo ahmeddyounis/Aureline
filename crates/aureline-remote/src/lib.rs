@@ -53,6 +53,14 @@
 //!   typed [`networked_surface_transport_decision::TransportOutcomeClass`]
 //!   before any side effects leave the boundary. Mirrors the boundary schema at
 //!   `/schemas/network/networked_surface_transport_decision.schema.json`.
+//! - [`networked_surface_transport_explainability::TransportExplainabilityPage`]
+//!   — the explainability layer that projects the decision stream into
+//!   current-posture inspectors, a recent network-event ledger filterable by
+//!   endpoint class, origin scope, and allow/deny outcome, and per-action
+//!   explain sheets rendered through one stable field catalog so product,
+//!   CLI/headless, diagnostics, and support exports quote identical decision
+//!   codes and field names. Mirrors the boundary schema at
+//!   `/schemas/network/networked_surface_transport_explainability.schema.json`.
 //!
 //! All records reuse closed-vocabulary tokens so the surface a user sees in
 //! the UI is identical to the tokens logs, audits, and exports quote.
@@ -67,6 +75,7 @@ pub mod finalize_qualification_rows_for_desktop_local_remote_helper;
 pub mod harden_the_connected_provider_registry_capability_matrix_and;
 pub mod managed_workspace_lifecycle;
 pub mod networked_surface_transport_decision;
+pub mod networked_surface_transport_explainability;
 pub mod networked_surface_transport_matrix;
 pub mod route_governance;
 pub mod stabilize_transport_governance_and_egress_classification_across_update;
@@ -181,4 +190,22 @@ pub use networked_surface_transport_decision::{
     TRANSPORT_DECISION_ROW_RECORD_KIND, TRANSPORT_DECISION_SCHEMA_VERSION,
     TRANSPORT_DECISION_SHARED_CONTRACT_REF, TRANSPORT_DECISION_SUMMARY_RECORD_KIND,
     TRANSPORT_DECISION_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use networked_surface_transport_explainability::{
+    audit_transport_explainability_page, seeded_transport_explainability_page,
+    seeded_transport_explainability_snapshot, validate_transport_explainability_page,
+    ActionExplainSheet, EventDispositionClass, ExplainField, ExplainNarrowReasonClass,
+    ExplainQualificationClass, NetworkEventLedger, NetworkEventLedgerEntry,
+    TransportExplainabilityDefect, TransportExplainabilityPage, TransportExplainabilityRow,
+    TransportExplainabilitySummary, TransportExplainabilitySupportExport,
+    TransportPostureInspector, EXPLAIN_FIELD_NAMES, TRANSPORT_EXPLAINABILITY_ARTIFACT_REF,
+    TRANSPORT_EXPLAINABILITY_DEFECT_RECORD_KIND, TRANSPORT_EXPLAINABILITY_DOC_REF,
+    TRANSPORT_EXPLAINABILITY_EVENT_RECORD_KIND, TRANSPORT_EXPLAINABILITY_EVIDENCE_INDEX_REF,
+    TRANSPORT_EXPLAINABILITY_EXPLAIN_SHEET_RECORD_KIND,
+    TRANSPORT_EXPLAINABILITY_LEDGER_RECORD_KIND, TRANSPORT_EXPLAINABILITY_PAGE_RECORD_KIND,
+    TRANSPORT_EXPLAINABILITY_POSTURE_RECORD_KIND, TRANSPORT_EXPLAINABILITY_ROW_RECORD_KIND,
+    TRANSPORT_EXPLAINABILITY_SCHEMA_VERSION, TRANSPORT_EXPLAINABILITY_SHARED_CONTRACT_REF,
+    TRANSPORT_EXPLAINABILITY_SUMMARY_RECORD_KIND,
+    TRANSPORT_EXPLAINABILITY_SUPPORT_EXPORT_RECORD_KIND,
 };
