@@ -1,0 +1,69 @@
+# M5 Keyboard-First Modal Parity / Clipboard-Drop / Grouped-History / Orientation-Aid Certification
+
+- Packet: `m5-interaction-parity-certification:stable:0001`
+- Label: `M5 Keyboard-First Modal Parity, Clipboard-Drop Safety, Grouped-History Honesty, and Orientation-Aid Continuity Certification`
+- Rows: 8 (8 claimed, 1 imported, 1 narrowed)
+- Surface kinds: 8 / 8
+- Dimensions certified: 5 / 5
+- Evidence freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Rows
+
+- **interaction-cert:editor-core:0001** (editor_core): claim `switching_certified` -> effective `switching_certified`
+  - Editor core: full modal parity, plain-text copy, distinct undo classes, live orientation aids, reviewed macro replay
+  - subject `surface:interaction-cert:editor-core:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+  - macro_replay_safety = `verified_current`
+- **interaction-cert:notebook:0001** (notebook_surface): claim `parity_complete` -> effective `parity_complete`
+  - Notebook surface: cell-scoped modal navigation, plain-text cell copy, grouped cell history, fold-state orientation aids
+  - subject `surface:interaction-cert:notebook:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+- **interaction-cert:data-api:0001** (data_api_surface): claim `parity_complete` -> effective `parity_complete`
+  - Data/API surface: keyboard-complete result grid, plain-text row copy with drop-verb disclosure, grouped query history
+  - subject `surface:interaction-cert:data-api:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+- **interaction-cert:preview:0001** (preview_surface): claim `parity_complete` -> effective `parity_complete`
+  - Preview surface: source-first keyboard navigation, plain-text copy, breadcrumb orientation aligned to source identity
+  - subject `surface:interaction-cert:preview:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+- **interaction-cert:docs:0001** (docs_surface): claim `parity_complete` -> effective `parity_unverified`
+  - Docs surface: parity claimed but orientation-aid proof is stale, so the row auto-narrows below its claim
+  - subject `surface:interaction-cert:docs:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `stale_expired`
+  - Narrowed: Orientation-aid proof aged past its freshness window; docs parity held at unverified until the breadcrumb / outline aids are reverified
+- **interaction-cert:review:0001** (review_surface): claim `parity_complete` -> effective `parity_complete`
+  - Review surface: keyboard-complete diff panel, plain-text copy, grouped review history, overview-ruler orientation aids
+  - subject `surface:interaction-cert:review:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+- **interaction-cert:runtime:0001** (runtime_surface): claim `parity_partial` -> effective `parity_partial`
+  - Runtime surface: keyboard-complete embedded runtime, plain-text copy with drop-verb disclosure, grouped runtime history
+  - subject `surface:interaction-cert:runtime:0001` (first_party_surface), imported=false
+  - modal_keyboard_parity = `verified_current`
+  - clipboard_drop_safety = `verified_current`
+  - grouped_history_continuity = `verified_current`
+  - orientation_aid_continuity = `verified_current`
+- **interaction-cert:companion:0001** (companion_surface): claim `parity_partial` -> effective `parity_partial`
+  - Companion surface: provider-linked parity proof is read-only and never reads as a locally verified result
+  - subject `surface:interaction-cert:companion:0001` (provider_linked_surface), imported=true
+  - modal_keyboard_parity = `imported_current`
+  - clipboard_drop_safety = `imported_current`
+  - grouped_history_continuity = `imported_current`
+  - orientation_aid_continuity = `imported_current`

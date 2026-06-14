@@ -49,6 +49,7 @@ pub mod badges;
 pub mod bootstrap;
 pub mod breadcrumbs;
 pub mod build_intelligence_beta;
+pub mod certify_keyboard_first_modal_parity_clipboard_drop_safety_grouped_history_honesty_and_orie;
 pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
