@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-collections/0.0.0")]
 
 pub mod bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_policy_review;
+pub mod certify_filter_saved_view_selection_and_batch_action_truth_on_m5_dense_collections;
 pub mod emit_scope_receipts_and_saved_query_deep_link_snapshot_truth;
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
@@ -27,6 +28,18 @@ pub use bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_poli
     BATCH_REVIEW_SHEET_ARTIFACT_REF, BATCH_REVIEW_SHEET_DOC_REF, BATCH_REVIEW_SHEET_FIXTURE_DIR,
     BATCH_REVIEW_SHEET_RECORD_KIND, BATCH_REVIEW_SHEET_SCHEMA_REF,
     BATCH_REVIEW_SHEET_SCHEMA_VERSION, BATCH_REVIEW_SHEET_SUMMARY_REF,
+};
+
+pub use certify_filter_saved_view_selection_and_batch_action_truth_on_m5_dense_collections::{
+    current_m5_collection_certification_export, CertificationConsumerProjection,
+    CertificationGuardrails, CertificationProof, CertificationProofDimension,
+    CertificationRegressionClass, CertificationReleaseGate, CertificationRow, CertificationVerdict,
+    M5CollectionCertificationArtifactError, M5CollectionCertificationPacket,
+    M5CollectionCertificationPacketInput, M5CollectionCertificationViolation, ProofStatus,
+    M5_COLLECTION_CERTIFICATION_ARTIFACT_REF, M5_COLLECTION_CERTIFICATION_DOC_REF,
+    M5_COLLECTION_CERTIFICATION_FIXTURE_DIR, M5_COLLECTION_CERTIFICATION_RECORD_KIND,
+    M5_COLLECTION_CERTIFICATION_SCHEMA_REF, M5_COLLECTION_CERTIFICATION_SCHEMA_VERSION,
+    M5_COLLECTION_CERTIFICATION_SUMMARY_REF,
 };
 
 pub use emit_scope_receipts_and_saved_query_deep_link_snapshot_truth::{
