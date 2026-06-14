@@ -67,6 +67,7 @@ pub mod inspect_to_source_tree;
 pub mod preview_origin;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
+pub mod visual_edit_transforms;
 
 pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix::{
     current_m5_preview_inspection_matrix_export, AttachDepthClass, MatrixConsumerProjection,
@@ -137,4 +138,15 @@ pub use safe_preview::{
     PrototypeLabel, RiskyTextInput, SafePreviewClaimLimit, SafePreviewInvariantViolation,
     SafePreviewRecord, ScopeClass, ShareSafety, TransformKind, SAFE_PREVIEW_RECORD_KIND,
     SAFE_PREVIEW_SCHEMA_VERSION,
+};
+pub use visual_edit_transforms::{
+    current_m5_visual_edit_transforms_export, PreviewDiffClass, ProtectedPathPosture,
+    RollbackClass, TransformConstructClass, TransformManifest, UnsupportedConstructCard,
+    UnsupportedConstructReason, VisualEditOutcomeClass, VisualEditRow,
+    VisualEditTransformArtifactError, VisualEditTransformConsumerProjection,
+    VisualEditTransformGuardrails, VisualEditTransformPacket, VisualEditTransformPacketInput,
+    VisualEditTransformViolation, VISUAL_EDIT_TRANSFORMS_ARTIFACT_REF,
+    VISUAL_EDIT_TRANSFORMS_DOC_REF, VISUAL_EDIT_TRANSFORMS_FIXTURE_DIR,
+    VISUAL_EDIT_TRANSFORMS_RECORD_KIND, VISUAL_EDIT_TRANSFORMS_SCHEMA_REF,
+    VISUAL_EDIT_TRANSFORMS_SCHEMA_VERSION, VISUAL_EDIT_TRANSFORMS_SUMMARY_REF,
 };

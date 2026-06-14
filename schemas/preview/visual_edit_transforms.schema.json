@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/visual_edit_transforms.schema.json",
+  "title": "Aureline M5 visual-edit transforms",
+  "description": "Export-safe packet of per-edit visual-edit transform descriptors binding the four visual-edit outcomes onto one shared vocabulary. Each row names whether the edit is an exact-round-trip apply, an approximate-round-trip apply, a code-first source suggestion, or an inspect-only fallback; which framework pack family it belongs to; the source construct it targets; the round-trip capability it claims; the preview diff shown before commit; the rollback/checkpoint class it carries; and how a protected target gates the write. An exact or approximate round-trip apply must carry a transform manifest routed through the shared preview/apply/revert pipeline, a real-source preview diff, a revertible rollback class, and a review/confirmation posture, and may never target an ambiguous/lossy construct or a blocked protected path. An ambiguous or lossy construct degrades to a code-first suggestion or inspect-only mode with its selection context preserved and a precise, non-generic unsupported-construct card; a fallback carries no transform manifest, a no-mutation rollback class, and no review posture. Inspect-only rows are never auto-upgraded into write-capable designer flows. Source remains canonical; the transform packet is derivative and never a second writable truth model. Raw source bodies, diff hunks, file contents, credentials, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "set_label",
+    "edits",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "visual_edit_transforms"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "set_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "edits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/visual_edit_row"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "exact_round_trip_apply",
+        "approximate_round_trip_apply",
+        "code_first_fallback",
+        "inspect_only"
+      ]
+    },
+    "round_trip": {
+      "type": "string",
+      "enum": [
+        "exact_source_round_trip",
+        "approximate_source_round_trip",
+        "inspect_only_no_write",
+        "source_only_fallback",
+        "no_round_trip"
+      ]
+    },
+    "construct_class": {
+      "type": "string",
+      "enum": [
+        "static_attribute",
+        "static_style_token",
+        "static_layout_container",
+        "dynamic_bound_expression",
+        "conditional_or_loop_generated",
+        "external_or_generated_artifact"
+      ]
+    },
+    "preview_diff": {
+      "type": "string",
+      "enum": [
+        "real_source_unified_diff",
+        "real_source_multi_file_diff",
+        "code_first_suggestion_diff",
+        "no_diff_inspect_only"
+      ]
+    },
+    "rollback_class": {
+      "type": "string",
+      "enum": [
+        "checkpoint_revertible",
+        "snapshot_revertible",
+        "inverse_transform_revertible",
+        "no_mutation_no_rollback"
+      ]
+    },
+    "protected_path_posture": {
+      "type": "string",
+      "enum": [
+        "unprotected",
+        "protected_review_required",
+        "protected_owner_approval_required",
+        "protected_blocked"
+      ]
+    },
+    "review_posture": {
+      "type": "string",
+      "enum": [
+        "confirmation_required",
+        "review_required",
+        "blocked_needs_elevation"
+      ]
+    },
+    "unsupported_reason": {
+      "type": "string",
+      "enum": [
+        "dynamic_binding",
+        "conditional_or_loop_origin",
+        "generated_or_external_artifact",
+        "ambiguous_source_mapping",
+        "lossy_transform_rejected",
+        "protected_path_blocked"
+      ]
+    },
+    "transform_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_id",
+        "pipeline_ref",
+        "applies_real_source_diff",
+        "inverse_available"
+      ],
+      "properties": {
+        "manifest_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "pipeline_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "applies_real_source_diff": {
+          "type": "boolean"
+        },
+        "inverse_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "unsupported_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "preserves_selection_context",
+        "card_label"
+      ],
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/unsupported_reason"
+        },
+        "preserves_selection_context": {
+          "type": "boolean"
+        },
+        "card_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "visual_edit_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edit_id",
+        "framework_pack_family",
+        "surface_label",
+        "outcome",
+        "round_trip",
+        "construct_class",
+        "selection_context_ref",
+        "source_target_ref",
+        "preview_diff",
+        "rollback_class",
+        "protected_path_posture",
+        "label_summary",
+        "observed_at",
+        "evidence_refs"
+      ],
+      "properties": {
+        "edit_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "framework_pack_family": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "round_trip": {
+          "$ref": "#/$defs/round_trip"
+        },
+        "construct_class": {
+          "$ref": "#/$defs/construct_class"
+        },
+        "selection_context_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_target_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preview_diff": {
+          "$ref": "#/$defs/preview_diff"
+        },
+        "rollback_class": {
+          "$ref": "#/$defs/rollback_class"
+        },
+        "protected_path_posture": {
+          "$ref": "#/$defs/protected_path_posture"
+        },
+        "review_posture": {
+          "$ref": "#/$defs/review_posture"
+        },
+        "transform_manifest": {
+          "$ref": "#/$defs/transform_manifest"
+        },
+        "unsupported_card": {
+          "$ref": "#/$defs/unsupported_card"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_canonical_no_second_writable_model",
+        "private_wording_never_hides_mapping_uncertainty",
+        "inspect_only_never_auto_upgraded_to_write",
+        "embedded_boundaries_not_blurred_into_product",
+        "every_apply_emits_manifest_diff_and_rollback",
+        "ambiguous_constructs_never_silently_rewritten",
+        "protected_paths_and_ownership_preserved",
+        "apply_routes_through_shared_pipeline"
+      ],
+      "properties": {
+        "source_canonical_no_second_writable_model": {
+          "type": "boolean"
+        },
+        "private_wording_never_hides_mapping_uncertainty": {
+          "type": "boolean"
+        },
+        "inspect_only_never_auto_upgraded_to_write": {
+          "type": "boolean"
+        },
+        "embedded_boundaries_not_blurred_into_product": {
+          "type": "boolean"
+        },
+        "every_apply_emits_manifest_diff_and_rollback": {
+          "type": "boolean"
+        },
+        "ambiguous_constructs_never_silently_rewritten": {
+          "type": "boolean"
+        },
+        "protected_paths_and_ownership_preserved": {
+          "type": "boolean"
+        },
+        "apply_routes_through_shared_pipeline": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_ingests_transforms",
+        "docs_help_ingests_transforms",
+        "diagnostics_ingests_transforms",
+        "support_export_ingests_transforms",
+        "release_control_ingests_transforms",
+        "release_distinguishes_preview_only_from_round_trip"
+      ],
+      "properties": {
+        "product_ingests_transforms": {
+          "type": "boolean"
+        },
+        "docs_help_ingests_transforms": {
+          "type": "boolean"
+        },
+        "diagnostics_ingests_transforms": {
+          "type": "boolean"
+        },
+        "support_export_ingests_transforms": {
+          "type": "boolean"
+        },
+        "release_control_ingests_transforms": {
+          "type": "boolean"
+        },
+        "release_distinguishes_preview_only_from_round_trip": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
