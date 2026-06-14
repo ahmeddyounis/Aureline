@@ -95,6 +95,7 @@ pub mod help_about;
 pub mod help_packs;
 pub mod host_boundary_cues;
 pub mod implement_clipboard_contracts_with_plain_text_default_copy_with_context_variants_sensitive;
+pub mod implement_multi_cursor_fold_state_breadcrumb_minimap_overview_ruler_and_degraded_orientati;
 pub mod import;
 pub mod inspectors;
 pub mod install_review_fact_grid;

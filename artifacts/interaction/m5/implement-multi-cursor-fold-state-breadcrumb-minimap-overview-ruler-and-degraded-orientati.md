@@ -1,0 +1,51 @@
+# M5 Orientation Aids: Multi-Cursor, Fold-State, Breadcrumb, Minimap, Overview-Ruler, and Degraded-Orientation Truth
+
+- Packet: `m5-orientation-aids:stable:0001`
+- Label: `M5 Orientation Aids: Multi-Cursor, Fold-State, Breadcrumb, Minimap, Overview-Ruler, and Degraded-Orientation Truth`
+- Records: 8 (1 flat baseline, 7 forced off flat, 2 degraded/unavailable, 1 provider/imported)
+- Surface kinds: 8 / 8
+- Aid kinds: 5 / 5
+- Disclosure classes: 7 / 7
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Records
+
+- **orientation:editor-core:0001** (editor_core): aid `multi_cursor`, disclosure `aid_fully_active`, posture `full_orientation_aids`
+  - Editor-core multi-cursor count rendered fully live, every caret visible
+  - multi_cursor of `buffer:src/lib.rs` (editor_buffer), markers 3/3 rendered
+  - triggers: [none]
+- **orientation:notebook:0001** (notebook_surface): aid `fold_state`, disclosure `count_summary_preserved`, posture `reduced_orientation_aids_honest`
+  - Notebook fold-state summary preserves an honest count when folds exceed the live-render budget
+  - fold_state of `cells:notebook/analysis#folds` (notebook_cell_group), markers 40/60 rendered
+  - triggers: [high_cardinality_markers]
+  - Count summary: 60 fold regions exist; 40 are drawn in the gutter and the remaining 20 are kept as an honest '+20 more folds' count rather than dropped
+- **orientation:preview:0001** (preview_surface): aid `breadcrumb`, disclosure `identity_aligned_across_surfaces`, posture `reduced_orientation_aids_honest`
+  - Preview breadcrumb identity aligned with the same document object IDs shown in the editor and outline
+  - breadcrumb of `document:preview/home#section-pricing` (preview_document), markers 4/4 rendered
+  - triggers: [cross_surface_identity_shared]
+  - Identity alignment: Each breadcrumb segment resolves to the same preview-document object ID shown in the editor outline, so jumping from the breadcrumb lands on the identical object rather than a re-derived guess
+- **orientation:data-api:0001** (data_api_surface): aid `minimap`, disclosure `reduced_detail_disclosed`, posture `reduced_orientation_aids_honest`
+  - Data/API minimap reduced to honest detail under a constrained viewport, disclosed rather than removed
+  - minimap of `grid:query/orders-by-region#run-12` (data_result_grid), markers 12/12 rendered
+  - triggers: [constrained_viewport]
+  - Reduced detail: The viewport is too narrow for the full minimap thumbnail; it collapses to a labeled marker strip that still shows all 12 section markers and says it is reduced
+- **orientation:docs:0001** (docs_surface): aid `overview_ruler`, disclosure `motion_reduced_disclosed`, posture `orientation_aids_degraded_honest`
+  - Docs overview-ruler markers keep position but suppress animation under a reduced-motion profile, disclosed
+  - overview_ruler of `outline:docs/guide#getting-started` (docs_outline), markers 8/8 rendered
+  - triggers: [reduced_motion_profile]
+  - Motion reduced: Reduced-motion is on, so the overview ruler renders all 8 markers statically and drops the animated scroll-position glide, and says the animation was suppressed
+- **orientation:review:0001** (review_surface): aid `minimap`, disclosure `degraded_disclosed`, posture `orientation_aids_degraded_honest`
+  - Review-diff minimap degraded and disclosed for a large diff artifact, dropping stale markers rather than showing them
+  - minimap of `diff:review/pr-204#large` (review_diff), markers 1/1 rendered
+  - triggers: [large_or_unsafe_artifact]
+  - Degraded: The diff is too large to keep a live minimap; the aid degrades to a coarse change-density band and explicitly drops per-line markers it can no longer keep current rather than showing stale ones
+- **orientation:runtime:0001** (runtime_surface): aid `fold_state`, disclosure `unavailable_disclosed`, posture `orientation_aids_degraded_honest`
+  - Browser-runtime overlay fold aid unavailable under a limited capability profile, disclosed rather than silently removed
+  - fold_state of `overlay:runtime/dev-server#dom-tree` (runtime_overlay), markers 1/1 rendered
+  - triggers: [limited_capability_profile]
+  - Unavailable: The embedded browser-runtime profile cannot host the DOM-tree fold overlay; the aid is marked unavailable in place with a reason, never silently removed from the gutter
+- **orientation:companion:0001** (companion_surface): aid `breadcrumb`, disclosure `identity_aligned_across_surfaces`, posture `reduced_orientation_aids_honest`
+  - Provider-linked companion breadcrumb aligns identity across surfaces; imported orientation proof never reads as local
+  - breadcrumb of `transcript:companion/assistant#thread-77` (companion_transcript), markers 3/3 rendered
+  - triggers: [cross_surface_identity_shared]
+  - Identity alignment: Each companion breadcrumb segment resolves to the same provider-backed thread object ID shown in the companion list; the alignment is provider-backed and labeled imported, never presented as a locally verified breadcrumb
