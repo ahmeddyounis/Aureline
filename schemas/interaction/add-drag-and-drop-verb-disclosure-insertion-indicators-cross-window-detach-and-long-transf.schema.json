@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/interaction/add-drag-and-drop-verb-disclosure-insertion-indicators-cross-window-detach-and-long-transf.schema.json",
+  "title": "Aureline M5 drag/drop transfer safety: verb disclosure, insertion indicators, cross-window detach, and long-transfer progress",
+  "description": "Export-safe packet binding each claimed M5 drag/drop surface (editor, notebook, data/API, preview, docs, review, runtime, companion) to one drop attempt and its resolved transfer-safety posture. Each record preserves the dragged object (a class plus an opaque / workspace-relative token), the resolved drop verb, the window scope the transfer crosses, the payload magnitude, whether the verb and insertion point were disclosed before commit, and a reopenable verification proof. A drop whose verb is chosen on a modifier (multiple verbs possible), that detaches / reattaches across windows, that carries a large payload, that imports / mutates the destination, that rests on a destructive default verb, or whose transfer proof is stale or missing fires one or more contract triggers; each trigger imposes a minimum-safety floor so the record can never resolve to disclosed_inline_commit when it is non-trivial — it must disclose the explicit verb choice, preserve cross-window continuity, track progress / cancel / summary, confirm before mutation, or be rejected. Every record discloses its resulting verb before commit, and every committing record discloses its insertion point before commit, so drag/drop never hides a verb or scope and is never destructive or ambiguous by default. A provider-linked surface never reads as a locally verified transfer. Raw drag payload byte buffers, raw provider payloads, file contents, and absolute private paths never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "records",
+    "guardrails",
+    "consumer_projection",
+    "verification_freshness",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_drag_drop_transfer_safety_verb_insertion_cross_window_long_transfer_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/transfer_safety_record"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "verification_freshness": {
+      "$ref": "#/$defs/verification_freshness"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "keyboard_surface_kind": {
+      "type": "string",
+      "enum": [
+        "editor_core",
+        "notebook_surface",
+        "data_api_surface",
+        "preview_surface",
+        "docs_surface",
+        "review_surface",
+        "runtime_surface",
+        "companion_surface"
+      ]
+    },
+    "surface_origin_class": {
+      "type": "string",
+      "enum": [
+        "first_party_surface",
+        "embedded_runtime_surface",
+        "provider_linked_surface",
+        "imported_read_only_surface"
+      ]
+    },
+    "proof_currency": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "cached_within_window",
+        "imported_current",
+        "stale_expired",
+        "requires_review",
+        "missing_proof"
+      ]
+    },
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "notebook_cell",
+        "result_grid_row",
+        "artifact_item",
+        "work_item",
+        "preview_runtime_asset",
+        "editor_text_fragment"
+      ]
+    },
+    "drop_verb_class": {
+      "type": "string",
+      "enum": [
+        "move_verb_explicit",
+        "copy_verb_explicit",
+        "link_verb_explicit",
+        "verb_choice_on_modifier",
+        "destructive_default_denied"
+      ]
+    },
+    "window_scope_class": {
+      "type": "string",
+      "enum": [
+        "same_pane_reorder",
+        "cross_pane_same_window",
+        "cross_window_detach",
+        "reattach_to_window"
+      ]
+    },
+    "transfer_magnitude_class": {
+      "type": "string",
+      "enum": ["trivial_inline", "large_needs_progress"]
+    },
+    "resolution_class": {
+      "type": "string",
+      "enum": [
+        "disclosed_inline_commit",
+        "explicit_verb_choice_disclosed",
+        "cross_window_continuity_preserved",
+        "progress_cancel_summary_tracked",
+        "confirmed_before_mutation",
+        "rejected_ambiguous_or_unsafe"
+      ]
+    },
+    "contract_trigger": {
+      "type": "string",
+      "enum": [
+        "ambiguous_or_multi_verb",
+        "cross_window_detach",
+        "large_transfer_magnitude",
+        "destructive_or_import_semantics",
+        "destructive_default_verb",
+        "stale_or_missing_transfer_proof"
+      ]
+    },
+    "surface_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "origin_class", "surface_fingerprint_token"],
+      "properties": {
+        "surface_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "origin_class": {
+          "$ref": "#/$defs/surface_origin_class"
+        },
+        "surface_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "transfer_object_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "object_token", "display_label"],
+      "properties": {
+        "object_class": {
+          "$ref": "#/$defs/object_class"
+        },
+        "object_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_currency", "summary"],
+      "properties": {
+        "proof_currency": {
+          "$ref": "#/$defs/proof_currency"
+        },
+        "proof_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "proof_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "transfer_safety_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "surface_kind",
+        "subject",
+        "label_summary",
+        "object",
+        "drop_verb",
+        "window_scope",
+        "transfer_magnitude",
+        "import_or_destructive",
+        "verb_disclosed_before_commit",
+        "insertion_point_disclosed_before_commit",
+        "verification",
+        "resolution",
+        "fired_triggers",
+        "raw_payload_bytes_present",
+        "raw_provider_payload_present",
+        "absolute_private_path_present",
+        "destructive_default_commit_taken",
+        "orphaned_on_detach",
+        "evidence_refs",
+        "minted_at"
+      ],
+      "properties": {
+        "record_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface_kind": {
+          "$ref": "#/$defs/keyboard_surface_kind"
+        },
+        "subject": {
+          "$ref": "#/$defs/surface_subject"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "object": {
+          "$ref": "#/$defs/transfer_object_ref"
+        },
+        "drop_verb": {
+          "$ref": "#/$defs/drop_verb_class"
+        },
+        "window_scope": {
+          "$ref": "#/$defs/window_scope_class"
+        },
+        "transfer_magnitude": {
+          "$ref": "#/$defs/transfer_magnitude_class"
+        },
+        "import_or_destructive": {
+          "type": "boolean"
+        },
+        "verb_disclosed_before_commit": {
+          "const": true
+        },
+        "insertion_point_disclosed_before_commit": {
+          "type": "boolean"
+        },
+        "verification": {
+          "$ref": "#/$defs/verification"
+        },
+        "resolution": {
+          "$ref": "#/$defs/resolution_class"
+        },
+        "fired_triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contract_trigger"
+          }
+        },
+        "verb_choice_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "continuity_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "progress_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "confirmation_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "rejection_reason_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "raw_payload_bytes_present": {
+          "const": false
+        },
+        "raw_provider_payload_present": {
+          "const": false
+        },
+        "absolute_private_path_present": {
+          "const": false
+        },
+        "destructive_default_commit_taken": {
+          "const": false
+        },
+        "orphaned_on_detach": {
+          "const": false
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "minted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "comment": "A non-trivial drop can never resolve to the inline-commit lane.",
+          "if": {
+            "properties": {
+              "fired_triggers": {
+                "minItems": 1
+              }
+            },
+            "required": ["fired_triggers"]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "not": {
+                  "const": "disclosed_inline_commit"
+                }
+              }
+            }
+          }
+        },
+        {
+          "comment": "A committing drop must disclose its insertion point; only a rejected drop may omit it.",
+          "if": {
+            "properties": {
+              "resolution": {
+                "not": {
+                  "const": "rejected_ambiguous_or_unsafe"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "insertion_point_disclosed_before_commit": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verb_disclosed_before_commit",
+        "insertion_point_disclosed_before_commit",
+        "never_destructive_or_ambiguous_by_default",
+        "cross_window_continuity_preserved",
+        "long_transfer_progress_cancel_summary",
+        "provider_transfers_never_read_as_local",
+        "no_new_macro_language_introduced"
+      ],
+      "properties": {
+        "verb_disclosed_before_commit": {
+          "const": true
+        },
+        "insertion_point_disclosed_before_commit": {
+          "const": true
+        },
+        "never_destructive_or_ambiguous_by_default": {
+          "const": true
+        },
+        "cross_window_continuity_preserved": {
+          "const": true
+        },
+        "long_transfer_progress_cancel_summary": {
+          "const": true
+        },
+        "provider_transfers_never_read_as_local": {
+          "const": true
+        },
+        "no_new_macro_language_introduced": {
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_ingests_packet",
+        "help_migration_ingests_packet",
+        "support_export_ingests_packet",
+        "release_control_ingests_packet",
+        "transfer_verbs_and_disclosures_nameable"
+      ],
+      "properties": {
+        "product_ingests_packet": {
+          "const": true
+        },
+        "help_migration_ingests_packet": {
+          "const": true
+        },
+        "support_export_ingests_packet": {
+          "const": true
+        },
+        "release_control_ingests_packet": {
+          "const": true
+        },
+        "transfer_verbs_and_disclosures_nameable": {
+          "const": true
+        }
+      }
+    },
+    "verification_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_freshness_slo_hours",
+        "last_verification_refresh",
+        "auto_escalate_on_stale"
+      ],
+      "properties": {
+        "verification_freshness_slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_verification_refresh": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "auto_escalate_on_stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

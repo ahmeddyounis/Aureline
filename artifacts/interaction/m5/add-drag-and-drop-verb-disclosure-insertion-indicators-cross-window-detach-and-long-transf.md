@@ -1,0 +1,58 @@
+# M5 Drag/Drop Transfer Safety: Verb Disclosure, Insertion Indicators, Cross-Window Detach, and Long-Transfer Progress
+
+- Packet: `m5-transfer-safety:stable:0001`
+- Label: `M5 Drag/Drop Transfer Safety: Verb Disclosure, Insertion Indicators, Cross-Window Detach, and Long-Transfer Progress`
+- Records: 8 (2 inline commit, 6 forced off inline, 2 cross-window, 1 long-transfer, 1 provider/imported)
+- Surface kinds: 7 / 8
+- Object classes: 6 / 6
+- Resolution classes: 6 / 6
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Records
+
+- **transfer:editor-core:0001** (editor_core): resolution `disclosed_inline_commit`
+  - Editor-core text fragment reordered inline with verb and insertion shown
+  - object `fragment:src/lib.rs#L10-L18` (editor_text_fragment), verb `move_verb_explicit`, scope `same_pane_reorder`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [none]
+- **transfer:notebook:0001** (notebook_surface): resolution `disclosed_inline_commit`
+  - Notebook cell reordered inline with the move verb and insertion line shown
+  - object `cell:notebook/analysis#cell-3` (notebook_cell), verb `move_verb_explicit`, scope `same_pane_reorder`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [none]
+- **transfer:data-api:0001** (data_api_surface): resolution `explicit_verb_choice_disclosed`
+  - Data/API result-row drop whose move-or-copy verb is chosen on a modifier and disclosed
+  - object `row:data/api/users#L42` (result_grid_row), verb `verb_choice_on_modifier`, scope `cross_pane_same_window`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [ambiguous_or_multi_verb]
+  - Verb-choice: Hold the modifier to copy the row; release to move it — the chosen verb is shown before drop
+- **transfer:review:0001** (review_surface): resolution `cross_window_continuity_preserved`
+  - Review work item detached into another window with context and recovery preserved
+  - object `work-item:review/pr-204#item-7` (work_item), verb `move_verb_explicit`, scope `cross_window_detach`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [cross_window_detach]
+  - Cross-window continuity: Detaching opens a new window that keeps the work item's context and offers a reattach to recover its prior pane
+- **transfer:preview:0001** (preview_surface): resolution `progress_cancel_summary_tracked`
+  - Large preview-runtime asset dropped with progress, a cancel control, and a post-action summary
+  - object `asset:preview/runtime/bundle-9921` (preview_runtime_asset), verb `copy_verb_explicit`, scope `cross_pane_same_window`, magnitude `large_needs_progress`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [large_transfer_magnitude]
+  - Progress/cancel/summary: The drop streams with a progress bar and a cancel control, then reports a post-action summary of what landed
+- **transfer:notebook:import:0001** (notebook_surface): resolution `confirmed_before_mutation`
+  - Artifact imported into a notebook confirmed for verb and scope before the destination mutates
+  - object `artifact:evidence/run-7741` (artifact_item), verb `copy_verb_explicit`, scope `cross_pane_same_window`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [destructive_or_import_semantics]
+  - Confirmed before mutation: Importing inserts a new cell that references the artifact; confirm the verb and target cell before it lands
+- **transfer:runtime:reject:0001** (runtime_surface): resolution `rejected_ambiguous_or_unsafe`
+  - Runtime asset drop with a destructive default verb is rejected with the verb disclosed
+  - object `asset:runtime/live-handle-13` (preview_runtime_asset), verb `destructive_default_denied`, scope `cross_pane_same_window`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=false
+  - triggers: [destructive_default_verb]
+  - Rejected: Dropping onto a live runtime asset would overwrite it by default, so the drop is rejected rather than committed
+- **transfer:companion:0001** (companion_surface): resolution `cross_window_continuity_preserved`
+  - Provider-linked companion artifact detached across windows; imported proof never reads as local
+  - object `artifact:companion/thread-204#attachment-7` (artifact_item), verb `link_verb_explicit`, scope `cross_window_detach`, magnitude `trivial_inline`
+  - verb disclosed=true, insertion disclosed=true
+  - triggers: [cross_window_detach]
+  - Cross-window continuity: Detaching opens a provider-linked window that keeps the artifact's thread context and a reattach recovery path
