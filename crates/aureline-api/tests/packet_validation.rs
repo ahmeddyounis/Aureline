@@ -4,9 +4,10 @@ use aureline_api::{
     current_api_matrix_qualification, current_certification_qualification,
     current_database_browser_qualification, current_explain_plan_qualification,
     current_handoff_qualification, current_request_composer_qualification,
-    current_request_workspace_qualification, current_response_viewer_qualification,
-    current_result_grid_qualification, current_ship_query_history_qualification,
-    current_staged_row_mutation_qualification, current_statement_safety_qualification,
+    current_request_views_qualification, current_request_workspace_qualification,
+    current_response_viewer_qualification, current_result_grid_qualification,
+    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
+    current_statement_safety_qualification,
 };
 
 #[test]
@@ -394,6 +395,62 @@ fn api_matrix_projects_narrowing_and_drift_signals() {
         packet.changed_origin_ids(),
         vec!["origin:browser_companion".to_owned()]
     );
+}
+
+#[test]
+fn embedded_request_views_packet_parses() {
+    let packet =
+        current_request_views_qualification().expect("embedded request views packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.collection_views.is_empty());
+    assert!(!packet.request_views.is_empty());
+    assert!(!packet.environment_views.is_empty());
+    assert!(!packet.saved_views.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_request_views_packet_has_no_violations() {
+    let packet =
+        current_request_views_qualification().expect("embedded request views packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_request_views_summary_matches_computed() {
+    let packet =
+        current_request_views_qualification().expect("embedded request views packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn request_views_consume_api_matrix_and_project_drift() {
+    let packet =
+        current_request_views_qualification().expect("embedded request views packet must parse");
+    // The views are a real consumer of the frozen API-collection matrix.
+    let consumes_matrix = packet.upstream_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumes_matrix,
+        "request views must reference the API-collection matrix packet"
+    );
+    // Provider-linked and drift-blocked rows are surfaced rather than hidden.
+    assert_eq!(
+        packet.provider_linked_request_ids(),
+        vec!["request_view:graphql_provider_linked".to_owned()]
+    );
+    let blocked = packet.drift_blocked_request_ids();
+    assert!(blocked.contains(&"request_view:graphql_stale_blocked".to_owned()));
+    assert!(blocked.contains(&"request_view:rest_managed_shared".to_owned()));
 }
 
 #[test]

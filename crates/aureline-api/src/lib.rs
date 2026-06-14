@@ -73,6 +73,15 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.json`](../../../artifacts/data/m5/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.json).
 //!
+//! This crate also owns the operation-collection and request-list view
+//! qualification records that render the matrix as a real consumer surface with
+//! protocol class, environment, contract/source badge, last-run state, retention
+//! mode, provenance, and open-detail/inspect/export actions. The view boundary
+//! schema is
+//! [`/schemas/data/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.schema.json`](../../../schemas/data/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json`](../../../artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -86,6 +95,7 @@ pub mod certify_api_database_and_browser_runtime_workflows_with_mutation_redacti
 pub mod freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
+pub mod implement_operation_collection_and_request_list_views_with_protocol_class_environment_retention_mode_and_contract_or_source_badges;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
@@ -239,4 +249,15 @@ pub use freeze_the_api_collection_contract_source_request_origin_and_persisted_o
     RequestOriginKind, RequestOriginRow, RetentionClassRow, RetentionMode, RetentionScope,
     UpstreamRefRow, API_MATRIX_QUALIFICATION_PACKET_JSON, API_MATRIX_QUALIFICATION_PACKET_PATH,
     API_MATRIX_QUALIFICATION_RECORD_KIND, API_MATRIX_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_operation_collection_and_request_list_views_with_protocol_class_environment_retention_mode_and_contract_or_source_badges::{
+    current_request_views_qualification, CollectionViewRow, EnvironmentClass, EnvironmentViewRow,
+    LastRunState, ProtocolClass, RequestListViewRow, RequestProvenanceClass,
+    RequestViewsQualificationLabel, RequestViewsQualificationPacket, RequestViewsQualificationProof,
+    RequestViewsQualificationSummary, RequestViewsQualificationViolation, RequestViewsSurfaceGuardSet,
+    RequestViewsSurfaceKind, RequestViewsSurfaceQualificationRow, RequestViewsUpstreamRefRow,
+    RequestViewsViolationKind, SavedViewRow, SavedViewVisibility,
+    REQUEST_VIEWS_QUALIFICATION_PACKET_JSON, REQUEST_VIEWS_QUALIFICATION_PACKET_PATH,
+    REQUEST_VIEWS_QUALIFICATION_RECORD_KIND, REQUEST_VIEWS_QUALIFICATION_SCHEMA_VERSION,
 };
