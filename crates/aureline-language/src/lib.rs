@@ -30,6 +30,7 @@ pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod provider_arbitration_diagnostics_convergence;
+pub mod provider_refactor_matrix_truth_packet;
 pub mod publish_launch_language_conformance_packs_truth_packet;
 pub mod python;
 pub mod python_daily_driver_quality_truth_packet;
@@ -460,6 +461,38 @@ pub use provider_arbitration_diagnostics_convergence::{
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_DOC_REF,
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_REF,
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_VERSION,
+};
+pub use provider_refactor_matrix_truth_packet::{
+    current_stable_provider_refactor_matrix_truth_packet,
+    ArtifactFamilyLaneClass as ProviderRefactorMatrixLaneClass,
+    CapabilityNegotiationClass as ProviderRefactorMatrixCapabilityNegotiationClass,
+    CompletenessClass as ProviderRefactorMatrixCompletenessClass,
+    ConfidenceClass as ProviderRefactorMatrixConfidenceClass,
+    ConflictClass as ProviderRefactorMatrixConflictClass,
+    ConsumerSurface as ProviderRefactorMatrixConsumerSurface,
+    DiagnosticSourceClass as ProviderRefactorMatrixDiagnosticSourceClass,
+    DowngradeAutomationClass as ProviderRefactorMatrixDowngradeAutomationClass,
+    DowngradeLabelClass as ProviderRefactorMatrixDowngradeLabelClass,
+    EvidenceClass as ProviderRefactorMatrixEvidenceClass,
+    FindingKind as ProviderRefactorMatrixFindingKind,
+    FindingSeverity as ProviderRefactorMatrixFindingSeverity,
+    GeneratedArtifactPolicyClass as ProviderRefactorMatrixGeneratedArtifactPolicyClass,
+    KnownLimitClass as ProviderRefactorMatrixKnownLimitClass, MatrixConsumerProjection, MatrixRow,
+    MatrixRowClass, PromotionState as ProviderRefactorMatrixPromotionState,
+    ProviderFamilyClass as ProviderRefactorMatrixProviderFamilyClass,
+    ProviderRefactorMatrixTruthArtifactError, ProviderRefactorMatrixTruthPacket,
+    ProviderRefactorMatrixTruthPacketInput, ProviderRefactorMatrixTruthSupportExport,
+    RefactorTransactionClass as ProviderRefactorMatrixRefactorTransactionClass,
+    ResultProvenanceClass as ProviderRefactorMatrixResultProvenanceClass,
+    RollbackPathClass as ProviderRefactorMatrixRollbackPathClass,
+    SemanticLayerModeClass as ProviderRefactorMatrixSemanticLayerModeClass,
+    SupportClass as ProviderRefactorMatrixSupportClass,
+    ValidationFinding as ProviderRefactorMatrixValidationFinding,
+    PROVIDER_REFACTOR_MATRIX_TRUTH_ARTIFACT_DOC_REF, PROVIDER_REFACTOR_MATRIX_TRUTH_DOC_REF,
+    PROVIDER_REFACTOR_MATRIX_TRUTH_FIXTURE_DIR, PROVIDER_REFACTOR_MATRIX_TRUTH_PACKET_ARTIFACT_REF,
+    PROVIDER_REFACTOR_MATRIX_TRUTH_PACKET_RECORD_KIND, PROVIDER_REFACTOR_MATRIX_TRUTH_SCHEMA_REF,
+    PROVIDER_REFACTOR_MATRIX_TRUTH_SCHEMA_VERSION,
+    PROVIDER_REFACTOR_MATRIX_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use publish_launch_language_conformance_packs_truth_packet::{
     current_stable_publish_launch_language_conformance_packs_truth_packet,
