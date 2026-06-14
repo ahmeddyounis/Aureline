@@ -47,6 +47,7 @@ pub mod symbol_snapshot;
 pub mod target_model;
 pub mod tree_sitter;
 pub mod tsjs;
+pub mod typed_refactor_transaction_truth_packet;
 pub mod vue_advanced_workflow_pack_truth_packet;
 
 pub use adapter_stability_truth_packet::{
@@ -811,6 +812,22 @@ pub use tsjs::{
     TsJsSemanticResultRecord, TsJsSemanticResultSchemaVersion, TsJsSourceAnchor,
     TsJsSourceAnchorKindClass, TsJsSymbolKindClass, TsJsSymbolSeed, TsJsWorkspaceContext,
     TSJS_NAV_ALPHA_SCHEMA_VERSION, TSJS_QUALITY_ALPHA_SCHEMA_VERSION,
+};
+pub use typed_refactor_transaction_truth_packet::{
+    current_stable_typed_refactor_transaction_truth_packet,
+    ApplyPipelineClass as TypedRefactorTransactionApplyPipelineClass,
+    FindingKind as TypedRefactorTransactionFindingKind, TransactionConsumerProjection,
+    TransactionRow, TransactionRowClass as TypedRefactorTransactionRowClass,
+    TypedRefactorTransactionTruthArtifactError, TypedRefactorTransactionTruthPacket,
+    TypedRefactorTransactionTruthPacketInput, TypedRefactorTransactionTruthSupportExport,
+    ValidationFinding as TypedRefactorTransactionValidationFinding,
+    ValidationPlanClass as TypedRefactorTransactionValidationPlanClass,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_ARTIFACT_DOC_REF, TYPED_REFACTOR_TRANSACTION_TRUTH_DOC_REF,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_FIXTURE_DIR,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_PACKET_ARTIFACT_REF,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_PACKET_RECORD_KIND,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_SCHEMA_REF, TYPED_REFACTOR_TRANSACTION_TRUTH_SCHEMA_VERSION,
+    TYPED_REFACTOR_TRANSACTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use vue_advanced_workflow_pack_truth_packet::{
