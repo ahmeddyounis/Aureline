@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/add-export-copy-rerun-suppress-install-update-delete-scope-receipts-and-saved-query-deep-l.schema.json",
+  "title": "Aureline M5 scope-receipt and saved-query deep-link snapshot packet",
+  "description": "Export-safe packet that records what a committed broad action on a dense M5 surface actually touched, and how a shared or saved-query deep link relates to live results when it is reopened. Each scope receipt names a batch action kind (export, copy, rerun, suppress, install, update, delete), an execution origin, and a scope class that distinguishes selected items, visible rows, loaded rows, all matching query results, and a provider-side selection set — recording the selected / visible / loaded / all-matching populations side by side so the receipt names selected items versus all matching items. A scope that reaches beyond loaded rows is pinned to a query snapshot and reached by an explicit expansion step rather than treating visible rows as all matching rows. Each deep-link snapshot records a captured scope, a reopen posture, and explicit omission reasons so a reopened batch context preserves current-versus-captured scope and never implies frozen certainty about live results. Raw row bodies, provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "receipts",
+    "deep_link_snapshots",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_scope_receipt_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "packet_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "receipts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/scope_receipt"
+      }
+    },
+    "deep_link_snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/deep_link_snapshot"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "dense_collection_surface": {
+      "enum": [
+        "pipeline_run_list",
+        "review_queue",
+        "incident_list",
+        "graph_list",
+        "marketplace_results",
+        "activity_rows",
+        "provider_admin_table",
+        "query_backed_result_set",
+        "support_export_projection"
+      ]
+    },
+    "collection_view_kind": {
+      "enum": ["list", "tree", "table", "queue"]
+    },
+    "batch_action_kind": {
+      "enum": [
+        "export",
+        "copy",
+        "suppress",
+        "install",
+        "update",
+        "delete",
+        "rerun",
+        "share",
+        "approve"
+      ]
+    },
+    "execution_origin_class": {
+      "enum": ["local_client", "provider_authoritative", "mixed_client_provider"]
+    },
+    "scope_receipt_class": {
+      "enum": [
+        "selected_items",
+        "visible_rows",
+        "loaded_rows",
+        "all_matching_query",
+        "provider_side_selection"
+      ]
+    },
+    "deep_link_reopen_posture": {
+      "enum": [
+        "captured_matches_current",
+        "current_diverged_from_captured",
+        "captured_snapshot_stale",
+        "provider_results_may_differ"
+      ]
+    },
+    "snapshot_omission_cause": {
+      "enum": [
+        "no_longer_matches_query",
+        "policy_narrowed",
+        "provider_removed",
+        "deleted",
+        "outside_current_workset",
+        "partial_data_unknown"
+      ]
+    },
+    "scope_receipt_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_count",
+        "visible_count",
+        "loaded_count",
+        "matching_is_approximate",
+        "acted_on_count",
+        "omitted_count"
+      ],
+      "properties": {
+        "selected_count": { "type": "integer", "minimum": 0 },
+        "visible_count": { "type": "integer", "minimum": 0 },
+        "loaded_count": { "type": "integer", "minimum": 0 },
+        "matching_count": { "type": "integer", "minimum": 0 },
+        "provider_side_count": { "type": "integer", "minimum": 0 },
+        "matching_is_approximate": { "type": "boolean" },
+        "acted_on_count": { "type": "integer", "minimum": 0 },
+        "omitted_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scope_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "surface",
+        "view_kind",
+        "action_kind",
+        "scope_class",
+        "execution_origin",
+        "selection_id_ref",
+        "counts",
+        "scope_label",
+        "expansion_was_explicit",
+        "mutates_state",
+        "provider_backed",
+        "redaction_class_token",
+        "evidence_refs"
+      ],
+      "properties": {
+        "receipt_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/dense_collection_surface" },
+        "view_kind": { "$ref": "#/$defs/collection_view_kind" },
+        "action_kind": { "$ref": "#/$defs/batch_action_kind" },
+        "scope_class": { "$ref": "#/$defs/scope_receipt_class" },
+        "execution_origin": { "$ref": "#/$defs/execution_origin_class" },
+        "selection_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "query_snapshot_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "counts": { "$ref": "#/$defs/scope_receipt_counts" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "expansion_was_explicit": { "type": "boolean" },
+        "mutates_state": { "type": "boolean" },
+        "provider_backed": { "type": "boolean" },
+        "redaction_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/non_empty_string_array" }
+      }
+    },
+    "snapshot_omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cause", "member_count", "reason_label", "visible_to_operator"],
+      "properties": {
+        "cause": { "$ref": "#/$defs/snapshot_omission_cause" },
+        "member_count": { "type": "integer", "minimum": 1 },
+        "reason_label": { "$ref": "#/$defs/non_empty_string" },
+        "visible_to_operator": { "const": true }
+      }
+    },
+    "deep_link_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "surface",
+        "captured_scope_class",
+        "query_snapshot_id_ref",
+        "captured_at",
+        "captured_is_approximate",
+        "reopen_posture",
+        "omissions",
+        "preserves_current_versus_captured",
+        "implies_frozen_certainty",
+        "reopen_rebinds_to_live_query",
+        "snapshot_label",
+        "evidence_refs"
+      ],
+      "properties": {
+        "snapshot_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/dense_collection_surface" },
+        "captured_scope_class": { "$ref": "#/$defs/scope_receipt_class" },
+        "query_snapshot_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "captured_matching_count": { "type": "integer", "minimum": 0 },
+        "captured_is_approximate": { "type": "boolean" },
+        "reopened_at": { "type": "string", "format": "date-time" },
+        "current_matching_count": { "type": "integer", "minimum": 0 },
+        "reopen_posture": { "$ref": "#/$defs/deep_link_reopen_posture" },
+        "omissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshot_omission" }
+        },
+        "preserves_current_versus_captured": { "const": true },
+        "implies_frozen_certainty": { "const": false },
+        "reopen_rebinds_to_live_query": { "const": true },
+        "snapshot_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/non_empty_string_array" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_highlight_is_not_durable_selection",
+        "provider_policy_narrowing_never_hidden",
+        "visible_rows_not_all_matching_without_explicit_step",
+        "broad_action_cannot_bypass_preview",
+        "deep_link_never_implies_frozen_certainty",
+        "receipt_names_selected_versus_matching"
+      ],
+      "properties": {
+        "row_highlight_is_not_durable_selection": { "const": true },
+        "provider_policy_narrowing_never_hidden": { "const": true },
+        "visible_rows_not_all_matching_without_explicit_step": { "const": true },
+        "broad_action_cannot_bypass_preview": { "const": true },
+        "deep_link_never_implies_frozen_certainty": { "const": true },
+        "receipt_names_selected_versus_matching": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_renders_scope_receipt",
+        "diagnostics_reconstructs_scope_class",
+        "support_export_reuses_records",
+        "docs_help_reuses_vocabulary"
+      ],
+      "properties": {
+        "product_renders_scope_receipt": { "const": true },
+        "diagnostics_reconstructs_scope_class": { "const": true },
+        "support_export_reuses_records": { "const": true },
+        "docs_help_reuses_vocabulary": { "const": true }
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-collections/0.0.0")]
 
 pub mod bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_policy_review;
+pub mod emit_scope_receipts_and_saved_query_deep_link_snapshot_truth;
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
 pub mod implement_selection_bars_range_anchor_and_stale_snapshot_guards;
@@ -26,6 +27,16 @@ pub use bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_poli
     BATCH_REVIEW_SHEET_ARTIFACT_REF, BATCH_REVIEW_SHEET_DOC_REF, BATCH_REVIEW_SHEET_FIXTURE_DIR,
     BATCH_REVIEW_SHEET_RECORD_KIND, BATCH_REVIEW_SHEET_SCHEMA_REF,
     BATCH_REVIEW_SHEET_SCHEMA_VERSION, BATCH_REVIEW_SHEET_SUMMARY_REF,
+};
+
+pub use emit_scope_receipts_and_saved_query_deep_link_snapshot_truth::{
+    current_m5_scope_receipt_export, DeepLinkReopenPosture, SavedQueryDeepLinkSnapshot,
+    ScopeReceipt, ScopeReceiptArtifactError, ScopeReceiptClass, ScopeReceiptConsumerProjection,
+    ScopeReceiptCounts, ScopeReceiptGuardrails, ScopeReceiptPacket, ScopeReceiptPacketInput,
+    ScopeReceiptReconstruction, ScopeReceiptViolation, SnapshotOmission, SnapshotOmissionCause,
+    SCOPE_RECEIPT_ARTIFACT_REF, SCOPE_RECEIPT_DOC_REF, SCOPE_RECEIPT_FIXTURE_DIR,
+    SCOPE_RECEIPT_RECORD_KIND, SCOPE_RECEIPT_SCHEMA_REF, SCOPE_RECEIPT_SCHEMA_VERSION,
+    SCOPE_RECEIPT_SUMMARY_REF,
 };
 
 pub use freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix::{
