@@ -10,6 +10,7 @@
 
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
+pub mod ship_result_scope_counters_and_hidden_narrowing_chips;
 pub mod stabilize_filter_ast_saved_view_scope_pack_column_preset;
 pub mod stabilize_selection_scope_and_batch_result_truth;
 
@@ -41,6 +42,17 @@ pub use implement_filter_asts_saved_views_column_presets_and_privacy_scoped_pers
     M5_PERSISTED_STATE_SCHEMA_VERSION,
 };
 
+pub use ship_result_scope_counters_and_hidden_narrowing_chips::{
+    current_m5_result_scope_counter_export, CollectionViewKind, CountExactness, CountFreshness,
+    CounterPlacement, HiddenNarrowingChip, NarrowingCause, ResultCountKind,
+    ResultScopeConsumerProjection, ResultScopeCount, ResultScopeCounterArtifactError,
+    ResultScopeCounterBinding, ResultScopeCounterPacket, ResultScopeCounterPacketInput,
+    ResultScopeCounterViolation, ResultScopeGuardrails, ResultScopePosture,
+    ResultScopeReconstruction, RESULT_SCOPE_COUNTER_ARTIFACT_REF, RESULT_SCOPE_COUNTER_DOC_REF,
+    RESULT_SCOPE_COUNTER_FIXTURE_DIR, RESULT_SCOPE_COUNTER_RECORD_KIND,
+    RESULT_SCOPE_COUNTER_SCHEMA_REF, RESULT_SCOPE_COUNTER_SCHEMA_VERSION,
+    RESULT_SCOPE_COUNTER_SUMMARY_REF,
+};
 pub use stabilize_filter_ast_saved_view_scope_pack_column_preset::{
     current_stable_dense_collection_contract_packet, seeded_dense_collection_contract_packet,
     BatchProtectionPosture, CollectionContractArtifactError, CollectionContractColumnPreset,

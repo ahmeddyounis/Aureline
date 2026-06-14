@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/ship-hidden-narrowing-chips-exact-versus-approximate-result-scope-counters-and-visible-ver.schema.json",
+  "title": "Aureline M5 result-scope counter and hidden-narrowing chip packet",
+  "description": "Export-safe packet that wires the first real M5 dense collection surfaces (pipeline run list, review queue, incident list, graph list, marketplace results, provider/admin table) onto one normalized result-scope counter and hidden-narrowing chip vocabulary. Each binding declares visible, loaded, matching, and total counts (plus optional selected and hidden-by-scope counts), each labeled exact or approximate and fresh, stale, or partial. Hidden narrowing from policy, workset, provider, client, or partial-data limits is disclosed as first-class chips next to the active filters rather than folded into a generic filter pill or buried in a footer. Counters are surfaced near the active filters, survive virtualization and reopen, and never let visible rows stand in for all matching rows without an explicit expansion step. Raw row bodies, provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "bindings",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_result_scope_counter_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "packet_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/result_scope_counter_binding"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "dense_collection_surface": {
+      "enum": [
+        "pipeline_run_list",
+        "review_queue",
+        "incident_list",
+        "graph_list",
+        "marketplace_results",
+        "activity_rows",
+        "provider_admin_table",
+        "query_backed_result_set",
+        "support_export_projection"
+      ]
+    },
+    "collection_view_kind": {
+      "enum": ["list", "tree", "table", "queue"]
+    },
+    "result_count_kind": {
+      "enum": ["visible", "loaded", "matching", "total", "selected", "hidden_by_scope"]
+    },
+    "count_exactness": {
+      "enum": ["exact", "approximate"]
+    },
+    "count_freshness": {
+      "enum": ["fresh", "stale", "partial"]
+    },
+    "result_scope_posture": {
+      "enum": [
+        "client_complete",
+        "narrow_client_windowed",
+        "provider_paginated",
+        "partial_data_pending",
+        "streaming_live"
+      ]
+    },
+    "narrowing_cause": {
+      "enum": ["policy", "workset", "provider", "client", "partial_data"]
+    },
+    "counter_placement": {
+      "enum": ["near_active_filters", "footer_only", "provider_private"]
+    },
+    "select_all_meaning": {
+      "enum": [
+        "visible_rows",
+        "loaded_rows",
+        "all_matching_after_explicit_expansion",
+        "explicit_identity_set",
+        "provider_side_query_after_review"
+      ]
+    },
+    "scope_counter_vocabulary_term": {
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "approx",
+        "exact",
+        "hidden_by_policy",
+        "outside_current_filter"
+      ]
+    },
+    "result_scope_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value", "exactness", "freshness"],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/result_count_kind"
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exactness": {
+          "$ref": "#/$defs/count_exactness"
+        },
+        "freshness": {
+          "$ref": "#/$defs/count_freshness"
+        },
+        "basis_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exactness": {
+                "const": "exact"
+              },
+              "freshness": {
+                "const": "fresh"
+              }
+            }
+          },
+          "else": {
+            "required": ["basis_label"]
+          }
+        }
+      ]
+    },
+    "hidden_narrowing_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cause", "hidden_count", "chip_label", "near_active_filters"],
+      "properties": {
+        "cause": {
+          "$ref": "#/$defs/narrowing_cause"
+        },
+        "hidden_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chip_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "near_active_filters": {
+          "const": true
+        }
+      }
+    },
+    "result_scope_counter_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "surface",
+        "view_kind",
+        "label_summary",
+        "counts",
+        "narrowing_chips",
+        "posture",
+        "virtualized",
+        "provider_backed",
+        "scope_vocabulary_terms",
+        "counter_placement",
+        "select_all_meaning",
+        "all_matching_requires_explicit_step",
+        "survives_reopen",
+        "evidence_refs"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface": {
+          "$ref": "#/$defs/dense_collection_surface"
+        },
+        "view_kind": {
+          "$ref": "#/$defs/collection_view_kind"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "counts": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/$defs/result_scope_count"
+          }
+        },
+        "narrowing_chips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hidden_narrowing_chip"
+          }
+        },
+        "posture": {
+          "$ref": "#/$defs/result_scope_posture"
+        },
+        "virtualized": {
+          "type": "boolean"
+        },
+        "provider_backed": {
+          "type": "boolean"
+        },
+        "scope_vocabulary_terms": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "$ref": "#/$defs/scope_counter_vocabulary_term"
+          }
+        },
+        "counter_placement": {
+          "const": "near_active_filters"
+        },
+        "select_all_meaning": {
+          "$ref": "#/$defs/select_all_meaning"
+        },
+        "all_matching_requires_explicit_step": {
+          "const": true
+        },
+        "survives_reopen": {
+          "const": true
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_narrowing_always_visible",
+        "exact_versus_approximate_labeled",
+        "visible_loaded_matching_never_blurred",
+        "counters_survive_virtualization_and_reopen",
+        "provider_policy_narrowing_not_generic"
+      ],
+      "properties": {
+        "hidden_narrowing_always_visible": {
+          "const": true
+        },
+        "exact_versus_approximate_labeled": {
+          "const": true
+        },
+        "visible_loaded_matching_never_blurred": {
+          "const": true
+        },
+        "counters_survive_virtualization_and_reopen": {
+          "const": true
+        },
+        "provider_policy_narrowing_not_generic": {
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_renders_counters_and_chips",
+        "diagnostics_reconstructs_scope_truth",
+        "support_export_reuses_records",
+        "docs_help_reuses_vocabulary"
+      ],
+      "properties": {
+        "product_renders_counters_and_chips": {
+          "const": true
+        },
+        "diagnostics_reconstructs_scope_truth": {
+          "const": true
+        },
+        "support_export_reuses_records": {
+          "const": true
+        },
+        "docs_help_reuses_vocabulary": {
+          "const": true
+        }
+      }
+    }
+  }
+}
