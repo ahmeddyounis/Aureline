@@ -16,6 +16,7 @@ pub mod assistant_surface_hardening_truth_packet;
 pub mod c_and_cpp_daily_driver_quality_truth_packet;
 pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
+pub mod diagnostic_cluster_semantic_layer_truth_packet;
 pub mod diagnostics;
 pub mod django_advanced_workflow_pack_truth_packet;
 pub mod framework_migration_import_truth_packet;
@@ -159,6 +160,27 @@ pub use daily_driver_quality_truth_packet::{
     DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND, DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
     DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
     DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use diagnostic_cluster_semantic_layer_truth_packet::{
+    current_stable_diagnostic_cluster_semantic_layer_truth_packet, ClusterLaneClass,
+    ClusterProvenanceClass, DetailSheetRouteClass, DiagnosticClusterConsumerProjection,
+    DiagnosticClusterRow, DiagnosticClusterSemanticLayerTruthArtifactError,
+    DiagnosticClusterSemanticLayerTruthPacket, DiagnosticClusterSemanticLayerTruthPacketInput,
+    DiagnosticClusterSemanticLayerTruthSupportExport,
+    FindingKind as DiagnosticClusterSemanticLayerFindingKind, FixOfferClass,
+    FreshnessClass as DiagnosticClusterFreshnessClass, ProviderDisagreementVisibilityClass,
+    ScopeLabelClass as DiagnosticClusterScopeLabelClass, SemanticLayerBannerClass,
+    SourceDifferentiationClass, SurfaceClass as DiagnosticClusterSurfaceClass,
+    ValidationFinding as DiagnosticClusterSemanticLayerValidationFinding,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_MATRIX_SOURCE_REF,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_ARTIFACT_DOC_REF,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_DOC_REF,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_FIXTURE_DIR,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_PACKET_ARTIFACT_REF,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_PACKET_RECORD_KIND,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_SCHEMA_REF,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_SCHEMA_VERSION,
+    DIAGNOSTIC_CLUSTER_SEMANTIC_LAYER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use diagnostics::{
     DiagnosticAnchor, DiagnosticAnchorRemapStateClass, DiagnosticBus, DiagnosticBusAggregateCounts,
