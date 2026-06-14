@@ -63,6 +63,7 @@
 
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod preview_origin;
+pub mod preview_session_descriptors;
 pub mod safe_preview;
 
 pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix::{
@@ -91,6 +92,17 @@ pub use preview_origin::{
     PREVIEW_ORIGIN_DESCRIPTOR_SCHEMA_VERSION, PREVIEW_TARGET_DESCRIPTOR_RECORD_KIND,
     PREVIEW_TARGET_DESCRIPTOR_SCHEMA_VERSION, RUNTIME_MUTATION_ACTION_PLAN_RECORD_KIND,
     RUNTIME_MUTATION_ACTION_PLAN_SCHEMA_VERSION,
+};
+pub use preview_session_descriptors::{
+    current_m5_preview_session_descriptor_set_export, PreviewConsumerSurface,
+    PreviewDataPostureClass, PreviewFreshnessClass, PreviewSessionDescriptor,
+    PreviewSessionDescriptorSet, PreviewSessionDescriptorSetArtifactError,
+    PreviewSessionDescriptorSetInput, PreviewSessionDescriptorSetViolation,
+    SessionConsumerProjection, SessionDowngradeTrigger, SessionGuardrails,
+    PREVIEW_SESSION_DESCRIPTOR_SET_ARTIFACT_REF, PREVIEW_SESSION_DESCRIPTOR_SET_DOC_REF,
+    PREVIEW_SESSION_DESCRIPTOR_SET_FIXTURE_DIR, PREVIEW_SESSION_DESCRIPTOR_SET_RECORD_KIND,
+    PREVIEW_SESSION_DESCRIPTOR_SET_SCHEMA_REF, PREVIEW_SESSION_DESCRIPTOR_SET_SCHEMA_VERSION,
+    PREVIEW_SESSION_DESCRIPTOR_SET_SUMMARY_REF,
 };
 pub use safe_preview::{
     build_generated_content_preview, build_oversized_artifact_preview, build_risky_text_preview,
