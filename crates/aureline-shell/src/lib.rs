@@ -85,6 +85,7 @@ pub mod explorer;
 pub mod extensions;
 pub mod first_run_onboarding;
 pub mod forms_parameter_source_and_staged_apply;
+pub mod freeze_the_m5_keyboard_mode_modal_sequence_clipboard_route_drag_drop_verb_and_grouped_history_matrix;
 pub mod git_changes;
 pub mod graph_state_card;
 pub mod handoff_review;

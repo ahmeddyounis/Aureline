@@ -1,0 +1,84 @@
+# M5 Keyboard-Mode / Clipboard-Route / Drag-Drop-Verb / Grouped-History Continuity Matrix
+
+- Packet: `m5-keyboard-continuity-matrix:stable:0001`
+- Label: `M5 Keyboard-Mode / Clipboard / Drag-Drop / Grouped-History Continuity Matrix`
+- Rows: 9 (9 claimed, 1 provider/imported, 1 downgraded)
+- Surface kinds: 8 / 8
+- Undo classes: 5 / 5
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Rows
+
+- **kbd-cont:editor-core:0001** (editor_core): claim `switching_certified` -> effective `switching_certified`
+  - Editor / diff core with full modal parity, leader sequences, and cross-surface history
+  - subject `surface:kbd-cont:editor-core:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `modal_parity_complete`, sequence_guide = `leader_sequence_complete`
+  - clipboard_route = `plain_text_preserved`, drag_drop_verb = `move_verb_explicit`
+  - undo_class = `exact_undo`, history_class = `cross_surface_continuity`
+  - reopen_recover = `exact_reopen`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+- **kbd-cont:notebook:0001** (notebook_surface): claim `parity_complete` -> effective `parity_complete`
+  - Notebook cells with modal parity, named-register routing, and grouped exact undo
+  - subject `surface:kbd-cont:notebook:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `modal_parity_complete`, sequence_guide = `prefix_discoverable`
+  - clipboard_route = `named_register_routed`, drag_drop_verb = `copy_verb_explicit`
+  - undo_class = `grouped_exact_undo`, history_class = `grouped_step_history`
+  - reopen_recover = `exact_reopen`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+- **kbd-cont:data-api:0001** (data_api_surface): claim `parity_complete` -> effective `parity_complete`
+  - Data-grid / API result with keyboard-complete navigation, sensitive-copy warning, and compensating undo
+  - subject `surface:kbd-cont:data-api:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `non_modal_keyboard_complete`, sequence_guide = `single_stroke_only`
+  - clipboard_route = `sensitive_copy_warned`, drag_drop_verb = `verb_choice_on_modifier`
+  - undo_class = `compensating_undo`, history_class = `branching_history`
+  - reopen_recover = `recovered_approximate`, orientation_aid = `reduced_orientation_aids_honest`
+  - verification = `cached_within_window`
+- **kbd-cont:preview:0001** (preview_surface): claim `parity_complete` -> effective `parity_complete`
+  - Source-first preview with read-only modal navigation, plain-text copy, and checkpoint restore
+  - subject `surface:kbd-cont:preview:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `modal_read_only_navigation`, sequence_guide = `prefix_discoverable`
+  - clipboard_route = `plain_text_preserved`, drag_drop_verb = `link_verb_explicit`
+  - undo_class = `checkpoint_restore`, history_class = `checkpoint_lineage`
+  - reopen_recover = `checkpoint_recover`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+- **kbd-cont:docs:0001** (docs_surface): claim `parity_complete` -> effective `parity_complete`
+  - Docs authoring with modal parity, leader sequences, and rich-with-plain-fallback copy
+  - subject `surface:kbd-cont:docs:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `modal_parity_complete`, sequence_guide = `leader_sequence_complete`
+  - clipboard_route = `rich_with_plain_fallback`, drag_drop_verb = `copy_verb_explicit`
+  - undo_class = `exact_undo`, history_class = `linear_step_history`
+  - reopen_recover = `exact_reopen`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+- **kbd-cont:review:0001** (review_surface): claim `switching_certified` -> effective `switching_certified`
+  - Review / pull-request panel with keyboard-complete navigation, explicit drop verbs, and cross-surface history
+  - subject `surface:kbd-cont:review:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `non_modal_keyboard_complete`, sequence_guide = `prefix_discoverable`
+  - clipboard_route = `plain_text_preserved`, drag_drop_verb = `verb_choice_on_modifier`
+  - undo_class = `grouped_exact_undo`, history_class = `cross_surface_continuity`
+  - reopen_recover = `exact_reopen`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+- **kbd-cont:runtime:0001** (runtime_surface): claim `parity_partial` -> effective `parity_partial`
+  - Embedded runtime / terminal-adjacent surface that honestly states no exact undo and an unavailable reopen
+  - subject `surface:kbd-cont:runtime:0001` (embedded_runtime_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `non_modal_keyboard_complete`, sequence_guide = `single_stroke_only`
+  - clipboard_route = `sensitive_copy_warned`, drag_drop_verb = `copy_verb_explicit`
+  - undo_class = `no_undo_honest`, history_class = `linear_step_history`
+  - reopen_recover = `reopen_unavailable_honest`, orientation_aid = `orientation_aids_degraded_honest`
+  - verification = `verified_current`
+- **kbd-cont:companion:0001** (companion_surface): claim `parity_partial` -> effective `parity_partial`
+  - Provider-linked companion surface whose parity is provider-backed and never reads as a local rerun
+  - subject `surface:kbd-cont:companion:0001` (provider_linked_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `modal_read_only_navigation`, sequence_guide = `prefix_discoverable`
+  - clipboard_route = `rich_with_plain_fallback`, drag_drop_verb = `link_verb_explicit`
+  - undo_class = `compensating_undo`, history_class = `grouped_step_history`
+  - reopen_recover = `recovered_approximate`, orientation_aid = `reduced_orientation_aids_honest`
+  - verification = `imported_current`
+- **kbd-cont:data-api:unsupported-sequence:0001** (data_api_surface): claim `parity_complete` -> effective `parity_unverified`
+  - Data-grid row that claimed leader-key parity but cannot host the multi-key sequence
+  - subject `surface:kbd-cont:data-api:unsupported-sequence:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - mode_strip = `non_modal_keyboard_complete`, sequence_guide = `sequence_unsupported_downgraded`
+  - clipboard_route = `plain_text_preserved`, drag_drop_verb = `move_verb_explicit`
+  - undo_class = `exact_undo`, history_class = `linear_step_history`
+  - reopen_recover = `exact_reopen`, orientation_aid = `full_orientation_aids`
+  - verification = `verified_current`
+  - Downgraded: Claimed leader-key sequence is unsupported on this surface; held parity-unverified rather than silently approximating the sequence
