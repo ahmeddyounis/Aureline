@@ -22,6 +22,13 @@
 //! test-quality projections into release-visible watch, flaky, snapshot, and
 //! quarantine debt summaries without re-parsing raw runner output.
 //!
+//! [`session_plans_attempt_records_and_execution_lineage::SessionAttemptLedgerPacket`]
+//! makes execution attributable: it lands canonical session plans and an
+//! append-only attempt-record history with per-attempt runtime / toolchain / env
+//! lineage, so local reruns, notebook-backed tests, remote targets, and imported
+//! CI joins normalize onto one ledger without an imported verdict ever reading as
+//! a local rerun.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -78,6 +85,7 @@ pub mod sandbox;
 pub mod scanner_import;
 pub mod scanner_import_quality_parity;
 pub mod scope_compatible_selection_objects_and_widened_selection_review;
+pub mod session_plans_attempt_records_and_execution_lineage;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod stabilize_debugger_host_and_adapter_negotiation;

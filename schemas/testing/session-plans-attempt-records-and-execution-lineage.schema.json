@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/session-plans-attempt-records-and-execution-lineage.schema.json",
+  "title": "Aureline M5 session-plan / attempt-record ledger packet",
+  "description": "Export-safe packet that lands canonical session plans and append-only attempt-record histories with target / toolchain / env lineage across local, remote, notebook, and provider-backed test flows. A session plan ties a stable session id to a flow, a mode, the selection and discovery snapshot it executes, a runtime / toolchain / env lineage block, and a retry / watch policy. Each attempt record is one append-only attempt carrying its own lineage, so local reruns, notebook-backed tests, remote targets, and imported CI joins normalize onto the same ledger without an imported / provider-backed verdict ever reading as a local rerun: an imported attempt carries imported provenance, an imported origin ref, and an outcome drawn from the imported vocabulary disjoint from local pass / fail. Attempt indices are unique and contiguous within a session, and every predecessor ref resolves to an earlier attempt in the same session. Target fingerprints never collapse a parameterized template into a concrete invocation, and no display label or bare id stands in for a target's durable fingerprint. Raw test source, raw provider payloads, provider cursors, credentials, host names, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "sessions",
+    "attempts",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "test_session_attempt_ledger_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/session_plan"
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/attempt_record"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "test_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "remap_review_required",
+        "imported_read_only",
+        "display_text_only_denied",
+        "unknown_requires_review"
+      ]
+    },
+    "durable_test_node_kind": {
+      "type": "string",
+      "enum": [
+        "suite",
+        "concrete_case",
+        "parameterized_template",
+        "concrete_invocation",
+        "notebook_linked_test"
+      ]
+    },
+    "session_flow": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "remote_target",
+        "notebook_kernel",
+        "imported_provider"
+      ]
+    },
+    "session_plan_mode": {
+      "type": "string",
+      "enum": [
+        "run_selected",
+        "watch",
+        "rerun_all",
+        "rerun_failed",
+        "import_provider_join"
+      ]
+    },
+    "attempt_kind": {
+      "type": "string",
+      "enum": [
+        "initial",
+        "rerun",
+        "rerun_failed",
+        "watch_cycle",
+        "imported_join",
+        "local_parity_rerun",
+        "reconstruction"
+      ]
+    },
+    "attempt_outcome": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "passed",
+        "failed",
+        "errored",
+        "imported",
+        "imported_stale",
+        "unknown_requires_review"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_process",
+        "remote_host",
+        "notebook_kernel",
+        "provider_backend"
+      ]
+    },
+    "retry_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_retry",
+        "retry_failed_up_to_limit",
+        "retry_until_stable",
+        "imported_no_retry"
+      ]
+    },
+    "watch_policy_class": {
+      "type": "string",
+      "enum": [
+        "watch_disabled",
+        "watch_on_save",
+        "watch_debounced",
+        "imported_not_watchable"
+      ]
+    },
+    "lineage_provenance_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "remote_authoritative",
+        "notebook_authoritative",
+        "imported_read_only"
+      ]
+    },
+    "execution_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_token",
+        "toolchain_token",
+        "env_capsule_token",
+        "target_class",
+        "provenance_class",
+        "imported"
+      ],
+      "properties": {
+        "runtime_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "toolchain_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "env_capsule_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_class": {
+          "$ref": "#/$defs/target_class"
+        },
+        "provenance_class": {
+          "$ref": "#/$defs/lineage_provenance_class"
+        },
+        "host_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "imported": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ledger_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "node_kind",
+        "target_fingerprint_token",
+        "identity_class"
+      ],
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/durable_test_node_kind"
+        },
+        "target_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_class": {
+          "$ref": "#/$defs/test_item_identity_class"
+        }
+      }
+    },
+    "session_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "plan_id",
+        "label",
+        "flow",
+        "mode",
+        "selection_ref",
+        "snapshot_ref",
+        "execution_context_ref",
+        "lineage",
+        "retry_policy",
+        "watch_policy",
+        "targets",
+        "evidence_refs"
+      ],
+      "properties": {
+        "session_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "plan_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "flow": {
+          "$ref": "#/$defs/session_flow"
+        },
+        "mode": {
+          "$ref": "#/$defs/session_plan_mode"
+        },
+        "selection_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "execution_context_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "lineage": {
+          "$ref": "#/$defs/execution_lineage"
+        },
+        "retry_policy": {
+          "$ref": "#/$defs/retry_policy_class"
+        },
+        "watch_policy": {
+          "$ref": "#/$defs/watch_policy_class"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ledger_target"
+          }
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_id",
+        "session_ref",
+        "attempt_index",
+        "kind",
+        "outcome",
+        "flow",
+        "target_class",
+        "lineage",
+        "covered_target_ids",
+        "evidence_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "attempt_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "attempt_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/attempt_kind"
+        },
+        "outcome": {
+          "$ref": "#/$defs/attempt_outcome"
+        },
+        "flow": {
+          "$ref": "#/$defs/session_flow"
+        },
+        "target_class": {
+          "$ref": "#/$defs/target_class"
+        },
+        "lineage": {
+          "$ref": "#/$defs/execution_lineage"
+        },
+        "predecessor_attempt_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "origin_provider_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "execution_attempt_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "covered_target_ids": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templates_distinct_from_invocations",
+        "imported_never_local_rerun",
+        "lineage_preserved_per_attempt",
+        "attempt_history_append_only",
+        "no_green_over_quarantine_or_stale",
+        "session_reopenable_from_export"
+      ],
+      "properties": {
+        "templates_distinct_from_invocations": {
+          "type": "boolean"
+        },
+        "imported_never_local_rerun": {
+          "type": "boolean"
+        },
+        "lineage_preserved_per_attempt": {
+          "type": "boolean"
+        },
+        "attempt_history_append_only": {
+          "type": "boolean"
+        },
+        "no_green_over_quarantine_or_stale": {
+          "type": "boolean"
+        },
+        "session_reopenable_from_export": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notifications_reopen_session",
+        "support_export_reopens_attempt",
+        "review_packet_reopens_session",
+        "release_gate_reads_ledger"
+      ],
+      "properties": {
+        "notifications_reopen_session": {
+          "type": "boolean"
+        },
+        "support_export_reopens_attempt": {
+          "type": "boolean"
+        },
+        "review_packet_reopens_session": {
+          "type": "boolean"
+        },
+        "release_gate_reads_ledger": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
