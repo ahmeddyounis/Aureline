@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/stability-verdicts-quarantines-and-release-visibility.schema.json",
+  "title": "Aureline M5 stability-verdict / quarantine packet",
+  "description": "Export-safe packet that converts repeated attempt outcomes into governed, evidence-based stability verdicts and quarantine records for the M5 test-intelligence lane. A stability verdict ties a durable subject (addressed by a node kind and a non-display fingerprint distinct from its id) to a controlled badge state, a visible evidence window (pass / fail / inconclusive counts over the attempts that produced it), a confidence class, an owner, an evidence-provenance class, a release-visibility class, and a readiness-impact class. A flaky state is one of the controlled state tokens backed by a visible window, never a single opaque boolean. An imported / provider-backed verdict can never read as a locally verified pass: it carries the imported-only state, imported provenance, and an origin provider ref, and may never be stable. A quarantine record ties a verdict to a treatment kind, a lifecycle state, a reason, an owner, an expiry, a restore condition, a release-visibility class, and a readiness-impact class; an expired quarantine reopens its scope (expired_reopened) and fails readiness instead of silently persisting as local state, and a suppressing record always stays visible as debt rather than collapsing into a silent mute behind a green state. Only a locally verified stable verdict may carry the no-impact readiness class. Raw test source, raw provider payloads, provider cursors, credentials, host names, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "verdicts",
+    "quarantines",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "test_stability_verdict_quarantine_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "verdicts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stability_verdict_record"
+      }
+    },
+    "quarantines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/quarantine_record"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "test_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "remap_review_required",
+        "imported_read_only",
+        "display_text_only_denied",
+        "unknown_requires_review"
+      ]
+    },
+    "durable_test_node_kind": {
+      "type": "string",
+      "enum": [
+        "suite",
+        "concrete_case",
+        "parameterized_template",
+        "concrete_invocation",
+        "notebook_linked_test"
+      ]
+    },
+    "stability_verdict_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "suspected_flaky",
+        "confirmed_flaky",
+        "quarantined",
+        "known_failing",
+        "imported_only_unverified",
+        "stale_evidence",
+        "unknown_requires_review"
+      ]
+    },
+    "stability_confidence_class": {
+      "type": "string",
+      "enum": [
+        "high",
+        "moderate",
+        "low",
+        "insufficient_evidence"
+      ]
+    },
+    "verdict_evidence_provenance": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "remote_authoritative",
+        "notebook_authoritative",
+        "imported_read_only"
+      ]
+    },
+    "release_visibility_class": {
+      "type": "string",
+      "enum": [
+        "release_blocking",
+        "claim_narrowing_required",
+        "waiver_linked",
+        "informational_recovered",
+        "unknown_requires_review"
+      ]
+    },
+    "readiness_impact_class": {
+      "type": "string",
+      "enum": [
+        "fails_readiness",
+        "narrows_claim",
+        "no_impact"
+      ]
+    },
+    "quarantine_treatment_kind": {
+      "type": "string",
+      "enum": [
+        "mute",
+        "quarantine"
+      ]
+    },
+    "quarantine_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "expired_reopened",
+        "resolved",
+        "renewed"
+      ]
+    },
+    "quarantine_reason": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky",
+        "reproduced_flaky",
+        "known_failing",
+        "environment_dependent",
+        "imported_incomparable",
+        "manual_noise_reduction",
+        "policy_restriction",
+        "unknown_requires_review"
+      ]
+    },
+    "restore_condition_class": {
+      "type": "string",
+      "enum": [
+        "stable_window_required",
+        "owner_sign_off",
+        "fix_verified",
+        "renewal_required",
+        "manual_review_only"
+      ]
+    },
+    "verdict_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_id",
+        "node_kind",
+        "subject_fingerprint_token",
+        "identity_class"
+      ],
+      "properties": {
+        "subject_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/durable_test_node_kind"
+        },
+        "subject_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_class": {
+          "$ref": "#/$defs/test_item_identity_class"
+        }
+      }
+    },
+    "evidence_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_attempts",
+        "passed_attempts",
+        "failed_attempts",
+        "inconclusive_attempts",
+        "first_attempt_ref",
+        "latest_attempt_ref",
+        "evidence_attempt_refs",
+        "window_opened_at",
+        "window_closed_at"
+      ],
+      "properties": {
+        "observed_attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inconclusive_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "first_attempt_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "latest_attempt_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_attempt_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "window_opened_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "window_closed_at": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "stability_verdict_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verdict_id",
+        "subject",
+        "session_ref",
+        "state",
+        "confidence",
+        "evidence_window",
+        "evidence_provenance",
+        "owner_ref",
+        "imported",
+        "release_visibility",
+        "readiness_impact",
+        "evidence_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "verdict_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject": {
+          "$ref": "#/$defs/verdict_subject"
+        },
+        "session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "state": {
+          "$ref": "#/$defs/stability_verdict_state"
+        },
+        "confidence": {
+          "$ref": "#/$defs/stability_confidence_class"
+        },
+        "evidence_window": {
+          "$ref": "#/$defs/evidence_window"
+        },
+        "evidence_provenance": {
+          "$ref": "#/$defs/verdict_evidence_provenance"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "imported": {
+          "type": "boolean"
+        },
+        "origin_provider_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "quarantine_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "release_visibility": {
+          "$ref": "#/$defs/release_visibility_class"
+        },
+        "readiness_impact": {
+          "$ref": "#/$defs/readiness_impact_class"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "quarantine_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quarantine_id",
+        "subject",
+        "verdict_ref",
+        "treatment_kind",
+        "state",
+        "reason",
+        "owner_ref",
+        "created_at",
+        "expires_at",
+        "restore_condition",
+        "release_visibility",
+        "readiness_impact",
+        "imported",
+        "evidence_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "quarantine_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject": {
+          "$ref": "#/$defs/verdict_subject"
+        },
+        "verdict_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "treatment_kind": {
+          "$ref": "#/$defs/quarantine_treatment_kind"
+        },
+        "state": {
+          "$ref": "#/$defs/quarantine_state"
+        },
+        "reason": {
+          "$ref": "#/$defs/quarantine_reason"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restore_condition": {
+          "$ref": "#/$defs/restore_condition_class"
+        },
+        "release_visibility": {
+          "$ref": "#/$defs/release_visibility_class"
+        },
+        "readiness_impact": {
+          "$ref": "#/$defs/readiness_impact_class"
+        },
+        "imported": {
+          "type": "boolean"
+        },
+        "reopened_attempt_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templates_distinct_from_invocations",
+        "imported_never_reads_as_local",
+        "flaky_badges_evidence_based",
+        "quarantines_visible_and_countable",
+        "expiry_fails_readiness",
+        "no_green_over_stale_or_quarantine"
+      ],
+      "properties": {
+        "templates_distinct_from_invocations": {
+          "type": "boolean"
+        },
+        "imported_never_reads_as_local": {
+          "type": "boolean"
+        },
+        "flaky_badges_evidence_based": {
+          "type": "boolean"
+        },
+        "quarantines_visible_and_countable": {
+          "type": "boolean"
+        },
+        "expiry_fails_readiness": {
+          "type": "boolean"
+        },
+        "no_green_over_stale_or_quarantine": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flaky_badges_normalized",
+        "quarantine_ui_normalized",
+        "imported_join_normalized",
+        "release_support_export_normalized",
+        "readiness_gate_reads_packet"
+      ],
+      "properties": {
+        "flaky_badges_normalized": {
+          "type": "boolean"
+        },
+        "quarantine_ui_normalized": {
+          "type": "boolean"
+        },
+        "imported_join_normalized": {
+          "type": "boolean"
+        },
+        "release_support_export_normalized": {
+          "type": "boolean"
+        },
+        "readiness_gate_reads_packet": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

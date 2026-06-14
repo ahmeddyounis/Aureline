@@ -29,6 +29,14 @@
 //! CI joins normalize onto one ledger without an imported verdict ever reading as
 //! a local rerun.
 //!
+//! [`stability_verdicts_quarantines_and_release_visibility::StabilityVerdictQuarantinePacket`]
+//! converts those repeated attempt outcomes into governed, evidence-based stability
+//! verdicts and quarantine records: a flaky state becomes a controlled badge state
+//! over a visible evidence window, and a quarantine carries an owner, an expiry, a
+//! restore condition, and a release-visibility class — so an expired quarantine
+//! reopens its scope and fails readiness instead of silently persisting as local UI
+//! state, and an imported verdict never reads as a locally verified pass.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -88,6 +96,7 @@ pub mod scope_compatible_selection_objects_and_widened_selection_review;
 pub mod session_plans_attempt_records_and_execution_lineage;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
+pub mod stability_verdicts_quarantines_and_release_visibility;
 pub mod stabilize_debugger_host_and_adapter_negotiation;
 pub mod stabilize_execution_context_resolver;
 pub mod stabilize_problem_records_output_channels_and_execution_evidence;
