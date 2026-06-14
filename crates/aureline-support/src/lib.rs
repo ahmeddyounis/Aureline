@@ -145,6 +145,14 @@
 //!   row against the canonical runtime storage-class contract, and projects
 //!   the low-disk ordering, clear-data plan, offboarding/reset plan, and a
 //!   metadata-safe support export the inspectable surfaces reuse.
+//! - The [`m5_storage_inspector`] corpus — folds the checked-in inspector-card,
+//!   storage-class breakdown, workspace-storage detail, and rebuild-cost hint
+//!   fixtures into typed records, validates each against the cross-record
+//!   safety contract (class breakdown, largest-consumer truth, rebuild cost,
+//!   sensitivity, pin state, and the disposable / correctness-relevant /
+//!   durable-evidence / user-owned-recovery distinction), and projects a
+//!   metadata-safe support export the inspector, workspace detail, admin
+//!   console, About excerpt, and support-bundle surfaces reuse.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -244,6 +252,7 @@ pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_governance;
+pub mod m5_storage_inspector;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
