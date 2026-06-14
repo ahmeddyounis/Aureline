@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/add-batch-review-sheets-and-batch-action-descriptors-with-included-excluded-blocked-skippe.schema.json",
+  "title": "Aureline M5 batch-review sheet packet",
+  "description": "Export-safe packet that binds a reviewed selection scope to the broad action about to run against the first real M5 dense surfaces (pipeline run list, review queue, incident list, marketplace results, provider/admin table). Each review sheet names a batch-action descriptor with its action kind, scope class, execution origin, an included / excluded / blocked / skipped / hidden count split, and an undo/recovery class that is visible and exportable rather than inferred from ad hoc copy. A consequential action cannot run from a generic Continue button without a review sheet that names the included / excluded / blocked / skipped members and the recovery posture. Policy / provider / workset / ownership / client / partial-data narrowing is threaded into the same packet as explicit scope blocks rather than hidden in a generic filter chip, and a post-execution result summary preserves per-item or per-class success/failure truth instead of collapsing a mixed outcome into one generic toast. Raw row bodies, provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "sheets",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_batch_review_sheet_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "packet_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/batch_review_sheet"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "dense_collection_surface": {
+      "enum": [
+        "pipeline_run_list",
+        "review_queue",
+        "incident_list",
+        "graph_list",
+        "marketplace_results",
+        "activity_rows",
+        "provider_admin_table",
+        "query_backed_result_set",
+        "support_export_projection"
+      ]
+    },
+    "collection_view_kind": {
+      "enum": ["list", "tree", "table", "queue"]
+    },
+    "batch_action_kind": {
+      "enum": [
+        "export",
+        "copy",
+        "suppress",
+        "install",
+        "update",
+        "delete",
+        "rerun",
+        "share",
+        "approve"
+      ]
+    },
+    "batch_action_scope_class": {
+      "enum": [
+        "local_reversible_batch",
+        "mixed_client_provider_batch",
+        "provider_authoritative_batch",
+        "destructive_gated_batch",
+        "inspect_only_no_batch"
+      ]
+    },
+    "execution_origin_class": {
+      "enum": ["local_client", "provider_authoritative", "mixed_client_provider"]
+    },
+    "undo_recovery_class": {
+      "enum": [
+        "no_mutation",
+        "fully_reversible",
+        "reversible_within_window",
+        "compensatable_via_inverse",
+        "partially_reversible",
+        "irreversible"
+      ]
+    },
+    "batch_member_disposition": {
+      "enum": [
+        "included",
+        "excluded",
+        "blocked",
+        "hidden",
+        "skipped",
+        "query_derived"
+      ]
+    },
+    "batch_item_outcome": {
+      "enum": ["succeeded", "failed", "skipped", "blocked"]
+    },
+    "batch_scope_narrowing_cause": {
+      "enum": [
+        "policy_blocked",
+        "provider_blocked",
+        "workset_scoped",
+        "ownership_blocked",
+        "client_capability",
+        "partial_data_unknown"
+      ]
+    },
+    "batch_scope_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included",
+        "excluded",
+        "blocked",
+        "skipped",
+        "hidden",
+        "total_reviewed"
+      ],
+      "properties": {
+        "included": { "type": "integer", "minimum": 0 },
+        "excluded": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "hidden": { "type": "integer", "minimum": 0 },
+        "total_reviewed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "batch_action_scope_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind",
+        "scope_class",
+        "execution_origin",
+        "undo_recovery_class",
+        "counts",
+        "mutates_state",
+        "provider_backed",
+        "select_all_expansion_was_explicit",
+        "undo_recovery_label"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "action_kind": { "$ref": "#/$defs/batch_action_kind" },
+        "scope_class": { "$ref": "#/$defs/batch_action_scope_class" },
+        "execution_origin": { "$ref": "#/$defs/execution_origin_class" },
+        "undo_recovery_class": { "$ref": "#/$defs/undo_recovery_class" },
+        "counts": { "$ref": "#/$defs/batch_scope_counts" },
+        "mutates_state": { "type": "boolean" },
+        "provider_backed": { "type": "boolean" },
+        "select_all_expansion_was_explicit": { "type": "boolean" },
+        "undo_recovery_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "batch_review_member_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_item_id",
+        "review_label",
+        "disposition",
+        "disposition_reason",
+        "in_current_filter"
+      ],
+      "properties": {
+        "stable_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "review_label": { "$ref": "#/$defs/non_empty_string" },
+        "disposition": { "$ref": "#/$defs/batch_member_disposition" },
+        "disposition_reason": { "type": "string" },
+        "in_current_filter": { "type": "boolean" }
+      }
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cause", "member_count", "reason_label", "visible_to_operator"],
+      "properties": {
+        "cause": { "$ref": "#/$defs/batch_scope_narrowing_cause" },
+        "member_count": { "type": "integer", "minimum": 1 },
+        "reason_label": { "$ref": "#/$defs/non_empty_string" },
+        "visible_to_operator": { "const": true }
+      }
+    },
+    "batch_item_result_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stable_item_id", "outcome", "outcome_label"],
+      "properties": {
+        "stable_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "outcome": { "$ref": "#/$defs/batch_item_outcome" },
+        "outcome_label": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_action_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "batch_result_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "succeeded_count",
+        "failed_count",
+        "skipped_count",
+        "blocked_count",
+        "summary_label",
+        "per_item_results",
+        "collapses_to_single_toast"
+      ],
+      "properties": {
+        "succeeded_count": { "type": "integer", "minimum": 0 },
+        "failed_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" },
+        "per_item_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/batch_item_result_row" }
+        },
+        "collapses_to_single_toast": { "const": false }
+      }
+    },
+    "batch_review_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sheet_id",
+        "surface",
+        "view_kind",
+        "selection_id_ref",
+        "action",
+        "sheet_title",
+        "member_rows",
+        "scope_blocks",
+        "requires_review_before_commit",
+        "blocks_generic_continue",
+        "names_included_excluded_blocked_skipped",
+        "recovery_posture_label",
+        "recovery_posture_exportable",
+        "accessibility_summary",
+        "evidence_refs"
+      ],
+      "properties": {
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/dense_collection_surface" },
+        "view_kind": { "$ref": "#/$defs/collection_view_kind" },
+        "selection_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "action": { "$ref": "#/$defs/batch_action_scope_descriptor" },
+        "sheet_title": { "$ref": "#/$defs/non_empty_string" },
+        "member_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/batch_review_member_row" }
+        },
+        "scope_blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_block" }
+        },
+        "requires_review_before_commit": { "type": "boolean" },
+        "blocks_generic_continue": { "type": "boolean" },
+        "names_included_excluded_blocked_skipped": { "type": "boolean" },
+        "recovery_posture_label": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_posture_exportable": { "const": true },
+        "result_summary": { "$ref": "#/$defs/batch_result_summary" },
+        "accessibility_summary": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/non_empty_string_array" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_highlight_is_not_durable_selection",
+        "provider_policy_narrowing_never_hidden",
+        "visible_rows_not_all_matching_without_explicit_step",
+        "broad_action_cannot_bypass_preview",
+        "undo_recovery_class_visible_and_exportable"
+      ],
+      "properties": {
+        "row_highlight_is_not_durable_selection": { "const": true },
+        "provider_policy_narrowing_never_hidden": { "const": true },
+        "visible_rows_not_all_matching_without_explicit_step": { "const": true },
+        "broad_action_cannot_bypass_preview": { "const": true },
+        "undo_recovery_class_visible_and_exportable": { "const": true }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_renders_review_sheet",
+        "diagnostics_reconstructs_batch_truth",
+        "support_export_reuses_records",
+        "docs_help_reuses_vocabulary"
+      ],
+      "properties": {
+        "product_renders_review_sheet": { "const": true },
+        "diagnostics_reconstructs_batch_truth": { "const": true },
+        "support_export_reuses_records": { "const": true },
+        "docs_help_reuses_vocabulary": { "const": true }
+      }
+    }
+  }
+}

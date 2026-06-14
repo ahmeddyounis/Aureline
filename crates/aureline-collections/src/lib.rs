@@ -8,12 +8,24 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-collections/0.0.0")]
 
+pub mod bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_policy_review;
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
 pub mod implement_selection_bars_range_anchor_and_stale_snapshot_guards;
 pub mod ship_result_scope_counters_and_hidden_narrowing_chips;
 pub mod stabilize_filter_ast_saved_view_scope_pack_column_preset;
 pub mod stabilize_selection_scope_and_batch_result_truth;
+
+pub use bind_batch_review_sheets_and_action_descriptors_with_undo_class_and_policy_review::{
+    current_m5_batch_review_sheet_export, BatchActionScopeDescriptor, BatchItemResultRow,
+    BatchResultSummary, BatchReviewConsumerProjection, BatchReviewGuardrails, BatchReviewMemberRow,
+    BatchReviewSheet, BatchReviewSheetArtifactError, BatchReviewSheetPacket,
+    BatchReviewSheetPacketInput, BatchReviewSheetReconstruction, BatchReviewSheetViolation,
+    BatchScopeCounts, BatchScopeNarrowingCause, ScopeBlock, UndoRecoveryClass,
+    BATCH_REVIEW_SHEET_ARTIFACT_REF, BATCH_REVIEW_SHEET_DOC_REF, BATCH_REVIEW_SHEET_FIXTURE_DIR,
+    BATCH_REVIEW_SHEET_RECORD_KIND, BATCH_REVIEW_SHEET_SCHEMA_REF,
+    BATCH_REVIEW_SHEET_SCHEMA_VERSION, BATCH_REVIEW_SHEET_SUMMARY_REF,
+};
 
 pub use freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix::{
     current_m5_collection_qualification_matrix_export, BatchActionDescriptor, BatchActionKind,
