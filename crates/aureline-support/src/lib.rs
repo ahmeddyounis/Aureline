@@ -136,6 +136,15 @@
 //!   owners, archive state, and the pre-action delete/export truth, and prove
 //!   every hold/retention claim is gated by a live, bounded, actor-scoped
 //!   exception instead of indefinite waiver prose.
+//! - The [`m5_storage_governance`] matrix — freezes the storage-class,
+//!   pin-source, clear-data, and low-disk ordering posture for every heavy
+//!   artifact family the M5 lanes add (notebook outputs, profiler traces,
+//!   replay bundles, docs/model/template packs, generated previews, extension
+//!   downloads, prebuild layers, support artifacts, and review/incident
+//!   evidence) plus the user-owned recovery state they touch, validates each
+//!   row against the canonical runtime storage-class contract, and projects
+//!   the low-disk ordering, clear-data plan, offboarding/reset plan, and a
+//!   metadata-safe support export the inspectable surfaces reuse.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -234,6 +243,7 @@ pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod m5_records_policy_governance;
+pub mod m5_storage_governance;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;

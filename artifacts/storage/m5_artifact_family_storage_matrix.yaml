@@ -1,0 +1,362 @@
+# Frozen storage-class, pin-source, clear-data, and low-disk ordering matrix
+# for the heavy artifact families that the M5 depth lanes add.
+#
+# This artifact is a human-meaningful mapping layer over the already-frozen
+# runtime storage-class vocabulary in artifacts/runtime/storage_classes.yaml.
+# It mints NO new storage_class_id, authority_class, rebuild_cost_class,
+# gc_policy_class, pin_source_class, clear_cache_protection_class, or
+# low_disk_ladder_step values. Every row projects back to one of the six
+# frozen storage classes; the default_retention_class and
+# clear_data_action_class vocabularies are the only new sets, and they are
+# bounded explanatory labels rather than storage primitives.
+#
+# Every heavy artifact family the M5 lanes create (notebook outputs,
+# profiler traces, replay bundles, docs/model/template packs, generated
+# previews, extension downloads, prebuild layers, support artifacts, and
+# review/incident evidence) plus the user-owned recovery state those lanes
+# touch is listed here exactly once. Inspectors, low-disk banners, the
+# clear-data review sheet, the cleanup-history lane, offboarding/reset, and
+# support/export packets MUST project these rows rather than invent a
+# surface-local cleanup vocabulary.
+
+schema_version: 1
+record_kind: m5_artifact_family_storage_matrix
+matrix_id: aureline.storage.m5_artifact_family_storage_matrix.v1
+title: M5 heavy-artifact-family storage-class, pin-source, clear-data, and low-disk matrix
+schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+runtime_storage_classes_ref: artifacts/runtime/storage_classes.yaml
+emitted_at: 2026-06-14T00:00:00Z
+
+rows:
+  # ---- Disposable / rebuildable derived caches ----------------------------
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: generated_preview
+    label: Generated previews
+    summary: >
+      Rendered Markdown/HTML previews, diagram renders, and other ephemeral
+      preview output regenerated on demand from authoritative source.
+    storage_class_id: interactive_hot_cache
+    authority_class: disposable_derived_cache
+    rebuild_cost_class: low_rebuild_cost
+    gc_policy_class: gc_on_pressure_if_unpinned
+    default_retention_class: evict_on_session_end
+    clear_cache_protection_class: generic_clear_always_allowed
+    low_disk_ladder_step: trim_interactive_hot_cache
+    pin_source_classes: []
+    allowed_clear_data_actions:
+      - generic_clear_in_bulk
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: notebook_output
+    label: Notebook outputs
+    summary: >
+      Cached notebook cell outputs (rendered results, captured stdout, and
+      output blobs). Rebuildable by re-executing the notebook; large and
+      derived, never authoritative on its own.
+    storage_class_id: artifact_cache
+    authority_class: disposable_derived_cache
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_pressure_if_unpinned
+    default_retention_class: evict_under_pressure_if_unpinned
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  # ---- Imported / signed artifact packs -----------------------------------
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: docs_pack
+    label: Docs packs
+    summary: >
+      Downloaded documentation packs retained by digest. Rebuildable from a
+      signed source, mirror, or offline bundle; offline continuity depends on
+      a pin.
+    storage_class_id: artifact_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: medium_rebuild_cost
+    gc_policy_class: gc_on_version_replace
+    default_retention_class: retain_until_version_replace
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+      - offline_bundle_ref
+      - release_artifact_graph_ref
+      - certified_archetype_or_template_ref
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: model_pack
+    label: Model packs
+    summary: >
+      Downloaded model packs and weights retained by digest. Large and
+      expensive to refetch; admin/release governed, offline continuity
+      depends on a pin.
+    storage_class_id: artifact_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_version_replace
+    default_retention_class: retain_until_version_replace
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+      - explicit_admin_policy_pin
+      - offline_bundle_ref
+      - release_artifact_graph_ref
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: template_pack
+    label: Template and archetype packs
+    summary: >
+      Downloaded scaffolding template and archetype packs retained by digest.
+      Rebuildable from a certified template ref or offline bundle.
+    storage_class_id: artifact_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: medium_rebuild_cost
+    gc_policy_class: gc_on_version_replace
+    default_retention_class: retain_until_version_replace
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+      - certified_archetype_or_template_ref
+      - offline_bundle_ref
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: extension_download
+    label: Extension downloads
+    summary: >
+      Downloaded extension packages retained by digest. Admin/policy and
+      release governed; rebuildable from the marketplace, a mirror, or an
+      offline bundle.
+    storage_class_id: artifact_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: medium_rebuild_cost
+    gc_policy_class: gc_on_version_replace
+    default_retention_class: retain_until_version_replace
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+      - explicit_admin_policy_pin
+      - release_artifact_graph_ref
+      - offline_bundle_ref
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  # ---- Prebuild / environment layers --------------------------------------
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: prebuild_layer
+    label: Prebuild layers
+    summary: >
+      Container layers, toolchain packs, and environment capsules produced by
+      prebuild. Expensive to recreate and frequently network-bound; offline
+      continuity depends on a pin.
+    storage_class_id: prebuild_environment_cache
+    authority_class: disposable_derived_cache
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_pressure_if_unpinned
+    default_retention_class: evict_under_pressure_if_unpinned
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    low_disk_ladder_step: trim_prebuild_environment_unpinned
+    pin_source_classes:
+      - explicit_user_pin
+      - explicit_admin_policy_pin
+      - offline_bundle_ref
+      - certified_archetype_or_template_ref
+      - release_artifact_graph_ref
+    allowed_clear_data_actions:
+      - generic_clear_excluding_pins
+      - class_selective_clear
+    export_before_delete_required: false
+    protected_continuity: false
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  # ---- Durable, policy-bounded evidence ------------------------------------
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: profiler_trace
+    label: Profiler traces
+    summary: >
+      Captured profiler/performance traces of a specific run. Evidence-grade
+      and policy-bounded; re-profiling cannot reproduce the same run, so a
+      generic clear-cache path never targets it.
+    storage_class_id: evidence_support_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_case_close
+    default_retention_class: retain_for_policy_window
+    clear_cache_protection_class: protected_requires_class_specific_review
+    low_disk_ladder_step: expire_unpinned_evidence_past_retention
+    pin_source_classes:
+      - explicit_user_pin
+      - case_reference_ref
+      - review_pack_ref
+      - support_export_assembly_ref
+      - retention_window_ref
+    allowed_clear_data_actions:
+      - class_specific_review_required
+      - export_before_delete_offered
+    export_before_delete_required: true
+    protected_continuity: true
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: replay_bundle
+    label: Replay bundles
+    summary: >
+      Recorded trace/replay bundles used to back regression qualification and
+      incident analysis. Evidence-grade and policy-bounded; protected from
+      generic clear-cache.
+    storage_class_id: evidence_support_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_case_close
+    default_retention_class: retain_for_policy_window
+    clear_cache_protection_class: protected_requires_class_specific_review
+    low_disk_ladder_step: expire_unpinned_evidence_past_retention
+    pin_source_classes:
+      - explicit_user_pin
+      - case_reference_ref
+      - review_pack_ref
+      - retention_window_ref
+    allowed_clear_data_actions:
+      - class_specific_review_required
+      - export_before_delete_offered
+    export_before_delete_required: true
+    protected_continuity: true
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: support_artifact
+    label: Support artifacts
+    summary: >
+      Support-bundle drafts and in-flight support-export assemblies. Evidence-
+      grade and policy-bounded; an assembly in flight is pinned until export
+      completes.
+    storage_class_id: evidence_support_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: high_rebuild_cost
+    gc_policy_class: gc_on_case_close
+    default_retention_class: retain_for_policy_window
+    clear_cache_protection_class: protected_requires_class_specific_review
+    low_disk_ladder_step: expire_unpinned_evidence_past_retention
+    pin_source_classes:
+      - explicit_user_pin
+      - support_export_assembly_ref
+      - case_reference_ref
+      - retention_window_ref
+    allowed_clear_data_actions:
+      - class_specific_review_required
+      - export_before_delete_offered
+    export_before_delete_required: true
+    protected_continuity: true
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: review_incident_evidence
+    label: Review and incident evidence
+    summary: >
+      Review packets, validation artifacts, and incident-workspace evidence.
+      Authoritative captured snapshots with no rebuild path; protected from
+      generic clear-cache and held under a retention/case window.
+    storage_class_id: evidence_support_cache
+    authority_class: admin_or_control_artifact
+    rebuild_cost_class: authoritative_no_rebuild
+    gc_policy_class: gc_on_case_close
+    default_retention_class: retain_for_policy_window
+    clear_cache_protection_class: protected_requires_class_specific_review
+    low_disk_ladder_step: expire_unpinned_evidence_past_retention
+    pin_source_classes:
+      - explicit_user_pin
+      - explicit_admin_policy_pin
+      - case_reference_ref
+      - review_pack_ref
+      - retention_window_ref
+      - policy_bundle_last_known_good_ref
+    allowed_clear_data_actions:
+      - class_specific_review_required
+      - export_before_delete_offered
+    export_before_delete_required: true
+    protected_continuity: true
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
+
+  # ---- User-owned recovery state ------------------------------------------
+  - schema_version: 1
+    record_kind: m5_artifact_family_storage_row
+    family_id: user_owned_recovery_state
+    label: User-owned recovery state
+    summary: >
+      Local history, rollback checkpoints, dirty-buffer journals, and
+      session-restore state touched by M5 lanes. Authoritative user-owned
+      state; never trimmed by default and never eligible for generic clear.
+    storage_class_id: user_owned_recovery_state
+    authority_class: user_owned_recovery_state
+    rebuild_cost_class: authoritative_no_rebuild
+    gc_policy_class: gc_on_explicit_reset_only
+    default_retention_class: retain_until_explicit_user_reset
+    clear_cache_protection_class: protected_never_generic_clear
+    low_disk_ladder_step: user_owned_recovery_state_only_under_explicit_review
+    pin_source_classes:
+      - explicit_user_pin
+      - retention_window_ref
+    allowed_clear_data_actions:
+      - explicit_per_item_review_required
+      - export_before_delete_offered
+    export_before_delete_required: true
+    protected_continuity: true
+    schema_ref: schemas/storage/m5_artifact_family_storage_matrix.schema.json
+    doc_ref: docs/m5/freeze-the-m5-storage-class-pin-source-clear-data-and-low-disk-ordering-matrix-for-new-artifact-families.md
