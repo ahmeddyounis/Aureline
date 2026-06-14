@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-collections/0.0.0")]
 
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
+pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
 pub mod stabilize_filter_ast_saved_view_scope_pack_column_preset;
 pub mod stabilize_selection_scope_and_batch_result_truth;
 
@@ -26,6 +27,18 @@ pub use freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descr
     M5_COLLECTION_QUALIFICATION_MATRIX_SCHEMA_REF,
     M5_COLLECTION_QUALIFICATION_MATRIX_SCHEMA_VERSION,
     M5_COLLECTION_QUALIFICATION_MATRIX_SUMMARY_REF,
+};
+
+pub use implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence::{
+    current_m5_collection_persistence_export, CollectionStateReconstruction,
+    IncompatibilityResolution, M5CollectionPersistenceArtifactError, M5CollectionPersistencePacket,
+    M5CollectionPersistencePacketInput, M5CollectionPersistenceViolation, PersistedCollectionState,
+    PersistedColumnPreset, PersistenceCompatibility, PersistenceConsumerProjection,
+    PersistenceGuardrails, ReopenOutcome, M5_COLLECTION_PERSISTENCE_ARTIFACT_REF,
+    M5_COLLECTION_PERSISTENCE_DOC_REF, M5_COLLECTION_PERSISTENCE_FIXTURE_DIR,
+    M5_COLLECTION_PERSISTENCE_RECORD_KIND, M5_COLLECTION_PERSISTENCE_SCHEMA_REF,
+    M5_COLLECTION_PERSISTENCE_SCHEMA_VERSION, M5_COLLECTION_PERSISTENCE_SUMMARY_REF,
+    M5_PERSISTED_STATE_SCHEMA_VERSION,
 };
 
 pub use stabilize_filter_ast_saved_view_scope_pack_column_preset::{

@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/implement-filter-asts-saved-views-column-presets-and-privacy-scoped-persistence-across-pip.schema.json",
+  "title": "Aureline M5 privacy-scoped collection persistence packet",
+  "description": "Export-safe packet binding the first real M5 dense collection surfaces (pipeline run list, review queue, incident list, graph list, marketplace results, provider/admin table) to durable, reopenable, privacy-scoped persistence records. Each binding reuses a shared aureline-search SavedCollectionView object rather than a surface-local serialization blob, and adds a persisted schema version, a compatibility state, and a visible migration/reset resolution when the persisted state can no longer replay exactly. Saved views preserve owner and privacy scope: a shared, policy, or provider-owned view may not be persisted as local-only-private, and a portable view carries a portable filter AST. Transient selection, provider cursors, and secret-bearing material are never persisted, and diagnostics/support can reconstruct which filter/view/column state the user had active. Raw filter literal bytes, provider cursors, credentials, and raw row bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "bindings",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_collection_privacy_scoped_persistence_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "packet_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/persisted_collection_state"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "dense_collection_surface": {
+      "enum": [
+        "pipeline_run_list",
+        "review_queue",
+        "incident_list",
+        "graph_list",
+        "marketplace_results",
+        "activity_rows",
+        "provider_admin_table",
+        "query_backed_result_set",
+        "support_export_projection"
+      ]
+    },
+    "scope_counter_vocabulary_term": {
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "approx",
+        "exact",
+        "hidden_by_policy",
+        "outside_current_filter"
+      ]
+    },
+    "persistence_compatibility": {
+      "enum": ["current", "migratable_forward", "incompatible_needs_reset"]
+    },
+    "incompatibility_resolution": {
+      "enum": ["migrate_forward", "reset_to_default", "refuse_until_rebound"]
+    },
+    "persisted_column_preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column_preset_id",
+        "visible_column_ids",
+        "pinned_column_ids",
+        "required_identity_column_ids",
+        "density_mode_token"
+      ],
+      "properties": {
+        "column_preset_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "visible_column_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "pinned_column_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "required_identity_column_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "density_mode_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "saved_collection_view": {
+      "type": "object",
+      "description": "Shared aureline-search saved-view object. Core persistence-relevant fields are validated here; the full object shape is owned by the saved_view schema.",
+      "required": [
+        "saved_view_id",
+        "owner_scope",
+        "privacy_class",
+        "fallback_behavior",
+        "filter_ast",
+        "captures_selection",
+        "captures_provider_cursor"
+      ],
+      "properties": {
+        "saved_view_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "owner_scope": {
+          "enum": ["user", "workspace", "shared", "policy_pinned", "provider_owned"]
+        },
+        "privacy_class": {
+          "enum": [
+            "local_only_private",
+            "workspace_portable",
+            "shared_redacted",
+            "policy_governed",
+            "provider_owned"
+          ]
+        },
+        "captures_selection": {
+          "const": false
+        },
+        "captures_provider_cursor": {
+          "const": false
+        }
+      }
+    },
+    "persisted_collection_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "surface",
+        "label_summary",
+        "saved_view",
+        "column_preset",
+        "scope_vocabulary_terms",
+        "persisted_schema_version",
+        "compatibility",
+        "reopen_rebind_supported",
+        "excludes_transient_selection",
+        "excludes_provider_cursor",
+        "excludes_secret_material",
+        "evidence_refs"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface": {
+          "$ref": "#/$defs/dense_collection_surface"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "saved_view": {
+          "$ref": "#/$defs/saved_collection_view"
+        },
+        "column_preset": {
+          "$ref": "#/$defs/persisted_column_preset"
+        },
+        "scope_vocabulary_terms": {
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "$ref": "#/$defs/scope_counter_vocabulary_term"
+          }
+        },
+        "persisted_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "compatibility": {
+          "$ref": "#/$defs/persistence_compatibility"
+        },
+        "incompatibility_resolution": {
+          "$ref": "#/$defs/incompatibility_resolution"
+        },
+        "incompatibility_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reopen_rebind_supported": {
+          "const": true
+        },
+        "excludes_transient_selection": {
+          "const": true
+        },
+        "excludes_provider_cursor": {
+          "const": true
+        },
+        "excludes_secret_material": {
+          "const": true
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "compatibility": {
+                "const": "current"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["incompatibility_resolution"]
+                },
+                {
+                  "required": ["incompatibility_label"]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": ["incompatibility_resolution", "incompatibility_label"]
+          }
+        }
+      ]
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_through_shared_objects",
+        "saved_views_preserve_owner_privacy_scope",
+        "transient_selection_and_cursors_never_persisted",
+        "incompatible_state_fails_visibly",
+        "support_can_reconstruct_active_state"
+      ],
+      "properties": {
+        "reopen_through_shared_objects": {
+          "const": true
+        },
+        "saved_views_preserve_owner_privacy_scope": {
+          "const": true
+        },
+        "transient_selection_and_cursors_never_persisted": {
+          "const": true
+        },
+        "incompatible_state_fails_visibly": {
+          "const": true
+        },
+        "support_can_reconstruct_active_state": {
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_reopens_from_records",
+        "diagnostics_reconstructs_from_records",
+        "support_export_reuses_records",
+        "sync_reuses_records"
+      ],
+      "properties": {
+        "product_reopens_from_records": {
+          "const": true
+        },
+        "diagnostics_reconstructs_from_records": {
+          "const": true
+        },
+        "support_export_reuses_records": {
+          "const": true
+        },
+        "sync_reuses_records": {
+          "const": true
+        }
+      }
+    }
+  }
+}
