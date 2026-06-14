@@ -62,6 +62,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
+pub mod inspect_to_source_tree;
 pub mod preview_origin;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
@@ -76,6 +77,17 @@ pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtim
     M5_PREVIEW_INSPECTION_MATRIX_DOC_REF, M5_PREVIEW_INSPECTION_MATRIX_FIXTURE_DIR,
     M5_PREVIEW_INSPECTION_MATRIX_RECORD_KIND, M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_REF,
     M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_VERSION, M5_PREVIEW_INSPECTION_MATRIX_SUMMARY_REF,
+};
+
+pub use inspect_to_source_tree::{
+    current_m5_inspect_to_source_tree_export, ContinuityRoute, InspectNode,
+    InspectToSourceTreeArtifactError, InspectToSourceTreePacket, InspectToSourceTreePacketInput,
+    InspectToSourceTreeViolation, InspectTreeKind, MappingDowngradeTrigger,
+    NodeMappingQualityClass, TreeConsumerProjection, TreeGuardrails,
+    INSPECT_TO_SOURCE_TREE_ARTIFACT_REF, INSPECT_TO_SOURCE_TREE_DOC_REF,
+    INSPECT_TO_SOURCE_TREE_FIXTURE_DIR, INSPECT_TO_SOURCE_TREE_RECORD_KIND,
+    INSPECT_TO_SOURCE_TREE_SCHEMA_REF, INSPECT_TO_SOURCE_TREE_SCHEMA_VERSION,
+    INSPECT_TO_SOURCE_TREE_SUMMARY_REF,
 };
 
 pub use preview_origin::{
