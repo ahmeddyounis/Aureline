@@ -4,11 +4,11 @@ use aureline_api::{
     current_api_matrix_qualification, current_certification_qualification,
     current_database_browser_qualification, current_explain_plan_qualification,
     current_freshness_banner_qualification, current_handoff_qualification,
-    current_origin_truth_qualification, current_request_composer_qualification,
-    current_request_views_qualification, current_request_workspace_qualification,
-    current_response_viewer_qualification, current_result_grid_qualification,
-    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
-    current_statement_safety_qualification,
+    current_origin_truth_qualification, current_persisted_operation_qualification,
+    current_request_composer_qualification, current_request_views_qualification,
+    current_request_workspace_qualification, current_response_viewer_qualification,
+    current_result_grid_qualification, current_ship_query_history_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -616,4 +616,67 @@ fn embedded_certification_summary_matches_computed() {
     let packet =
         current_certification_qualification().expect("embedded certification packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_persisted_op_packet_parses() {
+    let packet = current_persisted_operation_qualification()
+        .expect("embedded persisted-operation packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.details.is_empty());
+    assert!(!packet.review_sheets.is_empty());
+    assert!(!packet.review_choices.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_persisted_op_packet_has_no_violations() {
+    let packet = current_persisted_operation_qualification()
+        .expect("embedded persisted-operation packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_persisted_op_summary_matches_computed() {
+    let packet = current_persisted_operation_qualification()
+        .expect("embedded persisted-operation packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn persisted_op_consumes_api_matrix_and_blocks_unsafe_fallback() {
+    let packet = current_persisted_operation_qualification()
+        .expect("embedded persisted-operation packet must parse");
+    // The detail lane is a real consumer of the frozen API-collection matrix.
+    let consumes_matrix = packet.upstream_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumes_matrix,
+        "persisted-operation detail must reference the API-collection matrix packet"
+    );
+    // Drift and deprecation surface for review rather than hiding.
+    let drifted = packet.drifted_detail_ids();
+    assert!(drifted.contains(&"detail:deprecated".to_owned()));
+    assert!(drifted.contains(&"detail:hash_drift".to_owned()));
+    // Material mismatches block the send instead of silently falling back.
+    let material = packet.material_mismatch_detail_ids();
+    assert!(material.contains(&"detail:hash_drift".to_owned()));
+    assert!(material.contains(&"detail:id_drift".to_owned()));
+    assert!(material.contains(&"detail:removed".to_owned()));
+    // A raw send after a mismatch is only reachable through an explicit downgrade.
+    let downgrades = packet.explicit_downgrade_choice_ids();
+    assert!(downgrades.contains(&"choice:hash_downgrade".to_owned()));
+    assert_eq!(downgrades.len(), 3);
+    let blocked = packet.send_blocked_sheet_ids();
+    assert!(blocked.contains(&"sheet:hash_drift".to_owned()));
+    assert!(blocked.contains(&"sheet:removed".to_owned()));
 }

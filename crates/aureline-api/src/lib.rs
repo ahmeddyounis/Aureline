@@ -100,6 +100,17 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.json`](../../../artifacts/data/m5/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.json).
 //!
+//! This crate also owns the persisted-operation detail, hash/id drift-check,
+//! contract-version-review, and no-unsafe-fallback send-rule qualification
+//! records that make a request's persisted-operation binding a first-class fact:
+//! each detail carries the local name, opaque remote id/hash, contract version,
+//! breaking-risk note, and open-contract action, and drift, deprecation, or
+//! removal blocks the send behind rerun/regenerate/cancel choices instead of a
+//! silent raw-text fallback. The persisted-operation boundary schema is
+//! [`/schemas/data/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.schema.json`](../../../schemas/data/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.json`](../../../artifacts/data/m5/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -107,6 +118,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-api/0.0.0")]
 
+pub mod add_persisted_operation_detail_hash_or_id_drift_checks_contract_version_review_and_no_unsafe_fallback_send_rules;
 pub mod add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions;
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
 pub mod certify_api_database_and_browser_runtime_workflows_with_mutation_redaction_and_scale_drills;
@@ -303,4 +315,15 @@ pub use implement_request_origin_truth_for_local_desktop_ssh_container_managed_w
     RerunReviewMode, RerunReviewSheetRow, ResolvedOriginRow,
     ORIGIN_TRUTH_QUALIFICATION_PACKET_JSON, ORIGIN_TRUTH_QUALIFICATION_PACKET_PATH,
     ORIGIN_TRUTH_QUALIFICATION_RECORD_KIND, ORIGIN_TRUTH_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use add_persisted_operation_detail_hash_or_id_drift_checks_contract_version_review_and_no_unsafe_fallback_send_rules::{
+    current_persisted_operation_qualification, PersistedOpDetailRow, PersistedOpDriftReviewSheetRow,
+    PersistedOpQualificationLabel, PersistedOpQualificationPacket, PersistedOpQualificationProof,
+    PersistedOpQualificationSummary, PersistedOpQualificationViolation,
+    PersistedOpQualificationViolationKind, PersistedOpReviewChoiceRow, PersistedOpSurfaceGuardSet,
+    PersistedOpSurfaceKind, PersistedOpSurfaceQualificationRow, PersistedOpUpstreamRefRow,
+    PersistedOperationDriftClass, ReviewChoiceKind, SendDecisionClass,
+    PERSISTED_OP_QUALIFICATION_PACKET_JSON, PERSISTED_OP_QUALIFICATION_PACKET_PATH,
+    PERSISTED_OP_QUALIFICATION_RECORD_KIND, PERSISTED_OP_QUALIFICATION_SCHEMA_VERSION,
 };
