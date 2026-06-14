@@ -32,6 +32,7 @@ pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod provider_arbitration_diagnostics_convergence;
+pub mod provider_refactor_certification_truth_packet;
 pub mod provider_refactor_matrix_truth_packet;
 pub mod provider_status_surface_truth_packet;
 pub mod publish_launch_language_conformance_packs_truth_packet;
@@ -508,6 +509,26 @@ pub use provider_arbitration_diagnostics_convergence::{
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_DOC_REF,
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_REF,
     PROVIDER_ARBITRATION_DIAGNOSTICS_CONVERGENCE_SCHEMA_VERSION,
+};
+pub use provider_refactor_certification_truth_packet::{
+    current_stable_provider_refactor_certification_truth_packet, ArbitrationProofClass,
+    CertificationConsumerProjection, CertificationRow, CertificationRowClass,
+    CertificationVerdictClass, ConsumerSurface as ProviderRefactorCertificationConsumerSurface,
+    ConvergenceProofClass, EvidenceDrillClass,
+    FindingKind as ProviderRefactorCertificationFindingKind,
+    FindingSeverity as ProviderRefactorCertificationFindingSeverity,
+    PromotionState as ProviderRefactorCertificationPromotionState,
+    ProviderRefactorCertificationTruthArtifactError, ProviderRefactorCertificationTruthPacket,
+    ProviderRefactorCertificationTruthPacketInput, ProviderRefactorCertificationTruthSupportExport,
+    RollbackDeterminismClass, ValidationFinding as ProviderRefactorCertificationValidationFinding,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_ARTIFACT_DOC_REF,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_DOC_REF,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_FIXTURE_DIR,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_PACKET_ARTIFACT_REF,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_PACKET_RECORD_KIND,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_SCHEMA_REF,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_SCHEMA_VERSION,
+    PROVIDER_REFACTOR_CERTIFICATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use provider_refactor_matrix_truth_packet::{
     current_stable_provider_refactor_matrix_truth_packet,
