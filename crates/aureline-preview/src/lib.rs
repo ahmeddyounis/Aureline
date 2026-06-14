@@ -67,6 +67,7 @@ pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtim
 pub mod inspect_to_source_tree;
 pub mod preview_drift_recovery;
 pub mod preview_origin;
+pub mod preview_runtime_certification;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
 pub mod visual_edit_transforms;
@@ -145,6 +146,17 @@ pub use preview_origin::{
     PREVIEW_ORIGIN_DESCRIPTOR_SCHEMA_VERSION, PREVIEW_TARGET_DESCRIPTOR_RECORD_KIND,
     PREVIEW_TARGET_DESCRIPTOR_SCHEMA_VERSION, RUNTIME_MUTATION_ACTION_PLAN_RECORD_KIND,
     RUNTIME_MUTATION_ACTION_PLAN_SCHEMA_VERSION,
+};
+pub use preview_runtime_certification::{
+    current_m5_preview_runtime_certification_export, CertificationClass,
+    CertificationConsumerProjection, CertificationDowngradeTrigger, CertificationEvidenceFreshness,
+    CertificationGuardrails, CertificationLane, CertificationRow, LaneProof, LaneProofStatus,
+    PreviewRuntimeCertificationArtifactError, PreviewRuntimeCertificationPacket,
+    PreviewRuntimeCertificationPacketInput, PreviewRuntimeCertificationViolation,
+    PREVIEW_RUNTIME_CERTIFICATION_ARTIFACT_REF, PREVIEW_RUNTIME_CERTIFICATION_DOC_REF,
+    PREVIEW_RUNTIME_CERTIFICATION_FIXTURE_DIR, PREVIEW_RUNTIME_CERTIFICATION_RECORD_KIND,
+    PREVIEW_RUNTIME_CERTIFICATION_SCHEMA_REF, PREVIEW_RUNTIME_CERTIFICATION_SCHEMA_VERSION,
+    PREVIEW_RUNTIME_CERTIFICATION_SUMMARY_REF,
 };
 pub use preview_session_descriptors::{
     current_m5_preview_session_descriptor_set_export, PreviewConsumerSurface,
