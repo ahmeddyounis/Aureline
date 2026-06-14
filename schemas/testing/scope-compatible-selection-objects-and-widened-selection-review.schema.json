@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/scope-compatible-selection-objects-and-widened-selection-review.schema.json",
+  "title": "Aureline M5 portable test-selection packet",
+  "description": "Export-safe packet that lands scope-compatible selection objects, portable selector parity across UI / CLI / AI / support packets, and widened-selection review for the M5 rerun and triage lanes. A selection object ties a chosen set of targets to the discovery-snapshot fingerprint it was resolved against, an include / exclude query with an optional changed-since ref, and an expansion policy. Rerun, rerun-failed, CLI selectors, AI test plans, and support / export packets all normalize onto the same selection object. Before a rerun executes, a compatibility assessment compares the selection to the current discovery state: only a compatible, preserved selection dispatches without review, while a snapshot drift, target-fingerprint change, widening, or narrowing forces a widened-selection review state. Imported / provider-backed selections never re-dispatch as a local rerun. Target fingerprints never collapse a parameterized template into a concrete invocation, and no display label or bare id stands in for a target's durable fingerprint. Raw test source, raw provider payloads, raw query bodies, provider cursors, credentials, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "selections",
+    "assessments",
+    "guardrails",
+    "channel_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "portable_test_selection_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "selections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/selection_object"
+      }
+    },
+    "assessments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/selection_compatibility_assessment"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "channel_projection": {
+      "$ref": "#/$defs/channel_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "test_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "remap_review_required",
+        "imported_read_only",
+        "display_text_only_denied",
+        "unknown_requires_review"
+      ]
+    },
+    "durable_test_node_kind": {
+      "type": "string",
+      "enum": [
+        "suite",
+        "concrete_case",
+        "parameterized_template",
+        "concrete_invocation",
+        "notebook_linked_test"
+      ]
+    },
+    "selector_channel": {
+      "type": "string",
+      "enum": [
+        "ui",
+        "cli",
+        "ai",
+        "support"
+      ]
+    },
+    "selection_intent_kind": {
+      "type": "string",
+      "enum": [
+        "explicit_items",
+        "rerun_all",
+        "rerun_failed",
+        "changed_since",
+        "snapshot_scoped"
+      ]
+    },
+    "expansion_policy": {
+      "type": "string",
+      "enum": [
+        "pinned_exact",
+        "reresolve_within_snapshot",
+        "allow_widen_with_review",
+        "frozen_imported_read_only"
+      ]
+    },
+    "target_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "widened_needs_review",
+        "narrowed_needs_review",
+        "snapshot_drifted",
+        "target_fingerprint_mismatch",
+        "imported_not_rerunnable"
+      ]
+    },
+    "widened_selection_review_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending",
+        "approved_as_adjusted",
+        "rejected_keep_original",
+        "blocked"
+      ]
+    },
+    "snapshot_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "snapshot_digest",
+        "consumer_token"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "snapshot_digest": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "consumer_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "selection_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "node_kind",
+        "target_fingerprint_token",
+        "identity_class"
+      ],
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/durable_test_node_kind"
+        },
+        "target_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_class": {
+          "$ref": "#/$defs/test_item_identity_class"
+        }
+      }
+    },
+    "selection_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include_query_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "exclude_query_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "changed_since_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "selection_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_id",
+        "label",
+        "origin_channel",
+        "intent",
+        "expansion_policy",
+        "snapshot_fingerprint",
+        "query",
+        "pinned_targets",
+        "evidence_refs"
+      ],
+      "properties": {
+        "selection_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "origin_channel": {
+          "$ref": "#/$defs/selector_channel"
+        },
+        "intent": {
+          "$ref": "#/$defs/selection_intent_kind"
+        },
+        "expansion_policy": {
+          "$ref": "#/$defs/expansion_policy"
+        },
+        "snapshot_fingerprint": {
+          "$ref": "#/$defs/snapshot_fingerprint"
+        },
+        "query": {
+          "$ref": "#/$defs/selection_query"
+        },
+        "pinned_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/selection_target"
+          }
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "selection_compatibility_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessment_id",
+        "selection_ref",
+        "current_snapshot_fingerprint",
+        "compatibility_class",
+        "review_state",
+        "snapshot_drifted",
+        "preserves_origin",
+        "evidence_refs"
+      ],
+      "properties": {
+        "assessment_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "selection_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "current_snapshot_fingerprint": {
+          "$ref": "#/$defs/snapshot_fingerprint"
+        },
+        "compatibility_class": {
+          "$ref": "#/$defs/target_compatibility_class"
+        },
+        "review_state": {
+          "$ref": "#/$defs/widened_selection_review_state"
+        },
+        "snapshot_drifted": {
+          "type": "boolean"
+        },
+        "added_target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "removed_target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "fingerprint_mismatch_target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "preserves_origin": {
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templates_distinct_from_invocations",
+        "imported_never_rerun_as_local",
+        "widening_opens_review",
+        "snapshot_drift_opens_review",
+        "origin_preserved_or_reviewed",
+        "selection_reconstructable_from_export"
+      ],
+      "properties": {
+        "templates_distinct_from_invocations": {
+          "type": "boolean"
+        },
+        "imported_never_rerun_as_local": {
+          "type": "boolean"
+        },
+        "widening_opens_review": {
+          "type": "boolean"
+        },
+        "snapshot_drift_opens_review": {
+          "type": "boolean"
+        },
+        "origin_preserved_or_reviewed": {
+          "type": "boolean"
+        },
+        "selection_reconstructable_from_export": {
+          "type": "boolean"
+        }
+      }
+    },
+    "channel_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ui_consumes_selection",
+        "cli_consumes_selection",
+        "ai_plan_consumes_selection",
+        "support_export_reconstructs_selection"
+      ],
+      "properties": {
+        "ui_consumes_selection": {
+          "type": "boolean"
+        },
+        "cli_consumes_selection": {
+          "type": "boolean"
+        },
+        "ai_plan_consumes_selection": {
+          "type": "boolean"
+        },
+        "support_export_reconstructs_selection": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -77,6 +77,7 @@ pub mod runtime_continuity_surface_qualification;
 pub mod sandbox;
 pub mod scanner_import;
 pub mod scanner_import_quality_parity;
+pub mod scope_compatible_selection_objects_and_widened_selection_review;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod stabilize_debugger_host_and_adapter_negotiation;
