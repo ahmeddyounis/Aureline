@@ -1,0 +1,58 @@
+# M5 Test Discovery / Session / Watch / Coverage / Flaky / Snapshot Certification
+
+- Packet: `m5-test-evidence-certification:stable:0001`
+- Label: `M5 Test-Evidence Certification`
+- Rows: 6 (6 claimed, 1 imported, 1 narrowed)
+- Row kinds: 5 / 5
+- Dimensions certified: 7 / 7
+- Evidence freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Rows
+
+- **test-cert:framework-pack:0001** (framework_pack_row): claim `certified` -> effective `certified`
+  - Framework-pack row with current discovery, session, watch, selector, and coverage proof
+  - subject `subject:test-cert:framework-pack:0001` (parameterized_template), imported=false
+  - discovery_truth = `verified_current`
+  - session_truth = `verified_current`
+  - watch_truth = `verified_current`
+  - selector_portability = `verified_current`
+  - coverage_evidence = `verified_current`
+- **test-cert:notebook:0001** (notebook_row): claim `certified` -> effective `certified`
+  - Notebook-backed row with current core proof and current snapshot evidence
+  - subject `subject:test-cert:notebook:0001` (notebook_linked_test), imported=false
+  - discovery_truth = `verified_current`
+  - session_truth = `verified_current`
+  - watch_truth = `verified_current`
+  - selector_portability = `verified_current`
+  - snapshot_evidence = `verified_current`
+- **test-cert:ai-test-generation:0001** (ai_test_generation_row): claim `certified` -> effective `certified`
+  - AI test-generation row whose proposals preview a diff and gate behind explicit apply
+  - subject `subject:test-cert:ai-test-generation:0001` (concrete_case), imported=false
+  - discovery_truth = `verified_current`
+  - session_truth = `verified_current`
+  - watch_truth = `verified_current`
+  - selector_portability = `verified_current`
+- **test-cert:review-panel:0001** (review_panel_row): claim `release_certified` -> effective `release_certified`
+  - Review-panel row with current core proof and current flaky/quarantine evidence
+  - subject `subject:test-cert:review-panel:0001` (concrete_invocation), imported=false
+  - discovery_truth = `verified_current`
+  - session_truth = `verified_current`
+  - watch_truth = `verified_current`
+  - selector_portability = `verified_current`
+  - flaky_evidence = `verified_current`
+- **test-cert:ci-import:0001** (ci_import_row): claim `provisionally_certified` -> effective `provisionally_certified`
+  - Imported-CI row held read-only with current imported proof that never reads as a local rerun
+  - subject `subject:test-cert:ci-import:0001` (concrete_invocation), imported=true
+  - discovery_truth = `imported_current`
+  - session_truth = `imported_current`
+  - watch_truth = `imported_current`
+  - selector_portability = `imported_current`
+- **test-cert:framework-pack:stale-coverage:0001** (framework_pack_row): claim `certified` -> effective `uncertified`
+  - Framework-pack row whose coverage evidence aged outside its freshness window
+  - subject `subject:test-cert:framework-pack:stale-coverage:0001` (parameterized_template), imported=false
+  - discovery_truth = `verified_current`
+  - session_truth = `verified_current`
+  - watch_truth = `verified_current`
+  - selector_portability = `verified_current`
+  - coverage_evidence = `stale_expired`
+  - Narrowed: Coverage evidence aged outside its freshness window; held uncertified until a fresh coverage run re-backs the claim

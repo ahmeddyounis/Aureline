@@ -58,6 +58,15 @@
 //! beyond its evidenced scope, and an imported proposal is held read-only instead of
 //! reading as a local apply.
 //!
+//! [`certify_test_discovery_session_watch_coverage_flaky_snapshot_evidence_quality::TestEvidenceCertificationPacket`]
+//! makes those lanes release-bearing on every claimed M5 framework / notebook /
+//! CI-import row: each row certifies its discovery, session, watch, coverage,
+//! flaky, snapshot, and selector-portability proof against a freshness window, and a
+//! row that loses current, reopenable proof auto-narrows below its claim — with a
+//! recorded trigger and a precise label — rather than coasting on an adjacent green
+//! row. Product, docs/help, review, support, and release-control surfaces ingest this
+//! one certification instead of narrating test maturity by hand.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -70,6 +79,7 @@ pub mod build_intelligence;
 pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
+pub mod certify_test_discovery_session_watch_coverage_flaky_snapshot_evidence_quality;
 pub mod coverage_overlays_and_snapshot_golden_review;
 pub mod debug;
 pub mod dependencies;
