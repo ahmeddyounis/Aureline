@@ -61,6 +61,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
+pub mod browser_runtime_inspectors;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod inspect_to_source_tree;
 pub mod preview_origin;
@@ -77,6 +78,19 @@ pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtim
     M5_PREVIEW_INSPECTION_MATRIX_DOC_REF, M5_PREVIEW_INSPECTION_MATRIX_FIXTURE_DIR,
     M5_PREVIEW_INSPECTION_MATRIX_RECORD_KIND, M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_REF,
     M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_VERSION, M5_PREVIEW_INSPECTION_MATRIX_SUMMARY_REF,
+};
+
+pub use browser_runtime_inspectors::{
+    current_m5_browser_runtime_inspectors_export, BrowserRuntimeInspectorArtifactError,
+    BrowserRuntimeInspectorPacket, BrowserRuntimeInspectorPacketInput,
+    BrowserRuntimeInspectorViolation, BrowserRuntimeTargetKind, InspectorConsumerProjection,
+    InspectorDowngradeTrigger, InspectorGuardrails, InspectorKind, InspectorMappingQualityClass,
+    InspectorRow, MutationDescriptor, MutationReviewPosture, RedactionPostureClass,
+    SessionContinuityClass, SessionFreshnessClass, SideEffectClass,
+    BROWSER_RUNTIME_INSPECTORS_ARTIFACT_REF, BROWSER_RUNTIME_INSPECTORS_DOC_REF,
+    BROWSER_RUNTIME_INSPECTORS_FIXTURE_DIR, BROWSER_RUNTIME_INSPECTORS_RECORD_KIND,
+    BROWSER_RUNTIME_INSPECTORS_SCHEMA_REF, BROWSER_RUNTIME_INSPECTORS_SCHEMA_VERSION,
+    BROWSER_RUNTIME_INSPECTORS_SUMMARY_REF,
 };
 
 pub use inspect_to_source_tree::{

@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/browser_runtime_inspectors.schema.json",
+  "title": "Aureline M5 browser-runtime inspectors",
+  "description": "Export-safe packet of DOM/CSS/console/network/storage browser-runtime inspector descriptors binding the five inspector lanes onto one shared vocabulary. Each row names which runtime target it is attached to (embedded preview, external browser, simulator/emulator, device browser, remote preview session, or captured snapshot), how deep the attach reaches, how good its source mapping is, how fresh the session is, how the session was obtained, and how its value bodies are redacted. Console, network, and storage inspectors carry sensitive value bodies; their redaction posture must hide those values by default so cookies, tokens, storage entries, and request/response bodies never leak into generic diagnostics or support exports. A runtime-only or captured-snapshot row never claims to be saved source state; a stale or imported session never presents as live; session identity stays attributable through reconnect, imported-snapshot, and stale-session continuity. A mutation-capable action can appear only with an explicit side-effect class matching the inspector lane, a target identity, and a review/confirmation posture, and may never target a captured snapshot. Source remains canonical; the inspector packet is derivative and never a second writable truth model. Raw URLs, hostnames, cookies, tokens, storage entries, request/response bodies, raw provider payloads, credentials, and raw runtime handles never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "set_label",
+    "inspectors",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "browser_runtime_inspectors"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "set_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "inspectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/inspector_row"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "inspector_kind": {
+      "type": "string",
+      "enum": [
+        "dom",
+        "css",
+        "console",
+        "network",
+        "storage"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "embedded_preview",
+        "external_browser",
+        "simulator_or_emulator",
+        "device_browser",
+        "remote_preview_session",
+        "captured_snapshot"
+      ]
+    },
+    "attach_depth": {
+      "type": "string",
+      "enum": [
+        "no_attach",
+        "dom_only",
+        "dom_and_styles",
+        "dom_styles_network",
+        "dom_styles_network_storage",
+        "not_applicable_non_browser"
+      ]
+    },
+    "mapping_quality": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "generated_only",
+        "runtime_only"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "live",
+        "reconnected",
+        "stale",
+        "captured_snapshot"
+      ]
+    },
+    "continuity": {
+      "type": "string",
+      "enum": [
+        "fresh_attach",
+        "reconnected",
+        "imported_snapshot",
+        "stale_session"
+      ]
+    },
+    "redaction_posture": {
+      "type": "string",
+      "enum": [
+        "redacted_by_default",
+        "metadata_only",
+        "hashed_reference",
+        "non_sensitive_passthrough"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "dom_mutation",
+        "style_override",
+        "storage_write",
+        "network_replay",
+        "console_eval"
+      ]
+    },
+    "review_posture": {
+      "type": "string",
+      "enum": [
+        "confirmation_required",
+        "review_required",
+        "blocked_needs_elevation"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "runtime_reconnect",
+        "provider_loss",
+        "session_expired",
+        "snapshot_imported",
+        "attach_depth_reduced",
+        "redaction_policy_tightened",
+        "policy_narrowed"
+      ]
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_effect_class",
+        "review_posture"
+      ],
+      "properties": {
+        "side_effect_class": {
+          "$ref": "#/$defs/side_effect_class"
+        },
+        "review_posture": {
+          "$ref": "#/$defs/review_posture"
+        }
+      }
+    },
+    "inspector_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inspector_id",
+        "inspector_kind",
+        "target_kind",
+        "target_identity_ref",
+        "session_id",
+        "continuity",
+        "attach_depth",
+        "mapping_quality",
+        "freshness",
+        "redaction_posture",
+        "label_summary",
+        "observed_at",
+        "claims_saved_source",
+        "evidence_refs"
+      ],
+      "properties": {
+        "inspector_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "inspector_kind": {
+          "$ref": "#/$defs/inspector_kind"
+        },
+        "target_kind": {
+          "$ref": "#/$defs/target_kind"
+        },
+        "target_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "session_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "prior_session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "continuity": {
+          "$ref": "#/$defs/continuity"
+        },
+        "attach_depth": {
+          "$ref": "#/$defs/attach_depth"
+        },
+        "mapping_quality": {
+          "$ref": "#/$defs/mapping_quality"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "redaction_posture": {
+          "$ref": "#/$defs/redaction_posture"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "claims_saved_source": {
+          "type": "boolean"
+        },
+        "mutation": {
+          "$ref": "#/$defs/mutation"
+        },
+        "downgrade_trigger": {
+          "$ref": "#/$defs/downgrade_trigger"
+        },
+        "degraded_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_canonical_no_second_writable_model",
+        "runtime_state_never_hides_source_mapping_uncertainty",
+        "inspect_only_never_auto_upgraded_to_write",
+        "embedded_boundaries_not_blurred_into_product",
+        "sensitive_values_redacted_by_default",
+        "mutation_requires_side_effect_class_and_review",
+        "session_identity_attributable_across_reconnect"
+      ],
+      "properties": {
+        "source_canonical_no_second_writable_model": {
+          "type": "boolean"
+        },
+        "runtime_state_never_hides_source_mapping_uncertainty": {
+          "type": "boolean"
+        },
+        "inspect_only_never_auto_upgraded_to_write": {
+          "type": "boolean"
+        },
+        "embedded_boundaries_not_blurred_into_product": {
+          "type": "boolean"
+        },
+        "sensitive_values_redacted_by_default": {
+          "type": "boolean"
+        },
+        "mutation_requires_side_effect_class_and_review": {
+          "type": "boolean"
+        },
+        "session_identity_attributable_across_reconnect": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_ingests_inspectors",
+        "docs_help_ingests_inspectors",
+        "diagnostics_ingests_inspectors",
+        "support_export_ingests_inspectors",
+        "release_control_ingests_inspectors",
+        "support_export_reconstructs_redaction_posture"
+      ],
+      "properties": {
+        "product_ingests_inspectors": {
+          "type": "boolean"
+        },
+        "docs_help_ingests_inspectors": {
+          "type": "boolean"
+        },
+        "diagnostics_ingests_inspectors": {
+          "type": "boolean"
+        },
+        "support_export_ingests_inspectors": {
+          "type": "boolean"
+        },
+        "release_control_ingests_inspectors": {
+          "type": "boolean"
+        },
+        "support_export_reconstructs_redaction_posture": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
