@@ -93,6 +93,7 @@ pub mod help;
 pub mod help_about;
 pub mod help_packs;
 pub mod host_boundary_cues;
+pub mod implement_clipboard_contracts_with_plain_text_default_copy_with_context_variants_sensitive;
 pub mod import;
 pub mod inspectors;
 pub mod install_review_fact_grid;

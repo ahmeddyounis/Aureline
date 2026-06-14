@@ -1,0 +1,75 @@
+# M5 Clipboard Contracts: Plain-Text-Default Copy, Copy-With-Context Variants, and Sensitive-Copy Labels
+
+- Packet: `m5-clipboard-contract:stable:0001`
+- Label: `M5 Clipboard Contracts: Plain-Text-Default Copy, Copy-With-Context, and Sensitive-Copy Labels`
+- Records: 11 (3 silent default, 8 forced off silent, 2 sensitive-labeled, 1 provider/imported)
+- Surface kinds: 8 / 8
+- Object classes: 7 / 7
+- Resolution classes: 5 / 5
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Records
+
+- **clipboard:editor-core:0001** (editor_core): resolution `plain_text_default_copy`
+  - Editor-core source selection copied as plain text by default
+  - object `fragment:src/lib.rs#L10-L18` (source_code_fragment), sensitivity `non_sensitive`
+  - representations: [plain_text_utf8] (plain-text preserved=true)
+  - triggers: [none]
+- **clipboard:preview:0001** (preview_surface): resolution `plain_text_default_copy`
+  - Preview command id copied as a plain-text token by default
+  - object `command:preview.runtime.reload` (command_id), sensitivity `non_sensitive`
+  - representations: [command_id_token] (plain-text preserved=true)
+  - triggers: [none]
+- **clipboard:docs:0001** (docs_surface): resolution `plain_text_default_copy`
+  - Docs relative path copied as plain text by default
+  - object `docs/interaction/m5/overview.md` (relative_path), sensitivity `non_sensitive`
+  - representations: [relative_path_text] (plain-text preserved=true)
+  - triggers: [none]
+- **clipboard:notebook:0001** (notebook_surface): resolution `copy_with_context_variant`
+  - Notebook diagnostic copied with detail and location as an explicit context variant
+  - object `diagnostic:notebook/cell-3#E0277` (diagnostic_detail), sensitivity `non_sensitive`
+  - representations: [plain_text_utf8, diagnostic_detail_text] (plain-text preserved=true)
+  - triggers: [context_beyond_bare_object]
+  - Copy-with-context: Copy-with-context adds the diagnostic code, message, and cell location
+- **clipboard:data-api:0001** (data_api_surface): resolution `copy_with_context_variant`
+  - Data/API permalink copied with repo and ref context as an explicit variant
+  - object `permalink:data/api/users.json#L42@rev-abc` (permalink), sensitivity `non_sensitive`
+  - representations: [plain_text_utf8, permalink_url] (plain-text preserved=true)
+  - triggers: [context_beyond_bare_object]
+  - Copy-with-context: Copy-with-context binds the row to its repo, ref, and relative path
+- **clipboard:review:0001** (review_surface): resolution `copy_with_context_variant`
+  - Review evidence ref copied rich-with-plain-fallback as an explicit context variant
+  - object `evidence:review/run-9921` (artifact_evidence_ref), sensitivity `non_sensitive`
+  - representations: [plain_text_utf8, markdown_rich] (plain-text preserved=true)
+  - triggers: [context_beyond_bare_object]
+  - Copy-with-context: Copy-with-context offers a markdown summary with a plain-text fallback
+- **clipboard:runtime:0001** (runtime_surface): resolution `sensitive_labeled_before_copy`
+  - Runtime support link labeled before it reaches the clipboard
+  - object `support-link:session/opaque-handle` (support_link), sensitivity `support_session_link`
+  - representations: [permalink_url] (plain-text preserved=true)
+  - triggers: [support_link_present]
+  - Sensitive-copy label: This support link identifies your session; review before sharing it
+- **clipboard:data-api:fingerprint:0001** (data_api_surface): resolution `sensitive_labeled_before_copy`
+  - Data/API evidence ref embedding a fingerprint labeled before copy
+  - object `evidence:data-api/run-7741` (artifact_evidence_ref), sensitivity `fingerprint_digest`
+  - representations: [plain_text_utf8] (plain-text preserved=true)
+  - triggers: [sensitive_token_or_fingerprint]
+  - Sensitive-copy label: This evidence ref embeds a response fingerprint; review before sharing
+- **clipboard:editor-core:private-path:0001** (editor_core): resolution `relativized_or_redacted_copy`
+  - Editor private absolute path relativized before it reaches the clipboard
+  - object `src/secret_module/handler.rs` (relative_path), sensitivity `private_absolute_path`
+  - representations: [relative_path_text] (plain-text preserved=true)
+  - triggers: [private_absolute_path]
+  - Relativized/redacted: The absolute home-directory path is relativized to a workspace-relative path before copy
+- **clipboard:docs:rich-only:0001** (docs_surface): resolution `rejected_rich_only_or_unsafe`
+  - Docs rich-only copy with no plain-text flavor is rejected
+  - object `fragment:docs/example.html#L1-L4` (source_code_fragment), sensitivity `non_sensitive`
+  - representations: [html_rich] (plain-text preserved=false)
+  - triggers: [rich_only_no_plain_text]
+  - Rejected: A rich-only HTML copy with no readable plain-text fallback is rejected
+- **clipboard:companion:0001** (companion_surface): resolution `copy_with_context_variant`
+  - Provider-linked companion permalink copied with context; imported proof never reads as local
+  - object `permalink:companion/thread-204#message-7` (permalink), sensitivity `non_sensitive`
+  - representations: [plain_text_utf8, permalink_url] (plain-text preserved=true)
+  - triggers: [context_beyond_bare_object]
+  - Copy-with-context: Copy-with-context binds the message to its provider thread and permalink
