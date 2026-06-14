@@ -90,6 +90,16 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json`](../../../artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json).
 //!
+//! This crate also owns the request-origin truth and rerun drift-review
+//! qualification records that make execution origin a first-class fact across
+//! the local-desktop, SSH, container, managed-workspace, and browser-companion
+//! execution paths, distinguishing rerun-exactly from rerun-with-current-context
+//! and enumerating origin changes before dispatch. The origin-truth boundary
+//! schema is
+//! [`/schemas/data/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.schema.json`](../../../schemas/data/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.json`](../../../artifacts/data/m5/implement-request-origin-truth-for-local-desktop-ssh-container-managed-workspace-and-browser-companion-execution-paths-with-drift-review.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -104,6 +114,7 @@ pub mod freeze_the_api_collection_contract_source_request_origin_and_persisted_o
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_operation_collection_and_request_list_views_with_protocol_class_environment_retention_mode_and_contract_or_source_badges;
+pub mod implement_request_origin_truth_for_local_desktop_ssh_container_managed_workspace_and_browser_companion_execution_paths_with_drift_review;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
@@ -281,4 +292,15 @@ pub use ship_contract_freshness_banners_imported_snapshot_labels_and_refresh_dif
     RefreshMode, SpecTargetKind, FRESHNESS_BANNER_QUALIFICATION_PACKET_JSON,
     FRESHNESS_BANNER_QUALIFICATION_PACKET_PATH, FRESHNESS_BANNER_QUALIFICATION_RECORD_KIND,
     FRESHNESS_BANNER_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_request_origin_truth_for_local_desktop_ssh_container_managed_workspace_and_browser_companion_execution_paths_with_drift_review::{
+    current_origin_truth_qualification, OriginChangeKind, OriginChangeRow, OriginExecutionPath,
+    OriginTrustBoundaryClass, OriginTruthQualificationLabel, OriginTruthQualificationPacket,
+    OriginTruthQualificationProof, OriginTruthQualificationSummary,
+    OriginTruthQualificationViolation, OriginTruthSurfaceGuardSet, OriginTruthSurfaceKind,
+    OriginTruthSurfaceQualificationRow, OriginTruthUpstreamRefRow, OriginTruthViolationKind,
+    RerunReviewMode, RerunReviewSheetRow, ResolvedOriginRow,
+    ORIGIN_TRUTH_QUALIFICATION_PACKET_JSON, ORIGIN_TRUTH_QUALIFICATION_PACKET_PATH,
+    ORIGIN_TRUTH_QUALIFICATION_RECORD_KIND, ORIGIN_TRUTH_QUALIFICATION_SCHEMA_VERSION,
 };

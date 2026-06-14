@@ -4,10 +4,11 @@ use aureline_api::{
     current_api_matrix_qualification, current_certification_qualification,
     current_database_browser_qualification, current_explain_plan_qualification,
     current_freshness_banner_qualification, current_handoff_qualification,
-    current_request_composer_qualification, current_request_views_qualification,
-    current_request_workspace_qualification, current_response_viewer_qualification,
-    current_result_grid_qualification, current_ship_query_history_qualification,
-    current_staged_row_mutation_qualification, current_statement_safety_qualification,
+    current_origin_truth_qualification, current_request_composer_qualification,
+    current_request_views_qualification, current_request_workspace_qualification,
+    current_response_viewer_qualification, current_result_grid_qualification,
+    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
+    current_statement_safety_qualification,
 };
 
 #[test]
@@ -510,6 +511,65 @@ fn freshness_banner_consumes_api_matrix_and_labels_snapshots() {
     );
     // GraphQL is the lane the row most depends on; it must be covered.
     assert!(!packet.graphql_banner_ids().is_empty());
+}
+
+#[test]
+fn embedded_origin_truth_packet_parses() {
+    let packet =
+        current_origin_truth_qualification().expect("embedded origin truth packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.origins.is_empty());
+    assert!(!packet.rerun_sheets.is_empty());
+    assert!(!packet.origin_changes.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_origin_truth_packet_has_no_violations() {
+    let packet =
+        current_origin_truth_qualification().expect("embedded origin truth packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_origin_truth_summary_matches_computed() {
+    let packet =
+        current_origin_truth_qualification().expect("embedded origin truth packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn origin_truth_consumes_api_matrix_and_projects_drift_review() {
+    let packet =
+        current_origin_truth_qualification().expect("embedded origin truth packet must parse");
+    // The origin truth is a real consumer of the frozen API-collection matrix.
+    let consumes_matrix = packet.upstream_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumes_matrix,
+        "origin truth must reference the API-collection matrix packet"
+    );
+    // Drifted origins are surfaced for review rather than hidden.
+    let changed = packet.changed_origin_ids();
+    assert!(changed.contains(&"origin:browser_companion".to_owned()));
+    assert!(changed.contains(&"origin:managed_workspace".to_owned()));
+    // Managed and companion origins isolate desktop-local trust.
+    let isolated = packet.trust_isolated_origin_ids();
+    assert!(isolated.contains(&"origin:managed_workspace".to_owned()));
+    assert!(isolated.contains(&"origin:browser_companion".to_owned()));
+    // Drifted reruns block dispatch until the enumerated changes are reviewed.
+    let blocked = packet.dispatch_blocked_sheet_ids();
+    assert!(blocked.contains(&"sheet:browser_companion_current_context".to_owned()));
+    assert!(blocked.contains(&"sheet:managed_current_context".to_owned()));
 }
 
 #[test]
