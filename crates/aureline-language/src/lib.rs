@@ -49,6 +49,7 @@ pub mod tree_sitter;
 pub mod tsjs;
 pub mod typed_refactor_transaction_truth_packet;
 pub mod vue_advanced_workflow_pack_truth_packet;
+pub mod wide_scope_refactor_fallback_truth_packet;
 
 pub use adapter_stability_truth_packet::{
     current_stable_adapter_stability_truth_packet,
@@ -854,6 +855,25 @@ pub use vue_advanced_workflow_pack_truth_packet::{
     VUE_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
     VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF, VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
     VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use wide_scope_refactor_fallback_truth_packet::{
+    current_stable_wide_scope_refactor_fallback_truth_packet,
+    ApplyFallbackPostureClass as WideScopeRefactorFallbackApplyPostureClass,
+    FallbackConsumerProjection as WideScopeRefactorFallbackConsumerProjection,
+    FallbackRow as WideScopeRefactorFallbackRow,
+    FallbackRowClass as WideScopeRefactorFallbackRowClass,
+    FindingKind as WideScopeRefactorFallbackFindingKind,
+    ReviewerHintClass as WideScopeRefactorFallbackReviewerHintClass,
+    ValidationFinding as WideScopeRefactorFallbackValidationFinding,
+    WideScopeRefactorFallbackTruthArtifactError, WideScopeRefactorFallbackTruthPacket,
+    WideScopeRefactorFallbackTruthPacketInput, WideScopeRefactorFallbackTruthSupportExport,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_ARTIFACT_DOC_REF,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_DOC_REF, WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_FIXTURE_DIR,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_PACKET_ARTIFACT_REF,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_PACKET_RECORD_KIND,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_SCHEMA_REF,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_SCHEMA_VERSION,
+    WIDE_SCOPE_REFACTOR_FALLBACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use aureline_navigation::target_model as navigation_target_model;
