@@ -14,6 +14,7 @@
 pub mod adapter_stability_truth_packet;
 pub mod assistant_surface_hardening_truth_packet;
 pub mod c_and_cpp_daily_driver_quality_truth_packet;
+pub mod code_action_quick_fix_picker_truth_packet;
 pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
 pub mod diagnostic_cluster_semantic_layer_truth_packet;
@@ -122,6 +123,26 @@ pub use c_and_cpp_daily_driver_quality_truth_packet::{
     C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
     C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
     C_AND_CPP_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use code_action_quick_fix_picker_truth_packet::{
+    current_stable_code_action_quick_fix_picker_truth_packet,
+    ApplyPostureClass as CodeActionPickerApplyPostureClass,
+    ArtifactFamilyLaneClass as CodeActionPickerLaneClass,
+    CodeActionQuickFixPickerTruthArtifactError, CodeActionQuickFixPickerTruthPacket,
+    CodeActionQuickFixPickerTruthPacketInput, CodeActionQuickFixPickerTruthSupportExport,
+    DisagreementVisibilityClass as CodeActionPickerDisagreementVisibilityClass,
+    FallbackPathClass as CodeActionPickerFallbackPathClass,
+    FindingKind as CodeActionPickerFindingKind,
+    MutationScopeClass as CodeActionPickerMutationScopeClass, PickerConsumerProjection, PickerRow,
+    PickerRowClass, ValidationFinding as CodeActionPickerValidationFinding,
+    ValidationHookClass as CodeActionPickerValidationHookClass,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_ARTIFACT_DOC_REF,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_DOC_REF, CODE_ACTION_QUICK_FIX_PICKER_TRUTH_FIXTURE_DIR,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_PACKET_ARTIFACT_REF,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_PACKET_RECORD_KIND,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_SCHEMA_REF,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_SCHEMA_VERSION,
+    CODE_ACTION_QUICK_FIX_PICKER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use code_actions::{
     ActionClass as CodeActionClass, ApplyPostureClass as CodeActionApplyPostureClass,
