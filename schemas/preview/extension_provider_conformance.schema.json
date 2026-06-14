@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/extension_provider_conformance.schema.json",
+  "title": "Aureline M5 extension-provider conformance",
+  "description": "Export-safe packet of per-provider conformance rows that make the canonical M5 preview/browser-runtime vocabularies enforceable across first-party packs and contributed extension providers. Each row binds the provider backing a single claimed M5 row to an explicit declaration naming its supported runtime target kinds, supported source-mapping quality classes, maximum attach depth, hot-reload declaration, and client-scope limit. A live operating profile may only be backed by a provider whose declaration actually satisfies the claimed row's requirement; a row never advertises capability its provider did not declare. If a weaker provider would replace a stronger one, the row records a weaker-replacement status, preserves the prior declaration, proves the current declaration is actually weaker, and degrades to a bounded operating profile with repair guidance instead of a silent semantic swap. A stale or unavailable provider preserves its prior declaration and limitation notes as unresolved state with a precise downgrade label and repair guidance. Mirror/offline, inspect-only, and policy-limited profiles each carry an explicit downgrade trigger and a precise degraded label on every claimed row, so a degraded surface is bounded truth rather than a blank surface or a hidden provider dependency. A write-capable designer flow may appear only on a live, conformant row. Source remains canonical; the conformance packet is derivative and never a second writable truth model. Raw provider payloads, credentials, raw URLs, hostnames, raw runtime handles, and extension-private wording never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "set_label",
+    "rows",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "extension_provider_conformance"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "set_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/conformance_row"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "provider_origin": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "contributed"
+      ]
+    },
+    "provider_status": {
+      "type": "string",
+      "enum": [
+        "conformant",
+        "stale_declaration",
+        "weaker_replacement",
+        "unavailable"
+      ]
+    },
+    "operating_profile": {
+      "type": "string",
+      "enum": [
+        "live",
+        "mirror_offline",
+        "inspect_only",
+        "policy_limited"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "embedded_preview",
+        "external_browser",
+        "simulator_or_emulator",
+        "device_browser",
+        "remote_preview_session",
+        "captured_snapshot"
+      ]
+    },
+    "mapping_quality": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "generated_only",
+        "runtime_only"
+      ]
+    },
+    "attach_depth": {
+      "type": "string",
+      "enum": [
+        "no_attach",
+        "dom_only",
+        "dom_and_styles",
+        "dom_styles_network",
+        "dom_styles_network_storage",
+        "not_applicable_non_browser"
+      ]
+    },
+    "hot_reload": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "restart_only",
+        "unsupported",
+        "not_applicable"
+      ]
+    },
+    "repair_action": {
+      "type": "string",
+      "enum": [
+        "reverify_declaration",
+        "reinstall_provider",
+        "restore_stronger_provider",
+        "use_mirror_offline",
+        "acknowledge_inspect_only",
+        "request_policy_elevation"
+      ]
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "provider_unavailable",
+        "provider_declaration_stale",
+        "weaker_provider_proposed",
+        "target_kind_unsupported",
+        "mapping_quality_regressed",
+        "attach_depth_reduced",
+        "hot_reload_withdrawn",
+        "policy_narrowed",
+        "offline_mirror_only"
+      ]
+    },
+    "provider_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_target_kinds",
+        "supported_mapping_qualities",
+        "max_attach_depth",
+        "hot_reload",
+        "client_scope_limit_token"
+      ],
+      "properties": {
+        "supported_target_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/target_kind"
+          }
+        },
+        "supported_mapping_qualities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/mapping_quality"
+          }
+        },
+        "max_attach_depth": {
+          "$ref": "#/$defs/attach_depth"
+        },
+        "hot_reload": {
+          "$ref": "#/$defs/hot_reload"
+        },
+        "client_scope_limit_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "claimed_row_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_target_kind",
+        "required_mapping_quality",
+        "required_attach_depth",
+        "requires_hot_reload"
+      ],
+      "properties": {
+        "required_target_kind": {
+          "$ref": "#/$defs/target_kind"
+        },
+        "required_mapping_quality": {
+          "$ref": "#/$defs/mapping_quality"
+        },
+        "required_attach_depth": {
+          "$ref": "#/$defs/attach_depth"
+        },
+        "requires_hot_reload": {
+          "type": "boolean"
+        }
+      }
+    },
+    "repair_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "guidance_summary"
+      ],
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/repair_action"
+        },
+        "guidance_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "conformance_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "claimed_surface_label",
+        "provider_id",
+        "provider_origin",
+        "declaration",
+        "requirement",
+        "status",
+        "operating_profile",
+        "offers_write_capable_flow",
+        "label_summary",
+        "observed_at",
+        "evidence_refs"
+      ],
+      "properties": {
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "claimed_surface_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provider_origin": {
+          "$ref": "#/$defs/provider_origin"
+        },
+        "declaration": {
+          "$ref": "#/$defs/provider_declaration"
+        },
+        "requirement": {
+          "$ref": "#/$defs/claimed_row_requirement"
+        },
+        "prior_declaration": {
+          "$ref": "#/$defs/provider_declaration"
+        },
+        "status": {
+          "$ref": "#/$defs/provider_status"
+        },
+        "operating_profile": {
+          "$ref": "#/$defs/operating_profile"
+        },
+        "offers_write_capable_flow": {
+          "type": "boolean"
+        },
+        "repair": {
+          "$ref": "#/$defs/repair_guidance"
+        },
+        "downgrade_trigger": {
+          "$ref": "#/$defs/downgrade_trigger"
+        },
+        "degraded_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_canonical_no_second_writable_model",
+        "runtime_state_never_hides_source_mapping_uncertainty",
+        "inspect_only_never_auto_upgraded_to_write",
+        "embedded_boundaries_not_blurred_into_product",
+        "weaker_provider_never_silently_swaps_semantics",
+        "stale_or_unavailable_provider_preserves_history",
+        "bounded_profiles_explicit_and_exportable"
+      ],
+      "properties": {
+        "source_canonical_no_second_writable_model": {
+          "type": "boolean"
+        },
+        "runtime_state_never_hides_source_mapping_uncertainty": {
+          "type": "boolean"
+        },
+        "inspect_only_never_auto_upgraded_to_write": {
+          "type": "boolean"
+        },
+        "embedded_boundaries_not_blurred_into_product": {
+          "type": "boolean"
+        },
+        "weaker_provider_never_silently_swaps_semantics": {
+          "type": "boolean"
+        },
+        "stale_or_unavailable_provider_preserves_history": {
+          "type": "boolean"
+        },
+        "bounded_profiles_explicit_and_exportable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_ingests_conformance",
+        "docs_help_ingests_conformance",
+        "diagnostics_ingests_conformance",
+        "support_export_ingests_conformance",
+        "release_control_ingests_conformance",
+        "support_export_reconstructs_operating_profile"
+      ],
+      "properties": {
+        "product_ingests_conformance": {
+          "type": "boolean"
+        },
+        "docs_help_ingests_conformance": {
+          "type": "boolean"
+        },
+        "diagnostics_ingests_conformance": {
+          "type": "boolean"
+        },
+        "support_export_ingests_conformance": {
+          "type": "boolean"
+        },
+        "release_control_ingests_conformance": {
+          "type": "boolean"
+        },
+        "support_export_reconstructs_operating_profile": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

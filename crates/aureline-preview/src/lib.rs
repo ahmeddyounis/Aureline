@@ -62,6 +62,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
 pub mod browser_runtime_inspectors;
+pub mod extension_provider_conformance;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod inspect_to_source_tree;
 pub mod preview_drift_recovery;
@@ -93,6 +94,18 @@ pub use browser_runtime_inspectors::{
     BROWSER_RUNTIME_INSPECTORS_FIXTURE_DIR, BROWSER_RUNTIME_INSPECTORS_RECORD_KIND,
     BROWSER_RUNTIME_INSPECTORS_SCHEMA_REF, BROWSER_RUNTIME_INSPECTORS_SCHEMA_VERSION,
     BROWSER_RUNTIME_INSPECTORS_SUMMARY_REF,
+};
+
+pub use extension_provider_conformance::{
+    current_m5_extension_provider_conformance_export, ClaimedRowRequirement,
+    ConformanceConsumerProjection, ConformanceDowngradeTrigger, ConformanceGuardrails,
+    HotReloadDeclarationClass, OperatingProfileClass, ProviderConformanceArtifactError,
+    ProviderConformancePacket, ProviderConformancePacketInput, ProviderConformanceRow,
+    ProviderConformanceViolation, ProviderDeclaration, ProviderOriginClass, ProviderStatusClass,
+    RepairActionClass, RepairGuidance, EXTENSION_PROVIDER_CONFORMANCE_ARTIFACT_REF,
+    EXTENSION_PROVIDER_CONFORMANCE_DOC_REF, EXTENSION_PROVIDER_CONFORMANCE_FIXTURE_DIR,
+    EXTENSION_PROVIDER_CONFORMANCE_RECORD_KIND, EXTENSION_PROVIDER_CONFORMANCE_SCHEMA_REF,
+    EXTENSION_PROVIDER_CONFORMANCE_SCHEMA_VERSION, EXTENSION_PROVIDER_CONFORMANCE_SUMMARY_REF,
 };
 
 pub use inspect_to_source_tree::{
