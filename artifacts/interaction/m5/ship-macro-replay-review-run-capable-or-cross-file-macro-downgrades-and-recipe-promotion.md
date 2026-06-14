@@ -1,0 +1,80 @@
+# M5 Macro-Replay Review: Run-Capable / Cross-File Downgrades and Recipe-Promotion Paths
+
+- Packet: `m5-macro-replay-review:stable:0001`
+- Label: `M5 Macro-Replay Review: Run-Capable / Cross-File Downgrades and Recipe-Promotion`
+- Records: 8 (1 exact, 7 forced off exact, 3 promoted, 1 provider/imported)
+- Surface kinds: 8 / 8
+- Outcome classes: 5 / 5
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Records
+
+- **macro-replay:editor-core:0001** (editor_core): outcome `exact_replay_local_editor_only`
+  - Editor-core single-file refactor macro that replays exactly against one buffer
+  - source register `register:a` (named_register), scope `single_surface_single_file` (1 files / 1 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [none]
+  - command lineage:
+    - `editor.motion.word_forward` -> `editor.motion.word_forward@rev1` (core_command, write `read_only`, run_capable=false)
+    - `editor.edit.replace_token` -> `editor.edit.replace_token@rev1` (core_command, write `editor_buffer_mutation`, run_capable=false)
+- **macro-replay:notebook:0001** (notebook_surface): outcome `review_required_before_apply`
+  - Notebook macro that edits and re-runs a cell; the run-capable step opens review
+  - source register `register:q` (recording_buffer_register), scope `single_surface_single_file` (1 files / 1 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [run_capable_or_elevated_command]
+  - command lineage:
+    - `notebook.cell.edit_source` -> `notebook.cell.edit_source@rev1` (core_command, write `editor_buffer_mutation`, run_capable=false)
+    - `notebook.cell.run` -> `notebook.cell.run@rev1` (run_capable_command, write `run_capable_execution`, run_capable=true)
+  - Review required: Macro re-runs a notebook cell; review the run before it executes
+- **macro-replay:data-api:0001** (data_api_surface): outcome `downgraded_to_observer_no_mutation`
+  - Data/API macro that rewrites rows across files; downgraded to observe-no-mutation
+  - source register `register:1` (numbered_register), scope `cross_file_within_surface` (3 files / 1 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [cross_file_scope, run_capable_or_elevated_command]
+  - command lineage:
+    - `data_grid.row.select_matching` -> `data_grid.row.select_matching@rev1` (core_command, write `read_only`, run_capable=false)
+    - `data_grid.row.rewrite_cell` -> `data_grid.row.rewrite_cell@rev1` (core_command, write `multi_file_mutation`, run_capable=false)
+  - Downgraded to: Replay observes the cross-file rewrite without mutating; apply requires explicit confirm
+- **macro-replay:preview:0001** (preview_surface): outcome `promoted_to_declarative_recipe`
+  - Preview macro that edits source and rebuilds across surfaces; promoted to a recipe
+  - source register `register:b` (named_register), scope `cross_surface_span` (2 files / 2 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [cross_file_scope, cross_surface_or_workspace_scope, run_capable_or_elevated_command]
+  - command lineage:
+    - `editor.edit.apply_patch` -> `editor.edit.apply_patch@rev1` (core_command, write `editor_buffer_mutation`, run_capable=false)
+    - `preview.runtime.rebuild` -> `preview.runtime.rebuild@rev1` (run_capable_command, write `run_capable_execution`, run_capable=true)
+  - Promoted to recipe: recipe:preview-edit-and-rebuild@v1
+- **macro-replay:docs:0001** (docs_surface): outcome `rejected_unsafe_replay`
+  - Docs macro carrying an unmapped keystroke that cannot resolve; rejected as unsafe
+  - source register `register:c` (named_register), scope `single_surface_single_file` (1 files / 1 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [unmapped_or_unsafe_step]
+  - command lineage:
+    - `docs.edit.insert_heading` -> `docs.edit.insert_heading@rev1` (core_command, write `editor_buffer_mutation`, run_capable=false)
+    - `docs.unmapped.chord` -> `docs.unmapped.chord@rev1` (unmapped_keystroke_unsafe, write `read_only`, run_capable=false)
+  - Rejected: A recorded keystroke does not resolve to any command; replay is rejected rather than approximated
+- **macro-replay:review:0001** (review_surface): outcome `promoted_to_declarative_recipe`
+  - Review-panel macro that applies suggestions workspace-wide; promoted to a recipe
+  - source register `register:plus` (clipboard_linked_register), scope `workspace_wide_span` (5 files / 3 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [cross_file_scope, cross_surface_or_workspace_scope, run_capable_or_elevated_command]
+  - command lineage:
+    - `review.suggestion.accept` -> `review.suggestion.accept@rev1` (core_command, write `multi_file_mutation`, run_capable=false)
+    - `review.ai.apply_fixups` -> `review.ai.apply_fixups@rev1` (ai_tool_handle, write `multi_file_mutation`, run_capable=false)
+  - Promoted to recipe: recipe:review-accept-and-fixup@v1
+- **macro-replay:runtime:0001** (runtime_surface): outcome `promoted_to_declarative_recipe`
+  - Embedded-runtime macro depending on async output; downgraded to observe-only
+  - source register `register:2` (numbered_register), scope `cross_file_within_surface` (2 files / 1 surfaces)
+  - timing `depends_on_async_output`
+  - triggers: [cross_file_scope, run_capable_or_elevated_command, unstable_timing]
+  - command lineage:
+    - `runtime.task.invoke` -> `runtime.task.invoke@rev1` (run_capable_command, write `run_capable_execution`, run_capable=true)
+  - Promoted to recipe: recipe:runtime-task-deterministic@v1
+- **macro-replay:companion:0001** (companion_surface): outcome `review_required_before_apply`
+  - Provider-linked companion macro held for review; imported proof never reads as local
+  - source register `register:d` (named_register), scope `single_surface_single_file` (1 files / 1 surfaces)
+  - timing `stable_deterministic`
+  - triggers: [run_capable_or_elevated_command]
+  - command lineage:
+    - `companion.provider.invoke_action` -> `companion.provider.invoke_action@rev1` (extension_command, write `run_capable_execution`, run_capable=true)
+  - Review required: Provider-backed action runs off-device; review before it is invoked
