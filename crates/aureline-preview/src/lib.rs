@@ -64,6 +64,7 @@
 pub mod browser_runtime_inspectors;
 pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod inspect_to_source_tree;
+pub mod preview_drift_recovery;
 pub mod preview_origin;
 pub mod preview_session_descriptors;
 pub mod safe_preview;
@@ -103,6 +104,18 @@ pub use inspect_to_source_tree::{
     INSPECT_TO_SOURCE_TREE_FIXTURE_DIR, INSPECT_TO_SOURCE_TREE_RECORD_KIND,
     INSPECT_TO_SOURCE_TREE_SCHEMA_REF, INSPECT_TO_SOURCE_TREE_SCHEMA_VERSION,
     INSPECT_TO_SOURCE_TREE_SUMMARY_REF,
+};
+
+pub use preview_drift_recovery::{
+    current_m5_preview_drift_recovery_drill_set_export, DriftEventClass,
+    DriftRecoveryConsumerProjection, DriftRecoveryGuardrails, DriftRecoveryRoute,
+    DriftRecoveryTrigger, DriftTruthSnapshot, PreviewDriftRecoveryDrill,
+    PreviewDriftRecoveryDrillSet, PreviewDriftRecoveryDrillSetArtifactError,
+    PreviewDriftRecoveryDrillSetInput, PreviewDriftRecoveryDrillSetViolation,
+    PREVIEW_DRIFT_RECOVERY_DRILL_SET_ARTIFACT_REF, PREVIEW_DRIFT_RECOVERY_DRILL_SET_DOC_REF,
+    PREVIEW_DRIFT_RECOVERY_DRILL_SET_FIXTURE_DIR, PREVIEW_DRIFT_RECOVERY_DRILL_SET_RECORD_KIND,
+    PREVIEW_DRIFT_RECOVERY_DRILL_SET_SCHEMA_REF, PREVIEW_DRIFT_RECOVERY_DRILL_SET_SCHEMA_VERSION,
+    PREVIEW_DRIFT_RECOVERY_DRILL_SET_SUMMARY_REF,
 };
 
 pub use preview_origin::{
