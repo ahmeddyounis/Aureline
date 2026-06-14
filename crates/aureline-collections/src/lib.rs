@@ -8,8 +8,25 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-collections/0.0.0")]
 
+pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod stabilize_filter_ast_saved_view_scope_pack_column_preset;
 pub mod stabilize_selection_scope_and_batch_result_truth;
+
+pub use freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix::{
+    current_m5_collection_qualification_matrix_export, BatchActionDescriptor, BatchActionKind,
+    BatchActionScopeClass, CollectionMatrixDowngradeTrigger, CollectionMatrixQualificationClass,
+    CollectionQualificationMatrixArtifactError, CollectionQualificationMatrixPacket,
+    CollectionQualificationMatrixPacketInput, CollectionQualificationMatrixViolation,
+    CollectionQualificationRow, ColumnPresetDeclaration, DenseCollectionSurface, FilterAstClass,
+    MatrixConsumerProjection as CollectionMatrixConsumerProjection,
+    MatrixEvidenceFreshness as CollectionMatrixEvidenceFreshness,
+    MatrixGuardrails as CollectionMatrixGuardrails, ResultCounterClass, SavedViewDeclaration,
+    M5_COLLECTION_QUALIFICATION_MATRIX_ARTIFACT_REF, M5_COLLECTION_QUALIFICATION_MATRIX_DOC_REF,
+    M5_COLLECTION_QUALIFICATION_MATRIX_FIXTURE_DIR, M5_COLLECTION_QUALIFICATION_MATRIX_RECORD_KIND,
+    M5_COLLECTION_QUALIFICATION_MATRIX_SCHEMA_REF,
+    M5_COLLECTION_QUALIFICATION_MATRIX_SCHEMA_VERSION,
+    M5_COLLECTION_QUALIFICATION_MATRIX_SUMMARY_REF,
+};
 
 pub use stabilize_filter_ast_saved_view_scope_pack_column_preset::{
     current_stable_dense_collection_contract_packet, seeded_dense_collection_contract_packet,
