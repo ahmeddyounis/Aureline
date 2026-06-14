@@ -3,11 +3,11 @@
 use aureline_api::{
     current_api_matrix_qualification, current_certification_qualification,
     current_database_browser_qualification, current_explain_plan_qualification,
-    current_handoff_qualification, current_request_composer_qualification,
-    current_request_views_qualification, current_request_workspace_qualification,
-    current_response_viewer_qualification, current_result_grid_qualification,
-    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
-    current_statement_safety_qualification,
+    current_freshness_banner_qualification, current_handoff_qualification,
+    current_request_composer_qualification, current_request_views_qualification,
+    current_request_workspace_qualification, current_response_viewer_qualification,
+    current_result_grid_qualification, current_ship_query_history_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -451,6 +451,65 @@ fn request_views_consume_api_matrix_and_project_drift() {
     let blocked = packet.drift_blocked_request_ids();
     assert!(blocked.contains(&"request_view:graphql_stale_blocked".to_owned()));
     assert!(blocked.contains(&"request_view:rest_managed_shared".to_owned()));
+}
+
+#[test]
+fn embedded_freshness_banner_packet_parses() {
+    let packet = current_freshness_banner_qualification()
+        .expect("embedded freshness banner packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.banners.is_empty());
+    assert!(!packet.refresh_flows.is_empty());
+    assert!(!packet.diff_flows.is_empty());
+    assert!(!packet.open_spec_flows.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_freshness_banner_packet_has_no_violations() {
+    let packet = current_freshness_banner_qualification()
+        .expect("embedded freshness banner packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_freshness_banner_summary_matches_computed() {
+    let packet = current_freshness_banner_qualification()
+        .expect("embedded freshness banner packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn freshness_banner_consumes_api_matrix_and_labels_snapshots() {
+    let packet = current_freshness_banner_qualification()
+        .expect("embedded freshness banner packet must parse");
+    // The banners are a real consumer of the frozen API-collection matrix.
+    let consumes_matrix = packet.upstream_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumes_matrix,
+        "freshness banners must reference the API-collection matrix packet"
+    );
+    // Stale and unavailable banners narrow any live claim.
+    let narrowing = packet.narrowing_banner_ids();
+    assert!(narrowing.contains(&"banner:graphql_stale".to_owned()));
+    assert!(narrowing.contains(&"banner:plugin_unavailable".to_owned()));
+    // Imported snapshots are surfaced as their own labeled class.
+    assert_eq!(
+        packet.imported_snapshot_banner_ids(),
+        vec!["banner:graphql_imported".to_owned()]
+    );
+    // GraphQL is the lane the row most depends on; it must be covered.
+    assert!(!packet.graphql_banner_ids().is_empty());
 }
 
 #[test]

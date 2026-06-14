@@ -82,6 +82,14 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json`](../../../artifacts/data/m5/implement-operation-collection-and-request-list-views-with-protocol-class-environment-retention-mode-and-contract-or-source-badges.json).
 //!
+//! This crate also owns the contract freshness banner, imported-snapshot label,
+//! and refresh/diff/open-spec flow qualification records that keep GraphQL and
+//! other contract-linked requests honest wherever validation or completion
+//! depends on a contract snapshot. The freshness-banner boundary schema is
+//! [`/schemas/data/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.schema.json`](../../../schemas/data/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json`](../../../artifacts/data/m5/ship-contract-freshness-banners-imported-snapshot-labels-and-refresh-diff-or-open-spec-flows.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -99,6 +107,7 @@ pub mod implement_operation_collection_and_request_list_views_with_protocol_clas
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
+pub mod ship_contract_freshness_banners_imported_snapshot_labels_and_refresh_diff_or_open_spec_flows;
 pub mod ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
 pub mod ship_result_grid_virtualization_typed_copy_or_export_filter_and_sort_state_and_row_count_boundary_truth;
@@ -260,4 +269,16 @@ pub use implement_operation_collection_and_request_list_views_with_protocol_clas
     RequestViewsViolationKind, SavedViewRow, SavedViewVisibility,
     REQUEST_VIEWS_QUALIFICATION_PACKET_JSON, REQUEST_VIEWS_QUALIFICATION_PACKET_PATH,
     REQUEST_VIEWS_QUALIFICATION_RECORD_KIND, REQUEST_VIEWS_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_contract_freshness_banners_imported_snapshot_labels_and_refresh_diff_or_open_spec_flows::{
+    current_freshness_banner_qualification, BannerSeverityClass, DiffFlowRow, FreshnessBannerAction,
+    FreshnessBannerQualificationLabel, FreshnessBannerQualificationPacket,
+    FreshnessBannerQualificationProof, FreshnessBannerQualificationSummary,
+    FreshnessBannerQualificationViolation, FreshnessBannerRow, FreshnessBannerSurfaceGuardSet,
+    FreshnessBannerSurfaceKind, FreshnessBannerSurfaceQualificationRow,
+    FreshnessBannerUpstreamRefRow, FreshnessBannerViolationKind, OpenSpecFlowRow, RefreshFlowRow,
+    RefreshMode, SpecTargetKind, FRESHNESS_BANNER_QUALIFICATION_PACKET_JSON,
+    FRESHNESS_BANNER_QUALIFICATION_PACKET_PATH, FRESHNESS_BANNER_QUALIFICATION_RECORD_KIND,
+    FRESHNESS_BANNER_QUALIFICATION_SCHEMA_VERSION,
 };
