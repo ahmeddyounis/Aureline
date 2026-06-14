@@ -6,10 +6,11 @@ use aureline_api::{
     current_explain_plan_qualification, current_freshness_banner_qualification,
     current_handoff_qualification, current_origin_truth_qualification,
     current_persisted_operation_qualification, current_request_composer_qualification,
-    current_request_history_qualification, current_request_views_qualification,
-    current_request_workspace_qualification, current_response_viewer_qualification,
-    current_result_grid_qualification, current_ship_query_history_qualification,
-    current_staged_row_mutation_qualification, current_statement_safety_qualification,
+    current_request_history_qualification, current_request_profile_certification_qualification,
+    current_request_views_qualification, current_request_workspace_qualification,
+    current_response_viewer_qualification, current_result_grid_qualification,
+    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
+    current_statement_safety_qualification, CertificationCorpusClass,
 };
 
 #[test]
@@ -617,6 +618,81 @@ fn embedded_certification_summary_matches_computed() {
     let packet =
         current_certification_qualification().expect("embedded certification packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_request_profile_certification_packet_parses() {
+    let packet = current_request_profile_certification_qualification()
+        .expect("embedded request-profile certification packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.profiles.is_empty());
+    assert!(!packet.cases.is_empty());
+    assert!(!packet.downgrade_rules.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_request_profile_certification_packet_has_no_violations() {
+    let packet = current_request_profile_certification_qualification()
+        .expect("embedded request-profile certification packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_request_profile_certification_summary_matches_computed() {
+    let packet = current_request_profile_certification_qualification()
+        .expect("embedded request-profile certification packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn request_profile_certification_consumes_request_lane_and_narrows_overclaims() {
+    let packet = current_request_profile_certification_qualification()
+        .expect("embedded request-profile certification packet must parse");
+    // The certification is a real consumer of the request-lane upstream packets.
+    for kind in [
+        "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix",
+        "implement_request_origin_truth_for_local_desktop_ssh_container_managed_workspace_and_browser_companion_execution_paths_with_drift_review",
+        "add_persisted_operation_detail_hash_or_id_drift_checks_contract_version_review_and_no_unsafe_fallback_send_rules",
+    ] {
+        assert!(
+            packet
+                .upstream_refs
+                .iter()
+                .any(|row| row.upstream_record_kind == kind && row.integration_verified),
+            "must reference {kind} as a verified upstream packet"
+        );
+    }
+    // Every required drill corpus is exercised, including offline/mirror.
+    let covered = packet.covered_corpus_classes();
+    for required in [
+        CertificationCorpusClass::SchemaStale,
+        CertificationCorpusClass::OriginChangedRerun,
+        CertificationCorpusClass::PersistedOperationDrift,
+        CertificationCorpusClass::PersistedOperationDeprecation,
+        CertificationCorpusClass::MirrorOfflineSnapshot,
+        CertificationCorpusClass::ExportRedaction,
+    ] {
+        assert!(covered.contains(&required), "missing corpus {required:?}");
+    }
+    // Certification does not rest on desktop-only fixtures.
+    assert!(packet
+        .profiles
+        .iter()
+        .any(|profile| profile.profile_class.is_non_desktop()));
+    assert!(!packet.offline_corpus_case_ids().is_empty());
+    // The mirror/offline profile narrows its live-validation claim automatically.
+    assert!(packet
+        .narrowed_profile_ids()
+        .contains(&"profile:mirror_offline".to_owned()));
+    // Drift, deprecation, and stale schema block any silent raw fallback.
+    assert!(!packet.unsafe_fallback_blocking_case_ids().is_empty());
 }
 
 #[test]

@@ -66,6 +66,21 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json`](../../../artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json).
 //!
+//! This crate also owns the request-profile certification records that certify
+//! API collections, GraphQL/contract freshness, request-origin truth, and
+//! persisted-operation continuity across every claimed request profile
+//! (desktop-local, CLI, remote, container, managed-workspace, browser-companion,
+//! and mirror/offline). Each case binds a profile, a certified dimension, and a
+//! drill corpus (schema-stale, origin-changed rerun, persisted-operation drift,
+//! persisted-operation deprecation, mirror/offline snapshot, export/redaction) to
+//! an outcome, and a profile that overclaims validation confidence or origin
+//! stability narrows automatically while drift, deprecation, and stale schema
+//! block silent raw fallback. The request-profile certification boundary schema
+//! is
+//! [`/schemas/data/certify-api-collections-graphql-freshness-request-origin-truth-and-persisted-operation-continuity-across-request-profiles.schema.json`](../../../schemas/data/certify-api-collections-graphql-freshness-request-origin-truth-and-persisted-operation-continuity-across-request-profiles.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/certify-api-collections-graphql-freshness-request-origin-truth-and-persisted-operation-continuity-across-request-profiles.json`](../../../artifacts/data/m5/certify-api-collections-graphql-freshness-request-origin-truth-and-persisted-operation-continuity-across-request-profiles.json).
+//!
 //! This crate also owns the API-collection, contract-source, request-origin,
 //! and persisted-operation matrix qualification records. The matrix boundary
 //! schema is
@@ -149,6 +164,7 @@
 pub mod add_persisted_operation_detail_hash_or_id_drift_checks_contract_version_review_and_no_unsafe_fallback_send_rules;
 pub mod add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions;
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
+pub mod certify_api_collections_graphql_freshness_request_origin_truth_and_persisted_operation_continuity_across_request_profiles;
 pub mod certify_api_database_and_browser_runtime_workflows_with_mutation_redaction_and_scale_drills;
 pub mod freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
@@ -299,6 +315,19 @@ pub use certify_api_database_and_browser_runtime_workflows_with_mutation_redacti
     UpstreamPacketRefRow,
     CERTIFICATION_QUALIFICATION_PACKET_JSON, CERTIFICATION_QUALIFICATION_PACKET_PATH,
     CERTIFICATION_QUALIFICATION_RECORD_KIND, CERTIFICATION_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use certify_api_collections_graphql_freshness_request_origin_truth_and_persisted_operation_continuity_across_request_profiles::{
+    current_request_profile_certification_qualification, CertificationCorpusClass,
+    CertificationDimension, CertificationOutcome, DowngradeRuleRow, DowngradeTrigger,
+    ProfileCertificationCaseRow, RequestProfileCertProof, RequestProfileCertQualificationLabel,
+    RequestProfileCertQualificationPacket, RequestProfileCertQualificationSummary,
+    RequestProfileCertQualificationViolation, RequestProfileCertQualificationViolationKind,
+    RequestProfileCertSurfaceGuardSet, RequestProfileCertSurfaceKind,
+    RequestProfileCertSurfaceQualificationRow, RequestProfileCertUpstreamRefRow,
+    RequestProfileClass, RequestProfileRow,
+    REQUEST_PROFILE_CERT_QUALIFICATION_PACKET_JSON, REQUEST_PROFILE_CERT_QUALIFICATION_PACKET_PATH,
+    REQUEST_PROFILE_CERT_QUALIFICATION_RECORD_KIND, REQUEST_PROFILE_CERT_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix::{
