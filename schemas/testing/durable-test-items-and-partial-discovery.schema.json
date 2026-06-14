@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/durable-test-items-and-partial-discovery.schema.json",
+  "title": "Aureline M5 durable test-item discovery packet",
+  "description": "Export-safe packet that lands durable test items, parameterized template / invocation identities, notebook-linked test mappings, and partial-discovery truth for the M5 framework, notebook, and test-tree lanes. Each durable node carries its own stable node_id and a distinct node_kind for suites, concrete cases, parameterized templates, concrete invocations, and notebook-linked tests, so a template never shares a row identity with its invocations and a notebook-linked test never collapses into an ordinary file-backed case. Each discovery snapshot records its partiality, the omitted-scope reasons that keep partial / heuristic / streaming / imported discovery visible, and an export-safe mapping support class so the snapshot's support disposition survives reopen, support export, and release evidence. An identity remap or a source move degrades a node to remap_review_required without losing its prior durable identity chain. Display labels never stand in for durable test identity; imported / provider-backed discovery never masquerades as live local truth. Raw test source, raw provider payloads, raw log bytes, provider cursors, credentials, and raw artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "snapshots",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "durable_test_item_discovery_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/discovery_snapshot"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "test_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "remap_review_required",
+        "imported_read_only",
+        "display_text_only_denied",
+        "unknown_requires_review"
+      ]
+    },
+    "durable_test_node_kind": {
+      "type": "string",
+      "enum": [
+        "suite",
+        "concrete_case",
+        "parameterized_template",
+        "concrete_invocation",
+        "notebook_linked_test"
+      ]
+    },
+    "discovery_consumer_kind": {
+      "type": "string",
+      "enum": [
+        "framework_pack",
+        "notebook",
+        "test_tree",
+        "imported_ci"
+      ]
+    },
+    "discovery_partiality": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial_visible",
+        "heuristic",
+        "streaming",
+        "provider_imported"
+      ]
+    },
+    "omitted_scope_reason": {
+      "type": "string",
+      "enum": [
+        "discovery_timed_out",
+        "adapter_unavailable",
+        "requires_opt_in",
+        "not_yet_streamed",
+        "provider_owned_scope",
+        "parse_error_isolated",
+        "filtered_by_query"
+      ]
+    },
+    "mapping_support_class": {
+      "type": "string",
+      "enum": [
+        "fully_mapped_local",
+        "partially_mapped_visible",
+        "imported_read_only_mapped",
+        "needs_remap_preserved",
+        "display_only_denied"
+      ]
+    },
+    "node_source_state": {
+      "type": "string",
+      "enum": [
+        "local_resolved",
+        "source_moved_needs_remap",
+        "imported_read_only",
+        "display_text_only"
+      ]
+    },
+    "notebook_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_id",
+        "cell_id",
+        "cell_ordinal"
+      ],
+      "properties": {
+        "notebook_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cell_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cell_ordinal": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "durable_test_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "node_kind",
+        "display_label",
+        "identity_basis_token",
+        "identity_class",
+        "source_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/durable_test_node_kind"
+        },
+        "parent_node_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_basis_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_class": {
+          "$ref": "#/$defs/test_item_identity_class"
+        },
+        "source_state": {
+          "$ref": "#/$defs/node_source_state"
+        },
+        "template_node_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "invocation_key": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "notebook_linkage": {
+          "$ref": "#/$defs/notebook_linkage"
+        },
+        "prior_identity_chain": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "omitted_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_id",
+        "reason",
+        "label",
+        "recoverable"
+      ],
+      "properties": {
+        "scope_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reason": {
+          "$ref": "#/$defs/omitted_scope_reason"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "recoverable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "discovery_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "consumer",
+        "label",
+        "partiality",
+        "mapping_support_class",
+        "nodes",
+        "omitted_scopes",
+        "imported_not_shown_as_local",
+        "evidence_refs"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "consumer": {
+          "$ref": "#/$defs/discovery_consumer_kind"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "partiality": {
+          "$ref": "#/$defs/discovery_partiality"
+        },
+        "mapping_support_class": {
+          "$ref": "#/$defs/mapping_support_class"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/durable_test_node"
+          }
+        },
+        "omitted_scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/omitted_scope"
+          }
+        },
+        "imported_not_shown_as_local": {
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "display_labels_never_substitute_identity",
+        "templates_distinct_from_invocations",
+        "notebook_tests_distinct_from_file_tests",
+        "partial_discovery_stays_visible",
+        "imported_never_masquerades_as_local",
+        "remap_preserves_identity_chain"
+      ],
+      "properties": {
+        "display_labels_never_substitute_identity": {
+          "type": "boolean"
+        },
+        "templates_distinct_from_invocations": {
+          "type": "boolean"
+        },
+        "notebook_tests_distinct_from_file_tests": {
+          "type": "boolean"
+        },
+        "partial_discovery_stays_visible": {
+          "type": "boolean"
+        },
+        "imported_never_masquerades_as_local": {
+          "type": "boolean"
+        },
+        "remap_preserves_identity_chain": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework_pack_ingests_nodes",
+        "notebook_ingests_nodes",
+        "test_tree_ingests_nodes",
+        "support_export_ingests_partiality"
+      ],
+      "properties": {
+        "framework_pack_ingests_nodes": {
+          "type": "boolean"
+        },
+        "notebook_ingests_nodes": {
+          "type": "boolean"
+        },
+        "test_tree_ingests_nodes": {
+          "type": "boolean"
+        },
+        "support_export_ingests_partiality": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

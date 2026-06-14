@@ -40,6 +40,7 @@ pub mod detectors;
 pub mod diagnostics;
 pub mod discovery;
 pub mod drift_repair;
+pub mod durable_test_items_and_partial_discovery;
 pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
