@@ -31,6 +31,7 @@ pub mod packs;
 pub mod provider_arbitration;
 pub mod provider_arbitration_diagnostics_convergence;
 pub mod provider_refactor_matrix_truth_packet;
+pub mod provider_status_surface_truth_packet;
 pub mod publish_launch_language_conformance_packs_truth_packet;
 pub mod python;
 pub mod python_daily_driver_quality_truth_packet;
@@ -493,6 +494,34 @@ pub use provider_refactor_matrix_truth_packet::{
     PROVIDER_REFACTOR_MATRIX_TRUTH_PACKET_RECORD_KIND, PROVIDER_REFACTOR_MATRIX_TRUTH_SCHEMA_REF,
     PROVIDER_REFACTOR_MATRIX_TRUTH_SCHEMA_VERSION,
     PROVIDER_REFACTOR_MATRIX_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use provider_status_surface_truth_packet::{
+    current_stable_provider_status_surface_truth_packet,
+    CapabilityDetailRouteClass as ProviderStatusSurfaceCapabilityDetailRouteClass,
+    FindingKind as ProviderStatusSurfaceFindingKind,
+    FreshnessClass as ProviderStatusSurfaceFreshnessClass,
+    ObjectRowClass as ProviderStatusSurfaceObjectRowClass,
+    ParticipantRoleClass as ProviderStatusSurfaceParticipantRoleClass,
+    ProvenanceAnchorTargetClass as ProviderStatusSurfaceProvenanceAnchorTargetClass,
+    ProviderDisplayLabelClass as ProviderStatusSurfaceProviderDisplayLabelClass,
+    ProviderLifecycleStateClass as ProviderStatusSurfaceProviderLifecycleStateClass,
+    ProviderLocalityClass as ProviderStatusSurfaceProviderLocalityClass,
+    ProviderStatusSurfaceTruthArtifactError, ProviderStatusSurfaceTruthPacket,
+    ProviderStatusSurfaceTruthPacketInput, ProviderStatusSurfaceTruthSupportExport,
+    RecoveryActionClass as ProviderStatusSurfaceRecoveryActionClass,
+    ScopeLimitClass as ProviderStatusSurfaceScopeLimitClass,
+    SelectedResultFormClass as ProviderStatusSurfaceSelectedResultFormClass,
+    SurfaceClass as ProviderStatusSurfaceClass,
+    SurfaceObjectConsumerProjection as ProviderStatusSurfaceConsumerProjection,
+    SurfaceObjectKind as ProviderStatusSurfaceObjectKind,
+    SurfaceObjectRow as ProviderStatusSurfaceObjectRow,
+    ValidationFinding as ProviderStatusSurfaceValidationFinding,
+    PROVIDER_STATUS_SURFACE_MATRIX_SOURCE_REF, PROVIDER_STATUS_SURFACE_TRUTH_ARTIFACT_DOC_REF,
+    PROVIDER_STATUS_SURFACE_TRUTH_DOC_REF, PROVIDER_STATUS_SURFACE_TRUTH_FIXTURE_DIR,
+    PROVIDER_STATUS_SURFACE_TRUTH_PACKET_ARTIFACT_REF,
+    PROVIDER_STATUS_SURFACE_TRUTH_PACKET_RECORD_KIND, PROVIDER_STATUS_SURFACE_TRUTH_SCHEMA_REF,
+    PROVIDER_STATUS_SURFACE_TRUTH_SCHEMA_VERSION,
+    PROVIDER_STATUS_SURFACE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use publish_launch_language_conformance_packs_truth_packet::{
     current_stable_publish_launch_language_conformance_packs_truth_packet,
