@@ -77,6 +77,7 @@ This document describes the canonical M5 certification qualification packet for 
 | Explain plan | implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows | true |
 | Query history | ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth | true |
 | Result handoff | integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces | true |
+| API-collection matrix | freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix | true |
 
 ## Verification
 

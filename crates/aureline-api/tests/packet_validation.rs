@@ -1,12 +1,12 @@
 //! Integration test: the embedded qualification packets parse and validate.
 
 use aureline_api::{
-    current_certification_qualification, current_database_browser_qualification,
-    current_explain_plan_qualification, current_handoff_qualification,
-    current_request_composer_qualification, current_request_workspace_qualification,
-    current_response_viewer_qualification, current_result_grid_qualification,
-    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
-    current_statement_safety_qualification,
+    current_api_matrix_qualification, current_certification_qualification,
+    current_database_browser_qualification, current_explain_plan_qualification,
+    current_handoff_qualification, current_request_composer_qualification,
+    current_request_workspace_qualification, current_response_viewer_qualification,
+    current_result_grid_qualification, current_ship_query_history_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -345,6 +345,70 @@ fn embedded_staged_row_mutation_summary_matches_computed() {
     let packet = current_staged_row_mutation_qualification()
         .expect("embedded staged row mutation packet must parse");
     assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn embedded_api_matrix_packet_parses() {
+    let packet = current_api_matrix_qualification().expect("embedded api matrix packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.contracts.is_empty());
+    assert!(!packet.collections.is_empty());
+    assert!(!packet.requests.is_empty());
+    assert!(!packet.origins.is_empty());
+    assert!(!packet.persisted_operations.is_empty());
+    assert!(!packet.retention_classes.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_api_matrix_packet_has_no_violations() {
+    let packet = current_api_matrix_qualification().expect("embedded api matrix packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_api_matrix_summary_matches_computed() {
+    let packet = current_api_matrix_qualification().expect("embedded api matrix packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn api_matrix_projects_narrowing_and_drift_signals() {
+    let packet = current_api_matrix_qualification().expect("embedded api matrix packet must parse");
+    // Stale schema and unavailable contract must narrow any live claim.
+    let narrowing = packet.narrowing_contract_ids();
+    assert!(narrowing.contains(&"contract:graphql_stale".to_owned()));
+    assert!(narrowing.contains(&"contract:plugin_unavailable".to_owned()));
+    // Persisted-operation drift and origin change feed diagnostics and downgrade.
+    assert_eq!(
+        packet.persisted_operation_drift_ids(),
+        vec!["binding:graphql_drift".to_owned()]
+    );
+    assert_eq!(
+        packet.changed_origin_ids(),
+        vec!["origin:browser_companion".to_owned()]
+    );
+}
+
+#[test]
+fn certification_scorecard_consumes_api_matrix() {
+    let packet =
+        current_certification_qualification().expect("embedded certification packet must parse");
+    let consumed = packet.upstream_packet_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumed,
+        "certification scorecard must reference the API-collection matrix packet"
+    );
 }
 
 #[test]

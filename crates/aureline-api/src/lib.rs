@@ -66,6 +66,13 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json`](../../../artifacts/data/m5/certify-api-database-and-browser-runtime-workflows-with-mutation-redaction-and-scale-drills.json).
 //!
+//! This crate also owns the API-collection, contract-source, request-origin,
+//! and persisted-operation matrix qualification records. The matrix boundary
+//! schema is
+//! [`/schemas/data/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.schema.json`](../../../schemas/data/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.json`](../../../artifacts/data/m5/freeze-the-api-collection-contract-source-request-origin-and-persisted-operation-matrix.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -76,6 +83,7 @@
 pub mod add_staged_row_mutation_sheets_optimistic_concurrency_cues_and_rollback_or_checkpoint_actions;
 pub mod add_the_statement_safety_classifier_write_mode_bar_and_protected_target_step_up_flows;
 pub mod certify_api_database_and_browser_runtime_workflows_with_mutation_redaction_and_scale_drills;
+pub mod freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix;
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
@@ -219,4 +227,16 @@ pub use certify_api_database_and_browser_runtime_workflows_with_mutation_redacti
     UpstreamPacketRefRow,
     CERTIFICATION_QUALIFICATION_PACKET_JSON, CERTIFICATION_QUALIFICATION_PACKET_PATH,
     CERTIFICATION_QUALIFICATION_RECORD_KIND, CERTIFICATION_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix::{
+    current_api_matrix_qualification, ApiCollectionRow, ApiMatrixQualificationLabel,
+    ApiMatrixQualificationPacket, ApiMatrixQualificationProof, ApiMatrixQualificationSummary,
+    ApiMatrixQualificationViolation, ApiMatrixQualificationViolationKind, ApiMatrixSurfaceGuardSet,
+    ApiMatrixSurfaceKind, ApiMatrixSurfaceQualificationRow, ContractFreshnessState, ContractKind,
+    ContractRow, ContractSourceClass, OfflineMirrorBehavior, PersistedOperationBindingRow,
+    PersistedOperationBindingState, RequestBindingKind, RequestListRow, RequestOriginDriftState,
+    RequestOriginKind, RequestOriginRow, RetentionClassRow, RetentionMode, RetentionScope,
+    UpstreamRefRow, API_MATRIX_QUALIFICATION_PACKET_JSON, API_MATRIX_QUALIFICATION_PACKET_PATH,
+    API_MATRIX_QUALIFICATION_RECORD_KIND, API_MATRIX_QUALIFICATION_SCHEMA_VERSION,
 };
