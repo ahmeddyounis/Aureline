@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/implement-selection-bars-range-anchor-identity-stale-query-snapshot-guards-and-hidden-sele.schema.json",
+  "title": "Aureline M5 selection-bar continuity packet",
+  "description": "Export-safe packet that makes the live selection state of the first real M5 dense collection surfaces (pipeline run list, review queue, incident list, graph list, marketplace results, provider/admin table) a canonical product object. Each selection bar tracks membership by stable item identity rather than row position, so selection survives sort, filter, pagination, and virtualization; an optional range anchor whose anchor and focus are stable item ids; visible-selected, hidden-selected (outside the current filter), and prior-snapshot-derived selected counts that keep a broad action's scope legible before it runs; and a stale-query-snapshot guard that forces re-review or downgrade when the dataset identity changed materially. Broad actions can never bypass preview because the list is virtualized or provider-backed. Raw row bodies, provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "packet_label",
+    "bars",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "m5_selection_bar_continuity_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "packet_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "bars": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/selection_bar"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "dense_collection_surface": {
+      "enum": [
+        "pipeline_run_list",
+        "review_queue",
+        "incident_list",
+        "graph_list",
+        "marketplace_results",
+        "activity_rows",
+        "provider_admin_table",
+        "query_backed_result_set",
+        "support_export_projection"
+      ]
+    },
+    "collection_view_kind": {
+      "enum": ["list", "tree", "table", "queue"]
+    },
+    "collection_data_mode": {
+      "enum": [
+        "static_complete",
+        "filtered_sorted",
+        "streaming",
+        "virtualized",
+        "paginated"
+      ]
+    },
+    "selection_membership_basis": {
+      "enum": ["stable_identity_set", "range_anchor_expansion", "query_snapshot"]
+    },
+    "dataset_identity_change": {
+      "enum": [
+        "unchanged",
+        "reordered_only",
+        "rows_added_or_removed",
+        "query_redefined",
+        "provider_epoch_changed"
+      ]
+    },
+    "stale_guard_outcome": {
+      "enum": [
+        "proceed_fresh",
+        "require_reopen_review",
+        "downgrade_to_visible_only",
+        "block_until_resynced"
+      ]
+    },
+    "stable_selection_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stable_item_id", "review_label", "in_current_filter"],
+      "properties": {
+        "stable_item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "review_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "in_current_filter": {
+          "type": "boolean"
+        }
+      }
+    },
+    "selection_membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "by_stable_identity", "members"],
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/selection_membership_basis"
+        },
+        "by_stable_identity": {
+          "const": true
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_selection_item"
+          }
+        },
+        "query_snapshot_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "query_snapshot"
+              }
+            }
+          },
+          "then": {
+            "required": ["query_snapshot_id_ref"]
+          }
+        }
+      ]
+    },
+    "range_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_item_id",
+        "focus_item_id",
+        "anchored_by_stable_identity",
+        "anchor_still_present",
+        "visible_traversal_order"
+      ],
+      "properties": {
+        "anchor_item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "focus_item_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "anchored_by_stable_identity": {
+          "const": true
+        },
+        "anchor_still_present": {
+          "type": "boolean"
+        },
+        "visible_traversal_order": {
+          "const": true
+        },
+        "reresolution_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "anchor_still_present": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "required": ["reresolution_label"]
+          }
+        }
+      ]
+    },
+    "selection_bar_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_total",
+        "selected_visible",
+        "selected_outside_filter",
+        "selected_from_prior_snapshot",
+        "selected_blocked"
+      ],
+      "properties": {
+        "selected_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selected_visible": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selected_outside_filter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selected_from_prior_snapshot": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selected_blocked": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "stale_query_snapshot_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_dataset_identity",
+        "current_dataset_identity",
+        "dataset_identity_change",
+        "guard_outcome",
+        "broad_action_cannot_bypass_preview"
+      ],
+      "properties": {
+        "selection_dataset_identity": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "current_dataset_identity": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "query_snapshot_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "dataset_identity_change": {
+          "$ref": "#/$defs/dataset_identity_change"
+        },
+        "guard_outcome": {
+          "$ref": "#/$defs/stale_guard_outcome"
+        },
+        "broad_action_cannot_bypass_preview": {
+          "const": true
+        },
+        "guidance_label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "guard_outcome": {
+                  "const": "proceed_fresh"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["guidance_label"]
+          }
+        }
+      ]
+    },
+    "selection_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bar_id",
+        "surface",
+        "view_kind",
+        "data_mode",
+        "label_summary",
+        "membership",
+        "counts",
+        "snapshot_guard",
+        "survives_sort_filter_virtualization",
+        "accessibility_summary",
+        "evidence_refs"
+      ],
+      "properties": {
+        "bar_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface": {
+          "$ref": "#/$defs/dense_collection_surface"
+        },
+        "view_kind": {
+          "$ref": "#/$defs/collection_view_kind"
+        },
+        "data_mode": {
+          "$ref": "#/$defs/collection_data_mode"
+        },
+        "label_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "membership": {
+          "$ref": "#/$defs/selection_membership"
+        },
+        "range_anchor": {
+          "$ref": "#/$defs/range_anchor"
+        },
+        "counts": {
+          "$ref": "#/$defs/selection_bar_counts"
+        },
+        "snapshot_guard": {
+          "$ref": "#/$defs/stale_query_snapshot_guard"
+        },
+        "survives_sort_filter_virtualization": {
+          "const": true
+        },
+        "accessibility_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_survives_sort_filter_virtualization",
+        "hidden_selected_count_always_visible",
+        "stale_snapshot_triggers_review_or_downgrade",
+        "broad_action_cannot_bypass_preview",
+        "range_anchor_by_stable_identity"
+      ],
+      "properties": {
+        "selection_survives_sort_filter_virtualization": {
+          "const": true
+        },
+        "hidden_selected_count_always_visible": {
+          "const": true
+        },
+        "stale_snapshot_triggers_review_or_downgrade": {
+          "const": true
+        },
+        "broad_action_cannot_bypass_preview": {
+          "const": true
+        },
+        "range_anchor_by_stable_identity": {
+          "const": true
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_renders_selection_bar",
+        "diagnostics_reconstructs_selection_truth",
+        "support_export_reuses_records",
+        "docs_help_reuses_vocabulary"
+      ],
+      "properties": {
+        "product_renders_selection_bar": {
+          "const": true
+        },
+        "diagnostics_reconstructs_selection_truth": {
+          "const": true
+        },
+        "support_export_reuses_records": {
+          "const": true
+        },
+        "docs_help_reuses_vocabulary": {
+          "const": true
+        }
+      }
+    }
+  }
+}

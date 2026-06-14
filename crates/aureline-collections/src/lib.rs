@@ -10,6 +10,7 @@
 
 pub mod freeze_the_m5_filter_ast_saved_view_column_preset_and_batch_action_descriptor_matrix;
 pub mod implement_filter_asts_saved_views_column_presets_and_privacy_scoped_persistence;
+pub mod implement_selection_bars_range_anchor_and_stale_snapshot_guards;
 pub mod ship_result_scope_counters_and_hidden_narrowing_chips;
 pub mod stabilize_filter_ast_saved_view_scope_pack_column_preset;
 pub mod stabilize_selection_scope_and_batch_result_truth;
@@ -40,6 +41,18 @@ pub use implement_filter_asts_saved_views_column_presets_and_privacy_scoped_pers
     M5_COLLECTION_PERSISTENCE_RECORD_KIND, M5_COLLECTION_PERSISTENCE_SCHEMA_REF,
     M5_COLLECTION_PERSISTENCE_SCHEMA_VERSION, M5_COLLECTION_PERSISTENCE_SUMMARY_REF,
     M5_PERSISTED_STATE_SCHEMA_VERSION,
+};
+
+pub use implement_selection_bars_range_anchor_and_stale_snapshot_guards::{
+    current_m5_selection_bar_continuity_export, CollectionDataMode, DatasetIdentityChange,
+    RangeAnchor, SelectionBar, SelectionBarConsumerProjection, SelectionBarContinuityArtifactError,
+    SelectionBarContinuityPacket, SelectionBarContinuityPacketInput,
+    SelectionBarContinuityViolation, SelectionBarCounts, SelectionBarGuardrails,
+    SelectionBarReconstruction, SelectionMembership, SelectionMembershipBasis, StableSelectionItem,
+    StaleGuardOutcome, StaleQuerySnapshotGuard, SELECTION_BAR_CONTINUITY_ARTIFACT_REF,
+    SELECTION_BAR_CONTINUITY_DOC_REF, SELECTION_BAR_CONTINUITY_FIXTURE_DIR,
+    SELECTION_BAR_CONTINUITY_RECORD_KIND, SELECTION_BAR_CONTINUITY_SCHEMA_REF,
+    SELECTION_BAR_CONTINUITY_SCHEMA_VERSION, SELECTION_BAR_CONTINUITY_SUMMARY_REF,
 };
 
 pub use ship_result_scope_counters_and_hidden_narrowing_chips::{
