@@ -127,6 +127,7 @@ pub mod migration_center;
 pub mod migration_center_stable;
 pub mod migration_corpus;
 pub mod migration_wizard;
+pub mod mode_strip_leader_sequence_register_picker_and_capability_gap_banner_surfaces;
 pub mod network_badges;
 pub mod network_trust_beta;
 pub mod notebook_alpha;

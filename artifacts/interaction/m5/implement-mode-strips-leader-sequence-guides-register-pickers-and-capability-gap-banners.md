@@ -1,0 +1,63 @@
+# M5 Mode-Strip / Leader-Sequence-Guide / Register-Picker / Capability-Gap Surfaces
+
+- Packet: `m5-mode-strip-surfaces:stable:0001`
+- Label: `M5 Mode-Strip / Leader-Sequence / Register-Picker / Capability-Gap Surfaces`
+- Strips: 7 (7 claimed, 1 provider/imported, 1 downgraded)
+- Surface kinds: 6 / 8
+- Source presets: 5 / 6
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Strips
+
+- **mode-strip:editor-core:0001** (editor_core): claim `switching_certified` -> effective `switching_certified`
+  - Editor / diff core under a Vim preset: Normal mode visible, full leader-sequence guide, plain-text clipboard
+  - subject `surface:mode-strip:editor-core:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `vim_preset`, current_mode = `normal_mode`, mode_strip = `modal_parity_complete`
+  - sequence_guide = `leader_sequence_complete`, timeout = `no_pending_sequence`, resolution = `no_pending_sequence`
+  - clipboard_route = `plain_text_preserved`, plain_text_available=true, registers=0
+  - verification = `verified_current`
+- **mode-strip:notebook:0001** (notebook_surface): claim `parity_complete` -> effective `parity_complete`
+  - Notebook cell under a Neovim preset: Insert mode visible, named-register picker, prefix-discoverable sequences
+  - subject `surface:mode-strip:notebook:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `neovim_preset`, current_mode = `insert_mode`, mode_strip = `modal_parity_complete`
+  - sequence_guide = `prefix_discoverable`, timeout = `no_pending_sequence`, resolution = `no_pending_sequence`
+  - clipboard_route = `named_register_routed`, plain_text_available=true, registers=3
+  - verification = `verified_current`
+- **mode-strip:data-api:0001** (data_api_surface): claim `parity_complete` -> effective `parity_complete`
+  - Data-grid / API result under a non-modal default: keyboard-complete navigation with sensitive-copy warning
+  - subject `surface:mode-strip:data-api:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `non_modal_default`, current_mode = `non_modal_editing_mode`, mode_strip = `non_modal_keyboard_complete`
+  - sequence_guide = `single_stroke_only`, timeout = `no_pending_sequence`, resolution = `no_pending_sequence`
+  - clipboard_route = `sensitive_copy_warned`, plain_text_available=true, registers=0
+  - verification = `cached_within_window`
+- **mode-strip:preview:0001** (preview_surface): claim `parity_complete` -> effective `parity_complete`
+  - Source-first preview under an Emacs preset: read-only modal navigation, plain-text copy, prefix discovery
+  - subject `surface:mode-strip:preview:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `emacs_preset`, current_mode = `read_only_navigation_mode`, mode_strip = `modal_read_only_navigation`
+  - sequence_guide = `prefix_discoverable`, timeout = `no_pending_sequence`, resolution = `no_pending_sequence`
+  - clipboard_route = `plain_text_preserved`, plain_text_available=true, registers=0
+  - verification = `verified_current`
+- **mode-strip:docs:0001** (docs_surface): claim `parity_complete` -> effective `parity_complete`
+  - Docs authoring under a Helix preset: operator-pending mode with a live count prefix and leader-sequence guide
+  - subject `surface:mode-strip:docs:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `helix_preset`, current_mode = `operator_pending_mode`, mode_strip = `modal_parity_complete`
+  - sequence_guide = `leader_sequence_complete`, timeout = `waits_for_explicit_completion`, resolution = `awaiting_disambiguation`
+  - clipboard_route = `rich_with_plain_fallback`, plain_text_available=true, registers=0
+  - verification = `verified_current`
+- **mode-strip:companion:0001** (companion_surface): claim `parity_partial` -> effective `parity_partial`
+  - Provider-linked companion under an Emacs preset: read-only modal navigation, provider-backed posture, register narrowed honestly
+  - subject `surface:mode-strip:companion:0001` (provider_linked_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `emacs_preset`, current_mode = `read_only_navigation_mode`, mode_strip = `modal_read_only_navigation`
+  - sequence_guide = `prefix_discoverable`, timeout = `no_pending_sequence`, resolution = `no_pending_sequence`
+  - clipboard_route = `rich_with_plain_fallback`, plain_text_available=true, registers=0
+  - verification = `imported_current`
+  - capability gap `named_register_unsupported` (narrowed_to_supported_subset): Named-register routing is provider-backed and read-only here; copy narrows to the single system clipboard with a plain-text fallback
+- **mode-strip:data-api:unsupported-sequence:0001** (data_api_surface): claim `parity_complete` -> effective `parity_unverified`
+  - Data-grid that imported a leader-key workflow it cannot host: sequence downgraded honestly with a capability-gap banner
+  - subject `surface:mode-strip:data-api:unsupported-sequence:0001` (first_party_surface), keyboard_complete=true, macro_replay_explicit=true
+  - source_preset = `non_modal_default`, current_mode = `non_modal_editing_mode`, mode_strip = `non_modal_keyboard_complete`
+  - sequence_guide = `sequence_unsupported_downgraded`, timeout = `no_pending_sequence`, resolution = `unsupported_downgraded`
+  - clipboard_route = `plain_text_preserved`, plain_text_available=true, registers=0
+  - verification = `verified_current`
+  - capability gap `modal_sequence_unsupported` (rejected_outright): The imported leader-key sequence has no binding on this data-grid surface; it is rejected rather than approximated, and single-stroke navigation stays available
+  - Downgraded: Imported leader-key sequence is unsupported on this data-grid surface; held parity-unverified rather than silently approximating the sequence
