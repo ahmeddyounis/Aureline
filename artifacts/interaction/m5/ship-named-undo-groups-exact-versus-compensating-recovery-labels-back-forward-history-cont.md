@@ -1,0 +1,61 @@
+# M5 Grouped-History Continuity: Named Undo Groups, Exact-versus-Compensating Recovery Labels, Back/Forward Continuity, and Reopen-Closed Affordances
+
+- Packet: `m5-history-continuity:stable:0001`
+- Label: `M5 Grouped-History Continuity: Named Undo Groups, Exact-versus-Compensating Recovery Labels, Back/Forward Continuity, and Reopen-Closed Affordances`
+- Records: 8 (7 mutation, 1 navigation, 1 flat baseline, 7 forced off flat, 2 reopen/recover, 1 provider/imported)
+- Surface kinds: 8 / 8
+- Recovery classes: 7 / 7
+- Undo classes: 5 / 5
+- Verification freshness SLO: 168 hours (last refresh: 2026-06-14T00:00:00Z)
+
+## Records
+
+- **history:editor-core:0001** (editor_core): recovery `exact_step_undo`, undo `exact_undo`
+  - Editor-core range edit recorded as a single exact-step undo, honestly named
+  - mutation of `range:src/lib.rs#L40-L52` (editor_range), source `user_direct`, history `linear_step_history`, reopen `exact_reopen`
+  - objects=1, files=1, loss `not_closed`
+  - triggers: [none]
+- **history:notebook:0001** (notebook_surface): recovery `named_group_exact_undo`, undo `grouped_exact_undo`
+  - Notebook reformat across four cells undone as one named exact group, not four opaque steps
+  - mutation of `cells:notebook/analysis#cell-2..cell-5` (notebook_cell_group), source `user_direct`, history `grouped_step_history`, reopen `exact_reopen`
+  - objects=4, files=1, loss `not_closed`
+  - triggers: [broad_multi_object_mutation]
+  - Named group: Reformat cells 2–5 — one named group that undoes all four cell edits exactly as a unit
+- **history:preview:0001** (preview_surface): recovery `back_forward_continuity_preserved`, undo `no_undo_honest`
+  - Preview view-source navigation keeps back/forward identity across the preview and editor surfaces
+  - navigation of `target:preview/home#section-pricing` (preview_target), source `user_direct`, history `cross_surface_continuity`, reopen `exact_reopen`
+  - objects=1, files=1, loss `not_closed`
+  - triggers: [cross_surface_navigation]
+  - Back/forward continuity: Back returns to the preview pricing section at its prior scroll position; forward re-opens the source range — identity preserved across surfaces
+- **history:docs:0001** (docs_surface): recovery `compensating_action_labeled`, undo `compensating_undo`
+  - Docs publish exposed as a labeled compensating action because it cannot be exactly inverted
+  - mutation of `section:docs/guide#getting-started` (docs_section), source `user_direct`, history `linear_step_history`, reopen `recovered_approximate`
+  - objects=1, files=1, loss `not_closed`
+  - triggers: [not_literally_invertible]
+  - Compensating action: Publish has no literal inverse; the history offers an explicit 'unpublish and restore prior draft' compensating action
+- **history:data-api:0001** (data_api_surface): recovery `regenerate_from_source`, undo `compensating_undo`
+  - Data/API result set recovered by regenerating from its source query, attributed to automation
+  - mutation of `result:query/orders-by-region#run-12` (result_row_set), source `generated_from_source`, history `linear_step_history`, reopen `recovered_approximate`
+  - objects=1, files=1, loss `not_closed`
+  - triggers: [generated_or_automated_change]
+  - Regenerate from source: Result was generated from the saved query; recovery re-runs that source query rather than restoring a row snapshot
+- **history:review:0001** (review_surface): recovery `checkpoint_restore_labeled`, undo `checkpoint_restore`
+  - Review thread state restored from a checkpoint rather than a step inverse
+  - mutation of `thread:review/pr-204#thread-9` (review_item), source `checkpoint_system`, history `checkpoint_lineage`, reopen `checkpoint_recover`
+  - objects=1, files=1, loss `not_closed`
+  - triggers: [checkpoint_only_recovery]
+  - Checkpoint restore: Restore review thread 9 to checkpoint taken before the bulk resolve — a snapshot restore, not a step inverse
+- **history:runtime:0001** (runtime_surface): recovery `reopen_or_recover_labeled`, undo `no_undo_honest`
+  - Runtime session recovered after a disconnect loss, labeled as a loss recovery rather than an intentional reopen
+  - mutation of `session:runtime/dev-server#pid-8841` (runtime_session), source `automation_agent`, history `linear_step_history`, reopen `recovered_approximate`
+  - objects=1, files=1, loss `disconnect_loss`
+  - triggers: [surface_closed_or_lost]
+  - Reopen/recover: Dev-server session was lost to a runtime disconnect at 22:14:05Z; recovery restores it as an approximate session and says so — not presented as a clean reopen
+  - Closed at: 2026-06-13T22:14:05Z
+- **history:companion:0001** (companion_surface): recovery `reopen_or_recover_labeled`, undo `no_undo_honest`
+  - Provider-linked companion thread reopened after an intentional close; imported proof never reads as local
+  - mutation of `thread:companion/assistant#thread-77` (companion_thread), source `provider_sync`, history `cross_surface_continuity`, reopen `exact_reopen`
+  - objects=1, files=1, loss `intentional_close`
+  - triggers: [surface_closed_or_lost]
+  - Reopen/recover: Companion thread 77 was intentionally closed at 20:02:00Z; reopen restores its provider-backed thread context exactly, distinct from a crash recovery
+  - Closed at: 2026-06-13T20:02:00Z

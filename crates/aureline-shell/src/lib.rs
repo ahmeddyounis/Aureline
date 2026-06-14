@@ -176,6 +176,7 @@ pub mod secret_broker_beta;
 pub mod service_health;
 pub mod shell_safe_preview_stable;
 pub mod ship_macro_replay_review_run_capable_or_cross_file_macro_downgrades_and_recipe_promotion;
+pub mod ship_named_undo_groups_exact_versus_compensating_recovery_labels_back_forward_history_cont;
 pub mod stabilize_shell_zoning_and_responsive_fallback;
 pub mod stabilize_template_starter_prebuild_entry;
 pub mod start_center;
