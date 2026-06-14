@@ -37,6 +37,16 @@
 //! reopens its scope and fails readiness instead of silently persisting as local UI
 //! state, and an imported verdict never reads as a locally verified pass.
 //!
+//! [`coverage_overlays_and_snapshot_golden_review::CoverageReviewPacket`] makes the
+//! coverage and snapshot evidence drawn over the editor and review surfaces
+//! trustworthy: coverage overlays carry a controlled provenance (verified current
+//! run, imported CI artifact, cached local result, stale prior result) and explicit
+//! branch-versus-line measures with changed-line emphasis, coverage merge sheets
+//! disclose included / excluded runs and omitted shards / platforms instead of
+//! implying complete certainty, and snapshot / golden review cards preserve artifact
+//! kind, counts, baseline scope, and a raw fallback so a binary-only change is never
+//! blind-accepted and an imported baseline never reads as a local accept.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -49,6 +59,7 @@ pub mod build_intelligence;
 pub mod build_test_event_interoperability;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
+pub mod coverage_overlays_and_snapshot_golden_review;
 pub mod debug;
 pub mod dependencies;
 pub mod detectors;

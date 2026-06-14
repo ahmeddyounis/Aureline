@@ -1,0 +1,595 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/coverage-overlays-and-snapshot-golden-review.schema.json",
+  "title": "Aureline M5 coverage / snapshot-review packet",
+  "description": "Export-safe packet that makes coverage overlays, coverage merge / import review, and snapshot / golden review trustworthy for the M5 test-intelligence lane. A coverage overlay ties a durable scope (addressed by a scope kind and a non-display fingerprint distinct from its id) to a controlled evidence provenance (verified current run, imported CI artifact, cached local result, stale prior result), a metric mode (line or branch) with an explicit line measure and an optional branch measure, an optional changed-line emphasis, and a gutter legend. Only a verified current run may present as authoritative green; an imported overlay carries an origin provider ref and an imported-unverified legend cell and never reads as a local result; a stale overlay always discloses a stale-not-comparable legend cell; an overlay may only emphasize branch coverage it actually measures. A coverage merge sheet records every contributing run with an included or excluded disposition, discloses omitted shards and platforms, and may not claim complete certainty while omitting or excluding anything. A snapshot / golden review card preserves the artifact kind, the changed and total artifact counts, the baseline scope, and a raw-fallback availability before any decision; a binary-only change with no fallback can never be accepted and routes through needs-raw-inspection, and an imported baseline is held read-only and never applied as a local accept. Raw coverage payloads, snapshot bytes, golden-file bodies, baseline diffs, raw provider payloads, provider cursors, credentials, and host names never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "label",
+    "overlays",
+    "merges",
+    "snapshot_cards",
+    "guardrails",
+    "consumer_projection",
+    "source_contract_refs",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "test_coverage_review_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "overlays": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/coverage_overlay_record"
+      }
+    },
+    "merges": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/coverage_merge_review"
+      }
+    },
+    "snapshot_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/snapshot_review_card"
+      }
+    },
+    "guardrails": {
+      "$ref": "#/$defs/guardrails"
+    },
+    "consumer_projection": {
+      "$ref": "#/$defs/consumer_projection"
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/non_empty_string_array"
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "test_item_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "remap_review_required",
+        "imported_read_only",
+        "display_text_only_denied",
+        "unknown_requires_review"
+      ]
+    },
+    "durable_test_node_kind": {
+      "type": "string",
+      "enum": [
+        "suite",
+        "concrete_case",
+        "parameterized_template",
+        "concrete_invocation",
+        "notebook_linked_test"
+      ]
+    },
+    "coverage_evidence_provenance": {
+      "type": "string",
+      "enum": [
+        "verified_current_run",
+        "imported_ci_artifact",
+        "cached_local_result",
+        "stale_prior_result",
+        "unknown_requires_review"
+      ]
+    },
+    "coverage_metric_mode": {
+      "type": "string",
+      "enum": [
+        "line_coverage",
+        "branch_coverage"
+      ]
+    },
+    "coverage_cell_class": {
+      "type": "string",
+      "enum": [
+        "covered",
+        "uncovered",
+        "partially_covered_branch",
+        "not_executable",
+        "changed_covered",
+        "changed_uncovered",
+        "imported_unverified",
+        "stale_not_comparable"
+      ]
+    },
+    "coverage_scope_kind": {
+      "type": "string",
+      "enum": [
+        "file",
+        "module",
+        "package",
+        "changed_set"
+      ]
+    },
+    "coverage_run_disposition": {
+      "type": "string",
+      "enum": [
+        "included",
+        "excluded_scope_mismatch",
+        "excluded_stale",
+        "excluded_imported_incomparable",
+        "excluded_duplicate",
+        "excluded_conflict"
+      ]
+    },
+    "omitted_scope_kind": {
+      "type": "string",
+      "enum": [
+        "shard",
+        "platform"
+      ]
+    },
+    "snapshot_artifact_kind": {
+      "type": "string",
+      "enum": [
+        "image_snapshot",
+        "text_snapshot",
+        "serialized_snapshot",
+        "golden_file",
+        "binary_golden"
+      ]
+    },
+    "snapshot_baseline_scope": {
+      "type": "string",
+      "enum": [
+        "per_test",
+        "per_parameter_case",
+        "shared_fixture",
+        "platform_specific"
+      ]
+    },
+    "raw_fallback_availability": {
+      "type": "string",
+      "enum": [
+        "text_diff_available",
+        "raw_artifact_referenced",
+        "unavailable_binary_only"
+      ]
+    },
+    "snapshot_review_decision": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "accepted",
+        "rejected",
+        "needs_raw_inspection"
+      ]
+    },
+    "coverage_measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "covered_units",
+        "total_units"
+      ],
+      "properties": {
+        "covered_units": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_units": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "changed_line_emphasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changed_since_ref",
+        "changed_lines_total",
+        "changed_lines_covered"
+      ],
+      "properties": {
+        "changed_since_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "changed_lines_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changed_lines_covered": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "coverage_legend_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_class",
+        "label",
+        "gutter_count"
+      ],
+      "properties": {
+        "cell_class": {
+          "$ref": "#/$defs/coverage_cell_class"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "gutter_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "coverage_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_id",
+        "scope_kind",
+        "scope_fingerprint_token"
+      ],
+      "properties": {
+        "scope_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scope_kind": {
+          "$ref": "#/$defs/coverage_scope_kind"
+        },
+        "scope_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "coverage_overlay_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overlay_id",
+        "scope",
+        "provenance",
+        "metric_mode",
+        "line_measure",
+        "branch_supported",
+        "legend",
+        "run_ref",
+        "presents_as_authoritative",
+        "captured_at",
+        "support_summary"
+      ],
+      "properties": {
+        "overlay_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scope": {
+          "$ref": "#/$defs/coverage_scope"
+        },
+        "provenance": {
+          "$ref": "#/$defs/coverage_evidence_provenance"
+        },
+        "metric_mode": {
+          "$ref": "#/$defs/coverage_metric_mode"
+        },
+        "line_measure": {
+          "$ref": "#/$defs/coverage_measure"
+        },
+        "branch_measure": {
+          "$ref": "#/$defs/coverage_measure"
+        },
+        "branch_supported": {
+          "type": "boolean"
+        },
+        "changed_line_emphasis": {
+          "$ref": "#/$defs/changed_line_emphasis"
+        },
+        "legend": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/coverage_legend_entry"
+          }
+        },
+        "run_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "origin_provider_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "presents_as_authoritative": {
+          "type": "boolean"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "merged_run_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_ref",
+        "provenance",
+        "disposition",
+        "note"
+      ],
+      "properties": {
+        "run_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/coverage_evidence_provenance"
+        },
+        "disposition": {
+          "$ref": "#/$defs/coverage_run_disposition"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "omitted_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omission_kind",
+        "omitted_ref",
+        "reason"
+      ],
+      "properties": {
+        "omission_kind": {
+          "$ref": "#/$defs/omitted_scope_kind"
+        },
+        "omitted_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reason": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "coverage_merge_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "merge_id",
+        "scope",
+        "metric_mode",
+        "merged_measure",
+        "runs",
+        "implies_complete_certainty",
+        "captured_at",
+        "support_summary"
+      ],
+      "properties": {
+        "merge_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scope": {
+          "$ref": "#/$defs/coverage_scope"
+        },
+        "metric_mode": {
+          "$ref": "#/$defs/coverage_metric_mode"
+        },
+        "merged_measure": {
+          "$ref": "#/$defs/coverage_measure"
+        },
+        "runs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/merged_run_entry"
+          }
+        },
+        "omitted_scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/omitted_scope_entry"
+          }
+        },
+        "implies_complete_certainty": {
+          "type": "boolean"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "snapshot_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_id",
+        "node_kind",
+        "subject_fingerprint_token",
+        "identity_class"
+      ],
+      "properties": {
+        "subject_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/durable_test_node_kind"
+        },
+        "subject_fingerprint_token": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_class": {
+          "$ref": "#/$defs/test_item_identity_class"
+        }
+      }
+    },
+    "snapshot_review_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "subject",
+        "artifact_kind",
+        "changed_artifact_count",
+        "total_artifact_count",
+        "baseline_scope",
+        "raw_fallback",
+        "decision",
+        "preview_first",
+        "imported",
+        "diff_summary_ref",
+        "baseline_ref",
+        "captured_at",
+        "support_summary"
+      ],
+      "properties": {
+        "card_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject": {
+          "$ref": "#/$defs/snapshot_subject"
+        },
+        "artifact_kind": {
+          "$ref": "#/$defs/snapshot_artifact_kind"
+        },
+        "changed_artifact_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_artifact_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseline_scope": {
+          "$ref": "#/$defs/snapshot_baseline_scope"
+        },
+        "raw_fallback": {
+          "$ref": "#/$defs/raw_fallback_availability"
+        },
+        "decision": {
+          "$ref": "#/$defs/snapshot_review_decision"
+        },
+        "preview_first": {
+          "type": "boolean"
+        },
+        "imported": {
+          "type": "boolean"
+        },
+        "origin_provider_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "diff_summary_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "baseline_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provenance_distinguished",
+        "branch_versus_line_truthful",
+        "changed_line_emphasis_preserved",
+        "imported_never_reads_as_local",
+        "merge_omissions_disclosed",
+        "snapshot_preview_first",
+        "no_green_over_stale_coverage"
+      ],
+      "properties": {
+        "provenance_distinguished": {
+          "type": "boolean"
+        },
+        "branch_versus_line_truthful": {
+          "type": "boolean"
+        },
+        "changed_line_emphasis_preserved": {
+          "type": "boolean"
+        },
+        "imported_never_reads_as_local": {
+          "type": "boolean"
+        },
+        "merge_omissions_disclosed": {
+          "type": "boolean"
+        },
+        "snapshot_preview_first": {
+          "type": "boolean"
+        },
+        "no_green_over_stale_coverage": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_gutter_normalized",
+        "coverage_legend_normalized",
+        "merge_sheet_normalized",
+        "snapshot_review_normalized",
+        "release_support_export_normalized"
+      ],
+      "properties": {
+        "coverage_gutter_normalized": {
+          "type": "boolean"
+        },
+        "coverage_legend_normalized": {
+          "type": "boolean"
+        },
+        "merge_sheet_normalized": {
+          "type": "boolean"
+        },
+        "snapshot_review_normalized": {
+          "type": "boolean"
+        },
+        "release_support_export_normalized": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
