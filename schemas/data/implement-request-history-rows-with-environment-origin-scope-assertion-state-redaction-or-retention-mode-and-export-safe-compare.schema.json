@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/data/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.schema.json",
+  "title": "Aureline request-history rows and export-safe compare packet",
+  "description": "Boundary schema for the request-history qualification record. Each history row keeps the timestamp, environment, origin scope, origin drift, status/result class, aggregate assertion state, retention mode, and redaction posture inspectable across the request-history panel, companion and managed history surfaces, the compare view, retention settings, CLI/headless output, support export, and Help/About surfaces. Metadata-only retention is the safe default; storing redacted-replayable or full payloads, results, or headers requires an explicit, reviewed retention selection with a declared redaction posture. Compare stays export-safe and never widens retention toward unsafe body or header capture, and history rows and export packets never drop origin or environment identity. Raw request bodies, raw response bodies, raw headers, raw cookies, raw secrets, and raw credential values do not appear in this packet.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "as_of",
+    "release_doc_ref",
+    "help_doc_ref",
+    "schema_ref",
+    "surfaces",
+    "history_rows",
+    "retention_selections",
+    "compares",
+    "exports",
+    "upstream_refs",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": {
+      "type": "string",
+      "const": "implement_request_history_rows_with_environment_origin_scope_assertion_state_redaction_or_retention_mode_and_export_safe_compare"
+    },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "as_of": { "type": "string", "format": "date" },
+    "release_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "help_doc_ref": { "$ref": "#/$defs/path_ref" },
+    "schema_ref": { "$ref": "#/$defs/path_ref" },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/request_history_surface_qualification_row" }
+    },
+    "history_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/request_history_row" }
+    },
+    "retention_selections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/retention_selection_row" }
+    },
+    "compares": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/history_compare_row" }
+    },
+    "exports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/history_export_row" }
+    },
+    "upstream_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/request_history_upstream_ref_row" }
+    },
+    "summary": { "$ref": "#/$defs/request_history_qualification_summary" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+    "request_history_qualification_label": {
+      "type": "string",
+      "enum": ["stable", "preview", "labs", "inspect_only", "import_only"]
+    },
+    "request_history_surface_kind": {
+      "type": "string",
+      "enum": [
+        "request_history_panel",
+        "companion_history",
+        "managed_history",
+        "compare_view",
+        "retention_settings",
+        "cli_headless_output",
+        "support_export",
+        "help_about"
+      ]
+    },
+    "environment_class": {
+      "type": "string",
+      "enum": ["local", "development", "staging", "production", "managed"]
+    },
+    "request_origin_kind": {
+      "type": "string",
+      "enum": ["local_host", "remote", "container", "managed", "browser_companion"]
+    },
+    "request_origin_drift_state": {
+      "type": "string",
+      "enum": ["origin_stable", "origin_changed"]
+    },
+    "contract_kind": {
+      "type": "string",
+      "enum": ["rest", "graphql", "plugin_owned"]
+    },
+    "history_result_class": {
+      "type": "string",
+      "enum": [
+        "success",
+        "redirected",
+        "client_error",
+        "server_error",
+        "transport_error",
+        "blocked",
+        "timed_out",
+        "cancelled"
+      ]
+    },
+    "assertion_state_class": {
+      "type": "string",
+      "enum": ["no_assertions", "all_passed", "mixed_results", "any_failed", "not_evaluated"]
+    },
+    "retention_mode": {
+      "type": "string",
+      "enum": ["text_first_versioned", "metadata_only", "redacted_replayable", "opt_in_full_capture"]
+    },
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": ["redact_all", "redact_secrets", "no_redaction_local_only"]
+    },
+    "compare_basis_class": {
+      "type": "string",
+      "enum": ["status_and_timing", "redacted_bodies", "assertion_results", "header_metadata"]
+    },
+    "export_redaction_class": {
+      "type": "string",
+      "enum": ["full_redaction", "metadata_only", "safe_preview", "unredacted_local_only"]
+    },
+    "request_history_qualification_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "packet_ref", "proof_index_ref", "captured_at", "evidence_refs"],
+      "properties": {
+        "packet_id": { "type": "string" },
+        "packet_ref": { "type": "string" },
+        "proof_index_ref": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "request_history_surface_guard_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp_visible",
+        "environment_visible",
+        "origin_scope_visible",
+        "result_class_visible",
+        "assertion_state_visible",
+        "retention_mode_visible",
+        "compare_action_visible",
+        "export_action_visible",
+        "metadata_only_default",
+        "full_capture_requires_review",
+        "origin_environment_identity_retained",
+        "origin_trust_isolated",
+        "no_unsafe_retention_for_compare"
+      ],
+      "properties": {
+        "timestamp_visible": { "type": "boolean" },
+        "environment_visible": { "type": "boolean" },
+        "origin_scope_visible": { "type": "boolean" },
+        "result_class_visible": { "type": "boolean" },
+        "assertion_state_visible": { "type": "boolean" },
+        "retention_mode_visible": { "type": "boolean" },
+        "compare_action_visible": { "type": "boolean" },
+        "export_action_visible": { "type": "boolean" },
+        "metadata_only_default": { "type": "boolean" },
+        "full_capture_requires_review": { "type": "boolean" },
+        "origin_environment_identity_retained": { "type": "boolean" },
+        "origin_trust_isolated": { "type": "boolean" },
+        "no_unsafe_retention_for_compare": { "type": "boolean" }
+      }
+    },
+    "request_history_surface_qualification_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "title",
+        "surface_kind",
+        "promoted_build_surface",
+        "claim_label",
+        "displayed_label",
+        "qualification_packet",
+        "guards",
+        "downgrade_if_missing",
+        "rationale"
+      ],
+      "properties": {
+        "surface_id": { "type": "string" },
+        "title": { "type": "string" },
+        "surface_kind": { "$ref": "#/$defs/request_history_surface_kind" },
+        "promoted_build_surface": { "type": "boolean" },
+        "claim_label": { "$ref": "#/$defs/request_history_qualification_label" },
+        "displayed_label": { "$ref": "#/$defs/request_history_qualification_label" },
+        "qualification_packet": { "oneOf": [{ "$ref": "#/$defs/request_history_qualification_proof" }, { "type": "null" }] },
+        "guards": { "$ref": "#/$defs/request_history_surface_guard_set" },
+        "downgrade_if_missing": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "request_history_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "history_row_id",
+        "surface_ref",
+        "request_identity_ref",
+        "executed_at",
+        "environment",
+        "origin_scope",
+        "origin_drift_state",
+        "contract_kind",
+        "result_class",
+        "status_label",
+        "assertion_state",
+        "assertion_pass_count",
+        "assertion_fail_count",
+        "retention_mode",
+        "redaction_posture",
+        "timestamp_visible",
+        "environment_visible",
+        "origin_scope_visible",
+        "origin_drift_visible",
+        "result_class_visible",
+        "assertion_state_visible",
+        "retention_mode_visible",
+        "compare_action_available",
+        "export_action_available",
+        "local_trust_isolated",
+        "rationale"
+      ],
+      "properties": {
+        "history_row_id": { "type": "string" },
+        "surface_ref": { "type": "string" },
+        "request_identity_ref": { "type": "string" },
+        "executed_at": { "type": "string" },
+        "environment": { "$ref": "#/$defs/environment_class" },
+        "origin_scope": { "$ref": "#/$defs/request_origin_kind" },
+        "origin_drift_state": { "$ref": "#/$defs/request_origin_drift_state" },
+        "contract_kind": { "$ref": "#/$defs/contract_kind" },
+        "result_class": { "$ref": "#/$defs/history_result_class" },
+        "status_label": { "type": "string" },
+        "assertion_state": { "$ref": "#/$defs/assertion_state_class" },
+        "assertion_pass_count": { "type": "integer", "minimum": 0 },
+        "assertion_fail_count": { "type": "integer", "minimum": 0 },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture_class" },
+        "timestamp_visible": { "type": "boolean" },
+        "environment_visible": { "type": "boolean" },
+        "origin_scope_visible": { "type": "boolean" },
+        "origin_drift_visible": { "type": "boolean" },
+        "result_class_visible": { "type": "boolean" },
+        "assertion_state_visible": { "type": "boolean" },
+        "retention_mode_visible": { "type": "boolean" },
+        "compare_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean" },
+        "local_trust_isolated": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "retention_selection_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_id",
+        "history_ref",
+        "requested_mode",
+        "redaction_posture",
+        "requires_explicit_review",
+        "reviewed",
+        "stores_full_bodies",
+        "stores_full_headers",
+        "default_safe_retained",
+        "rationale"
+      ],
+      "properties": {
+        "selection_id": { "type": "string" },
+        "history_ref": { "type": "string" },
+        "requested_mode": { "$ref": "#/$defs/retention_mode" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture_class" },
+        "requires_explicit_review": { "type": "boolean" },
+        "reviewed": { "type": "boolean" },
+        "stores_full_bodies": { "type": "boolean" },
+        "stores_full_headers": { "type": "boolean" },
+        "default_safe_retained": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "history_compare_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_id",
+        "surface_ref",
+        "base_history_ref",
+        "against_history_ref",
+        "compare_basis",
+        "export_redaction_class",
+        "requires_full_capture",
+        "forces_unsafe_retention",
+        "includes_raw_secrets",
+        "includes_raw_bodies",
+        "environment_identity_retained",
+        "origin_identity_retained",
+        "export_safe",
+        "rationale"
+      ],
+      "properties": {
+        "compare_id": { "type": "string" },
+        "surface_ref": { "type": "string" },
+        "base_history_ref": { "type": "string" },
+        "against_history_ref": { "type": "string" },
+        "compare_basis": { "$ref": "#/$defs/compare_basis_class" },
+        "export_redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "requires_full_capture": { "type": "boolean" },
+        "forces_unsafe_retention": { "type": "boolean" },
+        "includes_raw_secrets": { "type": "boolean" },
+        "includes_raw_bodies": { "type": "boolean" },
+        "environment_identity_retained": { "type": "boolean" },
+        "origin_identity_retained": { "type": "boolean" },
+        "export_safe": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "history_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_id",
+        "history_ref",
+        "export_redaction_class",
+        "includes_raw_secrets",
+        "includes_raw_response_body",
+        "environment_ref",
+        "origin_scope",
+        "portable_format_ref",
+        "support_bundle_safe",
+        "rationale"
+      ],
+      "properties": {
+        "export_id": { "type": "string" },
+        "history_ref": { "type": "string" },
+        "export_redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "includes_raw_secrets": { "type": "boolean" },
+        "includes_raw_response_body": { "type": "boolean" },
+        "environment_ref": { "type": "string" },
+        "origin_scope": { "$ref": "#/$defs/request_origin_kind" },
+        "portable_format_ref": { "type": "string" },
+        "support_bundle_safe": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "request_history_upstream_ref_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "upstream_record_kind", "upstream_packet_path", "upstream_schema_path", "integration_verified", "rationale"],
+      "properties": {
+        "ref_id": { "type": "string" },
+        "upstream_record_kind": { "type": "string" },
+        "upstream_packet_path": { "type": "string" },
+        "upstream_schema_path": { "type": "string" },
+        "integration_verified": { "type": "boolean" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "request_history_qualification_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promoted_surface_count",
+        "stable_surface_count",
+        "narrowed_surface_count",
+        "history_row_count",
+        "full_capture_history_count",
+        "trust_isolated_history_count",
+        "compare_count",
+        "export_safe_compare_count",
+        "retention_selection_count",
+        "reviewed_upgrade_count",
+        "export_count",
+        "support_safe_export_count",
+        "upstream_ref_count",
+        "integration_pass_count"
+      ],
+      "properties": {
+        "promoted_surface_count": { "type": "integer", "minimum": 0 },
+        "stable_surface_count": { "type": "integer", "minimum": 0 },
+        "narrowed_surface_count": { "type": "integer", "minimum": 0 },
+        "history_row_count": { "type": "integer", "minimum": 0 },
+        "full_capture_history_count": { "type": "integer", "minimum": 0 },
+        "trust_isolated_history_count": { "type": "integer", "minimum": 0 },
+        "compare_count": { "type": "integer", "minimum": 0 },
+        "export_safe_compare_count": { "type": "integer", "minimum": 0 },
+        "retention_selection_count": { "type": "integer", "minimum": 0 },
+        "reviewed_upgrade_count": { "type": "integer", "minimum": 0 },
+        "export_count": { "type": "integer", "minimum": 0 },
+        "support_safe_export_count": { "type": "integer", "minimum": 0 },
+        "upstream_ref_count": { "type": "integer", "minimum": 0 },
+        "integration_pass_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

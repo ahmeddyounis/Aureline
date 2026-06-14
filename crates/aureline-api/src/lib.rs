@@ -111,6 +111,18 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.json`](../../../artifacts/data/m5/add-persisted-operation-detail-hash-or-id-drift-checks-contract-version-review-and-no-unsafe-fallback-send-rules.json).
 //!
+//! This crate also owns the request-history row qualification records that
+//! upgrade request history into a governed object model: each history row keeps
+//! the timestamp, environment, origin scope, status/result class, assertion
+//! state, retention mode, and redaction posture inspectable, keeps metadata-only
+//! retention as the safe default so storing redacted or full payloads needs an
+//! explicit reviewed selection, and keeps compare and export export-safe so they
+//! never widen retention or drop origin/environment identity. The request-history
+//! boundary schema is
+//! [`/schemas/data/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.schema.json`](../../../schemas/data/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`](../../../artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -126,6 +138,7 @@ pub mod freeze_the_api_collection_contract_source_request_origin_and_persisted_o
 pub mod implement_connection_browsers_schema_trees_and_target_context_envelopes_for_database_tooling;
 pub mod implement_explain_plan_freshness_notes_engine_version_context_and_plan_comparison_flows;
 pub mod implement_operation_collection_and_request_list_views_with_protocol_class_environment_retention_mode_and_contract_or_source_badges;
+pub mod implement_request_history_rows_with_environment_origin_scope_assertion_state_redaction_or_retention_mode_and_export_safe_compare;
 pub mod implement_request_origin_truth_for_local_desktop_ssh_container_managed_workspace_and_browser_companion_execution_paths_with_drift_review;
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
@@ -326,4 +339,16 @@ pub use add_persisted_operation_detail_hash_or_id_drift_checks_contract_version_
     PersistedOperationDriftClass, ReviewChoiceKind, SendDecisionClass,
     PERSISTED_OP_QUALIFICATION_PACKET_JSON, PERSISTED_OP_QUALIFICATION_PACKET_PATH,
     PERSISTED_OP_QUALIFICATION_RECORD_KIND, PERSISTED_OP_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use implement_request_history_rows_with_environment_origin_scope_assertion_state_redaction_or_retention_mode_and_export_safe_compare::{
+    current_request_history_qualification, AssertionStateClass, CompareBasisClass,
+    HistoryCompareRow, HistoryExportRow, HistoryResultClass, RedactionPostureClass,
+    RequestHistoryQualificationLabel, RequestHistoryQualificationPacket,
+    RequestHistoryQualificationProof, RequestHistoryQualificationSummary,
+    RequestHistoryQualificationViolation, RequestHistoryQualificationViolationKind,
+    RequestHistoryRow, RequestHistorySurfaceGuardSet, RequestHistorySurfaceKind,
+    RequestHistorySurfaceQualificationRow, RequestHistoryUpstreamRefRow, RetentionSelectionRow,
+    REQUEST_HISTORY_QUALIFICATION_PACKET_JSON, REQUEST_HISTORY_QUALIFICATION_PACKET_PATH,
+    REQUEST_HISTORY_QUALIFICATION_RECORD_KIND, REQUEST_HISTORY_QUALIFICATION_SCHEMA_VERSION,
 };

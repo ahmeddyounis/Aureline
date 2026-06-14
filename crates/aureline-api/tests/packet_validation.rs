@@ -5,10 +5,11 @@ use aureline_api::{
     current_database_browser_qualification, current_explain_plan_qualification,
     current_freshness_banner_qualification, current_handoff_qualification,
     current_origin_truth_qualification, current_persisted_operation_qualification,
-    current_request_composer_qualification, current_request_views_qualification,
-    current_request_workspace_qualification, current_response_viewer_qualification,
-    current_result_grid_qualification, current_ship_query_history_qualification,
-    current_staged_row_mutation_qualification, current_statement_safety_qualification,
+    current_request_composer_qualification, current_request_history_qualification,
+    current_request_views_qualification, current_request_workspace_qualification,
+    current_response_viewer_qualification, current_result_grid_qualification,
+    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
+    current_statement_safety_qualification,
 };
 
 #[test]
@@ -679,4 +680,80 @@ fn persisted_op_consumes_api_matrix_and_blocks_unsafe_fallback() {
     let blocked = packet.send_blocked_sheet_ids();
     assert!(blocked.contains(&"sheet:hash_drift".to_owned()));
     assert!(blocked.contains(&"sheet:removed".to_owned()));
+}
+
+#[test]
+fn embedded_request_history_packet_parses() {
+    let packet = current_request_history_qualification()
+        .expect("embedded request-history packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.history_rows.is_empty());
+    assert!(!packet.retention_selections.is_empty());
+    assert!(!packet.compares.is_empty());
+    assert!(!packet.exports.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_request_history_packet_has_no_violations() {
+    let packet = current_request_history_qualification()
+        .expect("embedded request-history packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_request_history_summary_matches_computed() {
+    let packet = current_request_history_qualification()
+        .expect("embedded request-history packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn request_history_consumes_api_matrix_and_keeps_retention_safe() {
+    let packet = current_request_history_qualification()
+        .expect("embedded request-history packet must parse");
+    // The history lane is a real consumer of the frozen API-collection matrix.
+    let consumes_matrix = packet.upstream_refs.iter().any(|row| {
+        row.upstream_record_kind
+            == "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix"
+            && row.integration_verified
+    });
+    assert!(
+        consumes_matrix,
+        "request history must reference the API-collection matrix packet"
+    );
+    // Full-capture rows are only ever reached through an explicit reviewed selection.
+    let full_capture = packet.full_capture_history_ids();
+    assert!(full_capture.contains(&"history:local_timed_out".to_owned()));
+    assert!(full_capture.contains(&"history:remote_cancelled".to_owned()));
+    for history_id in &full_capture {
+        let reviewed = packet.retention_selections.iter().any(|selection| {
+            &selection.history_ref == history_id
+                && selection.requires_explicit_review
+                && selection.reviewed
+        });
+        assert!(
+            reviewed,
+            "{history_id} full capture without a reviewed selection"
+        );
+    }
+    // Managed and companion origins isolate desktop-local trust.
+    let isolated = packet.trust_isolated_history_ids();
+    assert!(isolated.contains(&"history:managed_server_error".to_owned()));
+    assert!(isolated.contains(&"history:companion_transport_error".to_owned()));
+    // Every compare stays export-safe and never widens retention.
+    assert_eq!(
+        packet.export_safe_compare_ids().len(),
+        packet.compares.len()
+    );
+    assert!(packet
+        .compares
+        .iter()
+        .all(|row| !row.forces_unsafe_retention && !row.includes_raw_secrets));
 }
