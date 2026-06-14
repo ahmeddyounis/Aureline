@@ -61,8 +61,21 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
+pub mod freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix;
 pub mod preview_origin;
 pub mod safe_preview;
+
+pub use freeze_the_m5_source_first_preview_runtime_source_map_and_browser_runtime_inspection_matrix::{
+    current_m5_preview_inspection_matrix_export, AttachDepthClass, MatrixConsumerProjection,
+    MatrixEvidenceFreshness, MatrixGuardrails, PreviewInspectionMatrixArtifactError,
+    PreviewInspectionMatrixPacket, PreviewInspectionMatrixPacketInput,
+    PreviewInspectionMatrixViolation, PreviewInspectionRow, PreviewMatrixDowngradeTrigger,
+    PreviewMatrixQualificationClass, PreviewSessionClass, PreviewSurface,
+    RoundTripCapabilityClass, SourceSyncClass, M5_PREVIEW_INSPECTION_MATRIX_ARTIFACT_REF,
+    M5_PREVIEW_INSPECTION_MATRIX_DOC_REF, M5_PREVIEW_INSPECTION_MATRIX_FIXTURE_DIR,
+    M5_PREVIEW_INSPECTION_MATRIX_RECORD_KIND, M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_REF,
+    M5_PREVIEW_INSPECTION_MATRIX_SCHEMA_VERSION, M5_PREVIEW_INSPECTION_MATRIX_SUMMARY_REF,
+};
 
 pub use preview_origin::{
     BrowserRuntimeSessionOrigin, BrowserSessionOriginClass, BrowserSessionScopeClass,
