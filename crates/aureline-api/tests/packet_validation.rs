@@ -1,15 +1,15 @@
 //! Integration test: the embedded qualification packets parse and validate.
 
 use aureline_api::{
-    current_api_matrix_qualification, current_certification_qualification,
-    current_database_browser_qualification, current_explain_plan_qualification,
-    current_freshness_banner_qualification, current_handoff_qualification,
-    current_origin_truth_qualification, current_persisted_operation_qualification,
-    current_request_composer_qualification, current_request_history_qualification,
-    current_request_views_qualification, current_request_workspace_qualification,
-    current_response_viewer_qualification, current_result_grid_qualification,
-    current_ship_query_history_qualification, current_staged_row_mutation_qualification,
-    current_statement_safety_qualification,
+    current_api_matrix_qualification, current_auth_portability_qualification,
+    current_certification_qualification, current_database_browser_qualification,
+    current_explain_plan_qualification, current_freshness_banner_qualification,
+    current_handoff_qualification, current_origin_truth_qualification,
+    current_persisted_operation_qualification, current_request_composer_qualification,
+    current_request_history_qualification, current_request_views_qualification,
+    current_request_workspace_qualification, current_response_viewer_qualification,
+    current_result_grid_qualification, current_ship_query_history_qualification,
+    current_staged_row_mutation_qualification, current_statement_safety_qualification,
 };
 
 #[test]
@@ -756,4 +756,95 @@ fn request_history_consumes_api_matrix_and_keeps_retention_safe() {
         .compares
         .iter()
         .all(|row| !row.forces_unsafe_retention && !row.includes_raw_secrets));
+}
+
+#[test]
+fn embedded_auth_portability_packet_parses() {
+    let packet = current_auth_portability_qualification()
+        .expect("embedded auth/portability packet must parse");
+    assert_eq!(packet.schema_version, 1);
+    assert!(!packet.surfaces.is_empty());
+    assert!(!packet.auth_sheets.is_empty());
+    assert!(!packet.secret_source_cues.is_empty());
+    assert!(!packet.continuities.is_empty());
+    assert!(!packet.collection_portabilities.is_empty());
+    assert!(!packet.upstream_refs.is_empty());
+}
+
+#[test]
+fn embedded_auth_portability_packet_has_no_violations() {
+    let packet = current_auth_portability_qualification()
+        .expect("embedded auth/portability packet must parse");
+    let violations = packet.validate();
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {:?}",
+        violations
+    );
+}
+
+#[test]
+fn embedded_auth_portability_summary_matches_computed() {
+    let packet = current_auth_portability_qualification()
+        .expect("embedded auth/portability packet must parse");
+    assert_eq!(packet.summary, packet.computed_summary());
+}
+
+#[test]
+fn auth_portability_consumes_upstreams_and_keeps_secrets_and_freshness_honest() {
+    let packet = current_auth_portability_qualification()
+        .expect("embedded auth/portability packet must parse");
+    // The lane is a real consumer of the matrix, request-workspace, and
+    // query-history packets it reuses vocabulary from.
+    for kind in [
+        "freeze_the_api_collection_contract_source_request_origin_and_persisted_operation_matrix",
+        "versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors",
+        "ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth",
+    ] {
+        assert!(
+            packet
+                .upstream_refs
+                .iter()
+                .any(|row| row.upstream_record_kind == kind && row.integration_verified),
+            "auth/portability must reference {kind} as a verified upstream packet"
+        );
+    }
+    // No record ever carries a raw secret or token.
+    assert!(packet
+        .auth_sheets
+        .iter()
+        .all(|row| !row.includes_raw_secret && !row.persists_secret_in_request_file));
+    assert!(packet
+        .secret_source_cues
+        .iter()
+        .all(|row| !row.includes_raw_secret && !row.persists_secret_in_repo));
+    assert!(packet
+        .continuities
+        .iter()
+        .all(|row| !row.includes_raw_token));
+    assert!(packet
+        .collection_portabilities
+        .iter()
+        .all(|row| !row.includes_raw_secret && !row.persists_secret_in_export));
+    // Browser/device-code flows are surfaced and stay resumable where allowed.
+    let device_sheets = packet.device_code_auth_sheet_ids();
+    assert!(device_sheets.contains(&"sheet:oauth_devicecode_companion".to_owned()));
+    assert!(device_sheets.contains(&"sheet:browser_session_companion".to_owned()));
+    assert!(!packet.resumable_continuity_ids().is_empty());
+    // Managed and companion auth sheets isolate desktop-local trust.
+    let isolated = packet.trust_isolated_auth_sheet_ids();
+    assert!(isolated.contains(&"sheet:oauth_authcode_managed".to_owned()));
+    assert!(isolated.contains(&"sheet:browser_session_companion".to_owned()));
+    // Offline and imported collections reopen with honest, labeled freshness and
+    // never masquerade as live.
+    let offline_safe = packet.offline_safe_portability_ids();
+    assert!(offline_safe.contains(&"portability:import_offline_cached".to_owned()));
+    assert!(offline_safe.contains(&"portability:import_unavailable_offline".to_owned()));
+    assert!(packet
+        .collection_portabilities
+        .iter()
+        .all(|row| row.preserves_contract_source
+            && row.preserves_retention_mode
+            && row.preserves_redaction_posture
+            && row.text_first));
 }

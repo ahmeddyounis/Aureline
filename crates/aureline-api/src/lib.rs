@@ -123,6 +123,22 @@
 //! and the checked-in qualification packet is
 //! [`/artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json`](../../../artifacts/data/m5/implement-request-history-rows-with-environment-origin-scope-assertion-state-redaction-or-retention-mode-and-export-safe-compare.json).
 //!
+//! This crate also owns the auth-sheet, secret-source cue, browser/device-code
+//! continuity, and offline or mirror-safe collection-portability qualification
+//! records that make API auth configuration and collection portability explicit
+//! and honest: each auth sheet states the auth scheme, secret source, token
+//! lifetime, browser/device-code state, and policy note without persisting a raw
+//! secret; each secret-source cue names where a credential resolves from without
+//! exposing it; each continuity row keeps an interrupted browser or device-code
+//! flow resumable behind a non-secret verification handle; and each
+//! collection-portability row preserves contract source, retention mode, and
+//! redaction posture across export/import while labeling contract freshness
+//! honestly when a collection reopens offline or from a mirror. The
+//! auth/portability boundary schema is
+//! [`/schemas/data/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.schema.json`](../../../schemas/data/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.schema.json)
+//! and the checked-in qualification packet is
+//! [`/artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json`](../../../artifacts/data/m5/ship-auth-sheets-secret-source-cues-browser-or-device-code-continuity-and-offline-or-mirror-safe-collection-portability.json).
+//!
 //! Raw endpoint URLs, raw secrets, raw credential bodies, raw cookie or
 //! token values do not belong in these records. They carry stable IDs, closed
 //! posture vocabularies, and reviewable summaries that UI, CLI, export,
@@ -143,6 +159,7 @@ pub mod implement_request_origin_truth_for_local_desktop_ssh_container_managed_w
 pub mod implement_the_request_composer_mutation_review_sheets_and_replay_or_history_lanes_with_redaction_safe_export;
 pub mod integrate_request_and_database_result_handoff_to_notebook_chart_ai_and_support_export_surfaces;
 pub mod materialize_versioned_request_workspace_documents_environment_sets_and_auth_source_inspectors;
+pub mod ship_auth_sheets_secret_source_cues_browser_or_device_code_continuity_and_offline_or_mirror_safe_collection_portability;
 pub mod ship_contract_freshness_banners_imported_snapshot_labels_and_refresh_diff_or_open_spec_flows;
 pub mod ship_query_history_connection_profile_portability_secret_safe_auth_storage_and_mirror_or_offline_truth;
 pub mod ship_rest_and_graphql_response_viewers_assertions_timing_tabs_and_browser_runtime_trust_classes;
@@ -351,4 +368,17 @@ pub use implement_request_history_rows_with_environment_origin_scope_assertion_s
     RequestHistorySurfaceQualificationRow, RequestHistoryUpstreamRefRow, RetentionSelectionRow,
     REQUEST_HISTORY_QUALIFICATION_PACKET_JSON, REQUEST_HISTORY_QUALIFICATION_PACKET_PATH,
     REQUEST_HISTORY_QUALIFICATION_RECORD_KIND, REQUEST_HISTORY_QUALIFICATION_SCHEMA_VERSION,
+};
+
+pub use ship_auth_sheets_secret_source_cues_browser_or_device_code_continuity_and_offline_or_mirror_safe_collection_portability::{
+    current_auth_portability_qualification, AuthPortabilityQualificationLabel,
+    AuthPortabilityQualificationPacket, AuthPortabilityQualificationProof,
+    AuthPortabilityQualificationSummary, AuthPortabilityQualificationViolation,
+    AuthPortabilityQualificationViolationKind, AuthPortabilitySurfaceGuardSet,
+    AuthPortabilitySurfaceKind, AuthPortabilitySurfaceQualificationRow,
+    AuthPortabilityUpstreamRefRow, AuthSchemeClass, AuthSheetRow, BrowserDeviceCodeContinuityRow,
+    BrowserDeviceCodeState, CollectionPortabilityRow, PortabilityDirection, SecretSourceCueRow,
+    TokenLifetimeClass, AUTH_PORTABILITY_QUALIFICATION_PACKET_JSON,
+    AUTH_PORTABILITY_QUALIFICATION_PACKET_PATH, AUTH_PORTABILITY_QUALIFICATION_RECORD_KIND,
+    AUTH_PORTABILITY_QUALIFICATION_SCHEMA_VERSION,
 };
