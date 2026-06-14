@@ -39,6 +39,7 @@ pub mod react_expert_workflow_pack_truth_packet;
 pub mod refactor_preview;
 pub mod refactor_transaction_truth_packet;
 pub mod rust_daily_driver_quality_truth_packet;
+pub mod semantic_result_arbitration_truth_packet;
 pub mod spring_boot_expert_workflow_pack_truth_packet;
 pub mod symbol_snapshot;
 pub mod target_model;
@@ -691,6 +692,25 @@ pub use rust_daily_driver_quality_truth_packet::{
     RUST_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND, RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use semantic_result_arbitration_truth_packet::{
+    current_stable_semantic_result_arbitration_truth_packet, AlternateProviderVisibilityClass,
+    AnchorActionClass, ArbitrationBasisClass, ClaimScopeClass, CoverageGapClass,
+    DisagreementImpactClass,
+    DisagreementVisibilityClass as SemanticResultDisagreementVisibilityClass, FallbackBannerClass,
+    FindingKind as SemanticResultArbitrationFindingKind, InspectorRouteClass, LostGuaranteeClass,
+    ResultArbitrationConsumerProjection, ResultArbitrationRow, ResultLaneClass, ResultSurfaceClass,
+    ResultTierClass, RetainedGuaranteeClass, SemanticResultArbitrationTruthArtifactError,
+    SemanticResultArbitrationTruthPacket, SemanticResultArbitrationTruthPacketInput,
+    SemanticResultArbitrationTruthSupportExport,
+    ValidationFinding as SemanticResultArbitrationValidationFinding,
+    SEMANTIC_RESULT_ARBITRATION_SURFACE_SOURCE_REF,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_ARTIFACT_DOC_REF, SEMANTIC_RESULT_ARBITRATION_TRUTH_DOC_REF,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_FIXTURE_DIR,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_PACKET_ARTIFACT_REF,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_PACKET_RECORD_KIND,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_SCHEMA_REF, SEMANTIC_RESULT_ARBITRATION_TRUTH_SCHEMA_VERSION,
+    SEMANTIC_RESULT_ARBITRATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use spring_boot_expert_workflow_pack_truth_packet::{
     current_stable_spring_boot_expert_workflow_pack_truth_packet,
