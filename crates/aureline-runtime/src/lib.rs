@@ -47,6 +47,17 @@
 //! kind, counts, baseline scope, and a raw fallback so a binary-only change is never
 //! blind-accepted and an imported baseline never reads as a local accept.
 //!
+//! [`test_generation_suggestion_cards_and_diff_first_apply::TestGenerationProposalPacket`]
+//! brings AI-assisted test generation into the same governed lane: a suggestion card
+//! names its target symbols / files, the uncovered-path or bug source that motivated
+//! it, its assumptions, the files it would write, and a sandbox-validation posture,
+//! and binds to reopenable discovery / session / coverage evidence objects rather
+//! than free-text justification. A generated test flows through the same preview /
+//! diff / apply / revert pipeline as any other change — it cannot be applied without
+//! an isolated sandbox pass, cannot bypass preview-first, cannot silently widen
+//! beyond its evidenced scope, and an imported proposal is held read-only instead of
+//! reading as a local apply.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -119,6 +130,7 @@ pub mod target_discovery;
 pub mod targets;
 pub mod task_events;
 pub mod tasks;
+pub mod test_generation_suggestion_cards_and_diff_first_apply;
 pub mod testing;
 pub mod testing_identity;
 pub mod testing_quality;
