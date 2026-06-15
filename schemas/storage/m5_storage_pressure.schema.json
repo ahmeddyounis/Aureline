@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/m5_storage_pressure.schema.json",
+  "title": "Aureline M5 storage-pressure banner",
+  "description": "Boundary schema for the m5_storage_pressure_banner record authored under /fixtures/storage/m5_storage_pressure_cases/ and folded by crates/aureline-support/src/m5_storage_pressure. A banner is the operator-facing object shown when low-disk or managed-quota pressure narrows a surface: it states the pressure class and source, the background work that paused, the full frozen eviction order with each step's disposition and applied state, the protected classes left untrimmed, the per-class no-authoritative-state-loss guards, the escalation posture, and the open-inspector / open-review actions. The storage_class_id and low_disk_ladder_step vocabularies re-export verbatim from /artifacts/runtime/storage_classes.yaml; the eviction order follows the frozen sequence in /artifacts/runtime/low_disk_drills.yaml. Only the pressure_class, pressure_source, paused_work, eviction-step disposition, state-loss-guard, and escalation labels are introduced here, and they are bounded explanatory tokens. Adding a value to a closed vocabulary is additive-minor and bumps schema_version; repurposing a value or weakening a protected-class invariant (eviction follows the frozen order, user-owned recovery state is never auto-trimmed, pinned/in-window evidence is retained, no path reports authoritative loss) is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/m5_storage_pressure_banner",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "byte_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "low_disk_ladder_step": {
+      "type": "string",
+      "enum": [
+        "stop_speculative_fetch_and_prefetch",
+        "pause_managed_replication_and_pack_refresh",
+        "trim_interactive_hot_cache",
+        "trim_knowledge_cache_rebuildable",
+        "trim_artifact_cache_unpinned",
+        "trim_prebuild_environment_unpinned",
+        "expire_unpinned_evidence_past_retention",
+        "user_owned_recovery_state_only_under_explicit_review"
+      ]
+    },
+    "ladder_order": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8
+    },
+    "pressure_class": {
+      "type": "string",
+      "enum": ["constrained", "degraded", "protect_core"]
+    },
+    "pressure_source_class": {
+      "type": "string",
+      "enum": [
+        "low_disk_floor",
+        "managed_tenant_quota",
+        "per_workspace_quota",
+        "per_class_ceiling"
+      ]
+    },
+    "paused_work_class": {
+      "type": "string",
+      "enum": [
+        "speculative_fetch_and_prefetch",
+        "managed_replication_and_pack_refresh",
+        "provider_refresh",
+        "ai_context_expansion",
+        "extension_timer",
+        "telemetry_forward"
+      ]
+    },
+    "eviction_step_disposition_class": {
+      "type": "string",
+      "enum": [
+        "pause_background_work_no_deletion",
+        "trim_disposable_cache",
+        "trim_rebuildable_cache",
+        "trim_unpinned_artifact",
+        "expire_unpinned_evidence_past_retention_only",
+        "protected_never_auto_requires_reviewed_escalation"
+      ]
+    },
+    "state_loss_guard_class": {
+      "type": "string",
+      "enum": [
+        "disposable_trimmed_no_authoritative_loss",
+        "rebuildable_trimmed_rebuild_pending",
+        "unpinned_artifact_trimmed_pinned_retained",
+        "unpinned_evidence_expired_pinned_and_in_window_retained",
+        "protected_evidence_fully_retained",
+        "user_owned_recovery_state_never_auto_trimmed",
+        "escalation_required_not_auto_applied"
+      ]
+    },
+    "escalation_state_class": {
+      "type": "string",
+      "enum": [
+        "no_escalation_needed",
+        "reviewed_escalation_required_not_yet_approved",
+        "reviewed_escalation_approved"
+      ]
+    },
+    "eviction_order_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ladder_step",
+        "ladder_order",
+        "disposition",
+        "applied",
+        "protected",
+        "requires_reviewed_escalation",
+        "label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_storage_pressure_eviction_step"
+        },
+        "ladder_step": { "$ref": "#/$defs/low_disk_ladder_step" },
+        "ladder_order": { "$ref": "#/$defs/ladder_order" },
+        "disposition": { "$ref": "#/$defs/eviction_step_disposition_class" },
+        "target_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "applied": { "type": "boolean" },
+        "protected": { "type": "boolean" },
+        "requires_reviewed_escalation": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "state_loss_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "class_id",
+        "guard_class",
+        "reclaimed_bytes",
+        "retained_bytes",
+        "holds",
+        "detail"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_storage_pressure_state_loss_guard"
+        },
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "guard_class": { "$ref": "#/$defs/state_loss_guard_class" },
+        "reclaimed_bytes": { "$ref": "#/$defs/byte_count" },
+        "retained_bytes": { "$ref": "#/$defs/byte_count" },
+        "holds": { "type": "boolean" },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "User-owned recovery state must never reclaim bytes under pressure.",
+          "if": {
+            "properties": {
+              "class_id": { "const": "user_owned_recovery_state" }
+            }
+          },
+          "then": {
+            "properties": {
+              "reclaimed_bytes": { "const": 0 },
+              "guard_class": {
+                "enum": [
+                  "user_owned_recovery_state_never_auto_trimmed",
+                  "escalation_required_not_auto_applied"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "m5_storage_pressure_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "banner_id",
+        "emitted_at",
+        "headline",
+        "pressure_class",
+        "pressure_source",
+        "scope_ref",
+        "scope_label",
+        "current_ladder_step",
+        "current_ladder_order",
+        "paused_work",
+        "eviction_order",
+        "protected_class_ids_not_trimmed",
+        "state_loss_guards",
+        "escalation_state",
+        "authoritative_state_loss",
+        "open_inspector_action_ref",
+        "open_clear_data_review_action_ref",
+        "schema_ref",
+        "doc_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_storage_pressure_banner"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "banner_id": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "pressure_class": { "$ref": "#/$defs/pressure_class" },
+        "pressure_source": { "$ref": "#/$defs/pressure_source_class" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "current_ladder_step": { "$ref": "#/$defs/low_disk_ladder_step" },
+        "current_ladder_order": { "$ref": "#/$defs/ladder_order" },
+        "paused_work": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/paused_work_class" },
+          "contains": {
+            "enum": [
+              "speculative_fetch_and_prefetch",
+              "managed_replication_and_pack_refresh"
+            ]
+          }
+        },
+        "eviction_order": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/eviction_order_step" }
+        },
+        "protected_class_ids_not_trimmed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+          },
+          "contains": { "const": "user_owned_recovery_state" }
+        },
+        "state_loss_guards": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/state_loss_guard" }
+        },
+        "escalation_state": { "$ref": "#/$defs/escalation_state_class" },
+        "authoritative_state_loss": {
+          "type": "boolean",
+          "const": false
+        },
+        "open_inspector_action_ref": {
+          "type": "string",
+          "const": "action.storage.open_inspector"
+        },
+        "open_clear_data_review_action_ref": {
+          "type": "string",
+          "const": "action.storage.open_clear_data_review"
+        },
+        "guardrail_notices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/storage/m5_storage_pressure.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/storage/m5_storage_pressure_contract.md"
+        }
+      }
+    }
+  }
+}

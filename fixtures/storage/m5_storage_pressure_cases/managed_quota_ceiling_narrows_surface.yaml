@@ -1,0 +1,146 @@
+# Managed tenant quota ceiling: pause managed replication/pack refresh and
+# trim unpinned managed artifact packs. Local user-owned recovery state is
+# never deleted to satisfy a managed ceiling — a guardrail notice says so.
+record_kind: m5_storage_pressure_banner
+schema_version: 1
+banner_id: storage_pressure.managed_quota_ceiling.v1
+emitted_at: 2026-06-14T00:00:00Z
+headline: Managed storage quota reached. Aureline paused background work and trimmed rebuildable and unpinned caches.
+pressure_class: degraded
+pressure_source: managed_tenant_quota
+scope_ref: tenant.acme
+scope_label: Acme tenant
+current_ladder_step: trim_prebuild_environment_unpinned
+current_ladder_order: 6
+paused_work:
+- speculative_fetch_and_prefetch
+- managed_replication_and_pack_refresh
+- provider_refresh
+- ai_context_expansion
+- extension_timer
+- telemetry_forward
+eviction_order:
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: stop_speculative_fetch_and_prefetch
+  ladder_order: 1
+  disposition: pause_background_work_no_deletion
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Pause speculative fetch and prefetch
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: pause_managed_replication_and_pack_refresh
+  ladder_order: 2
+  disposition: pause_background_work_no_deletion
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Pause managed replication and pack refresh
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: trim_interactive_hot_cache
+  ladder_order: 3
+  disposition: trim_disposable_cache
+  target_class_id: interactive_hot_cache
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Trim interactive hot cache
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: trim_knowledge_cache_rebuildable
+  ladder_order: 4
+  disposition: trim_rebuildable_cache
+  target_class_id: knowledge_cache
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Trim rebuildable knowledge cache
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: trim_artifact_cache_unpinned
+  ladder_order: 5
+  disposition: trim_unpinned_artifact
+  target_class_id: artifact_cache
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Trim unpinned artifact cache
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: trim_prebuild_environment_unpinned
+  ladder_order: 6
+  disposition: trim_unpinned_artifact
+  target_class_id: prebuild_environment_cache
+  applied: true
+  protected: false
+  requires_reviewed_escalation: false
+  label: Trim unpinned prebuild environment
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: expire_unpinned_evidence_past_retention
+  ladder_order: 7
+  disposition: expire_unpinned_evidence_past_retention_only
+  target_class_id: evidence_support_cache
+  applied: false
+  protected: true
+  requires_reviewed_escalation: false
+  label: Expire unpinned evidence past retention
+- record_kind: m5_storage_pressure_eviction_step
+  ladder_step: user_owned_recovery_state_only_under_explicit_review
+  ladder_order: 8
+  disposition: protected_never_auto_requires_reviewed_escalation
+  target_class_id: user_owned_recovery_state
+  applied: false
+  protected: true
+  requires_reviewed_escalation: true
+  label: User-owned recovery state — explicit review only
+protected_class_ids_not_trimmed:
+- evidence_support_cache
+- user_owned_recovery_state
+state_loss_guards:
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: interactive_hot_cache
+  guard_class: disposable_trimmed_no_authoritative_loss
+  reclaimed_bytes: 300000000
+  retained_bytes: 0
+  holds: true
+  detail: Disposable hot cache; rebuilds on demand. No authoritative loss.
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: knowledge_cache
+  guard_class: rebuildable_trimmed_rebuild_pending
+  reclaimed_bytes: 900000000
+  retained_bytes: 600000000
+  holds: true
+  detail: Rebuildable index; left rebuild-pending. Pinned corpora retained.
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: artifact_cache
+  guard_class: unpinned_artifact_trimmed_pinned_retained
+  reclaimed_bytes: 6000000000
+  retained_bytes: 3000000000
+  holds: true
+  detail: Unpinned artifacts trimmed; pinned / mirrored / release-ref entries retained.
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: prebuild_environment_cache
+  guard_class: unpinned_artifact_trimmed_pinned_retained
+  reclaimed_bytes: 1800000000
+  retained_bytes: 1200000000
+  holds: true
+  detail: Unpinned prebuilds trimmed; offline / certified packs retained. Startup may widen.
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: evidence_support_cache
+  guard_class: protected_evidence_fully_retained
+  reclaimed_bytes: 0
+  retained_bytes: 1100000000
+  holds: true
+  detail: Evidence cache fully retained; not reached by this pressure tier.
+- record_kind: m5_storage_pressure_state_loss_guard
+  class_id: user_owned_recovery_state
+  guard_class: user_owned_recovery_state_never_auto_trimmed
+  reclaimed_bytes: 0
+  retained_bytes: 2000000000
+  holds: true
+  detail: User-owned recovery state is never auto-trimmed; removal requires an explicit class-specific review.
+escalation_state: no_escalation_needed
+authoritative_state_loss: false
+open_inspector_action_ref: action.storage.open_inspector
+open_clear_data_review_action_ref: action.storage.open_clear_data_review
+guardrail_notices:
+- Managed quota pressure never deletes local user-owned recovery state; it stays until you explicitly review it.
+schema_ref: schemas/storage/m5_storage_pressure.schema.json
+doc_ref: docs/storage/m5_storage_pressure_contract.md

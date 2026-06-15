@@ -162,6 +162,16 @@
 //!   matrix, exclude protected evidence and user-owned recovery state unless
 //!   explicitly selected, never auto-dispose user-owned state under disk/quota
 //!   pressure, and project a metadata-safe support export.
+//! - The [`m5_storage_pressure`] banners — turn a silent low-disk or
+//!   managed-quota trim into an inspectable disclosure: the pressure class and
+//!   source, the background work that paused, the frozen eviction order with
+//!   each step's disposition and applied state, the protected classes left
+//!   untrimmed, and the open-inspector / open-review actions. The composer
+//!   folds the [`m5_storage_governance`] matrix so the banner and the matrix
+//!   share one frozen ladder; per-class no-authoritative-state-loss guards
+//!   prove pressure freed only disposable, rebuildable, or
+//!   unpinned-past-retention bytes and never auto-trimmed user-owned recovery
+//!   state. A metadata-safe support export carries the same truth.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -263,6 +273,7 @@ pub mod m5_mutation_lineage;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
+pub mod m5_storage_pressure;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
