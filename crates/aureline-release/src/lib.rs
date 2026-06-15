@@ -284,6 +284,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
+pub mod add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts;
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod browser_mobile_companion_surface_qualification;
@@ -396,6 +397,16 @@ pub use implement_promotion_timeline_records_immutable_digest_joins_release_cent
     PromotionReplayEntry, StopAction as PromotionLedgerStopAction,
     M5_ARTIFACT_GRAPH_PROMOTION_JSON, M5_ARTIFACT_GRAPH_PROMOTION_PATH,
     M5_ARTIFACT_GRAPH_PROMOTION_RECORD_KIND, M5_ARTIFACT_GRAPH_PROMOTION_SCHEMA_VERSION,
+};
+pub use add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts::{
+    build_m5_provenance_cards, current_m5_provenance_cards, CardAction as ProvenanceCardAction,
+    CardGapReason as ProvenanceCardGapReason, CardState as ProvenanceCardState,
+    M5ProvenanceCardExportProjection, M5ProvenanceCardExportRow, M5ProvenanceCardRegister,
+    M5ProvenanceCardSummary, M5ProvenanceCardViolation, ProvenanceBadge,
+    ProvenanceBadgeKind, ProvenanceBadgeState, ProvenanceCard, ProvenanceCardBadgeExport,
+    ProvenanceCardStopRule, ProvenanceCardSurfaceExport, ProvenanceSurfaceKind, SurfaceBinding,
+    M5_PROVENANCE_CARDS_JSON, M5_PROVENANCE_CARDS_PATH, M5_PROVENANCE_CARDS_RECORD_KIND,
+    M5_PROVENANCE_CARDS_SCHEMA_VERSION,
 };
 
 pub use implement_feature_train_compatibility_reports_provider_family_support_windows_and_change_freeze_guidance::{
