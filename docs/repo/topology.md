@@ -92,8 +92,11 @@ than relocating it.
                                             aureline-telemetry
 
  aureline-bench, aureline-largefile-proto, aureline-reactive-state,
- and aureline-graph-proto are layer LX off-cone crates; nothing in the
- production cone depends on them.
+ aureline-graph-proto, and aureline-service are layer LX off-cone crates;
+ nothing in the production cone depends on them. aureline-service holds
+ metadata-only commercial-control-plane truth for the optional managed lanes
+ (entitlement, meter family, chargeback scope, org switch, grace period, and
+ the local-safe baseline) and has no internal dependencies.
 ```
 
 `aureline-text` and `aureline-telemetry` are leaf foundations. `aureline-rpc`

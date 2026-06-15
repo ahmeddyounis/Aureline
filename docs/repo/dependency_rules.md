@@ -52,6 +52,7 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | `aureline-largefile-proto` | (no internal deps today; experimental/off-cone)         |
 | `aureline-reactive-state` | (no internal deps today; experimental/off-cone)          |
 | `aureline-graph-proto`  | (no internal deps today; experimental/off-cone)             |
+| `aureline-service`      | (no internal deps; off-cone, metadata-only managed-lane truth) |
 
 ## Incremental contract-crate edges
 

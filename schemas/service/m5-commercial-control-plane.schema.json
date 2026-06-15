@@ -1,0 +1,440 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/m5-commercial-control-plane.schema.json",
+  "title": "Aureline commercial-control-plane matrix",
+  "description": "Boundary schema for the frozen commercial-control-plane matrix that covers every claimed managed lane. The matrix pins one lane row per managed lane (AI gateway, settings sync, companion relay, registry/mirror, support ingest, managed workspace), each naming its service family, meter family, meter unit, aggregation window, as-of-time requirement, scope owner, distinct chargeback scopes, fail posture, forecast confidence, grace-period rights, export guarantee, the non-empty local-safe baseline that always continues, and the marketed claim recomputed from the active managed state's cap. It also locks the ten-token managed-state vocabulary (signed in, local only, reauth required, managed blocked, grace period, seat removed, plan downgrade, org switched, forecast threshold, meter stale) bound to its frozen entitlement state, posture origin, marketed-claim cap, and distinctness rule, and one consumer binding per consumer surface (account, diagnostics, Help/About, support/admin, claim/public-truth automation). Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw key bytes, raw cloud-region identifiers, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "matrix_id",
+    "generated_at",
+    "matrix_revision",
+    "title",
+    "summary",
+    "source_refs",
+    "lanes",
+    "managed_states",
+    "consumer_bindings",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_commercial_control_plane_matrix" },
+    "schema_version": { "const": 1 },
+    "matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/utc_date_time" },
+    "matrix_revision": { "type": "integer", "minimum": 1 },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Schema and contract refs. MUST include schemas/service/m5-commercial-control-plane.schema.json."
+    },
+    "active_managed_state": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/managed_state_class" }
+      ],
+      "description": "The active managed state, when one has been applied to narrow the lanes."
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/managed_lane_row" }
+    },
+    "managed_states": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/managed_state_row" }
+    },
+    "consumer_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "inspection": { "$ref": "#/$defs/inspection_block" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, support export, admin export, and release evidence. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw key bytes, raw cloud-region identifiers, and raw secret material MUST NOT appear."
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "reviewable_sentence_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "utc_date_time": { "type": "string", "format": "date-time" },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "sync_family",
+        "registry_or_mirror_metadata_family",
+        "collaboration_relay_family",
+        "remote_workspace_control_plane_family",
+        "ai_gateway_family",
+        "telemetry_or_support_ingest_family"
+      ]
+    },
+    "meter_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_or_settings_sync_meter_family",
+        "collaboration_relay_meter_family",
+        "remote_workspace_control_plane_meter_family",
+        "ai_gateway_meter_family",
+        "registry_or_mirror_meter_family",
+        "support_ingest_meter_family"
+      ]
+    },
+    "service_id_class": {
+      "type": "string",
+      "enum": [
+        "managed_settings_sync",
+        "managed_marketplace",
+        "managed_ai_broker",
+        "managed_relay",
+        "managed_catalog",
+        "managed_telemetry_sink",
+        "managed_support_export",
+        "managed_entitlement_usage",
+        "managed_offboarding_export"
+      ]
+    },
+    "meter_unit_class": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "bytes_stored",
+        "participant_minutes",
+        "download_count",
+        "workspace_hours",
+        "support_bundle_count"
+      ]
+    },
+    "aggregation_window_class": {
+      "type": "string",
+      "enum": ["calendar_month_utc", "rolling_24h", "rolling_30d", "contract_term"]
+    },
+    "as_of_time_requirement_class": {
+      "type": "string",
+      "enum": ["required", "required_when_usage_shown", "not_applicable"]
+    },
+    "scope_owner_class": {
+      "type": "string",
+      "enum": ["personal", "workspace", "organization", "tenant", "byok_external"]
+    },
+    "fail_posture_class": {
+      "type": "string",
+      "enum": [
+        "fail_closed_managed_only",
+        "fail_open_local_safe",
+        "fail_open_local_safe_with_label",
+        "boundary_recheck_required"
+      ]
+    },
+    "forecast_confidence_class": {
+      "type": "string",
+      "enum": [
+        "forecast_authoritative",
+        "forecast_best_effort_local",
+        "forecast_unavailable",
+        "forecast_policy_suppressed",
+        "forecast_not_applicable"
+      ]
+    },
+    "grace_period_right_class": {
+      "type": "string",
+      "enum": [
+        "managed_admissible_per_grace",
+        "export_before_suspend",
+        "read_only_during_grace",
+        "offboarding_export_admissible"
+      ]
+    },
+    "export_guarantee_class": {
+      "type": "string",
+      "enum": [
+        "parity_with_csv_and_json",
+        "parity_with_json_only",
+        "parity_with_csv_only",
+        "manifest_only_no_row_export",
+        "no_export_documented_local_only"
+      ]
+    },
+    "entitlement_state_class": {
+      "type": "string",
+      "enum": [
+        "entitlement_active",
+        "entitlement_in_grace",
+        "entitlement_expired",
+        "entitlement_suspended_admin",
+        "entitlement_pending_recheck",
+        "entitlement_not_applicable"
+      ]
+    },
+    "managed_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_in",
+        "local_only",
+        "reauth_required",
+        "managed_blocked",
+        "grace_period",
+        "seat_removed",
+        "plan_downgrade",
+        "org_switched",
+        "forecast_threshold",
+        "meter_stale"
+      ],
+      "description": "The locked, user-visible managed-state vocabulary. A surface may render only these ten tokens for the managed lanes."
+    },
+    "posture_origin_class": {
+      "type": "string",
+      "enum": [
+        "seat",
+        "plan",
+        "policy",
+        "org",
+        "account",
+        "managed_provider",
+        "workspace_lifecycle",
+        "metering_quota",
+        "local_only_no_managed_account"
+      ]
+    },
+    "marketed_claim_class": {
+      "type": "string",
+      "enum": ["managed_full", "managed_narrowed", "local_safe_only"]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "account_surface",
+        "diagnostics",
+        "help_about",
+        "support_admin_packet",
+        "claim_public_truth_automation"
+      ]
+    },
+    "managed_lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "lane_id",
+        "title",
+        "summary",
+        "service_family",
+        "meter_family",
+        "linked_service_ids",
+        "meter_unit",
+        "aggregation_window",
+        "as_of_time_requirement",
+        "scope_owner",
+        "chargeback_scope_offers",
+        "fail_posture",
+        "forecast_confidence",
+        "grace_period_rights",
+        "export_guarantee",
+        "local_safe_baseline",
+        "blocked_managed_only_actions",
+        "applicable_managed_states",
+        "declared_marketed_claim",
+        "effective_marketed_claim",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_managed_lane_row" },
+        "schema_version": { "const": 1 },
+        "lane_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "meter_family": { "$ref": "#/$defs/meter_family_class" },
+        "linked_service_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/service_id_class" }
+        },
+        "meter_unit": { "$ref": "#/$defs/meter_unit_class" },
+        "aggregation_window": { "$ref": "#/$defs/aggregation_window_class" },
+        "as_of_time_requirement": {
+          "allOf": [
+            { "$ref": "#/$defs/as_of_time_requirement_class" },
+            {
+              "not": { "const": "not_applicable" },
+              "description": "A metered lane never omits its as-of-time requirement."
+            }
+          ]
+        },
+        "scope_owner": { "$ref": "#/$defs/scope_owner_class" },
+        "chargeback_scope_offers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_owner_class" },
+          "description": "The distinct chargeback scopes the lane offers; personal, workspace, and organization never collapse into one total."
+        },
+        "fail_posture": { "$ref": "#/$defs/fail_posture_class" },
+        "forecast_confidence": { "$ref": "#/$defs/forecast_confidence_class" },
+        "grace_period_rights": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/grace_period_right_class" }
+        },
+        "export_guarantee": { "$ref": "#/$defs/export_guarantee_class" },
+        "local_safe_baseline": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Non-empty so a metering or rating failure never blocks local editing, search, Git, or local automation."
+        },
+        "blocked_managed_only_actions": {
+          "$ref": "#/$defs/reviewable_sentence_array"
+        },
+        "applicable_managed_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" }
+        },
+        "declared_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "effective_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "narrowing_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" }
+        },
+        "recovery_cue": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Present (non-null) when the lane is narrowed below its declared claim."
+        }
+      }
+    },
+    "managed_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "managed_state",
+        "title",
+        "summary",
+        "linked_entitlement_state",
+        "posture_origin",
+        "claim_cap",
+        "must_not_collapse_with",
+        "local_safe_guaranteed",
+        "required_disclosure",
+        "recovery_cue"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_managed_state_row" },
+        "schema_version": { "const": 1 },
+        "managed_state": { "$ref": "#/$defs/managed_state_class" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_entitlement_state": { "$ref": "#/$defs/entitlement_state_class" },
+        "posture_origin": { "$ref": "#/$defs/posture_origin_class" },
+        "claim_cap": { "$ref": "#/$defs/marketed_claim_class" },
+        "must_not_collapse_with": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" }
+        },
+        "local_safe_guaranteed": { "const": true },
+        "required_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "recovery_cue": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "consumer_surface",
+        "bound_lane_ids",
+        "projects_effective_claim",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_commercial_consumer_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/stable_token" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface_class" },
+        "bound_lane_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "projects_effective_claim": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "lane_count",
+        "managed_state_count",
+        "consumer_binding_count",
+        "service_families_covered",
+        "meter_families_covered",
+        "managed_state_vocab_complete",
+        "consumer_surface_coverage_complete",
+        "all_lanes_local_safe_backed",
+        "effective_full_lane_count",
+        "narrowed_lane_count",
+        "local_safe_only_lane_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_commercial_control_plane_inspection" },
+        "schema_version": { "const": 1 },
+        "lane_count": { "type": "integer", "minimum": 1 },
+        "managed_state_count": { "type": "integer", "minimum": 10 },
+        "consumer_binding_count": { "type": "integer", "minimum": 5 },
+        "service_families_covered": { "type": "integer", "minimum": 1 },
+        "meter_families_covered": { "type": "integer", "minimum": 1 },
+        "managed_state_vocab_complete": { "const": true },
+        "consumer_surface_coverage_complete": { "const": true },
+        "all_lanes_local_safe_backed": { "const": true },
+        "effective_full_lane_count": { "type": "integer", "minimum": 0 },
+        "narrowed_lane_count": { "type": "integer", "minimum": 0 },
+        "local_safe_only_lane_count": { "type": "integer", "minimum": 0 },
+        "active_managed_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/managed_state_class" }
+          ]
+        }
+      }
+    }
+  }
+}
