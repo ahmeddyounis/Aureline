@@ -66,8 +66,24 @@
 //! separation, and each scope's owner identity; the set exports at CSV/JSON
 //! parity, projects its control-plane lane, narrows the marketed claim under the
 //! active managed state, and keeps a non-empty local-safe baseline.
+//!
+//! The [`m5_metering_degradation_rules`] module freezes the runtime degradation
+//! behavior when a metering or rating path goes stale or unreachable. It pins one
+//! rule per service family and degradation trigger — a stale meter, an
+//! unreachable metering service, and an unavailable rating path — across the AI
+//! gateway, settings sync, the companion relay, the registry/mirror surface,
+//! support ingest, and the managed workspace. Each rule projects its
+//! control-plane lane's fail posture so the local core fails open and keeps
+//! running, gates exactly one named spend-bearing optional action with its
+//! blocking reason when the lane fails closed, names the affected service family,
+//! the local-safe promise, and the retry and details actions, discloses any
+//! number bound to its unit, as-of time, and scope owner or suppressed, keeps a
+//! metering degradation distinct from a seat loss, an org switch, a grace window,
+//! and a sign-in failure, and narrows the marketed claim to managed-narrowed
+//! without ever collapsing the local core to local-safe-only.
 
 pub mod m5_chargeback_scope_views;
 pub mod m5_commercial_control_plane;
 pub mod m5_entitlement_summary;
+pub mod m5_metering_degradation_rules;
 pub mod m5_usage_forecast_views;

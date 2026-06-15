@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/m5-metering-degradation-rules.schema.json",
+  "title": "Aureline metering-degradation rule set",
+  "description": "Boundary schema for the frozen stale-or-unreachable metering degradation rules across the M5 managed lanes. The set pins one rule per service family (AI gateway, settings sync, collaboration relay, registry/mirror, support ingest, managed workspace) and degradation trigger (meter stale, metering service unreachable, rating path unavailable). Each rule projects its control-plane lane's fail posture so the local core fails open and keeps running, gates exactly one named spend-bearing optional action with its blocking reason when the lane fails closed, names the affected service family, the local-safe promise, and the retry and details actions, discloses any number bound to its unit, as-of time, and scope owner or suppressed (never bare), keeps a metering degradation distinct from a seat loss, an org switch, a grace window, and a sign-in failure, and narrows the marketed claim to managed-narrowed (never local-safe-only, never staying full). It also pins one surface binding per consumer surface (account, diagnostics, Help/About, support/admin packet, claim/public-truth automation), each projecting the effective claim, rendering the local-safe promise, and naming the blocking reason. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "set_id",
+    "generated_at",
+    "set_revision",
+    "title",
+    "summary",
+    "source_refs",
+    "rules",
+    "surface_bindings",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_metering_degradation_rule_set" },
+    "schema_version": { "const": 1 },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/utc_date_time" },
+    "set_revision": { "type": "integer", "minimum": 1 },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Schema and contract refs. MUST include schemas/service/m5-metering-degradation-rules.schema.json."
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 18,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/metering_degradation_rule" }
+    },
+    "surface_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/surface_binding" }
+    },
+    "inspection": { "$ref": "#/$defs/inspection_block" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, support export, admin export, and release evidence. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material MUST NOT appear."
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "utc_date_time": { "type": "string", "format": "date-time" },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "sync_family",
+        "registry_or_mirror_metadata_family",
+        "collaboration_relay_family",
+        "remote_workspace_control_plane_family",
+        "ai_gateway_family",
+        "telemetry_or_support_ingest_family"
+      ]
+    },
+    "meter_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_or_settings_sync_meter_family",
+        "collaboration_relay_meter_family",
+        "remote_workspace_control_plane_meter_family",
+        "ai_gateway_meter_family",
+        "registry_or_mirror_meter_family",
+        "support_ingest_meter_family"
+      ]
+    },
+    "fail_posture_class": {
+      "type": "string",
+      "enum": [
+        "fail_closed_managed_only",
+        "fail_open_local_safe",
+        "fail_open_local_safe_with_label",
+        "boundary_recheck_required"
+      ]
+    },
+    "snapshot_freshness_class": {
+      "type": "string",
+      "enum": [
+        "freshness_live",
+        "freshness_recent",
+        "freshness_aging",
+        "freshness_stale",
+        "freshness_unknown",
+        "freshness_not_applicable"
+      ]
+    },
+    "managed_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_in",
+        "local_only",
+        "reauth_required",
+        "managed_blocked",
+        "grace_period",
+        "seat_removed",
+        "plan_downgrade",
+        "org_switched",
+        "forecast_threshold",
+        "meter_stale"
+      ],
+      "description": "The locked, user-visible managed-state vocabulary."
+    },
+    "marketed_claim_class": {
+      "type": "string",
+      "enum": ["managed_full", "managed_narrowed", "local_safe_only"]
+    },
+    "degradation_trigger_class": {
+      "type": "string",
+      "enum": ["metering_stale", "service_unreachable", "rating_path_unavailable"]
+    },
+    "degradation_disposition_class": {
+      "type": "string",
+      "enum": [
+        "fail_open_local_safe_path",
+        "fail_open_managed_labeled",
+        "fail_closed_optional_action_gated",
+        "fail_closed_pending_boundary_recheck"
+      ]
+    },
+    "degradation_value_disclosure_class": {
+      "type": "string",
+      "enum": ["labeled_stale_bound_to_unit_as_of_scope", "suppressed_no_managed_number"]
+    },
+    "degradation_action_kind_class": {
+      "type": "string",
+      "enum": ["retry", "details"]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "account_surface",
+        "diagnostics",
+        "help_about",
+        "support_admin_packet",
+        "claim_public_truth_automation"
+      ]
+    },
+    "degradation_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "kind", "label"],
+      "properties": {
+        "record_kind": { "const": "m5_metering_degradation_action" },
+        "schema_version": { "const": 1 },
+        "kind": { "$ref": "#/$defs/degradation_action_kind_class" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "metering_degradation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rule_id",
+        "title",
+        "summary",
+        "lane_ref",
+        "service_family",
+        "meter_family",
+        "degradation_trigger",
+        "fail_posture",
+        "disposition",
+        "local_safe_promise",
+        "narrows_to_local_safe_only",
+        "value_disclosure",
+        "freshness",
+        "as_of",
+        "retry_action",
+        "details_action",
+        "not_an_account_error",
+        "distinct_from_account_states",
+        "declared_marketed_claim",
+        "effective_marketed_claim",
+        "recovery_cue"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_metering_degradation_rule" },
+        "schema_version": { "const": 1 },
+        "rule_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "lane_ref": {
+          "$ref": "#/$defs/stable_token",
+          "description": "The control-plane lane this rule projects."
+        },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "meter_family": { "$ref": "#/$defs/meter_family_class" },
+        "degradation_trigger": { "$ref": "#/$defs/degradation_trigger_class" },
+        "fail_posture": {
+          "$ref": "#/$defs/fail_posture_class",
+          "description": "Projected from the control-plane lane; the disposition is recomputed from it."
+        },
+        "disposition": { "$ref": "#/$defs/degradation_disposition_class" },
+        "local_safe_promise": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Non-empty so a stale or unreachable metering path narrows only the relevant managed action and never local editing, search, Git, or local automation."
+        },
+        "narrows_to_local_safe_only": {
+          "const": false,
+          "description": "Always false: a metering degradation never collapses the local core to the local-safe-only claim."
+        },
+        "gated_optional_action": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Present (non-null) only when the disposition fails closed; names the one spend-bearing optional action that gates."
+        },
+        "blocking_reason": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Present iff gated_optional_action is present; names why the one optional action is gated."
+        },
+        "value_disclosure": {
+          "$ref": "#/$defs/degradation_value_disclosure_class",
+          "description": "A managed value is bound to its unit, as-of time, and scope owner, or suppressed; it is never shown bare."
+        },
+        "freshness": { "$ref": "#/$defs/snapshot_freshness_class" },
+        "as_of": {
+          "$ref": "#/$defs/utc_date_time",
+          "description": "Last-contact as-of time for the meter; present even when the number is suppressed."
+        },
+        "retry_action": { "$ref": "#/$defs/degradation_action" },
+        "details_action": { "$ref": "#/$defs/degradation_action" },
+        "not_an_account_error": {
+          "const": true,
+          "description": "Always true: a metering degradation is a metering posture, not an account error."
+        },
+        "distinct_from_account_states": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" },
+          "description": "MUST include seat_removed, org_switched, grace_period, and reauth_required so a degradation never collapses into a generic account error."
+        },
+        "related_managed_state": {
+          "$ref": "#/$defs/managed_state_class",
+          "description": "Present only for the meter-stale trigger, which maps to the meter_stale managed state; other triggers carry no account-state token."
+        },
+        "declared_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "effective_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "recovery_cue": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "consumer_surface",
+        "bound_rule_ids",
+        "projects_effective_claim",
+        "renders_local_safe_promise",
+        "names_blocking_reason",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_metering_degradation_surface_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/stable_token" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface_class" },
+        "bound_rule_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "projects_effective_claim": { "const": true },
+        "renders_local_safe_promise": { "const": true },
+        "names_blocking_reason": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rule_count",
+        "surface_binding_count",
+        "service_families_covered",
+        "degradation_triggers_covered",
+        "matrix_complete",
+        "all_rules_local_safe_backed",
+        "never_blocks_local_core",
+        "value_never_bare",
+        "account_state_distinctions_complete",
+        "fail_open_rule_count",
+        "fail_closed_rule_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_metering_degradation_inspection" },
+        "schema_version": { "const": 1 },
+        "rule_count": { "type": "integer", "minimum": 18 },
+        "surface_binding_count": { "type": "integer", "minimum": 5 },
+        "service_families_covered": { "type": "integer", "minimum": 6 },
+        "degradation_triggers_covered": { "type": "integer", "minimum": 3 },
+        "matrix_complete": { "const": true },
+        "all_rules_local_safe_backed": { "const": true },
+        "never_blocks_local_core": { "const": true },
+        "value_never_bare": { "const": true },
+        "account_state_distinctions_complete": { "const": true },
+        "fail_open_rule_count": { "type": "integer", "minimum": 0 },
+        "fail_closed_rule_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
