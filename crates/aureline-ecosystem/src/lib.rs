@@ -248,6 +248,27 @@
 //! breaks. A board-level cross-check proves the banner never renders a stronger badge than
 //! the publish gate would grant, so authoring chrome, install/update flows, diagnostics,
 //! support, and release surfaces project one trust truth.
+//!
+//! The [`m5_anti_abuse_and_repro`] module extends ecosystem truth past install and publish
+//! review into the *post-publication transparency* lane. Where the publish gate speaks for a
+//! family before release, this module freezes the board that keeps a package's ranking and
+//! anti-abuse reasons, quarantine/removal history, publisher continuity-or-loss, and
+//! reproducible export packet visible across local-to-published, mirrored, and
+//! sideload-to-registry flows. Each row reuses the shared artifact-family, runtime-class,
+//! host/ABI, signing-state, trust-posture, and workspace-origin vocabulary and recomputes
+//! the rendered trust posture — capped by the signing state, the workspace origin, *and* the
+//! registry-binding decision so a locally-built, side-loaded, or freshly bound artifact never
+//! inherits a verified-publisher or enterprise-approved badge — alongside a ranking
+//! explainability that keeps install-count, star-rating, and trending vanity metrics from
+//! dominating the decision, a quarantine-history and publisher-continuity state folded from a
+//! sequenced event timeline so a prior quarantine or a verified-publisher loss stays
+//! disclosed on the visible surface rather than hidden in a moderation tool, a transparency
+//! disposition, and a self-contained repro-export packet carrying the package id, digest,
+//! host ABI, redacted logs, and conformance results without raw supervisor traces or a paid
+//! service. Local-to-published rebinding must pass through an explicit bind-published-identity
+//! review, and a board-level cross-check proves no row renders a stronger badge than the
+//! publish gate would grant, so marketplace discovery, authoring surfaces, diagnostics,
+//! support, and release surfaces project one trust truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -257,6 +278,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 pub mod m5_activation_budget;
+pub mod m5_anti_abuse_and_repro;
 pub mod m5_author_and_publish_preview;
 pub mod m5_conformance_and_validators;
 pub mod m5_ecosystem_certification;
