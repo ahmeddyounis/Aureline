@@ -269,6 +269,30 @@
 //! review, and a board-level cross-check proves no row renders a stronger badge than the
 //! publish gate would grant, so marketplace discovery, authoring surfaces, diagnostics,
 //! support, and release surfaces project one trust truth.
+//!
+//! The [`m5_author_certification`] module is the author-side counterpart to the
+//! [`m5_ecosystem_certification`] qualification layer. Where install certification decides
+//! whether the *end-user install* of a marketed M5 family may publish a claim, this module
+//! decides whether that family's *author lane* still backs the install claim it advertises.
+//! Each entry aggregates the per-lane evidence the author drills produce — local-dev
+//! workspace, sideload review, sandbox/runtime inspection, publish preview, hot-reload and
+//! last-loaded-build continuity, and anti-abuse transparency — alongside the family's
+//! signing state, workspace origin, registry binding, evidence freshness, and owner, and
+//! recomputes two published values from those facts: the effective trust posture, capped by
+//! the weakest of the signing-state, workspace-origin, and registry-binding ceilings so a
+//! locally-built, side-loaded, or pending-rebind artifact never inherits a verified-publisher
+//! or enterprise-approved badge; and the effective author support class, the weakest of the
+//! end-user install claim, the author-side ceiling, and the disposition ceiling, so the
+//! marketed row narrows automatically when author-side trust or publish truth is weaker than
+//! the install claim. The certification signals, disposition, and downgrade path are
+//! recomputed from the entry's facts, so a lane carrying warnings narrows to conditionally
+//! certified; a fresh-review-required or stale lane, stale evidence, or an author claim below
+//! the install claim narrow to downgraded; and a missing or failed lane, a missing owner, a
+//! blocked publish gate, or an anti-abuse quarantine hold each force an uncertified row whose
+//! support collapses to unsupported. The author claim may never exceed the install claim it
+//! guards, and a board-level cross-check proves no entry renders a stronger trust posture than
+//! the publish gate would grant, so local authoring surfaces, marketplace badges, diagnostics,
+//! support, and release evidence all narrow from one packet.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -280,6 +304,7 @@ pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_ma
 pub mod m5_activation_budget;
 pub mod m5_anti_abuse_and_repro;
 pub mod m5_author_and_publish_preview;
+pub mod m5_author_certification;
 pub mod m5_conformance_and_validators;
 pub mod m5_ecosystem_certification;
 pub mod m5_install_review;
