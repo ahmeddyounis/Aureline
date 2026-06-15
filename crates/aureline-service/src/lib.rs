@@ -54,7 +54,20 @@
 //! state while keeping a non-empty local-safe baseline. Each view projects its
 //! control-plane lane rather than a parallel spreadsheet, and unlike service
 //! families never merge into one opaque total.
+//!
+//! The [`m5_chargeback_scope_views`] module renders the chargeback surface for
+//! each claimed managed lane: who owns the cost and whether it is charged
+//! directly or inherited from a broader scope. It freezes one view per service
+//! family, each keeping one cost truth per offered chargeback scope so personal,
+//! workspace, team, and organization never collapse into one ambiguous owner
+//! bucket, and each separating a direct cost line from an inherited share that
+//! names its parent scope. A single scope switcher holds the active scope across
+//! the views while preserving the active scope, the inherited-versus-direct
+//! separation, and each scope's owner identity; the set exports at CSV/JSON
+//! parity, projects its control-plane lane, narrows the marketed claim under the
+//! active managed state, and keeps a non-empty local-safe baseline.
 
+pub mod m5_chargeback_scope_views;
 pub mod m5_commercial_control_plane;
 pub mod m5_entitlement_summary;
 pub mod m5_usage_forecast_views;

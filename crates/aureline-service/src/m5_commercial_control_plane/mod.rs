@@ -216,8 +216,8 @@ pub enum AsOfTimeRequirement {
     NotApplicable,
 }
 
-/// Closed scope-owner vocabulary. Personal, workspace, and organization scopes
-/// never collapse into one chargeback total.
+/// Closed scope-owner vocabulary. Personal, workspace, team, and organization
+/// scopes never collapse into one chargeback total.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ScopeOwner {
@@ -225,6 +225,8 @@ pub enum ScopeOwner {
     Personal,
     /// A workspace.
     Workspace,
+    /// A team within an organization.
+    Team,
     /// An organization.
     Organization,
     /// A tenant.
