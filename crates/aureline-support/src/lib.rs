@@ -213,6 +213,19 @@
 //!   the storage-governance lane share one set of storage classes and pin
 //!   sources; a metadata-safe support export carries the same storage-class and
 //!   pin-state truth into Help / About / diagnostics / support surfaces.
+//! - The [`m5_storage_certification`] packet — certifies storage-class truth,
+//!   low-disk / managed-quota behavior, class-selective clear-data previews, and
+//!   pin/retention integrity for every M5 heavy-artifact family on every claimed
+//!   M5 profile. It binds each family/profile row to the storage-governance
+//!   matrix plus the clear-data, low-disk-pressure, pin/retention,
+//!   cache-repair, and offboarding/continuity proofs, cross-checks each row's
+//!   storage class, authority, and protection posture against the canonical
+//!   matrix, and exposes one certification index to Help/About, service-health,
+//!   support-export, and release-manifest consumers. Rows that would blur cache
+//!   versus authoritative state, hide pressure behavior, or keep a green claim
+//!   on stale pin/retention proof downgrade automatically, and protected
+//!   families on managed-cloud profiles stay explicitly excluded from
+//!   managed-quota deletion.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -315,6 +328,7 @@ pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
 pub mod m5_pin_retention;
 pub mod m5_records_policy_governance;
+pub mod m5_storage_certification;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
 pub mod m5_storage_pressure;
@@ -464,6 +478,19 @@ pub use m5_offboarding_continuity::{
 pub use m5_records_policy_governance::{
     M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,
     M5_RECORDS_POLICY_GOVERNANCE_RECORD_KIND, M5_RECORDS_POLICY_GOVERNANCE_SCHEMA_VERSION,
+};
+pub use m5_storage_certification::{
+    seeded_blurred_cache_authority_m5_storage_certification_packet,
+    seeded_m5_storage_certification_packet,
+    seeded_stale_pin_retention_m5_storage_certification_packet, M5StorageCertificationPacket,
+    M5StorageCertificationViolation, PressureSourcePostureClass,
+    StorageCertificationDowngradeRuleRow, StorageCertificationDowngradeTriggerClass,
+    StorageCertificationStateClass, StorageCertificationSurfaceBinding,
+    StorageCertificationSurfaceClass, StorageProfileCertificationRow,
+    M5_STORAGE_CERTIFICATION_ARTIFACT_REF, M5_STORAGE_CERTIFICATION_DOC_REF,
+    M5_STORAGE_CERTIFICATION_FIXTURE_DIR, M5_STORAGE_CERTIFICATION_PACKET_ID,
+    M5_STORAGE_CERTIFICATION_PACKET_RECORD_KIND, M5_STORAGE_CERTIFICATION_SCHEMA_REF,
+    M5_STORAGE_CERTIFICATION_SCHEMA_VERSION,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
