@@ -184,6 +184,28 @@
 //! preserves the installed row's limited-trust continuity rather than silently raising
 //! its badge, so a side-load can never be waved through install-style review just
 //! because it is already on disk.
+//!
+//! The [`m5_runtime_inspector`] module is the live counterpart to the install and
+//! sideload review lanes. Where those review a package *before* it loads, this module
+//! freezes the runtime inspector an author or operator opens to read the *running*
+//! truth of one claimed M5 ecosystem family — its activation time, current host,
+//! granted capabilities with declared-versus-exercised state, recent redacted logs,
+//! recent failures, hot-reload posture, and the quarantine/disable/re-enable actions —
+//! without scraping raw supervisor traces. Each card reuses the shared artifact-family,
+//! runtime-class, host/ABI, signing-state, trust-posture, anti-abuse, and hot-reload
+//! vocabulary plus the activation-budget capability and resource vocabulary, and
+//! recomputes three published values from its facts: the rendered trust tier, capped by
+//! the signing state so an unsigned local-dev, side-loaded, or revoked artifact never
+//! inherits a verified-publisher or enterprise-approved badge; the review-trigger set,
+//! where a hot reload that widens the runtime class, expands permissions, or adds an
+//! external executable — or an undeclared exercised capability — forces a fresh review
+//! instead of a silent hot reload; and the disposition, the strongest of the load-state
+//! base, that fresh-review gate, and a hard quarantine for an anti-abuse hold. The
+//! inspector stays useful when the package is failing or quarantined: a card whose
+//! current load failed or whose source path disappeared keeps a last-known-good state
+//! visible, and that last-good state can never render a stronger badge than the
+//! family's current cap, so support, service-health, diagnostics, and release surfaces
+//! project the same runtime truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -200,6 +222,7 @@ pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 pub mod m5_mirror_and_sideload;
+pub mod m5_runtime_inspector;
 pub mod m5_sideload_review;
 pub mod m5_workspace_strip;
 
