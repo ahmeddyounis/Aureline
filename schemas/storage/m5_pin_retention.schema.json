@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/m5_pin_retention.schema.json",
+  "title": "Aureline M5 pin / retention manager",
+  "description": "Boundary schema for the m5_pin_retention_manager record authored under /fixtures/storage/m5_pin_retention_cases/ and folded by crates/aureline-support/src/m5_pin_retention. A manager is the operator-facing object shown on the pin_manager and cleanup_history_lane surfaces for one workspace / scope. Each pin states why an artifact remains on disk: its pin source, who pinned it, the expiry / policy window, the referenced object, the unpin path, and the export-before-delete path. Each cleanup-history event keeps a past eviction attributable: its actor, trigger, class and family, reclaimed bytes, blocked pins, and resulting stale / reindex-needed state, with no raw payload captured. The storage_class_id, artifact_family_id, and pin_source_class vocabularies re-export verbatim from /artifacts/runtime/storage_classes.yaml and /artifacts/storage/m5_artifact_family_storage_matrix.yaml; only the pin-actor, retention-state, unpin-path, export-path, referenced-object, and cleanup labels are introduced here, and they are bounded explanatory tokens. Adding a value to a closed vocabulary is additive-minor and bumps schema_version; repurposing a value or weakening a protected-class invariant (derived fields track the pin source, storage pressure never reclaims user-owned recovery bytes, cleanup never touches authoritative state or captures a raw payload) is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/m5_pin_retention_manager",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "byte_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "artifact_family_id": {
+      "type": "string",
+      "enum": [
+        "generated_preview",
+        "notebook_output",
+        "docs_pack",
+        "model_pack",
+        "template_pack",
+        "extension_download",
+        "prebuild_layer",
+        "profiler_trace",
+        "replay_bundle",
+        "support_artifact",
+        "review_incident_evidence",
+        "user_owned_recovery_state"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "default_retention_class": {
+      "type": "string",
+      "enum": [
+        "evict_on_session_end",
+        "evict_under_pressure_if_unpinned",
+        "retain_until_version_replace",
+        "retain_for_policy_window",
+        "retain_until_explicit_user_reset"
+      ]
+    },
+    "pin_actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin_policy",
+        "release_process",
+        "case_or_incident",
+        "review_process",
+        "offline_bundle",
+        "certified_template_source",
+        "support_export_process",
+        "retention_policy"
+      ]
+    },
+    "retention_state_class": {
+      "type": "string",
+      "enum": [
+        "in_retention_window",
+        "pinned_indefinite_while_referenced",
+        "retained_until_explicit_reset",
+        "pinned_by_explicit_user_choice",
+        "policy_window_managed"
+      ]
+    },
+    "unpin_path_class": {
+      "type": "string",
+      "enum": [
+        "user_unpins_directly",
+        "admin_policy_change_required",
+        "release_referencing_object",
+        "auto_unpins_at_retention_expiry"
+      ]
+    },
+    "export_path_class": {
+      "type": "string",
+      "enum": [
+        "export_required_before_delete",
+        "export_offered_before_delete",
+        "export_already_in_assembly"
+      ]
+    },
+    "referenced_object_class": {
+      "type": "string",
+      "enum": [
+        "workspace_artifact",
+        "release_artifact_graph",
+        "support_case_or_incident",
+        "review_packet",
+        "offline_entitlement_bundle",
+        "certified_template_or_archetype",
+        "support_export_assembly",
+        "retention_policy_window",
+        "local_checkpoint_or_history",
+        "admin_policy_binding"
+      ]
+    },
+    "inspectable_surface_class": {
+      "type": "string",
+      "enum": ["pin_manager", "cleanup_history_lane"]
+    },
+    "cleanup_actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin_policy",
+        "system_pressure_governor",
+        "retention_scheduler",
+        "offboarding_flow"
+      ]
+    },
+    "cleanup_trigger_class": {
+      "type": "string",
+      "enum": [
+        "low_disk_pressure",
+        "managed_quota_pressure",
+        "explicit_user_clear_data",
+        "offboarding_or_reset",
+        "retention_window_expiry",
+        "case_close"
+      ]
+    },
+    "cleanup_disposition_class": {
+      "type": "string",
+      "enum": [
+        "trimmed_disposable_cache",
+        "trimmed_rebuildable_cache",
+        "trimmed_unpinned_artifact",
+        "expired_unpinned_evidence_past_retention",
+        "exported_then_deleted",
+        "blocked_no_op_pin_protected"
+      ]
+    },
+    "resulting_state_class": {
+      "type": "string",
+      "enum": [
+        "fully_reclaimed_no_residual",
+        "rebuild_pending",
+        "reindex_needed",
+        "partial_retained_pins",
+        "authoritative_state_untouched"
+      ]
+    },
+    "pin_retention_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pin_id",
+        "label",
+        "family_id",
+        "storage_class_id",
+        "pin_source",
+        "pin_actor",
+        "referenced_object_class",
+        "referenced_object_ref",
+        "default_retention_class",
+        "retention_state",
+        "unpin_path",
+        "export_path",
+        "on_disk_bytes",
+        "protected_continuity"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_pin_retention_pin"
+        },
+        "pin_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "family_id": { "$ref": "#/$defs/artifact_family_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "pin_source": { "$ref": "#/$defs/pin_source_class" },
+        "pin_actor": { "$ref": "#/$defs/pin_actor_class" },
+        "pinned_by_ref": { "$ref": "#/$defs/non_empty_string" },
+        "referenced_object_class": { "$ref": "#/$defs/referenced_object_class" },
+        "referenced_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "default_retention_class": { "$ref": "#/$defs/default_retention_class" },
+        "retention_state": { "$ref": "#/$defs/retention_state_class" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "unpin_path": { "$ref": "#/$defs/unpin_path_class" },
+        "export_path": { "$ref": "#/$defs/export_path_class" },
+        "on_disk_bytes": { "$ref": "#/$defs/byte_count" },
+        "protected_continuity": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "$comment": "A finite retention window is the only state that carries an expiry.",
+          "if": {
+            "properties": {
+              "retention_state": { "const": "in_retention_window" }
+            },
+            "required": ["retention_state"]
+          },
+          "then": { "required": ["expires_at"] },
+          "else": {
+            "not": { "required": ["expires_at"] }
+          }
+        }
+      ]
+    },
+    "cleanup_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_id",
+        "occurred_at",
+        "actor_class",
+        "trigger_class",
+        "family_id",
+        "storage_class_id",
+        "disposition",
+        "reclaimed_bytes",
+        "blocked_pin_count",
+        "resulting_state",
+        "reindex_needed",
+        "authoritative_state_touched",
+        "raw_payload_captured"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_pin_retention_cleanup_event"
+        },
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_class": { "$ref": "#/$defs/cleanup_actor_class" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_class": { "$ref": "#/$defs/cleanup_trigger_class" },
+        "family_id": { "$ref": "#/$defs/artifact_family_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "disposition": { "$ref": "#/$defs/cleanup_disposition_class" },
+        "reclaimed_bytes": { "$ref": "#/$defs/byte_count" },
+        "blocked_pin_count": { "type": "integer", "minimum": 0 },
+        "blocked_pin_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pin_source_class" }
+        },
+        "resulting_state": { "$ref": "#/$defs/resulting_state_class" },
+        "reindex_needed": { "type": "boolean" },
+        "authoritative_state_touched": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_payload_captured": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Storage pressure must never reclaim user-owned recovery bytes.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" },
+              "trigger_class": {
+                "enum": ["low_disk_pressure", "managed_quota_pressure"]
+              }
+            },
+            "required": ["storage_class_id", "trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "reclaimed_bytes": { "const": 0 },
+              "disposition": { "const": "blocked_no_op_pin_protected" }
+            }
+          }
+        },
+        {
+          "$comment": "A blocked no-op reclaims zero bytes.",
+          "if": {
+            "properties": {
+              "disposition": { "const": "blocked_no_op_pin_protected" }
+            },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "reclaimed_bytes": { "const": 0 },
+              "blocked_pin_count": { "minimum": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "m5_pin_retention_manager": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manager_id",
+        "emitted_at",
+        "scope_ref",
+        "scope_label",
+        "surfaces",
+        "pins",
+        "cleanup_history",
+        "open_inspector_action_ref",
+        "open_clear_data_review_action_ref",
+        "schema_ref",
+        "doc_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_pin_retention_manager"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manager_id": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "surfaces": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/inspectable_surface_class" },
+          "contains": { "const": "pin_manager" },
+          "allOf": [
+            { "contains": { "const": "cleanup_history_lane" } }
+          ]
+        },
+        "pins": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pin_retention_entry" }
+        },
+        "cleanup_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanup_history_entry" }
+        },
+        "open_inspector_action_ref": {
+          "type": "string",
+          "const": "action.storage.open_inspector"
+        },
+        "open_clear_data_review_action_ref": {
+          "type": "string",
+          "const": "action.storage.open_clear_data_review"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/storage/m5_pin_retention.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/storage/m5_pin_retention_contract.md"
+        }
+      }
+    }
+  }
+}

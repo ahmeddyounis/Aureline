@@ -172,6 +172,19 @@
 //!   prove pressure freed only disposable, rebuildable, or
 //!   unpinned-past-retention bytes and never auto-trimmed user-owned recovery
 //!   state. A metadata-safe support export carries the same truth.
+//! - The [`m5_pin_retention`] managers — make pin and retention truth visible
+//!   per workspace: for every pinned or retained artifact (crash evidence,
+//!   review packs, docs/model/template packs, certified templates, checkpoints,
+//!   and incident bundles) the manager states the pin source, who pinned it, the
+//!   expiry/policy window, the referenced object, the unpin path, and the
+//!   export-before-delete path; the sibling cleanup-history lane keeps every past
+//!   eviction attributable (actor, class, family, reclaimed bytes, blocked pins,
+//!   and resulting stale/reindex-needed state) without capturing raw payloads.
+//!   The matrix-backed composer folds the frozen artifact-family matrix so the
+//!   manager and the storage-governance lane share one set of storage classes
+//!   and pin sources; per-class guards prove storage pressure never silently
+//!   deletes user-owned recovery state, and a metadata-safe support export
+//!   carries the same truth.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -270,6 +283,7 @@ pub mod m5_forensic_packet;
 pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
+pub mod m5_pin_retention;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;

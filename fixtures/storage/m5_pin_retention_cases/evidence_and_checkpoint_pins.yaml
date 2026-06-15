@@ -1,0 +1,131 @@
+# Pin / retention manager for a workspace holding crash evidence, a review
+# packet, a support-export assembly in flight, a replay bundle under a
+# retention window, and a user checkpoint. Every pin states its source, who
+# pinned it, the expiry/policy window, the referenced object, the unpin path,
+# and the export-before-delete path. The cleanup history keeps a disposable
+# preview trim and an evidence retention-expiry attributable; the case pin
+# blocks the evidence expiry so pinned evidence is retained.
+record_kind: m5_pin_retention_manager
+schema_version: 1
+manager_id: pin_retention.evidence_and_checkpoints.v1
+emitted_at: 2026-06-14T00:00:00Z
+scope_ref: ws.alpha
+scope_label: Project Alpha
+surfaces:
+- pin_manager
+- cleanup_history_lane
+pins:
+- record_kind: m5_pin_retention_pin
+  pin_id: pin.review_evidence.alpha
+  label: Incident review packet — auth regression
+  family_id: review_incident_evidence
+  storage_class_id: evidence_support_cache
+  pin_source: review_pack_ref
+  pin_actor: review_process
+  pinned_by_ref: role.reviewer
+  referenced_object_class: review_packet
+  referenced_object_ref: review_pack.auth_regression.v3
+  default_retention_class: retain_for_policy_window
+  retention_state: pinned_indefinite_while_referenced
+  unpin_path: release_referencing_object
+  export_path: export_required_before_delete
+  on_disk_bytes: 420000000
+  protected_continuity: true
+- record_kind: m5_pin_retention_pin
+  pin_id: pin.crash_evidence.alpha
+  label: Crash evidence — profiler trace
+  family_id: profiler_trace
+  storage_class_id: evidence_support_cache
+  pin_source: case_reference_ref
+  pin_actor: case_or_incident
+  referenced_object_class: support_case_or_incident
+  referenced_object_ref: case.crash.2026_0612
+  default_retention_class: retain_for_policy_window
+  retention_state: pinned_indefinite_while_referenced
+  unpin_path: release_referencing_object
+  export_path: export_required_before_delete
+  on_disk_bytes: 880000000
+  protected_continuity: true
+- record_kind: m5_pin_retention_pin
+  pin_id: pin.support_bundle.alpha
+  label: Support export assembly in flight
+  family_id: support_artifact
+  storage_class_id: evidence_support_cache
+  pin_source: support_export_assembly_ref
+  pin_actor: support_export_process
+  referenced_object_class: support_export_assembly
+  referenced_object_ref: support_export.assembly.pending
+  default_retention_class: retain_for_policy_window
+  retention_state: pinned_indefinite_while_referenced
+  unpin_path: release_referencing_object
+  export_path: export_already_in_assembly
+  on_disk_bytes: 130000000
+  protected_continuity: true
+- record_kind: m5_pin_retention_pin
+  pin_id: pin.replay_retention.alpha
+  label: Replay bundle under retention window
+  family_id: replay_bundle
+  storage_class_id: evidence_support_cache
+  pin_source: retention_window_ref
+  pin_actor: retention_policy
+  referenced_object_class: retention_policy_window
+  referenced_object_ref: retention.replay.90d
+  default_retention_class: retain_for_policy_window
+  retention_state: in_retention_window
+  expires_at: 2026-09-12T00:00:00Z
+  unpin_path: auto_unpins_at_retention_expiry
+  export_path: export_required_before_delete
+  on_disk_bytes: 360000000
+  protected_continuity: true
+- record_kind: m5_pin_retention_pin
+  pin_id: pin.checkpoint.alpha
+  label: Local checkpoint — pre-refactor
+  family_id: user_owned_recovery_state
+  storage_class_id: user_owned_recovery_state
+  pin_source: explicit_user_pin
+  pin_actor: user
+  pinned_by_ref: role.author
+  referenced_object_class: local_checkpoint_or_history
+  referenced_object_ref: checkpoint.pre_refactor.v1
+  default_retention_class: retain_until_explicit_user_reset
+  retention_state: retained_until_explicit_reset
+  unpin_path: user_unpins_directly
+  export_path: export_required_before_delete
+  on_disk_bytes: 95000000
+  protected_continuity: true
+cleanup_history:
+- record_kind: m5_pin_retention_cleanup_event
+  event_id: cleanup.preview_trim.alpha
+  occurred_at: 2026-06-13T22:05:00Z
+  actor_class: system_pressure_governor
+  trigger_class: low_disk_pressure
+  family_id: generated_preview
+  storage_class_id: interactive_hot_cache
+  disposition: trimmed_disposable_cache
+  reclaimed_bytes: 1200000000
+  blocked_pin_count: 0
+  blocked_pin_sources: []
+  resulting_state: fully_reclaimed_no_residual
+  reindex_needed: false
+  authoritative_state_touched: false
+  raw_payload_captured: false
+- record_kind: m5_pin_retention_cleanup_event
+  event_id: cleanup.evidence_expiry.alpha
+  occurred_at: 2026-06-13T22:06:00Z
+  actor_class: retention_scheduler
+  trigger_class: retention_window_expiry
+  family_id: profiler_trace
+  storage_class_id: evidence_support_cache
+  disposition: expired_unpinned_evidence_past_retention
+  reclaimed_bytes: 240000000
+  blocked_pin_count: 1
+  blocked_pin_sources:
+  - case_reference_ref
+  resulting_state: partial_retained_pins
+  reindex_needed: false
+  authoritative_state_touched: false
+  raw_payload_captured: false
+open_inspector_action_ref: action.storage.open_inspector
+open_clear_data_review_action_ref: action.storage.open_clear_data_review
+schema_ref: schemas/storage/m5_pin_retention.schema.json
+doc_ref: docs/storage/m5_pin_retention_contract.md
