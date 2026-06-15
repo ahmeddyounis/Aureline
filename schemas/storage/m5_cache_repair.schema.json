@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/m5_cache_repair.schema.json",
+  "title": "Aureline M5 cache-repair plan",
+  "description": "Boundary schema for the m5_cache_repair_plan record authored under /fixtures/storage/m5_cache_repair_cases/ and folded by crates/aureline-support/src/m5_cache_repair. A plan is the operator-facing object shown when a derived cache or semantic index is detected corrupt or stale: it states the affected storage class and a single-class scope, the detected fault, the targeted repair action, the quarantine disposition that preserves any suspect copy still holding user-owned data or forensic value before a clear, the repair state, the propagated stale / rebuild-needed / corrupt labels every affected surface keeps until the repair completes, and a no-reset-everything fallback when the repair fails. The storage_class_id vocabulary re-exports verbatim from /artifacts/runtime/storage_classes.yaml, as does the storage posture vocabulary. Only the fault, repair-action, repair-scope, quarantine-disposition, repair-label, repair-state, and fallback labels are introduced here, and they are bounded explanatory tokens that carry no global / factory-reset value. Adding a value to a closed vocabulary is additive-minor and bumps schema_version; repurposing a value or weakening a protected invariant (the scope is never global, no factory reset is offered, a suspect copy is quarantined before any clear when it holds user-owned data or forensic value, and a propagated label stays active until the repair completes) is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/m5_cache_repair_plan",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "fault_class": {
+      "type": "string",
+      "enum": [
+        "corrupt_index",
+        "checksum_mismatch",
+        "partial_write_torn",
+        "schema_version_drift",
+        "stale_against_source",
+        "missing_backing_object",
+        "orphaned_entries"
+      ]
+    },
+    "repair_action_class": {
+      "type": "string",
+      "enum": [
+        "rebuild_from_source",
+        "refetch_by_digest",
+        "revalidate_against_source",
+        "rederive_on_demand",
+        "quarantine_then_rebuild",
+        "quarantine_then_manual_review",
+        "repair_in_place_from_checkpoint"
+      ]
+    },
+    "repair_scope_class": {
+      "type": "string",
+      "enum": ["single_class_single_workspace", "single_class_all_workspaces"]
+    },
+    "quarantine_disposition_class": {
+      "type": "string",
+      "enum": [
+        "quarantined_user_owned_data_preserved",
+        "quarantined_forensics_value_preserved",
+        "quarantined_pending_export",
+        "no_quarantine_disposable_only"
+      ]
+    },
+    "repair_label_class": {
+      "type": "string",
+      "enum": [
+        "corrupt",
+        "stale",
+        "rebuild_needed",
+        "reindex_needed",
+        "repair_in_progress",
+        "quarantined",
+        "healthy"
+      ]
+    },
+    "repair_state_class": {
+      "type": "string",
+      "enum": [
+        "detected",
+        "quarantine_preserved",
+        "repair_in_progress",
+        "repair_complete_healthy",
+        "repair_failed_fallback_offered"
+      ]
+    },
+    "fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback_needed",
+        "retry_targeted_repair",
+        "widen_to_workspace_scope_review",
+        "open_without_affected_cache",
+        "manual_class_specific_review_required"
+      ]
+    },
+    "affected_surface_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "surface_ref",
+        "surface_label",
+        "repair_label",
+        "posture",
+        "label_active",
+        "clears_on_repair_complete",
+        "detail"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_cache_repair_surface_label"
+        },
+        "surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "repair_label": { "$ref": "#/$defs/repair_label_class" },
+        "posture": { "$ref": "#/$defs/storage_posture_class" },
+        "label_active": { "type": "boolean" },
+        "clears_on_repair_complete": {
+          "type": "boolean",
+          "const": true
+        },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "m5_cache_repair_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "plan_id",
+        "emitted_at",
+        "headline",
+        "storage_class_id",
+        "scope_class",
+        "fault_class",
+        "repair_action",
+        "quarantine_disposition",
+        "repair_state",
+        "repair_label",
+        "posture",
+        "affected_surface_labels",
+        "fallback_action",
+        "preserves_user_owned_data",
+        "preserves_forensics_value",
+        "factory_reset_offered",
+        "reset_everything_avoided",
+        "narrowest_sufficient_scope",
+        "open_inspector_action_ref",
+        "run_targeted_repair_action_ref",
+        "schema_ref",
+        "doc_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m5_cache_repair_plan"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "plan_id": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "scope_class": { "$ref": "#/$defs/repair_scope_class" },
+        "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_label": { "$ref": "#/$defs/non_empty_string" },
+        "fault_class": { "$ref": "#/$defs/fault_class" },
+        "repair_action": { "$ref": "#/$defs/repair_action_class" },
+        "quarantine_disposition": {
+          "$ref": "#/$defs/quarantine_disposition_class"
+        },
+        "quarantine_ref": { "$ref": "#/$defs/non_empty_string" },
+        "repair_state": { "$ref": "#/$defs/repair_state_class" },
+        "repair_label": { "$ref": "#/$defs/repair_label_class" },
+        "posture": { "$ref": "#/$defs/storage_posture_class" },
+        "affected_surface_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_surface_label" }
+        },
+        "fallback_action": { "$ref": "#/$defs/fallback_action_class" },
+        "preserves_user_owned_data": { "type": "boolean" },
+        "preserves_forensics_value": { "type": "boolean" },
+        "factory_reset_offered": {
+          "type": "boolean",
+          "const": false
+        },
+        "reset_everything_avoided": {
+          "type": "boolean",
+          "const": true
+        },
+        "narrowest_sufficient_scope": {
+          "type": "boolean",
+          "const": true
+        },
+        "open_inspector_action_ref": {
+          "type": "string",
+          "const": "action.storage.open_inspector"
+        },
+        "run_targeted_repair_action_ref": {
+          "type": "string",
+          "const": "action.storage.run_targeted_repair"
+        },
+        "guardrail_notices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/storage/m5_cache_repair.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/storage/m5_cache_repair_contract.md"
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "A single-workspace scope names a workspace; an all-workspaces scope names none.",
+          "if": {
+            "properties": {
+              "scope_class": { "const": "single_class_single_workspace" }
+            }
+          },
+          "then": { "required": ["workspace_ref"] },
+          "else": {
+            "not": { "required": ["workspace_ref"] }
+          }
+        },
+        {
+          "$comment": "User-owned recovery repair preserves user-owned data and quarantines the suspect copy.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" }
+            }
+          },
+          "then": {
+            "properties": {
+              "preserves_user_owned_data": { "const": true },
+              "quarantine_disposition": {
+                "enum": [
+                  "quarantined_user_owned_data_preserved",
+                  "quarantined_forensics_value_preserved",
+                  "quarantined_pending_export"
+                ]
+              }
+            },
+            "required": ["quarantine_ref"]
+          }
+        },
+        {
+          "$comment": "Evidence repair preserves forensic value and quarantines the suspect copy.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" }
+            }
+          },
+          "then": {
+            "properties": {
+              "preserves_forensics_value": { "const": true },
+              "quarantine_disposition": {
+                "enum": [
+                  "quarantined_user_owned_data_preserved",
+                  "quarantined_forensics_value_preserved",
+                  "quarantined_pending_export"
+                ]
+              }
+            },
+            "required": ["quarantine_ref"]
+          }
+        },
+        {
+          "$comment": "A disposable-only disposition preserves no suspect copy and risks no user-owned or forensic value.",
+          "if": {
+            "properties": {
+              "quarantine_disposition": { "const": "no_quarantine_disposable_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "preserves_user_owned_data": { "const": false },
+              "preserves_forensics_value": { "const": false }
+            },
+            "not": { "required": ["quarantine_ref"] }
+          }
+        },
+        {
+          "$comment": "A failed repair offers a fallback; any other state offers none.",
+          "if": {
+            "properties": {
+              "repair_state": { "const": "repair_failed_fallback_offered" }
+            }
+          },
+          "then": {
+            "properties": {
+              "fallback_action": {
+                "enum": [
+                  "retry_targeted_repair",
+                  "widen_to_workspace_scope_review",
+                  "open_without_affected_cache",
+                  "manual_class_specific_review_required"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fallback_action": { "const": "no_fallback_needed" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

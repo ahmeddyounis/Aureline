@@ -185,6 +185,20 @@
 //!   and pin sources; per-class guards prove storage pressure never silently
 //!   deletes user-owned recovery state, and a metadata-safe support export
 //!   carries the same truth.
+//! - The [`m5_cache_repair`] plans — turn a corrupt or stale cache / index into
+//!   a targeted, disclosed repair instead of vague delete-everything advice. For
+//!   each affected storage class the plan states the detected fault, the
+//!   narrowest sufficient repair action (rebuild one index, refetch one pack by
+//!   digest, re-derive one cache, or repair one workspace's recovery state in
+//!   place), the quarantine disposition that preserves any suspect copy still
+//!   holding user-owned data or forensic value before a clear, the propagated
+//!   stale / rebuild-needed / corrupt labels that every affected surface keeps
+//!   until the repair actually completes, and a no-reset-everything fallback when
+//!   the repair fails. The composer folds the canonical runtime storage-class
+//!   profiles so the plan and the storage-governance lane share one protection
+//!   posture; per-class guards prove no plan ever offers a factory reset or
+//!   clears suspect data before preserving a required quarantine copy, and a
+//!   metadata-safe support export carries the same truth.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -276,6 +290,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
+pub mod m5_cache_repair;
 pub mod m5_clear_data_review;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
