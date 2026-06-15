@@ -199,6 +199,20 @@
 //!   posture; per-class guards prove no plan ever offers a factory reset or
 //!   clears suspect data before preserving a required quarantine copy, and a
 //!   metadata-safe support export carries the same truth.
+//! - The [`m5_offboarding_continuity`] plans — make account offboarding, device
+//!   reset, workspace wipe, and sign-out cleanup honest before anything is
+//!   removed: for every heavy artifact family the plan states whether the bytes
+//!   are exportable durable state the user should take with them or non-portable
+//!   derived data that simply rebuilds, what offline / mirror /
+//!   certified-workspace continuity its removal would break, which families are
+//!   pinned by an offline bundle, certified template/archetype, or last-known-good
+//!   policy bundle and therefore stay protected unless explicitly reviewed away,
+//!   and a portability-honesty headline that never implies the user exported
+//!   everything when only caches were cleared. The matrix-backed composer folds
+//!   the frozen artifact-family matrix so the plan, the clear-data review, and
+//!   the storage-governance lane share one set of storage classes and pin
+//!   sources; a metadata-safe support export carries the same storage-class and
+//!   pin-state truth into Help / About / diagnostics / support surfaces.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -298,6 +312,7 @@ pub mod m5_forensic_packet;
 pub mod m5_fs_mutation_lineage_certification;
 pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
+pub mod m5_offboarding_continuity;
 pub mod m5_pin_retention;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_governance;
@@ -433,6 +448,18 @@ pub use m5_mutation_lineage::{
     M5MutationLineageSupportExportEnvelope, M5MutationLineageSupportExportError,
     M5MutationLineageSupportExportRow, M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND,
     M5_MUTATION_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+pub use m5_offboarding_continuity::{
+    compose_offboarding_plan, current_offboarding_continuity_corpus, seeded_offboarding_requests,
+    ContinuityWarningClass, M5OffboardingContinuityViolation, OffboardingContinuityCorpus,
+    OffboardingContinuityEntry, OffboardingContinuityPlan, OffboardingContinuityRequest,
+    OffboardingContinuityRow, OffboardingContinuitySupportExport,
+    OffboardingContinuitySupportExportRow, OffboardingDispositionClass, OffboardingFamilySelection,
+    OffboardingFlowClass, PortabilityClass, PortabilityHonestyClass,
+    M5_OFFBOARDING_CONTINUITY_DOC_REF, M5_OFFBOARDING_CONTINUITY_PLAN_RECORD_KIND,
+    M5_OFFBOARDING_CONTINUITY_ROW_RECORD_KIND, M5_OFFBOARDING_CONTINUITY_SCHEMA_REF,
+    M5_OFFBOARDING_CONTINUITY_SCHEMA_VERSION, M5_OFFBOARDING_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND,
+    M5_OFFBOARDING_CONTINUITY_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 pub use m5_records_policy_governance::{
     M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,
