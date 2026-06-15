@@ -149,6 +149,20 @@
 //! publish preview stays a real review with explicit registry-policy consequences
 //! rather than a manifest linter, and local authoring surfaces, install/update flows,
 //! diagnostics, and certification packets all project the same gated truth.
+//!
+//! The [`m5_workspace_strip`] module is the always-on authoring chrome that complements
+//! the publish gate. Where the publish preview is the gate an author drives *before*
+//! release, this module freezes the *local workspace strip*: the per-workspace truth an
+//! author reads while building a pack — package identity, source path, runtime class,
+//! target host/ABI, signing state, workspace origin, build freshness (last-built), load
+//! state (last-loaded and hot-reload/relaunch posture), and the unsigned/local-only
+//! badge it renders. The strip reuses the publish-gate vocabulary and caps the rendered
+//! badge by *both* the signing state *and* the workspace origin, so a local-dev or
+//! side-loaded workspace renders local-only even when signed on a trusted machine; a
+//! widening hot reload holds the running instance for a fresh review rather than widening
+//! authority silently; and a board-level cross-check proves the strip never renders a
+//! stronger badge than the publish gate would grant, so the authoring chrome and the
+//! publish preview project one trust truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -165,6 +179,7 @@ pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 pub mod m5_mirror_and_sideload;
+pub mod m5_workspace_strip;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
 pub const ECOSYSTEM_COMPATIBILITY_SCORECARD_SCHEMA_VERSION: u32 = 1;
