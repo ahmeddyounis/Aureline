@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/m5-entitlement-summary.schema.json",
+  "title": "Aureline entitlement-summary set",
+  "description": "Boundary schema for the frozen entitlement-summary set that renders the current managed state across the M5 managed surfaces. The set pins one summary per managed state in the locked ten-token vocabulary (signed in, local only, reauth required, managed blocked, grace period, seat removed, plan downgrade, org switched, forecast threshold, meter stale), each naming the plan tier and friendly plan label, the role, the seat owner scope and opaque ref, the org/tenant scope and opaque ref, the entitlement label and state, the posture origin and degradation recomputed from the state, the marketed claim, an optional quota-snapshot descriptor (unit, window, scope owner, as-of time, freshness — never a raw number), the non-empty local-only continuation notes, and the required disclosure and recovery cue. It also pins one surface binding per surface (account, diagnostics, support/admin packet, Help/About, feature entry points), each projecting the effective claim and rendering the local-only continuation. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "set_id",
+    "generated_at",
+    "set_revision",
+    "title",
+    "summary",
+    "source_refs",
+    "summaries",
+    "surface_bindings",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_entitlement_summary_set" },
+    "schema_version": { "const": 1 },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/utc_date_time" },
+    "set_revision": { "type": "integer", "minimum": 1 },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Schema and contract refs. MUST include schemas/service/m5-entitlement-summary.schema.json."
+    },
+    "summaries": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/entitlement_summary" }
+    },
+    "surface_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/surface_binding" }
+    },
+    "inspection": { "$ref": "#/$defs/inspection_block" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, support export, admin export, and release evidence. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material MUST NOT appear."
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "reviewable_sentence_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "utc_date_time": { "type": "string", "format": "date-time" },
+    "meter_unit_class": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "bytes_stored",
+        "participant_minutes",
+        "download_count",
+        "workspace_hours",
+        "support_bundle_count"
+      ]
+    },
+    "aggregation_window_class": {
+      "type": "string",
+      "enum": ["calendar_month_utc", "rolling_24h", "rolling_30d", "contract_term"]
+    },
+    "scope_owner_class": {
+      "type": "string",
+      "enum": ["personal", "workspace", "organization", "tenant", "byok_external"]
+    },
+    "entitlement_state_class": {
+      "type": "string",
+      "enum": [
+        "entitlement_active",
+        "entitlement_in_grace",
+        "entitlement_expired",
+        "entitlement_suspended_admin",
+        "entitlement_pending_recheck",
+        "entitlement_not_applicable"
+      ]
+    },
+    "managed_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_in",
+        "local_only",
+        "reauth_required",
+        "managed_blocked",
+        "grace_period",
+        "seat_removed",
+        "plan_downgrade",
+        "org_switched",
+        "forecast_threshold",
+        "meter_stale"
+      ],
+      "description": "The locked, user-visible managed-state vocabulary."
+    },
+    "posture_origin_class": {
+      "type": "string",
+      "enum": [
+        "seat",
+        "plan",
+        "policy",
+        "org",
+        "account",
+        "managed_provider",
+        "workspace_lifecycle",
+        "metering_quota",
+        "local_only_no_managed_account"
+      ]
+    },
+    "marketed_claim_class": {
+      "type": "string",
+      "enum": ["managed_full", "managed_narrowed", "local_safe_only"]
+    },
+    "plan_tier_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_plan",
+        "individual_free",
+        "individual_pro",
+        "team_plan",
+        "enterprise_plan"
+      ]
+    },
+    "account_role_class": {
+      "type": "string",
+      "enum": [
+        "org_owner",
+        "org_admin",
+        "billing_admin",
+        "member",
+        "viewer",
+        "no_managed_role"
+      ]
+    },
+    "snapshot_freshness_class": {
+      "type": "string",
+      "enum": [
+        "freshness_live",
+        "freshness_recent",
+        "freshness_aging",
+        "freshness_stale",
+        "freshness_unknown",
+        "freshness_not_applicable"
+      ]
+    },
+    "degradation_kind_class": {
+      "type": "string",
+      "enum": [
+        "no_degradation",
+        "local_only_no_account",
+        "managed_blocked_explicit",
+        "managed_narrowed"
+      ]
+    },
+    "summary_surface_class": {
+      "type": "string",
+      "enum": [
+        "account_surface",
+        "diagnostics",
+        "support_admin_packet",
+        "help_about",
+        "feature_entry_point"
+      ]
+    },
+    "quota_snapshot_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "meter_unit",
+        "aggregation_window",
+        "scope_owner",
+        "as_of",
+        "freshness",
+        "carries_raw_number"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_quota_snapshot_descriptor" },
+        "schema_version": { "const": 1 },
+        "meter_unit": { "$ref": "#/$defs/meter_unit_class" },
+        "aggregation_window": { "$ref": "#/$defs/aggregation_window_class" },
+        "scope_owner": { "$ref": "#/$defs/scope_owner_class" },
+        "as_of": { "$ref": "#/$defs/utc_date_time" },
+        "freshness": { "$ref": "#/$defs/snapshot_freshness_class" },
+        "carries_raw_number": {
+          "const": false,
+          "description": "Always false: a raw spend or quota number never crosses this boundary."
+        }
+      }
+    },
+    "entitlement_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "summary_id",
+        "title",
+        "summary",
+        "managed_state",
+        "entitlement_state",
+        "entitlement_label",
+        "plan_tier",
+        "plan_label",
+        "role",
+        "seat_owner_scope",
+        "seat_owner_ref",
+        "account_scope",
+        "account_scope_ref",
+        "posture_origin",
+        "degradation",
+        "effective_marketed_claim",
+        "local_only_continuation",
+        "blocked_managed_only_actions",
+        "required_disclosure",
+        "recovery_cue"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_entitlement_summary" },
+        "schema_version": { "const": 1 },
+        "summary_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "managed_state": { "$ref": "#/$defs/managed_state_class" },
+        "entitlement_state": { "$ref": "#/$defs/entitlement_state_class" },
+        "entitlement_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "plan_tier": { "$ref": "#/$defs/plan_tier_class" },
+        "plan_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "role": { "$ref": "#/$defs/account_role_class" },
+        "seat_owner_scope": { "$ref": "#/$defs/scope_owner_class" },
+        "seat_owner_ref": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Opaque reference to the seat owner; never a raw account id or name."
+        },
+        "account_scope": { "$ref": "#/$defs/scope_owner_class" },
+        "account_scope_ref": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Opaque reference to the account scope; never a raw tenant id or name."
+        },
+        "posture_origin": { "$ref": "#/$defs/posture_origin_class" },
+        "degradation": { "$ref": "#/$defs/degradation_kind_class" },
+        "effective_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "quota_snapshot": {
+          "$ref": "#/$defs/quota_snapshot_descriptor",
+          "description": "Present when a managed quota applies; absent for a local-only summary."
+        },
+        "local_only_continuation": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Non-empty so the local-use continuation is never implicit and a stale or unavailable managed path never blocks local editing, search, Git, or local automation."
+        },
+        "blocked_managed_only_actions": { "$ref": "#/$defs/reviewable_sentence_array" },
+        "required_disclosure": { "$ref": "#/$defs/reviewable_sentence" },
+        "recovery_cue": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "surface",
+        "bound_summary_ids",
+        "projects_effective_claim",
+        "renders_local_only_continuation",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_entitlement_summary_surface_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/stable_token" },
+        "surface": { "$ref": "#/$defs/summary_surface_class" },
+        "bound_summary_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "projects_effective_claim": { "const": true },
+        "renders_local_only_continuation": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "summary_count",
+        "surface_binding_count",
+        "managed_state_vocab_complete",
+        "surface_coverage_complete",
+        "all_summaries_carry_local_only_continuation",
+        "no_generic_account_error",
+        "full_claim_count",
+        "managed_narrowed_count",
+        "local_safe_only_count",
+        "explicit_blocked_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_entitlement_summary_inspection" },
+        "schema_version": { "const": 1 },
+        "summary_count": { "type": "integer", "minimum": 10 },
+        "surface_binding_count": { "type": "integer", "minimum": 5 },
+        "managed_state_vocab_complete": { "const": true },
+        "surface_coverage_complete": { "const": true },
+        "all_summaries_carry_local_only_continuation": { "const": true },
+        "no_generic_account_error": { "const": true },
+        "full_claim_count": { "type": "integer", "minimum": 0 },
+        "managed_narrowed_count": { "type": "integer", "minimum": 0 },
+        "local_safe_only_count": { "type": "integer", "minimum": 0 },
+        "explicit_blocked_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

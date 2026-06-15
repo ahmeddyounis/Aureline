@@ -32,5 +32,16 @@
 //! Git, or already-authorized local automation. Account, diagnostics, Help/About,
 //! support/admin, and claim/public-truth consumers all project the same matrix
 //! rather than parallel spreadsheets.
+//!
+//! The [`m5_entitlement_summary`] module renders the account-context view a
+//! surface shows a user — the plan, role, seat owner, org/tenant scope,
+//! entitlement label, quota-snapshot age, and the local-only continuation notes
+//! — reusing the control-plane vocabulary. It freezes one summary per managed
+//! state and one binding per surface (account, diagnostics, support/admin,
+//! Help/About, and feature entry points), recomputes each summary's degradation,
+//! claim, and posture origin from the state, and degrades a seat loss or an
+//! expiry to an explicit managed-blocked state rather than a generic sign-in
+//! error.
 
 pub mod m5_commercial_control_plane;
+pub mod m5_entitlement_summary;
