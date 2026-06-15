@@ -129,6 +129,26 @@
 //! otherwise qualified, so a non-public, non-first-party row can never inherit a broader
 //! public-registry or first-party claim, and release evidence, marketplace badges,
 //! docs/help, and support exports all narrow from the same certification packet.
+//!
+//! The [`m5_author_and_publish_preview`] module is the author-side counterpart to the
+//! install-governance matrix. Where install governance speaks for the end-user install
+//! of a marketed M5 artifact family, this module freezes the local extension
+//! workspace, sideload review, sandbox/runtime inspection, hot-reload/relaunch, and
+//! publish preview an author drives before a package reaches the public registry. Each
+//! row reuses the shared artifact-family vocabulary and names its runtime class,
+//! host/ABI, local-workspace build state, signing state, declared trust posture,
+//! hot-reload widening posture, publish-review requirement, conformance output, and
+//! anti-abuse transparency state. A non-inheriting publish gate recomputes the
+//! effective trust posture — capped by the signing state, so a locally-built or
+//! side-loaded artifact never inherits a verified-publisher or enterprise-approved
+//! badge — plus an explicit, severity-tagged set of blocker and warning findings and a
+//! publish-readiness verdict that withholds a quarantined family, blocks a family with
+//! any blocker, publishes-with-warnings a family with only warnings, and clears a clean
+//! family. A hot reload that widens the runtime class, adds an external executable, or
+//! expands permissions raises a blocking finding until a fresh review clears it, so the
+//! publish preview stays a real review with explicit registry-policy consequences
+//! rather than a manifest linter, and local authoring surfaces, install/update flows,
+//! diagnostics, and certification packets all project the same gated truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -138,6 +158,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod freeze_the_m5_ecosystem_install_lifecycle_state_and_activation_budget_matrix;
 pub mod m5_activation_budget;
+pub mod m5_author_and_publish_preview;
 pub mod m5_conformance_and_validators;
 pub mod m5_ecosystem_certification;
 pub mod m5_install_review;
