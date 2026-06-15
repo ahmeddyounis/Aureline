@@ -336,6 +336,7 @@ pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guar
 pub mod ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards;
 pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
 pub mod ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions;
+pub mod ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes;
 pub mod shiproom_dashboard;
 pub mod stabilize_accessibility_signoff_across_shell_tree_palette_diff_terminal_debugger_settings_auth_and_recovery;
 pub mod stabilize_embedded_surface_boundary_truth;
@@ -474,6 +475,17 @@ pub use ship_release_center_visibility_for_m5_trains_channel_profile_rollout_con
     SurfaceKind as ReleaseVisibilitySurfaceKind, SurfaceState as ReleaseVisibilitySurfaceState,
     TrustTier as ReleaseVisibilityTrustTier, RELEASE_VISIBILITY_JSON, RELEASE_VISIBILITY_PATH,
     RELEASE_VISIBILITY_RECORD_KIND, RELEASE_VISIBILITY_SCHEMA_VERSION,
+};
+
+pub use ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes::{
+    build_publication_review_register, current_publication_review_register, AuthDisclosure,
+    AuthDisclosureState, MigrationFlag, NarrowingReason as PublicationReviewNarrowingReason,
+    ParityState, PublicSurfaceImpact, PublicationReviewExportProjection,
+    PublicationReviewExportRow, PublicationReviewRegister, PublicationReviewSheet,
+    PublicationReviewStopRule, PublicationReviewSummary, PublicationReviewViolation,
+    PublishTargetReview, ReviewParity, ReviewSheetState, StopAction as PublicationReviewStopAction,
+    VersionBumpReview, PUBLICATION_REVIEW_JSON, PUBLICATION_REVIEW_PATH,
+    PUBLICATION_REVIEW_RECORD_KIND, PUBLICATION_REVIEW_SCHEMA_VERSION,
 };
 
 pub use publish_docs_migration_and_known_limits_packs_for_m5_feature_families::{
