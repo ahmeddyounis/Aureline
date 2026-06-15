@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/m5-publish-preview.schema.json",
+  "title": "Aureline M5 publish-preview sheet set",
+  "description": "Schema for the m5_publish_preview_sheet_set packet. The packet freezes one publish-preview sheet per marketed M5 artifact family. Each sheet is the reviewed publish action an author drives before a package reaches the public registry: it names the package identity, the current and proposed version, the version bump, the release channel, the runtime class, the host/ABI, the signing state and an opaque signer-identity ref, the namespace state and an opaque namespace ref, the declared and published trust posture, the hot-reload posture, whether a fresh review has cleared the sheet's widening changes, the anti-abuse transparency state, the manifest diff (one delta per changed section), and the per-check result of every named publish gate (schema validation, conformance kit, accessibility smoke, performance smoke, docs completeness, template/sample completeness, registry policy). It then recomputes the effective trust posture (capped by both the signing state and the namespace state, so a locally-built artifact or an unclaimed/mismatched namespace never inherits a verified-publisher or enterprise-approved badge), a source-tagged set of blocker and warning findings (each naming the gate it came from), and a publish-readiness verdict (ready_to_publish, publishable_with_warnings, blocked_from_publish, or withheld_quarantined). A manifest or hot-reload change that widens permissions, the runtime class, or an external executable requires a fresh review before it can publish; the version bump must cover the largest change impact in the diff, and a downgrade or invalid version blocks; and the release channel carries its own consequences (a signed-release channel blocks an unsigned local-only artifact and a clean-release channel blocks a release that still carries warnings). The published trust posture, the readiness, and the full finding set must each equal the recomputed gate decision, and no sheet publishes a stronger badge than the author-lane publish gate would grant the same family.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "artifact_families",
+    "runtime_classes",
+    "host_abi_classes",
+    "signature_states",
+    "namespace_states",
+    "release_channels",
+    "trust_postures",
+    "change_impacts",
+    "version_bumps",
+    "manifest_delta_kinds",
+    "publish_checks",
+    "check_outcomes",
+    "hot_reload_postures",
+    "finding_sources",
+    "finding_reasons",
+    "finding_severities",
+    "anti_abuse_transparency_states",
+    "publish_readiness_states",
+    "sheets",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_publish_preview_sheet_set" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "artifact_families": { "type": "array", "items": { "$ref": "#/$defs/artifact_family" } },
+    "runtime_classes": { "type": "array", "items": { "$ref": "#/$defs/runtime_class" } },
+    "host_abi_classes": { "type": "array", "items": { "$ref": "#/$defs/host_abi_class" } },
+    "signature_states": { "type": "array", "items": { "$ref": "#/$defs/signature_state" } },
+    "namespace_states": { "type": "array", "items": { "$ref": "#/$defs/namespace_state" } },
+    "release_channels": { "type": "array", "items": { "$ref": "#/$defs/release_channel" } },
+    "trust_postures": { "type": "array", "items": { "$ref": "#/$defs/trust_posture" } },
+    "change_impacts": { "type": "array", "items": { "$ref": "#/$defs/change_impact" } },
+    "version_bumps": { "type": "array", "items": { "$ref": "#/$defs/version_bump" } },
+    "manifest_delta_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/manifest_delta_kind" }
+    },
+    "publish_checks": { "type": "array", "items": { "$ref": "#/$defs/publish_check" } },
+    "check_outcomes": { "type": "array", "items": { "$ref": "#/$defs/check_outcome" } },
+    "hot_reload_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hot_reload_posture" }
+    },
+    "finding_sources": { "type": "array", "items": { "$ref": "#/$defs/finding_source" } },
+    "finding_reasons": { "type": "array", "items": { "$ref": "#/$defs/finding_reason" } },
+    "finding_severities": { "type": "array", "items": { "$ref": "#/$defs/finding_severity" } },
+    "anti_abuse_transparency_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/anti_abuse_transparency" }
+    },
+    "publish_readiness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publish_readiness" }
+    },
+    "sheets": { "type": "array", "items": { "$ref": "#/$defs/sheet" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "artifact_family": {
+      "enum": [
+        "first_party_framework_pack",
+        "docs_pack",
+        "local_model_pack",
+        "signed_recipe_pack",
+        "template_artifact",
+        "bridge_backed_package",
+        "side_loaded_package",
+        "mirrored_registry_variant"
+      ]
+    },
+    "runtime_class": {
+      "enum": [
+        "passive_package",
+        "wasm_capability_sandbox",
+        "declarative_host_rendered_view",
+        "external_host",
+        "compatibility_bridge",
+        "remote_side_component"
+      ]
+    },
+    "host_abi_class": {
+      "enum": [
+        "no_code_execution",
+        "local_machine",
+        "managed_host",
+        "remote_target",
+        "external_process",
+        "browser_runtime"
+      ]
+    },
+    "signature_state": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_local_dev",
+        "unsigned_sideload",
+        "revoked_signature"
+      ]
+    },
+    "namespace_state": {
+      "enum": [
+        "publisher_owned",
+        "publisher_verified",
+        "enterprise_managed",
+        "namespace_transfer_pending",
+        "namespace_mismatch",
+        "namespace_unclaimed"
+      ]
+    },
+    "release_channel": {
+      "enum": ["stable", "beta", "edge", "canary", "internal"]
+    },
+    "trust_posture": {
+      "enum": ["unsigned_local_only", "registry_bound", "verified_publisher", "enterprise_approved"]
+    },
+    "change_impact": {
+      "enum": ["no_impact", "fix", "feature", "breaking"]
+    },
+    "version_bump": {
+      "enum": ["no_bump", "patch", "minor", "major", "downgrade", "invalid"]
+    },
+    "manifest_delta_kind": {
+      "enum": [
+        "metadata_changed",
+        "dependency_updated",
+        "api_compatible_addition",
+        "api_breaking_change",
+        "permission_added",
+        "permission_removed",
+        "runtime_class_changed",
+        "external_executable_added",
+        "namespace_rebind",
+        "signer_rotated"
+      ]
+    },
+    "publish_check": {
+      "enum": [
+        "schema_validation",
+        "conformance_kit",
+        "accessibility_smoke",
+        "performance_smoke",
+        "docs_completeness",
+        "template_sample_completeness",
+        "registry_policy"
+      ]
+    },
+    "check_outcome": {
+      "enum": ["passed", "warning", "blocked", "not_applicable", "not_run"]
+    },
+    "hot_reload_posture": {
+      "enum": [
+        "no_widening",
+        "relaunch_only",
+        "runtime_class_widened_pending_review",
+        "permissions_widened_pending_review",
+        "external_executable_added_pending_review"
+      ]
+    },
+    "finding_source": {
+      "enum": [
+        "schema_validation",
+        "conformance_kit",
+        "accessibility_smoke",
+        "performance_smoke",
+        "docs_completeness",
+        "template_sample_completeness",
+        "registry_policy",
+        "manifest_diff",
+        "version_bump",
+        "signer_identity",
+        "namespace",
+        "channel_selection",
+        "hot_reload_review",
+        "anti_abuse"
+      ]
+    },
+    "finding_reason": {
+      "enum": [
+        "check_failed",
+        "check_warning",
+        "check_not_run",
+        "version_bump_missing",
+        "version_bump_undersized",
+        "version_downgrade",
+        "version_invalid",
+        "manifest_widening_unreviewed",
+        "manifest_permission_narrowed",
+        "hot_reload_widening_unreviewed",
+        "provenance_unverified",
+        "signature_revoked",
+        "namespace_mismatch",
+        "namespace_unclaimed",
+        "namespace_transfer_pending",
+        "channel_requires_signed_release",
+        "channel_requires_clean_release",
+        "anti_abuse_quarantined",
+        "anti_abuse_undisclosed",
+        "anti_abuse_publisher_loss_history"
+      ]
+    },
+    "finding_severity": {
+      "enum": ["blocker", "warning"]
+    },
+    "anti_abuse_transparency": {
+      "enum": ["disclosed_clean", "publisher_loss_history_disclosed", "undisclosed", "quarantined"]
+    },
+    "publish_readiness": {
+      "enum": [
+        "ready_to_publish",
+        "publishable_with_warnings",
+        "blocked_from_publish",
+        "withheld_quarantined"
+      ]
+    },
+    "manifest_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "detail"],
+      "properties": {
+        "path": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/manifest_delta_kind" },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check", "outcome", "detail_ref"],
+      "properties": {
+        "check": { "$ref": "#/$defs/publish_check" },
+        "outcome": { "$ref": "#/$defs/check_outcome" },
+        "detail_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "reason", "severity", "detail_ref"],
+      "properties": {
+        "source": { "$ref": "#/$defs/finding_source" },
+        "reason": { "$ref": "#/$defs/finding_reason" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "detail_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sheet_id",
+        "artifact_family",
+        "package_identity",
+        "current_version",
+        "proposed_version",
+        "version_bump",
+        "release_channel",
+        "runtime_class",
+        "host_abi",
+        "signature_state",
+        "signer_identity_ref",
+        "namespace_state",
+        "namespace_ref",
+        "declared_trust_posture",
+        "published_trust_posture",
+        "hot_reload_posture",
+        "widening_reviewed",
+        "anti_abuse_transparency",
+        "manifest_deltas",
+        "checks",
+        "findings",
+        "publish_readiness",
+        "manifest_diff_ref",
+        "publish_preview_ref",
+        "support_export_ref",
+        "release_packet_ref",
+        "note"
+      ],
+      "properties": {
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "package_identity": { "$ref": "#/$defs/non_empty_string" },
+        "current_version": { "$ref": "#/$defs/non_empty_string" },
+        "proposed_version": { "$ref": "#/$defs/non_empty_string" },
+        "version_bump": { "$ref": "#/$defs/version_bump" },
+        "release_channel": { "$ref": "#/$defs/release_channel" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "host_abi": { "$ref": "#/$defs/host_abi_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "signer_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "namespace_state": { "$ref": "#/$defs/namespace_state" },
+        "namespace_ref": { "$ref": "#/$defs/non_empty_string" },
+        "declared_trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "published_trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "hot_reload_posture": { "$ref": "#/$defs/hot_reload_posture" },
+        "widening_reviewed": { "type": "boolean" },
+        "anti_abuse_transparency": { "$ref": "#/$defs/anti_abuse_transparency" },
+        "manifest_deltas": { "type": "array", "items": { "$ref": "#/$defs/manifest_delta" } },
+        "checks": { "type": "array", "items": { "$ref": "#/$defs/check_result" } },
+        "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+        "publish_readiness": { "$ref": "#/$defs/publish_readiness" },
+        "manifest_diff_ref": { "$ref": "#/$defs/non_empty_string" },
+        "publish_preview_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_sheets",
+        "family_count",
+        "ready_to_publish_sheets",
+        "publishable_with_warnings_sheets",
+        "blocked_from_publish_sheets",
+        "withheld_quarantined_sheets",
+        "sheets_with_blockers",
+        "sheets_with_warnings",
+        "local_only_published_sheets",
+        "verified_or_enterprise_published_sheets",
+        "manifest_widening_unreviewed_sheets",
+        "namespace_blocked_sheets",
+        "channel_blocked_sheets",
+        "quarantined_sheets"
+      ],
+      "properties": {
+        "total_sheets": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "ready_to_publish_sheets": { "type": "integer", "minimum": 0 },
+        "publishable_with_warnings_sheets": { "type": "integer", "minimum": 0 },
+        "blocked_from_publish_sheets": { "type": "integer", "minimum": 0 },
+        "withheld_quarantined_sheets": { "type": "integer", "minimum": 0 },
+        "sheets_with_blockers": { "type": "integer", "minimum": 0 },
+        "sheets_with_warnings": { "type": "integer", "minimum": 0 },
+        "local_only_published_sheets": { "type": "integer", "minimum": 0 },
+        "verified_or_enterprise_published_sheets": { "type": "integer", "minimum": 0 },
+        "manifest_widening_unreviewed_sheets": { "type": "integer", "minimum": 0 },
+        "namespace_blocked_sheets": { "type": "integer", "minimum": 0 },
+        "channel_blocked_sheets": { "type": "integer", "minimum": 0 },
+        "quarantined_sheets": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

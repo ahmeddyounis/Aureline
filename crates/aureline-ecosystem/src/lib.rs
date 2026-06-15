@@ -150,6 +150,27 @@
 //! rather than a manifest linter, and local authoring surfaces, install/update flows,
 //! diagnostics, and certification packets all project the same gated truth.
 //!
+//! The [`m5_publish_preview`] module materializes the matrix's per-family
+//! `publish_preview_ref` into a first-class **publish-preview sheet**. Where the author
+//! matrix carries one publish verdict per family, this module makes the publish action a
+//! reviewed change: each sheet names the manifest diff, the version bump, the signer and
+//! namespace truth, the release channel, and the per-check state of every named publish
+//! gate — schema validation, the conformance kit, accessibility and performance smoke,
+//! docs completeness, template/sample completeness, and registry policy — and recomputes
+//! the effective trust posture (capped by *both* the signing state and the namespace
+//! state, so a locally-built artifact or an unclaimed/mismatched namespace never inherits
+//! a verified-publisher or enterprise-approved badge), a source-tagged set of blocker and
+//! warning findings that name which gate each came from, and a publish-readiness verdict.
+//! A manifest or hot-reload change that widens permissions, the runtime class, or an
+//! external executable requires a fresh review before it can publish; the version bump
+//! must cover the largest change impact in the diff, and a downgrade or invalid version
+//! blocks; and the release channel carries its own consequences — a signed-release channel
+//! blocks an unsigned local-only artifact and a clean-release channel blocks a release
+//! that still carries warnings. A board-level cross-check proves no sheet publishes a
+//! stronger badge than the publish gate would grant, and the sheet is exportable and
+//! referenced by support and release packets, so the publish preview stays a real review
+//! with explicit registry-policy consequences rather than a manifest linter.
+//!
 //! The [`m5_workspace_strip`] module is the always-on authoring chrome that complements
 //! the publish gate. Where the publish preview is the gate an author drives *before*
 //! release, this module freezes the *local workspace strip*: the per-workspace truth an
@@ -243,6 +264,7 @@ pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 pub mod m5_mirror_and_sideload;
+pub mod m5_publish_preview;
 pub mod m5_reload_continuity;
 pub mod m5_runtime_inspector;
 pub mod m5_sideload_review;
