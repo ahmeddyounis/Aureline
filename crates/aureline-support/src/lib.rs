@@ -153,6 +153,15 @@
 //!   durable-evidence / user-owned-recovery distinction), and projects a
 //!   metadata-safe support export the inspector, workspace detail, admin
 //!   console, About excerpt, and support-bundle surfaces reuse.
+//! - The [`m5_clear_data_review`] sheets — replace a generic clear-cache or
+//!   reset button with a class-selective review that names, per family and
+//!   workspace, what is selected for cleanup, how much disk it reclaims, what
+//!   is retained or protected and therefore excluded, what a rebuild would
+//!   cost, whether an export-before-delete path exists first, and which
+//!   removals are irreversible. The sheets fold the [`m5_storage_governance`]
+//!   matrix, exclude protected evidence and user-owned recovery state unless
+//!   explicitly selected, never auto-dispose user-owned state under disk/quota
+//!   pressure, and project a metadata-safe support export.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -244,6 +253,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod locale_beta;
 pub mod m3_scenario_corpus;
+pub mod m5_clear_data_review;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;

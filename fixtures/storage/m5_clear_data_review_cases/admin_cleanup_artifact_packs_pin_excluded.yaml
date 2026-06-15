@@ -1,0 +1,163 @@
+# Admin-driven cleanup of imported artifact packs across two managed workspaces.
+#
+# The admin reclaims unpinned docs and model packs. A fully pinned extension
+# download is excluded, and user-owned recovery state is never touched by an
+# admin cleanup.
+record_kind: m5_clear_data_review_sheet
+schema_version: 1
+sheet_id: clear_data_review.admin_cleanup_artifact_packs_pin_excluded.v1
+emitted_at: 2026-06-14T00:00:00Z
+title: Reclaim imported artifact packs across managed workspaces
+cleanup_flow_class: admin_driven_cleanup
+cleanup_trigger_class: admin_policy_cleanup
+initiator_class: admin_or_tenant_policy
+affected_workspaces:
+  - scope_ref: ws.alpha
+    label: Project Alpha
+  - scope_ref: ws.beta
+    label: Project Beta
+selected_rows:
+  - record_kind: m5_clear_data_review_row
+    schema_version: 1
+    row_id: clear_data_row.admin_cleanup.docs_pack
+    family_id: docs_pack
+    storage_class_id: artifact_cache
+    workspace_scope_ref: ws.alpha
+    workspace_label: Project Alpha
+    selection_state: selected_for_cleanup
+    explicit_selection: true
+    authority_class: admin_or_control_artifact
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    clear_data_action: class_selective_clear
+    total_bytes: 6000
+    freed_bytes: 4000
+    preserved_bytes: 2000
+    preserved_pin_source_classes:
+      - offline_bundle_ref
+    rebuild_cost_class: medium_rebuild_cost
+    rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    offline_rebuild_risk_class: rebuild_requires_mirror_or_offline_bundle
+    rebuild_disclosure: Rebuildable docs pack. Refetch needs the network, a mirror, or an offline bundle; pinned segments are kept.
+    export_before_delete_class: export_offered_optional
+    export_action_ref: export.m5_clear_data.docs_pack
+    reversibility_class: reversible_from_pinned_or_offline_source
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    low_disk_ladder_order: 5
+    note: ""
+  - record_kind: m5_clear_data_review_row
+    schema_version: 1
+    row_id: clear_data_row.admin_cleanup.model_pack
+    family_id: model_pack
+    storage_class_id: artifact_cache
+    workspace_scope_ref: ws.beta
+    workspace_label: Project Beta
+    selection_state: selected_for_cleanup
+    explicit_selection: true
+    authority_class: admin_or_control_artifact
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    clear_data_action: class_selective_clear
+    total_bytes: 50000
+    freed_bytes: 50000
+    preserved_bytes: 0
+    preserved_pin_source_classes: []
+    rebuild_cost_class: high_rebuild_cost
+    rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    offline_rebuild_risk_class: rebuild_requires_mirror_or_offline_bundle
+    rebuild_disclosure: Rebuildable model pack. Refetch is large and needs the network, a mirror, or an offline bundle.
+    export_before_delete_class: export_offered_optional
+    export_action_ref: export.m5_clear_data.model_pack
+    reversibility_class: reversible_from_pinned_or_offline_source
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    low_disk_ladder_order: 5
+    note: ""
+retained_rows:
+  - record_kind: m5_clear_data_review_row
+    schema_version: 1
+    row_id: clear_data_row.admin_cleanup.extension_download
+    family_id: extension_download
+    storage_class_id: artifact_cache
+    workspace_scope_ref: ws.alpha
+    workspace_label: Project Alpha
+    selection_state: excluded_pinned
+    explicit_selection: false
+    retention_reason: pinned_entry_preserved
+    authority_class: admin_or_control_artifact
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    clear_data_action: class_selective_clear
+    total_bytes: 3000
+    freed_bytes: 0
+    preserved_bytes: 3000
+    preserved_pin_source_classes:
+      - explicit_admin_policy_pin
+      - release_artifact_graph_ref
+    rebuild_cost_class: medium_rebuild_cost
+    rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    offline_rebuild_risk_class: rebuild_requires_mirror_or_offline_bundle
+    rebuild_disclosure: Rebuildable extension download. Every byte is pin-preserved by admin policy and the release graph.
+    export_before_delete_class: export_offered_optional
+    export_action_ref: export.m5_clear_data.extension_download
+    reversibility_class: reversible_from_pinned_or_offline_source
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    low_disk_ladder_order: 5
+    note: ""
+  - record_kind: m5_clear_data_review_row
+    schema_version: 1
+    row_id: clear_data_row.admin_cleanup.user_owned_recovery_state
+    family_id: user_owned_recovery_state
+    storage_class_id: user_owned_recovery_state
+    workspace_scope_ref: ws.alpha
+    workspace_label: Project Alpha
+    selection_state: excluded_protected_unless_selected
+    explicit_selection: false
+    retention_reason: protected_recovery_state_excluded_by_default
+    authority_class: user_owned_recovery_state
+    clear_cache_protection_class: protected_never_generic_clear
+    clear_data_action: explicit_per_item_review_required
+    total_bytes: 9000
+    freed_bytes: 0
+    preserved_bytes: 9000
+    preserved_pin_source_classes:
+      - explicit_user_pin
+    rebuild_cost_class: authoritative_no_rebuild
+    rebuild_safety_summary_class: dangerous_to_delete_authoritative
+    offline_rebuild_risk_class: not_rebuildable_after_removal
+    rebuild_disclosure: Authoritative user-owned recovery state. An admin cleanup never disposes of it.
+    export_before_delete_class: export_required_before_delete
+    export_action_ref: export.m5_clear_data.user_owned_recovery_state
+    reversibility_class: irreversible_authoritative_loss
+    irreversible_consequence: "Removing user-owned recovery state is irreversible: local history and checkpoints cannot be rebuilt."
+    low_disk_ladder_step: user_owned_recovery_state_only_under_explicit_review
+    low_disk_ladder_order: 8
+    note: ""
+total_selected_reclaimable_bytes: 54000
+total_protected_preserved_bytes: 14000
+export_before_delete_options:
+  - family_id: docs_pack
+    export_class: export_offered_optional
+    export_path_label: Export Docs pack before delete
+    export_action_ref: export.m5_clear_data.docs_pack
+  - family_id: model_pack
+    export_class: export_offered_optional
+    export_path_label: Export Model pack before delete
+    export_action_ref: export.m5_clear_data.model_pack
+  - family_id: extension_download
+    export_class: export_offered_optional
+    export_path_label: Export Extension download before delete
+    export_action_ref: export.m5_clear_data.extension_download
+  - family_id: user_owned_recovery_state
+    export_class: export_required_before_delete
+    export_path_label: Export User-owned recovery state before delete
+    export_action_ref: export.m5_clear_data.user_owned_recovery_state
+irreversible_consequences:
+  - "Removing user-owned recovery state is irreversible: local history and checkpoints cannot be rebuilt."
+guardrail_notices: []
+low_disk_order_disclosed: false
+low_disk_eviction_order: []
+consent_state: pending_review
+matrix_ref: artifacts/storage/m5_artifact_family_storage_matrix.yaml
+schema_ref: schemas/storage/m5_clear_data_review.schema.json
+doc_ref: docs/storage/m5_clear_data_review_contract.md
+redaction_class: metadata_safe_default
+raw_content_exported: false
+export_safe: true
+note: Admin reclaims unpinned packs; pinned downloads and user-owned recovery state are preserved.
