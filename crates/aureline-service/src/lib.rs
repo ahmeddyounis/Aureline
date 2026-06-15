@@ -108,10 +108,28 @@
 //! prompt, stays distinct from the other three events and a sign-in failure, and
 //! narrows the marketed claim from the lifecycle event's cap — all without ever
 //! deleting or blocking the local core.
+//!
+//! The [`m5_commercial_honesty_certification`] module certifies the whole lane:
+//! it freezes one row per honesty dimension — entitlement, metering, forecast,
+//! chargeback, downgrade/offboarding, and commercial-boundary honesty — and rides
+//! the sibling packets above as its backing consumers. Each row names the
+//! deployment profiles it is certified in and the profiles its managed lane is
+//! honestly not offered in (never certifying from one vendor-managed online
+//! profile alone), and runs the certification drills the contract requires — the
+//! stale-meter drill, the fail-open-local-core and fail-closed-managed-action
+//! drills, the seat-loss, org-switch, and grace-period drills, the export-rights
+//! validation, the chargeback-scope export check, and the residual-dependency
+//! disclosure review. A failed drill or stale evidence narrows the row's marketed
+//! claim from the weaker of its declared claim and every drill cap, so the
+//! release center, Help/About, diagnostics, service health, support/admin packets,
+//! and claim/public-truth automation all narrow automatically instead of
+//! inheriting broader managed marketing language, while every row keeps a
+//! non-empty local-safe baseline.
 
 pub mod m5_chargeback_scope_views;
 pub mod m5_commercial_boundary_cards;
 pub mod m5_commercial_control_plane;
+pub mod m5_commercial_honesty_certification;
 pub mod m5_entitlement_summary;
 pub mod m5_metering_degradation_rules;
 pub mod m5_offboarding_cards;
