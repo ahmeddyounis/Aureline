@@ -42,6 +42,19 @@
 //! claim, and posture origin from the state, and degrades a seat loss or an
 //! expiry to an explicit managed-blocked state rather than a generic sign-in
 //! error.
+//!
+//! The [`m5_usage_forecast_views`] module renders the customer-visible usage and
+//! forecast surface for each claimed managed lane. It freezes one view per
+//! service family — the AI gateway, settings sync, the companion relay, the
+//! registry/mirror surface, support ingest, and the managed workspace — that
+//! pins the meter unit, the month-to-date measurement (bound to its unit, as-of
+//! time, and scope owner, never a raw number), the forecast threshold status and
+//! a banner that explains what changes next, and a CSV/JSON export-parity
+//! guarantee, then narrows the marketed usage claim under the active managed
+//! state while keeping a non-empty local-safe baseline. Each view projects its
+//! control-plane lane rather than a parallel spreadsheet, and unlike service
+//! families never merge into one opaque total.
 
 pub mod m5_commercial_control_plane;
 pub mod m5_entitlement_summary;
+pub mod m5_usage_forecast_views;

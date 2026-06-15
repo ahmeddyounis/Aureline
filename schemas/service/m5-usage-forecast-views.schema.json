@@ -1,0 +1,426 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/m5-usage-forecast-views.schema.json",
+  "title": "Aureline usage-and-forecast view set",
+  "description": "Boundary schema for the frozen customer-visible usage and forecast view set across the M5 managed lanes. The set pins one view per claimed service family (AI gateway, settings sync, collaboration relay, registry/mirror, support ingest, managed workspace), each naming the meter unit, the month-to-date measurement descriptor (unit, aggregation window, scope owner, as-of time, freshness, and value presentation — never a raw number), the forecast threshold status and a banner that explains what changes next (not only a warning color), the CSV/JSON export-parity guarantee, the distinct chargeback scopes, the control-plane lane it projects, and the local-safe baseline that continues when the managed lane narrows. The view's effective marketed claim is recomputed from the active managed state's cap, so a stale meter, an exhausted forecast, a grace window, a removed seat, an org switch, or a plan downgrade narrows the marketed usage claim automatically. It also pins one surface binding per surface (account/usage, service-health diagnostics, Help/About, support/admin export, release center), each projecting the effective claim, rendering the local-safe baseline, and explaining what changes next. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "set_id",
+    "generated_at",
+    "set_revision",
+    "title",
+    "summary",
+    "source_refs",
+    "views",
+    "surface_bindings",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_usage_forecast_view_set" },
+    "schema_version": { "const": 1 },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/utc_date_time" },
+    "set_revision": { "type": "integer", "minimum": 1 },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Schema and contract refs. MUST include schemas/service/m5-usage-forecast-views.schema.json."
+    },
+    "active_managed_state": {
+      "$ref": "#/$defs/managed_state_class",
+      "description": "Present only on a narrowed export; the canonical set omits it."
+    },
+    "views": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/usage_forecast_view" }
+    },
+    "surface_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/surface_binding" }
+    },
+    "inspection": { "$ref": "#/$defs/inspection_block" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, support export, admin export, and release evidence. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material MUST NOT appear."
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "reviewable_sentence_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "utc_date_time": { "type": "string", "format": "date-time" },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "sync_family",
+        "registry_or_mirror_metadata_family",
+        "collaboration_relay_family",
+        "remote_workspace_control_plane_family",
+        "ai_gateway_family",
+        "telemetry_or_support_ingest_family"
+      ]
+    },
+    "meter_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_or_settings_sync_meter_family",
+        "collaboration_relay_meter_family",
+        "remote_workspace_control_plane_meter_family",
+        "ai_gateway_meter_family",
+        "registry_or_mirror_meter_family",
+        "support_ingest_meter_family"
+      ]
+    },
+    "service_id_class": {
+      "type": "string",
+      "enum": [
+        "managed_settings_sync",
+        "managed_marketplace",
+        "managed_ai_broker",
+        "managed_relay",
+        "managed_catalog",
+        "managed_telemetry_sink",
+        "managed_support_export",
+        "managed_entitlement_usage",
+        "managed_offboarding_export"
+      ]
+    },
+    "meter_unit_class": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "bytes_stored",
+        "participant_minutes",
+        "download_count",
+        "workspace_hours",
+        "support_bundle_count"
+      ]
+    },
+    "aggregation_window_class": {
+      "type": "string",
+      "enum": ["calendar_month_utc", "rolling_24h", "rolling_30d", "contract_term"]
+    },
+    "scope_owner_class": {
+      "type": "string",
+      "enum": ["personal", "workspace", "organization", "tenant", "byok_external"]
+    },
+    "forecast_confidence_class": {
+      "type": "string",
+      "enum": [
+        "forecast_authoritative",
+        "forecast_best_effort_local",
+        "forecast_unavailable",
+        "forecast_policy_suppressed",
+        "forecast_not_applicable"
+      ]
+    },
+    "snapshot_freshness_class": {
+      "type": "string",
+      "enum": [
+        "freshness_live",
+        "freshness_recent",
+        "freshness_aging",
+        "freshness_stale",
+        "freshness_unknown",
+        "freshness_not_applicable"
+      ]
+    },
+    "managed_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_in",
+        "local_only",
+        "reauth_required",
+        "managed_blocked",
+        "grace_period",
+        "seat_removed",
+        "plan_downgrade",
+        "org_switched",
+        "forecast_threshold",
+        "meter_stale"
+      ],
+      "description": "The locked, user-visible managed-state vocabulary."
+    },
+    "marketed_claim_class": {
+      "type": "string",
+      "enum": ["managed_full", "managed_narrowed", "local_safe_only"]
+    },
+    "threshold_status_class": {
+      "type": "string",
+      "enum": [
+        "within_budget",
+        "approaching_threshold",
+        "threshold_crossed",
+        "budget_exhausted",
+        "forecast_unavailable",
+        "meter_stale_unconfirmed"
+      ]
+    },
+    "banner_severity_class": {
+      "type": "string",
+      "enum": ["informational", "advisory", "warning", "critical"]
+    },
+    "value_presentation_class": {
+      "type": "string",
+      "enum": [
+        "month_to_date_bound_to_unit_as_of_scope",
+        "suppressed_no_managed_number"
+      ]
+    },
+    "usage_forecast_surface_class": {
+      "type": "string",
+      "enum": [
+        "account_usage_surface",
+        "service_health_diagnostics",
+        "help_about",
+        "support_admin_export",
+        "release_center"
+      ]
+    },
+    "usage_measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "meter_unit",
+        "aggregation_window",
+        "scope_owner",
+        "as_of",
+        "freshness",
+        "value_presentation",
+        "carries_raw_number"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_usage_measurement_descriptor" },
+        "schema_version": { "const": 1 },
+        "meter_unit": { "$ref": "#/$defs/meter_unit_class" },
+        "aggregation_window": { "$ref": "#/$defs/aggregation_window_class" },
+        "scope_owner": { "$ref": "#/$defs/scope_owner_class" },
+        "as_of": { "$ref": "#/$defs/utc_date_time" },
+        "freshness": { "$ref": "#/$defs/snapshot_freshness_class" },
+        "value_presentation": {
+          "$ref": "#/$defs/value_presentation_class",
+          "description": "A managed value is always bound to the unit, as-of time, and scope owner; it is never shown bare."
+        },
+        "carries_raw_number": {
+          "const": false,
+          "description": "Always false: a raw spend or quota number never crosses this boundary."
+        }
+      }
+    },
+    "forecast_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "threshold_status",
+        "severity",
+        "headline",
+        "what_changes_next",
+        "recovery_cue"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_forecast_banner" },
+        "schema_version": { "const": 1 },
+        "threshold_status": { "$ref": "#/$defs/threshold_status_class" },
+        "severity": { "$ref": "#/$defs/banner_severity_class" },
+        "headline": { "$ref": "#/$defs/reviewable_sentence" },
+        "what_changes_next": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Non-empty: the banner explains what changes next rather than only showing a warning color."
+        },
+        "recovery_cue": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "csv", "json", "parity_confirmed"],
+      "properties": {
+        "record_kind": { "const": "m5_usage_export_parity" },
+        "schema_version": { "const": 1 },
+        "csv": { "const": true },
+        "json": { "const": true },
+        "parity_confirmed": {
+          "const": true,
+          "description": "Always true: CSV and JSON carry the same fields, unit, as-of time, and scope owner."
+        }
+      }
+    },
+    "usage_forecast_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "title",
+        "summary",
+        "lane_ref",
+        "service_family",
+        "meter_family",
+        "linked_service_ids",
+        "measurement",
+        "forecast_confidence",
+        "threshold_status",
+        "forecast_banner",
+        "export_parity",
+        "chargeback_scope_offers",
+        "applicable_managed_states",
+        "declared_marketed_claim",
+        "effective_marketed_claim",
+        "narrowing_reasons",
+        "local_safe_baseline",
+        "blocked_managed_only_actions"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_usage_forecast_view" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "lane_ref": {
+          "$ref": "#/$defs/stable_token",
+          "description": "The control-plane lane this view projects."
+        },
+        "service_family": { "$ref": "#/$defs/service_family_class" },
+        "meter_family": { "$ref": "#/$defs/meter_family_class" },
+        "linked_service_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/service_id_class" }
+        },
+        "measurement": { "$ref": "#/$defs/usage_measurement" },
+        "forecast_confidence": { "$ref": "#/$defs/forecast_confidence_class" },
+        "threshold_status": { "$ref": "#/$defs/threshold_status_class" },
+        "forecast_banner": { "$ref": "#/$defs/forecast_banner" },
+        "export_parity": { "$ref": "#/$defs/export_parity" },
+        "chargeback_scope_offers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_owner_class" },
+          "description": "Distinct chargeback scopes; personal, workspace, and organization never collapse into one total."
+        },
+        "applicable_managed_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" }
+        },
+        "declared_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "effective_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "narrowing_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/managed_state_class" }
+        },
+        "recovery_cue": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Present (non-null) when the view is narrowed below its declared claim."
+        },
+        "local_safe_baseline": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Non-empty so a stale or unavailable metering path narrows the managed view but never local editing, search, Git, or local automation."
+        },
+        "blocked_managed_only_actions": { "$ref": "#/$defs/reviewable_sentence_array" }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "surface",
+        "bound_view_ids",
+        "projects_effective_claim",
+        "renders_local_safe_baseline",
+        "explains_what_changes_next",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_usage_forecast_surface_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/stable_token" },
+        "surface": { "$ref": "#/$defs/usage_forecast_surface_class" },
+        "bound_view_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "projects_effective_claim": { "const": true },
+        "renders_local_safe_baseline": { "const": true },
+        "explains_what_changes_next": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_count",
+        "surface_binding_count",
+        "service_families_covered",
+        "meter_families_covered",
+        "threshold_status_coverage",
+        "all_banners_explain_what_changes_next",
+        "all_views_local_safe_backed",
+        "all_views_export_csv_json_parity",
+        "value_never_bare",
+        "no_collapsed_family_total",
+        "effective_full_view_count",
+        "narrowed_view_count",
+        "local_safe_only_view_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_usage_forecast_inspection" },
+        "schema_version": { "const": 1 },
+        "view_count": { "type": "integer", "minimum": 6 },
+        "surface_binding_count": { "type": "integer", "minimum": 5 },
+        "service_families_covered": { "type": "integer", "minimum": 6 },
+        "meter_families_covered": { "type": "integer", "minimum": 6 },
+        "threshold_status_coverage": { "type": "integer", "minimum": 1 },
+        "all_banners_explain_what_changes_next": { "const": true },
+        "all_views_local_safe_backed": { "const": true },
+        "all_views_export_csv_json_parity": { "const": true },
+        "value_never_bare": { "const": true },
+        "no_collapsed_family_total": { "const": true },
+        "effective_full_view_count": { "type": "integer", "minimum": 0 },
+        "narrowed_view_count": { "type": "integer", "minimum": 0 },
+        "local_safe_only_view_count": { "type": "integer", "minimum": 0 },
+        "active_managed_state": { "$ref": "#/$defs/managed_state_class" }
+      }
+    }
+  }
+}
