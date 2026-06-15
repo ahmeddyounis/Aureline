@@ -82,6 +82,21 @@
 //! and a sign-in failure, and narrows the marketed claim to managed-narrowed
 //! without ever collapsing the local core to local-safe-only.
 //!
+//! The [`m5_commercial_boundary_cards`] module renders the commercial-boundary
+//! surface a user, admin, or procurement reviewer sees on Help/About, the release
+//! center, diagnostics, and in a procurement/support packet. It freezes one card
+//! for the local open core plus one per managed service family, and one
+//! binding per surface. Each card states its open-versus-paid boundary class,
+//! discloses the residual vendor-hosted dependencies a managed lane carries —
+//! naming whether each remains vendor-hosted and whether self-hosting eliminates
+//! it — names the deployment profiles its boundary actually holds in so no open
+//! boundary is overstated, links the procurement/support evidence at export
+//! parity that both buyer and support packets reuse, keeps a non-empty local-safe
+//! baseline above any upsell prompt, defers every spend/quota number to the
+//! metering surfaces, and narrows its marketed claim automatically when the
+//! backing boundary evidence is stale, missing, or downgraded. It cross-checks
+//! each managed card against the control-plane lane for its service family.
+//!
 //! The [`m5_offboarding_cards`] module renders the humane offboarding surface a
 //! user or admin sees when a managed entitlement is winding down. It freezes one
 //! card per lifecycle event — a grace period, a seat loss, a cancellation, and an
@@ -95,6 +110,7 @@
 //! deleting or blocking the local core.
 
 pub mod m5_chargeback_scope_views;
+pub mod m5_commercial_boundary_cards;
 pub mod m5_commercial_control_plane;
 pub mod m5_entitlement_summary;
 pub mod m5_metering_degradation_rules;
