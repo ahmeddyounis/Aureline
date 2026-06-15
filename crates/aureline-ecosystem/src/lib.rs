@@ -163,6 +163,27 @@
 //! authority silently; and a board-level cross-check proves the strip never renders a
 //! stronger badge than the publish gate would grant, so the authoring chrome and the
 //! publish preview project one trust truth.
+//!
+//! The [`m5_sideload_review`] module is the reviewed-install counterpart for a package
+//! that lives on local disk rather than in the registry. Where install review speaks
+//! for a registry-fetched install and the publish gate speaks for the whole author
+//! lane, this module freezes how an unpacked or archive-backed *side-load* is reviewed
+//! before it is installed or reloaded — the only place its source identity, signing
+//! state, requested permissions, external executables, and registry-binding decision
+//! (stay local, bind to the registry later, or already bound) are made explicit. Each
+//! sheet reuses the shared artifact-family, source-class, runtime-class, host/ABI,
+//! signing-state, trust-posture, and anti-abuse vocabulary, and recomputes three
+//! published values from its facts: the rendered trust tier, capped by *both* the
+//! signing state and the registry-binding decision so a locally-built or side-loaded
+//! artifact never inherits a verified-publisher or enterprise-approved badge; the
+//! review-trigger set, where a permission widening, runtime-class change, host/ABI
+//! rebind, newly introduced external executable, changed registry binding, or changed
+//! release channel each force a fresh review instead of a silent hot reload; and the
+//! disposition, the stronger of that trigger gate and a hard block for a revoked
+//! signature or an anti-abuse quarantine. A reload that does not rebind to the registry
+//! preserves the installed row's limited-trust continuity rather than silently raising
+//! its badge, so a side-load can never be waved through install-style review just
+//! because it is already on disk.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -179,6 +200,7 @@ pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 pub mod m5_mirror_and_sideload;
+pub mod m5_sideload_review;
 pub mod m5_workspace_strip;
 
 /// Supported schema version for ecosystem compatibility packets and projections.
