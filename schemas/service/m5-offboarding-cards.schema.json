@@ -1,0 +1,458 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/m5-offboarding-cards.schema.json",
+  "title": "Aureline offboarding card set",
+  "description": "Boundary schema for the frozen grace-period, seat-loss, cancellation, and org-switch offboarding cards across the M5 managed lanes. The set pins exactly one card per lifecycle event (grace_period, seat_loss, cancellation, org_switch). Each card states the event type, the effective date, the impacted managed features and service families, the export rights and export guarantee, the non-empty local-safe continuation, the deletion timeline (with the export-before-suspend/delete deadline and never deleting local artifacts), the owner/contact handoff, and an artifact separation that keeps local artifacts distinct from tenant-scoped managed state. A card's ranked actions keep export and local continuation above any upgrade or renewal prompt. Every card stays distinct from the other three events and from a sign-in/reauth failure, discloses any final usage figure bound to its unit, as-of time, and scope owner or suppressed (never bare), and narrows the marketed claim from the lifecycle event's cap (managed_narrowed for grace and org switch, local_safe_only for seat loss and cancellation). It also pins one surface binding per consumer surface (account, diagnostics, Help/About, support/admin packet, claim/public-truth automation), each projecting the effective claim, rendering the local-safe continuation, naming the owner handoff, and keeping export above upgrade. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "set_id",
+    "generated_at",
+    "set_revision",
+    "title",
+    "summary",
+    "source_refs",
+    "cards",
+    "surface_bindings",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_offboarding_card_set" },
+    "schema_version": { "const": 1 },
+    "set_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/utc_date_time" },
+    "set_revision": { "type": "integer", "minimum": 1 },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Schema and contract refs. MUST include schemas/service/m5-offboarding-cards.schema.json."
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/offboarding_card" }
+    },
+    "surface_bindings": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/surface_binding" }
+    },
+    "inspection": { "$ref": "#/$defs/inspection_block" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence safe for product copy, support export, admin export, and release evidence. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw billing account ids, raw invoice numbers, raw price-list values, raw spend or quota numbers, raw key bytes, raw cloud-region identifiers, and raw secret material MUST NOT appear."
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "utc_date_time": { "type": "string", "format": "date-time" },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "sync_family",
+        "registry_or_mirror_metadata_family",
+        "collaboration_relay_family",
+        "remote_workspace_control_plane_family",
+        "ai_gateway_family",
+        "telemetry_or_support_ingest_family"
+      ]
+    },
+    "managed_state_class": {
+      "type": "string",
+      "enum": [
+        "signed_in",
+        "local_only",
+        "reauth_required",
+        "managed_blocked",
+        "grace_period",
+        "seat_removed",
+        "plan_downgrade",
+        "org_switched",
+        "forecast_threshold",
+        "meter_stale"
+      ],
+      "description": "The locked, user-visible managed-state vocabulary. A card MAY map to grace_period, seat_removed, or org_switched; a cancellation maps to none."
+    },
+    "entitlement_state_class": {
+      "type": "string",
+      "enum": [
+        "entitlement_active",
+        "entitlement_in_grace",
+        "entitlement_expired",
+        "entitlement_suspended_admin",
+        "entitlement_pending_recheck",
+        "entitlement_not_applicable"
+      ]
+    },
+    "posture_origin_class": {
+      "type": "string",
+      "enum": [
+        "seat",
+        "plan",
+        "policy",
+        "org",
+        "account",
+        "managed_provider",
+        "workspace_lifecycle",
+        "metering_quota",
+        "local_only_no_managed_account"
+      ]
+    },
+    "grace_period_right_class": {
+      "type": "string",
+      "enum": [
+        "managed_admissible_per_grace",
+        "export_before_suspend",
+        "read_only_during_grace",
+        "offboarding_export_admissible"
+      ]
+    },
+    "export_guarantee_class": {
+      "type": "string",
+      "enum": [
+        "parity_with_csv_and_json",
+        "parity_with_json_only",
+        "parity_with_csv_only",
+        "manifest_only_no_row_export",
+        "no_export_documented_local_only"
+      ]
+    },
+    "marketed_claim_class": {
+      "type": "string",
+      "enum": ["managed_full", "managed_narrowed", "local_safe_only"]
+    },
+    "lifecycle_event_class": {
+      "type": "string",
+      "enum": ["grace_period", "seat_loss", "cancellation", "org_switch"]
+    },
+    "handoff_owner_class": {
+      "type": "string",
+      "enum": [
+        "seat_administrator",
+        "organization_owner",
+        "billing_contact",
+        "support_contact"
+      ]
+    },
+    "contact_channel_class": {
+      "type": "string",
+      "enum": [
+        "admin_console",
+        "billing_portal",
+        "support_portal",
+        "in_app_account_panel"
+      ]
+    },
+    "card_action_kind_class": {
+      "type": "string",
+      "enum": [
+        "export_now",
+        "continue_local",
+        "review_deletion_timeline",
+        "contact_owner",
+        "upgrade_or_renew"
+      ]
+    },
+    "final_usage_disclosure_class": {
+      "type": "string",
+      "enum": ["bound_to_unit_as_of_scope", "suppressed_no_managed_number"]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "account_surface",
+        "diagnostics",
+        "help_about",
+        "support_admin_packet",
+        "claim_public_truth_automation"
+      ]
+    },
+    "card_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "kind", "rank", "label"],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_card_action" },
+        "schema_version": { "const": 1 },
+        "kind": { "$ref": "#/$defs/card_action_kind_class" },
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Render rank; lower is higher priority. An upgrade_or_renew action MUST rank below every export_now and continue_local action on the same card."
+        },
+        "label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "deletion_timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "effective_at",
+        "export_admissible_until",
+        "local_artifacts_deleted",
+        "timeline_note"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_deletion_timeline" },
+        "schema_version": { "const": 1 },
+        "effective_at": { "$ref": "#/$defs/utc_date_time" },
+        "export_admissible_until": {
+          "$ref": "#/$defs/utc_date_time",
+          "description": "The deadline to export bounded artifacts before suspension or deletion; always present so export is never silently lost."
+        },
+        "grace_window_closes_at": {
+          "$ref": "#/$defs/utc_date_time",
+          "description": "Present for grace and cancellation; when the grace window closes."
+        },
+        "managed_deletion_at": {
+          "$ref": "#/$defs/utc_date_time",
+          "description": "Present when managed deletion is scheduled; absent when deletion is tenant-governed and unscheduled."
+        },
+        "local_artifacts_deleted": {
+          "const": false,
+          "description": "Always false: a managed lifecycle event never deletes local artifacts."
+        },
+        "timeline_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "artifact_separation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "local_artifacts",
+        "tenant_scoped_managed_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_artifact_separation" },
+        "schema_version": { "const": 1 },
+        "local_artifacts": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Local artifacts that stay on device and remain user-owned."
+        },
+        "tenant_scoped_managed_state": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Tenant-scoped managed state that rebinds, is reclaimed, or is retained by the tenant; never collapsed with local artifacts."
+        }
+      }
+    },
+    "owner_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "next_step_owner",
+        "contact_channel",
+        "instruction"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_owner_handoff" },
+        "schema_version": { "const": 1 },
+        "next_step_owner": { "$ref": "#/$defs/handoff_owner_class" },
+        "contact_channel": { "$ref": "#/$defs/contact_channel_class" },
+        "instruction": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "offboarding_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "title",
+        "summary",
+        "lifecycle_event",
+        "linked_entitlement_state",
+        "posture_origin",
+        "effective_at",
+        "impacted_managed_features",
+        "impacted_service_families",
+        "local_safe_continuation",
+        "export_rights",
+        "export_guarantee",
+        "deletion_timeline",
+        "owner_handoff",
+        "artifact_separation",
+        "actions",
+        "final_usage_disclosure",
+        "as_of",
+        "must_not_collapse_with",
+        "distinct_from_sign_in_failure",
+        "not_a_generic_account_error",
+        "declared_marketed_claim",
+        "effective_marketed_claim",
+        "recovery_cue"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_card" },
+        "schema_version": { "const": 1 },
+        "card_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "lifecycle_event": { "$ref": "#/$defs/lifecycle_event_class" },
+        "related_managed_state": {
+          "$ref": "#/$defs/managed_state_class",
+          "description": "Present for grace_period (grace_period), seat_loss (seat_removed), and org_switch (org_switched); absent for cancellation, which has no single managed-state token."
+        },
+        "linked_entitlement_state": { "$ref": "#/$defs/entitlement_state_class" },
+        "posture_origin": { "$ref": "#/$defs/posture_origin_class" },
+        "effective_at": { "$ref": "#/$defs/utc_date_time" },
+        "impacted_managed_features": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Which managed features pause or narrow under the event."
+        },
+        "impacted_service_families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/service_family_class" }
+        },
+        "local_safe_continuation": {
+          "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+          "description": "Non-empty so the local core keeps running; a lifecycle event never blocks local editing, search, Git, or local automation."
+        },
+        "export_rights": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/grace_period_right_class" }
+        },
+        "export_guarantee": { "$ref": "#/$defs/export_guarantee_class" },
+        "deletion_timeline": { "$ref": "#/$defs/deletion_timeline" },
+        "owner_handoff": { "$ref": "#/$defs/owner_handoff" },
+        "artifact_separation": { "$ref": "#/$defs/artifact_separation" },
+        "actions": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/card_action" },
+          "description": "Ranked actions. MUST include an export_now and a continue_local action, and no upgrade_or_renew action may rank above them."
+        },
+        "final_usage_disclosure": {
+          "$ref": "#/$defs/final_usage_disclosure_class",
+          "description": "A final usage figure is bound to its unit, as-of time, and scope owner, or suppressed; it is never shown bare."
+        },
+        "as_of": {
+          "$ref": "#/$defs/utc_date_time",
+          "description": "Last measurement as-of time; present even when the figure is suppressed."
+        },
+        "must_not_collapse_with": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lifecycle_event_class" },
+          "description": "The other three lifecycle events this card must never collapse into."
+        },
+        "distinct_from_sign_in_failure": {
+          "const": true,
+          "description": "Always true: a lifecycle event is never a sign-in or reauth failure."
+        },
+        "not_a_generic_account_error": {
+          "const": true,
+          "description": "Always true: a lifecycle event is never a generic account error."
+        },
+        "declared_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "effective_marketed_claim": { "$ref": "#/$defs/marketed_claim_class" },
+        "recovery_cue": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "surface_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "binding_id",
+        "consumer_surface",
+        "bound_card_ids",
+        "projects_effective_claim",
+        "renders_local_safe_continuation",
+        "names_owner_handoff",
+        "surfaces_export_before_upgrade",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_card_surface_binding" },
+        "schema_version": { "const": 1 },
+        "binding_id": { "$ref": "#/$defs/stable_token" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface_class" },
+        "bound_card_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "projects_effective_claim": { "const": true },
+        "renders_local_safe_continuation": { "const": true },
+        "names_owner_handoff": { "const": true },
+        "surfaces_export_before_upgrade": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_count",
+        "surface_binding_count",
+        "lifecycle_events_covered",
+        "lifecycle_vocab_complete",
+        "all_cards_local_safe_backed",
+        "never_deletes_local_artifacts",
+        "all_cards_separate_local_from_tenant",
+        "all_cards_state_deletion_timeline",
+        "all_cards_name_owner_handoff",
+        "export_never_buried",
+        "value_never_bare",
+        "distinctness_complete",
+        "narrowed_card_count",
+        "local_safe_only_card_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_offboarding_card_inspection" },
+        "schema_version": { "const": 1 },
+        "card_count": { "type": "integer", "minimum": 4 },
+        "surface_binding_count": { "type": "integer", "minimum": 5 },
+        "lifecycle_events_covered": { "type": "integer", "minimum": 4 },
+        "lifecycle_vocab_complete": { "const": true },
+        "all_cards_local_safe_backed": { "const": true },
+        "never_deletes_local_artifacts": { "const": true },
+        "all_cards_separate_local_from_tenant": { "const": true },
+        "all_cards_state_deletion_timeline": { "const": true },
+        "all_cards_name_owner_handoff": { "const": true },
+        "export_never_buried": { "const": true },
+        "value_never_bare": { "const": true },
+        "distinctness_complete": { "const": true },
+        "narrowed_card_count": { "type": "integer", "minimum": 0 },
+        "local_safe_only_card_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

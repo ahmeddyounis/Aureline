@@ -81,9 +81,22 @@
 //! metering degradation distinct from a seat loss, an org switch, a grace window,
 //! and a sign-in failure, and narrows the marketed claim to managed-narrowed
 //! without ever collapsing the local core to local-safe-only.
+//!
+//! The [`m5_offboarding_cards`] module renders the humane offboarding surface a
+//! user or admin sees when a managed entitlement is winding down. It freezes one
+//! card per lifecycle event — a grace period, a seat loss, a cancellation, and an
+//! org switch — and each card states the event type, the effective date, the
+//! impacted managed features, the export rights, the local-safe continuation, the
+//! deletion timeline, and the owner/contact handoff, separates local artifacts
+//! from tenant-scoped managed state so a seat loss or an org switch never blurs
+//! the two, keeps export and local continuation above any upgrade or renewal
+//! prompt, stays distinct from the other three events and a sign-in failure, and
+//! narrows the marketed claim from the lifecycle event's cap — all without ever
+//! deleting or blocking the local core.
 
 pub mod m5_chargeback_scope_views;
 pub mod m5_commercial_control_plane;
 pub mod m5_entitlement_summary;
 pub mod m5_metering_degradation_rules;
+pub mod m5_offboarding_cards;
 pub mod m5_usage_forecast_views;
