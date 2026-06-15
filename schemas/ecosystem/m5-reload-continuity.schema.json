@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ecosystem/m5-reload-continuity.schema.json",
+  "title": "Aureline M5 reload-continuity board",
+  "description": "Schema for the m5_reload_continuity_board packet. The packet freezes one reload-continuity card per marketed M5 artifact family. Each card is the hot-reload/relaunch banner an author reads when local package code or its manifest changes, plus the last-loaded-build continuity that keeps a local or side-loaded package from disappearing when its source path moves or a new build fails. A card names the package identity, an opaque source-path ref, the workspace origin, the runtime class, the host/ABI, the signing state, the declared and rendered trust posture, the build freshness (last-built), the load state (last-loaded), the hot-reload posture, and the source-availability state; it then recomputes the continuity state the package degrades to (loaded_current_build, last_loaded_build_still_active, source_unavailable, build_failed, or not_loaded), and a state-impact banner of restart scope (what restarts), preserved state (what state is preserved versus reset), widening review (what permission/ABI drift forces a fresh review), and rollback path (what rollback path exists). The card caps the rendered trust posture by both the signing state and the workspace origin, so a reload never inherits a verified-publisher or enterprise-approved badge; a hot reload that would widen the runtime class, expand permissions, or add an external executable holds the running instance in reload_held_for_review / held_pending_review rather than widening authority silently; a loaded_current_build claim must be backed by a current build and present source; and a running instance serving a last-loaded build must carry its last_loaded_build_ref so the continuity record is never lost. The recorded rendered trust posture and every derived banner field must equal the recomputed card decision, and the card never renders a stronger badge than the publish-preview gate would grant the same family.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "artifact_families",
+    "runtime_classes",
+    "host_abi_classes",
+    "workspace_origins",
+    "signature_states",
+    "trust_postures",
+    "build_freshness_states",
+    "load_states",
+    "hot_reload_postures",
+    "source_availability_states",
+    "continuity_states",
+    "restart_scopes",
+    "preserved_states",
+    "widening_reviews",
+    "rollback_paths",
+    "cards",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_reload_continuity_board" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "artifact_families": { "type": "array", "items": { "$ref": "#/$defs/artifact_family" } },
+    "runtime_classes": { "type": "array", "items": { "$ref": "#/$defs/runtime_class" } },
+    "host_abi_classes": { "type": "array", "items": { "$ref": "#/$defs/host_abi_class" } },
+    "workspace_origins": { "type": "array", "items": { "$ref": "#/$defs/workspace_origin" } },
+    "signature_states": { "type": "array", "items": { "$ref": "#/$defs/signature_state" } },
+    "trust_postures": { "type": "array", "items": { "$ref": "#/$defs/trust_posture" } },
+    "build_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/build_freshness" }
+    },
+    "load_states": { "type": "array", "items": { "$ref": "#/$defs/load_state" } },
+    "hot_reload_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hot_reload_posture" }
+    },
+    "source_availability_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source_availability" }
+    },
+    "continuity_states": { "type": "array", "items": { "$ref": "#/$defs/continuity_state" } },
+    "restart_scopes": { "type": "array", "items": { "$ref": "#/$defs/restart_scope" } },
+    "preserved_states": { "type": "array", "items": { "$ref": "#/$defs/preserved_state" } },
+    "widening_reviews": { "type": "array", "items": { "$ref": "#/$defs/widening_review" } },
+    "rollback_paths": { "type": "array", "items": { "$ref": "#/$defs/rollback_path" } },
+    "cards": { "type": "array", "items": { "$ref": "#/$defs/card" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "artifact_family": {
+      "enum": [
+        "first_party_framework_pack",
+        "docs_pack",
+        "local_model_pack",
+        "signed_recipe_pack",
+        "template_artifact",
+        "bridge_backed_package",
+        "side_loaded_package",
+        "mirrored_registry_variant"
+      ]
+    },
+    "runtime_class": {
+      "enum": [
+        "passive_package",
+        "wasm_capability_sandbox",
+        "declarative_host_rendered_view",
+        "external_host",
+        "compatibility_bridge",
+        "remote_side_component"
+      ]
+    },
+    "host_abi_class": {
+      "enum": [
+        "no_code_execution",
+        "local_machine",
+        "managed_host",
+        "remote_target",
+        "external_process",
+        "browser_runtime"
+      ]
+    },
+    "workspace_origin": {
+      "enum": [
+        "local_dev_workspace",
+        "sideloaded_workspace",
+        "published_registry_backed",
+        "mirror_backed"
+      ]
+    },
+    "signature_state": {
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_local_dev",
+        "unsigned_sideload",
+        "revoked_signature"
+      ]
+    },
+    "trust_posture": {
+      "enum": ["unsigned_local_only", "registry_bound", "verified_publisher", "enterprise_approved"]
+    },
+    "build_freshness": {
+      "enum": ["built_from_current_source", "built_stale_vs_source", "never_built", "build_failed"]
+    },
+    "load_state": {
+      "enum": [
+        "loaded_current_build",
+        "reload_pending_relaunch",
+        "reload_held_for_review",
+        "not_loaded",
+        "load_failed"
+      ]
+    },
+    "hot_reload_posture": {
+      "enum": [
+        "no_widening",
+        "relaunch_only",
+        "runtime_class_widened_pending_review",
+        "permissions_widened_pending_review",
+        "external_executable_added_pending_review"
+      ]
+    },
+    "source_availability": {
+      "enum": ["source_present", "source_moved", "source_unavailable"]
+    },
+    "continuity_state": {
+      "enum": [
+        "loaded_current_build",
+        "last_loaded_build_still_active",
+        "source_unavailable",
+        "build_failed",
+        "not_loaded"
+      ]
+    },
+    "restart_scope": {
+      "enum": [
+        "nothing_restarts",
+        "host_instance_relaunches",
+        "held_pending_review",
+        "no_running_instance"
+      ]
+    },
+    "preserved_state": {
+      "enum": [
+        "in_memory_and_persisted_preserved",
+        "persisted_preserved_in_memory_reset",
+        "running_instance_unchanged",
+        "no_running_state"
+      ]
+    },
+    "widening_review": {
+      "enum": [
+        "no_widening",
+        "runtime_class_widening_requires_review",
+        "permission_widening_requires_review",
+        "external_executable_requires_review"
+      ]
+    },
+    "rollback_path": {
+      "enum": [
+        "revert_to_last_loaded_build",
+        "relaunch_from_current_source",
+        "no_rollback_source_unavailable",
+        "no_rollback_path"
+      ]
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "artifact_family",
+        "package_identity",
+        "source_path_ref",
+        "origin",
+        "runtime_class",
+        "host_abi",
+        "signature_state",
+        "declared_trust_posture",
+        "rendered_trust_posture",
+        "build_freshness",
+        "load_state",
+        "hot_reload_posture",
+        "source_availability",
+        "continuity_state",
+        "restart_scope",
+        "preserved_state",
+        "widening_review",
+        "rollback_path",
+        "workspace_strip_ref",
+        "publish_preview_ref",
+        "support_export_ref",
+        "note"
+      ],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "package_identity": { "$ref": "#/$defs/non_empty_string" },
+        "source_path_ref": { "$ref": "#/$defs/non_empty_string" },
+        "origin": { "$ref": "#/$defs/workspace_origin" },
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "host_abi": { "$ref": "#/$defs/host_abi_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "declared_trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "rendered_trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "build_freshness": { "$ref": "#/$defs/build_freshness" },
+        "load_state": { "$ref": "#/$defs/load_state" },
+        "hot_reload_posture": { "$ref": "#/$defs/hot_reload_posture" },
+        "source_availability": { "$ref": "#/$defs/source_availability" },
+        "continuity_state": { "$ref": "#/$defs/continuity_state" },
+        "restart_scope": { "$ref": "#/$defs/restart_scope" },
+        "preserved_state": { "$ref": "#/$defs/preserved_state" },
+        "widening_review": { "$ref": "#/$defs/widening_review" },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "last_loaded_build_ref": { "type": ["string", "null"], "minLength": 1 },
+        "workspace_strip_ref": { "$ref": "#/$defs/non_empty_string" },
+        "publish_preview_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cards",
+        "family_count",
+        "local_only_cards",
+        "loaded_current_build_cards",
+        "last_loaded_still_active_cards",
+        "source_unavailable_cards",
+        "build_failed_cards",
+        "not_loaded_cards",
+        "held_pending_review_cards",
+        "relaunch_pending_cards",
+        "widening_review_cards",
+        "retained_continuity_record_cards",
+        "verified_or_enterprise_rendered_cards"
+      ],
+      "properties": {
+        "total_cards": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "local_only_cards": { "type": "integer", "minimum": 0 },
+        "loaded_current_build_cards": { "type": "integer", "minimum": 0 },
+        "last_loaded_still_active_cards": { "type": "integer", "minimum": 0 },
+        "source_unavailable_cards": { "type": "integer", "minimum": 0 },
+        "build_failed_cards": { "type": "integer", "minimum": 0 },
+        "not_loaded_cards": { "type": "integer", "minimum": 0 },
+        "held_pending_review_cards": { "type": "integer", "minimum": 0 },
+        "relaunch_pending_cards": { "type": "integer", "minimum": 0 },
+        "widening_review_cards": { "type": "integer", "minimum": 0 },
+        "retained_continuity_record_cards": { "type": "integer", "minimum": 0 },
+        "verified_or_enterprise_rendered_cards": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

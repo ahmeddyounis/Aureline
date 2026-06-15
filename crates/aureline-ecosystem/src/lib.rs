@@ -206,6 +206,27 @@
 //! visible, and that last-good state can never render a stronger badge than the
 //! family's current cap, so support, service-health, diagnostics, and release surfaces
 //! project the same runtime truth.
+//!
+//! The [`m5_reload_continuity`] module is the change-time counterpart to those review
+//! lanes. Where the workspace strip is always-on chrome and the publish gate runs before
+//! release, this module freezes the *hot-reload/relaunch banner* an author reads when
+//! local package code or its manifest changes, plus the *last-loaded-build continuity*
+//! that keeps a local or side-loaded package from disappearing when its source path moves
+//! or a new build fails. Each card reuses the shared artifact-family, runtime-class,
+//! host/ABI, signing-state, trust-posture, hot-reload, build-freshness, and load-state
+//! vocabulary and recomputes the rendered trust posture — capped by both the signing
+//! state and the workspace origin so a reload never inherits a verified-publisher or
+//! enterprise-approved badge — alongside the continuity state the package degrades to
+//! (source unavailable, build failed, or last-loaded build still active rather than
+//! vanishing) and a state-impact banner that names what restarts, what state is preserved
+//! versus reset, what permission/ABI drift forces a fresh review, and what rollback path
+//! exists. A widening hot reload holds the running instance for review instead of widening
+//! authority silently; a `loaded_current_build` claim must be backed by a current build
+//! and present source; and a running instance serving a last-loaded build must carry its
+//! continuity record, so the last-loaded-build record is never lost when source or build
+//! breaks. A board-level cross-check proves the banner never renders a stronger badge than
+//! the publish gate would grant, so authoring chrome, install/update flows, diagnostics,
+//! support, and release surfaces project one trust truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -222,6 +243,7 @@ pub mod m5_install_review;
 pub mod m5_lifecycle_actions;
 pub mod m5_marketplace_fact_views;
 pub mod m5_mirror_and_sideload;
+pub mod m5_reload_continuity;
 pub mod m5_runtime_inspector;
 pub mod m5_sideload_review;
 pub mod m5_workspace_strip;
