@@ -1,0 +1,75 @@
+# Native-desktop system-entry, handler-ownership, reopen, and OS-notification
+# matrix gate.
+#
+# Validates the checked-in native-desktop matrix: every required system-entry
+# and reopen surface kind (system open/save/reveal, file associations, protocol
+# handlers, browser auth callbacks, recent items, dock/taskbar/jump-list reopen,
+# OS notifications, badge/progress indicators, removable/network paths, and
+# credential-store lock states) declares a binding for the seven canonical
+# controls (trust/policy evaluation, channel/build ownership, wrong-target
+# recovery, unavailable-path recovery, policy-block recovery, signal
+# durability, and notification privacy); every satisfied control carries its
+# captured evidence; no control is failed (so a bypassed trust evaluation, a
+# hidden handler takeover, a wrong-target reopen, a silent loss on an
+# unavailable path, an unsafe policy block, a transient-poll signal, and a
+# privacy-unsafe notification all stay distinct, caught failure classes); the
+# matrix cross-links the install-topology, embedded-boundary, activity-center,
+# and auth-recovery packets; and a marketed surface whose evidence is stale
+# narrows instead of shipping as implicitly stable. The typed Rust consumer
+# mints the same matrix, so `cargo test -p aureline-shell` enforces the same
+# structural invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_native_desktop
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_native_desktop.yml"
+      - "tools/ci/m5/native_desktop_check.py"
+      - "schemas/platform/m5-native-desktop-matrix.schema.json"
+      - "docs/m5/native-desktop-integration-and-reopen.md"
+      - "artifacts/platform/m5-native-desktop-matrix.md"
+      - "artifacts/shiproom/m5-native-desktop-review-packet/**"
+      - "fixtures/platform/m5_os_entry_and_reopen/**"
+      - "crates/aureline-shell/src/m5_native_desktop/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_native_desktop.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_native_desktop_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-native-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_native_desktop:
+    name: M5 native desktop
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 native-desktop CI gate
+        run: |
+          python3 tools/ci/m5/native_desktop_check.py --repo-root .
+
+      - name: Run M5 native-desktop contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_native_desktop_fixtures

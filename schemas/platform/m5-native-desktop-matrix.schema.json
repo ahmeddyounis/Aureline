@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-native-desktop-matrix.schema.json",
+  "title": "Aureline M5 native-desktop system-entry, handler-ownership, reopen, and OS-notification matrix",
+  "description": "Boundary schema for the native-desktop matrix emitted by the aureline-shell m5_native_desktop module. The matrix names every claimed system-entry and reopen surface (system open/save/reveal, file associations, protocol handlers, browser auth callbacks, recent items, dock/taskbar/jump-list reopen, OS notifications, badge/progress indicators, removable/network paths, and credential-store lock states) and binds each surface to the seven canonical native-desktop controls (trust/policy evaluation, channel/build ownership, wrong-target recovery, unavailable-path recovery, policy-block recovery, signal durability, and notification privacy). Acceptance: every required surface kind MUST be present and every required control MUST be satisfied by at least one surface; every surface MUST declare a binding for every control and MUST carry a channel/build owner, a trust checkpoint, a reopen anchor, a non-empty continuity note, a non-empty degraded-state vocabulary, a downgrade rule, at least one claimed platform, and registered_on_native_desktop_harness=true; every satisfied control MUST carry an evidence pack, a recovery path on the three recovery controls, and a durable-object ref on signal_durability; a failed control is a blocker and each failure stays a distinct class (a bypassed trust evaluation, a hidden handler takeover, a wrong-target reopen, a silent loss on an unavailable path, an unsafe policy block, a transient-poll signal, and a privacy-unsafe notification are never collapsed); stale evidence on a marketed surface is a blocker so release tooling can narrow it; and the report MUST cross-link the install-topology, embedded-boundary, activity-center, and auth-recovery packets so channel or handler ownership cannot drift independently. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/platform/m5_os_entry_and_reopen/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/native_desktop_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/native_desktop_matrix_report_record" },
+    { "$ref": "#/$defs/native_desktop_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_native_desktop:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "system_open",
+        "file_association",
+        "protocol_handler",
+        "auth_callback",
+        "recent_item",
+        "dock_taskbar_jumplist",
+        "os_notification",
+        "badge_progress",
+        "removable_path",
+        "store_lock_state"
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "ownership_kind": {
+      "type": "string",
+      "enum": [
+        "channel_scoped_owner",
+        "shared_default_arbitrated",
+        "managed_fleet_owned",
+        "portable_non_registering"
+      ]
+    },
+    "control": {
+      "type": "string",
+      "enum": [
+        "trust_policy_evaluation",
+        "channel_build_ownership",
+        "wrong_target_recovery",
+        "unavailable_path_recovery",
+        "policy_block_recovery",
+        "signal_durability",
+        "notification_privacy"
+      ]
+    },
+    "control_status": {
+      "type": "string",
+      "enum": ["satisfied", "not_applicable", "explicitly_narrowed", "failed"]
+    },
+    "failure_mode": {
+      "type": "string",
+      "enum": [
+        "trust_evaluation_bypassed",
+        "hidden_handler_takeover",
+        "wrong_target_no_recovery",
+        "unavailable_path_silent_loss",
+        "policy_block_unsafe",
+        "transient_poll_signal",
+        "privacy_unsafe_notification"
+      ]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "trust_evaluation_bypassed",
+        "hidden_handler_takeover",
+        "wrong_target_no_recovery",
+        "unavailable_path_silent_loss",
+        "policy_block_unsafe",
+        "transient_poll_signal",
+        "privacy_unsafe_notification",
+        "failure_mode_drift",
+        "missing_evidence_pack",
+        "missing_recovery_path",
+        "missing_durable_object",
+        "missing_narrowing_reason",
+        "missing_required_control",
+        "stale_evidence_on_marketed_surface",
+        "missing_channel_build_owner",
+        "missing_trust_checkpoint",
+        "missing_reopen_anchor",
+        "missing_continuity_note",
+        "missing_degraded_state_vocabulary",
+        "missing_claimed_platforms",
+        "missing_downgrade_rule",
+        "surface_not_on_harness"
+      ]
+    },
+    "cross_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "install_topology_ref",
+        "embedded_boundary_ref",
+        "activity_center_ref",
+        "auth_recovery_ref",
+        "channel_ownership_ref",
+        "protocol_handler_ownership_ref",
+        "file_association_ownership_ref"
+      ],
+      "properties": {
+        "install_topology_ref": { "$ref": "#/$defs/non_empty_string" },
+        "embedded_boundary_ref": { "$ref": "#/$defs/non_empty_string" },
+        "activity_center_ref": { "$ref": "#/$defs/non_empty_string" },
+        "auth_recovery_ref": { "$ref": "#/$defs/non_empty_string" },
+        "channel_ownership_ref": { "$ref": "#/$defs/non_empty_string" },
+        "protocol_handler_ownership_ref": { "$ref": "#/$defs/non_empty_string" },
+        "file_association_ownership_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "surface_kind",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "channel_build_owner_ref",
+        "ownership_kind",
+        "trust_checkpoint_ref",
+        "reopen_anchor_ref",
+        "continuity_note",
+        "degraded_state_vocabulary",
+        "claimed_platforms",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "downgrade_rule_ref",
+        "marketed",
+        "registered_on_native_desktop_harness"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "channel_build_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ownership_kind": { "$ref": "#/$defs/ownership_kind" },
+        "trust_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "degraded_state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "evidence_captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "marketed": { "type": "boolean" },
+        "registered_on_native_desktop_harness": { "type": "boolean" }
+      }
+    },
+    "control_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control",
+        "status",
+        "failure_mode",
+        "evidence_pack_ref",
+        "recovery_path_ref",
+        "durable_object_ref",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "control": { "$ref": "#/$defs/control" },
+        "status": { "$ref": "#/$defs/control_status" },
+        "failure_mode": {
+          "oneOf": [{ "$ref": "#/$defs/failure_mode" }, { "type": "null" }]
+        },
+        "evidence_pack_ref": { "$ref": "#/$defs/nullable_string" },
+        "recovery_path_ref": { "$ref": "#/$defs/nullable_string" },
+        "durable_object_ref": { "$ref": "#/$defs/nullable_string" },
+        "narrowing_reason": { "$ref": "#/$defs/nullable_string" },
+        "note": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class", "entry_id"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" },
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "control": { "$ref": "#/$defs/control" },
+        "status": { "$ref": "#/$defs/control_status" },
+        "declared_failure_mode": {
+          "oneOf": [{ "$ref": "#/$defs/failure_mode" }, { "type": "null" }]
+        }
+      }
+    },
+    "control_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control", "satisfied", "not_applicable", "explicitly_narrowed", "failed"],
+      "properties": {
+        "control": { "$ref": "#/$defs/control" },
+        "satisfied": { "type": "integer", "minimum": 0 },
+        "not_applicable": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "kind_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_kind", "entry_count"],
+      "properties": {
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "entry_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "count"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_blocking_findings", "by_class"],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "by_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_count" }
+        }
+      }
+    },
+    "reopen_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_kind", "entry_id", "reopen_anchor_ref"],
+      "properties": {
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "control", "reason"],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "control": {
+          "oneOf": [{ "$ref": "#/$defs/control" }, { "type": "null" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "native_desktop_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "bindings",
+        "blocking_findings",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "shell_m5_native_desktop_entry_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/descriptor" },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/control_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "native_desktop_matrix_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_surface_kinds",
+        "required_controls",
+        "claimed_platforms",
+        "cross_links",
+        "entries",
+        "control_coverage",
+        "surface_kind_coverage",
+        "findings_summary",
+        "reopen_anchor_index",
+        "registered_entry_count",
+        "marketed_entry_count",
+        "controls_checked",
+        "narrowable_marketed_entries",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "review_packet_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_native_desktop_matrix_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_surface_kinds": {
+          "type": "array",
+          "minItems": 10,
+          "items": { "$ref": "#/$defs/surface_kind" }
+        },
+        "required_controls": {
+          "type": "array",
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/control" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "cross_links": { "$ref": "#/$defs/cross_links" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/native_desktop_entry_record" }
+        },
+        "control_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_coverage" }
+        },
+        "surface_kind_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kind_coverage" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "reopen_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_anchor_entry" }
+        },
+        "registered_entry_count": { "type": "integer", "minimum": 0 },
+        "marketed_entry_count": { "type": "integer", "minimum": 0 },
+        "controls_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_entry" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "review_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "native_desktop_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_native_desktop_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/native_desktop_matrix_report_record" },
+        "case_ids": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}
