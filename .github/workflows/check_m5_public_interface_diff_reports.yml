@@ -1,0 +1,72 @@
+# M5 public-interface diff-report gate.
+#
+# Validates the checked-in M5 public-interface diff-report register: every report
+# binds a changed stable-facing contract (wire/state schema, CLI/headless output,
+# exported packet, SDK/runtime contract, or compatibility bridge) to the
+# public-interface diff it carries (added, removed, and changed surface plus the
+# reader/writer compatibility review), the compatibility window it lives in, the
+# support-class caveat it publishes, and the successor/deprecation packet that
+# governs how the old contract leaves the window. A breaking change whose diff
+# carries no deprecation packet, a deprecation packet that is incomplete or whose
+# removal is overdue, a missing reader/writer compatibility review, a closed
+# compatibility/support window, or report evidence that is stale, missing, on an
+# expired waiver, unsigned, or whose backing claim publication is missing must drop
+# below the stable cutline; a complete, in-horizon deprecation packet lets a managed
+# breaking change still hold; and the promotion verdict and summary agree with the
+# firing stop rules. The gate runs the checked-in fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same register, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_public_interface_diff_reports
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_public_interface_diff_reports.yml"
+      - "artifacts/release/m5/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts.json"
+      - "artifacts/release/captures/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts_validation_capture.json"
+      - "schemas/compat/m5-public-interface-diff-reports.schema.json"
+      - "docs/m5/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts.md"
+      - "fixtures/compat/m5-public-interface-diff-reports/**"
+      - "tools/regenerate_m5_public_interface_diff_reports.py"
+      - "crates/aureline-release/src/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-public-interface-diff-reports-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_public_interface_diff_reports:
+    name: M5 Public-Interface Diff Reports
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 public-interface diff-report contract tests
+        run: |
+          cargo test -p aureline-release --test implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-public-interface-diff-reports-${{ github.run_id }}
+          path: artifacts/release/captures/implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
