@@ -337,6 +337,7 @@ pub mod publish_the_signed_m4_stable_evidence_pack_plus;
 pub mod release_center_model;
 pub mod seed_the_m5_certified_archetype_health_bundle_matrix_and_regression_guardrails;
 pub mod ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards;
+pub mod ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains;
 pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
 pub mod ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions;
 pub mod ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes;
@@ -768,6 +769,17 @@ pub use prove_clean_room_rebuild_exact_build_symbolication_release_center_parity
     PublicationDecisionRecord as CleanRoomRebuildPublicationDecisionRecord, RebuildState,
     SymbolicationState, CLEAN_ROOM_REBUILD_PROOF_JSON, CLEAN_ROOM_REBUILD_PROOF_PATH,
     CLEAN_ROOM_REBUILD_PROOF_RECORD_KIND, CLEAN_ROOM_REBUILD_PROOF_SCHEMA_VERSION,
+};
+
+pub use ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains::{
+    current_m5_rehearsal_automation_register, M5RehearsalAutomationExportProjection,
+    M5RehearsalAutomationExportRow, M5RehearsalAutomationRegister, M5RehearsalAutomationSummary,
+    M5RehearsalAutomationViolation, M5RehearsalRow, RebuildProvenance,
+    RehearsalAction as M5RehearsalAction, RehearsalAutomationState, RehearsalExpiryEntry,
+    RehearsalExpiryFeed, RehearsalGapReason as M5RehearsalGapReason, RehearsalKind,
+    RehearsalRecord, RehearsalResult, RehearsalStopRule, SHIP_M5_REHEARSAL_AUTOMATION_JSON,
+    SHIP_M5_REHEARSAL_AUTOMATION_PATH, SHIP_M5_REHEARSAL_AUTOMATION_RECORD_KIND,
+    SHIP_M5_REHEARSAL_AUTOMATION_SCHEMA_VERSION,
 };
 
 pub use optional_surface_qualification::{
