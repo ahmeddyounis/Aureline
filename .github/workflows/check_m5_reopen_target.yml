@@ -1,0 +1,71 @@
+# Recent-item, dock/taskbar, and jump-list reopen-fidelity gate.
+#
+# Validates the checked-in reopen-target report: every object registered in a
+# system-level reopen surface (recent-item, dock, taskbar, jump-list) is
+# projected as one typed reopen target that preserves the export-safe literal
+# the OS shortcut holds, the canonical object it was registered against, the
+# originating channel/build owner, and the target freshness, and binds its
+# certainty to the same restore vocabulary the in-product shell uses; a reopen
+# lands on the exact object or a clearly labeled placeholder with recovery
+# actions (a wrong-target reopen stays a distinct, exportable failure class);
+# a degraded or stale target never claims an exact restore; a privileged action
+# returns through a reviewed in-product surface rather than firing from the
+# shortcut; the channel/build owner stays visible; and the five incident case
+# exports (moved-target, missing-root, changed-channel, stale-provider,
+# wrong-target) reproduce from typed diagnostics. The typed Rust consumer mints
+# the same report, so `cargo test -p aureline-shell` enforces the same
+# structural invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_reopen_target
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_reopen_target.yml"
+      - "tools/ci/m5/reopen_target_check.py"
+      - "schemas/platform/m5-reopen-target.schema.json"
+      - "docs/m5/recent-items-dock-taskbar-jump-list.md"
+      - "artifacts/platform/m5-recent-item-and-reopen.md"
+      - "fixtures/platform/m5-reopen-targets/**"
+      - "crates/aureline-shell/src/m5_recent_items_and_reopen/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_reopen_target.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_reopen_target_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-reopen-target-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_reopen_target:
+    name: M5 reopen target
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 reopen-target CI gate
+        run: |
+          python3 tools/ci/m5/reopen_target_check.py --repo-root .
+
+      - name: Run M5 reopen-target contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_reopen_target_fixtures

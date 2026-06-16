@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-reopen-target.schema.json",
+  "title": "Aureline M5 recent-item, dock/taskbar, and jump-list reopen-fidelity report",
+  "description": "Boundary schema for the reopen-target report emitted by the aureline-shell m5_recent_items_and_reopen module. Every object registered in a system-level reopen surface (recent-item, dock, taskbar, jump-list) is projected as one typed reopen target that preserves the export-safe literal the OS shortcut holds, the canonical object identity it was registered against, the originating channel/build owner, the target freshness, and the resolved availability, and binds its certainty to the same restore vocabulary (restore_availability, trust_state, portability_class, recovery_actions) the in-product shell uses. Acceptance: every required reopen surface MUST be present and every degraded availability class (moved_target, missing_root, changed_channel, stale_provider_linked, wrong_target_detected) MUST be represented so each reopen incident is tested and exportable; a reopen lands on the exact object or a clearly labeled placeholder, so a non-exact target MUST carry a placeholder label plus at least one recovery action and each unavailable class stays a distinct failure (a wrong_target_reopen with no recovery is its own blocker, distinct from unavailable_target_silent_loss); a degraded or stale target MUST NOT claim an exact restore (stale_certainty_overclaim); a privileged/mutating shortcut MUST return through a reviewed in-product surface (silent_mutating_action); the channel/build owner MUST stay visible (hidden_channel_ownership); every target MUST carry a literal target, a canonical object, an active-profile owner, an originating channel/build owner, a trust checkpoint, the canonical in-product command, a continuity note, a non-empty degraded-state vocabulary, a restore-provenance ref, at least one platform, a downgrade rule, and registered_on_reopen_harness=true; stale evidence on a marketed target is a blocker; and the report MUST cross-link the native-desktop matrix, the system-entry intake, install-topology, the restore-provenance contract, the Start Center recent-work surface, and the entry interstitials so identity and ownership cannot drift independently. This schema is the only boundary contract for the JSON fixtures under fixtures/platform/m5-reopen-targets/ and the support/case-export wrappers consumed by the CI gate at tools/ci/m5/reopen_target_check.py. Records carry no credential bodies, raw provider payloads, or raw filesystem paths -- the literal target is an opaque captured ref only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/reopen_target_report_record" },
+    { "$ref": "#/$defs/reopen_target_support_export_record" },
+    { "$ref": "#/$defs/reopen_target_case_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_recent_items_and_reopen:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "surface_kind": {
+      "type": "string",
+      "enum": ["recent_item", "dock", "taskbar", "jump_list"]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "ownership_kind": {
+      "type": "string",
+      "enum": [
+        "channel_scoped_owner",
+        "shared_default_arbitrated",
+        "managed_fleet_owned",
+        "portable_non_registering"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "availability": {
+      "type": "string",
+      "enum": [
+        "exact_object",
+        "moved_target",
+        "missing_root",
+        "changed_channel",
+        "stale_provider_linked",
+        "wrong_target_detected"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": ["reopen_object", "reveal_object", "privileged_or_mutating"]
+    },
+    "restore_availability": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "evidence_only", "none"]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": ["local_only", "synced", "imported", "provider_linked", "stale"]
+    },
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "open",
+        "open_in_new_window",
+        "open_restricted",
+        "locate_missing_target",
+        "reconnect",
+        "reauth",
+        "open_read_only_cached_view",
+        "retry_later",
+        "compare_before_restore",
+        "open_without_restore",
+        "unpin",
+        "pin",
+        "remove_from_recents",
+        "reveal_in_explorer"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ]
+    },
+    "failure_mode": {
+      "type": "string",
+      "enum": [
+        "wrong_target_reopen",
+        "unavailable_target_silent_loss",
+        "stale_certainty_overclaim",
+        "silent_mutating_action",
+        "hidden_channel_ownership",
+        "identity_not_preserved",
+        "trust_evaluation_bypassed"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "wrong_target_reopen",
+        "unavailable_target_silent_loss",
+        "stale_certainty_overclaim",
+        "silent_mutating_action",
+        "hidden_channel_ownership",
+        "missing_literal_target",
+        "missing_canonical_object",
+        "trust_evaluation_bypassed",
+        "missing_active_profile_owner",
+        "missing_canonical_command",
+        "missing_placeholder_label",
+        "missing_continuity_note",
+        "missing_degraded_state_vocabulary",
+        "missing_restore_provenance",
+        "missing_claimed_platforms",
+        "missing_downgrade_rule",
+        "stale_evidence_on_marketed_target",
+        "target_not_on_harness"
+      ]
+    },
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "reopen_target_id"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" },
+        "reopen_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" }
+      }
+    },
+    "cross_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_desktop_matrix_ref",
+        "system_entry_intake_ref",
+        "install_topology_ref",
+        "restore_provenance_ref",
+        "start_center_ref",
+        "entry_interstitial_ref"
+      ],
+      "properties": {
+        "native_desktop_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+        "system_entry_intake_ref": { "$ref": "#/$defs/non_empty_string" },
+        "install_topology_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restore_provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "start_center_ref": { "$ref": "#/$defs/non_empty_string" },
+        "entry_interstitial_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reopen_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_target_id",
+        "surface_kind",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "literal_target_ref",
+        "canonical_object_ref",
+        "conflicting_object_ref",
+        "target_kind",
+        "originating_channel_build_owner_ref",
+        "ownership_kind",
+        "side_by_side_or_portable_plausible",
+        "active_profile_owner_ref",
+        "trust_checkpoint_ref",
+        "target_freshness",
+        "captured_at",
+        "availability",
+        "restore_availability",
+        "trust_state",
+        "portability_class",
+        "action_class",
+        "stays_summary_only",
+        "reviewed_return_surface_ref",
+        "canonical_command_ref",
+        "recovery_actions",
+        "placeholder_label_ref",
+        "continuity_note",
+        "degraded_state_vocabulary",
+        "restore_provenance_ref",
+        "claimed_platforms",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "downgrade_rule_ref",
+        "marketed",
+        "registered_on_reopen_harness"
+      ],
+      "properties": {
+        "reopen_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "literal_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conflicting_object_ref": { "$ref": "#/$defs/nullable_string" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "originating_channel_build_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ownership_kind": { "$ref": "#/$defs/ownership_kind" },
+        "side_by_side_or_portable_plausible": { "type": "boolean" },
+        "active_profile_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_freshness": { "$ref": "#/$defs/freshness" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "stays_summary_only": { "type": "boolean" },
+        "reviewed_return_surface_ref": { "$ref": "#/$defs/nullable_string" },
+        "canonical_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "placeholder_label_ref": { "$ref": "#/$defs/nullable_string" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "degraded_state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "restore_provenance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "evidence_freshness": { "$ref": "#/$defs/freshness" },
+        "evidence_captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "marketed": { "type": "boolean" },
+        "registered_on_reopen_harness": { "type": "boolean" }
+      }
+    },
+    "reopen_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "blocking_findings",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "shell_m5_reopen_target_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/reopen_descriptor" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "finding_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "count"],
+      "properties": {
+        "class": { "type": "string" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_blocking_findings", "by_class"],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "by_class": { "type": "array", "items": { "$ref": "#/$defs/finding_count" } }
+      }
+    },
+    "surface_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_kind", "target_count"],
+      "properties": {
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "target_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "availability_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "target_count", "with_recovery"],
+      "properties": {
+        "availability": { "$ref": "#/$defs/availability" },
+        "target_count": { "type": "integer", "minimum": 0 },
+        "with_recovery": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "platform_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "target_count"],
+      "properties": {
+        "platform": { "$ref": "#/$defs/platform" },
+        "target_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "identity_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_target_id",
+        "surface_kind",
+        "canonical_object_ref",
+        "target_kind",
+        "availability",
+        "restore_availability",
+        "action_class"
+      ],
+      "properties": {
+        "reopen_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "canonical_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "action_class": { "$ref": "#/$defs/action_class" }
+      }
+    },
+    "narrowable_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reopen_target_id", "failure_mode", "reason"],
+      "properties": {
+        "reopen_target_id": { "$ref": "#/$defs/non_empty_string" },
+        "failure_mode": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/failure_mode" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reopen_target_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_surfaces",
+        "claimed_platforms",
+        "cross_links",
+        "entries",
+        "surface_coverage",
+        "availability_coverage",
+        "platform_coverage",
+        "findings_summary",
+        "identity_index",
+        "registered_target_count",
+        "marketed_target_count",
+        "exact_object_count",
+        "narrowable_marketed_entries",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "shell_m5_reopen_target_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_surfaces": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_kind" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "cross_links": { "$ref": "#/$defs/cross_links" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reopen_row" }
+        },
+        "surface_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_coverage" }
+        },
+        "availability_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/availability_coverage" }
+        },
+        "platform_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/platform_coverage" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "identity_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identity_entry" }
+        },
+        "registered_target_count": { "type": "integer", "minimum": 0 },
+        "marketed_target_count": { "type": "integer", "minimum": 0 },
+        "exact_object_count": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_entry" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reopen_target_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_reopen_target_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/reopen_target_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "reopen_target_case_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_export_id",
+        "case_label",
+        "availability",
+        "target",
+        "recovery_actions",
+        "reproduction_note"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "shell_m5_reopen_target_case_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "case_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_label": { "$ref": "#/$defs/non_empty_string" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "target": { "$ref": "#/$defs/reopen_row" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "reproduction_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
