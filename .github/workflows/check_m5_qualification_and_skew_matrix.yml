@@ -1,0 +1,70 @@
+# M5 qualification/skew matrix gate.
+#
+# Validates the checked-in M5 qualification-row, support-window, skew-window, and
+# deprecation-packet matrix: every M5 stable-facing family binds a stable claim, a
+# qualification row with one cell per dimension (platform, deployment profile,
+# archetype/workflow bundle, toolchain envelope, client scope), a declared skew
+# window with explicit unsupported-skew behavior, a support window, a deprecation
+# packet, a proof packet with freshness SLO, and owner sign-off; a family whose
+# qualification dimension is incomplete, stale, or retest-pending, whose peer is
+# outside the skew window, whose support window ended, whose deprecation staged a
+# removal, whose waiver expired, whose owner sign-off is absent, or whose backing
+# claim publication is missing must drop below the stable cutline; the promotion
+# verdict and summary agree with the firing stop rules. The gate runs the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same matrix, so `cargo test -p aureline-release` enforces the same
+# structural invariants.
+
+name: check_m5_qualification_and_skew_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_qualification_and_skew_matrix.yml"
+      - "artifacts/release/m5/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix.json"
+      - "artifacts/release/captures/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix_validation_capture.json"
+      - "schemas/compat/m5-qualification-and-skew.schema.json"
+      - "docs/m5/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix.md"
+      - "fixtures/compat/m5-qualification-and-skew/**"
+      - "tools/regenerate_m5_qualification_and_skew_matrix.py"
+      - "crates/aureline-release/src/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-qualification-and-skew-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_qualification_and_skew_matrix:
+    name: M5 Qualification/Skew Matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 qualification/skew matrix contract tests
+        run: |
+          cargo test -p aureline-release --test freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-qualification-and-skew-matrix-${{ github.run_id }}
+          path: artifacts/release/captures/freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

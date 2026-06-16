@@ -281,6 +281,24 @@
 //! an adjacent certified lane — while the four lane kinds, the six maintenance dimensions, and the
 //! release-blocking lane set all stay fully covered, so shiproom and release tooling can fail
 //! promotion directly from the register.
+//! The freeze-the-m5-qualification-row module is the compatibility-governance layer beside those
+//! gates: where the depth-claim manifest speaks for the depth claim each feature family publishes,
+//! this matrix speaks for the *qualification row* every M5 stable-facing family must hold before it
+//! may claim support, parity, or certification. For every family it records one row binding the
+//! family to the stable claim it backs, a qualification row of one cell per dimension (platform,
+//! deployment profile, archetype/workflow bundle, toolchain envelope, client scope), a declared
+//! skew window with its supported class, version floor/ceiling, negotiated fields, and the
+//! fail-closed/reconnect-required/reinstall-required/coordinated-upgrade-only behavior a peer
+//! outside the window triggers, a support window, a deprecation packet (status, successor, removal
+//! date, migration), a proof packet with freshness SLO, and an owner sign-off, so a family whose
+//! qualification dimension is incomplete, stale, or retest-pending, whose peer is outside the skew
+//! window, whose support window ended, whose deprecation staged a removal, whose waiver expired,
+//! whose owner sign-off is missing, or whose backing claim publication is absent narrows below the
+//! launch cutline and never inherits an adjacent qualified family — while the seven family kinds,
+//! the five qualification dimensions, and the release-blocking family set all stay fully covered,
+//! so docs, release notes, CLI inspect, in-product badges, support exports, certification reports,
+//! and shiproom dashboards reuse one source of truth and can fail promotion directly from the
+//! matrix.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -304,6 +322,7 @@ pub mod freeze_the_cross_surface_hardening_matrix_scorecards_and_evidence_bindin
 pub mod freeze_the_m5_dependency_intelligence_package_health_and_code_quality_parity_matrix;
 pub mod freeze_the_m5_depth_claim_manifest_feature_family_packets_and_qualification_matrix;
 pub mod freeze_the_m5_feature_train_matrix_scorecards_and_dependency_graph;
+pub mod freeze_the_m5_qualification_row_support_window_skew_window_and_deprecation_packet_matrix;
 pub mod freeze_the_m5_release_candidate_publish_target_artifact_bundle_and_exact_build_publication_matrix;
 pub mod freeze_the_m5_rollback_downgrade_claim_narrowing_and_staged_promotion_rules;
 pub mod generate_m5_proof_freshness_backport_and_evidence_expiry_automation_for_depth_trains;
