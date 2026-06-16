@@ -1,0 +1,71 @@
+# Open/save/reveal path-truth gate.
+#
+# Validates the checked-in open/save/reveal path-truth report: every required
+# system-dialog/reveal flow kind (open, save, save_as, reveal_in_system_shell,
+# open_in_default_browser) is projected as one typed flow that preserves the
+# literal target the user selected, the canonical target Aureline resolved, the
+# boundary label, and the overwrite/checkpoint posture in the shared in-product
+# save/restore vocabulary; an in-place overwrite pins an available checkpoint; a
+# writing posture against a read-only boundary and a generated artifact saved in
+# place stay distinct, caught failure classes; a reveal/browser action discloses
+# its external side effect and label; a non-exact path condition offers a
+# recovery action and the missing-canonical-target, network-share-alias,
+# generated-output, and read-only-destination failures stay distinct; and the
+# four incident case exports reproduce from typed diagnostics. The typed Rust
+# consumer mints the same report, so `cargo test -p aureline-workspace` enforces
+# the same structural invariants and that the fixtures are bit-for-bit equal to
+# the seed.
+
+name: check_m5_open_save_reveal
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_open_save_reveal.yml"
+      - "tools/ci/m5/open_save_reveal_check.py"
+      - "schemas/platform/m5-path-boundary.schema.json"
+      - "docs/m5/open-save-reveal-path-truth.md"
+      - "artifacts/platform/m5-open-save-reveal.md"
+      - "fixtures/platform/m5-open-save-reveal/**"
+      - "crates/aureline-workspace/src/m5_open_save_reveal/**"
+      - "crates/aureline-workspace/src/bin/aureline_workspace_m5_open_save_reveal.rs"
+      - "crates/aureline-workspace/src/lib.rs"
+      - "crates/aureline-workspace/tests/m5_open_save_reveal_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-open-save-reveal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_open_save_reveal:
+    name: M5 open save reveal
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 open/save/reveal CI gate
+        run: |
+          python3 tools/ci/m5/open_save_reveal_check.py --repo-root .
+
+      - name: Run M5 open/save/reveal contract tests
+        run: |
+          cargo test -p aureline-workspace --test m5_open_save_reveal_fixtures

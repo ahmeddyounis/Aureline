@@ -1,0 +1,545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-path-boundary.schema.json",
+  "title": "Aureline M5 open/save/reveal path-truth and boundary report",
+  "description": "Boundary schema for the open/save/reveal path-truth report emitted by the aureline-workspace m5_open_save_reveal module. Every system-dialog or reveal flow (open, save, save_as, reveal_in_system_shell, open_in_default_browser) is projected as one typed flow that preserves the export-safe literal target the user selected, the canonical target Aureline resolved, a path_truth_class describing their relationship, a boundary_label (local_writable, remote_adjacent, generated, read_only), the overwrite posture and checkpoint availability in the shared in-product save/restore vocabulary, and the disclosed external side effect of any reveal/browser action. Acceptance: every required flow kind MUST be present; an in-place overwrite MUST pin an available checkpoint and reuse the overwrite-review ref (otherwise overwrite_without_checkpoint_review); a writing posture against a read-only boundary is read_only_write_attempt and a generated artifact saved in place is the distinct generated_treated_as_in_place_save; a reveal/browser action MUST disclose its side effect and label (otherwise reveal_side_effect_hidden); a non-exact path condition MUST offer a recovery action and each condition stays a distinct failure (wrong_target_save, alias_path_confusion, generated_output_unrecoverable, read_only_destination_unrecoverable); every flow MUST carry a literal target, a canonical target, a boundary-label ref, the filesystem-identity and save-coordination refs it reuses, an active-profile owner, a trust checkpoint, the canonical in-product command, a continuity note, a non-empty degraded-state vocabulary, at least one platform, a downgrade rule, and registered_on_path_truth_harness=true; stale evidence on a marketed flow is a blocker; and the report MUST cross-link the filesystem-identity, save-coordination, restore-continuity, native-desktop matrix, system-entry intake, and Help/About surfaces so path, checkpoint, and boundary vocabulary cannot drift independently. This schema is the only boundary contract for the JSON fixtures under fixtures/platform/m5-open-save-reveal/ and the support/case-export wrappers consumed by the CI gate at tools/ci/m5/open_save_reveal_check.py. Records carry no credential bodies or raw filesystem paths -- the literal target is an opaque captured ref only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/open_save_reveal_report_record" },
+    { "$ref": "#/$defs/open_save_reveal_support_export_record" },
+    { "$ref": "#/$defs/open_save_reveal_case_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "workspace:m5_open_save_reveal:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "flow_kind": {
+      "type": "string",
+      "enum": ["open", "save", "save_as", "reveal_in_system_shell", "open_in_default_browser"]
+    },
+    "literal_format": {
+      "type": "string",
+      "enum": ["windows_drive_path", "windows_unc_path", "posix_path", "file_uri", "url", "unknown"]
+    },
+    "path_truth_class": {
+      "type": "string",
+      "enum": [
+        "literal_is_canonical",
+        "canonical_alias_resolved",
+        "boundary_labeled_artifact",
+        "canonical_target_missing"
+      ]
+    },
+    "boundary_label": {
+      "type": "string",
+      "enum": ["local_writable", "remote_adjacent", "generated", "read_only"]
+    },
+    "overwrite_posture": {
+      "type": "string",
+      "enum": [
+        "no_write_action",
+        "create_new_file",
+        "overwrite_with_checkpoint",
+        "overwrite_review_required",
+        "write_blocked_read_only",
+        "export_not_in_place_save"
+      ]
+    },
+    "checkpoint_availability": {
+      "type": "string",
+      "enum": ["pinned", "unavailable", "not_applicable"]
+    },
+    "reveal_side_effect": {
+      "type": "string",
+      "enum": [
+        "no_external_side_effect",
+        "selects_target_in_file_manager",
+        "opens_default_browser"
+      ]
+    },
+    "path_condition": {
+      "type": "string",
+      "enum": [
+        "exact_available",
+        "missing_canonical_target",
+        "network_share_alias",
+        "generated_output",
+        "read_only_destination"
+      ]
+    },
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "choose_different_target",
+        "show_canonical_path",
+        "resolve_share_alias",
+        "reconnect_share",
+        "export_instead_of_save",
+        "regenerate_from_source",
+        "save_writable_copy_elsewhere",
+        "open_read_only",
+        "reveal_parent_folder"
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ]
+    },
+    "failure_mode": {
+      "type": "string",
+      "enum": [
+        "wrong_target_save",
+        "alias_path_confusion",
+        "generated_output_unrecoverable",
+        "read_only_destination_unrecoverable",
+        "overwrite_without_checkpoint_review",
+        "read_only_write_attempt",
+        "generated_treated_as_in_place_save",
+        "reveal_side_effect_hidden",
+        "canonical_path_hidden",
+        "checkpoint_vocabulary_divergence",
+        "trust_evaluation_bypassed"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "wrong_target_save",
+        "alias_path_confusion",
+        "generated_output_unrecoverable",
+        "read_only_destination_unrecoverable",
+        "overwrite_without_checkpoint_review",
+        "read_only_write_attempt",
+        "generated_treated_as_in_place_save",
+        "reveal_side_effect_hidden",
+        "canonical_path_hidden",
+        "checkpoint_vocabulary_divergence",
+        "trust_evaluation_bypassed",
+        "missing_literal_target",
+        "missing_boundary_label",
+        "missing_filesystem_identity_ref",
+        "missing_save_coordination_ref",
+        "missing_active_profile_owner",
+        "missing_canonical_command",
+        "missing_continuity_note",
+        "missing_degraded_state_vocabulary",
+        "missing_claimed_platforms",
+        "missing_downgrade_rule",
+        "stale_evidence_on_marketed_flow",
+        "flow_not_on_harness"
+      ]
+    },
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "flow_id"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" },
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "checkpoint_availability": { "$ref": "#/$defs/checkpoint_availability" },
+        "write_posture": { "$ref": "#/$defs/overwrite_posture" },
+        "flow_kind": { "$ref": "#/$defs/flow_kind" }
+      }
+    },
+    "cross_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filesystem_identity_ref",
+        "save_coordination_ref",
+        "restore_continuity_ref",
+        "native_desktop_matrix_ref",
+        "system_entry_intake_ref",
+        "help_about_ref"
+      ],
+      "properties": {
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "save_coordination_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restore_continuity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "native_desktop_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+        "system_entry_intake_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_about_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "flow_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id",
+        "flow_kind",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "literal_target_ref",
+        "literal_format",
+        "canonical_target_ref",
+        "path_truth_class",
+        "detected_target_kind",
+        "boundary_label",
+        "boundary_label_ref",
+        "write_posture",
+        "checkpoint_availability",
+        "checkpoint_ref",
+        "overwrite_review_ref",
+        "reveal_side_effect",
+        "reveal_action_label_ref",
+        "filesystem_identity_ref",
+        "save_coordination_ref",
+        "active_profile_owner_ref",
+        "trust_checkpoint_ref",
+        "canonical_command_ref",
+        "path_condition",
+        "recovery_actions",
+        "continuity_note",
+        "degraded_state_vocabulary",
+        "claimed_platforms",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "downgrade_rule_ref",
+        "marketed",
+        "registered_on_path_truth_harness"
+      ],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "flow_kind": { "$ref": "#/$defs/flow_kind" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "literal_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "literal_format": { "$ref": "#/$defs/literal_format" },
+        "canonical_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "path_truth_class": { "$ref": "#/$defs/path_truth_class" },
+        "detected_target_kind": { "$ref": "#/$defs/target_kind" },
+        "boundary_label": { "$ref": "#/$defs/boundary_label" },
+        "boundary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "write_posture": { "$ref": "#/$defs/overwrite_posture" },
+        "checkpoint_availability": { "$ref": "#/$defs/checkpoint_availability" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_string" },
+        "overwrite_review_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reveal_side_effect": { "$ref": "#/$defs/reveal_side_effect" },
+        "reveal_action_label_ref": { "$ref": "#/$defs/nullable_string" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "save_coordination_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "path_condition": { "$ref": "#/$defs/path_condition" },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "degraded_state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "evidence_captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "marketed": { "type": "boolean" },
+        "registered_on_path_truth_harness": { "type": "boolean" }
+      }
+    },
+    "flow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "blocking_findings",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workspace_m5_open_save_reveal_flow_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/flow_descriptor" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "finding_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "count"],
+      "properties": {
+        "class": { "type": "string" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_blocking_findings", "by_class"],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "by_class": { "type": "array", "items": { "$ref": "#/$defs/finding_count" } }
+      }
+    },
+    "flow_kind_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_kind", "flow_count"],
+      "properties": {
+        "flow_kind": { "$ref": "#/$defs/flow_kind" },
+        "flow_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "boundary_label_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundary_label", "flow_count", "write_protected_count"],
+      "properties": {
+        "boundary_label": { "$ref": "#/$defs/boundary_label" },
+        "flow_count": { "type": "integer", "minimum": 0 },
+        "write_protected_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "path_condition_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_condition", "flow_count", "recovered_count"],
+      "properties": {
+        "path_condition": { "$ref": "#/$defs/path_condition" },
+        "flow_count": { "type": "integer", "minimum": 0 },
+        "recovered_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "path_truth_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id",
+        "flow_kind",
+        "canonical_target_ref",
+        "path_truth_class",
+        "boundary_label",
+        "write_posture",
+        "path_condition"
+      ],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "flow_kind": { "$ref": "#/$defs/flow_kind" },
+        "canonical_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "path_truth_class": { "$ref": "#/$defs/path_truth_class" },
+        "boundary_label": { "$ref": "#/$defs/boundary_label" },
+        "write_posture": { "$ref": "#/$defs/overwrite_posture" },
+        "path_condition": { "$ref": "#/$defs/path_condition" }
+      }
+    },
+    "narrowable_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow_id", "failure_mode", "reason"],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "failure_mode": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/failure_mode" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "open_save_reveal_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_flow_kinds",
+        "claimed_platforms",
+        "cross_links",
+        "entries",
+        "flow_kind_coverage",
+        "boundary_label_coverage",
+        "path_condition_coverage",
+        "findings_summary",
+        "path_truth_index",
+        "registered_flow_count",
+        "marketed_flow_count",
+        "write_flow_count",
+        "narrowable_marketed_entries",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_m5_open_save_reveal_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_flow_kinds": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/flow_kind" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "cross_links": { "$ref": "#/$defs/cross_links" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/flow_row" }
+        },
+        "flow_kind_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flow_kind_coverage" }
+        },
+        "boundary_label_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_label_coverage" }
+        },
+        "path_condition_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_condition_coverage" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "path_truth_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_truth_index_entry" }
+        },
+        "registered_flow_count": { "type": "integer", "minimum": 0 },
+        "marketed_flow_count": { "type": "integer", "minimum": 0 },
+        "write_flow_count": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_entry" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "open_save_reveal_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_m5_open_save_reveal_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/open_save_reveal_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "open_save_reveal_case_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_export_id",
+        "case_label",
+        "path_condition",
+        "boundary_label",
+        "flow",
+        "recovery_actions",
+        "reproduction_note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "workspace_m5_open_save_reveal_case_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "case_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_label": { "$ref": "#/$defs/non_empty_string" },
+        "path_condition": { "$ref": "#/$defs/path_condition" },
+        "boundary_label": { "$ref": "#/$defs/boundary_label" },
+        "flow": { "$ref": "#/$defs/flow_row" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "reproduction_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

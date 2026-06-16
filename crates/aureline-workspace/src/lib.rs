@@ -33,6 +33,7 @@ pub mod m5_bundle_review_and_rollback;
 pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
+pub mod m5_open_save_reveal;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;
 pub mod mutation_and_generated_artifact_lineage;
@@ -289,6 +290,25 @@ pub use m5_bundle_scorecards::{
     M5_BUNDLE_SCORECARDS_FIXTURE_DIR, M5_BUNDLE_SCORECARDS_JSON, M5_BUNDLE_SCORECARDS_PATH,
     M5_BUNDLE_SCORECARDS_RECORD_KIND, M5_BUNDLE_SCORECARDS_SCHEMA_REF,
     M5_BUNDLE_SCORECARDS_SCHEMA_VERSION,
+};
+
+pub use m5_open_save_reveal::{
+    build_open_save_reveal_report, build_open_save_reveal_row,
+    seeded_open_save_reveal_case_exports, seeded_open_save_reveal_report,
+    validate_open_save_reveal_report, BoundaryLabel, BoundaryLabelCoverage, CheckpointAvailability,
+    DialogFlowKind, EvidenceFreshness as OpenSaveRevealEvidenceFreshness, FlowBlockingFinding,
+    FlowFailureMode, FlowFindingCount, FlowFindingSummary, FlowKindCoverage, FlowNarrowableEntry,
+    OpenSaveRevealCaseExport, OpenSaveRevealCrossLinks, OpenSaveRevealReport,
+    OpenSaveRevealSupportExport, OpenSaveRevealValidationError, OverwritePosture,
+    PathConditionClass, PathConditionCoverage, PathLiteralFormat, PathTruthClass,
+    PathTruthIndexEntry, Platform as OpenSaveRevealPlatform,
+    RecoveryAction as OpenSaveRevealRecoveryAction, RevealSideEffect, SystemDialogFlow,
+    SystemDialogFlowRow, OPEN_SAVE_REVEAL_CASE_EXPORT_RECORD_KIND, OPEN_SAVE_REVEAL_CASE_LABELS,
+    OPEN_SAVE_REVEAL_PUBLISHED_DOC_REF, OPEN_SAVE_REVEAL_PUBLISHED_REPORT_REF,
+    OPEN_SAVE_REVEAL_REPORT_ID, OPEN_SAVE_REVEAL_REPORT_RECORD_KIND,
+    OPEN_SAVE_REVEAL_ROW_RECORD_KIND, OPEN_SAVE_REVEAL_SCHEMA_VERSION,
+    OPEN_SAVE_REVEAL_SHARED_CONTRACT_REF, OPEN_SAVE_REVEAL_SOURCE_SCHEMA_REF,
+    OPEN_SAVE_REVEAL_SUPPORT_EXPORT_ID, OPEN_SAVE_REVEAL_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{
