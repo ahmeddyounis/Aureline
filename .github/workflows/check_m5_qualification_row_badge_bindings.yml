@@ -1,0 +1,70 @@
+# M5 qualification-row badge binding gate.
+#
+# Validates the checked-in register that binds every M5 qualification row to its
+# marketable badge, evaluation pack, compatibility report, and release-center card:
+# every binding joins a real qualification row, the badge carries the published
+# label, support class, evidence freshness, and known caveats, and renders on the
+# product-truth surfaces (release center, Help/About, service health, support
+# export); a badge may never publish wider than the qualification row it binds,
+# which may never exceed the canonical claim; a binding whose evaluation pack,
+# compatibility report, or evidence goes stale or missing, or whose marketable
+# wording over-claims, narrows the badge and holds promotion, while a badge that
+# merely inherits an upstream row narrowing narrows without itself blocking; the
+# promotion verdict and summary agree with the firing stop rules. The gate runs the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same register, so `cargo test -p aureline-release` enforces the same
+# structural invariants.
+
+name: check_m5_qualification_row_badge_bindings
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_qualification_row_badge_bindings.yml"
+      - "artifacts/release/m5/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family.json"
+      - "artifacts/release/captures/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family_validation_capture.json"
+      - "schemas/compat/m5-qualification-row-badge-bindings.schema.json"
+      - "docs/m5/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family.md"
+      - "fixtures/compat/m5-qualification-row-badge-bindings/**"
+      - "tools/regenerate_m5_qualification_row_badge_bindings.py"
+      - "crates/aureline-release/src/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-qualification-row-badge-bindings-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_qualification_row_badge_bindings:
+    name: M5 Qualification-Row Badge Bindings
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 qualification-row badge binding contract tests
+        run: |
+          cargo test -p aureline-release --test bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-qualification-row-badge-bindings-${{ github.run_id }}
+          path: artifacts/release/captures/bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

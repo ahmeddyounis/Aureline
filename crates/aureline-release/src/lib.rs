@@ -299,12 +299,24 @@
 //! so docs, release notes, CLI inspect, in-product badges, support exports, certification reports,
 //! and shiproom dashboards reuse one source of truth and can fail promotion directly from the
 //! matrix.
+//! The qualification-row badge-binding register is the publication layer over that matrix: for
+//! every M5 family it binds the machine-readable qualification row to the marketable artifacts that
+//! advertise it — a support-class badge that carries the published label, support class, live
+//! evidence freshness, and known caveats; an evaluation pack; a compatibility report; and a
+//! release-center card — rendered across a closed surface set that always covers release-center,
+//! Help/About, service-health, and support-export, so freshness and caveats appear wherever a
+//! support-class badge does. A badge may never publish wider than the qualification row it binds,
+//! which in turn may never exceed the canonical claim, and the badge auto-narrows to inherit the
+//! row when its evaluation pack, compatibility report, or evidence goes stale or missing or when
+//! marketable wording would exceed the row; an inherited row narrowing narrows the badge while a
+//! binding-layer failure holds promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts;
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
+pub mod bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family;
 pub mod browser_mobile_companion_surface_qualification;
 pub mod certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows;
 pub mod certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index;
