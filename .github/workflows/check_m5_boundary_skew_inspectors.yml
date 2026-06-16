@@ -1,0 +1,71 @@
+# M5 boundary skew-inspector gate.
+#
+# Validates the checked-in M5 mixed-version boundary skew-inspector register: every
+# inspector binds a boundary-crossing flow (helper/agent attach, extension/runtime
+# load, workspace-state import/restore, provider snapshot/open) to the version skew
+# it inspects, the mutating-or-privileged action it gates, the verdict it reports
+# before that action, the helper/agent/host/schema/provider downgrade subject, a
+# structured upgrade-order guide, and the stable claim it backs. A boundary whose
+# verdict is fail-closed (unsupported skew, reconnect required, reinstall required,
+# migration needed, or retest pending), whose declared skew class is unsupported, or
+# whose inspector evidence is stale, missing, on an expired waiver, unsigned, or whose
+# backing claim publication is missing must drop below the stable cutline; the gate
+# allows the action exactly when the verdict is inside-window; a skew-recovery verdict
+# must carry an upgrade-order guide; and the promotion verdict and summary agree with
+# the firing stop rules. The gate runs the checked-in fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same register, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_boundary_skew_inspectors
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_boundary_skew_inspectors.yml"
+      - "artifacts/release/m5/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries.json"
+      - "artifacts/release/captures/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries_validation_capture.json"
+      - "schemas/compat/m5-boundary-skew-inspectors.schema.json"
+      - "docs/m5/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries.md"
+      - "fixtures/compat/m5-boundary-skew-inspectors/**"
+      - "tools/regenerate_m5_boundary_skew_inspectors.py"
+      - "crates/aureline-release/src/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-boundary-skew-inspectors-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_boundary_skew_inspectors:
+    name: M5 Boundary Skew Inspectors
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 boundary skew-inspector contract tests
+        run: |
+          cargo test -p aureline-release --test ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-boundary-skew-inspectors-${{ github.run_id }}
+          path: artifacts/release/captures/ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
