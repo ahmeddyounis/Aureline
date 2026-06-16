@@ -27,12 +27,21 @@
 //! repository-compliance/third-party-import controls, the emergency
 //! signing/registry/security authority, and the continuity rules — and narrows a
 //! lane the moment any of that thins out.
+//!
+//! On top of that matrix it embeds the versioned, per-family boundary-manifest
+//! register ([`m5_versioned_boundary_manifests`]): the canonical, inspectable record
+//! that publishes — per claimed M5 family and per manifest version — which
+//! capabilities stay open/local, which may be productized, what guardrails preserve
+//! the claim, which residual proprietary/hosted dependencies remain, and the release
+//! train each manifest is linked to, narrowing the moment release-link parity, a
+//! disclosure, or a guardrail thins out.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
 pub mod interchange_matrix;
 pub mod interface_freeze;
 pub mod m5_boundary_and_upstream_durability;
+pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
 pub mod telemetry_support_usage_registry;
 
@@ -59,6 +68,17 @@ pub use m5_boundary_and_upstream_durability::{
     SupportClass, Waiver, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_JSON,
     M5_BOUNDARY_AND_UPSTREAM_DURABILITY_PATH, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_RECORD_KIND,
     M5_BOUNDARY_AND_UPSTREAM_DURABILITY_SCHEMA_VERSION,
+};
+pub use m5_versioned_boundary_manifests::{
+    current_m5_versioned_boundary_manifests, BoundaryManifest, BoundaryManifestRegister,
+    DependencyClass, Guardrail, GuardrailKind, GuardrailRule, GuardrailState, LaneDisposition,
+    M5Family, ManifestAction, ManifestCutline, ManifestLaneEntry, ManifestReason, ManifestReuseRow,
+    ManifestState, ManifestSummary, Publication as VersionedBoundaryPublication,
+    PublicationDecision as VersionedBoundaryPublicationDecision, RegisterViolation, ReleaseLink,
+    ReleaseLinkParity, ReleaseLinkState, ResidualDependency,
+    SourceContractRefs as VersionedBoundarySourceContractRefs,
+    M5_VERSIONED_BOUNDARY_MANIFESTS_JSON, M5_VERSIONED_BOUNDARY_MANIFESTS_PATH,
+    M5_VERSIONED_BOUNDARY_MANIFESTS_RECORD_KIND, M5_VERSIONED_BOUNDARY_MANIFESTS_SCHEMA_VERSION,
 };
 pub use schema_registry::{
     load_default_record_class_registry, load_default_schema_registry, validate_default_registries,

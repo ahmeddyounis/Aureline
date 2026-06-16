@@ -1,0 +1,72 @@
+# Versioned, per-family boundary-manifest register gate.
+#
+# Validates the checked-in register that publishes, per claimed M5 family and per manifest
+# version, which capabilities stay open/local, which may be productized, the guardrails
+# preserving the claim, the residual proprietary/hosted dependencies the family still rests
+# on, and the release train each manifest is linked to. A manifest is published only when its
+# release link is present and fresh, its declared label is in parity with the train evidence,
+# every residual dependency is disclosed, every guardrail holds, the proof is fresh, and the
+# owner signed; otherwise it narrows on the specific axis that thinned out (a release-link gap,
+# a parity break, an undisclosed dependency, an unsatisfied guardrail, or stale proof) and
+# drops its effective label below the launch cutline — the axes never collapse into one global
+# flag. No manifest may publish a label greener than its release evidence, and no narrowed
+# manifest may publish wider than it declares. An inherited or waived narrowing is gated
+# upstream, while a manifest-layer failure on a still-stable family holds publication; the
+# publication verdict, release-link parity, and summary agree with the firing stop rules. The
+# gate runs the protected fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same register, so `cargo test -p aureline-governance` enforces the same structural
+# invariants.
+
+name: check_m5_versioned_boundary_manifests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_versioned_boundary_manifests.yml"
+      - "artifacts/governance/m5-versioned-boundary-manifests.json"
+      - "artifacts/governance/captures/m5-versioned-boundary-manifests_validation_capture.json"
+      - "schemas/governance/m5-versioned-boundary-manifests.schema.json"
+      - "docs/m5/publish_versioned_per_family_boundary_manifests_with_asset_lanes_guardrails_residual_dependency_disclosure_and_release_link_parity.md"
+      - "fixtures/governance/m5-versioned-boundary-manifests/**"
+      - "tools/regenerate_m5_versioned_boundary_manifests.py"
+      - "crates/aureline-governance/src/m5_versioned_boundary_manifests/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_versioned_boundary_manifests.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-versioned-boundary-manifests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_versioned_boundary_manifests:
+    name: M5 Versioned Boundary Manifests
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run versioned-boundary-manifest register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_versioned_boundary_manifests
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-versioned-boundary-manifests-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-versioned-boundary-manifests_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
