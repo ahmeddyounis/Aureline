@@ -351,6 +351,7 @@ pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_au
 pub mod bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family;
 pub mod browser_mobile_companion_surface_qualification;
 pub mod certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows;
+pub mod certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family;
 pub mod certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index;
 pub mod claim_publication_manifest;
 pub mod correction_train;
@@ -656,6 +657,15 @@ pub use certify_artifact_graph_publication_exact_build_provenance_rollback_revoc
     StopAction as PublicationCertStopAction, SupportDisclosure as PublicationCertSupportDisclosure,
     TrustTier as PublicationCertTrustTier, M5_PUBLICATION_CERT_JSON, M5_PUBLICATION_CERT_PATH,
     M5_PUBLICATION_CERT_RECORD_KIND, M5_PUBLICATION_CERT_SCHEMA_VERSION,
+};
+
+pub use certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family::{
+    current_m5_family_certification, CertificationPillar, CertificationPillarKind,
+    CertificationReason, CertificationState, CertificationStopAction, CertificationStopRule,
+    CertificationSummary, CertificationValidityWindow, CertificationViolation,
+    FamilyCertificationExportProjection, FamilyCertificationExportRow, FamilyCertificationPacket,
+    M5FamilyCertificationRegister, M5_FAMILY_CERTIFICATION_JSON, M5_FAMILY_CERTIFICATION_PATH,
+    M5_FAMILY_CERTIFICATION_RECORD_KIND, M5_FAMILY_CERTIFICATION_SCHEMA_VERSION,
 };
 
 pub use certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index::{

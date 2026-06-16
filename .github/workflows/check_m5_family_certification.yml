@@ -1,0 +1,75 @@
+# M5 per-family certification gate.
+#
+# Validates the checked-in register that certifies every claimed M5 stable-facing
+# family. For each family it binds the four governance pillars the source documents
+# treat as the public contract — the qualification-matrix row, the mixed-version skew
+# window, the diff/deprecation packet, and the claim-publication entry — into one
+# certification packet and decides whether the family may carry a certified Stable claim
+# or is narrowed. The pillars never collapse into one global flag: each carries its own
+# freshness state, so a stale qualification dimension narrows the family on the
+# qualification pillar while the skew and claim pillars stay current. A certified family
+# reuses the public claim's published label and support class verbatim (claim-manifest
+# parity) and rides all four pillars current inside an open validity window with owner
+# sign-off; a family may never certify a greener label or broader support class than its
+# public claim. An inherited row downgrade is gated by the matrix and the claim manifest,
+# while a certification-layer failure (a stale or missing pillar, a stale/missing proof
+# packet, a broken claim parity, a missing diff report, an expired window or waiver, or a
+# missing sign-off) on a still-stable public claim narrows the certified claim and holds
+# promotion; the promotion verdict and summary agree with the firing stop rules. The gate
+# runs the checked-in fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same register, so `cargo test -p aureline-release` enforces the same
+# structural invariants.
+
+name: check_m5_family_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_family_certification.yml"
+      - "artifacts/release/m5/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family.json"
+      - "artifacts/release/captures/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family_validation_capture.json"
+      - "schemas/compat/m5-family-certification.schema.json"
+      - "docs/m5/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family.md"
+      - "fixtures/compat/m5-family-certification/**"
+      - "tools/regenerate_m5_family_certification.py"
+      - "crates/aureline-release/src/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-family-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_family_certification:
+    name: M5 Family Certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 per-family certification contract tests
+        run: |
+          cargo test -p aureline-release --test certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-family-certification-${{ github.run_id }}
+          path: artifacts/release/captures/certify_qualification_matrix_truth_mixed_version_deprecation_governance_and_claim_publication_automation_on_every_claimed_m5_family_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
