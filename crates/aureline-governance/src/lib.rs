@@ -36,13 +36,23 @@
 //! train each manifest is linked to, narrowing the moment release-link parity, a
 //! disclosure, or a guardrail thins out.
 //!
-//! Finally it embeds the repository-compliance and notice-binding register
+//! It embeds the repository-compliance and notice-binding register
 //! ([`m5_compliance_and_notice_binding`]): the canonical, inspectable record that
 //! publishes — per claimed M5 artifact family, docs pack, and mirrored output — the
 //! DCO/CLA contribution-provenance lane truth, the REUSE/SPDX file-level licensing
 //! coverage, the third-party notice-inventory state, and the SBOM/notice binding, holding
 //! the repository-compliance scan in parity with the user/admin notice/SBOM surface and
 //! narrowing the moment provenance, licensing, notices, the SBOM, or the mirror thins out.
+//!
+//! Finally it embeds the import-provenance and fork-review register
+//! ([`m5_import_provenance_and_fork_review`]): the canonical, inspectable record that
+//! publishes — per protected-path import used by an M5 family — the import provenance
+//! (origin attribution, SPDX license, upstream pin), the update ownership, the divergence
+//! profile, the sponsor/fork/replace decision for long-lived forks and single-source
+//! imports, and the generated-code generator identity and regeneration path, holding the
+//! dependency-health/import scan in parity with the user/admin import surface and narrowing
+//! the moment provenance, ownership, a divergence review, a decision, or generated-code
+//! provenance thins out.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
@@ -50,6 +60,7 @@ pub mod interchange_matrix;
 pub mod interface_freeze;
 pub mod m5_boundary_and_upstream_durability;
 pub mod m5_compliance_and_notice_binding;
+pub mod m5_import_provenance_and_fork_review;
 pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
 pub mod telemetry_support_usage_registry;
@@ -91,6 +102,19 @@ pub use m5_compliance_and_notice_binding::{
     SourceContractRefs as ComplianceNoticeSourceContractRefs,
     M5_COMPLIANCE_AND_NOTICE_BINDING_JSON, M5_COMPLIANCE_AND_NOTICE_BINDING_PATH,
     M5_COMPLIANCE_AND_NOTICE_BINDING_RECORD_KIND, M5_COMPLIANCE_AND_NOTICE_BINDING_SCHEMA_VERSION,
+};
+pub use m5_import_provenance_and_fork_review::{
+    current_m5_import_provenance_and_fork_review, ControlDimension as ImportControlDimension,
+    ControlState as ImportControlState, DecisionDisposition, DecisionRecord, DecisionState,
+    DivergenceProfile, DivergenceReviewState, DivergenceState, GeneratorProvenance, ImportAction,
+    ImportControl, ImportCutline, ImportKind, ImportProvenance, ImportReason, ImportRecord,
+    ImportRegister, ImportReuseRow, ImportRule, ImportState, ImportSummary, LicenseState,
+    ManifestSurfaceParity, OriginState, OwnershipState, Posture as ImportPosture,
+    Publication as ImportPublication, PublicationDecision as ImportPublicationDecision,
+    RegisterViolation as ImportRegisterViolation, SourceContractRefs as ImportSourceContractRefs,
+    UpdateOwnership, UpstreamPinState, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_JSON,
+    M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_PATH, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_RECORD_KIND,
+    M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_SCHEMA_VERSION,
 };
 pub use m5_versioned_boundary_manifests::{
     current_m5_versioned_boundary_manifests, BoundaryManifest, BoundaryManifestRegister,

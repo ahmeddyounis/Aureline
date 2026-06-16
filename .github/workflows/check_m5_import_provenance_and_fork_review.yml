@@ -1,0 +1,73 @@
+# Import-provenance and local-fork review register gate.
+#
+# Validates the checked-in register that publishes, per protected-path import used by an M5
+# family, the import provenance (origin attribution, SPDX license, upstream pin), the update
+# ownership, the divergence profile, the sponsor/fork/replace decision for long-lived forks
+# and single-source imports, and the generated-code generator identity and regeneration path.
+# A record is cleared only when provenance holds, the import is owned, any required divergence
+# review is current, any required decision is recorded, generated-code provenance is complete,
+# the proof is fresh, and the owner signed; otherwise it narrows on the specific axis that
+# thinned out (a provenance gap, an ownership gap, a divergence/decision gap, a generator gap,
+# or stale proof) and drops its effective label below the launch cutline — the axes never
+# collapse into one global flag. The dependency-health/import scan and the user/admin import
+# surface must agree on every record, so a clean import card can never mask an ownerless,
+# unattributed, or generator-free import, and no narrowed record may publish wider than it
+# declares. An inherited or waived narrowing is gated upstream, while an import-layer failure
+# on a still-stable subject holds promotion; the promotion verdict, manifest/surface parity,
+# and summary agree with the firing stop rules. The gate runs the protected fixture cases
+# proving those rejections fire. The typed Rust consumer reads the same register, so
+# `cargo test -p aureline-governance` enforces the same structural invariants.
+
+name: check_m5_import_provenance_and_fork_review
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_import_provenance_and_fork_review.yml"
+      - "artifacts/governance/m5-import-provenance-and-fork-review.json"
+      - "artifacts/governance/captures/m5-import-provenance-and-fork-review_validation_capture.json"
+      - "schemas/governance/m5-import-provenance-and-fork-review.schema.json"
+      - "docs/m5/track_third_party_import_provenance_generated_code_records_and_local_fork_sponsor_replace_decisions_for_protected_m5_dependencies.md"
+      - "fixtures/governance/m5-import-provenance-and-fork-review/**"
+      - "tools/regenerate_m5_import_provenance_and_fork_review.py"
+      - "crates/aureline-governance/src/m5_import_provenance_and_fork_review/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_import_provenance_and_fork_review.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-import-provenance-and-fork-review-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_import_provenance_and_fork_review:
+    name: M5 Import Provenance And Fork Review
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run import-provenance and fork-review register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_import_provenance_and_fork_review
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-import-provenance-and-fork-review-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-import-provenance-and-fork-review_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
