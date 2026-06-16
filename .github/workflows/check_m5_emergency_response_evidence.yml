@@ -1,0 +1,78 @@
+# Emergency-response evidence register gate.
+#
+# Validates the checked-in register that publishes, per protected M5 ecosystem/release lane and
+# emergency packet (signed security advisory, extension/provider revocation, emergency-disable
+# bundle, and high-severity postmortem), the packet-template binding, the hosted/mirror/offline
+# distribution reach, the action attribution, the reversibility, the audit trail (markers and
+# post-incident reconciliation for break-glass or high-severity actions), and the release/support
+# evidence linkage. A record is cleared only when the packet template is bound, every claimed
+# channel carries current evidence, the action is attributable, a reversible action has its reversal
+# runbook, the audit trail is complete, the evidence is linked to release/support, the proof is
+# fresh, and the owner signed; otherwise it narrows on the specific axis that thinned out (a
+# template, distribution-reach, attribution, reversibility, audit, linkage, or stale-proof gap) and
+# drops its effective label below the launch cutline — the axes never collapse into one global flag.
+# The response scan and the service-health/release-center/support surface must agree on every
+# record, so a green emergency-response card can never mask a mirror/offline customer that never
+# received the evidence, an unattributable break-glass action, or a side-channel-only disable, and
+# no narrowed record may publish wider than it declares. An inherited or waived narrowing is gated
+# upstream, while a response failure on a still-stable subject holds promotion: a protected lane
+# whose advisory/revocation/disable evidence did not reach a claimed mirror/offline customer, or
+# whose break-glass action bypassed audit/reconciliation, may not widen a stable claim without
+# coverage. The promotion verdict, scan/surface parity, and summary agree with the firing stop
+# rules. The gate runs the protected fixture cases proving those rejections fire. The typed Rust
+# consumer reads the same register, so `cargo test -p aureline-governance` enforces the same
+# structural invariants.
+
+name: check_m5_emergency_response_evidence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_emergency_response_evidence.yml"
+      - "artifacts/governance/m5-emergency-response-evidence.json"
+      - "artifacts/governance/captures/m5-emergency-response-evidence_validation_capture.json"
+      - "schemas/governance/m5-emergency-response-evidence.schema.json"
+      - "docs/m5/ship_advisory_templates_extension_provider_revocation_packets_emergency_disable_bundles_mirror_propagation_drills_and_offline_import_response_evidence_for_m5_ecosystem_release_lanes.md"
+      - "fixtures/governance/m5-emergency-response-evidence/**"
+      - "tools/regenerate_m5_emergency_response_evidence.py"
+      - "crates/aureline-governance/src/m5_emergency_response_evidence/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_emergency_response_evidence.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-emergency-response-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_emergency_response_evidence:
+    name: M5 Emergency Response Evidence
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run emergency-response evidence register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_emergency_response_evidence
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-emergency-response-evidence-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-emergency-response-evidence_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

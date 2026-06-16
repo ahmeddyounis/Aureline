@@ -74,6 +74,19 @@
 //! backup, quorum, runbook, split-authority/escalation, or proof axis thins out — so a protected
 //! signing, registry, or security-response lane that is effectively single-owner or lacks current
 //! runbook coverage cannot widen a stable claim by accident.
+//!
+//! Finally it embeds the emergency-response evidence register
+//! ([`m5_emergency_response_evidence`]): the canonical, inspectable record that publishes — per
+//! protected M5 ecosystem/release lane and emergency packet (signed security advisory,
+//! extension/provider revocation, emergency-disable bundle, and high-severity postmortem) — the
+//! packet-template binding, the hosted/mirror/offline distribution reach, the action attribution,
+//! the reversibility, the audit trail (markers and post-incident reconciliation for break-glass or
+//! high-severity actions), and the release/support evidence linkage, holding the response scan in
+//! parity with the service-health/release-center/support surface and narrowing the moment a
+//! template, distribution-reach, attribution, reversibility, audit, linkage, or proof axis thins
+//! out — so a protected lane whose advisory/revocation/disable evidence did not reach a claimed
+//! mirror/offline customer, or whose break-glass action bypassed audit/reconciliation, cannot widen
+//! a stable claim by accident.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
@@ -82,6 +95,7 @@ pub mod interface_freeze;
 pub mod m5_boundary_and_upstream_durability;
 pub mod m5_compliance_and_notice_binding;
 pub mod m5_critical_upstream_health;
+pub mod m5_emergency_response_evidence;
 pub mod m5_import_provenance_and_fork_review;
 pub mod m5_release_authority_continuity;
 pub mod m5_versioned_boundary_manifests;
@@ -141,6 +155,21 @@ pub use m5_critical_upstream_health::{
     UpstreamKind, UpstreamOwnership, M5_CRITICAL_UPSTREAM_HEALTH_JSON,
     M5_CRITICAL_UPSTREAM_HEALTH_PATH, M5_CRITICAL_UPSTREAM_HEALTH_RECORD_KIND,
     M5_CRITICAL_UPSTREAM_HEALTH_SCHEMA_VERSION,
+};
+pub use m5_emergency_response_evidence::{
+    current_m5_emergency_response_evidence, Attribution, AttributionState, AuditTrail,
+    ChannelEvidence, ChannelState, ControlDimension as EmergencyResponseControlDimension,
+    ControlState as EmergencyResponseControlState, DistributionChannel, DistributionReach,
+    EmergencyResponseEvidenceRegister, EmergencyResponseRecord, EmergencyResponseReuseRow,
+    EvidenceLinkage, LinkageState, PacketKind, PacketTemplate, Posture as EmergencyResponsePosture,
+    Publication as EmergencyResponsePublication,
+    PublicationDecision as EmergencyResponsePublicationDecision, ReconciliationState,
+    RegisterViolation as EmergencyResponseRegisterViolation, ResponseAction, ResponseControl,
+    ResponseCutline, ResponseReason, ResponseRule, ResponseState, ResponseSummary, Reversibility,
+    ReversibilityState, ScanSurfaceParity as EmergencyResponseScanSurfaceParity, Severity,
+    SourceContractRefs as EmergencyResponseSourceContractRefs, TemplateState,
+    M5_EMERGENCY_RESPONSE_EVIDENCE_JSON, M5_EMERGENCY_RESPONSE_EVIDENCE_PATH,
+    M5_EMERGENCY_RESPONSE_EVIDENCE_RECORD_KIND, M5_EMERGENCY_RESPONSE_EVIDENCE_SCHEMA_VERSION,
 };
 pub use m5_import_provenance_and_fork_review::{
     current_m5_import_provenance_and_fork_review, ControlDimension as ImportControlDimension,
