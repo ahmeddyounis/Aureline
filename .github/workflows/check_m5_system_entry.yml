@@ -1,0 +1,72 @@
+# System-open and file-association intake gate.
+#
+# Validates the checked-in system-entry intake report: every required
+# OS-initiated intake kind (file, folder, workspace, review-link, patch-bundle,
+# provider-return) is projected as one typed intake that preserves the literal
+# target the OS handed over, the canonical target Aureline detected, and the
+# intended verb and resulting mode resolved through the same project-entry
+# vocabulary the in-product Open/Clone/Import/Restore/Resume flows use; an
+# entry-flow intake provably reuses the canonical resolver and a routed intake
+# names its reviewed surface; anything wider than a plain local read is gated
+# behind an explicit interstitial (a silent scope widen and a silent provider
+# mutation stay distinct, caught failure classes); a non-exact target offers a
+# recovery action and the wrong-target, unavailable-path, and policy-block
+# failures stay distinct; and the four incident case exports (wrong-association,
+# moved-target, mixed-root, policy-blocked) reproduce from typed diagnostics.
+# The typed Rust consumer mints the same report, so `cargo test -p
+# aureline-shell` enforces the same structural invariants and that the fixtures
+# are bit-for-bit equal to the seed.
+
+name: check_m5_system_entry
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_system_entry.yml"
+      - "tools/ci/m5/system_entry_check.py"
+      - "schemas/platform/m5-system-entry.schema.json"
+      - "docs/m5/system-open-and-file-association.md"
+      - "artifacts/platform/m5-system-open-and-file-association.md"
+      - "fixtures/platform/m5-system-entry/**"
+      - "crates/aureline-shell/src/m5_system_entry/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_system_entry.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_system_entry_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-system-entry-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_system_entry:
+    name: M5 system entry
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 system-entry CI gate
+        run: |
+          python3 tools/ci/m5/system_entry_check.py --repo-root .
+
+      - name: Run M5 system-entry contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_system_entry_fixtures

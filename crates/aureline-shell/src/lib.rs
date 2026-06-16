@@ -124,6 +124,7 @@ pub mod m5_native_desktop;
 pub mod m5_notification_routes;
 pub mod m5_rollout_governance;
 pub mod m5_start_center_and_switcher;
+pub mod m5_system_entry;
 pub mod macros;
 pub mod managed_boundary;
 pub mod managed_truth;
