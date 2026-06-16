@@ -1,0 +1,72 @@
+# M5 claim-publication manifest gate.
+#
+# Validates the checked-in register that binds every claimed M5 stable-facing
+# family to one claim-publication manifest — the exact marketable wording, support
+# class, scope caveats, validity window, backing report refs, and the closed set of
+# consuming destinations it drives (website/docs, release notes, in-product badge,
+# CLI inspect, evaluation pack, admin export). Every destination must render from
+# the one manifest id with the same published label, support class, and wording, so
+# there is no hand-maintained copy to drift and a narrowed manifest downgrades every
+# consuming surface at once. A manifest may never publish wider than the
+# qualification row it binds, which may never exceed the canonical claim; stale,
+# missing, dropped, or unsigned evidence, an expired validity window, or
+# over-claiming wording narrows the claim and holds promotion, while a manifest that
+# merely inherits an upstream row narrowing narrows without itself blocking; the
+# promotion verdict and summary agree with the firing stop rules. The gate runs the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer
+# reads the same register, so `cargo test -p aureline-release` enforces the same
+# structural invariants.
+
+name: check_m5_claim_publication_manifests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_claim_publication_manifests.yml"
+      - "artifacts/release/m5/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth.json"
+      - "artifacts/release/captures/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth_validation_capture.json"
+      - "schemas/compat/m5-claim-publication-manifests.schema.json"
+      - "docs/m5/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth.md"
+      - "fixtures/compat/m5-claim-publication-manifests/**"
+      - "tools/regenerate_m5_claim_publication_manifests.py"
+      - "crates/aureline-release/src/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-claim-publication-manifests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_claim_publication_manifests:
+    name: M5 Claim-Publication Manifests
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 claim-publication manifest contract tests
+        run: |
+          cargo test -p aureline-release --test add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-claim-publication-manifests-${{ github.run_id }}
+          path: artifacts/release/captures/add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

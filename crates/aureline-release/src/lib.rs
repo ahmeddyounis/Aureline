@@ -315,6 +315,7 @@
 
 pub mod add_about_help_service_health_provenance_cards_with_signature_attestation_sbom_symbol_rollback_state_and_exact_build_identity_convergence_for_m5_artifacts;
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
+pub mod add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod bind_qualification_rows_to_marketable_badges_evaluation_packs_and_compatibility_reports_for_every_m5_family;
 pub mod browser_mobile_companion_surface_qualification;
@@ -629,6 +630,17 @@ pub use claim_publication_manifest::{
     PublicationAction as ClaimPublicationAction, ReportFamily, SupportClass as ClaimSupportClass,
     SurfaceProjection, CLAIM_PUBLICATION_MANIFEST_JSON, CLAIM_PUBLICATION_MANIFEST_PATH,
     CLAIM_PUBLICATION_MANIFEST_RECORD_KIND, CLAIM_PUBLICATION_MANIFEST_SCHEMA_VERSION,
+};
+
+pub use add_claim_publication_manifests_and_automatic_claim_narrowing_so_docs_release_notes_badges_cli_inspect_and_evaluation_packs_reuse_one_source_of_truth::{
+    current_m5_claim_publication_manifests, M5ClaimDestination, M5ClaimDestinationRendering,
+    M5ClaimManifestState, M5ClaimNarrowingReason, M5ClaimPublication,
+    M5ClaimPublicationExportProjection, M5ClaimPublicationExportRow, M5ClaimPublicationRegister,
+    M5ClaimPublicationStopRule, M5ClaimPublicationSummary, M5ClaimPublicationViolation,
+    M5ClaimReportKind, M5ClaimReportRef, M5ClaimReportState, M5ClaimStopAction,
+    M5ClaimValidityWindow, M5PublishedClaim, M5_CLAIM_PUBLICATION_MANIFESTS_JSON,
+    M5_CLAIM_PUBLICATION_MANIFESTS_PATH, M5_CLAIM_PUBLICATION_MANIFESTS_RECORD_KIND,
+    M5_CLAIM_PUBLICATION_MANIFESTS_SCHEMA_VERSION,
 };
 pub use correction_train::{
     BackportDecision, BackportMatrixRow, CorrectionEvidence, CorrectionItem, CorrectionRisk,
