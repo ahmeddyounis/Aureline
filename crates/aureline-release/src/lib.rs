@@ -288,6 +288,7 @@ pub mod add_about_help_service_health_provenance_cards_with_signature_attestatio
 pub mod add_backport_and_hotfix_rules_proof_freshness_automation_and_help_about_truth_updates_for_m5_lanes;
 pub mod add_community_locale_pack_lifecycle_translation_governance_and_parity_audits_for_new_m5_surfaces;
 pub mod browser_mobile_companion_surface_qualification;
+pub mod certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows;
 pub mod certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index;
 pub mod claim_publication_manifest;
 pub mod correction_train;
@@ -529,6 +530,21 @@ pub use publish_docs_migration_and_known_limits_packs_for_m5_feature_families::{
     SurfaceKind as FamilyPackSurfaceKind, SurfaceState as FamilyPackSurfaceState,
     TrustTier as FamilyPackTrustTier, PUBLICATION_PACK_JSON, PUBLICATION_PACK_PATH,
     PUBLICATION_PACK_RECORD_KIND, PUBLICATION_PACK_SCHEMA_VERSION,
+};
+
+pub use certify_artifact_graph_publication_exact_build_provenance_rollback_revocation_parity_and_mirror_offline_release_truth_on_all_claimed_m5_rows::{
+    current_m5_publication_cert_register, AutomationState as PublicationCertAutomationState,
+    AutomationTrigger as PublicationCertAutomationTrigger, CertState,
+    DimensionCell as PublicationCertDimensionCell,
+    DimensionGrade as PublicationCertDimensionGrade,
+    DowngradeAutomation as PublicationCertDowngradeAutomation,
+    M5PublicationCertExportProjection, M5PublicationCertExportRow, M5PublicationCertRegister,
+    M5PublicationCertRow, M5PublicationCertStopRule, M5PublicationCertSummary,
+    M5PublicationCertViolation, MirrorOfflineParity,
+    NarrowingReason as PublicationCertNarrowingReason, PublicationDimension, PublishTargetPosture,
+    StopAction as PublicationCertStopAction, SupportDisclosure as PublicationCertSupportDisclosure,
+    TrustTier as PublicationCertTrustTier, M5_PUBLICATION_CERT_JSON, M5_PUBLICATION_CERT_PATH,
+    M5_PUBLICATION_CERT_RECORD_KIND, M5_PUBLICATION_CERT_SCHEMA_VERSION,
 };
 
 pub use certify_the_full_m5_train_narrow_stale_rows_and_publish_the_canonical_evidence_index::{
