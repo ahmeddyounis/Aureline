@@ -87,6 +87,16 @@
 //! out — so a protected lane whose advisory/revocation/disable evidence did not reach a claimed
 //! mirror/offline customer, or whose break-glass action bypassed audit/reconciliation, cannot widen
 //! a stable claim by accident.
+//!
+//! Finally it embeds the open-durability certification register
+//! ([`m5_open_durability_certification`]): the canonical, inspectable record that certifies — per
+//! claimed M5 ecosystem/release row — all six durability axes at once (the published open-boundary
+//! manifest, the REUSE/SPDX/notice/SBOM compliance, the attributed and owned imports, the signer
+//! quorum and non-single-person emergency authority, the current emergency-response drill, and the
+//! healthy and owned critical upstreams), narrowing the moment any one axis thins out and holding
+//! promotion on a still-stable row that depends on a hidden proprietary baseline, an ownerless
+//! critical import, or a single-person emergency authority — so a green certification card can never
+//! mask a row that one of the per-axis registers would have failed.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
@@ -97,6 +107,7 @@ pub mod m5_compliance_and_notice_binding;
 pub mod m5_critical_upstream_health;
 pub mod m5_emergency_response_evidence;
 pub mod m5_import_provenance_and_fork_review;
+pub mod m5_open_durability_certification;
 pub mod m5_release_authority_continuity;
 pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
@@ -183,6 +194,22 @@ pub use m5_import_provenance_and_fork_review::{
     UpdateOwnership, UpstreamPinState, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_JSON,
     M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_PATH, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_RECORD_KIND,
     M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_SCHEMA_VERSION,
+};
+pub use m5_open_durability_certification::{
+    current_m5_open_durability_certification, AuthorityBinding, AuthorityEvidenceState,
+    BoundaryBinding, BoundaryEvidenceState, CertificationAction, CertificationControl,
+    CertificationCutline, CertificationReason, CertificationRecord, CertificationReuseRow,
+    CertificationRule, CertificationState, CertificationSummary, ComplianceBinding,
+    ComplianceEvidenceState, ControlDimension as CertificationControlDimension,
+    ControlState as CertificationControlState, EmergencyBinding, EmergencyEvidenceState,
+    ImportBinding, ImportEvidenceState, OpenDurabilityCertificationRegister,
+    Posture as CertificationPosture, Publication as CertificationPublication,
+    PublicationDecision as CertificationPublicationDecision,
+    RegisterViolation as CertificationRegisterViolation, RowKind,
+    ScanSurfaceParity as CertificationScanSurfaceParity,
+    SourceContractRefs as CertificationSourceContractRefs, UpstreamBinding, UpstreamEvidenceState,
+    M5_OPEN_DURABILITY_CERTIFICATION_JSON, M5_OPEN_DURABILITY_CERTIFICATION_PATH,
+    M5_OPEN_DURABILITY_CERTIFICATION_RECORD_KIND, M5_OPEN_DURABILITY_CERTIFICATION_SCHEMA_VERSION,
 };
 pub use m5_release_authority_continuity::{
     current_m5_release_authority_continuity, AuthorityContinuityRecord,

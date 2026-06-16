@@ -1,0 +1,76 @@
+# Open-durability certification register gate.
+#
+# Validates the checked-in register that certifies, per claimed M5 ecosystem/release row, all six
+# open-durability axes at once: the published and release-linked open-boundary manifest (with no
+# hidden proprietary baseline), the current REUSE/SPDX licensing with bound notice inventory and
+# SBOM, the attributed third-party/generated import provenance with every critical import owned, the
+# met signer quorum with a non-single-person emergency authority, the current advisory/revocation/
+# disable drill evidence, and the healthy and owned critical upstreams. A record is certified only
+# when every axis holds, the certification proof is fresh, and the owner signed; otherwise it narrows
+# on the specific axis that thinned out (a boundary, compliance, import, authority, emergency,
+# upstream, or stale-proof gap) and drops its effective label below the launch cutline — the axes
+# never collapse into one global flag. The certification scan and the service-health/release-center/
+# support surface must agree on every record, so a green certification card can never mask a hidden
+# proprietary baseline, an ownerless critical import, a single-person emergency authority, a stale
+# notice/SBOM, an uncovered drill, or an unhealthy upstream, and no narrowed record may publish wider
+# than it declares. An inherited or waived narrowing is gated upstream, while a certification failure
+# on a still-stable row holds promotion: a row that depends on a hidden proprietary baseline, an
+# ownerless critical import, or a single-person emergency authority may not widen a stable claim
+# without an approved plan. The promotion verdict, scan/surface parity, and summary agree with the
+# firing stop rules. The gate runs the protected fixture cases proving those rejections fire. The
+# typed Rust consumer reads the same register, so `cargo test -p aureline-governance` enforces the
+# same structural invariants.
+
+name: check_m5_open_durability_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_open_durability_certification.yml"
+      - "artifacts/governance/m5-open-durability-certification.json"
+      - "artifacts/governance/captures/m5-open-durability-certification_validation_capture.json"
+      - "schemas/governance/m5-open-durability-certification.schema.json"
+      - "docs/m5/certify_open_boundary_publication_repository_compliance_import_durability_signing_quorum_and_critical_upstream_continuity_on_every_claimed_m5_ecosystem_and_release_row.md"
+      - "fixtures/governance/m5-open-durability-certification/**"
+      - "tools/regenerate_m5_open_durability_certification.py"
+      - "crates/aureline-governance/src/m5_open_durability_certification/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_open_durability_certification.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-open-durability-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_open_durability_certification:
+    name: M5 Open Durability Certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run open-durability certification register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_open_durability_certification
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-open-durability-certification-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-open-durability-certification_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
