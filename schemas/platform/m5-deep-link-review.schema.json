@@ -1,0 +1,549 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-deep-link-review.schema.json",
+  "title": "Aureline M5 auth-callback and deep-link review report",
+  "description": "Boundary schema for the callback-review report emitted by the aureline-auth m5_callback_and_deep_link_review module. Every callback or deep-link return (auth-provider callback, protocol deep link, review handoff link, collaboration join link, managed resume link, remote mutation link) is projected as one typed entry that discloses who asked (a source class plus a spoof-resistant origin-assurance class), what scope they requested (the requested action class, the workspace and tenant scope refs, the authority scope, and whether authority is broader than a plain local open), why the user is asked to confirm or reject (any authority wider than a plain local open requires an explicit confirm/reject sheet), and how local intent survives a failure (a denied, wrong-origin, expired, or stale return lands on a recovery sheet with bounded recovery actions). Acceptance: every required entry kind MUST be present; at least one entry MUST provably reuse the in-product authority path; any scope wider than a plain local open MUST be gated behind a confirm/reject sheet (a silent authority widen is a silent_authority_widen blocker and a silent remote mutation is a distinct silent_remote_mutation blocker); an admitted return MUST carry a verified origin (an admitted origin_unverified return is an origin_verification_bypassed blocker); a denied return MUST offer a recovery action and each denial class stays a distinct failure (wrong_origin_looks_like_auth_failure, expired_silent_no_op, stale_state_unsurfaced, policy_denial_dead_end); a return that puts local intent at risk is a local_continuity_lost blocker and a raw URL or token leak is a raw_target_leak blocker; every entry MUST carry a disclosed origin, a target identity, a pending-correlation alias, an expiry, an active-profile owner, a trust checkpoint, the canonical in-product command, a continuity note, a non-empty degraded-state vocabulary, at least one platform, a downgrade rule, redaction_safe=true, and registered_on_callback_review_harness=true; stale evidence on a marketed entry is a blocker; and the report MUST cross-link the browser-handoff, embedded-boundary, provider-origin, auth-recovery, system-entry, and entry-interstitial packets so trust vocabulary cannot drift independently. This schema is the only boundary contract for the JSON fixtures under fixtures/platform/m5-callback-and-deep-link/ and the support/case-export wrappers consumed by the CI gate at tools/ci/m5/callback_and_deep_link_check.py. Records carry no credential bodies, raw provider payloads, raw URLs, or raw tokens -- every origin, target, and correlation is an opaque export-safe ref only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/callback_review_report_record" },
+    { "$ref": "#/$defs/callback_review_support_export_record" },
+    { "$ref": "#/$defs/callback_review_case_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "auth:m5_callback_and_deep_link_review:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "type": ["string", "null"]
+    },
+    "entry_kind": {
+      "type": "string",
+      "enum": [
+        "auth_provider_callback",
+        "protocol_deep_link",
+        "review_handoff_link",
+        "collaboration_join_link",
+        "managed_resume_link",
+        "remote_mutation_link"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "system_default_browser_return",
+        "registered_protocol_handler",
+        "first_party_web_return",
+        "trusted_companion_app",
+        "external_provider",
+        "collaboration_service",
+        "unknown_untrusted"
+      ]
+    },
+    "origin_assurance": {
+      "type": "string",
+      "enum": [
+        "strict_origin_matched",
+        "loopback_port_pinned",
+        "deep_link_scheme_pinned",
+        "device_code_poll_matched",
+        "first_party_signed_link",
+        "origin_unverified"
+      ]
+    },
+    "requested_action": {
+      "type": "string",
+      "enum": [
+        "open_existing_local_context",
+        "inspect_review_item",
+        "resume_pending_sign_in",
+        "join_collaboration",
+        "resume_managed_action",
+        "open_remote_mutation",
+        "widen_authority"
+      ]
+    },
+    "authority_scope": {
+      "type": "string",
+      "enum": [
+        "plain_local_open",
+        "crosses_boundary_read_only",
+        "workspace_collaboration_join",
+        "widens_to_managed_authority",
+        "widens_to_provider_mutation"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "denied_wrong_origin",
+        "denied_expired",
+        "denied_stale",
+        "denied_by_policy"
+      ]
+    },
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "retry_in_system_browser",
+        "continue_local_without_callback",
+        "return_to_pending_sign_in",
+        "show_origin_mismatch_detail",
+        "return_to_review_surface",
+        "request_fresh_link",
+        "show_policy_block_detail",
+        "keep_local_work_and_dismiss"
+      ]
+    },
+    "local_continuity": {
+      "type": "string",
+      "enum": [
+        "local_intent_preserved",
+        "local_work_intact_managed_narrowed",
+        "local_continuity_at_risk"
+      ]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "failure_mode": {
+      "type": "string",
+      "enum": [
+        "silent_authority_widen",
+        "silent_remote_mutation",
+        "origin_verification_bypassed",
+        "wrong_origin_looks_like_auth_failure",
+        "expired_silent_no_op",
+        "stale_state_unsurfaced",
+        "policy_denial_dead_end",
+        "local_continuity_lost",
+        "raw_target_leak"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "silent_authority_widen",
+        "silent_remote_mutation",
+        "origin_verification_bypassed",
+        "wrong_origin_looks_like_auth_failure",
+        "expired_silent_no_op",
+        "stale_state_unsurfaced",
+        "policy_denial_dead_end",
+        "local_continuity_lost",
+        "raw_target_leak",
+        "missing_disclosed_origin",
+        "missing_target_identity",
+        "missing_pending_correlation",
+        "missing_expiry",
+        "missing_active_profile_owner",
+        "trust_evaluation_bypassed",
+        "missing_canonical_command",
+        "missing_confirm_reject_sheet",
+        "missing_continuity_note",
+        "missing_degraded_state_vocabulary",
+        "missing_claimed_platforms",
+        "missing_downgrade_rule",
+        "stale_evidence_on_marketed_entry",
+        "entry_not_on_harness"
+      ]
+    },
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "entry_id"],
+      "properties": {
+        "class": { "$ref": "#/$defs/finding_class" },
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "authority_scope": { "$ref": "#/$defs/authority_scope" },
+        "outcome": { "$ref": "#/$defs/outcome" }
+      }
+    },
+    "cross_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "browser_handoff_ref",
+        "embedded_boundary_ref",
+        "provider_origin_ref",
+        "auth_recovery_ref",
+        "system_entry_ref",
+        "entry_interstitial_ref"
+      ],
+      "properties": {
+        "browser_handoff_ref": { "$ref": "#/$defs/non_empty_string" },
+        "embedded_boundary_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provider_origin_ref": { "$ref": "#/$defs/non_empty_string" },
+        "auth_recovery_ref": { "$ref": "#/$defs/non_empty_string" },
+        "system_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "entry_interstitial_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "entry_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_kind",
+        "source_class",
+        "origin_assurance",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "disclosed_origin_ref",
+        "requested_action",
+        "target_identity_ref",
+        "workspace_scope_ref",
+        "tenant_scope_ref",
+        "authority_scope",
+        "widens_authority",
+        "requires_confirm_reject",
+        "confirm_reject_sheet_ref",
+        "pending_correlation_ref",
+        "expiry_at",
+        "active_profile_owner_ref",
+        "trust_checkpoint_ref",
+        "canonical_command_ref",
+        "outcome",
+        "recovery_actions",
+        "local_continuity",
+        "continuity_note",
+        "degraded_state_vocabulary",
+        "claimed_platforms",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "downgrade_rule_ref",
+        "redaction_safe",
+        "marketed",
+        "registered_on_callback_review_harness"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "origin_assurance": { "$ref": "#/$defs/origin_assurance" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "disclosed_origin_ref": { "$ref": "#/$defs/non_empty_string" },
+        "requested_action": { "$ref": "#/$defs/requested_action" },
+        "target_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_scope_ref": { "$ref": "#/$defs/nullable_string" },
+        "tenant_scope_ref": { "$ref": "#/$defs/nullable_string" },
+        "authority_scope": { "$ref": "#/$defs/authority_scope" },
+        "widens_authority": { "type": "boolean" },
+        "requires_confirm_reject": { "type": "boolean" },
+        "confirm_reject_sheet_ref": { "$ref": "#/$defs/nullable_string" },
+        "pending_correlation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "expiry_at": { "$ref": "#/$defs/non_empty_string" },
+        "active_profile_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "local_continuity": { "$ref": "#/$defs/local_continuity" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "degraded_state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "evidence_captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_safe": { "type": "boolean" },
+        "marketed": { "type": "boolean" },
+        "registered_on_callback_review_harness": { "type": "boolean" }
+      }
+    },
+    "confirm_reject_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_scope",
+        "confirm_reject_required",
+        "confirm_reject_enforced",
+        "routes_to_canonical_command",
+        "action_scope_consistent",
+        "reuses_in_product_authority_path"
+      ],
+      "properties": {
+        "authority_scope": { "$ref": "#/$defs/authority_scope" },
+        "confirm_reject_required": { "type": "boolean" },
+        "confirm_reject_enforced": { "type": "boolean" },
+        "routes_to_canonical_command": { "type": "boolean" },
+        "action_scope_consistent": { "type": "boolean" },
+        "reuses_in_product_authority_path": { "type": "boolean" },
+        "divergence_note": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "entry_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "confirm_reject_outcome",
+        "blocking_findings",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_callback_and_deep_link_review_entry_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/entry_descriptor" },
+        "confirm_reject_outcome": { "$ref": "#/$defs/confirm_reject_outcome" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "finding_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "count"],
+      "properties": {
+        "class": { "type": "string" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_blocking_findings", "by_class"],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "by_class": { "type": "array", "items": { "$ref": "#/$defs/finding_count" } }
+      }
+    },
+    "kind_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_kind", "entry_count"],
+      "properties": {
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "entry_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scope_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority_scope", "entry_count", "gated_behind_confirm_reject"],
+      "properties": {
+        "authority_scope": { "$ref": "#/$defs/authority_scope" },
+        "entry_count": { "type": "integer", "minimum": 0 },
+        "gated_behind_confirm_reject": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "disposition_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_kind",
+        "disclosed_origin_ref",
+        "requested_action",
+        "authority_scope",
+        "outcome",
+        "requires_confirm_reject"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "disclosed_origin_ref": { "$ref": "#/$defs/non_empty_string" },
+        "requested_action": { "$ref": "#/$defs/requested_action" },
+        "authority_scope": { "$ref": "#/$defs/authority_scope" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "requires_confirm_reject": { "type": "boolean" }
+      }
+    },
+    "narrowable_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "failure_mode", "reason"],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "failure_mode": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/failure_mode" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "callback_review_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_entry_kinds",
+        "claimed_platforms",
+        "cross_links",
+        "entries",
+        "entry_kind_coverage",
+        "authority_scope_coverage",
+        "findings_summary",
+        "disposition_index",
+        "registered_entry_count",
+        "marketed_entry_count",
+        "confirm_reject_parity_count",
+        "narrowable_marketed_entries",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_callback_and_deep_link_review_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_entry_kinds": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/entry_kind" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "cross_links": { "$ref": "#/$defs/cross_links" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/entry_row" }
+        },
+        "entry_kind_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kind_coverage" }
+        },
+        "authority_scope_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_coverage" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "disposition_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disposition_entry" }
+        },
+        "registered_entry_count": { "type": "integer", "minimum": 0 },
+        "marketed_entry_count": { "type": "integer", "minimum": 0 },
+        "confirm_reject_parity_count": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_entry" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "callback_review_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_callback_and_deep_link_review_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/callback_review_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "callback_review_case_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_export_id",
+        "case_label",
+        "outcome",
+        "entry",
+        "recovery_actions",
+        "reproduction_note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_callback_and_deep_link_review_case_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "case_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_label": { "$ref": "#/$defs/non_empty_string" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "entry": { "$ref": "#/$defs/entry_row" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "reproduction_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

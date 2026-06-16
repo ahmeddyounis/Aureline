@@ -132,6 +132,7 @@ pub mod finalize_no_account_local_use_proof_deprovision_preserves;
 pub mod identity_modes;
 pub mod keychain_state;
 pub mod m5_auth_and_recovery;
+pub mod m5_callback_and_deep_link_review;
 pub mod m5_secret_boundary_depth;
 pub mod network_trust;
 pub mod offline_entitlements;
@@ -479,6 +480,27 @@ pub use m5_auth_and_recovery::{
     PasskeyPosture, ProfileChannel, SurfaceTruthRow as M5AuthSurfaceTruthRow,
     M5_AUTH_AND_RECOVERY_RECORD_KIND, M5_AUTH_AND_RECOVERY_SCHEMA_VERSION,
     M5_AUTH_AND_RECOVERY_SHARED_CONTRACT_REF,
+};
+
+// `AuthorityScopeClass` is intentionally not re-exported here because the name
+// is already bound at the crate root by `system_browser::beta`; reach the
+// callback-review variant through `m5_callback_and_deep_link_review`.
+pub use m5_callback_and_deep_link_review::{
+    build_callback_review_report, build_callback_review_row, seeded_callback_review_case_exports,
+    seeded_callback_review_report, validate_callback_review_report, CallbackEntryKind,
+    CallbackEvidenceFreshness, CallbackFailureMode, CallbackOutcomeClass, CallbackRecoveryAction,
+    CallbackReviewBlockingFinding, CallbackReviewCaseExport, CallbackReviewCrossLinks,
+    CallbackReviewDescriptor, CallbackReviewDispositionEntry, CallbackReviewFindingCount,
+    CallbackReviewFindingSummary, CallbackReviewKindCoverage, CallbackReviewNarrowableEntry,
+    CallbackReviewPlatform, CallbackReviewReport, CallbackReviewRow, CallbackReviewScopeCoverage,
+    CallbackReviewSupportExport, CallbackReviewValidationError, CallbackSourceClass,
+    ConfirmRejectOutcome, LocalContinuityPosture, OriginAssuranceClass, RequestedActionClass,
+    CALLBACK_REVIEW_CASE_EXPORT_RECORD_KIND, CALLBACK_REVIEW_CASE_LABELS,
+    CALLBACK_REVIEW_PUBLISHED_DOC_REF, CALLBACK_REVIEW_PUBLISHED_REPORT_REF,
+    CALLBACK_REVIEW_REPORT_ID, CALLBACK_REVIEW_REPORT_RECORD_KIND, CALLBACK_REVIEW_ROW_RECORD_KIND,
+    CALLBACK_REVIEW_SCHEMA_VERSION, CALLBACK_REVIEW_SHARED_CONTRACT_REF,
+    CALLBACK_REVIEW_SOURCE_SCHEMA_REF, CALLBACK_REVIEW_SUPPORT_EXPORT_ID,
+    CALLBACK_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use finalize_no_account_local_use_proof_deprovision_preserves::{

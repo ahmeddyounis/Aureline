@@ -1,0 +1,72 @@
+# Auth-callback and deep-link review gate.
+#
+# Validates the checked-in callback-review report: every required callback or
+# deep-link entry kind (auth-provider callback, protocol deep link, review
+# handoff link, collaboration join link, managed resume link, remote mutation
+# link) is projected as one typed entry that discloses who asked (a source class
+# plus a spoof-resistant origin-assurance class), what scope they requested (the
+# requested action, the workspace/tenant scope, the authority scope, and whether
+# authority is broader than a plain local open), and why the user is asked to
+# confirm or reject; any authority wider than a plain local open is gated behind
+# a confirm/reject sheet (a silent authority widen and a silent remote mutation
+# stay distinct, caught failure classes); an admitted return carries a verified
+# origin; a denied return offers a recovery action and the wrong-origin,
+# expired, stale, and policy denials stay distinct; and the four incident case
+# exports (wrong-origin, expired, stale, denied) reproduce from typed
+# diagnostics. The typed Rust consumer mints the same report, so `cargo test -p
+# aureline-auth` enforces the same structural invariants and that the fixtures
+# are bit-for-bit equal to the seed.
+
+name: check_m5_callback_and_deep_link
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_callback_and_deep_link.yml"
+      - "tools/ci/m5/callback_and_deep_link_check.py"
+      - "schemas/platform/m5-deep-link-review.schema.json"
+      - "docs/m5/auth-callback-and-protocol-handlers.md"
+      - "artifacts/platform/m5-auth-callback-and-deep-link.md"
+      - "fixtures/platform/m5-callback-and-deep-link/**"
+      - "crates/aureline-auth/src/m5_callback_and_deep_link_review/**"
+      - "crates/aureline-auth/src/bin/aureline_auth_m5_callback_and_deep_link_review.rs"
+      - "crates/aureline-auth/src/lib.rs"
+      - "crates/aureline-auth/tests/m5_callback_and_deep_link_review_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-callback-and-deep-link-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_callback_and_deep_link:
+    name: M5 callback and deep-link review
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 callback and deep-link CI gate
+        run: |
+          python3 tools/ci/m5/callback_and_deep_link_check.py --repo-root .
+
+      - name: Run M5 callback and deep-link contract tests
+        run: |
+          cargo test -p aureline-auth --test m5_callback_and_deep_link_review_fixtures
