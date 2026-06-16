@@ -16,15 +16,23 @@
 //! interface surfaces are open, soft-frozen, or hard-frozen for Beta, and what
 //! exception classes may move a frozen surface.
 //!
-//! Finally it embeds the stable telemetry, support-export, and usage-export
+//! It embeds the stable telemetry, support-export, and usage-export
 //! registry ([`telemetry_support_usage_registry`]): the per-family endpoint-policy
 //! truth, consent posture, retention notes, redaction profile references, and M4
 //! governance dimensions that make emitted payloads first-class product contracts.
+//!
+//! Finally it embeds the open/local-boundary and upstream-durability matrix
+//! ([`m5_boundary_and_upstream_durability`]): the canonical, inspectable record
+//! that freezes, per asset lane, the open-versus-paid boundary posture, the
+//! repository-compliance/third-party-import controls, the emergency
+//! signing/registry/security authority, and the continuity rules — and narrows a
+//! lane the moment any of that thins out.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
 pub mod interchange_matrix;
 pub mod interface_freeze;
+pub mod m5_boundary_and_upstream_durability;
 pub mod schema_registry;
 pub mod telemetry_support_usage_registry;
 
@@ -40,6 +48,17 @@ pub use interface_freeze::{
     InterfaceFreezeRow, InterfaceFreezeSummary, InterfaceFreezeViolation, RecordedFreezeException,
     SurfaceClass, VersionSource, INTERFACE_FREEZE_REGISTER_JSON, INTERFACE_FREEZE_REGISTER_PATH,
     INTERFACE_FREEZE_REGISTER_RECORD_KIND, INTERFACE_FREEZE_REGISTER_SCHEMA_VERSION,
+};
+pub use m5_boundary_and_upstream_durability::{
+    current_m5_boundary_and_upstream_durability, AssetLane, BackupCoverage, BoundaryCutline,
+    BoundaryDurabilityMatrix, BoundaryDurabilityRow, BoundaryPosture, BoundaryReuseRow,
+    ContinuityCoverage, ControlBinding, ControlDimension, ControlState, CriticalUpstream,
+    DurabilityReason, DurabilityState, EmergencyAuthority, FreshnessSlo, FreshnessSloState,
+    GovernanceRule, LifecycleLabel, MatrixAction, MatrixSummary, MatrixViolation, OwnerSignoff,
+    ProofPacket, Publication, PublicationDecision, RiskClass, SignerQuorum, SourceContractRefs,
+    SupportClass, Waiver, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_JSON,
+    M5_BOUNDARY_AND_UPSTREAM_DURABILITY_PATH, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_RECORD_KIND,
+    M5_BOUNDARY_AND_UPSTREAM_DURABILITY_SCHEMA_VERSION,
 };
 pub use schema_registry::{
     load_default_record_class_registry, load_default_schema_registry, validate_default_registries,

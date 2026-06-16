@@ -1,0 +1,69 @@
+# Open/local-boundary and upstream-durability matrix gate.
+#
+# Validates the checked-in matrix that freezes, per asset lane, the open-versus-paid
+# boundary posture, the repository-compliance and third-party-import controls, the
+# emergency signing/registry/security authority, and the continuity rules. A lane is
+# durable only when every axis holds; otherwise it narrows on the specific axis that
+# thinned out (boundary drift, a compliance gap, an authority gap, a continuity gap, or
+# stale proof) and drops its effective label below the launch cutline — the axes never
+# collapse into one global flag. A must-remain-open lane may only carry an open-baseline
+# posture, and no narrowed lane may publish wider than it declares. An inherited or waived
+# narrowing is gated upstream, while a durability-layer failure on a still-stable lane
+# holds publication; the publication verdict and summary agree with the firing stop rules.
+# The gate runs the protected fixture cases proving those rejections fire. The typed Rust
+# consumer reads the same matrix, so `cargo test -p aureline-governance` enforces the same
+# structural invariants.
+
+name: check_m5_boundary_and_upstream_durability
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_boundary_and_upstream_durability.yml"
+      - "artifacts/governance/m5-boundary-and-upstream-durability.json"
+      - "artifacts/governance/captures/m5-boundary-and-upstream-durability_validation_capture.json"
+      - "schemas/governance/m5-boundary-and-upstream-durability.schema.json"
+      - "docs/m5/freeze_the_m5_open_boundary_repository_compliance_third_party_import_and_maintainer_signer_durability_matrix.md"
+      - "fixtures/governance/m5-boundary-and-upstream-durability/**"
+      - "tools/regenerate_m5_boundary_and_upstream_durability.py"
+      - "crates/aureline-governance/src/m5_boundary_and_upstream_durability/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_boundary_and_upstream_durability.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-boundary-and-upstream-durability-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_boundary_and_upstream_durability:
+    name: M5 Boundary And Upstream Durability
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run boundary/durability matrix contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_boundary_and_upstream_durability
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-boundary-and-upstream-durability-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-boundary-and-upstream-durability_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
