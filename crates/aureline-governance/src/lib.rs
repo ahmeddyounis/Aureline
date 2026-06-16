@@ -35,12 +35,21 @@
 //! the claim, which residual proprietary/hosted dependencies remain, and the release
 //! train each manifest is linked to, narrowing the moment release-link parity, a
 //! disclosure, or a guardrail thins out.
+//!
+//! Finally it embeds the repository-compliance and notice-binding register
+//! ([`m5_compliance_and_notice_binding`]): the canonical, inspectable record that
+//! publishes — per claimed M5 artifact family, docs pack, and mirrored output — the
+//! DCO/CLA contribution-provenance lane truth, the REUSE/SPDX file-level licensing
+//! coverage, the third-party notice-inventory state, and the SBOM/notice binding, holding
+//! the repository-compliance scan in parity with the user/admin notice/SBOM surface and
+//! narrowing the moment provenance, licensing, notices, the SBOM, or the mirror thins out.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
 pub mod interchange_matrix;
 pub mod interface_freeze;
 pub mod m5_boundary_and_upstream_durability;
+pub mod m5_compliance_and_notice_binding;
 pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
 pub mod telemetry_support_usage_registry;
@@ -68,6 +77,20 @@ pub use m5_boundary_and_upstream_durability::{
     SupportClass, Waiver, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_JSON,
     M5_BOUNDARY_AND_UPSTREAM_DURABILITY_PATH, M5_BOUNDARY_AND_UPSTREAM_DURABILITY_RECORD_KIND,
     M5_BOUNDARY_AND_UPSTREAM_DURABILITY_SCHEMA_VERSION,
+};
+pub use m5_compliance_and_notice_binding::{
+    current_m5_compliance_and_notice_binding, ClaState, ComplianceAction, ComplianceControl,
+    ComplianceCutline, CompliancePosture, ComplianceReason, ComplianceRecord, ComplianceRegister,
+    ComplianceReuseRow, ComplianceRule, ComplianceState, ComplianceSummary, ContributionProvenance,
+    ControlDimension as ComplianceControlDimension, ControlState as ComplianceControlState,
+    DcoState, LicensingCoverage, MirrorBinding, NoticeInventory, NoticeState,
+    Publication as ComplianceNoticePublication,
+    PublicationDecision as ComplianceNoticePublicationDecision,
+    RegisterViolation as ComplianceRegisterViolation, SbomBindingState, SbomFormat,
+    SbomNoticeBinding, ScanSurfaceParity, ScopeKind,
+    SourceContractRefs as ComplianceNoticeSourceContractRefs,
+    M5_COMPLIANCE_AND_NOTICE_BINDING_JSON, M5_COMPLIANCE_AND_NOTICE_BINDING_PATH,
+    M5_COMPLIANCE_AND_NOTICE_BINDING_RECORD_KIND, M5_COMPLIANCE_AND_NOTICE_BINDING_SCHEMA_VERSION,
 };
 pub use m5_versioned_boundary_manifests::{
     current_m5_versioned_boundary_manifests, BoundaryManifest, BoundaryManifestRegister,

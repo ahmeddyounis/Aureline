@@ -1,0 +1,72 @@
+# Repository-compliance and notice-binding register gate.
+#
+# Validates the checked-in register that publishes, per claimed M5 artifact family, docs
+# pack, and mirrored output, the DCO/CLA contribution-provenance lane truth, the REUSE/SPDX
+# file-level licensing coverage, the third-party notice-inventory state, and the SBOM/notice
+# binding. A record is cleared only when provenance holds, licensing coverage is complete,
+# the notice inventory is complete, the SBOM is present and bound, the mirror is fresh, the
+# proof is fresh, and the owner signed; otherwise it narrows on the specific axis that thinned
+# out (a provenance gap, a licensing gap, a notice gap, an SBOM/binding gap, a stale mirror, or
+# stale proof) and drops its effective label below the launch cutline — the axes never collapse
+# into one global flag. The repository-compliance scan and the user/admin notice/SBOM surface
+# must agree on every record, so a green SBOM can never mask a missing notice or a licensing
+# gap, and no narrowed record may publish wider than it declares. An inherited or waived
+# narrowing is gated upstream, while a compliance-layer failure on a still-stable subject holds
+# promotion; the promotion verdict, scan/surface parity, and summary agree with the firing stop
+# rules. The gate runs the protected fixture cases proving those rejections fire. The typed Rust
+# consumer reads the same register, so `cargo test -p aureline-governance` enforces the same
+# structural invariants.
+
+name: check_m5_compliance_and_notice_binding
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_compliance_and_notice_binding.yml"
+      - "artifacts/governance/m5-compliance-and-notice-binding.json"
+      - "artifacts/governance/captures/m5-compliance-and-notice-binding_validation_capture.json"
+      - "schemas/governance/m5-compliance-and-notice-binding.schema.json"
+      - "docs/m5/ship_dco_cla_lane_truth_reuse_spdx_compliance_views_notice_inventories_and_sbom_notice_binding_across_m5_artifacts_docs_packs_and_mirrored_outputs.md"
+      - "fixtures/governance/m5-compliance-and-notice-binding/**"
+      - "tools/regenerate_m5_compliance_and_notice_binding.py"
+      - "crates/aureline-governance/src/m5_compliance_and_notice_binding/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_compliance_and_notice_binding.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-compliance-and-notice-binding-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_compliance_and_notice_binding:
+    name: M5 Compliance And Notice Binding
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run compliance-and-notice-binding register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_compliance_and_notice_binding
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-compliance-and-notice-binding-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-compliance-and-notice-binding_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
