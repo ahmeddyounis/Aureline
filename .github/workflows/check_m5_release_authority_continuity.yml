@@ -1,0 +1,75 @@
+# Release-authority continuity register gate.
+#
+# Validates the checked-in register that publishes, per protected M5 authority lane (release
+# signing, promotion approval, registry moderation, and security response), the named primary and
+# backup owners, the signer/approval/operator/responder roster and its quorum, the split-authority
+# requirement, the backup-runbook coverage, and the shiproom escalation required for critical or
+# single-owner lanes. A record is cleared only when the lane has a named primary and backup owner,
+# its roster meets quorum, the runbook is current (or only due for review), split authority is
+# enforced where required, any required shiproom escalation is raised, the proof is fresh, and the
+# owner signed; otherwise it narrows on the specific axis that thinned out (an owner, backup,
+# quorum, runbook, authority/escalation, or stale-proof gap) and drops its effective label below
+# the launch cutline — the axes never collapse into one global flag. The continuity scan and the
+# governance-dashboard/promotion-packet surface must agree on every record, so a green authority
+# card can never mask a single-owner, under-quorum, or runbook-less lane, and no narrowed record
+# may publish wider than it declares. An inherited or waived narrowing is gated upstream, while a
+# continuity failure on a still-stable subject holds promotion: a single-owner, under-quorum, or
+# runbook-less protected signing, registry, or security-response lane may not widen a stable claim
+# without coverage. The promotion verdict, scan/surface parity, and summary agree with the firing
+# stop rules. The gate runs the protected fixture cases proving those rejections fire. The typed
+# Rust consumer reads the same register, so `cargo test -p aureline-governance` enforces the same
+# structural invariants.
+
+name: check_m5_release_authority_continuity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_release_authority_continuity.yml"
+      - "artifacts/governance/m5-release-authority-continuity.json"
+      - "artifacts/governance/captures/m5-release-authority-continuity_validation_capture.json"
+      - "schemas/governance/m5-release-authority-continuity.schema.json"
+      - "docs/m5/expose_signer_rosters_split_authority_promotion_quorum_registry_moderation_and_security_response_owner_backup_and_runbook_continuity_across_m5_release_lanes.md"
+      - "fixtures/governance/m5-release-authority-continuity/**"
+      - "tools/regenerate_m5_release_authority_continuity.py"
+      - "crates/aureline-governance/src/m5_release_authority_continuity/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_release_authority_continuity.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-release-authority-continuity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_release_authority_continuity:
+    name: M5 Release Authority Continuity
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run release-authority continuity register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_release_authority_continuity
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-release-authority-continuity-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-release-authority-continuity_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

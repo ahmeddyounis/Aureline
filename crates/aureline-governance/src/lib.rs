@@ -63,6 +63,17 @@
 //! the governance-dashboard/promotion-packet surface and narrowing the moment maintainer health,
 //! security, cadence, license, ownership, or proof thins out — so a red-risk or unowned
 //! protected-path dependency cannot widen a stable claim without an approved plan.
+//!
+//! Finally it embeds the release-authority continuity register
+//! ([`m5_release_authority_continuity`]): the canonical, inspectable record that publishes — per
+//! protected M5 authority lane (release signing, promotion approval, registry moderation, and
+//! security response) — the named primary and backup owners, the signer/approval/operator/responder
+//! roster and its quorum, the split-authority requirement, the backup-runbook coverage, and the
+//! shiproom escalation required for critical or single-owner lanes, holding the continuity scan in
+//! parity with the governance-dashboard/promotion-packet surface and narrowing the moment an owner,
+//! backup, quorum, runbook, split-authority/escalation, or proof axis thins out — so a protected
+//! signing, registry, or security-response lane that is effectively single-owner or lacks current
+//! runbook coverage cannot widen a stable claim by accident.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
@@ -72,6 +83,7 @@ pub mod m5_boundary_and_upstream_durability;
 pub mod m5_compliance_and_notice_binding;
 pub mod m5_critical_upstream_health;
 pub mod m5_import_provenance_and_fork_review;
+pub mod m5_release_authority_continuity;
 pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
 pub mod telemetry_support_usage_registry;
@@ -142,6 +154,23 @@ pub use m5_import_provenance_and_fork_review::{
     UpdateOwnership, UpstreamPinState, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_JSON,
     M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_PATH, M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_RECORD_KIND,
     M5_IMPORT_PROVENANCE_AND_FORK_REVIEW_SCHEMA_VERSION,
+};
+pub use m5_release_authority_continuity::{
+    current_m5_release_authority_continuity, AuthorityContinuityRecord,
+    AuthorityContinuityReuseRow, AuthorityLane, BackupCoverage as ContinuityBackupCoverage,
+    BackupState, ContinuityAction, ContinuityControl, ContinuityCutline, ContinuityReason,
+    ContinuityRule, ContinuityState, ContinuitySummary,
+    ControlDimension as ContinuityControlDimension, ControlState as ContinuityControlState,
+    EscalationState as ContinuityEscalationState, LaneCriticality, OwnerCoverage, OwnerState,
+    Posture as ContinuityPosture, Publication as ContinuityPublication,
+    PublicationDecision as ContinuityPublicationDecision, QuorumState,
+    RegisterViolation as ContinuityRegisterViolation, ReleaseAuthorityContinuityRegister,
+    RosterKind, RosterProfile, RunbookCoverage, RunbookState,
+    ScanSurfaceParity as ContinuityScanSurfaceParity,
+    ShiproomEscalation as ContinuityShiproomEscalation,
+    SourceContractRefs as ContinuitySourceContractRefs, SplitAuthority, SplitAuthorityState,
+    M5_RELEASE_AUTHORITY_CONTINUITY_JSON, M5_RELEASE_AUTHORITY_CONTINUITY_PATH,
+    M5_RELEASE_AUTHORITY_CONTINUITY_RECORD_KIND, M5_RELEASE_AUTHORITY_CONTINUITY_SCHEMA_VERSION,
 };
 pub use m5_versioned_boundary_manifests::{
     current_m5_versioned_boundary_manifests, BoundaryManifest, BoundaryManifestRegister,
