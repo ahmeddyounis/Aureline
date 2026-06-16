@@ -1,0 +1,72 @@
+# M5 private evaluation/pilot evidence-pack gate.
+#
+# Validates the checked-in register that packages enterprise and ecosystem
+# evaluation/pilot materials on top of the public claim-publication manifest — a
+# named bundle id and its mirror refs, the support contacts, the known-issues
+# deltas, the deployment caveats, and the public claim entry it reuses. A pack may
+# never publish a greener label or broader support class than its public claim, a
+# published pack reuses the public wording verbatim, every known-issues delta is
+# disclosed, and every partner-facing destination (evaluation pack, pilot packet,
+# admin export, support export) must render from the one pack, so a narrowed pack
+# downgrades every partner surface at once. "Pilot-only" wording can never bypass a
+# support-class limit or stale evidence: an inherited public-claim narrowing
+# downgrades the surfaces but is gated by the claim manifest, while a pack-layer
+# failure on a still-stable public claim holds promotion; the promotion verdict and
+# summary agree with the firing stop rules. The gate runs the checked-in fixture
+# cases proving those rejections fire. The typed Rust consumer reads the same
+# register, so `cargo test -p aureline-release` enforces the same structural
+# invariants.
+
+name: check_m5_evaluation_pilot_packs
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_evaluation_pilot_packs.yml"
+      - "artifacts/release/m5/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes.json"
+      - "artifacts/release/captures/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes_validation_capture.json"
+      - "schemas/compat/m5-evaluation-pilot-packs.schema.json"
+      - "docs/m5/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes.md"
+      - "fixtures/compat/m5-evaluation-pilot-packs/**"
+      - "tools/regenerate_m5_evaluation_pilot_packs.py"
+      - "crates/aureline-release/src/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-evaluation-pilot-packs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_evaluation_pilot_packs:
+    name: M5 Evaluation/Pilot Packs
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 evaluation/pilot-pack contract tests
+        run: |
+          cargo test -p aureline-release --test ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-evaluation-pilot-packs-${{ github.run_id }}
+          path: artifacts/release/captures/ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

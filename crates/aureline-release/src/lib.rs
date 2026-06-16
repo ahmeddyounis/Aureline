@@ -310,6 +310,21 @@
 //! row when its evaluation pack, compatibility report, or evidence goes stale or missing or when
 //! marketable wording would exceed the row; an inherited row narrowing narrows the badge while a
 //! binding-layer failure holds promotion directly from the register.
+//! The evaluation-pilot-pack register is the private partner-facing layer over the claim-publication
+//! manifest: where the manifest is the single public source of truth, this register packages
+//! enterprise and ecosystem evaluation/pilot materials on top of it. For every enterprise/ecosystem
+//! lane it binds one pack to a named bundle id and its mirror refs, the support contacts, the
+//! known-issues deltas beyond the public known-limits, the deployment caveats, and the public claim
+//! entry it reuses — whose published label, support class, and exact wording are hard ceilings. A
+//! pack may never publish a greener label or broader support class than its public claim, a published
+//! pack reuses the public wording verbatim, every known-issues delta is disclosed, and every
+//! partner-facing destination (evaluation pack, pilot packet, admin export, support export) renders
+//! from the one pack so a narrowed pack downgrades every partner surface at once; "pilot-only" wording
+//! can never bypass a support-class limit or stale evidence. An inherited public-claim narrowing
+//! downgrades the surfaces but is gated by the claim manifest, while a pack-layer failure (a stale,
+//! missing, dropped, or unsigned bundle mirror; stale or missing proof evidence; an expired window or
+//! waiver; an over-claiming label or support class; or a missing owner sign-off) on a pack whose public
+//! claim is still at or above the cutline holds promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -374,6 +389,7 @@ pub mod ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_pr
 pub mod ship_clean_room_rebuild_exact_build_symbolication_release_center_sync_and_advisory_revocation_rehearsal_automation_for_m5_depth_trains;
 pub mod ship_generated_artifact_lineage_surfaces_for_scaffolded_ai_generated_notebook_derived_and_preview_derived_outputs;
 pub mod ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_unsupported_skew_states_across_m5_boundaries;
+pub mod ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes;
 pub mod ship_release_center_visibility_for_m5_trains_channel_profile_rollout_controls_and_narrow_or_broaden_decisions;
 pub mod ship_version_bump_proposals_publish_target_review_sheets_auth_source_disclosure_dry_run_previews_and_rollout_ring_truth_across_m5_publication_lanes;
 pub mod shiproom_dashboard;
@@ -533,6 +549,16 @@ pub use ship_mixed_version_skew_inspectors_upgrade_order_guides_and_fail_closed_
     StopAction as BoundarySkewStopAction, UpgradeLeadSide, UpgradeOrderGuide, UpgradeStep,
     SHIP_M5_BOUNDARY_SKEW_INSPECTORS_JSON, SHIP_M5_BOUNDARY_SKEW_INSPECTORS_PATH,
     SHIP_M5_BOUNDARY_SKEW_INSPECTORS_RECORD_KIND, SHIP_M5_BOUNDARY_SKEW_INSPECTORS_SCHEMA_VERSION,
+};
+
+pub use ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs_known_issues_deltas_and_no_overclaim_guards_for_m5_enterprise_ecosystem_lanes::{
+    current_m5_evaluation_pilot_packs, EvalPack, EvalPackDestination,
+    EvalPackDestinationRendering, EvalPackExportProjection, EvalPackExportRow, EvalPackIssueSeverity,
+    EvalPackKnownIssue, EvalPackLaneKind, EvalPackMirrorKind, EvalPackMirrorRef,
+    EvalPackNarrowingReason, EvalPackRegister, EvalPackState, EvalPackStopAction, EvalPackStopRule,
+    EvalPackSummary, EvalPackSupportContact, EvalPackValidityWindow, EvalPackViolation,
+    M5_EVALUATION_PILOT_PACKS_JSON, M5_EVALUATION_PILOT_PACKS_PATH,
+    M5_EVALUATION_PILOT_PACKS_RECORD_KIND, M5_EVALUATION_PILOT_PACKS_SCHEMA_VERSION,
 };
 
 pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards::{
