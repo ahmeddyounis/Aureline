@@ -44,7 +44,7 @@
 //! the repository-compliance scan in parity with the user/admin notice/SBOM surface and
 //! narrowing the moment provenance, licensing, notices, the SBOM, or the mirror thins out.
 //!
-//! Finally it embeds the import-provenance and fork-review register
+//! It embeds the import-provenance and fork-review register
 //! ([`m5_import_provenance_and_fork_review`]): the canonical, inspectable record that
 //! publishes — per protected-path import used by an M5 family — the import provenance
 //! (origin attribution, SPDX license, upstream pin), the update ownership, the divergence
@@ -53,6 +53,16 @@
 //! dependency-health/import scan in parity with the user/admin import surface and narrowing
 //! the moment provenance, ownership, a divergence review, a decision, or generated-code
 //! provenance thins out.
+//!
+//! Finally it embeds the critical-upstream health register
+//! ([`m5_critical_upstream_health`]): the canonical, inspectable record that publishes — per
+//! critical upstream a protected M5 family depends on — the maintainer-health rating, the
+//! security posture, the update and review cadence, the license clarity, the replacement
+//! feasibility, the ownership, and the sponsor/fork/replace contingency and shiproom escalation
+//! required for red-risk or unowned upstreams, holding the upstream-health scan in parity with
+//! the governance-dashboard/promotion-packet surface and narrowing the moment maintainer health,
+//! security, cadence, license, ownership, or proof thins out — so a red-risk or unowned
+//! protected-path dependency cannot widen a stable claim without an approved plan.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
@@ -60,6 +70,7 @@ pub mod interchange_matrix;
 pub mod interface_freeze;
 pub mod m5_boundary_and_upstream_durability;
 pub mod m5_compliance_and_notice_binding;
+pub mod m5_critical_upstream_health;
 pub mod m5_import_provenance_and_fork_review;
 pub mod m5_versioned_boundary_manifests;
 pub mod schema_registry;
@@ -102,6 +113,22 @@ pub use m5_compliance_and_notice_binding::{
     SourceContractRefs as ComplianceNoticeSourceContractRefs,
     M5_COMPLIANCE_AND_NOTICE_BINDING_JSON, M5_COMPLIANCE_AND_NOTICE_BINDING_PATH,
     M5_COMPLIANCE_AND_NOTICE_BINDING_RECORD_KIND, M5_COMPLIANCE_AND_NOTICE_BINDING_SCHEMA_VERSION,
+};
+pub use m5_critical_upstream_health::{
+    current_m5_critical_upstream_health, ContingencyDisposition, ContingencyPlan, ContingencyState,
+    ControlDimension as UpstreamHealthControlDimension, ControlState as UpstreamHealthControlState,
+    CriticalUpstreamHealthRegister, EscalationState, HealthAction, HealthControl, HealthCutline,
+    HealthGrade, HealthReason, HealthRule, HealthState, HealthSummary, LicenseClarity,
+    LicenseProfile, MaintainerHealth, MaintainerRating, OwnershipState as UpstreamOwnershipState,
+    Posture as UpstreamHealthPosture, Publication as UpstreamHealthPublication,
+    PublicationDecision as UpstreamHealthPublicationDecision,
+    RegisterViolation as UpstreamHealthRegisterViolation, ReplacementFeasibility, ReviewCadence,
+    ReviewCadenceState, ScanSurfaceParity as UpstreamHealthScanSurfaceParity, SecurityPosture,
+    SecurityProfile, ShiproomEscalation, SourceContractRefs as UpstreamHealthSourceContractRefs,
+    UpdateCadence, UpdateCadenceProfile, UpstreamHealthRecord, UpstreamHealthReuseRow,
+    UpstreamKind, UpstreamOwnership, M5_CRITICAL_UPSTREAM_HEALTH_JSON,
+    M5_CRITICAL_UPSTREAM_HEALTH_PATH, M5_CRITICAL_UPSTREAM_HEALTH_RECORD_KIND,
+    M5_CRITICAL_UPSTREAM_HEALTH_SCHEMA_VERSION,
 };
 pub use m5_import_provenance_and_fork_review::{
     current_m5_import_provenance_and_fork_review, ControlDimension as ImportControlDimension,

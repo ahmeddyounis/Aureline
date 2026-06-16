@@ -1,0 +1,75 @@
+# Critical-upstream health register gate.
+#
+# Validates the checked-in register that publishes, per critical upstream a protected M5 family
+# depends on, the maintainer-health rating, the security posture, the update and review cadence,
+# the license clarity, the replacement feasibility, the ownership, and the sponsor/fork/replace
+# contingency and shiproom escalation required for red-risk or unowned upstreams. A record is
+# cleared only when the maintainer base is healthy, the security posture is clean, the cadence
+# has not stalled and the review is on cadence, the license is clear, the upstream is owned, any
+# required contingency plan and shiproom escalation are recorded, the proof is fresh, and the
+# owner signed; otherwise it narrows on the specific axis that thinned out (a maintainer, security,
+# cadence, license, ownership/escalation, or stale-proof gap) and drops its effective label below
+# the launch cutline — the axes never collapse into one global flag. The upstream-health scan and
+# the governance-dashboard/promotion-packet surface must agree on every record, so a green
+# upstream card can never mask an abandoned, unpatched, or unowned dependency, and no narrowed
+# record may publish wider than it declares. An inherited or waived narrowing is gated upstream,
+# while an upstream-health failure on a still-stable subject holds promotion: a red-risk or
+# unowned protected-path dependency may not widen a stable claim without an approved sponsor,
+# fork, or replacement plan. The promotion verdict, scan/surface parity, and summary agree with
+# the firing stop rules. The gate runs the protected fixture cases proving those rejections fire.
+# The typed Rust consumer reads the same register, so `cargo test -p aureline-governance` enforces
+# the same structural invariants.
+
+name: check_m5_critical_upstream_health
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_critical_upstream_health.yml"
+      - "artifacts/governance/m5-critical-upstream-health.json"
+      - "artifacts/governance/captures/m5-critical-upstream-health_validation_capture.json"
+      - "schemas/governance/m5-critical-upstream-health.schema.json"
+      - "docs/m5/add_critical_upstream_health_registers_review_cadence_reminders_red_risk_escalation_and_shiproom_gating_for_unowned_or_degraded_protected_path_dependencies.md"
+      - "fixtures/governance/m5-critical-upstream-health/**"
+      - "tools/regenerate_m5_critical_upstream_health.py"
+      - "crates/aureline-governance/src/m5_critical_upstream_health/**"
+      - "crates/aureline-governance/src/lib.rs"
+      - "crates/aureline-governance/tests/m5_critical_upstream_health.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-critical-upstream-health-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_critical_upstream_health:
+    name: M5 Critical Upstream Health
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run critical-upstream health register contract tests
+        run: |
+          cargo test -p aureline-governance --test m5_critical_upstream_health
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-critical-upstream-health-${{ github.run_id }}
+          path: artifacts/governance/captures/m5-critical-upstream-health_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
