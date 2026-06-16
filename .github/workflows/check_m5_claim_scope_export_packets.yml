@@ -1,0 +1,74 @@
+# M5 qualification-matrix and claim-scope export-packet gate.
+#
+# Validates the checked-in register that exports the M5 qualification matrix and the
+# claim-publication manifest to support, shiproom, docs, and partner review. For each
+# claimed family it binds one export row to the reopen refs (the qualification row, its
+# deprecation packet, and the public claim entry), the row-level truth that never
+# collapses into one flag (the row state, the skew-window class, the support class, the
+# deprecation status, the freshness state, the validity window, the evidence refs, and
+# the active stale/retest reasons), and the copy-safe scope wording every audience
+# renders. A row may never publish a greener label or broader support class than its
+# public claim, a row that holds the public label reuses the public wording verbatim,
+# and every reviewing audience (support, shiproom, docs, partner review) must render
+# from the one row and disclose the freshness, the active stale/retest reasons, and the
+# caveats — so a narrowed row downgrades every audience at once and no exported packet
+# loses the row-level reason. A shiproom audience must always expose the reopen refs. An
+# inherited row downgrade is gated by the matrix and the claim manifest, while an
+# export-layer failure on a still-stable public claim holds promotion; the promotion
+# verdict and summary agree with the firing stop rules. The gate runs the checked-in
+# fixture cases proving those rejections fire. The typed Rust consumer reads the same
+# register, so `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_m5_claim_scope_export_packets
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_claim_scope_export_packets.yml"
+      - "artifacts/release/m5/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth.json"
+      - "artifacts/release/captures/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth_validation_capture.json"
+      - "schemas/compat/m5-claim-scope-export-packets.schema.json"
+      - "docs/m5/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth.md"
+      - "fixtures/compat/m5-claim-scope-export-packets/**"
+      - "tools/regenerate_m5_claim_scope_export_packets.py"
+      - "crates/aureline-release/src/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-claim-scope-export-packets-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_claim_scope_export_packets:
+    name: M5 Claim-Scope Export Packets
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 claim-scope export-packet contract tests
+        run: |
+          cargo test -p aureline-release --test implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-claim-scope-export-packets-${{ github.run_id }}
+          path: artifacts/release/captures/implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

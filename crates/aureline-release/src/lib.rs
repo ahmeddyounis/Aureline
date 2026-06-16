@@ -325,6 +325,22 @@
 //! missing, dropped, or unsigned bundle mirror; stale or missing proof evidence; an expired window or
 //! waiver; an over-claiming label or support class; or a missing owner sign-off) on a pack whose public
 //! claim is still at or above the cutline holds promotion directly from the register.
+//! The claim-scope export-packet register is the support/shiproom/docs/partner-review export layer over
+//! the qualification matrix and the claim-publication manifest: for every claimed M5 family it binds one
+//! export row that answers exactly which row is being claimed, what freshness and expiry state it carries,
+//! what skew window applies, and what stale or retest-needed states are live, without tribal memory. Each
+//! row joins the reopen refs (the qualification row, its deprecation packet, and the public claim entry) a
+//! shiproom dashboard follows back to the authoritative record, the row-level truth that never collapses
+//! into one flag (row state, skew-window class, support class, deprecation status, freshness, validity
+//! window, evidence refs, and active stale/retest reasons), and the copy-safe scope wording every audience
+//! renders — never greener than the public claim's published label or support class, both hard ceilings. A
+//! row may never publish wider than the public claim, a row that holds the public label reuses the public
+//! wording verbatim, and every audience (support, shiproom, docs, partner review) must disclose the row
+//! freshness, the active stale/retest reasons, and the caveats, so a narrowed row downgrades every audience
+//! at once and no exported packet loses the row-level reason. An inherited row downgrade is gated by the
+//! matrix and claim manifest, while an export-layer failure (stale or missing export evidence, an expired
+//! window or waiver, a missing sign-off, or over-claiming copy) on a row whose public claim is still at or
+//! above the cutline holds promotion directly from the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -365,6 +381,7 @@ pub mod implement_feature_train_compatibility_reports_provider_family_support_wi
 pub mod implement_per_feature_scorecards_owner_manifests_and_rollback_or_downgrade_automation_for_all_m5_trains;
 pub mod implement_promotion_timeline_records_immutable_digest_joins_release_center_headless_parity_and_break_glass_event_capture_for_m5_artifact_graphs;
 pub mod implement_public_interface_diff_reports_compatibility_windows_support_class_caveats_and_successor_deprecation_packets_for_changed_stable_facing_m5_contracts;
+pub mod implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth;
 pub mod implement_release_candidate_objects_blocker_evidence_freshness_rows_and_scoped_artifact_bundle_cards_for_every_new_m5_family;
 pub mod implement_rollback_revocation_records_blast_radius_minimizing_node_set_targeting_mirror_offline_parity_and_emergency_disable_advisory_routing_across_m5_artifact_graphs;
 pub mod implement_support_bundle_schema_expansion_feature_family_export_packets_and_field_readiness_drills_for_m5_surfaces;
@@ -559,6 +576,15 @@ pub use ship_private_evaluation_pilot_evidence_packs_with_bundle_ids_mirror_refs
     EvalPackSummary, EvalPackSupportContact, EvalPackValidityWindow, EvalPackViolation,
     M5_EVALUATION_PILOT_PACKS_JSON, M5_EVALUATION_PILOT_PACKS_PATH,
     M5_EVALUATION_PILOT_PACKS_RECORD_KIND, M5_EVALUATION_PILOT_PACKS_SCHEMA_VERSION,
+};
+
+pub use implement_qualification_matrix_and_claim_scope_export_packets_for_support_shiproom_docs_and_partner_review_with_row_level_stale_retest_needed_truth::{
+    current_m5_claim_scope_export_packets, ClaimScopeAudience, ClaimScopeAudienceRendering,
+    ClaimScopeExportProjection, ClaimScopeExportRegister, ClaimScopeExportRow, ClaimScopeReason,
+    ClaimScopeRow, ClaimScopeRowState, ClaimScopeStopAction, ClaimScopeStopRule, ClaimScopeSummary,
+    ClaimScopeValidityWindow, ClaimScopeViolation, ScopeEvidenceKind, ScopeEvidenceRef,
+    M5_CLAIM_SCOPE_EXPORT_PACKETS_JSON, M5_CLAIM_SCOPE_EXPORT_PACKETS_PATH,
+    M5_CLAIM_SCOPE_EXPORT_PACKETS_RECORD_KIND, M5_CLAIM_SCOPE_EXPORT_PACKETS_SCHEMA_VERSION,
 };
 
 pub use ship_benchmark_corpora_reference_workspace_expansions_and_m5_specific_protected_fitness_dashboards::{
