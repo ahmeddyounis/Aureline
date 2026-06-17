@@ -699,7 +699,10 @@ impl QualificationBadgeBindingRegister {
 
     /// Returns the release-blocking bindings.
     pub fn release_blocking_bindings(&self) -> Vec<&QualificationBadgeBinding> {
-        self.bindings.iter().filter(|b| b.release_blocking).collect()
+        self.bindings
+            .iter()
+            .filter(|b| b.release_blocking)
+            .collect()
     }
 
     /// Returns the bindings for one family kind.
@@ -926,9 +929,11 @@ impl QualificationBadgeBindingRegister {
 
     fn validate_envelope(&self, violations: &mut Vec<QualificationBadgeBindingViolation>) {
         if self.schema_version != BIND_M5_QUALIFICATION_BADGE_BINDINGS_SCHEMA_VERSION {
-            violations.push(QualificationBadgeBindingViolation::UnsupportedSchemaVersion {
-                actual: self.schema_version,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::UnsupportedSchemaVersion {
+                    actual: self.schema_version,
+                },
+            );
         }
         if self.record_kind != BIND_M5_QUALIFICATION_BADGE_BINDINGS_RECORD_KIND {
             violations.push(QualificationBadgeBindingViolation::UnsupportedRecordKind {
@@ -956,7 +961,10 @@ impl QualificationBadgeBindingRegister {
                 self.lifecycle_labels == StableClaimLevel::ALL.to_vec(),
                 "lifecycle_labels",
             ),
-            (self.family_kinds == FamilyKind::ALL.to_vec(), "family_kinds"),
+            (
+                self.family_kinds == FamilyKind::ALL.to_vec(),
+                "family_kinds",
+            ),
             (
                 self.support_classes == SupportClass::ALL.to_vec(),
                 "support_classes",
@@ -993,26 +1001,34 @@ impl QualificationBadgeBindingRegister {
             }
         }
         if self.stop_actions != BindingStopAction::ALL.to_vec() {
-            violations.push(QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
-                field: "stop_actions",
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
+                    field: "stop_actions",
+                },
+            );
         }
 
         let cutline = &self.launch_cutline;
         if cutline.cutline_level != StableClaimLevel::Stable {
-            violations.push(QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.cutline_level",
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.cutline_level",
+                },
+            );
         }
         if cutline.above_cutline_levels != StableClaimLevel::ABOVE_CUTLINE.to_vec() {
-            violations.push(QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.above_cutline_levels",
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.above_cutline_levels",
+                },
+            );
         }
         if cutline.below_cutline_levels != StableClaimLevel::BELOW_CUTLINE.to_vec() {
-            violations.push(QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
-                field: "launch_cutline.below_cutline_levels",
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ClosedVocabularyMismatch {
+                    field: "launch_cutline.below_cutline_levels",
+                },
+            );
         }
         if cutline.description.trim().is_empty() {
             violations.push(QualificationBadgeBindingViolation::EmptyField {
@@ -1120,11 +1136,13 @@ impl QualificationBadgeBindingRegister {
             });
         }
         if b.published_label.rank() > b.row_published_label.rank() {
-            violations.push(QualificationBadgeBindingViolation::BadgePublishedWiderThanRow {
-                entry_id: b.entry_id.clone(),
-                row: b.row_published_label,
-                published: b.published_label,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::BadgePublishedWiderThanRow {
+                    entry_id: b.entry_id.clone(),
+                    row: b.row_published_label,
+                    published: b.published_label,
+                },
+            );
         }
 
         // The freshness SLO target must be positive and the warn window may not
@@ -1136,18 +1154,22 @@ impl QualificationBadgeBindingRegister {
             });
         }
         if !b.proof_packet.freshness_slo.window_is_consistent() {
-            violations.push(QualificationBadgeBindingViolation::FreshnessSloInconsistent {
-                entry_id: b.entry_id.clone(),
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::FreshnessSloInconsistent {
+                    entry_id: b.entry_id.clone(),
+                },
+            );
         }
 
         // A row narrowed below the cutline must name the inherited reason.
         if !b.row_published_label.is_at_or_above_cutline()
             && !b.has_active_reason(BindingNarrowingReason::QualificationRowNarrowed)
         {
-            violations.push(QualificationBadgeBindingViolation::RowNarrowedWithoutReason {
-                entry_id: b.entry_id.clone(),
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::RowNarrowedWithoutReason {
+                    entry_id: b.entry_id.clone(),
+                },
+            );
         }
 
         // A limited support class must record at least one caveat.
@@ -1178,7 +1200,10 @@ impl QualificationBadgeBindingRegister {
                 &b.compatibility_report,
                 BindingArtifactKind::CompatibilityReport,
             ),
-            (&b.release_center_card, BindingArtifactKind::ReleaseCenterCard),
+            (
+                &b.release_center_card,
+                BindingArtifactKind::ReleaseCenterCard,
+            ),
         ] {
             if artifact.artifact_kind != expected {
                 violations.push(QualificationBadgeBindingViolation::ArtifactKindMismatch {
@@ -1235,9 +1260,11 @@ impl QualificationBadgeBindingRegister {
             });
         }
         if b.badge.support_class != b.support_class {
-            violations.push(QualificationBadgeBindingViolation::BadgeSupportClassMismatch {
-                entry_id: b.entry_id.clone(),
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::BadgeSupportClassMismatch {
+                    entry_id: b.entry_id.clone(),
+                },
+            );
         }
         if b.badge.freshness_state != b.proof_packet.slo_state {
             violations.push(QualificationBadgeBindingViolation::BadgeFreshnessMismatch {
@@ -1276,10 +1303,12 @@ impl QualificationBadgeBindingRegister {
             });
         }
         if !b.publishes_stable() {
-            violations.push(QualificationBadgeBindingViolation::PublishedStateNotStable {
-                entry_id: b.entry_id.clone(),
-                published: b.published_label,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::PublishedStateNotStable {
+                    entry_id: b.entry_id.clone(),
+                    published: b.published_label,
+                },
+            );
         }
         if !b.active_narrowing_reasons.is_empty() {
             violations.push(QualificationBadgeBindingViolation::HeldWithActiveGap {
@@ -1324,11 +1353,13 @@ impl QualificationBadgeBindingRegister {
         // A narrowing badge must drop below the cutline and name at least one
         // active reason.
         if b.publishes_stable() {
-            violations.push(QualificationBadgeBindingViolation::NarrowedButPublishedStable {
-                entry_id: b.entry_id.clone(),
-                state: b.binding_state,
-                published: b.published_label,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::NarrowedButPublishedStable {
+                    entry_id: b.entry_id.clone(),
+                    state: b.binding_state,
+                    published: b.published_label,
+                },
+            );
         }
         if b.active_narrowing_reasons.is_empty() {
             violations.push(QualificationBadgeBindingViolation::NarrowingWithoutReason {
@@ -1338,7 +1369,8 @@ impl QualificationBadgeBindingRegister {
         }
 
         // The narrowing state must be coherent with its active reasons.
-        let any = |reasons: &[BindingNarrowingReason]| reasons.iter().any(|r| b.has_active_reason(*r));
+        let any =
+            |reasons: &[BindingNarrowingReason]| reasons.iter().any(|r| b.has_active_reason(*r));
         let coherent = match b.binding_state {
             BindingState::NarrowedRowDowngraded => {
                 any(&[BindingNarrowingReason::QualificationRowNarrowed])
@@ -1372,18 +1404,22 @@ impl QualificationBadgeBindingRegister {
         if b.proof_packet.slo_state == FreshnessSloState::Breached
             && !b.has_active_reason(BindingNarrowingReason::EvidenceStale)
         {
-            violations.push(QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
-                entry_id: b.entry_id.clone(),
-                reason: BindingNarrowingReason::EvidenceStale,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
+                    entry_id: b.entry_id.clone(),
+                    reason: BindingNarrowingReason::EvidenceStale,
+                },
+            );
         }
         if b.proof_packet.slo_state == FreshnessSloState::Missing
             && !b.has_active_reason(BindingNarrowingReason::EvidenceMissing)
         {
-            violations.push(QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
-                entry_id: b.entry_id.clone(),
-                reason: BindingNarrowingReason::EvidenceMissing,
-            });
+            violations.push(
+                QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
+                    entry_id: b.entry_id.clone(),
+                    reason: BindingNarrowingReason::EvidenceMissing,
+                },
+            );
         }
         for (artifact, stale, missing) in [
             (
@@ -1398,16 +1434,20 @@ impl QualificationBadgeBindingRegister {
             ),
         ] {
             if artifact.state == ArtifactState::Stale && !b.has_active_reason(stale) {
-                violations.push(QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
-                    entry_id: b.entry_id.clone(),
-                    reason: stale,
-                });
+                violations.push(
+                    QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
+                        entry_id: b.entry_id.clone(),
+                        reason: stale,
+                    },
+                );
             }
             if artifact.state == ArtifactState::Missing && !b.has_active_reason(missing) {
-                violations.push(QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
-                    entry_id: b.entry_id.clone(),
-                    reason: missing,
-                });
+                violations.push(
+                    QualificationBadgeBindingViolation::ArtifactStateWithoutReason {
+                        entry_id: b.entry_id.clone(),
+                        reason: missing,
+                    },
+                );
             }
         }
     }

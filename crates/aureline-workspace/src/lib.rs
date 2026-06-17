@@ -34,6 +34,7 @@ pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_open_save_reveal;
+pub mod m5_remembered_state_objects;
 pub mod m5_serialization_and_restore_matrix;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;

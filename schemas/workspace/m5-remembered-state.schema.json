@@ -1,0 +1,570 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-remembered-state.schema.json",
+  "title": "Aureline M5 remembered-state objects",
+  "description": "The explicit, versioned state objects restorable M5 surfaces resolve against instead of an opaque layout blob: workspace-authority checkpoints, window-topology snapshots, profile defaults, and machine-local hints, plus the bundles that wire them together purely by reference. Workspace authority is captured only as a re-resolvable reference, never a live ticket; pane trees carry stable pane ids and a versioned schema so split, move, pin, close, and placeholder substitution are serializable and migratable; a missing dependency preserves the pane slot behind a placeholder rather than deleting layout; and machine-local hints are never exportable. The Rust types in crates/aureline-workspace/src/m5_remembered_state_objects are the schema of record; this file is the cross-tool export for diagnostics, support, portability review, and session-restore tooling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "object_schema_versions",
+    "workspace_authority_checkpoints",
+    "window_topology_snapshots",
+    "profile_defaults",
+    "machine_local_hints",
+    "bundles",
+    "summary"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "m5_remembered_state_objects" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "status": { "type": "string", "minLength": 1 },
+    "overview_page": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "object_schema_versions": { "$ref": "#/$defs/object_schema_versions" },
+    "workspace_authority_checkpoints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workspace_authority_checkpoint" }
+    },
+    "window_topology_snapshots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/window_topology_snapshot" }
+    },
+    "profile_defaults": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/profile_defaults" }
+    },
+    "machine_local_hints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/machine_local_hints" }
+    },
+    "bundles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/remembered_state_bundle" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier. Raw paths, hosts, credentials, command lines, source content, and live authority handles never appear here."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+    },
+    "restore_class": {
+      "type": "string",
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "manual_review"]
+    },
+    "state_ownership": {
+      "type": "string",
+      "enum": ["portable", "shared", "local", "machine_local"]
+    },
+    "authority_handle_class": {
+      "type": "string",
+      "enum": ["re_resolvable_reference", "live_ticket"],
+      "description": "How a workspace-authority reference is stored. A persisted checkpoint must use re_resolvable_reference; live_ticket exists only so the gate can reject it."
+    },
+    "journal_kind": {
+      "type": "string",
+      "enum": ["mutation_journal", "draft_recovery", "command_history"]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+    "object_schema_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_authority_checkpoint",
+        "window_topology_snapshot",
+        "pane_tree",
+        "profile_defaults",
+        "machine_local_hints"
+      ],
+      "properties": {
+        "workspace_authority_checkpoint": { "type": "integer", "const": 1 },
+        "window_topology_snapshot": { "type": "integer", "const": 1 },
+        "pane_tree": { "type": "integer", "const": 1 },
+        "profile_defaults": { "type": "integer", "const": 1 },
+        "machine_local_hints": { "type": "integer", "const": 1 }
+      }
+    },
+    "dirty_buffer_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buffer_id", "document_ref", "draft_journal_ref", "dirty"],
+      "properties": {
+        "buffer_id": { "$ref": "#/$defs/opaque_id" },
+        "document_ref": { "$ref": "#/$defs/opaque_id" },
+        "draft_journal_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "dirty": { "type": "boolean" }
+      },
+      "description": "Buffer identity and a draft-journal link, never buffer content."
+    },
+    "journal_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journal_ref", "kind"],
+      "properties": {
+        "journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/journal_kind" }
+      }
+    },
+    "trusted_root_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_ref", "trust_class"],
+      "properties": {
+        "root_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_class": { "$ref": "#/$defs/trust_class" }
+      }
+    },
+    "workset_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workset_ref", "active"],
+      "properties": {
+        "workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "workspace_authority_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "checkpoint_id",
+        "workspace_authority_ref",
+        "authority_handle_class",
+        "restore_class",
+        "dirty_buffers",
+        "journal_links",
+        "trusted_roots",
+        "active_worksets",
+        "excludes_live_authority",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "checkpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_handle_class": { "$ref": "#/$defs/authority_handle_class" },
+        "restore_class": { "$ref": "#/$defs/restore_class" },
+        "dirty_buffers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dirty_buffer_identity" }
+        },
+        "journal_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/journal_link" }
+        },
+        "trusted_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trusted_root_ref" }
+        },
+        "active_worksets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_ref" }
+        },
+        "excludes_live_authority": { "type": "boolean", "const": true },
+        "emitted_at": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "A versioned, re-resolvable checkpoint of the granted workspace authority. Never serializes a live authority ticket."
+    },
+    "split_orientation": {
+      "type": "string",
+      "enum": ["horizontal", "vertical"]
+    },
+    "surface_role": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "terminal",
+        "notebook",
+        "docs",
+        "preview",
+        "ai_panel",
+        "explorer",
+        "placeholder"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "text_editor",
+        "diff_editor",
+        "terminal_view",
+        "notebook_view",
+        "docs_browser",
+        "preview_canvas",
+        "ai_panel",
+        "explorer_tree",
+        "placeholder_card"
+      ]
+    },
+    "availability": {
+      "type": "string",
+      "enum": ["ready", "needs_hydration", "placeholder", "evidence_only"]
+    },
+    "placeholder_reason": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "missing_remote",
+        "revoked_permission",
+        "missing_workspace_authority",
+        "non_reentrant_live_surface",
+        "unsupported_display_topology",
+        "schema_migration_review_required",
+        "manual_recovery_required"
+      ]
+    },
+    "placeholder_action": {
+      "type": "string",
+      "enum": [
+        "retry_hydrate",
+        "install_extension",
+        "reauthenticate",
+        "reconnect_remote",
+        "recover_draft",
+        "relocate_dependency",
+        "open_without",
+        "export_evidence",
+        "remove_pane",
+        "rerun_explicitly",
+        "rebind_existing_session"
+      ]
+    },
+    "substitution_behavior": {
+      "type": "string",
+      "enum": ["placeholder_slot_preserved", "reopen_as_context", "silent_delete"],
+      "description": "How a missing dependency is handled. A persisted placeholder must preserve the slot; silent_delete exists only for fail-closed rejection."
+    },
+    "placeholder_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "original_role",
+        "original_surface_class",
+        "substitution_behavior",
+        "safe_actions",
+        "evidence_retained"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/placeholder_reason" },
+        "original_role": { "$ref": "#/$defs/surface_role" },
+        "original_surface_class": { "$ref": "#/$defs/surface_class" },
+        "substitution_behavior": { "$ref": "#/$defs/substitution_behavior" },
+        "safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/placeholder_action" }
+        },
+        "evidence_retained": { "type": "boolean" }
+      }
+    },
+    "pane_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_role", "surface_class", "availability", "placeholder"],
+      "properties": {
+        "surface_role": { "$ref": "#/$defs/surface_role" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "placeholder": {
+          "anyOf": [{ "$ref": "#/$defs/placeholder_card" }, { "type": "null" }]
+        }
+      }
+    },
+    "pane_leaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pane_id", "surface"],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/pane_surface" }
+      }
+    },
+    "leaf_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "pane_id", "surface"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "leaf" },
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/pane_surface" }
+      }
+    },
+    "tab_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tab_id", "pinned", "pane"],
+      "properties": {
+        "tab_id": { "$ref": "#/$defs/opaque_id" },
+        "pinned": { "type": "boolean" },
+        "pane": { "$ref": "#/$defs/pane_leaf" }
+      }
+    },
+    "split_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "split_id", "orientation", "children", "weight_permille"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "split" },
+        "split_id": { "$ref": "#/$defs/opaque_id" },
+        "orientation": { "$ref": "#/$defs/split_orientation" },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/pane_node" }
+        },
+        "weight_permille": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "tab_group_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "group_id", "tabs", "active_tab_id"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "tab_group" },
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tab_record" }
+        },
+        "active_tab_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "pane_node": {
+      "oneOf": [
+        { "$ref": "#/$defs/split_node" },
+        { "$ref": "#/$defs/tab_group_node" },
+        { "$ref": "#/$defs/leaf_node" }
+      ]
+    },
+    "pane_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "tree_revision", "root"],
+      "properties": {
+        "schema_version": { "type": "integer", "minimum": 0 },
+        "tree_revision": { "type": "integer", "minimum": 0 },
+        "root": { "$ref": "#/$defs/pane_node" }
+      }
+    },
+    "window_role": {
+      "type": "string",
+      "enum": ["primary", "auxiliary", "presentation", "review", "incident", "companion"]
+    },
+    "window_state": {
+      "type": "string",
+      "enum": ["normal", "maximized", "fullscreen", "zen", "minimized"]
+    },
+    "density_preset": {
+      "type": "string",
+      "enum": ["comfortable", "compact", "presentation"]
+    },
+    "scope_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_authority_ref", "profile_defaults_ref", "machine_local_hints_ref"],
+      "properties": {
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "profile_defaults_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "machine_local_hints_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "window_chrome_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_state", "density"],
+      "properties": {
+        "window_state": { "$ref": "#/$defs/window_state" },
+        "density": { "$ref": "#/$defs/density_preset" }
+      }
+    },
+    "window_topology_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "snapshot_id",
+        "window_id",
+        "window_role",
+        "scope_refs",
+        "pane_tree",
+        "window_chrome",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "window_id": { "$ref": "#/$defs/opaque_id" },
+        "window_role": { "$ref": "#/$defs/window_role" },
+        "scope_refs": { "$ref": "#/$defs/scope_refs" },
+        "pane_tree": { "$ref": "#/$defs/pane_tree" },
+        "window_chrome": { "$ref": "#/$defs/window_chrome_state" },
+        "emitted_at": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "inspector_kind": {
+      "type": "string",
+      "enum": ["outline", "problems", "search", "ai_evidence", "restore_diagnostics"]
+    },
+    "profile_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile_defaults_id",
+        "ownership",
+        "default_density",
+        "default_window_role",
+        "default_inspectors",
+        "excludes_machine_local_anchors"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "profile_defaults_id": { "$ref": "#/$defs/opaque_id" },
+        "ownership": {
+          "type": "string",
+          "enum": ["portable", "shared"]
+        },
+        "default_density": { "$ref": "#/$defs/density_preset" },
+        "default_window_role": { "$ref": "#/$defs/window_role" },
+        "default_inspectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inspector_kind" }
+        },
+        "excludes_machine_local_anchors": { "type": "boolean", "const": true }
+      }
+    },
+    "display_class": {
+      "type": "string",
+      "enum": [
+        "internal_panel",
+        "external_monitor",
+        "virtual_display",
+        "projector_or_presentation",
+        "unknown"
+      ]
+    },
+    "scale_bucket": {
+      "type": "string",
+      "enum": ["1x", "1_25x", "1_5x", "2x", "other"]
+    },
+    "monitor_affinity_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_ref", "display_class", "scale_bucket"],
+      "properties": {
+        "display_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_class": { "$ref": "#/$defs/display_class" },
+        "scale_bucket": { "$ref": "#/$defs/scale_bucket" }
+      }
+    },
+    "machine_local_hints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "machine_local_hints_id",
+        "ownership",
+        "exportable",
+        "display_topology_hash",
+        "monitor_affinity",
+        "install_root_anchor_ref"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "machine_local_hints_id": { "$ref": "#/$defs/opaque_id" },
+        "ownership": { "type": "string", "const": "machine_local" },
+        "exportable": { "type": "boolean", "const": false },
+        "display_topology_hash": { "$ref": "#/$defs/opaque_id" },
+        "monitor_affinity": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/monitor_affinity_hint" }
+        },
+        "install_root_anchor_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "remembered_state_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "restore_class",
+        "workspace_authority_ref",
+        "window_snapshot_refs",
+        "profile_defaults_ref",
+        "machine_local_hints_ref"
+      ],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "restore_class": { "$ref": "#/$defs/restore_class" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_snapshot_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "profile_defaults_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "machine_local_hints_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_authority_checkpoints",
+        "window_topology_snapshots",
+        "profile_defaults",
+        "machine_local_hints",
+        "bundles",
+        "total_panes",
+        "placeholder_panes"
+      ],
+      "properties": {
+        "workspace_authority_checkpoints": { "type": "integer", "minimum": 0 },
+        "window_topology_snapshots": { "type": "integer", "minimum": 0 },
+        "profile_defaults": { "type": "integer", "minimum": 0 },
+        "machine_local_hints": { "type": "integer", "minimum": 0 },
+        "bundles": { "type": "integer", "minimum": 0 },
+        "total_panes": { "type": "integer", "minimum": 0 },
+        "placeholder_panes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

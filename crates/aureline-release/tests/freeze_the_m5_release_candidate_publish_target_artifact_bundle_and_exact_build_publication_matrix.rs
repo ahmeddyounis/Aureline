@@ -109,7 +109,10 @@ fn export_projection_is_publication_decision_consistent() {
     let m = matrix();
     let projection = m.support_export_projection();
     assert_eq!(projection.rows.len(), m.rows.len());
-    assert_eq!(projection.publication_decision, m.computed_publication_decision());
+    assert_eq!(
+        projection.publication_decision,
+        m.computed_publication_decision()
+    );
     assert_eq!(m.publication.decision, PromotionDecision::Proceed);
 }
 

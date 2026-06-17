@@ -210,7 +210,10 @@ impl SbomScope {
 
     /// Whether the value lets a row hold a stable claim.
     pub const fn holds_label(self) -> bool {
-        matches!(self, Self::FullGraph | Self::ComponentScoped | Self::NotApplicable)
+        matches!(
+            self,
+            Self::FullGraph | Self::ComponentScoped | Self::NotApplicable
+        )
     }
 }
 
@@ -253,7 +256,10 @@ impl SymbolSourceMapAvailability {
 
     /// Whether the value lets a row hold a stable claim.
     pub const fn holds_label(self) -> bool {
-        matches!(self, Self::Published | Self::RetainedInternal | Self::NotApplicable)
+        matches!(
+            self,
+            Self::Published | Self::RetainedInternal | Self::NotApplicable
+        )
     }
 }
 
@@ -840,22 +846,34 @@ impl M5PublicationMatrix {
 
     /// Returns the rows publishing a label at or above the cutline.
     pub fn rows_backed(&self) -> Vec<&M5PublicationMatrixRow> {
-        self.rows.iter().filter(|row| row.publishes_stable()).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.publishes_stable())
+            .collect()
     }
 
     /// Returns the rows narrowed below the cutline.
     pub fn rows_narrowed(&self) -> Vec<&M5PublicationMatrixRow> {
-        self.rows.iter().filter(|row| !row.publishes_stable()).collect()
+        self.rows
+            .iter()
+            .filter(|row| !row.publishes_stable())
+            .collect()
     }
 
     /// Returns the release-blocking rows.
     pub fn release_blocking_rows(&self) -> Vec<&M5PublicationMatrixRow> {
-        self.rows.iter().filter(|row| row.release_blocking).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.release_blocking)
+            .collect()
     }
 
     /// Returns the rows for one family kind.
     pub fn rows_for_kind(&self, kind: M5ArtifactFamilyKind) -> Vec<&M5PublicationMatrixRow> {
-        self.rows.iter().filter(|row| row.family_kind == kind).collect()
+        self.rows
+            .iter()
+            .filter(|row| row.family_kind == kind)
+            .collect()
     }
 
     /// Distinct release candidates (by ref) the matrix covers.
@@ -939,8 +957,16 @@ impl M5PublicationMatrix {
         M5PublicationMatrixSummary {
             total_entries: self.rows.len(),
             total_release_candidates: self.release_candidates().len(),
-            entries_backed: self.rows.iter().filter(|row| row.publishes_stable()).count(),
-            entries_narrowed: self.rows.iter().filter(|row| !row.publishes_stable()).count(),
+            entries_backed: self
+                .rows
+                .iter()
+                .filter(|row| row.publishes_stable())
+                .count(),
+            entries_narrowed: self
+                .rows
+                .iter()
+                .filter(|row| !row.publishes_stable())
+                .count(),
             entries_on_active_waiver: self
                 .rows
                 .iter()
@@ -1246,8 +1272,7 @@ impl M5PublicationMatrix {
 
         for reason in M5PublicationGapReason::ALL {
             if !covered.contains(&reason) {
-                violations
-                    .push(M5PublicationMatrixViolation::GapReasonWithoutStopRule { reason });
+                violations.push(M5PublicationMatrixViolation::GapReasonWithoutStopRule { reason });
             }
         }
     }
@@ -1265,15 +1290,30 @@ impl M5PublicationMatrix {
             ("release_candidate_ref", &row.release_candidate_ref),
             ("claim_ref", &row.claim_ref),
             ("rationale", &row.rationale),
-            ("exact_build.build_identity_ref", &row.exact_build.build_identity_ref),
-            ("exact_build.provenance_ref", &row.exact_build.provenance_ref),
-            ("rollback_revocation.posture_ref", &row.rollback_revocation.posture_ref),
-            ("rollback_revocation.summary", &row.rollback_revocation.summary),
+            (
+                "exact_build.build_identity_ref",
+                &row.exact_build.build_identity_ref,
+            ),
+            (
+                "exact_build.provenance_ref",
+                &row.exact_build.provenance_ref,
+            ),
+            (
+                "rollback_revocation.posture_ref",
+                &row.rollback_revocation.posture_ref,
+            ),
+            (
+                "rollback_revocation.summary",
+                &row.rollback_revocation.summary,
+            ),
             ("mirror_offline.parity_ref", &row.mirror_offline.parity_ref),
             ("mirror_offline.summary", &row.mirror_offline.summary),
             ("proof_packet.packet_id", &row.proof_packet.packet_id),
             ("proof_packet.packet_ref", &row.proof_packet.packet_ref),
-            ("proof_packet.proof_index_ref", &row.proof_packet.proof_index_ref),
+            (
+                "proof_packet.proof_index_ref",
+                &row.proof_packet.proof_index_ref,
+            ),
             (
                 "proof_packet.freshness_slo.slo_register_ref",
                 &row.proof_packet.freshness_slo.slo_register_ref,
@@ -1444,7 +1484,9 @@ impl M5PublicationMatrix {
         }
         for row in &self.rows {
             if row.release_blocking
-                && !self.release_blocking_artifact_refs.contains(&row.artifact_ref)
+                && !self
+                    .release_blocking_artifact_refs
+                    .contains(&row.artifact_ref)
             {
                 violations.push(
                     M5PublicationMatrixViolation::ReleaseBlockingRowNotDeclared {
@@ -1470,20 +1512,26 @@ impl M5PublicationMatrix {
         }
         let computed = self.computed_publication_decision();
         if self.publication.decision != computed {
-            violations.push(M5PublicationMatrixViolation::PublicationDecisionInconsistent {
-                declared: self.publication.decision,
-                computed,
-            });
+            violations.push(
+                M5PublicationMatrixViolation::PublicationDecisionInconsistent {
+                    declared: self.publication.decision,
+                    computed,
+                },
+            );
         }
         if self.publication.blocking_rule_ids != self.computed_blocking_rule_ids() {
-            violations.push(M5PublicationMatrixViolation::PublicationBlockingSetMismatch {
-                field: "blocking_rule_ids",
-            });
+            violations.push(
+                M5PublicationMatrixViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_rule_ids",
+                },
+            );
         }
         if self.publication.blocking_claim_ids != self.computed_blocking_entry_ids() {
-            violations.push(M5PublicationMatrixViolation::PublicationBlockingSetMismatch {
-                field: "blocking_claim_ids",
-            });
+            violations.push(
+                M5PublicationMatrixViolation::PublicationBlockingSetMismatch {
+                    field: "blocking_claim_ids",
+                },
+            );
         }
     }
 }
@@ -1702,10 +1750,7 @@ impl fmt::Display for M5PublicationMatrixViolation {
             Self::PublishedLabelNotNarrowed {
                 entry_id,
                 published,
-            } => write!(
-                f,
-                "row {entry_id} must narrow but publishes {published:?}"
-            ),
+            } => write!(f, "row {entry_id} must narrow but publishes {published:?}"),
             Self::HeldLabelNotEqualClaim {
                 entry_id,
                 claim,
@@ -1720,11 +1765,20 @@ impl fmt::Display for M5PublicationMatrixViolation {
             Self::HeldWithoutFreshPacket { entry_id } => {
                 write!(f, "row {entry_id} holds stable without a fresh packet")
             }
-            Self::HeldOnStalePacket { entry_id, slo_state } => {
-                write!(f, "row {entry_id} holds stable on stale packet {slo_state:?}")
+            Self::HeldOnStalePacket {
+                entry_id,
+                slo_state,
+            } => {
+                write!(
+                    f,
+                    "row {entry_id} holds stable on stale packet {slo_state:?}"
+                )
             }
             Self::HeldWithBrokenExactBuild { entry_id } => {
-                write!(f, "row {entry_id} holds stable with broken exact-build linkage")
+                write!(
+                    f,
+                    "row {entry_id} holds stable with broken exact-build linkage"
+                )
             }
             Self::HeldWithoutSignoff { entry_id } => {
                 write!(f, "row {entry_id} holds stable without owner signoff")
@@ -1748,14 +1802,20 @@ impl fmt::Display for M5PublicationMatrixViolation {
                 "row {entry_id} broken exact-build field requires reason {expected_reason:?}"
             ),
             Self::ReleaseBlockingArtifactUncovered { artifact_ref } => {
-                write!(f, "release-blocking artifact {artifact_ref} has no covering row")
+                write!(
+                    f,
+                    "release-blocking artifact {artifact_ref} has no covering row"
+                )
             }
             Self::ReleaseBlockingRowNotDeclared { entry_id } => write!(
                 f,
                 "release-blocking row {entry_id} is not declared in release_blocking_artifact_refs"
             ),
             Self::PublicationDecisionInconsistent { declared, computed } => {
-                write!(f, "publication {declared:?} disagrees with computed {computed:?}")
+                write!(
+                    f,
+                    "publication {declared:?} disagrees with computed {computed:?}"
+                )
             }
             Self::PublicationBlockingSetMismatch { field } => {
                 write!(f, "publication {field} disagrees with firing stop rules")
@@ -1802,7 +1862,10 @@ mod tests {
             FREEZE_THE_M5_RELEASE_CANDIDATE_PUBLISH_TARGET_ARTIFACT_BUNDLE_AND_EXACT_BUILD_PUBLICATION_MATRIX_RECORD_KIND
         );
         let violations = m.validate();
-        assert!(violations.is_empty(), "matrix must validate cleanly: {violations:#?}");
+        assert!(
+            violations.is_empty(),
+            "matrix must validate cleanly: {violations:#?}"
+        );
         assert!(!m.rows.is_empty());
     }
 
@@ -1839,22 +1902,34 @@ mod tests {
     fn summary_counts_match_rows() {
         let m = matrix();
         assert_eq!(m.summary, m.computed_summary());
-        assert_eq!(m.summary.entries_backed + m.summary.entries_narrowed, m.rows.len());
+        assert_eq!(
+            m.summary.entries_backed + m.summary.entries_narrowed,
+            m.rows.len()
+        );
     }
 
     #[test]
     fn publication_decision_matches_computed() {
         let m = matrix();
         assert_eq!(m.publication.decision, m.computed_publication_decision());
-        assert_eq!(m.publication.blocking_rule_ids, m.computed_blocking_rule_ids());
-        assert_eq!(m.publication.blocking_claim_ids, m.computed_blocking_entry_ids());
+        assert_eq!(
+            m.publication.blocking_rule_ids,
+            m.computed_blocking_rule_ids()
+        );
+        assert_eq!(
+            m.publication.blocking_claim_ids,
+            m.computed_blocking_entry_ids()
+        );
     }
 
     #[test]
     fn every_gap_reason_has_a_stop_rule() {
         let m = matrix();
-        let covered: BTreeSet<M5PublicationGapReason> =
-            m.stop_rules.iter().map(|rule| rule.trigger_reason).collect();
+        let covered: BTreeSet<M5PublicationGapReason> = m
+            .stop_rules
+            .iter()
+            .map(|rule| rule.trigger_reason)
+            .collect();
         for reason in M5PublicationGapReason::ALL {
             assert!(covered.contains(&reason), "{}", reason.as_str());
         }
@@ -1877,7 +1952,8 @@ mod tests {
             .iter_mut()
             .find(|row| row.publishes_stable())
             .expect("a backed row exists");
-        row.active_gap_reasons.push(M5PublicationGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(M5PublicationGapReason::ProofPacketMissing);
         m.summary = m.computed_summary();
         assert!(m
             .validate()
@@ -1915,7 +1991,8 @@ mod tests {
             .expect("a backed row exists");
         // Strip the SBOM (breaks linkage) but keep the published label stable.
         row.exact_build.sbom_scope = SbomScope::Missing;
-        row.active_gap_reasons.push(M5PublicationGapReason::SbomIncomplete);
+        row.active_gap_reasons
+            .push(M5PublicationGapReason::SbomIncomplete);
         m.summary = m.computed_summary();
         m.publication.decision = m.computed_publication_decision();
         m.publication.blocking_rule_ids = m.computed_blocking_rule_ids();
@@ -1935,7 +2012,8 @@ mod tests {
             .iter_mut()
             .find(|row| row.publishes_stable())
             .expect("a backed row exists");
-        row.active_gap_reasons.push(M5PublicationGapReason::ProofPacketMissing);
+        row.active_gap_reasons
+            .push(M5PublicationGapReason::ProofPacketMissing);
         m.publication.decision = PromotionDecision::Proceed;
         m.publication.blocking_rule_ids = m.computed_blocking_rule_ids();
         m.publication.blocking_claim_ids = m.computed_blocking_entry_ids();

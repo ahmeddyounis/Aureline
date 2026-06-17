@@ -45,7 +45,10 @@ fn repo_root() -> PathBuf {
 #[test]
 fn checked_in_register_parses_and_validates() {
     let r = register();
-    assert_eq!(r.schema_version, M5_CLAIM_SCOPE_EXPORT_PACKETS_SCHEMA_VERSION);
+    assert_eq!(
+        r.schema_version,
+        M5_CLAIM_SCOPE_EXPORT_PACKETS_SCHEMA_VERSION
+    );
     assert_eq!(r.record_kind, M5_CLAIM_SCOPE_EXPORT_PACKETS_RECORD_KIND);
     let violations = r.validate();
     assert!(
@@ -332,7 +335,8 @@ fn published_row_with_active_gap_fails() {
         .iter_mut()
         .find(|row| row.publishes_stable())
         .expect("register has a published row");
-    row.active_scope_reasons.push(ClaimScopeReason::EvidenceStale);
+    row.active_scope_reasons
+        .push(ClaimScopeReason::EvidenceStale);
     r.summary = r.computed_summary();
 
     assert!(

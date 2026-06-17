@@ -104,7 +104,10 @@ fn summary_counts_match_bindings() {
 fn promotion_decision_matches_computed() {
     let r = register();
     assert_eq!(r.promotion.decision, r.computed_promotion_decision());
-    assert_eq!(r.promotion.blocking_rule_ids, r.computed_blocking_rule_ids());
+    assert_eq!(
+        r.promotion.blocking_rule_ids,
+        r.computed_blocking_rule_ids()
+    );
     assert_eq!(
         r.promotion.blocking_claim_ids,
         r.computed_blocking_claim_ids()

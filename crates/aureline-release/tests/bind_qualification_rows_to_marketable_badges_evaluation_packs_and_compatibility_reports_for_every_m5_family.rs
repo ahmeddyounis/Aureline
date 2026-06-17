@@ -136,11 +136,20 @@ fn exercises_narrowing_and_artifact_vocabulary() {
         .bindings
         .iter()
         .any(|b| b.compatibility_report.state == ArtifactState::Stale);
-    assert!(stale_eval, "a binding must exercise a stale evaluation pack");
-    assert!(stale_report, "a binding must exercise a stale compatibility report");
+    assert!(
+        stale_eval,
+        "a binding must exercise a stale evaluation pack"
+    );
+    assert!(
+        stale_report,
+        "a binding must exercise a stale compatibility report"
+    );
 
     // At least one badge must carry caveats that travel with it.
-    assert!(r.bindings.iter().any(|b| !b.badge.caveat_summary.is_empty()));
+    assert!(r
+        .bindings
+        .iter()
+        .any(|b| !b.badge.caveat_summary.is_empty()));
 }
 
 #[test]

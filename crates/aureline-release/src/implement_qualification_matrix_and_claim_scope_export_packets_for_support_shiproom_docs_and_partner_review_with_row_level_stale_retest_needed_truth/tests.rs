@@ -7,7 +7,10 @@ fn register() -> ClaimScopeExportRegister {
 #[test]
 fn embedded_register_parses_and_validates() {
     let r = register();
-    assert_eq!(r.schema_version, M5_CLAIM_SCOPE_EXPORT_PACKETS_SCHEMA_VERSION);
+    assert_eq!(
+        r.schema_version,
+        M5_CLAIM_SCOPE_EXPORT_PACKETS_SCHEMA_VERSION
+    );
     assert_eq!(r.record_kind, M5_CLAIM_SCOPE_EXPORT_PACKETS_RECORD_KIND);
     assert_eq!(r.validate(), Vec::new());
     assert!(!r.rows.is_empty());
@@ -48,7 +51,8 @@ fn every_audience_reuses_one_row() {
     for row in &r.rows {
         for a in &row.audiences {
             assert_eq!(
-                a.source_row_id, row.entry_id,
+                a.source_row_id,
+                row.entry_id,
                 "audience {} on {} must render from the one row",
                 a.audience.as_str(),
                 row.entry_id
@@ -140,7 +144,10 @@ fn does_not_collapse_to_one_global_flag() {
     let r = register();
     // The summary keeps per-state and per-row truth, never a single green/red flag.
     let states: BTreeSet<ClaimScopeRowState> = r.rows.iter().map(|row| row.export_state).collect();
-    assert!(states.len() >= 3, "export must keep distinct per-row states");
+    assert!(
+        states.len() >= 3,
+        "export must keep distinct per-row states"
+    );
     assert!(states.contains(&ClaimScopeRowState::Published));
     assert!(states.contains(&ClaimScopeRowState::NarrowedRetestPending));
     assert!(states.contains(&ClaimScopeRowState::NarrowedStale));
@@ -224,7 +231,8 @@ fn validate_flags_a_published_row_with_active_gap() {
         .iter_mut()
         .find(|row| row.publishes_stable())
         .expect("a published row exists");
-    row.active_scope_reasons.push(ClaimScopeReason::EvidenceStale);
+    row.active_scope_reasons
+        .push(ClaimScopeReason::EvidenceStale);
     r.summary = r.computed_summary();
     assert!(r
         .validate()

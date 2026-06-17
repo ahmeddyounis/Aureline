@@ -540,7 +540,8 @@ impl ClaimScopeRow {
     /// claim it reuses.
     pub fn over_claims_source(&self) -> bool {
         self.published_label.rank() > self.source_published_label.rank()
-            || support_breadth(self.scope_support_class) > support_breadth(self.source_support_class)
+            || support_breadth(self.scope_support_class)
+                > support_breadth(self.source_support_class)
     }
 
     /// The freshness state the row discloses (the export proof packet's SLO state).
@@ -858,8 +859,9 @@ impl ClaimScopeExportRegister {
     /// Recomputes the summary block from the rows and stop rules.
     pub fn computed_summary(&self) -> ClaimScopeSummary {
         let kind = |kind: FamilyKind| self.rows_for_kind(kind).len();
-        let state =
-            |state: ClaimScopeRowState| self.rows.iter().filter(|r| r.export_state == state).count();
+        let state = |state: ClaimScopeRowState| {
+            self.rows.iter().filter(|r| r.export_state == state).count()
+        };
         let packets = |s: FreshnessSloState| {
             self.rows
                 .iter()
@@ -1258,10 +1260,9 @@ impl ClaimScopeExportRegister {
             RowState::Stale => Some(ClaimScopeReason::QualificationStale),
             RowState::UnsupportedSkew => Some(ClaimScopeReason::SkewWindowExceeded),
             RowState::Deprecated => Some(ClaimScopeReason::DeprecationScheduled),
-            RowState::Qualified
-            | RowState::Limited
-            | RowState::OnWaiver
-            | RowState::Incomplete => None,
+            RowState::Qualified | RowState::Limited | RowState::OnWaiver | RowState::Incomplete => {
+                None
+            }
         };
         if let Some(reason) = required_row_reason {
             if !r.has_active_reason(reason) {
@@ -1302,7 +1303,8 @@ impl ClaimScopeExportRegister {
         }
         for evidence in &r.evidence_refs {
             // A present ref carries a location; only a missing one carries none.
-            if evidence.state != M5ClaimReportState::Missing && evidence.evidence_ref.trim().is_empty()
+            if evidence.state != M5ClaimReportState::Missing
+                && evidence.evidence_ref.trim().is_empty()
             {
                 violations.push(ClaimScopeViolation::EvidenceRefIncomplete {
                     entry_id: r.entry_id.clone(),
@@ -2088,7 +2090,10 @@ impl fmt::Display for ClaimScopeViolation {
                 reason.as_str()
             ),
             Self::ReleaseBlockingFamilyUncovered { family_ref } => {
-                write!(f, "release-blocking family {family_ref} has no covering row")
+                write!(
+                    f,
+                    "release-blocking family {family_ref} has no covering row"
+                )
             }
             Self::ReleaseBlockingRowNotDeclared { entry_id } => write!(
                 f,
