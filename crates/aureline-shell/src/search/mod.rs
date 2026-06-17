@@ -9,6 +9,7 @@ pub mod alpha_validation;
 pub mod content_integrity;
 pub mod query_artifact_surfaces;
 pub mod ranking_reason_card;
+pub mod search_surface_bindings;
 
 pub use alpha_validation::{
     materialize_search_alpha_validation_packet, SearchAlphaDiscoverabilityReview,
@@ -32,4 +33,9 @@ pub use ranking_reason_card::{
     ranking_reason_cards_for_planned_result_set, ranking_reason_cards_for_quick_open_snapshot,
     RankingReasonCard, RankingReasonSignal, RankingReasonSupportExport,
     RANKING_REASON_CARD_SCHEMA_VERSION, RANKING_REASON_SUPPORT_EXPORT_SCHEMA_VERSION,
+};
+pub use search_surface_bindings::{
+    desktop_is_first_consumer, project_search_surface_bindings, SearchSurfaceBinding,
+    SearchSurfaceBindingSet, SEARCH_SURFACE_BINDING_SET_RECORD_KIND,
+    SEARCH_SURFACE_BINDING_SET_SCHEMA_VERSION,
 };

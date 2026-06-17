@@ -89,6 +89,7 @@ pub mod monorepo_hot_set_truth;
 pub mod planner;
 pub mod query_artifacts;
 pub mod query_session;
+pub mod query_session_first_consumers;
 pub mod quick_open_latency_truth;
 pub mod ranking_reason;
 pub mod readiness;
@@ -243,6 +244,19 @@ pub use query_session::{
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
 };
 
+pub use query_session_first_consumers::{
+    current_query_session_first_consumers_packet,
+    seeded_partial_index_stale_query_session_first_consumers_packet,
+    seeded_query_session_first_consumers_packet, ConsumerReuseBinding, ConsumerSurfaceKind,
+    CrossSurfaceReuseRow, DurableResultRow, DurableSurfaceSession, FirstConsumerValidationFinding,
+    PresentationChurnEvent, QuerySessionFirstConsumersArtifactError,
+    QuerySessionFirstConsumersPacket, SessionConsumerClass,
+    QUERY_SESSION_FIRST_CONSUMERS_ARTIFACT_REF, QUERY_SESSION_FIRST_CONSUMERS_DOC_REF,
+    QUERY_SESSION_FIRST_CONSUMERS_FIXTURE_DIR, QUERY_SESSION_FIRST_CONSUMERS_PACKET_ID,
+    QUERY_SESSION_FIRST_CONSUMERS_PACKET_RECORD_KIND, QUERY_SESSION_FIRST_CONSUMERS_SCHEMA_REF,
+    QUERY_SESSION_FIRST_CONSUMERS_SCHEMA_VERSION,
+};
+
 pub use quick_open_latency_truth::{
     current_stable_quick_open_latency_truth_packet, CertifiedArchetypeClass, LatencyBudget,
     LatencyConsumerProjection, LatencyConsumerSurface, LatencyFindingKind, LatencyFindingSeverity,
@@ -296,8 +310,9 @@ pub use remap::{
 };
 
 pub use result_id::{
-    build_lexical_result_id, build_planned_result_id, build_surface_result_id,
-    normalize_result_id_part, StableResultKind, LEXICAL_RESULT_ID_SCHEME,
+    build_canonical_result_id, build_lexical_result_id, build_planned_result_id,
+    build_surface_result_id, normalize_result_id_part, StableResultKind,
+    CANONICAL_RESULT_ID_SCHEME, LEXICAL_RESULT_ID_SCHEME,
 };
 
 pub use result_truth_packet::{

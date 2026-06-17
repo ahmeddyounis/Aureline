@@ -14,6 +14,9 @@ use crate::query_session::SearchSurface;
 /// Stable scheme token for lexical result IDs.
 pub const LEXICAL_RESULT_ID_SCHEME: &str = "wsearch";
 
+/// Stable scheme token for surface-independent canonical result IDs.
+pub const CANONICAL_RESULT_ID_SCHEME: &str = "search:id";
+
 /// Result-kind token used by cross-surface stable result IDs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -99,6 +102,29 @@ pub fn build_surface_result_id(
     )
 }
 
+/// Builds a durable, surface-independent result ID keyed by the canonical target.
+///
+/// Unlike [`build_surface_result_id`], this id does **not** embed the launching
+/// surface, so the same canonical target reused by quick open, symbol search,
+/// references, full-text search, and recent navigation resolves to one stable
+/// identity. This is the durable identity that survives presentation churn (row
+/// virtualization, preview-pane toggles, reason-chip toggles, pane restore) and
+/// cross-surface reuse: it never collapses into a display label or a transient
+/// list index.
+pub fn build_canonical_result_id(
+    workspace_id: &str,
+    kind: StableResultKind,
+    canonical_ref: &str,
+) -> String {
+    format!(
+        "{}:{}:{}:{}",
+        CANONICAL_RESULT_ID_SCHEME,
+        normalize_result_id_part(workspace_id),
+        kind.as_str(),
+        normalize_result_id_part(canonical_ref),
+    )
+}
+
 /// Builds the stable result ID for a planner-fused row.
 ///
 /// This preserves the existing planner result shape so fixture and support
@@ -135,6 +161,25 @@ mod tests {
                 "cmd:workspace.open_folder",
             ),
             "search:result:quick_open:ws-alpha:command:cmd:workspace.open_folder",
+        );
+    }
+
+    #[test]
+    fn canonical_builder_is_surface_independent() {
+        let from_symbol_search = build_canonical_result_id(
+            "ws-alpha",
+            StableResultKind::Symbol,
+            "aureline_search::query_session::SearchQuerySession",
+        );
+        let from_references = build_canonical_result_id(
+            "ws-alpha",
+            StableResultKind::Symbol,
+            "aureline_search::query_session::SearchQuerySession",
+        );
+        assert_eq!(from_symbol_search, from_references);
+        assert_eq!(
+            from_symbol_search,
+            "search:id:ws-alpha:symbol:aureline_search::query_session::SearchQuerySession",
         );
     }
 
