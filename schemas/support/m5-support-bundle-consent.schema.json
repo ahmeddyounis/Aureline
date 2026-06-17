@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/m5-support-bundle-consent.schema.json",
+  "title": "Aureline support-bundle consent sheets",
+  "description": "Schema for the m5_support_bundle_consent packet: the registry of support-bundle consent sheets that show what an export would include, exclude, and policy-lock by data class before any packet leaves the machine. Each sheet carries the included/excluded/policy-locked counts per data class (metadata_only, environment_adjacent, code_adjacent, high_risk), the visible bundle schema version, a retention class and note, the selected destination class (local_only_review, vendor_case_handoff, user_initiated_upload, managed_admin_handoff, private_security_channel), the class-safe redaction toggles, and the export-destination options. A fail-closed consent gate derives each sheet's published presentation (review_ready, narrowed_review, send_blocked) as the weaker of its consent-status ceiling (review_ready presents transparently; policy_narrowed and redaction_adjusted narrow it; send_blocked caps it) and its schema-freshness ceiling (current presents transparently; stale narrows it). The recorded consent status, presentation, downgrade reasons (destination_policy_locked, redaction_override_applied, export_blocked_unsafe_content, stale_schema_warning), local-save-first-class attestation, and blocked-before-send flag must equal the recomputed gate. Two hard invariants always hold: the local-save path is at least as prominent as every send path, so an upload-first sheet can never make local-save look secondary; and secret-bearing (high_risk) classes stay excluded by default and never offer an off-machine-exportable toggle, so secret-bearing content can never reach a send destination on a sheet that is not blocked. Every required consumer surface (support_center, cli_headless, formal_support_handoff, support_export) binds to this one registry and must ingest it, preserve its consent vocabulary and object ids, keep local-save first-class, and narrow with it. The packet is metadata-only and carries no credential bodies, raw provider payloads, clipboard history, or secret-bearing payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "data_classes",
+    "destination_classes",
+    "path_prominences",
+    "retention_classes",
+    "schema_freshnesses",
+    "consent_statuses",
+    "presentations",
+    "downgrade_reasons",
+    "redaction_modes",
+    "default_inclusions",
+    "consumer_surfaces",
+    "sheets",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_support_bundle_consent" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "data_classes": { "type": "array", "items": { "$ref": "#/$defs/data_class" } },
+    "destination_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/destination_class" }
+    },
+    "path_prominences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path_prominence" }
+    },
+    "retention_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/retention_class" }
+    },
+    "schema_freshnesses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/schema_freshness" }
+    },
+    "consent_statuses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consent_status" }
+    },
+    "presentations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/presentation" }
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "redaction_modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_mode" }
+    },
+    "default_inclusions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/default_inclusion" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "sheets": { "type": "array", "items": { "$ref": "#/$defs/sheet" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "data_class": {
+      "enum": ["metadata_only", "environment_adjacent", "code_adjacent", "high_risk"]
+    },
+    "destination_class": {
+      "enum": [
+        "local_only_review",
+        "vendor_case_handoff",
+        "user_initiated_upload",
+        "managed_admin_handoff",
+        "private_security_channel"
+      ]
+    },
+    "path_prominence": {
+      "enum": ["primary", "co_equal", "secondary"]
+    },
+    "retention_class": {
+      "enum": [
+        "not_retained_local_only",
+        "short_lived_case_attachment",
+        "standard_support_retention",
+        "extended_compliance_hold",
+        "vendor_defined_retention"
+      ]
+    },
+    "schema_freshness": {
+      "enum": ["current", "stale"]
+    },
+    "consent_status": {
+      "enum": ["review_ready", "policy_narrowed", "redaction_adjusted", "send_blocked"]
+    },
+    "presentation": {
+      "enum": ["review_ready", "narrowed_review", "send_blocked"]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "destination_policy_locked",
+        "redaction_override_applied",
+        "export_blocked_unsafe_content",
+        "stale_schema_warning"
+      ]
+    },
+    "redaction_mode": {
+      "enum": [
+        "not_required_metadata",
+        "redacted_summary",
+        "sanitized_snapshot",
+        "retained_local_only",
+        "omitted_pending_opt_in",
+        "prohibited",
+        "policy_locked"
+      ]
+    },
+    "default_inclusion": {
+      "enum": ["included_by_default", "excluded_by_default", "non_exportable"]
+    },
+    "consumer_surface": {
+      "enum": ["support_center", "cli_headless", "formal_support_handoff", "support_export"]
+    },
+    "redaction_toggle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "current_mode", "default_mode", "allowed_modes", "policy_locked"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "current_mode": { "$ref": "#/$defs/redaction_mode" },
+        "default_mode": { "$ref": "#/$defs/redaction_mode" },
+        "allowed_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/redaction_mode" }
+        },
+        "policy_locked": { "type": "boolean" }
+      }
+    },
+    "class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "included_count",
+        "excluded_count",
+        "policy_locked_count",
+        "default_inclusion",
+        "redaction_toggle",
+        "note"
+      ],
+      "properties": {
+        "data_class": { "$ref": "#/$defs/data_class" },
+        "included_count": { "type": "integer", "minimum": 0 },
+        "excluded_count": { "type": "integer", "minimum": 0 },
+        "policy_locked_count": { "type": "integer", "minimum": 0 },
+        "default_inclusion": { "$ref": "#/$defs/default_inclusion" },
+        "redaction_toggle": { "$ref": "#/$defs/redaction_toggle" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_class",
+        "prominence",
+        "enabled",
+        "selected",
+        "leaves_machine",
+        "label",
+        "destination_ref"
+      ],
+      "properties": {
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "prominence": { "$ref": "#/$defs/path_prominence" },
+        "enabled": { "type": "boolean" },
+        "selected": { "type": "boolean" },
+        "leaves_machine": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "destination_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sheet_id",
+        "title",
+        "schema_version_label",
+        "current_schema_version_label",
+        "schema_freshness",
+        "retention_class",
+        "retention_note",
+        "selected_destination_class",
+        "consent_status",
+        "presentation",
+        "local_save_first_class",
+        "blocked_before_send",
+        "raw_material_excluded",
+        "class_rows",
+        "destinations",
+        "source_of_truth_ref",
+        "explain_entrypoint_ref",
+        "cli_object_ref",
+        "conformance_ref",
+        "evidence_ref",
+        "consent_receipt_ref",
+        "note"
+      ],
+      "properties": {
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "schema_version_label": { "$ref": "#/$defs/non_empty_string" },
+        "current_schema_version_label": { "$ref": "#/$defs/non_empty_string" },
+        "schema_freshness": { "$ref": "#/$defs/schema_freshness" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_note": { "$ref": "#/$defs/non_empty_string" },
+        "selected_destination_class": { "$ref": "#/$defs/destination_class" },
+        "consent_status": { "$ref": "#/$defs/consent_status" },
+        "presentation": { "$ref": "#/$defs/presentation" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "local_save_first_class": { "type": "boolean" },
+        "blocked_before_send": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" },
+        "class_rows": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/class_row" }
+        },
+        "destinations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/destination" }
+        },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "blockers": { "$ref": "#/$defs/string_array" },
+        "source_of_truth_ref": { "$ref": "#/$defs/non_empty_string" },
+        "explain_entrypoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cli_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "consent_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "packet_id_ref",
+        "ingests_registry",
+        "preserves_consent_vocabulary",
+        "preserves_object_ids",
+        "local_save_first_class",
+        "narrows_on_downgrade",
+        "raw_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_registry": { "type": "boolean" },
+        "preserves_consent_vocabulary": { "type": "boolean" },
+        "preserves_object_ids": { "type": "boolean" },
+        "local_save_first_class": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_sheets",
+        "review_ready_sheets",
+        "narrowed_sheets",
+        "send_blocked_sheets",
+        "sheets_with_policy_locks",
+        "sheets_with_redaction_overrides",
+        "stale_schema_sheets",
+        "local_save_first_class_sheets",
+        "total_included",
+        "total_excluded",
+        "total_policy_locked"
+      ],
+      "properties": {
+        "total_sheets": { "type": "integer", "minimum": 0 },
+        "review_ready_sheets": { "type": "integer", "minimum": 0 },
+        "narrowed_sheets": { "type": "integer", "minimum": 0 },
+        "send_blocked_sheets": { "type": "integer", "minimum": 0 },
+        "sheets_with_policy_locks": { "type": "integer", "minimum": 0 },
+        "sheets_with_redaction_overrides": { "type": "integer", "minimum": 0 },
+        "stale_schema_sheets": { "type": "integer", "minimum": 0 },
+        "local_save_first_class_sheets": { "type": "integer", "minimum": 0 },
+        "total_included": { "type": "integer", "minimum": 0 },
+        "total_excluded": { "type": "integer", "minimum": 0 },
+        "total_policy_locked": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -257,6 +257,22 @@
 //!   can never present as a clean "this value won" chip. Active surface,
 //!   Support Center, CLI/headless, support export, and issue-report packets
 //!   bind to this one registry and narrow with it.
+//! - The [`m5_support_bundle_consent`] registry — the canonical support-export
+//!   consent-sheet contract. It carries one sheet per export scenario worth
+//!   reviewing, each showing the included / excluded / policy-locked counts by
+//!   data class, the visible bundle schema version, the retention note, the
+//!   selected destination class, the class-safe redaction toggles, and — equal
+//!   in prominence to any upload or formal-support send — the local-save path.
+//!   A fail-closed consent gate publishes the weaker of a consent-status ceiling
+//!   (a policy lock or a redaction override narrows the sheet; content that
+//!   cannot leave the machine caps it at send-blocked) and a schema-freshness
+//!   ceiling (a stale schema narrows it), and two hard invariants always hold:
+//!   local-save is never less prominent than a send path, and secret-bearing
+//!   classes stay excluded by default and unexportable, so an export can never
+//!   read as a clean "ready to send" sheet while hiding a lock, an override, a
+//!   stale schema, or unsafe content. Support Center, CLI/headless, formal
+//!   support handoff, and support export bind to this one registry and narrow
+//!   with it.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -364,6 +380,7 @@ pub mod m5_storage_certification;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
 pub mod m5_storage_pressure;
+pub mod m5_support_bundle_consent;
 pub mod m5_support_center_matrix;
 pub mod m5_support_center_ui;
 pub mod mutation_journal;
@@ -539,6 +556,21 @@ pub use m5_storage_certification::{
     M5_STORAGE_CERTIFICATION_FIXTURE_DIR, M5_STORAGE_CERTIFICATION_PACKET_ID,
     M5_STORAGE_CERTIFICATION_PACKET_RECORD_KIND, M5_STORAGE_CERTIFICATION_SCHEMA_REF,
     M5_STORAGE_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use m5_support_bundle_consent::{
+    current_m5_support_bundle_consent, ConsentClassRow, ConsentConsumerBinding,
+    ConsentConsumerSurface, ConsentDataClass, ConsentDestination, ConsentDestinationClass,
+    ConsentDowngradeReason, ConsentPresentation, ConsentStatus, DefaultInclusion,
+    M5SupportBundleConsent, M5SupportBundleConsentExportProjection,
+    M5SupportBundleConsentExportRow, M5SupportBundleConsentSummary,
+    M5SupportBundleConsentSupportExport, M5SupportBundleConsentViolation, PathProminence,
+    RedactionMode, RedactionToggle, RetentionClass as ConsentRetentionClass, SchemaFreshness,
+    SupportBundleConsentSheet, M5_SUPPORT_BUNDLE_CONSENT_ARTIFACT_DOC_REF,
+    M5_SUPPORT_BUNDLE_CONSENT_DOC_REF, M5_SUPPORT_BUNDLE_CONSENT_FIXTURE_DIR,
+    M5_SUPPORT_BUNDLE_CONSENT_JSON, M5_SUPPORT_BUNDLE_CONSENT_PATH,
+    M5_SUPPORT_BUNDLE_CONSENT_RECORD_KIND, M5_SUPPORT_BUNDLE_CONSENT_REVIEW_PACKET_REF,
+    M5_SUPPORT_BUNDLE_CONSENT_SCHEMA_REF, M5_SUPPORT_BUNDLE_CONSENT_SCHEMA_VERSION,
+    M5_SUPPORT_BUNDLE_CONSENT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_support_center_matrix::{
     current_m5_support_center_matrix, ConsentState, DataClass,
