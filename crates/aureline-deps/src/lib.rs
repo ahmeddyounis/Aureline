@@ -89,6 +89,19 @@
 //! maturity and narrowing action are validated against the recomputed gate
 //! decision, release/public-truth surfaces can prove underqualified rows narrow
 //! automatically instead of inheriting trust from an adjacent lane.
+//!
+//! The module [`manifest_scope_and_source_review`] makes the *target* of a
+//! package mutation explicit before it leaves review. A
+//! [`manifest_scope_and_source_review::ScopeMutationRow`] carries a durable
+//! requested manifest-scope selector and a resolved effective selector with
+//! explicit workspace-root-versus-member identity, a scope fidelity that keeps
+//! root, member, shared-lockfile, confirmed-workspace, and unconfirmed-broadening
+//! cases distinct so a member operation can never silently widen to the wrong
+//! manifest, the requested-versus-resolved dependency identity in separate
+//! fields, and a registry-source cue (source class, mirror owner, auth mode,
+//! freshness, revocation) so trust is never overclaimed. It reuses the frozen
+//! matrix and descriptor vocabulary and projects the same row to desktop, CLI,
+//! review, AI, and support/export surfaces.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -97,6 +110,7 @@ pub mod ecosystem_qualification_certification;
 pub mod export_safe_dependency_reports;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
+pub mod manifest_scope_and_source_review;
 pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
@@ -220,4 +234,17 @@ pub use package_state_descriptors::{
     ResolvedIdentity, ResolvedView, UpdateProposalView, PACKAGE_STATE_DESCRIPTORS_JSON,
     PACKAGE_STATE_DESCRIPTORS_PATH, PACKAGE_STATE_DESCRIPTORS_RECORD_KIND,
     PACKAGE_STATE_DESCRIPTORS_SCHEMA_VERSION,
+};
+// `RequestedIdentity`, `ResolvedIdentity`, `ManifestScopeClass`, `AuthMode`,
+// `RegistrySourceAuthority`, and the other frozen-matrix/descriptor types this
+// module reuses are intentionally not re-exported again here; reach them through
+// `package_state_descriptors` and the frozen matrix above.
+pub use manifest_scope_and_source_review::{
+    current_manifest_scope_review, ManifestRole, ManifestScopeReview,
+    ManifestScopeReviewExportProjection, ManifestScopeReviewSummary, ManifestScopeReviewViolation,
+    ManifestScopeSelector, RegistrySourceCue, RegistrySourceCueView, RevocationState,
+    ScopeDiffView, ScopeFidelity, ScopeMutationExportRow, ScopeMutationRow,
+    ScopeMutationSurfaceProjection, ScopeMutationView, SourceFreshness, MANIFEST_SCOPE_REVIEW_JSON,
+    MANIFEST_SCOPE_REVIEW_PATH, MANIFEST_SCOPE_REVIEW_RECORD_KIND,
+    MANIFEST_SCOPE_REVIEW_SCHEMA_VERSION,
 };

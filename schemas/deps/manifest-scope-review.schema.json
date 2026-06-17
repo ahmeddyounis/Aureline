@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deps/manifest-scope-review.schema.json",
+  "title": "Aureline manifest-scope review",
+  "description": "Schema for the manifest_scope_review packet. Each row is the canonical review/result object for one M5 package mutation: a durable requested manifest-scope selector (workspace root, member/module, standalone manifest, or path/VCS target) and a resolved effective selector, a scope fidelity that classifies the root-versus-member relationship so a member operation never silently broadens to the wrong manifest, the requested-versus-resolved dependency identity kept in separate fields, and a registry-source cue carrying the source class, mirror owner, auth mode, freshness, and revocation state so trust is never overclaimed. references_matrix_id binds every row to the frozen package-state matrix. The model is metadata-only and carries no credential bodies, registry tokens, raw provider payloads, or private registry URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "references_matrix_id",
+    "manifest_roles",
+    "scope_fidelities",
+    "source_freshness_states",
+    "revocation_states",
+    "rows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "manifest_scope_review" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "references_matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "manifest_roles": { "type": "array", "items": { "$ref": "#/$defs/manifest_role" } },
+    "scope_fidelities": { "type": "array", "items": { "$ref": "#/$defs/scope_fidelity" } },
+    "source_freshness_states": { "type": "array", "items": { "$ref": "#/$defs/source_freshness" } },
+    "revocation_states": { "type": "array", "items": { "$ref": "#/$defs/revocation_state" } },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "redacted_string": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://" }
+    },
+    "ecosystem_kind": {
+      "enum": ["cargo", "node_pnpm", "python_pip", "other"]
+    },
+    "manifest_role": {
+      "enum": ["workspace_root", "workspace_member", "standalone_manifest", "path_or_vcs_target"]
+    },
+    "scope_fidelity": {
+      "enum": ["exact", "disclosed_shared_lockfile", "confirmed_workspace_wide", "unconfirmed_broadening"]
+    },
+    "source_freshness": {
+      "enum": ["current", "stale", "offline_snapshot", "unknown"]
+    },
+    "revocation_state": {
+      "enum": ["not_revoked", "revoked", "unknown"]
+    },
+    "manifest_scope_class": {
+      "enum": ["whole_workspace", "selected_manifest", "workset_slice", "workspace_member", "path_or_vcs_target"]
+    },
+    "registry_source_authority": {
+      "enum": ["public_registry", "private_registry", "enterprise_mirror", "local_cache", "offline_snapshot"]
+    },
+    "auth_mode": {
+      "enum": [
+        "anonymous",
+        "os_store_credential",
+        "token_credential",
+        "browser_or_device_sign_in",
+        "policy_inherited_credential",
+        "auth_required_unsatisfied"
+      ]
+    },
+    "dependency_relation": {
+      "enum": ["direct", "transitive", "workspace_local", "path_or_vcs"]
+    },
+    "requested_source_kind": {
+      "enum": ["registry_range", "workspace_local_path", "filesystem_path", "version_control_ref"]
+    },
+    "resolver_identity": {
+      "enum": [
+        "first_party_resolver",
+        "ecosystem_native_resolver",
+        "mirror_backed_resolver",
+        "offline_cache_resolver",
+        "resolver_unknown"
+      ]
+    },
+    "lockfile_authority": {
+      "enum": [
+        "exact_lockfile_pinned",
+        "manifest_range_governed",
+        "frozen_by_policy",
+        "lockfile_missing",
+        "lockfile_divergent",
+        "authority_unknown"
+      ]
+    },
+    "manifest_scope_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_id",
+        "role",
+        "scope_class",
+        "display_label",
+        "redacted_manifest_path",
+        "continuity_token"
+      ],
+      "properties": {
+        "manifest_id": { "$ref": "#/$defs/non_empty_string" },
+        "role": { "$ref": "#/$defs/manifest_role" },
+        "scope_class": { "$ref": "#/$defs/manifest_scope_class" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "redacted_manifest_path": { "$ref": "#/$defs/redacted_string" },
+        "parent_manifest_id": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_token": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "requested_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ecosystem",
+        "package_name",
+        "requested_ref",
+        "requested_source",
+        "manifest_scope",
+        "policy_pinned"
+      ],
+      "properties": {
+        "ecosystem": { "$ref": "#/$defs/ecosystem_kind" },
+        "package_name": { "$ref": "#/$defs/non_empty_string" },
+        "requested_ref": { "$ref": "#/$defs/redacted_string" },
+        "requested_source": { "$ref": "#/$defs/requested_source_kind" },
+        "manifest_scope": { "$ref": "#/$defs/manifest_scope_class" },
+        "policy_pinned": { "type": "boolean" }
+      }
+    },
+    "resolved_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "resolved_ref", "resolver_identity", "lockfile_authority"],
+      "properties": {
+        "relation": { "$ref": "#/$defs/dependency_relation" },
+        "resolved_ref": { "$ref": "#/$defs/redacted_string" },
+        "registry_source": { "$ref": "#/$defs/registry_source_authority" },
+        "resolver_identity": { "$ref": "#/$defs/resolver_identity" },
+        "lockfile_authority": { "$ref": "#/$defs/lockfile_authority" }
+      }
+    },
+    "registry_source_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "auth_mode", "freshness", "revocation", "redacted_source_label"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/registry_source_authority" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode" },
+        "freshness": { "$ref": "#/$defs/source_freshness" },
+        "revocation": { "$ref": "#/$defs/revocation_state" },
+        "mirror_owner": { "$ref": "#/$defs/redacted_string" },
+        "redacted_source_label": { "$ref": "#/$defs/redacted_string" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "requested_scope",
+        "resolved_scope",
+        "fidelity",
+        "broadening_confirmed",
+        "requested",
+        "source_cue",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "requested_scope": { "$ref": "#/$defs/manifest_scope_selector" },
+        "resolved_scope": { "$ref": "#/$defs/manifest_scope_selector" },
+        "fidelity": { "$ref": "#/$defs/scope_fidelity" },
+        "broadening_confirmed": { "type": "boolean" },
+        "affected_manifest_ids": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "requested": { "$ref": "#/$defs/requested_identity" },
+        "resolved": { "$ref": "#/$defs/resolved_identity" },
+        "source_cue": { "$ref": "#/$defs/registry_source_cue" },
+        "post_apply_scope": { "$ref": "#/$defs/manifest_scope_selector" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "root_targeted_rows",
+        "member_targeted_rows",
+        "broadened_rows",
+        "confirmed_broadening_rows",
+        "silent_broadening_rows",
+        "trust_blocked_rows",
+        "appliable_rows",
+        "applied_rows",
+        "resolved_identity_rows"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "root_targeted_rows": { "type": "integer", "minimum": 0 },
+        "member_targeted_rows": { "type": "integer", "minimum": 0 },
+        "broadened_rows": { "type": "integer", "minimum": 0 },
+        "confirmed_broadening_rows": { "type": "integer", "minimum": 0 },
+        "silent_broadening_rows": { "type": "integer", "minimum": 0 },
+        "trust_blocked_rows": { "type": "integer", "minimum": 0 },
+        "appliable_rows": { "type": "integer", "minimum": 0 },
+        "applied_rows": { "type": "integer", "minimum": 0 },
+        "resolved_identity_rows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
