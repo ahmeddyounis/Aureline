@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/ai_topology_context.schema.json",
+  "title": "Aureline topology-aware AI-context packet",
+  "description": "Export-safe packet propagating the canonical repository-topology surface bindings into the AI-context surface. Each slice row is derived from one AI-context surface binding, so context assembly reads the same boundary every other surface reads. content_is_authoritative and admit_body_to_prompt are true only for complete, in-scope, hydrated slices, so a pointer-only or unfetched slice is named rather than admitted into the prompt as if it were the file; crosses_repo_boundary stays visible so a parent and a child repository are never folded into one context. Each limited slice may carry the reviewed widen/deepen/initialize/hydrate remediation verb. Raw paths, raw object bytes, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "bindings",
+    "rows",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_topology_context_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "$ref": "https://aureline.dev/schemas/git/topology.schema.json#/$defs/surface_binding"
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/slice_row" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "action_kind": {
+      "enum": ["widen", "deepen", "initialize", "hydrate"]
+    },
+    "slice_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "binding_ref",
+        "result_truth",
+        "content_is_authoritative",
+        "admit_body_to_prompt",
+        "crosses_repo_boundary",
+        "remediation_action",
+        "authoritative_root_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_topology_context_slice_row" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "result_truth": {
+          "$ref": "https://aureline.dev/schemas/git/topology.schema.json#/$defs/result_truth"
+        },
+        "content_is_authoritative": { "type": "boolean" },
+        "admit_body_to_prompt": { "type": "boolean" },
+        "crosses_repo_boundary": { "type": "boolean" },
+        "remediation_action": {
+          "oneOf": [{ "$ref": "#/$defs/action_kind" }, { "type": "null" }]
+        },
+        "authoritative_root_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "row_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_object_bytes_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_topology_context_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_object_bytes_redacted": { "const": true }
+      }
+    }
+  }
+}

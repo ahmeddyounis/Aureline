@@ -159,6 +159,7 @@ pub mod scope;
 pub mod search_benchmark_corpus_truth;
 pub mod search_export_governance;
 pub mod session_ledger;
+pub mod topology_propagation;
 
 pub use action_bindings::{
     current_search_action_binding_packet, seeded_scope_trust_narrowed_search_action_binding_packet,
@@ -507,6 +508,15 @@ pub use session_ledger::{
     SavedQueryValidationFindingKind, SearchExportDestination, SearchExportError,
     SearchExportPacket, SearchExportPacketInputs, SearchExportSnapshotTruth,
     SearchPacketCountSummary, SearchPacketRedactionState, SAVED_QUERY_ALPHA_SCHEMA_VERSION,
+};
+
+pub use topology_propagation::{
+    current_search_topology_scope_packet, search_remediation_for, SearchScopeRow,
+    SearchTopologyScopeError, SearchTopologyScopePacket, SearchTopologyScopeSupportExport,
+    SearchTopologyScopeValidationError, SEARCH_TOPOLOGY_SCOPE_ARTIFACT_REF,
+    SEARCH_TOPOLOGY_SCOPE_PACKET_RECORD_KIND, SEARCH_TOPOLOGY_SCOPE_REQUIRED_RECONSTRUCTION_FIELDS,
+    SEARCH_TOPOLOGY_SCOPE_ROW_RECORD_KIND, SEARCH_TOPOLOGY_SCOPE_SCHEMA_REF,
+    SEARCH_TOPOLOGY_SCOPE_SCHEMA_VERSION, SEARCH_TOPOLOGY_SCOPE_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use aureline_navigation::target_model as navigation_target_model;

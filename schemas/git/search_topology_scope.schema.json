@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/search_topology_scope.schema.json",
+  "title": "Aureline topology-aware search-scope packet",
+  "description": "Export-safe packet propagating the canonical repository-topology surface bindings into the search-scope surface. Each row is derived from one search-scope surface binding, so search reads the same boundary every other surface reads. A row reports the explicit topology result truth and may carry the reviewed widen/deepen/initialize/hydrate remediation verb. The decisive invariant is zero_results_means_absent: it is true only when the result truth is complete, so search never treats omitted, unfetched, uninitialized, pointer-only, or generated/vendor content as genuine absence. Raw paths, raw object bytes, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "bindings",
+    "rows",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "search_topology_scope_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "$ref": "https://aureline.dev/schemas/git/topology.schema.json#/$defs/surface_binding"
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scope_row" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "action_kind": {
+      "enum": ["widen", "deepen", "initialize", "hydrate"]
+    },
+    "scope_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "binding_ref",
+        "result_truth",
+        "zero_results_means_absent",
+        "remediation_action",
+        "authoritative_root_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_topology_scope_row" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "result_truth": {
+          "$ref": "https://aureline.dev/schemas/git/topology.schema.json#/$defs/result_truth"
+        },
+        "zero_results_means_absent": { "type": "boolean" },
+        "remediation_action": {
+          "oneOf": [{ "$ref": "#/$defs/action_kind" }, { "type": "null" }]
+        },
+        "authoritative_root_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "row_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_object_bytes_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_topology_scope_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_object_bytes_redacted": { "const": true }
+      }
+    }
+  }
+}

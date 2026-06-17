@@ -48,6 +48,7 @@ pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
 pub mod stabilize_work_item_status_transition_review;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
+pub mod topology_overlays;
 pub mod workspace;
 
 pub use add_merge_queue_readiness_stale_base_invalidation_and_approval_recomputation_flows::{
@@ -584,6 +585,16 @@ pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
     POINTER_BACKED_ASSET_POSTURES, PUBLISH_PROPOSAL_RECORD_KIND, PUBLISH_READINESS_CLASSES,
     REPO_TOPOLOGY_CLASSES, WORKTREE_ORCHESTRATION_RECORD_KIND,
 };
+pub use topology_overlays::{
+    current_review_topology_overlay_packet, MultiRootMutationPreview, MutationRootRow,
+    ReviewTopologyOverlayError, ReviewTopologyOverlayPacket, ReviewTopologyOverlaySupportExport,
+    ReviewTopologyOverlayValidationError, REVIEW_TOPOLOGY_OVERLAY_ARTIFACT_REF,
+    REVIEW_TOPOLOGY_OVERLAY_PACKET_RECORD_KIND, REVIEW_TOPOLOGY_OVERLAY_PREVIEW_RECORD_KIND,
+    REVIEW_TOPOLOGY_OVERLAY_REQUIRED_RECONSTRUCTION_FIELDS, REVIEW_TOPOLOGY_OVERLAY_ROW_RECORD_KIND,
+    REVIEW_TOPOLOGY_OVERLAY_SCHEMA_REF, REVIEW_TOPOLOGY_OVERLAY_SCHEMA_VERSION,
+    REVIEW_TOPOLOGY_OVERLAY_SUPPORT_EXPORT_RECORD_KIND,
+};
+
 pub use workspace::{
     project_review_workspace_beta_packet, ReviewAnchorIdAlphaRecord, ReviewLocalLocator,
     ReviewPolicyContext, ReviewProviderOverlay, ReviewProviderOverlayInput,

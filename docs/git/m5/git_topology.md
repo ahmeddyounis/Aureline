@@ -46,6 +46,10 @@ tree complete. Universal content states — pointer-only, unfetched, an
 uninitialized submodule child, and generated/vendor content — narrow every
 surface.
 
+How those bindings reach the search-scope, AI-context, and mutation-review
+surfaces — and how cross-root bulk mutation stays preview-first and opt-in — is
+documented in [topology propagation](topology_propagation.md).
+
 ## Invariants
 
 - A pointer-only or unfetched object never resolves to `complete` or

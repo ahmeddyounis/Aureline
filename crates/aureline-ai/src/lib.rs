@@ -373,6 +373,7 @@ pub mod stabilize_ai_route_and_spend_truth;
 pub mod stabilize_prompt_composer;
 pub mod tainted_context;
 pub mod tool_gateway;
+pub mod topology_context;
 
 pub use add_ai_assisted_test_generation_assumption_review_sandbox_validation_and_coverage_impact_notes::{
     current_stable_generated_test_review_export, AnchorState as GeneratedTestAnchorState,
@@ -958,4 +959,13 @@ pub use tool_gateway::{
     TOOL_GATEWAY_CONFORMANCE_ARTIFACT_REF, TOOL_GATEWAY_CONFORMANCE_PACKET_RECORD_KIND,
     TOOL_GATEWAY_DESCRIPTOR_RECORD_KIND, TOOL_GATEWAY_DESCRIPTOR_SCHEMA_REF,
     TOOL_GATEWAY_FIXTURE_DIR, TOOL_GATEWAY_SCHEMA_VERSION, TOOL_GATEWAY_SURFACE_ROW_RECORD_KIND,
+};
+
+pub use topology_context::{
+    ai_remediation_for, current_ai_topology_context_packet, AiContextSliceRow,
+    AiTopologyContextError, AiTopologyContextPacket, AiTopologyContextSupportExport,
+    AiTopologyContextValidationError, AI_TOPOLOGY_CONTEXT_ARTIFACT_REF,
+    AI_TOPOLOGY_CONTEXT_PACKET_RECORD_KIND, AI_TOPOLOGY_CONTEXT_REQUIRED_RECONSTRUCTION_FIELDS,
+    AI_TOPOLOGY_CONTEXT_ROW_RECORD_KIND, AI_TOPOLOGY_CONTEXT_SCHEMA_REF,
+    AI_TOPOLOGY_CONTEXT_SCHEMA_VERSION, AI_TOPOLOGY_CONTEXT_SUPPORT_EXPORT_RECORD_KIND,
 };
