@@ -34,6 +34,7 @@ pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_open_save_reveal;
+pub mod m5_serialization_and_restore_matrix;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;
 pub mod mutation_and_generated_artifact_lineage;
@@ -309,6 +310,30 @@ pub use m5_open_save_reveal::{
     OPEN_SAVE_REVEAL_ROW_RECORD_KIND, OPEN_SAVE_REVEAL_SCHEMA_VERSION,
     OPEN_SAVE_REVEAL_SHARED_CONTRACT_REF, OPEN_SAVE_REVEAL_SOURCE_SCHEMA_REF,
     OPEN_SAVE_REVEAL_SUPPORT_EXPORT_ID, OPEN_SAVE_REVEAL_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_serialization_and_restore_matrix::{
+    current_m5_serialization_matrix, ArtifactClassRow as SerializationArtifactClassRow,
+    ContinuityCrossLink as SerializationContinuityCrossLink,
+    ContinuitySurface as SerializationContinuitySurface,
+    DependencyCondition as SerializationDependencyCondition,
+    DowngradeReason as SerializationDowngradeReason,
+    EvidenceFreshness as SerializationEvidenceFreshness, M5SerializationMatrix,
+    M5SerializationMatrixExportProjection, M5SerializationMatrixExportRow,
+    M5SerializationMatrixSummary, M5SerializationMatrixSupportExport,
+    M5SerializationMatrixViolation, MatrixConsumerBinding as SerializationMatrixConsumerBinding,
+    MatrixConsumerSurface as SerializationMatrixConsumerSurface,
+    MissingDependencyBehavior as SerializationMissingDependencyBehavior,
+    OwnershipClass as SerializationOwnershipClass, RecoveryPath as SerializationRecoveryPath,
+    RedactionExclusion as SerializationRedactionExclusion, RememberedArtifactClass,
+    RestorableSurface as SerializationRestorableSurface,
+    RestoreFidelityClass as SerializationRestoreFidelityClass,
+    SchemaCondition as SerializationSchemaCondition, SurfaceRow as SerializationSurfaceRow,
+    TopologyCondition as SerializationTopologyCondition, M5_SERIALIZATION_MATRIX_ARTIFACT_DOC_REF,
+    M5_SERIALIZATION_MATRIX_DOC_REF, M5_SERIALIZATION_MATRIX_FIXTURE_DIR,
+    M5_SERIALIZATION_MATRIX_JSON, M5_SERIALIZATION_MATRIX_PATH,
+    M5_SERIALIZATION_MATRIX_RECORD_KIND, M5_SERIALIZATION_MATRIX_SCHEMA_REF,
+    M5_SERIALIZATION_MATRIX_SCHEMA_VERSION, M5_SERIALIZATION_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{
