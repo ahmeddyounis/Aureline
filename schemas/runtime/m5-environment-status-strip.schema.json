@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/m5-environment-status-strip.schema.json",
+  "title": "Aureline environment status strips",
+  "description": "Schema for the m5_environment_status_strips packet: the registry of persistent environment/target status strips and one-step 'Why this execution context?' entrypoints for every run-capable M5 surface (run, test, debug, notebook, request, database, preview, pipeline, incident). Each strip projects the active execution context by reference from the resolver truth, shows a subset of the context facets (interpreter, sdk, shell, container, remote_target) with a freshness state, and always carries a one-step explain entry plus the equivalent CLI/headless object id. A fail-closed status gate derives each strip's published presentation (resolved, flagged, blocked) as the weaker of its status-class ceiling (resolved keeps the strip resolved; stale, remote_drift, and conflicting flag it; blocked caps it at blocked) and its facet-freshness ceiling (a stale or unknown facet flags the strip). The recorded presentation, downgrade reasons (stale_context, blocked_environment, remote_drift, conflicting_context), resolution path (refresh_target, reconnect_remote, resolve_conflict, unblock_environment, none), and blocked-before-run flag must equal the recomputed gate, so a generic 'current target' chip can never hide a differing or blocked context. Every required consumer surface (desktop_shell, support_center, support_export, issue_report_packet, cli_headless) binds to this one registry and must ingest it, preserve its status vocabulary and object ids, and narrow with it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "surfaces",
+    "context_facets",
+    "freshness_states",
+    "status_classes",
+    "presentations",
+    "downgrade_reasons",
+    "resolution_paths",
+    "consumer_surfaces",
+    "strips",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_environment_status_strips" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "surfaces": { "type": "array", "items": { "$ref": "#/$defs/surface" } },
+    "context_facets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/context_facet" }
+    },
+    "freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/freshness" }
+    },
+    "status_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/status_class" }
+    },
+    "presentations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/presentation" }
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "resolution_paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resolution_path" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "strips": { "type": "array", "items": { "$ref": "#/$defs/strip" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface": {
+      "enum": [
+        "run",
+        "test",
+        "debug",
+        "notebook",
+        "request",
+        "database",
+        "preview",
+        "pipeline",
+        "incident"
+      ]
+    },
+    "context_facet": {
+      "enum": ["interpreter", "sdk", "shell", "container", "remote_target"]
+    },
+    "freshness": {
+      "enum": ["fresh", "stale", "unknown"]
+    },
+    "status_class": {
+      "enum": ["resolved", "stale", "blocked", "remote_drift", "conflicting"]
+    },
+    "presentation": {
+      "enum": ["resolved", "flagged", "blocked"]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "stale_context",
+        "blocked_environment",
+        "remote_drift",
+        "conflicting_context"
+      ]
+    },
+    "resolution_path": {
+      "enum": [
+        "refresh_target",
+        "reconnect_remote",
+        "resolve_conflict",
+        "unblock_environment",
+        "none"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "desktop_shell",
+        "support_center",
+        "support_export",
+        "issue_report_packet",
+        "cli_headless"
+      ]
+    },
+    "strip_facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet", "value_label", "freshness", "descriptor_ref"],
+      "properties": {
+        "facet": { "$ref": "#/$defs/context_facet" },
+        "value_label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "descriptor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strip_id",
+        "surface",
+        "status_item_label",
+        "placement_ref",
+        "context_ref",
+        "explain_entrypoint_ref",
+        "cli_object_ref",
+        "shown_facets",
+        "status",
+        "presentation",
+        "resolution_path",
+        "blocked_before_run",
+        "conformance_ref",
+        "evidence_ref",
+        "scope_snapshot_ref",
+        "strip_receipt_ref",
+        "note"
+      ],
+      "properties": {
+        "strip_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "status_item_label": { "$ref": "#/$defs/non_empty_string" },
+        "placement_ref": { "$ref": "#/$defs/non_empty_string" },
+        "context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "explain_entrypoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cli_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shown_facets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/strip_facet" }
+        },
+        "status": { "$ref": "#/$defs/status_class" },
+        "presentation": { "$ref": "#/$defs/presentation" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "resolution_path": { "$ref": "#/$defs/resolution_path" },
+        "blocked_before_run": { "type": "boolean" },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "unmet_or_stale_fields": { "$ref": "#/$defs/string_array" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "strip_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "packet_id_ref",
+        "scope_snapshot_ref",
+        "ingests_registry",
+        "preserves_status_vocabulary",
+        "preserves_object_ids",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_registry": { "type": "boolean" },
+        "preserves_status_vocabulary": { "type": "boolean" },
+        "preserves_object_ids": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_strips",
+        "resolved_strips",
+        "flagged_strips",
+        "blocked_strips",
+        "strips_with_downgrade_reasons",
+        "stale_strips",
+        "blocked_before_run_strips",
+        "facets_shown",
+        "surfaces_covered"
+      ],
+      "properties": {
+        "total_strips": { "type": "integer", "minimum": 0 },
+        "resolved_strips": { "type": "integer", "minimum": 0 },
+        "flagged_strips": { "type": "integer", "minimum": 0 },
+        "blocked_strips": { "type": "integer", "minimum": 0 },
+        "strips_with_downgrade_reasons": { "type": "integer", "minimum": 0 },
+        "stale_strips": { "type": "integer", "minimum": 0 },
+        "blocked_before_run_strips": { "type": "integer", "minimum": 0 },
+        "facets_shown": { "type": "integer", "minimum": 0 },
+        "surfaces_covered": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

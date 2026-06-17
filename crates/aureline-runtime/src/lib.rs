@@ -102,6 +102,7 @@ pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
+pub mod m5_environment_status_strips;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
@@ -526,6 +527,20 @@ pub use log_metric_slice_and_incident_timeline_contract::{
     OPERATIONAL_EVIDENCE_CONTRACT_DOC_REF, OPERATIONAL_EVIDENCE_CONTRACT_FIXTURE_DIR,
     OPERATIONAL_EVIDENCE_CONTRACT_RECORD_KIND, OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_REF,
     OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_VERSION, OPERATIONAL_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_environment_status_strips::{
+    current_m5_environment_status_strips, ContextFacet, ContextFreshness, ContextResolutionPath,
+    ContextStatusClass, EnvironmentStatusStrip, M5EnvironmentStatusStripExportProjection,
+    M5EnvironmentStatusStripExportRow, M5EnvironmentStatusStripSummary,
+    M5EnvironmentStatusStripSupportExport, M5EnvironmentStatusStripViolation,
+    M5EnvironmentStatusStrips, RunSurface, StripConsumerBinding, StripConsumerSurface,
+    StripDowngradeReason, StripFacet, StripPresentation,
+    M5_ENVIRONMENT_STATUS_STRIP_ARTIFACT_DOC_REF, M5_ENVIRONMENT_STATUS_STRIP_DOC_REF,
+    M5_ENVIRONMENT_STATUS_STRIP_FIXTURE_DIR, M5_ENVIRONMENT_STATUS_STRIP_JSON,
+    M5_ENVIRONMENT_STATUS_STRIP_PATH, M5_ENVIRONMENT_STATUS_STRIP_RECORD_KIND,
+    M5_ENVIRONMENT_STATUS_STRIP_REVIEW_PACKET_REF, M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_REF,
+    M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_VERSION,
+    M5_ENVIRONMENT_STATUS_STRIP_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,
