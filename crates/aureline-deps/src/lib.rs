@@ -102,6 +102,20 @@
 //! freshness, revocation) so trust is never overclaimed. It reuses the frozen
 //! matrix and descriptor vocabulary and projects the same row to desktop, CLI,
 //! review, AI, and support/export surfaces.
+//!
+//! The module [`reviewed_mutation_flows`] owns the preview-first review sheet
+//! the four package-mutation flows share. One
+//! [`reviewed_mutation_flows::MutationReviewSheet`] is the single object the
+//! desktop review surface, the CLI/headless dry run, AI and recipe proposals,
+//! and support/export packets all render for an install, update, remove, or
+//! regenerate/resolve. Each sheet makes the manifest scope, a script/native-build
+//! label that keeps *no scripts*, *known install scripts*, *native build
+//! required*, *unknown hook risk*, and *policy blocked* distinct, the resolver
+//! identity and version, a lockfile diff class with quantified blast radius, and
+//! a durable rollback checkpoint explicit before commit; the commit gate refuses
+//! a committed disposition while any block reason still holds, and a failed or
+//! partial mutation leaves a durable [`reviewed_mutation_flows::RollbackReceipt`]
+//! rather than a transient toast.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -115,6 +129,7 @@ pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
 pub mod package_state_descriptors;
+pub mod reviewed_mutation_flows;
 
 pub use dependency_security_compliance_export_truth::{
     current_dependency_security_compliance_export_truth, AdvisoryFreshnessClass, AdvisoryRow,
@@ -247,4 +262,18 @@ pub use manifest_scope_and_source_review::{
     ScopeMutationSurfaceProjection, ScopeMutationView, SourceFreshness, MANIFEST_SCOPE_REVIEW_JSON,
     MANIFEST_SCOPE_REVIEW_PATH, MANIFEST_SCOPE_REVIEW_RECORD_KIND,
     MANIFEST_SCOPE_REVIEW_SCHEMA_VERSION,
+};
+// `ReviewDisposition`, `CheckpointState`, `RecoveryAction`, `RecoveryActionKind`,
+// `SurfaceParity`, and `RegistrySourceCue` are intentionally not re-exported
+// here: they collide with same-named types above. Reach them via
+// `reviewed_mutation_flows::{ReviewDisposition, ..}`.
+pub use reviewed_mutation_flows::{
+    current_reviewed_mutation_flows, LockfileBlastRadius, LockfileDiffClass, ManifestScopeTarget,
+    MutationFlowClass, MutationReviewSheet, MutationReviewSheetSurfaceProjection, ProposalSource,
+    RequestedMutationIdentity, ResolvedMutationIdentity, ResolverIdentity, ReviewedMutationFlows,
+    ReviewedMutationFlowsExportProjection, ReviewedMutationFlowsExportRow,
+    ReviewedMutationFlowsSummary, ReviewedMutationFlowsViolation, ReviewedMutationSurfaceContract,
+    RollbackReceipt, ScriptBuildLabel, ScriptBuildReview, REVIEWED_MUTATION_FLOWS_JSON,
+    REVIEWED_MUTATION_FLOWS_PATH, REVIEWED_MUTATION_FLOWS_RECORD_KIND,
+    REVIEWED_MUTATION_FLOWS_SCHEMA_VERSION,
 };
