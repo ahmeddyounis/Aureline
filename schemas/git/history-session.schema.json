@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/history-session.schema.json",
+  "title": "Aureline history-surgery sessions and first consumers",
+  "description": "Export-safe map binding durable history-surgery session objects to the consumer bindings their first consumers render. Each session descriptor records explicit identity and lifecycle for one risky Git object: a conflict session, a sequence-edit session, a stash/shelf entry, a publish/ref-update proposal, or a recovery checkpoint. Each consumer binding is the deterministic projection of one descriptor onto one surface (desktop, review, search, AI context, CLI/headless, support export, provider overlay), so apply/pop/drop/create-branch stay distinct verbs, a publish proposal allows a network mutation only after divergence/approvals/checks/recovery are satisfied, and exact repo/worktree identity survives reopen, export, support, and provider degradation. Raw paths, raw patch/todo bodies, raw provider payloads, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "map_id",
+    "generated_at",
+    "repo_ref",
+    "worktree_ref",
+    "sessions",
+    "consumer_bindings",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_history_session_map" },
+    "schema_version": { "const": 1 },
+    "map_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+    "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/session" }
+    },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "session_kind": {
+      "enum": [
+        "conflict_session",
+        "sequence_edit_session",
+        "recovery_checkpoint",
+        "publish_ref_update_proposal",
+        "stash_shelf_entry"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "desktop",
+        "review",
+        "search",
+        "ai_context",
+        "cli_headless",
+        "support_export",
+        "provider_overlay"
+      ]
+    },
+    "action": {
+      "enum": [
+        "continue",
+        "abort",
+        "skip",
+        "edit_sequence",
+        "apply",
+        "pop",
+        "drop",
+        "create_branch",
+        "publish",
+        "withdraw",
+        "restore",
+        "prune"
+      ]
+    },
+    "lifecycle_state": {
+      "enum": [
+        "active_awaiting_resolution",
+        "paused_awaiting_user_input",
+        "paused_awaiting_external_tool",
+        "continuing_after_resolution",
+        "aborted_rolled_back",
+        "completed_committed",
+        "completed_handed_off",
+        "downgraded_structured_to_raw",
+        "failed_no_changes_made",
+        "draft_unsaved",
+        "saved_ready_to_run",
+        "running",
+        "paused_for_conflict",
+        "paused_for_user_edit",
+        "completed_admitted",
+        "captured_unapplied",
+        "applied_kept",
+        "applied_popped",
+        "dropped",
+        "promoted_to_branch",
+        "applied_with_conflict",
+        "drafted_pending_review",
+        "blocked_ambiguous_target",
+        "blocked_protected_branch",
+        "blocked_policy",
+        "blocked_invalidated_approval",
+        "ready_to_publish",
+        "applied",
+        "withdrawn",
+        "captured_ready_to_restore",
+        "captured_pending_admit",
+        "restored",
+        "expired_pending_prune",
+        "missing_reflog_only_disclosed",
+        "missing_blocks_apply"
+      ]
+    },
+    "resolution_mode": {
+      "type": ["string", "null"],
+      "enum": ["structured", "raw", "structured_downgraded_to_raw", null]
+    },
+    "divergence_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "no_divergence",
+        "local_ahead",
+        "remote_ahead",
+        "diverged_requires_rebase",
+        "diverged_requires_merge",
+        "unknown_requires_refresh",
+        null
+      ]
+    },
+    "approval_state": {
+      "type": ["string", "null"],
+      "enum": [
+        "approval_not_required",
+        "approval_required_outstanding",
+        "approved_current",
+        "approval_invalidated_by_changes",
+        null
+      ]
+    },
+    "check_invalidation_state": {
+      "type": ["string", "null"],
+      "enum": [
+        "checks_current",
+        "checks_stale_within_grace",
+        "checks_invalidated_blocks_publish",
+        null
+      ]
+    },
+    "publish_mode": {
+      "type": ["string", "null"],
+      "enum": [
+        "local_only",
+        "push_branch",
+        "force_with_lease",
+        "provider_publish",
+        "browser_handoff_publish",
+        null
+      ]
+    },
+    "trigger_kind": {
+      "type": ["string", "null"],
+      "enum": [
+        "before_rebase",
+        "before_reset",
+        "before_revert",
+        "before_cherry_pick",
+        "before_merge",
+        "before_stash_apply",
+        "before_stash_pop",
+        "before_stash_drop",
+        "before_publish",
+        null
+      ]
+    },
+    "restore_option_class": {
+      "enum": [
+        "restore_head_index_worktree",
+        "restore_ref_only",
+        "restore_to_alternate_worktree",
+        "export_patch_bundle",
+        "reflog_only_disclosure"
+      ]
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_kind",
+        "canonical_record_kind",
+        "session_id",
+        "repo_ref",
+        "worktree_ref",
+        "lifecycle_state",
+        "target_refs",
+        "path_scope_tokens",
+        "unresolved_count",
+        "checkpoint_lineage_refs",
+        "raw_source_text_ref",
+        "structured_cards_ref",
+        "available_actions",
+        "resolution_mode",
+        "divergence_class",
+        "approval_state",
+        "check_invalidation_state",
+        "publish_mode",
+        "affected_approval_refs",
+        "affected_check_refs",
+        "trigger_kind",
+        "restore_option_classes",
+        "reflog_only_fallback",
+        "created_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_session_descriptor" },
+        "session_kind": { "$ref": "#/$defs/session_kind" },
+        "canonical_record_kind": { "$ref": "#/$defs/non_empty_string" },
+        "session_id": { "$ref": "#/$defs/non_empty_string" },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "target_refs": { "$ref": "#/$defs/ref_array" },
+        "path_scope_tokens": { "$ref": "#/$defs/ref_array" },
+        "unresolved_count": { "type": "integer", "minimum": 0 },
+        "checkpoint_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "raw_source_text_ref": { "type": ["string", "null"], "minLength": 1 },
+        "structured_cards_ref": { "type": ["string", "null"], "minLength": 1 },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "resolution_mode": { "$ref": "#/$defs/resolution_mode" },
+        "divergence_class": { "$ref": "#/$defs/divergence_class" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "check_invalidation_state": { "$ref": "#/$defs/check_invalidation_state" },
+        "publish_mode": { "$ref": "#/$defs/publish_mode" },
+        "affected_approval_refs": { "$ref": "#/$defs/ref_array" },
+        "affected_check_refs": { "$ref": "#/$defs/ref_array" },
+        "trigger_kind": { "$ref": "#/$defs/trigger_kind" },
+        "restore_option_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_option_class" }
+        },
+        "reflog_only_fallback": { "type": "boolean" },
+        "created_at": { "$ref": "#/$defs/non_empty_string" },
+        "updated_at": { "$ref": "#/$defs/non_empty_string" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "binding_id",
+        "surface",
+        "session_ref",
+        "session_kind",
+        "repo_ref",
+        "worktree_ref",
+        "lifecycle_state",
+        "identity_preserved",
+        "reopen_safe",
+        "disclosed_verbs",
+        "actionable_verbs",
+        "network_mutation_allowed",
+        "recovery_visible",
+        "raw_body_export_allowed"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_session_consumer_binding" },
+        "binding_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "session_kind": { "$ref": "#/$defs/session_kind" },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "identity_preserved": { "type": "boolean" },
+        "reopen_safe": { "type": "boolean" },
+        "disclosed_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "actionable_verbs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "network_mutation_allowed": { "type": "boolean" },
+        "recovery_visible": { "type": "boolean" },
+        "raw_body_export_allowed": { "type": "boolean" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "session_refs",
+        "binding_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_patch_bodies_redacted",
+        "raw_provider_payloads_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_session_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "session_refs": { "$ref": "#/$defs/ref_array" },
+        "binding_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_patch_bodies_redacted": { "const": true },
+        "raw_provider_payloads_redacted": { "const": true }
+      }
+    }
+  }
+}

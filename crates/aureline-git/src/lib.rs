@@ -16,6 +16,7 @@ pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth
 pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix;
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
+pub mod history_sessions;
 pub mod mutations;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
@@ -138,6 +139,16 @@ pub use history_rewrite::{
     REF_UPDATE_PROPOSAL_LIFECYCLE_STATES, REF_UPDATE_PROPOSAL_RECORD_KIND,
     SEQUENCE_EDIT_SESSION_LIFECYCLE_STATES, SEQUENCE_EDIT_SESSION_RECORD_KIND, SEQUENCE_EDIT_VERBS,
     STASH_ENTRY_LIFECYCLE_STATES, STASH_ENTRY_RECORD_KIND,
+};
+pub use history_sessions::{
+    current_history_session_first_consumers_map, HistorySession, HistorySessionConsumerMap,
+    HistorySessionError, HistorySessionSupportExport, HistorySessionValidationError,
+    SessionConsumerBinding, SessionConsumerSurface, HISTORY_SESSION_ACTIONS,
+    HISTORY_SESSION_ARTIFACT_REF, HISTORY_SESSION_CONSUMER_BINDING_RECORD_KIND,
+    HISTORY_SESSION_DESCRIPTOR_RECORD_KIND, HISTORY_SESSION_FIXTURE_DIR,
+    HISTORY_SESSION_MAP_RECORD_KIND, HISTORY_SESSION_REQUIRED_RECONSTRUCTION_FIELDS,
+    HISTORY_SESSION_SCHEMA_REF, HISTORY_SESSION_SCHEMA_VERSION, HISTORY_SESSION_STASH_VERBS,
+    HISTORY_SESSION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use mutations::{
     GitMutationActivityRecord, GitMutationActorRef, GitMutationBackend, GitMutationBackendError,
