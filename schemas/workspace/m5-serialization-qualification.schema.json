@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-serialization-qualification.schema.json",
+  "title": "Aureline M5 serialization qualification",
+  "description": "Schema for the m5_serialization_qualification packet. The packet is the qualification layer above the m5_serialization_and_restore_matrix matrix: it turns serialization and restore fidelity into named qualification rows for the five serialization families (remembered-state, restore-fidelity, portable-state-review, migration-remap, missing-surface-continuity) across claimed profiles and deployment modes (desktop, managed-fleet, companion-browser). Each row reuses the matrix restore-fidelity vocabulary (exact_restore, compatible_restore, layout_only, manual_review), records the matrix fidelity the row narrows from, how fresh the qualification evidence is (current, aging, expired, missing), and the per-drill outcomes (passed, narrowed, failed, not-run) for the schema-jump, foreign-package, display-topology, missing-extension, placeholder-continuity, accessibility, and downgrade drills, then publishes the restore-fidelity claim no input can exceed and a claim-publication decision (published, narrowed, withheld). A non-inheriting, fail-closed gate derives the published fidelity as the weakest ceiling implied by the matrix claim, the evidence freshness, and the drill outcomes, so a matrix-narrowed surface, stale or missing evidence, or an unproven, narrowed, or failed drill narrows or withholds the row automatically; the published fidelity may never exceed the matrix claim, every claimed family carries at least one row, and the recorded fidelity, publication decision, downgrade reasons, and recovery path must equal the recomputed gate. Every required consumer surface (docs-help, support-export, companion-browser-handoff, release-center, shiproom) binds to this one packet and must ingest it, preserve its published fidelity and recovery paths, and narrow with it, so a row narrowed here cannot stay green downstream by inertia.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "matrix_packet_ref",
+    "families",
+    "deployment_modes",
+    "fidelity_labels",
+    "drills",
+    "drill_outcomes",
+    "evidence_freshness_states",
+    "claim_publications",
+    "downgrade_paths",
+    "downgrade_reasons",
+    "consumer_surfaces",
+    "rows",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_serialization_qualification" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "matrix_packet_ref": {
+      "const": "artifacts/workspace/m5/m5-serialization-and-restore-matrix.json"
+    },
+    "families": { "type": "array", "items": { "$ref": "#/$defs/family" } },
+    "deployment_modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/deployment_mode" }
+    },
+    "fidelity_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fidelity" }
+    },
+    "drills": { "type": "array", "items": { "$ref": "#/$defs/drill" } },
+    "drill_outcomes": { "type": "array", "items": { "$ref": "#/$defs/drill_outcome" } },
+    "evidence_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_freshness" }
+    },
+    "claim_publications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim_publication" }
+    },
+    "downgrade_paths": { "type": "array", "items": { "$ref": "#/$defs/downgrade_path" } },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "family": {
+      "enum": [
+        "remembered_state",
+        "restore_fidelity",
+        "portable_state_review",
+        "migration_remap",
+        "missing_surface_continuity"
+      ]
+    },
+    "deployment_mode": {
+      "enum": ["desktop", "managed_fleet", "companion_browser"]
+    },
+    "fidelity": {
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "manual_review"]
+    },
+    "drill": {
+      "enum": [
+        "schema_jump",
+        "foreign_package",
+        "display_topology",
+        "missing_extension",
+        "placeholder_continuity",
+        "accessibility",
+        "downgrade"
+      ]
+    },
+    "drill_outcome": {
+      "enum": ["passed", "narrowed", "failed", "not_run"]
+    },
+    "evidence_freshness": {
+      "enum": ["current", "aging", "expired", "missing"]
+    },
+    "claim_publication": {
+      "enum": ["published", "narrowed", "withheld"]
+    },
+    "downgrade_path": {
+      "enum": [
+        "rerun_drills",
+        "refresh_evidence",
+        "adopt_matrix_narrowing",
+        "withhold_claim",
+        "none"
+      ]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "matrix_narrowed",
+        "evidence_stale",
+        "drill_narrowed",
+        "drill_failed"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "docs_help",
+        "support_export",
+        "companion_browser_handoff",
+        "release_center",
+        "shiproom"
+      ]
+    },
+    "drill_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill", "outcome", "checked_at"],
+      "properties": {
+        "drill": { "$ref": "#/$defs/drill" },
+        "outcome": { "$ref": "#/$defs/drill_outcome" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "checked_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "family",
+        "profile",
+        "deployment_mode",
+        "owner",
+        "matrix_claim",
+        "evidence_freshness",
+        "drill_results",
+        "declared_fidelity",
+        "published_fidelity",
+        "claim_publication",
+        "downgrade_path",
+        "matrix_packet_ref",
+        "matrix_row_ref",
+        "conformance_ref",
+        "evidence_ref",
+        "scope_snapshot_ref",
+        "qualification_receipt_ref",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "family": { "$ref": "#/$defs/family" },
+        "profile": { "$ref": "#/$defs/non_empty_string" },
+        "deployment_mode": { "$ref": "#/$defs/deployment_mode" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "matrix_claim": { "$ref": "#/$defs/fidelity" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "drill_results": { "type": "array", "items": { "$ref": "#/$defs/drill_result" } },
+        "declared_fidelity": { "$ref": "#/$defs/fidelity" },
+        "published_fidelity": { "$ref": "#/$defs/fidelity" },
+        "claim_publication": { "$ref": "#/$defs/claim_publication" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "downgrade_path": { "$ref": "#/$defs/downgrade_path" },
+        "qualified_classes": { "$ref": "#/$defs/string_array" },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "stale_or_missing_fields": { "$ref": "#/$defs/string_array" },
+        "matrix_packet_ref": {
+          "const": "artifacts/workspace/m5/m5-serialization-and-restore-matrix.json"
+        },
+        "matrix_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "qualification_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "qualification_packet_id_ref",
+        "scope_snapshot_ref",
+        "ingests_qualification_packet",
+        "preserves_published_fidelity",
+        "preserves_downgrade_paths",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "qualification_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_qualification_packet": { "type": "boolean" },
+        "preserves_published_fidelity": { "type": "boolean" },
+        "preserves_downgrade_paths": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "family_count",
+        "published_rows",
+        "narrowed_rows",
+        "withheld_rows",
+        "downgraded_rows",
+        "rows_with_downgrade_reasons",
+        "stale_evidence_rows",
+        "rows_with_imperfect_drills"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "family_count": { "type": "integer", "minimum": 0 },
+        "published_rows": { "type": "integer", "minimum": 0 },
+        "narrowed_rows": { "type": "integer", "minimum": 0 },
+        "withheld_rows": { "type": "integer", "minimum": 0 },
+        "downgraded_rows": { "type": "integer", "minimum": 0 },
+        "rows_with_downgrade_reasons": { "type": "integer", "minimum": 0 },
+        "stale_evidence_rows": { "type": "integer", "minimum": 0 },
+        "rows_with_imperfect_drills": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

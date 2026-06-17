@@ -39,6 +39,7 @@ pub mod m5_remembered_state_inspector;
 pub mod m5_remembered_state_objects;
 pub mod m5_restore_provenance;
 pub mod m5_serialization_and_restore_matrix;
+pub mod m5_serialization_qualification;
 pub mod m5_source_acquisition_review;
 pub mod m5_state_migration_and_topology_remap;
 pub mod m5_workflow_bundle_manifests;
@@ -339,6 +340,23 @@ pub use m5_serialization_and_restore_matrix::{
     M5_SERIALIZATION_MATRIX_JSON, M5_SERIALIZATION_MATRIX_PATH,
     M5_SERIALIZATION_MATRIX_RECORD_KIND, M5_SERIALIZATION_MATRIX_SCHEMA_REF,
     M5_SERIALIZATION_MATRIX_SCHEMA_VERSION, M5_SERIALIZATION_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_serialization_qualification::{
+    current_m5_serialization_qualification, ClaimPublication as SerializationClaimPublication,
+    DeploymentMode as SerializationDeploymentMode, DrillOutcome as SerializationQualificationDrillOutcome,
+    EvidenceFreshness as SerializationQualificationEvidenceFreshness, M5SerializationQualification,
+    M5SerializationQualificationExportProjection, M5SerializationQualificationExportRow,
+    M5SerializationQualificationSummary, M5SerializationQualificationSupportExport,
+    M5SerializationQualificationViolation, QualificationConsumerBinding,
+    QualificationConsumerSurface, QualificationDowngradePath, QualificationDowngradeReason,
+    QualificationDrill, QualificationDrillResult, QualificationFamily, QualificationRow,
+    M5_SERIALIZATION_QUALIFICATION_ARTIFACT_DOC_REF, M5_SERIALIZATION_QUALIFICATION_CLAIM_PACKET_REF,
+    M5_SERIALIZATION_QUALIFICATION_DOC_REF, M5_SERIALIZATION_QUALIFICATION_FIXTURE_DIR,
+    M5_SERIALIZATION_QUALIFICATION_JSON, M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF,
+    M5_SERIALIZATION_QUALIFICATION_PATH, M5_SERIALIZATION_QUALIFICATION_RECORD_KIND,
+    M5_SERIALIZATION_QUALIFICATION_SCHEMA_REF, M5_SERIALIZATION_QUALIFICATION_SCHEMA_VERSION,
+    M5_SERIALIZATION_QUALIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use m5_remembered_state_inspector::{
