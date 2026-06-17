@@ -96,7 +96,19 @@
 //!   managed-exit event (sign-out, org-switch, seat loss, and deprovision)
 //!   across all four required deployment profiles, discloses org-scoped
 //!   affordance removal with explicit notice, and makes the no-account
-//!   local-use claim explicit and verifiable.
+//!   local-use claim explicit and verifiable; and
+//! - one
+//!   [`m5_store_lock_and_external_root_recovery::StoreLockRecoveryReport`] M5
+//!   recovery packet that turns an OS credential-/trust-store lock or an
+//!   ejected removable volume, disconnected network share, or missing external
+//!   root into a typed recovery state that says what is paused, what remains
+//!   local-only, and how to repair without ever implying a plaintext-secret
+//!   fallback, keeps store-lock, trust-store drift, missing-root, and
+//!   returned-root distinct support-distinguishable cases with truthful
+//!   placeholders and Locate / Open cached context / Close recovery actions,
+//!   and binds every running session, queued job, and remembered decision to an
+//!   explicit-resume disposition so nothing is auto-rejoined or replayed when a
+//!   store unlocks or a root returns.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -134,6 +146,7 @@ pub mod keychain_state;
 pub mod m5_auth_and_recovery;
 pub mod m5_callback_and_deep_link_review;
 pub mod m5_secret_boundary_depth;
+pub mod m5_store_lock_and_external_root_recovery;
 pub mod network_trust;
 pub mod offline_entitlements;
 pub mod oidc;
@@ -515,4 +528,24 @@ pub use finalize_no_account_local_use_proof_deprovision_preserves::{
     DEPROVISION_PRESERVES_BETA_ROW_RECORD_KIND, DEPROVISION_PRESERVES_BETA_SUMMARY_RECORD_KIND,
     DEPROVISION_PRESERVES_BETA_SUPPORT_EXPORT_RECORD_KIND, DEPROVISION_PRESERVES_DOC_REF,
     DEPROVISION_PRESERVES_SCHEMA_VERSION, DEPROVISION_PRESERVES_SHARED_CONTRACT_REF,
+};
+
+pub use m5_store_lock_and_external_root_recovery::{
+    build_store_lock_recovery_report, build_store_lock_recovery_row,
+    seeded_store_lock_recovery_case_exports, seeded_store_lock_recovery_report,
+    validate_store_lock_recovery_report, ContinuationClass, DegradedStateClass, EvidenceFreshness,
+    IncidentClass, IncidentClassCoverage, LocalOnlyCapability, LocalOnlyCapabilityClass,
+    PausedCapability, PausedCapabilityClass, Platform as StoreLockRecoveryPlatform,
+    ProtectedContinuation, RecoveryActionClass as StoreLockRecoveryActionClass,
+    RecoveryBlockingFinding, RecoveryCrossLinks, RecoveryFailureMode, RecoveryFindingCount,
+    RecoveryFindingSummary, RecoveryIndexEntry, RecoveryState, RecoveryStateRow, ResourceClass,
+    ResourceClassCoverage, ResumeDispositionClass, ResumePostureClass, StateNarrowableEntry,
+    StoreLockRecoveryCaseExport, StoreLockRecoveryReport, StoreLockRecoverySupportExport,
+    StoreLockRecoveryValidationError, SurfaceClass, UnsavedLocalStatePosture,
+    STORE_LOCK_RECOVERY_CASE_EXPORT_RECORD_KIND, STORE_LOCK_RECOVERY_CASE_LABELS,
+    STORE_LOCK_RECOVERY_PUBLISHED_DOC_REF, STORE_LOCK_RECOVERY_PUBLISHED_REPORT_REF,
+    STORE_LOCK_RECOVERY_REPORT_ID, STORE_LOCK_RECOVERY_REPORT_RECORD_KIND,
+    STORE_LOCK_RECOVERY_ROW_RECORD_KIND, STORE_LOCK_RECOVERY_SCHEMA_VERSION,
+    STORE_LOCK_RECOVERY_SHARED_CONTRACT_REF, STORE_LOCK_RECOVERY_SOURCE_SCHEMA_REF,
+    STORE_LOCK_RECOVERY_SUPPORT_EXPORT_ID, STORE_LOCK_RECOVERY_SUPPORT_EXPORT_RECORD_KIND,
 };

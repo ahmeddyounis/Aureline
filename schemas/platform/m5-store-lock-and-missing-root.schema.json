@@ -1,0 +1,558 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/m5-store-lock-and-missing-root.schema.json",
+  "title": "Aureline M5 store-lock and external-root recovery report",
+  "description": "Boundary schema for the store-lock and external-root recovery report emitted by the aureline-auth m5_store_lock_and_external_root_recovery module. Every OS-backed store lock or disappearing external root (credential store locked, credential store unavailable, trust-store drift, removable volume missing, network share missing, external root missing, root returned) is projected as one typed recovery state that names the unavailable resource and the typed degradation, says what is paused and what remains local-only, retains a truthful placeholder naming the last-seen identity of the store or root and the unsaved-local-state posture, offers typed recovery actions, and binds every running session, queued job, and remembered decision to an explicit (never silent) resume disposition. Acceptance: every required incident kind MUST be present; no state may imply a plaintext-secret fallback (implies_plaintext_fallback MUST be false, otherwise plaintext_fallback_implied); local user-owned work MUST stay intact (local_continuity_preserved MUST be true, otherwise local_work_not_preserved); an active degradation MUST disclose what is paused (missing_paused_disclosure) and offer a recovery action -- a store lock with no recovery is credential_store_lock_unrecoverable, a trust-store drift with no recovery is the distinct trust_store_drift_unrecoverable, and a missing root with no recovery is the distinct missing_root_unrecoverable; nothing resumes silently after unlock or root return (a silent resume posture, a silent continuation disposition, or a returned root that does not require explicit resume is silent_resume_on_recovery); a missing placeholder is silent_disappearance; every state MUST carry a last-seen identity, a repair-guidance ref, an active-profile owner, a trust checkpoint, the canonical in-product command, a continuity note, a non-empty degraded-state vocabulary, a non-empty local-only disclosure, full desktop/cli_headless/support surface parity, at least one platform, a downgrade rule, and registered_on_recovery_harness=true; stale evidence on a marketed state is a blocker; and the report MUST cross-link the credential-store, trust-store, filesystem-identity, deferred-intent, auth-recovery, and Help/About surfaces so store, trust, path, and continuity vocabulary cannot drift independently. This schema is the only boundary contract for the JSON fixtures under fixtures/platform/m5-store-lock-and-missing-root/ and the support/case-export wrappers consumed by the CI gate at tools/ci/m5/store_lock_and_external_root_check.py. Records carry no credential bodies, raw secret material, or raw filesystem paths -- every store/root identity is an opaque export-safe ref only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/store_lock_recovery_report_record" },
+    { "$ref": "#/$defs/store_lock_recovery_support_export_record" },
+    { "$ref": "#/$defs/store_lock_recovery_case_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "auth:m5_store_lock_and_external_root_recovery:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "incident_class": {
+      "type": "string",
+      "enum": [
+        "credential_store_locked",
+        "credential_store_unavailable",
+        "trust_store_drift",
+        "removable_volume_missing",
+        "network_share_missing",
+        "external_root_missing",
+        "root_returned"
+      ]
+    },
+    "resource_class": {
+      "type": "string",
+      "enum": [
+        "credential_store",
+        "trust_store",
+        "removable_volume",
+        "network_share",
+        "external_root"
+      ]
+    },
+    "degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "store_locked",
+        "store_unavailable",
+        "trust_store_drifted",
+        "root_missing",
+        "root_returned"
+      ]
+    },
+    "paused_capability_class": {
+      "type": "string",
+      "enum": [
+        "provider_authentication",
+        "signed_operation",
+        "certificate_validation",
+        "external_root_access",
+        "managed_sync"
+      ]
+    },
+    "local_only_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_history",
+        "local_export",
+        "offline_core_tools",
+        "cached_context_browse"
+      ]
+    },
+    "unsaved_local_state_posture": {
+      "type": "string",
+      "enum": ["preserved_in_place", "none_pending", "preserved_pending_recovery"]
+    },
+    "resume_posture": {
+      "type": "string",
+      "enum": ["explicit_resume_required", "not_applicable"]
+    },
+    "continuation_class": {
+      "type": "string",
+      "enum": ["running_session", "queued_job", "remembered_decision"]
+    },
+    "resume_disposition": {
+      "type": "string",
+      "enum": ["explicit_resume_required", "held_for_review", "silent_resume"]
+    },
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "unlock_store",
+        "repair_store",
+        "retry_after_unlock",
+        "review_trust_change",
+        "re_evaluate_trust",
+        "reconnect_network_share",
+        "remount_volume",
+        "locate_root",
+        "open_cached_context",
+        "close_placeholder",
+        "confirm_explicit_resume"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["desktop", "cli_headless", "support"]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "recovery_failure_mode": {
+      "type": "string",
+      "enum": [
+        "plaintext_fallback_implied",
+        "silent_resume_on_recovery",
+        "local_work_not_preserved",
+        "silent_disappearance",
+        "credential_store_lock_unrecoverable",
+        "trust_store_drift_unrecoverable",
+        "missing_root_unrecoverable",
+        "trust_evaluation_bypassed"
+      ]
+    },
+    "blocking_finding_class": {
+      "type": "string",
+      "enum": [
+        "plaintext_fallback_implied",
+        "silent_resume_on_recovery",
+        "local_work_not_preserved",
+        "silent_disappearance",
+        "credential_store_lock_unrecoverable",
+        "trust_store_drift_unrecoverable",
+        "missing_root_unrecoverable",
+        "missing_paused_disclosure",
+        "missing_local_only_disclosure",
+        "missing_last_seen_identity",
+        "missing_repair_guidance",
+        "trust_evaluation_bypassed",
+        "missing_active_profile_owner",
+        "missing_canonical_command",
+        "missing_continuity_note",
+        "missing_degraded_state_vocabulary",
+        "surface_parity_incomplete",
+        "missing_claimed_platforms",
+        "missing_downgrade_rule",
+        "stale_evidence_on_marketed_state",
+        "state_not_on_harness"
+      ]
+    },
+    "paused_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_class", "capability_ref"],
+      "properties": {
+        "capability_class": { "$ref": "#/$defs/paused_capability_class" },
+        "capability_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "local_only_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_class", "capability_ref"],
+      "properties": {
+        "capability_class": { "$ref": "#/$defs/local_only_capability_class" },
+        "capability_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "protected_continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuation_ref", "continuation_class", "resume_disposition"],
+      "properties": {
+        "continuation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuation_class": { "$ref": "#/$defs/continuation_class" },
+        "resume_disposition": { "$ref": "#/$defs/resume_disposition" }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "state_id"],
+      "properties": {
+        "class": { "$ref": "#/$defs/blocking_finding_class" },
+        "state_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recovery_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_id",
+        "incident_class",
+        "resource_class",
+        "degraded_state_class",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "last_seen_identity_ref",
+        "placeholder_ref",
+        "paused_capabilities",
+        "local_only_capabilities",
+        "unsaved_local_state_posture",
+        "local_continuity_preserved",
+        "recovery_actions",
+        "repair_guidance_ref",
+        "implies_plaintext_fallback",
+        "resume_posture",
+        "resumes_silently_on_recovery",
+        "protected_continuations",
+        "active_profile_owner_ref",
+        "trust_checkpoint_ref",
+        "canonical_command_ref",
+        "continuity_note",
+        "degraded_state_vocabulary",
+        "surface_parity",
+        "claimed_platforms",
+        "evidence_freshness",
+        "evidence_captured_at",
+        "downgrade_rule_ref",
+        "marketed",
+        "registered_on_recovery_harness"
+      ],
+      "properties": {
+        "state_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_class": { "$ref": "#/$defs/incident_class" },
+        "resource_class": { "$ref": "#/$defs/resource_class" },
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "last_seen_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "placeholder_ref": { "$ref": "#/$defs/non_empty_string" },
+        "paused_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paused_capability" }
+        },
+        "local_only_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/local_only_capability" }
+        },
+        "unsaved_local_state_posture": { "$ref": "#/$defs/unsaved_local_state_posture" },
+        "local_continuity_preserved": { "type": "boolean", "const": true },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "repair_guidance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "implies_plaintext_fallback": { "type": "boolean", "const": false },
+        "resume_posture": { "$ref": "#/$defs/resume_posture" },
+        "resumes_silently_on_recovery": { "type": "boolean", "const": false },
+        "protected_continuations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/protected_continuation" }
+        },
+        "active_profile_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_checkpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_command_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" },
+        "degraded_state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "surface_parity": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/surface_class" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "evidence_captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "marketed": { "type": "boolean" },
+        "registered_on_recovery_harness": { "type": "boolean", "const": true }
+      }
+    },
+    "recovery_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "blocking_findings",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_store_lock_and_external_root_recovery_state_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/recovery_state" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "finding_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "count"],
+      "properties": {
+        "class": { "$ref": "#/$defs/non_empty_string" },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_blocking_findings", "by_class"],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "by_class": { "type": "array", "items": { "$ref": "#/$defs/finding_count" } }
+      }
+    },
+    "incident_class_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["incident_class", "state_count"],
+      "properties": {
+        "incident_class": { "$ref": "#/$defs/incident_class" },
+        "state_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "resource_class_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource_class", "state_count", "local_continuity_preserved_count"],
+      "properties": {
+        "resource_class": { "$ref": "#/$defs/resource_class" },
+        "state_count": { "type": "integer", "minimum": 0 },
+        "local_continuity_preserved_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recovery_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_id",
+        "incident_class",
+        "resource_class",
+        "degraded_state_class",
+        "resume_posture",
+        "recovery_action_count"
+      ],
+      "properties": {
+        "state_id": { "$ref": "#/$defs/non_empty_string" },
+        "incident_class": { "$ref": "#/$defs/incident_class" },
+        "resource_class": { "$ref": "#/$defs/resource_class" },
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "resume_posture": { "$ref": "#/$defs/resume_posture" },
+        "recovery_action_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "narrowable_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_id", "failure_mode", "reason"],
+      "properties": {
+        "state_id": { "$ref": "#/$defs/non_empty_string" },
+        "failure_mode": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/recovery_failure_mode" }]
+        },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cross_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "credential_store_ref",
+        "trust_store_ref",
+        "filesystem_identity_ref",
+        "deferred_intent_ref",
+        "auth_recovery_ref",
+        "help_about_ref"
+      ],
+      "properties": {
+        "credential_store_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_store_ref": { "$ref": "#/$defs/non_empty_string" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "deferred_intent_ref": { "$ref": "#/$defs/non_empty_string" },
+        "auth_recovery_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_about_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "store_lock_recovery_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_incident_kinds",
+        "claimed_platforms",
+        "cross_links",
+        "entries",
+        "incident_class_coverage",
+        "resource_class_coverage",
+        "findings_summary",
+        "recovery_index",
+        "registered_state_count",
+        "marketed_state_count",
+        "active_degradation_count",
+        "narrowable_marketed_entries",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_store_lock_and_external_root_recovery_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_incident_kinds": {
+          "type": "array",
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/incident_class" }
+        },
+        "claimed_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform" }
+        },
+        "cross_links": { "$ref": "#/$defs/cross_links" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_state_row" }
+        },
+        "incident_class_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/incident_class_coverage" }
+        },
+        "resource_class_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resource_class_coverage" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "recovery_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_index_entry" }
+        },
+        "registered_state_count": { "type": "integer", "minimum": 0 },
+        "marketed_state_count": { "type": "integer", "minimum": 0 },
+        "active_degradation_count": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_entry" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "store_lock_recovery_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_store_lock_and_external_root_recovery_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/store_lock_recovery_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "store_lock_recovery_case_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_export_id",
+        "case_label",
+        "incident_class",
+        "resource_class",
+        "degraded_state_class",
+        "state",
+        "recovery_actions",
+        "reproduction_note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "auth_m5_store_lock_and_external_root_recovery_case_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "case_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_label": { "$ref": "#/$defs/non_empty_string" },
+        "incident_class": { "$ref": "#/$defs/incident_class" },
+        "resource_class": { "$ref": "#/$defs/resource_class" },
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "state": { "$ref": "#/$defs/recovery_state_row" },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "reproduction_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

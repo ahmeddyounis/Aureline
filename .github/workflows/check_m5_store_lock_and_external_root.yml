@@ -1,0 +1,69 @@
+# Store-lock and external-root recovery gate.
+#
+# Validates the checked-in store-lock / external-root recovery report: every
+# required incident kind (credential store locked, credential store unavailable,
+# trust-store drift, removable volume missing, network share missing, external
+# root missing, root returned) is projected as one typed recovery state that says
+# what is paused, what remains local-only, and how to repair without ever
+# implying a plaintext-secret fallback; local user-owned work is preserved; an
+# active degradation discloses what is paused and offers a recovery action, with
+# the store-lock, trust-store-drift, and missing-root unrecoverable failures kept
+# distinct; nothing resumes silently after unlock or root return; truthful
+# placeholders keep an incident from disappearing; and the four incident case
+# exports reproduce from typed diagnostics. The typed Rust consumer mints the
+# same report, so `cargo test -p aureline-auth` enforces the same structural
+# invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_store_lock_and_external_root
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_store_lock_and_external_root.yml"
+      - "tools/ci/m5/store_lock_and_external_root_check.py"
+      - "schemas/platform/m5-store-lock-and-missing-root.schema.json"
+      - "docs/m5/store-lock-and-external-root-recovery.md"
+      - "artifacts/platform/m5-store-lock-and-external-root-recovery.md"
+      - "fixtures/platform/m5-store-lock-and-missing-root/**"
+      - "crates/aureline-auth/src/m5_store_lock_and_external_root_recovery/**"
+      - "crates/aureline-auth/src/bin/aureline_auth_m5_store_lock_and_external_root_recovery.rs"
+      - "crates/aureline-auth/src/lib.rs"
+      - "crates/aureline-auth/tests/m5_store_lock_and_external_root_recovery_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-store-lock-and-external-root-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_store_lock_and_external_root:
+    name: M5 store lock and external root
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 store-lock and external-root CI gate
+        run: |
+          python3 tools/ci/m5/store_lock_and_external_root_check.py --repo-root .
+
+      - name: Run M5 store-lock and external-root contract tests
+        run: |
+          cargo test -p aureline-auth --test m5_store_lock_and_external_root_recovery_fixtures
