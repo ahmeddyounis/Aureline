@@ -293,6 +293,19 @@
 //!   secondary. The active crash-recovery screen, Support Center, CLI / headless,
 //!   issue-report packet, and support export bind to this one registry and narrow
 //!   with it.
+//! - The [`m5_supportability_qualification`] packet — certifies the Support
+//!   Center, environment-explainability, precedence-inspection, support-bundle
+//!   consent, crash-intake/recovery, and supportability-handoff surfaces on every
+//!   claimed M5 profile across the desktop and CLI/headless deployment modes. Each
+//!   surface/profile row binds its *own* lane schema, artifact, fixture corpus,
+//!   and record kind plus the supportability drills (diagnosis latency,
+//!   consent-sheet accuracy, export-mode parity, crash-loop recovery, exact-build
+//!   intake) that back it, so a passing crash or Doctor row can never keep a stale
+//!   surface green. Rows whose own evidence or a bound drill goes stale narrow
+//!   automatically — a send-capable surface narrows to a local-save / self-
+//!   diagnosis claim while local-save stays first-class — and Help/About, the
+//!   desktop Support Center, CLI/headless, support export, the shiproom claim
+//!   packet, and the release manifest all ingest this one index by reference.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -405,6 +418,7 @@ pub mod m5_support_bundle_consent;
 pub mod m5_support_center_matrix;
 pub mod m5_support_center_ui;
 pub mod m5_supportability_handoff_packets;
+pub mod m5_supportability_qualification;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -653,6 +667,20 @@ pub use m5_supportability_handoff_packets::{
     M5_SUPPORTABILITY_HANDOFF_PATH, M5_SUPPORTABILITY_HANDOFF_RECORD_KIND,
     M5_SUPPORTABILITY_HANDOFF_REVIEW_PACKET_REF, M5_SUPPORTABILITY_HANDOFF_SCHEMA_REF,
     M5_SUPPORTABILITY_HANDOFF_SCHEMA_VERSION, M5_SUPPORTABILITY_HANDOFF_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_supportability_qualification::{
+    seeded_consent_drill_stale_m5_supportability_qualification_packet,
+    seeded_environment_evidence_stale_m5_supportability_qualification_packet,
+    seeded_m5_supportability_qualification_packet, DeploymentMode,
+    M5SupportabilityQualificationPacket, M5SupportabilityQualificationViolation,
+    QualificationConsumerBinding, QualificationConsumerClass, QualificationDowngradeRuleRow,
+    QualificationDowngradeTriggerClass, QualificationStateClass, QualificationStateCounts,
+    SupportabilityDrillClass, SupportabilityDrillRow, SupportabilitySurfaceClass,
+    SurfaceProfileQualificationRow, M5_SUPPORTABILITY_QUALIFICATION_ARTIFACT_REF,
+    M5_SUPPORTABILITY_QUALIFICATION_CLAIM_PACKET_REF, M5_SUPPORTABILITY_QUALIFICATION_DOC_REF,
+    M5_SUPPORTABILITY_QUALIFICATION_FIXTURE_DIR, M5_SUPPORTABILITY_QUALIFICATION_PACKET_ID,
+    M5_SUPPORTABILITY_QUALIFICATION_PACKET_RECORD_KIND, M5_SUPPORTABILITY_QUALIFICATION_SCHEMA_REF,
+    M5_SUPPORTABILITY_QUALIFICATION_SCHEMA_VERSION,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
