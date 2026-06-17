@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-git/0.0.0")]
 
 pub mod branches;
+pub mod certify_m5_git_topology_history_recovery_and_provider_parity_rows;
 pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
@@ -36,6 +37,19 @@ pub use branches::{
     SystemGitBranchBackend, GIT_BRANCH_ACTIVITY_RECORD_KIND, GIT_BRANCH_JOURNAL_RECORD_KIND,
     GIT_BRANCH_PREVIEW_RECORD_KIND, GIT_BRANCH_RESULT_RECORD_KIND,
     GIT_BRANCH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use certify_m5_git_topology_history_recovery_and_provider_parity_rows::{
+    current_m5_git_certification_export, CertificationConsumerSurface, CertificationDimension,
+    CertificationFreshnessPosture, CertificationGovernanceReview, CertificationParityAudit,
+    CertificationVerdict, DimensionProofState, DimensionQualification, DowngradeAutomation,
+    EvidenceFreshness, M5GitCertificationArtifactError, M5GitCertificationPacket,
+    M5GitCertificationPacketInput, M5GitCertificationRow, M5GitCertificationViolation, M5GitClaimRow,
+    M5_GIT_CERTIFICATION_ARTIFACT_REF, M5_GIT_CERTIFICATION_DOC_REF,
+    M5_GIT_CERTIFICATION_FIXTURE_DIR, M5_GIT_CERTIFICATION_HISTORY_SURGERY_CONTRACT_REF,
+    M5_GIT_CERTIFICATION_MATRIX_CONTRACT_REF, M5_GIT_CERTIFICATION_RECORD_KIND,
+    M5_GIT_CERTIFICATION_SCHEMA_REF, M5_GIT_CERTIFICATION_SCHEMA_VERSION,
+    M5_GIT_CERTIFICATION_STASH_RECOVERY_CONTRACT_REF, M5_GIT_CERTIFICATION_SUMMARY_REF,
+    M5_GIT_CERTIFICATION_TOPOLOGY_ACTION_CONTRACT_REF, M5_GIT_CERTIFICATION_TOPOLOGY_CONTRACT_REF,
 };
 pub use change_objects::{
     project_change_object, ChangeObjectBranchVariant, ChangeObjectError, ChangeObjectLandingState,
