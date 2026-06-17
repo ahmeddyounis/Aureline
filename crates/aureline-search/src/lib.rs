@@ -47,6 +47,23 @@
 //! - [`session_ledger::QuerySessionLedgerRecord`] records query sessions,
 //!   saved-query privacy projections, and export-safe support/docs packets
 //!   without cloning the planner or result identity model.
+//! - [`m5_search_navigation_qualification::M5SearchNavigationQualificationPacket`]
+//!   freezes the M5 search-query, result-identity, ranking-reason, and
+//!   saved-query/privacy matrix: it binds the canonical contract objects
+//!   ([`SearchQuerySession`](query_session::SearchQuerySession),
+//!   [`SearchResultRef`](result_truth_packet::SearchResultRef),
+//!   [`RankingReason`](result_truth_packet::RankingReason),
+//!   [`SearchActionBinding`](result_truth_packet::SearchActionBinding),
+//!   [`SavedQuery`](query_artifacts::SavedQuery), scope-pack, and export-packet)
+//!   to their own lane proof, freezes the closed result-state vocabulary and the
+//!   privacy/retention/consent posture for query material, and proves every
+//!   claimed M5 search surface answers off the one shared query-session and
+//!   result-identity model across the product and CLI/headless deployment modes.
+//!   Rows narrow automatically — a partial or stale index drops a surface to a
+//!   scope-limited claim, and missing query-material consent drops a persisting
+//!   surface to a local-only query-text claim — and the product surface,
+//!   CLI/headless, docs/help, support export, shiproom, and release manifest all
+//!   ingest this one index by reference.
 //! - [`aureline_navigation::target_model`] is the shared semantic target
 //!   model for definitions, references, hierarchy edges, rename previews, and
 //!   continuity refs used when search rows promote into navigation.
@@ -67,6 +84,7 @@ pub mod hybrid_retrieval;
 pub mod index_scheduler;
 pub mod infrastructure_intelligence;
 pub mod lexical;
+pub mod m5_search_navigation_qualification;
 pub mod monorepo_hot_set_truth;
 pub mod planner;
 pub mod query_artifacts;
@@ -180,6 +198,23 @@ pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
+};
+
+pub use m5_search_navigation_qualification::{
+    seeded_m5_search_navigation_qualification_packet,
+    seeded_partial_index_stale_m5_search_navigation_qualification_packet,
+    seeded_unconsented_query_text_m5_search_navigation_qualification_packet, ConsentRequirement,
+    DeploymentMode, M5SearchNavigationQualificationPacket,
+    M5SearchNavigationQualificationViolation, PrivacyClass, PrivacyDataClass,
+    QualificationConsumerBinding, QualificationConsumerClass, QualificationDowngradeRuleRow,
+    QualificationDowngradeTriggerClass, QualificationStateClass, QualificationStateCounts,
+    ResultStateClass, ResultStateRow, RetentionMode, SearchContractObjectClass,
+    SearchContractObjectRow, SearchSurfaceClass, SurfaceQualificationRow,
+    M5_SEARCH_NAVIGATION_QUALIFICATION_ARTIFACT_REF, M5_SEARCH_NAVIGATION_QUALIFICATION_DOC_REF,
+    M5_SEARCH_NAVIGATION_QUALIFICATION_FIXTURE_DIR, M5_SEARCH_NAVIGATION_QUALIFICATION_PACKET_ID,
+    M5_SEARCH_NAVIGATION_QUALIFICATION_PACKET_RECORD_KIND,
+    M5_SEARCH_NAVIGATION_QUALIFICATION_SCHEMA_REF,
+    M5_SEARCH_NAVIGATION_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use monorepo_hot_set_truth::{
