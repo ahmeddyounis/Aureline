@@ -104,7 +104,10 @@ fn entry_flow_intakes_reuse_the_canonical_resolver() {
             );
         }
     }
-    assert!(entry_flow_count >= 1, "at least one entry-flow intake must exist");
+    assert!(
+        entry_flow_count >= 1,
+        "at least one entry-flow intake must exist"
+    );
     assert!(report.has_project_entry_parity());
     // Parity covers both the entry-flow intakes and the routed intakes that
     // name their reviewed surface; the count tracks every reusing intake.
@@ -172,7 +175,10 @@ fn degraded_intakes_offer_recovery_actions() {
             );
         }
     }
-    assert_eq!(degraded, 4, "the four required incident cases must be present");
+    assert_eq!(
+        degraded, 4,
+        "the four required incident cases must be present"
+    );
 }
 
 #[test]
@@ -188,10 +194,10 @@ fn silent_scope_widen_is_caught() {
     descriptor.requires_explicit_interstitial = false;
     descriptor.interstitial_ref = None;
     let row = build_system_entry_row(descriptor);
-    assert!(row.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        SystemEntryBlockingFinding::SilentScopeWiden { .. }
-    )));
+    assert!(row
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, SystemEntryBlockingFinding::SilentScopeWiden { .. })));
 }
 
 #[test]
@@ -217,10 +223,9 @@ fn silent_provider_mutation_is_a_distinct_finding() {
         "a provider mutation must not collapse into a scope-widen finding"
     );
     assert!(
-        !row.blocking_findings.iter().any(|finding| matches!(
-            finding,
-            SystemEntryBlockingFinding::SilentScopeWiden { .. }
-        )),
+        !row.blocking_findings
+            .iter()
+            .any(|finding| matches!(finding, SystemEntryBlockingFinding::SilentScopeWiden { .. })),
         "the two scope failures must stay distinct"
     );
 }
@@ -239,10 +244,10 @@ fn verb_coercion_is_caught_when_resolution_diverges() {
     );
     let row = build_system_entry_row(descriptor);
     assert!(!row.parity_outcome.reuses_project_entry_path);
-    assert!(row.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        SystemEntryBlockingFinding::VerbCoercion { .. }
-    )));
+    assert!(row
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, SystemEntryBlockingFinding::VerbCoercion { .. })));
 }
 
 #[test]
@@ -340,7 +345,8 @@ fn stale_evidence_on_marketed_intake_is_a_blocker() {
 #[test]
 fn support_export_quotes_every_intake() {
     let report = seeded_system_entry_report();
-    let export = SystemEntrySupportExport::from_report(SYSTEM_ENTRY_SUPPORT_EXPORT_ID, report.clone());
+    let export =
+        SystemEntrySupportExport::from_report(SYSTEM_ENTRY_SUPPORT_EXPORT_ID, report.clone());
     assert_eq!(export.support_export_id, SYSTEM_ENTRY_SUPPORT_EXPORT_ID);
     for entry in &report.entries {
         assert!(export.case_ids.contains(&entry.descriptor.intake_id));
@@ -357,7 +363,12 @@ fn case_exports_cover_the_four_incidents() {
     let labels: Vec<&str> = exports.iter().map(|e| e.case_label.as_str()).collect();
     assert_eq!(
         labels,
-        vec!["wrong_association", "moved_target", "mixed_root", "policy_blocked"]
+        vec![
+            "wrong_association",
+            "moved_target",
+            "mixed_root",
+            "policy_blocked"
+        ]
     );
     for export in &exports {
         assert_ne!(export.availability, SystemEntryAvailability::ExactAvailable);

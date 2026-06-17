@@ -1219,7 +1219,9 @@ impl SystemEntryIntakeReport {
         out.push('\n');
 
         out.push_str("## Per-intake-kind coverage\n\n");
-        out.push_str("| Intake kind | Registered intakes |\n| ----------- | -----------------: |\n");
+        out.push_str(
+            "| Intake kind | Registered intakes |\n| ----------- | -----------------: |\n",
+        );
         for coverage in &self.intake_kind_coverage {
             out.push_str(&format!(
                 "| {} | {} |\n",
@@ -1290,7 +1292,10 @@ impl SystemEntryIntakeReport {
                 d.literal_target_ref,
                 d.literal_format.as_str(),
             ));
-            out.push_str(&format!("- Canonical target: `{}`\n", d.canonical_target_ref));
+            out.push_str(&format!(
+                "- Canonical target: `{}`\n",
+                d.canonical_target_ref
+            ));
             out.push_str(&format!(
                 "- Detected target kind: `{}`\n",
                 d.detected_target_kind.as_str()
@@ -1318,7 +1323,10 @@ impl SystemEntryIntakeReport {
                 d.channel_build_owner_ref,
                 d.ownership_kind.as_str(),
             ));
-            out.push_str(&format!("- Trust checkpoint: `{}`\n", d.trust_checkpoint_ref));
+            out.push_str(&format!(
+                "- Trust checkpoint: `{}`\n",
+                d.trust_checkpoint_ref
+            ));
             out.push_str(&format!(
                 "- Scope: `{}` (interstitial required: `{}`)\n",
                 d.scope_class.as_str(),
@@ -1599,9 +1607,7 @@ fn compute_intake_findings(
             intake_id: intake_id.clone(),
         });
     }
-    if descriptor.marketed
-        && descriptor.evidence_freshness == SystemEntryEvidenceFreshness::Stale
-    {
+    if descriptor.marketed && descriptor.evidence_freshness == SystemEntryEvidenceFreshness::Stale {
         findings.push(SystemEntryBlockingFinding::StaleEvidenceOnMarketedIntake {
             intake_id: intake_id.clone(),
         });

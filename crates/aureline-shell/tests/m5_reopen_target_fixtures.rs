@@ -13,9 +13,9 @@
 use std::path::{Path, PathBuf};
 
 use aureline_shell::m5_recent_items_and_reopen::{
-    seeded_reopen_target_case_exports, seeded_reopen_target_report,
-    validate_reopen_target_report, ReopenAvailability, ReopenSurfaceKind, ReopenTargetCaseExport,
-    ReopenTargetReport, ReopenTargetSupportExport, REOPEN_TARGET_PUBLISHED_REPORT_REF,
+    seeded_reopen_target_case_exports, seeded_reopen_target_report, validate_reopen_target_report,
+    ReopenAvailability, ReopenSurfaceKind, ReopenTargetCaseExport, ReopenTargetReport,
+    ReopenTargetSupportExport, REOPEN_TARGET_PUBLISHED_REPORT_REF,
     REOPEN_TARGET_REPORT_RECORD_KIND, REOPEN_TARGET_SHARED_CONTRACT_REF,
 };
 
@@ -39,10 +39,19 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_report_is_bit_for_bit_equal_to_seed() {
     let on_disk: ReopenTargetReport = load_json("report.json");
     let seeded = seeded_reopen_target_report();
-    assert_eq!(on_disk, seeded, "fixture report diverged from seeded report");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture report diverged from seeded report"
+    );
     assert_eq!(seeded.record_kind, REOPEN_TARGET_REPORT_RECORD_KIND);
-    assert_eq!(seeded.shared_contract_ref, REOPEN_TARGET_SHARED_CONTRACT_REF);
-    assert_eq!(seeded.published_report_ref, REOPEN_TARGET_PUBLISHED_REPORT_REF);
+    assert_eq!(
+        seeded.shared_contract_ref,
+        REOPEN_TARGET_SHARED_CONTRACT_REF
+    );
+    assert_eq!(
+        seeded.published_report_ref,
+        REOPEN_TARGET_PUBLISHED_REPORT_REF
+    );
 }
 
 #[test]
@@ -92,7 +101,9 @@ fn fixture_support_export_matches_seed() {
     );
     let report = seeded_reopen_target_report();
     for entry in &report.entries {
-        assert!(on_disk.case_ids.contains(&entry.descriptor.reopen_target_id));
+        assert!(on_disk
+            .case_ids
+            .contains(&entry.descriptor.reopen_target_id));
         assert!(on_disk
             .case_ids
             .contains(&entry.descriptor.descriptor_revision_ref));
@@ -122,9 +133,8 @@ fn fixture_case_exports_match_seed() {
 fn published_report_md_matches_seeded_rendering() {
     let report = seeded_reopen_target_report();
     let rendered = report.render_markdown();
-    let on_disk =
-        std::fs::read_to_string(artifacts_root().join("m5-recent-item-and-reopen.md"))
-            .expect("published m5-recent-item-and-reopen.md must exist");
+    let on_disk = std::fs::read_to_string(artifacts_root().join("m5-recent-item-and-reopen.md"))
+        .expect("published m5-recent-item-and-reopen.md must exist");
     assert_eq!(
         on_disk, rendered,
         "published m5-recent-item-and-reopen.md diverged from seeded rendering -- \

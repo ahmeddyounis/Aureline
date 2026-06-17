@@ -93,7 +93,10 @@ fn seeded_report_covers_every_degraded_class_with_recovery() {
             );
         }
     }
-    assert_eq!(degraded, 5, "the five required reopen incidents must be present");
+    assert_eq!(
+        degraded, 5,
+        "the five required reopen incidents must be present"
+    );
 }
 
 #[test]
@@ -152,10 +155,9 @@ fn wrong_target_with_no_recovery_is_a_distinct_failure() {
     descriptor.placeholder_label_ref = None;
     let row = build_reopen_target_row(descriptor);
     assert!(
-        row.blocking_findings.iter().any(|finding| matches!(
-            finding,
-            ReopenBlockingFinding::WrongTargetReopen { .. }
-        )),
+        row.blocking_findings
+            .iter()
+            .any(|finding| matches!(finding, ReopenBlockingFinding::WrongTargetReopen { .. })),
         "a wrong-target reopen with no recovery must be its own failure class"
     );
     assert!(
@@ -195,10 +197,9 @@ fn unavailable_targets_share_a_distinct_silent_loss_class() {
             availability.as_str()
         );
         assert!(
-            !row.blocking_findings.iter().any(|finding| matches!(
-                finding,
-                ReopenBlockingFinding::WrongTargetReopen { .. }
-            )),
+            !row.blocking_findings
+                .iter()
+                .any(|finding| matches!(finding, ReopenBlockingFinding::WrongTargetReopen { .. })),
             "{} must not be reported as a wrong-target reopen",
             availability.as_str()
         );
@@ -239,10 +240,10 @@ fn privileged_action_without_reviewed_return_is_caught() {
     descriptor.stays_summary_only = true;
     descriptor.reviewed_return_surface_ref = None;
     let row = build_reopen_target_row(descriptor);
-    assert!(row.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        ReopenBlockingFinding::SilentMutatingAction { .. }
-    )));
+    assert!(row
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, ReopenBlockingFinding::SilentMutatingAction { .. })));
 }
 
 #[test]
@@ -255,13 +256,13 @@ fn privileged_action_routed_through_review_is_clean() {
     descriptor.claimed_platforms = vec![ReopenPlatform::Windows];
     descriptor.action_class = ReopenActionClass::PrivilegedOrMutating;
     descriptor.stays_summary_only = false;
-    descriptor.reviewed_return_surface_ref = Some("artifacts/auth/m5_auth_and_recovery.md".to_owned());
+    descriptor.reviewed_return_surface_ref =
+        Some("artifacts/auth/m5_auth_and_recovery.md".to_owned());
     let row = build_reopen_target_row(descriptor);
     assert!(
-        !row.blocking_findings.iter().any(|finding| matches!(
-            finding,
-            ReopenBlockingFinding::SilentMutatingAction { .. }
-        )),
+        !row.blocking_findings
+            .iter()
+            .any(|finding| matches!(finding, ReopenBlockingFinding::SilentMutatingAction { .. })),
         "a mutating reopen that returns through review must be allowed"
     );
 }
@@ -278,10 +279,10 @@ fn missing_identity_and_owner_are_caught() {
     descriptor.originating_channel_build_owner_ref = String::new();
     descriptor.trust_checkpoint_ref = String::new();
     let row = build_reopen_target_row(descriptor);
-    assert!(row.blocking_findings.iter().any(|finding| matches!(
-        finding,
-        ReopenBlockingFinding::MissingLiteralTarget { .. }
-    )));
+    assert!(row
+        .blocking_findings
+        .iter()
+        .any(|finding| matches!(finding, ReopenBlockingFinding::MissingLiteralTarget { .. })));
     assert!(row.blocking_findings.iter().any(|finding| matches!(
         finding,
         ReopenBlockingFinding::MissingCanonicalObject { .. }

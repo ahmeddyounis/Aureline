@@ -94,7 +94,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use aureline_workspace::{PortabilityClass, RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState};
+use aureline_workspace::{
+    PortabilityClass, RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
+};
 
 #[cfg(test)]
 mod tests;
@@ -116,8 +118,7 @@ pub const REOPEN_TARGET_SUPPORT_EXPORT_RECORD_KIND: &str =
     "shell_m5_reopen_target_support_export_record";
 
 /// Stable record kind for [`ReopenTargetCaseExport`] payloads.
-pub const REOPEN_TARGET_CASE_EXPORT_RECORD_KIND: &str =
-    "shell_m5_reopen_target_case_export_record";
+pub const REOPEN_TARGET_CASE_EXPORT_RECORD_KIND: &str = "shell_m5_reopen_target_case_export_record";
 
 /// Stable report id quoted across surfaces.
 pub const REOPEN_TARGET_REPORT_ID: &str = "shell:m5_recent_items_and_reopen:report:v1";
@@ -133,8 +134,7 @@ pub const REOPEN_TARGET_PUBLISHED_REPORT_REF: &str =
     "artifacts/platform/m5-recent-item-and-reopen.md";
 
 /// Path of the published companion doc.
-pub const REOPEN_TARGET_PUBLISHED_DOC_REF: &str =
-    "docs/m5/recent-items-dock-taskbar-jump-list.md";
+pub const REOPEN_TARGET_PUBLISHED_DOC_REF: &str = "docs/m5/recent-items-dock-taskbar-jump-list.md";
 
 /// Shared restore-provenance contract every reopen row binds its certainty to.
 ///
@@ -142,7 +142,8 @@ pub const REOPEN_TARGET_PUBLISHED_DOC_REF: &str =
 /// ([`aureline_workspace::RestoreAvailability`]) so external re-entry never
 /// looks more certain than internal restore; this ref names the contract that
 /// owns that vocabulary.
-pub const REOPEN_TARGET_RESTORE_PROVENANCE_REF: &str = "shell:restore:provenance_and_placeholders:v1";
+pub const REOPEN_TARGET_RESTORE_PROVENANCE_REF: &str =
+    "shell:restore:provenance_and_placeholders:v1";
 
 /// Generation timestamp captured in every seeded record.
 const GENERATED_AT: &str = "2026-06-16T00:00:00Z";
@@ -1039,7 +1040,9 @@ impl ReopenTargetReport {
         out.push('\n');
 
         out.push_str("## Per-surface coverage\n\n");
-        out.push_str("| Reopen surface | Registered targets |\n| -------------- | -----------------: |\n");
+        out.push_str(
+            "| Reopen surface | Registered targets |\n| -------------- | -----------------: |\n",
+        );
         for coverage in &self.surface_coverage {
             out.push_str(&format!(
                 "| {} | {} |\n",
@@ -1116,10 +1119,7 @@ impl ReopenTargetReport {
                 "- Descriptor revision: `{}`\n",
                 d.descriptor_revision_ref
             ));
-            out.push_str(&format!(
-                "- Literal target: `{}`\n",
-                d.literal_target_ref
-            ));
+            out.push_str(&format!("- Literal target: `{}`\n", d.literal_target_ref));
             out.push_str(&format!(
                 "- Canonical object: `{}`\n",
                 d.canonical_object_ref
@@ -1140,16 +1140,16 @@ impl ReopenTargetReport {
                 "- Active profile owner: `{}`\n",
                 d.active_profile_owner_ref
             ));
-            out.push_str(&format!("- Trust checkpoint: `{}`\n", d.trust_checkpoint_ref));
+            out.push_str(&format!(
+                "- Trust checkpoint: `{}`\n",
+                d.trust_checkpoint_ref
+            ));
             out.push_str(&format!(
                 "- Target freshness: `{}` (captured `{}`)\n",
                 d.target_freshness.as_str(),
                 d.captured_at,
             ));
-            out.push_str(&format!(
-                "- Availability: `{}`\n",
-                d.availability.as_str()
-            ));
+            out.push_str(&format!("- Availability: `{}`\n", d.availability.as_str()));
             out.push_str(&format!(
                 "- Restore availability: `{}` (trust `{}`, portability `{}`)\n",
                 d.restore_availability.as_str(),
@@ -1273,10 +1273,7 @@ pub struct ReopenTargetSupportExport {
 
 impl ReopenTargetSupportExport {
     /// Builds the support-export wrapper for a report.
-    pub fn from_report(
-        support_export_id: impl Into<String>,
-        report: ReopenTargetReport,
-    ) -> Self {
+    pub fn from_report(support_export_id: impl Into<String>, report: ReopenTargetReport) -> Self {
         let mut case_ids = vec![report.report_id.clone()];
         for entry in &report.entries {
             case_ids.push(entry.descriptor.reopen_target_id.clone());
@@ -1362,7 +1359,11 @@ fn compute_target_findings(descriptor: &ReopenTargetDescriptor) -> Vec<ReopenBlo
     }
 
     // Channel/build ownership stays visible.
-    if descriptor.originating_channel_build_owner_ref.trim().is_empty() {
+    if descriptor
+        .originating_channel_build_owner_ref
+        .trim()
+        .is_empty()
+    {
         findings.push(ReopenBlockingFinding::HiddenChannelOwnership {
             reopen_target_id: id.clone(),
         });

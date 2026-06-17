@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_shell::m5_system_entry::{
     seeded_system_entry_case_exports, seeded_system_entry_report, validate_system_entry_report,
-    SystemEntryCaseExport, SystemEntryIntakeKind, SystemEntryIntakeReport, SystemEntrySupportExport,
-    SYSTEM_ENTRY_PUBLISHED_REPORT_REF, SYSTEM_ENTRY_REPORT_RECORD_KIND,
+    SystemEntryCaseExport, SystemEntryIntakeKind, SystemEntryIntakeReport,
+    SystemEntrySupportExport, SYSTEM_ENTRY_PUBLISHED_REPORT_REF, SYSTEM_ENTRY_REPORT_RECORD_KIND,
     SYSTEM_ENTRY_SHARED_CONTRACT_REF,
 };
 
@@ -39,10 +39,16 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_report_is_bit_for_bit_equal_to_seed() {
     let on_disk: SystemEntryIntakeReport = load_json("report.json");
     let seeded = seeded_system_entry_report();
-    assert_eq!(on_disk, seeded, "fixture report diverged from seeded report");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture report diverged from seeded report"
+    );
     assert_eq!(seeded.record_kind, SYSTEM_ENTRY_REPORT_RECORD_KIND);
     assert_eq!(seeded.shared_contract_ref, SYSTEM_ENTRY_SHARED_CONTRACT_REF);
-    assert_eq!(seeded.published_report_ref, SYSTEM_ENTRY_PUBLISHED_REPORT_REF);
+    assert_eq!(
+        seeded.published_report_ref,
+        SYSTEM_ENTRY_PUBLISHED_REPORT_REF
+    );
 }
 
 #[test]
@@ -101,7 +107,11 @@ fn fixture_case_exports_match_seed() {
             export.case_label
         );
     }
-    assert_eq!(seeded.len(), 4, "the four required incident cases must exist");
+    assert_eq!(
+        seeded.len(),
+        4,
+        "the four required incident cases must exist"
+    );
 }
 
 #[test]

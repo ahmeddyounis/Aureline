@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-os-notification-envelope.schema.json",
+  "title": "Aureline M5 OS notification, badge, progress, and reopen parity audit",
+  "description": "Boundary schema for the M5 OS-attention parity audit emitted by the aureline-shell m5_os_notifications_and_badges module. The audit projects, for every registered OS attention surface of an M5 durable job family (indexing, install/update, task runs, test runs, remote reconnect, AI review, git review, admin/policy advisories), a canonical surface descriptor and its typed OS notification envelope against the qualification result the surface certifies for each of the five OS-attention parity guarantees the M5 lanes must pass: privacy_safe_summary, badge_durable_class, progress_named_job_class, suppression_parity, and exact_reopen_parity. Every OS attention surface MUST derive from a durable job object (reusing the canonical durable job family, durable job state class, and aggregate badge count class vocabularies rather than synthesizing a desktop-only state), MUST keep its lock-screen and notification-center copy summary-first with an explicit source-object label, client scope, and one safe reopen action, MUST derive its badge count from a durable count class, MUST map its taskbar/dock progress to a named durable job class (never a generic spinner), MUST apply quiet-hours / do-not-disturb / admin suppression identically across the in-app, OS, and companion surfaces with a visible suppression audit, and MUST land its action on the exact durable object or a truthful placeholder with source and freshness intact. Acceptance: the audit MUST cover the five required guarantees for every registered surface, MUST carry a canonical exact-target reopen anchor, a durable job ref, a support note, a declared privacy class, an explicit source-object label, one safe reopen action label, and a derived_from_durable_object flag, MUST require captured evidence on every qualified guarantee, MUST flag any red result (a lock-screen leak, a protected payload body, a raw-event badge counter, a generic progress spinner, a diverging suppression decision, a missing suppression audit, or a lost reopen target) as a blocker, MUST reject a synthesized desktop-only state and a marketed guarantee claimed with no evidence, MUST treat stale evidence on a marketed guarantee as a blocker, and MUST be usable by support exports without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5_os_notifications_and_badges/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/os_notifications_and_badges_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_os_attention_report_record" },
+    { "$ref": "#/$defs/m5_os_attention_support_export_record" }
+  ],
+  "$defs": {
+    "m5_os_attention_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 OS-attention contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_os_notifications_and_badges:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "durable_job_family": {
+      "type": "string",
+      "enum": [
+        "indexing",
+        "restore",
+        "install_update_download",
+        "remote_reconnect",
+        "task_run",
+        "test_run",
+        "debug_session",
+        "ai_review",
+        "git_review",
+        "companion_handoff",
+        "admin_policy"
+      ],
+      "description": "Reused durable job family the OS surface derives from."
+    },
+    "durable_job_state_class": {
+      "type": "string",
+      "enum": [
+        "running",
+        "queued_waiting",
+        "needs_approval",
+        "completed",
+        "failed",
+        "cancelled",
+        "history_only"
+      ],
+      "description": "Reused durable job-row state class the envelope was minted from."
+    },
+    "aggregate_count_class": {
+      "type": "string",
+      "enum": [
+        "pending_review_approval",
+        "failed_runs",
+        "queued_publish_later",
+        "provider_auth_attention",
+        "managed_advisories",
+        "muted_informational_backlog",
+        "session_requests",
+        "durable_running",
+        "completion_unread"
+      ],
+      "description": "Reused durable badge count class the badge derives from."
+    },
+    "quiet_hours_decision_class": {
+      "type": "string",
+      "enum": [
+        "not_suppressed",
+        "held_quiet_hours",
+        "admin_suppressed",
+        "critical_bypass",
+        "cross_client_deduped"
+      ],
+      "description": "Reused quiet-hours / suppression decision applied across surfaces."
+    },
+    "parity_guarantee": {
+      "type": "string",
+      "enum": [
+        "privacy_safe_summary",
+        "badge_durable_class",
+        "progress_named_job_class",
+        "suppression_parity",
+        "exact_reopen_parity"
+      ],
+      "description": "One of the five required OS-attention parity guarantees the audit covers."
+    },
+    "qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "unqualified_desktop_only_state",
+        "missing_evidence"
+      ],
+      "description": "Status a surface reports for one parity guarantee. Only `qualified` rows project captured evidence and are red-checked; the narrowed statuses require a narrowing_reason; `unqualified_desktop_only_state` and `missing_evidence` are blockers."
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ]
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": ["desktop_product", "managed_desktop", "companion_mirror"]
+    },
+    "lock_screen_disclosure": {
+      "type": "string",
+      "enum": ["summary_with_source_and_scope", "leaks_protected_detail"]
+    },
+    "payload_disclosure": {
+      "type": "string",
+      "enum": ["enums_and_refs_only", "carries_protected_body"]
+    },
+    "badge_basis": {
+      "type": "string",
+      "enum": ["durable_count_class", "raw_event_fanout"]
+    },
+    "progress_basis": {
+      "type": "string",
+      "enum": ["named_durable_job_class", "generic_spinner"]
+    },
+    "suppression_parity": {
+      "type": "string",
+      "enum": ["parity_across_surfaces", "diverges_from_in_app"]
+    },
+    "reopen_outcome": {
+      "type": "string",
+      "enum": ["exact_durable_object", "truthful_placeholder", "target_lost"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "suppression_control": {
+      "type": "string",
+      "enum": [
+        "quiet_hours",
+        "do_not_disturb",
+        "admin_suppress",
+        "mute",
+        "snooze",
+        "lock_screen_summary"
+      ]
+    },
+    "reopen_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_outcome",
+        "reopen_anchor_ref",
+        "command_id_ref",
+        "must_resolve_through_in_product_surface",
+        "preserves_source",
+        "preserves_freshness"
+      ],
+      "properties": {
+        "reopen_outcome": { "$ref": "#/$defs/reopen_outcome" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "must_resolve_through_in_product_surface": { "type": "boolean" },
+        "preserves_source": { "type": "boolean" },
+        "preserves_freshness": { "type": "boolean" }
+      }
+    },
+    "os_notification_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "envelope_id",
+        "job_family",
+        "job_state_class",
+        "durable_job_id_ref",
+        "canonical_event_id_ref",
+        "privacy_class",
+        "client_scope",
+        "source_object_label_ref",
+        "safe_reopen_action_label_ref",
+        "lock_screen_disclosure",
+        "payload_disclosure",
+        "badge_count_class",
+        "badge_basis",
+        "progress_basis",
+        "suppression_decision",
+        "suppression_parity",
+        "suppression_audit_visible",
+        "reopen_linkage"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_os_notification_envelope_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_os_attention_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "envelope_id": { "$ref": "#/$defs/non_empty_string" },
+        "job_family": { "$ref": "#/$defs/durable_job_family" },
+        "job_state_class": { "$ref": "#/$defs/durable_job_state_class" },
+        "durable_job_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "source_object_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "safe_reopen_action_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lock_screen_disclosure": { "$ref": "#/$defs/lock_screen_disclosure" },
+        "payload_disclosure": { "$ref": "#/$defs/payload_disclosure" },
+        "badge_count_class": { "$ref": "#/$defs/aggregate_count_class" },
+        "badge_basis": { "$ref": "#/$defs/badge_basis" },
+        "progress_basis": {
+          "oneOf": [{ "$ref": "#/$defs/progress_basis" }, { "type": "null" }]
+        },
+        "suppression_decision": { "$ref": "#/$defs/quiet_hours_decision_class" },
+        "suppression_parity": { "$ref": "#/$defs/suppression_parity" },
+        "suppression_audit_visible": { "type": "boolean" },
+        "reopen_linkage": { "$ref": "#/$defs/reopen_linkage" }
+      }
+    },
+    "os_surface_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "job_family",
+        "job_state_class",
+        "durable_job_id_ref",
+        "canonical_event_id_ref",
+        "descriptor_revision_ref",
+        "support_note",
+        "privacy_class",
+        "client_scope",
+        "lifecycle_label",
+        "source_object_label_ref",
+        "safe_reopen_action_label_ref",
+        "reopen_anchor_ref",
+        "suppression_controls",
+        "derived_from_durable_object",
+        "marketed_on_desktop"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "job_family": { "$ref": "#/$defs/durable_job_family" },
+        "job_state_class": { "$ref": "#/$defs/durable_job_state_class" },
+        "durable_job_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note": { "$ref": "#/$defs/non_empty_string" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "lifecycle_label": { "$ref": "#/$defs/surface_lifecycle" },
+        "source_object_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "safe_reopen_action_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "suppression_controls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_control" }
+        },
+        "derived_from_durable_object": { "type": "boolean" },
+        "marketed_on_desktop": { "type": "boolean" }
+      }
+    },
+    "os_attention_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "qualification_status",
+        "marketed_on_guarantee"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/parity_guarantee" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "marketed_on_guarantee": { "type": "boolean" },
+        "projected_envelope_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "projected_privacy_class": {
+          "oneOf": [{ "$ref": "#/$defs/privacy_class" }, { "type": "null" }]
+        },
+        "projected_lock_screen": {
+          "oneOf": [{ "$ref": "#/$defs/lock_screen_disclosure" }, { "type": "null" }]
+        },
+        "projected_payload_disclosure": {
+          "oneOf": [{ "$ref": "#/$defs/payload_disclosure" }, { "type": "null" }]
+        },
+        "projected_badge_basis": {
+          "oneOf": [{ "$ref": "#/$defs/badge_basis" }, { "type": "null" }]
+        },
+        "projected_badge_count_class": {
+          "oneOf": [{ "$ref": "#/$defs/aggregate_count_class" }, { "type": "null" }]
+        },
+        "projected_progress_basis": {
+          "oneOf": [{ "$ref": "#/$defs/progress_basis" }, { "type": "null" }]
+        },
+        "projected_suppression_parity": {
+          "oneOf": [{ "$ref": "#/$defs/suppression_parity" }, { "type": "null" }]
+        },
+        "projected_suppression_decision": {
+          "oneOf": [{ "$ref": "#/$defs/quiet_hours_decision_class" }, { "type": "null" }]
+        },
+        "projected_suppression_audit_visible": {
+          "oneOf": [{ "type": "boolean" }, { "type": "null" }]
+        },
+        "projected_reopen_outcome": {
+          "oneOf": [{ "$ref": "#/$defs/reopen_outcome" }, { "type": "null" }]
+        },
+        "evidence_freshness": {
+          "oneOf": [{ "$ref": "#/$defs/evidence_freshness" }, { "type": "null" }]
+        },
+        "evidence_captured_at": {
+          "oneOf": [{ "$ref": "#/$defs/monotonic_timestamp" }, { "type": "null" }]
+        },
+        "narrowing_reason": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "note": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        }
+      }
+    },
+    "os_attention_blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unqualified_desktop_only_state",
+            "missing_evidence",
+            "missing_envelope_ref",
+            "lock_screen_leak",
+            "protected_payload_body",
+            "badge_raw_event_fanout",
+            "progress_generic_spinner",
+            "suppression_divergence",
+            "suppression_audit_missing",
+            "reopen_target_lost",
+            "stale_evidence_on_marketed_row",
+            "missing_narrowing_reason",
+            "missing_projection",
+            "descriptor_missing_reopen_anchor",
+            "missing_durable_job_ref",
+            "missing_support_note",
+            "missing_source_object_label",
+            "missing_safe_reopen_action",
+            "surface_not_derived_from_durable_object",
+            "missing_suppression_controls",
+            "envelope_descriptor_mismatch"
+          ]
+        },
+        "surface_id": { "type": "string" },
+        "guarantee": { "$ref": "#/$defs/parity_guarantee" },
+        "qualification_status": { "$ref": "#/$defs/qualification_status" },
+        "field": { "type": "string" }
+      }
+    },
+    "os_attention_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "envelope",
+        "bindings",
+        "blocking_findings",
+        "high_stakes",
+        "marketed"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_os_attention_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_os_attention_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/os_surface_descriptor" },
+        "envelope": { "$ref": "#/$defs/os_notification_envelope" },
+        "bindings": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/os_attention_binding" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/os_attention_blocking_finding" }
+        },
+        "high_stakes": { "type": "boolean" },
+        "marketed": { "type": "boolean" }
+      }
+    },
+    "coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guarantee",
+        "qualified_rows",
+        "explicitly_narrowed_rows",
+        "not_applicable_rows",
+        "platform_omitted_rows",
+        "unqualified_desktop_only_state_rows",
+        "missing_evidence_rows"
+      ],
+      "properties": {
+        "guarantee": { "$ref": "#/$defs/parity_guarantee" },
+        "qualified_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "not_applicable_rows": { "type": "integer", "minimum": 0 },
+        "platform_omitted_rows": { "type": "integer", "minimum": 0 },
+        "unqualified_desktop_only_state_rows": { "type": "integer", "minimum": 0 },
+        "missing_evidence_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unqualified_desktop_only_state",
+        "missing_evidence",
+        "missing_envelope_ref",
+        "lock_screen_leak",
+        "protected_payload_body",
+        "badge_raw_event_fanout",
+        "progress_generic_spinner",
+        "suppression_divergence",
+        "suppression_audit_missing",
+        "reopen_target_lost",
+        "stale_evidence_on_marketed_row",
+        "missing_narrowing_reason",
+        "missing_projection",
+        "descriptor_missing_reopen_anchor",
+        "missing_durable_job_ref",
+        "missing_support_note",
+        "missing_source_object_label",
+        "missing_safe_reopen_action",
+        "surface_not_derived_from_durable_object",
+        "missing_suppression_controls",
+        "envelope_descriptor_mismatch"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unqualified_desktop_only_state": { "type": "integer", "minimum": 0 },
+        "missing_evidence": { "type": "integer", "minimum": 0 },
+        "missing_envelope_ref": { "type": "integer", "minimum": 0 },
+        "lock_screen_leak": { "type": "integer", "minimum": 0 },
+        "protected_payload_body": { "type": "integer", "minimum": 0 },
+        "badge_raw_event_fanout": { "type": "integer", "minimum": 0 },
+        "progress_generic_spinner": { "type": "integer", "minimum": 0 },
+        "suppression_divergence": { "type": "integer", "minimum": 0 },
+        "suppression_audit_missing": { "type": "integer", "minimum": 0 },
+        "reopen_target_lost": { "type": "integer", "minimum": 0 },
+        "stale_evidence_on_marketed_row": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 },
+        "descriptor_missing_reopen_anchor": { "type": "integer", "minimum": 0 },
+        "missing_durable_job_ref": { "type": "integer", "minimum": 0 },
+        "missing_support_note": { "type": "integer", "minimum": 0 },
+        "missing_source_object_label": { "type": "integer", "minimum": 0 },
+        "missing_safe_reopen_action": { "type": "integer", "minimum": 0 },
+        "surface_not_derived_from_durable_object": { "type": "integer", "minimum": 0 },
+        "missing_suppression_controls": { "type": "integer", "minimum": 0 },
+        "envelope_descriptor_mismatch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reopen_anchor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_family", "surface_id", "durable_job_id_ref", "reopen_anchor_ref"],
+      "properties": {
+        "job_family": { "$ref": "#/$defs/durable_job_family" },
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "durable_job_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reopen_anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "narrowable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "guarantee", "reason"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "guarantee": { "$ref": "#/$defs/parity_guarantee" },
+        "reason": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "m5_os_attention_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "required_guarantees",
+        "rows",
+        "guarantee_coverage",
+        "findings_summary",
+        "reopen_anchor_index",
+        "registered_surface_count",
+        "high_stakes_surface_count",
+        "marketed_surface_count",
+        "parity_guarantees_checked",
+        "narrowable_marketed_rows",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_os_attention_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_os_attention_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_guarantees": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/parity_guarantee" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/os_attention_row" }
+        },
+        "guarantee_coverage": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "reopen_anchor_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_anchor_entry" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "high_stakes_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "parity_guarantees_checked": { "type": "integer", "minimum": 0 },
+        "narrowable_marketed_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowable_row" }
+        },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_os_attention_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_m5_os_attention_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/m5_os_attention_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/m5_os_attention_report_record" },
+        "case_ids": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}

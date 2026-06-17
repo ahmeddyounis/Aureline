@@ -122,6 +122,7 @@ pub mod m5_inclusive_depth;
 pub mod m5_mutation_history_inspector;
 pub mod m5_native_desktop;
 pub mod m5_notification_routes;
+pub mod m5_os_notifications_and_badges;
 pub mod m5_recent_items_and_reopen;
 pub mod m5_rollout_governance;
 pub mod m5_start_center_and_switcher;

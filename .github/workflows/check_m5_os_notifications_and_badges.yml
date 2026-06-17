@@ -1,0 +1,70 @@
+# M5 OS notification, badge, progress, and reopen parity gate.
+#
+# Validates the checked-in M5 OS-attention audit: every OS attention surface of
+# an M5 durable job family (indexing, install/update, task runs, test runs,
+# remote reconnect, AI review, git review, admin/policy advisories) qualifies the
+# five OS-attention parity guarantees Aureline's in-product activity center
+# already promises (privacy-safe summary, durable badge class, named taskbar/dock
+# progress, quiet-hours / admin suppression parity, and exact-target reopen) with
+# captured evidence; no qualified guarantee carries a red result (a lock-screen
+# leak, a protected payload body, a raw-event badge counter, a generic progress
+# spinner, a diverging suppression decision, a missing suppression audit, or a
+# lost reopen target); no surface paints an OS affordance from a synthesized
+# desktop-only state; and a marketed guarantee whose evidence is stale or red
+# narrows instead of shipping as implicitly stable. The typed Rust consumer mints
+# the same audit, so `cargo test -p aureline-shell` enforces the same structural
+# invariants and that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_os_notifications_and_badges
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_os_notifications_and_badges.yml"
+      - "tools/ci/m5/os_notifications_and_badges_check.py"
+      - "schemas/ux/m5-os-notification-envelope.schema.json"
+      - "docs/m5/os-notifications-badges-and-progress.md"
+      - "artifacts/ux/m5/os-notification-and-reopen.md"
+      - "fixtures/ux/m5_os_notifications_and_badges/**"
+      - "crates/aureline-shell/src/m5_os_notifications_and_badges/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_os_notifications.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_os_notifications_and_badges_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-os-notifications-and-badges-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_os_notifications_and_badges:
+    name: M5 OS notifications and badges
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 OS-notifications-and-badges CI gate
+        run: |
+          python3 tools/ci/m5/os_notifications_and_badges_check.py --repo-root .
+
+      - name: Run M5 OS-notifications-and-badges contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_os_notifications_and_badges_fixtures
