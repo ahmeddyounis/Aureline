@@ -13,6 +13,7 @@ pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
 pub mod finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth;
+pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix;
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod mutations;
@@ -84,6 +85,24 @@ pub use finalize_sequence_edit_conflict_session_stash_entry_and_ref_update_truth
     RISKY_VCS_SUPPORT_EXPORT_RECORD_KIND, RISKY_VCS_TARGET_SELECTION_STATES,
     RISKY_VCS_TODO_VERSION_STATES, RISKY_VCS_TRUTH_PACKET_RECORD_KIND,
     RISKY_VCS_TRUTH_SCHEMA_VERSION, RISKY_VCS_UNTRACKED_STATE_POSTURES,
+};
+pub use freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_checkpoint_recovery_matrix::{
+    current_stable_m5_git_topology_history_matrix_export, DegradedStateRow, DegradedTopologyState,
+    HistorySurgerySession, M5GitTopologyHistoryMatrixArtifactError, M5GitTopologyHistoryMatrixPacket,
+    M5GitTopologyHistoryMatrixPacketInput, M5GitTopologyHistoryMatrixViolation, MatrixConsumerParity,
+    MatrixConsumerSurface, MatrixFreezePosture, MatrixGovernanceReview, OperationPreviewClass,
+    OperationRecoveryClass, RiskyHistoryOperation, RiskyOperationRow, SessionObjectRow,
+    TopologyClassRow, M5_GIT_TOPOLOGY_HISTORY_MATRIX_ARTIFACT_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_CONFLICT_SESSION_CONTRACT_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_DOC_REF, M5_GIT_TOPOLOGY_HISTORY_MATRIX_FIXTURE_DIR,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_RECORD_KIND,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_RECOVERY_CHECKPOINT_CONTRACT_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_REF_UPDATE_CONTRACT_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_REQUIRED_CLASSES, M5_GIT_TOPOLOGY_HISTORY_MATRIX_SCHEMA_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_SCHEMA_VERSION,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_SEQUENCE_EDIT_CONTRACT_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_STASH_CONTRACT_REF, M5_GIT_TOPOLOGY_HISTORY_MATRIX_SUMMARY_REF,
+    M5_GIT_TOPOLOGY_HISTORY_MATRIX_TOPOLOGY_CONTRACT_REF,
 };
 pub use harden_conflict_resolution_external_change_reconciliation_and_merge::{
     build_stable_conflict_session_packet, parse_stable_conflict_session_record,
