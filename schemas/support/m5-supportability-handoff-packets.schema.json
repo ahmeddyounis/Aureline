@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/m5-supportability-handoff-packets.schema.json",
+  "title": "Aureline supportability handoff packets",
+  "description": "Schema for the m5_supportability_handoff_packets packet family: the registry of supportability handoff packets that join finding codes, repair ids, crash artifacts, install / advisory state, credential-state descriptors, environment / precedence summaries, and restore-provenance records into one typed escalation object per blocked-user incident. Each packet carries a visible incident ref, a copyable exact-build id, exactly one handoff mode (local_self_diagnosis, team_share, formal_support_handoff), and a set of typed handoff components. Each component carries its component kind, data class (kept visible), redaction posture, included / policy_locked / lineage_downgraded flags, and a source_ref plus a lineage_ref projecting from the joined source object. A fail-closed handoff / share gate derives each packet's published presentation (ready_to_share, narrowed, send_blocked): a component is carried when included and send-safe for the mode, redacted when carried as a redacted summary, withheld when its data class cannot reach the mode or is policy-locked, and blocking when included but unable to leave the machine for the mode. A blocking component makes the packet send_blocked; a redacted, withheld, policy-locked, or downgraded component makes it narrowed; otherwise it is ready_to_share. The recorded status, presentation, downgrade reasons, lineage-complete attestation, and blocked-before-send flag must equal the recomputed gate, so a handoff never hides a redacted, withheld, policy-locked, or downgraded component. Two hard rules always hold: every component keeps its data class and redaction posture visible (no monolithic export), and the exact-build / finding-code / repair-id lineage is preserved on every component. Every required consumer surface (support_center, cli_headless, issue_report_flow, support_drill_packet, support_export) binds to this one registry, preserving its vocabulary, object ids, and lineage. The packet is metadata-only and carries no credential bodies, raw provider payloads, raw stack dumps, or secret-bearing payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "handoff_modes",
+    "component_kinds",
+    "data_classes",
+    "redaction_postures",
+    "handoff_statuses",
+    "presentations",
+    "downgrade_reasons",
+    "consumer_surfaces",
+    "mode_policies",
+    "packets",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_supportability_handoff_packets" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "handoff_modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handoff_mode" }
+    },
+    "component_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component_kind" }
+    },
+    "data_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/data_class" }
+    },
+    "redaction_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_posture" }
+    },
+    "handoff_statuses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/handoff_status" }
+    },
+    "presentations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/presentation" }
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "mode_policies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mode_policy" }
+    },
+    "packets": { "type": "array", "items": { "$ref": "#/$defs/packet" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "handoff_mode": {
+      "enum": ["local_self_diagnosis", "team_share", "formal_support_handoff"]
+    },
+    "component_kind": {
+      "enum": [
+        "finding_code",
+        "repair_id",
+        "crash_artifact",
+        "install_advisory_state",
+        "credential_state_descriptor",
+        "environment_summary",
+        "precedence_summary",
+        "restore_provenance_record"
+      ]
+    },
+    "data_class": {
+      "enum": [
+        "metadata",
+        "diagnostic_summary",
+        "environment_descriptor",
+        "credential_state",
+        "crash_artifact_reference",
+        "user_content_excerpt"
+      ]
+    },
+    "redaction_posture": {
+      "enum": [
+        "metadata_safe_default",
+        "redacted_summary",
+        "local_only_retained",
+        "policy_locked",
+        "blocked_unsafe_content"
+      ]
+    },
+    "handoff_status": {
+      "enum": ["ready_to_share", "redaction_narrowed", "policy_locked", "send_blocked"]
+    },
+    "presentation": {
+      "enum": ["ready_to_share", "narrowed", "send_blocked"]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "data_class_redacted_for_mode",
+        "component_excluded_for_mode",
+        "policy_locked_data_class",
+        "lineage_downgraded",
+        "send_blocked_unsafe_content"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "support_center",
+        "cli_headless",
+        "issue_report_flow",
+        "support_drill_packet",
+        "support_export"
+      ]
+    },
+    "mode_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "leaves_machine",
+        "allowed_data_classes",
+        "default_redaction_posture",
+        "note"
+      ],
+      "properties": {
+        "mode": { "$ref": "#/$defs/handoff_mode" },
+        "leaves_machine": { "type": "boolean" },
+        "allowed_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/data_class" }
+        },
+        "default_redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_id",
+        "component_kind",
+        "data_class",
+        "redaction_posture",
+        "included",
+        "policy_locked",
+        "lineage_downgraded",
+        "source_ref",
+        "lineage_ref",
+        "display_label",
+        "summary"
+      ],
+      "properties": {
+        "component_id": { "$ref": "#/$defs/non_empty_string" },
+        "component_kind": { "$ref": "#/$defs/component_kind" },
+        "data_class": { "$ref": "#/$defs/data_class" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "included": { "type": "boolean" },
+        "policy_locked": { "type": "boolean" },
+        "lineage_downgraded": { "type": "boolean" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lineage_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "title",
+        "incident_ref",
+        "exact_build_id",
+        "build_id_copyable",
+        "mode",
+        "status",
+        "presentation",
+        "downgrade_reasons",
+        "lineage_complete",
+        "data_classes_visible",
+        "blocked_before_send",
+        "raw_material_excluded",
+        "components",
+        "caveats",
+        "blockers",
+        "source_of_truth_ref",
+        "explain_entrypoint_ref",
+        "cli_object_ref",
+        "conformance_ref",
+        "evidence_ref",
+        "note"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "incident_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_id": { "$ref": "#/$defs/non_empty_string" },
+        "build_id_copyable": { "type": "boolean" },
+        "mode": { "$ref": "#/$defs/handoff_mode" },
+        "status": { "$ref": "#/$defs/handoff_status" },
+        "presentation": { "$ref": "#/$defs/presentation" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "lineage_complete": { "type": "boolean" },
+        "data_classes_visible": { "type": "boolean" },
+        "blocked_before_send": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" }
+        },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "blockers": { "$ref": "#/$defs/string_array" },
+        "source_of_truth_ref": { "$ref": "#/$defs/non_empty_string" },
+        "explain_entrypoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cli_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "packet_id_ref",
+        "ingests_registry",
+        "preserves_handoff_vocabulary",
+        "preserves_object_ids",
+        "preserves_lineage",
+        "keeps_data_classes_visible",
+        "narrows_on_downgrade",
+        "raw_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_registry": { "type": "boolean" },
+        "preserves_handoff_vocabulary": { "type": "boolean" },
+        "preserves_object_ids": { "type": "boolean" },
+        "preserves_lineage": { "type": "boolean" },
+        "keeps_data_classes_visible": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_packets",
+        "ready_to_share_packets",
+        "narrowed_packets",
+        "send_blocked_packets",
+        "policy_locked_packets",
+        "local_self_diagnosis_packets",
+        "total_components",
+        "redacted_components",
+        "withheld_components",
+        "policy_locked_components",
+        "blocking_components"
+      ],
+      "properties": {
+        "total_packets": { "type": "integer", "minimum": 0 },
+        "ready_to_share_packets": { "type": "integer", "minimum": 0 },
+        "narrowed_packets": { "type": "integer", "minimum": 0 },
+        "send_blocked_packets": { "type": "integer", "minimum": 0 },
+        "policy_locked_packets": { "type": "integer", "minimum": 0 },
+        "local_self_diagnosis_packets": { "type": "integer", "minimum": 0 },
+        "total_components": { "type": "integer", "minimum": 0 },
+        "redacted_components": { "type": "integer", "minimum": 0 },
+        "withheld_components": { "type": "integer", "minimum": 0 },
+        "policy_locked_components": { "type": "integer", "minimum": 0 },
+        "blocking_components": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

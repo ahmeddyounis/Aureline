@@ -404,6 +404,7 @@ pub mod m5_storage_pressure;
 pub mod m5_support_bundle_consent;
 pub mod m5_support_center_matrix;
 pub mod m5_support_center_ui;
+pub mod m5_supportability_handoff_packets;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -638,6 +639,20 @@ pub use m5_support_center_ui::{
     M5_SUPPORT_CENTER_UI_RECORD_KIND, M5_SUPPORT_CENTER_UI_REVIEW_PACKET_REF,
     M5_SUPPORT_CENTER_UI_SCHEMA_REF, M5_SUPPORT_CENTER_UI_SCHEMA_VERSION,
     M5_SUPPORT_CENTER_UI_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_supportability_handoff_packets::{
+    current_m5_supportability_handoff_packets, ComponentDisposition, HandoffComponent,
+    HandoffComponentKind, HandoffConsumerBinding, HandoffConsumerSurface, HandoffDataClass,
+    HandoffDowngradeReason, HandoffMode, HandoffModePolicy, HandoffPacket, HandoffPresentation,
+    HandoffStatus, M5SupportabilityHandoffComponentRow, M5SupportabilityHandoffExportProjection,
+    M5SupportabilityHandoffExportRow, M5SupportabilityHandoffPackets,
+    M5SupportabilityHandoffSummary, M5SupportabilityHandoffSupportExport,
+    M5SupportabilityHandoffViolation, RedactionPosture as HandoffRedactionPosture,
+    M5_SUPPORTABILITY_HANDOFF_ARTIFACT_DOC_REF, M5_SUPPORTABILITY_HANDOFF_DOC_REF,
+    M5_SUPPORTABILITY_HANDOFF_FIXTURE_DIR, M5_SUPPORTABILITY_HANDOFF_JSON,
+    M5_SUPPORTABILITY_HANDOFF_PATH, M5_SUPPORTABILITY_HANDOFF_RECORD_KIND,
+    M5_SUPPORTABILITY_HANDOFF_REVIEW_PACKET_REF, M5_SUPPORTABILITY_HANDOFF_SCHEMA_REF,
+    M5_SUPPORTABILITY_HANDOFF_SCHEMA_VERSION, M5_SUPPORTABILITY_HANDOFF_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
