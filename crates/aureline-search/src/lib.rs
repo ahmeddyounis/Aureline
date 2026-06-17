@@ -124,6 +124,7 @@ pub mod infrastructure_intelligence;
 pub mod lexical;
 pub mod m5_search_navigation_qualification;
 pub mod monorepo_hot_set_truth;
+pub mod navigation_continuity;
 pub mod planner;
 pub mod query_artifacts;
 pub mod query_session;
@@ -281,6 +282,20 @@ pub use monorepo_hot_set_truth::{
     MONOREPO_HOT_SET_TRUTH_PACKET_ARTIFACT_REF, MONOREPO_HOT_SET_TRUTH_PACKET_RECORD_KIND,
     MONOREPO_HOT_SET_TRUTH_SCHEMA_REF, MONOREPO_HOT_SET_TRUTH_SCHEMA_VERSION,
     MONOREPO_HOT_SET_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use navigation_continuity::{
+    current_navigation_continuity_packet, current_workset_drift_navigation_continuity_packet,
+    seeded_navigation_continuity_packet, seeded_workset_drift_navigation_continuity_packet,
+    ContinuityArtifactBinding, ContinuityConsumerClass, ContinuityConsumerProjection, HistoryRole,
+    NavigationContinuityBindingArtifactError, NavigationContinuityBindingPacket,
+    NavigationContinuityBindingSupportExport, NavigationContinuityBindingValidationFinding,
+    NavigationContinuityRestoreProjection, RestoredContinuityArtifact, SurfaceContinuityBinding,
+    COVERED_ARTIFACT_KINDS, NAVIGATION_CONTINUITY_BINDING_ARTIFACT_REF,
+    NAVIGATION_CONTINUITY_BINDING_DOC_REF, NAVIGATION_CONTINUITY_BINDING_FIXTURE_DIR,
+    NAVIGATION_CONTINUITY_BINDING_PACKET_ID, NAVIGATION_CONTINUITY_BINDING_PACKET_RECORD_KIND,
+    NAVIGATION_CONTINUITY_BINDING_SCHEMA_REF, NAVIGATION_CONTINUITY_BINDING_SCHEMA_VERSION,
+    NAVIGATION_CONTINUITY_BINDING_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use planner::{
