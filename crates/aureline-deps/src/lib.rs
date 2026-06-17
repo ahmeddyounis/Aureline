@@ -68,6 +68,17 @@
 //! separate, no state collapses into a generic not-found/install-failed message,
 //! and every claimed M5 package surface binds to the one shared matrix.
 //!
+//! The module [`package_state_descriptors`] implements the canonical
+//! cross-ecosystem package-state descriptor that speaks the frozen matrix
+//! vocabulary. A `PackageStateDescriptor` is the one product object the
+//! dependency graph, package detail, advisories, license/compliance views,
+//! update proposals, the CLI inspect surface, and support/export packets all
+//! reuse. It keeps requested and resolved identity in separate fields, keeps
+//! direct/transitive/workspace-local/path-VCS relations distinct, records a
+//! resolution confidence so auth-gated, offline-snapshot, and stale states never
+//! overclaim an exact resolution, and binds every label it surfaces back to a
+//! frozen state row.
+//!
 //! The module [`ecosystem_qualification_certification`] owns the per-ecosystem
 //! certification matrix. It certifies, for every marketed ecosystem and every
 //! qualification lane — dependency intelligence, package review, code quality,
@@ -89,6 +100,7 @@ pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
+pub mod package_state_descriptors;
 
 pub use dependency_security_compliance_export_truth::{
     current_dependency_security_compliance_export_truth, AdvisoryFreshnessClass, AdvisoryRow,
@@ -193,4 +205,19 @@ pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_au
     RetentionRule, RetentionSubject, RollbackClass, SurfaceBinding, SurfaceWriteAuthority,
     M5_PACKAGE_STATE_MATRIX_JSON, M5_PACKAGE_STATE_MATRIX_PATH,
     M5_PACKAGE_STATE_MATRIX_RECORD_KIND, M5_PACKAGE_STATE_MATRIX_SCHEMA_VERSION,
+};
+// `ManifestScopeClass`, `RegistrySourceAuthority`, `AuthMode`,
+// `LockfileAuthority`, `ResolverIdentityClass`, `RollbackClass`,
+// `PackageStateLabel`, `PackageStateMessageClass`, `PackageSurface`, and
+// `SurfaceWriteAuthority` are reused from the frozen matrix above and are not
+// re-exported again here.
+pub use package_state_descriptors::{
+    current_package_state_descriptors, DependencyRelation, EcosystemKind, FindingCardView,
+    FindingKind, FindingOverlay, PackageStateDescriptor, PackageStateDescriptors,
+    PackageStateDescriptorsExportProjection, PackageStateDescriptorsSummary,
+    PackageStateDescriptorsViolation, PackageStateExportRow, PackageStateSurfaceProjection,
+    PackageStateView, RequestedIdentity, RequestedSourceKind, RequestedView, ResolutionConfidence,
+    ResolvedIdentity, ResolvedView, UpdateProposalView, PACKAGE_STATE_DESCRIPTORS_JSON,
+    PACKAGE_STATE_DESCRIPTORS_PATH, PACKAGE_STATE_DESCRIPTORS_RECORD_KIND,
+    PACKAGE_STATE_DESCRIPTORS_SCHEMA_VERSION,
 };
