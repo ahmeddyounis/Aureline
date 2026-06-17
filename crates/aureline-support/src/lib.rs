@@ -273,6 +273,26 @@
 //!   stale schema, or unsafe content. Support Center, CLI/headless, formal
 //!   support handoff, and support export bind to this one registry and narrow
 //!   with it.
+//! - The [`m5_crash_intake_and_recovery`] registry — the canonical crash-loop
+//!   recovery-screen and issue-report / crash-intake contract. It carries one
+//!   screen per crash-loop scenario, each binding distinct, named recovery
+//!   actions (Restore, Open without restore, Safe mode, Disable recently changed
+//!   extension, Disable recently changed profile, Open logs, Report issue — never
+//!   a generic "try again", each labeled with whether it reruns or discards
+//!   state and its bounded blast radius) to the exact-build-aware crash intake:
+//!   the visible crash-envelope id, the copyable exact-build id and its identity
+//!   fidelity, the symbolication fidelity, the restore-provenance class, the
+//!   install / advisory state, the redaction posture, and the local-save /
+//!   team-share / formal-support intake modes. A fail-closed recovery / intake
+//!   gate publishes the weakest of a fidelity ceiling (an approximate /
+//!   unresolved build or a stale / partial symbolication narrows the screen), a
+//!   disposition ceiling (a downgraded restore or an active advisory / quarantine
+//!   narrows it), and a sendability ceiling (content that cannot leave the
+//!   machine caps it at send-blocked), so a screen can never imply an exact build
+//!   or resolved symbolication it does not have, and never makes local-save look
+//!   secondary. The active crash-recovery screen, Support Center, CLI / headless,
+//!   issue-report packet, and support export bind to this one registry and narrow
+//!   with it.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -366,6 +386,7 @@ pub mod locale_beta;
 pub mod m3_scenario_corpus;
 pub mod m5_cache_repair;
 pub mod m5_clear_data_review;
+pub mod m5_crash_intake_and_recovery;
 pub mod m5_fault_crash_certification;
 pub mod m5_fault_crash_governance;
 pub mod m5_forensic_packet;
@@ -447,6 +468,23 @@ pub use fault_domain_views::{
     FAULT_DOMAIN_VIEW_SCHEMA_REF,
 };
 pub use locale_beta::current_locale_pack_support_export;
+pub use m5_crash_intake_and_recovery::{
+    current_m5_crash_intake_and_recovery, BlastRadiusClass, BuildIdentityFidelity,
+    CrashIntakeDowngradeReason, CrashIntakeStatus, CrashRecoveryScreen, InstallAdvisoryState,
+    IntakeMode, IntakePacketMode, M5CrashIntakeAndRecovery,
+    M5CrashIntakeAndRecoveryExportProjection, M5CrashIntakeAndRecoveryExportRow,
+    M5CrashIntakeAndRecoverySummary, M5CrashIntakeAndRecoverySupportExport,
+    M5CrashIntakeAndRecoveryViolation, PathProminence as CrashIntakePathProminence,
+    RecentChangeKind, RecoveryAction, RecoveryActionClass, RecoveryActionEffect,
+    RecoveryConsumerBinding, RecoveryConsumerSurface, RecoveryPresentation, RecoveryRecentChange,
+    RedactionExportPosture as CrashIntakeRedactionExportPosture, RestoreProvenanceClass,
+    SymbolicationFidelity, M5_CRASH_INTAKE_RECOVERY_ARTIFACT_DOC_REF,
+    M5_CRASH_INTAKE_RECOVERY_DOC_REF, M5_CRASH_INTAKE_RECOVERY_FIXTURE_DIR,
+    M5_CRASH_INTAKE_RECOVERY_JSON, M5_CRASH_INTAKE_RECOVERY_PATH,
+    M5_CRASH_INTAKE_RECOVERY_RECORD_KIND, M5_CRASH_INTAKE_RECOVERY_REVIEW_PACKET_REF,
+    M5_CRASH_INTAKE_RECOVERY_SCHEMA_REF, M5_CRASH_INTAKE_RECOVERY_SCHEMA_VERSION,
+    M5_CRASH_INTAKE_RECOVERY_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use m5_fault_crash_certification::{
     seeded_m5_fault_crash_certification_packet,
     seeded_stale_schema_m5_fault_crash_certification_packet,

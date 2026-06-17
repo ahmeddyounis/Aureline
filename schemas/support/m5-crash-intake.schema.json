@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/m5-crash-intake.schema.json",
+  "title": "Aureline crash-loop recovery screens and issue-report / crash-intake flows",
+  "description": "Schema for the m5_crash_intake_and_recovery packet: the registry of crash-loop recovery screens and issue-report / crash-intake flows that keep exact-build identity, symbolication fidelity, restore provenance, and redaction posture honest from the first screen. Each screen carries the visible crash-envelope id, the copyable exact-build id and its identity fidelity (exact_build, approximate_build, unresolved_build), the symbolication fidelity (resolved, partially_resolved, stale_symbol_map, unresolved), the restore-provenance class (exact_restore, compatible_restore, layout_only, evidence_only, restore_downgraded, no_restore_attempted), the install / advisory state (clean, advisory_active, extension_quarantine_active, update_available), the redaction / export posture, a set of distinct, named recovery actions (restore, open_without_restore, safe_mode, disable_recently_changed_extension, disable_recently_changed_profile, open_logs, report_issue — never a generic try-again; each labeled with whether it reruns or discards state and its bounded blast radius), and the typed intake-packet modes (local_save, team_share, formal_support_handoff). A fail-closed recovery / intake gate derives each screen's published presentation (exact_ready, narrowed, send_blocked) as the weakest of a fidelity ceiling (an approximate / unresolved build or a stale / partial / unresolved symbolication narrows it), a disposition ceiling (a downgraded restore or an active install advisory / extension quarantine narrows it), and a sendability ceiling (content that cannot leave the machine for the selected send mode caps it at send_blocked). The recorded intake status, presentation, downgrade reasons, exact-build and resolved-symbolication claims, local-save-first-class attestation, and blocked-before-send flag must equal the recomputed gate, so a screen can never imply an exact build or resolved symbolication when only approximate or unresolved data exists. Two hard invariants always hold: the recovery actions stay distinct, bounded, and non-destructive (no action discards user-owned state), and the local-save path is at least as prominent as every send mode. Every required consumer surface (crash_recovery_screen, support_center, cli_headless, issue_report_packet, support_export) binds to this one registry, preserving its vocabulary, object ids, and exact-build lineage. The packet is metadata-only and carries no credential bodies, raw provider payloads, raw stack dumps, or secret-bearing payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "recovery_action_classes",
+    "recovery_action_effects",
+    "blast_radius_classes",
+    "build_identity_fidelities",
+    "symbolication_fidelities",
+    "restore_provenance_classes",
+    "install_advisory_states",
+    "redaction_export_postures",
+    "intake_modes",
+    "path_prominences",
+    "recent_change_kinds",
+    "intake_statuses",
+    "presentations",
+    "downgrade_reasons",
+    "consumer_surfaces",
+    "screens",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "m5_crash_intake_and_recovery" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "recovery_action_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recovery_action_class" }
+    },
+    "recovery_action_effects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recovery_action_effect" }
+    },
+    "blast_radius_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blast_radius_class" }
+    },
+    "build_identity_fidelities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/build_identity_fidelity" }
+    },
+    "symbolication_fidelities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/symbolication_fidelity" }
+    },
+    "restore_provenance_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restore_provenance_class" }
+    },
+    "install_advisory_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/install_advisory_state" }
+    },
+    "redaction_export_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_export_posture" }
+    },
+    "intake_modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/intake_mode" }
+    },
+    "path_prominences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path_prominence" }
+    },
+    "recent_change_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recent_change_kind" }
+    },
+    "intake_statuses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/intake_status" }
+    },
+    "presentations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/presentation" }
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "screens": { "type": "array", "items": { "$ref": "#/$defs/screen" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "recovery_action_class": {
+      "enum": [
+        "restore",
+        "open_without_restore",
+        "safe_mode",
+        "disable_recently_changed_extension",
+        "disable_recently_changed_profile",
+        "open_logs",
+        "report_issue"
+      ]
+    },
+    "recovery_action_effect": {
+      "enum": [
+        "reruns_restore",
+        "opens_without_replay",
+        "restarts_in_safe_profile",
+        "disables_suspect_reversibly",
+        "inspects_read_only",
+        "opens_intake_no_send"
+      ]
+    },
+    "blast_radius_class": {
+      "enum": [
+        "full_session_replay",
+        "workspace_no_replay",
+        "reduced_profile",
+        "single_suspect_toggle",
+        "read_only_inspect",
+        "metadata_handoff"
+      ]
+    },
+    "build_identity_fidelity": {
+      "enum": ["exact_build", "approximate_build", "unresolved_build"]
+    },
+    "symbolication_fidelity": {
+      "enum": ["resolved", "partially_resolved", "stale_symbol_map", "unresolved"]
+    },
+    "restore_provenance_class": {
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "evidence_only",
+        "restore_downgraded",
+        "no_restore_attempted"
+      ]
+    },
+    "install_advisory_state": {
+      "enum": ["clean", "advisory_active", "extension_quarantine_active", "update_available"]
+    },
+    "redaction_export_posture": {
+      "enum": [
+        "metadata_safe_default",
+        "redacted_summary",
+        "local_only_retained",
+        "blocked_unsafe_content"
+      ]
+    },
+    "intake_mode": {
+      "enum": ["local_save", "team_share", "formal_support_handoff"]
+    },
+    "path_prominence": {
+      "enum": ["primary", "co_equal", "secondary"]
+    },
+    "recent_change_kind": {
+      "enum": ["extension", "profile"]
+    },
+    "intake_status": {
+      "enum": ["exact_ready", "fidelity_narrowed", "advisory_narrowed", "send_blocked"]
+    },
+    "presentation": {
+      "enum": ["exact_ready", "narrowed", "send_blocked"]
+    },
+    "downgrade_reason": {
+      "enum": [
+        "approximate_build_identity",
+        "unresolved_build_identity",
+        "stale_or_partial_symbolication",
+        "restore_provenance_downgraded",
+        "install_advisory_active",
+        "extension_quarantine_active",
+        "intake_send_blocked_unsafe_content"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "crash_recovery_screen",
+        "support_center",
+        "cli_headless",
+        "issue_report_packet",
+        "support_export"
+      ]
+    },
+    "recovery_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_class",
+        "command_id",
+        "title",
+        "description",
+        "effect",
+        "blast_radius",
+        "reruns_session",
+        "discards_state",
+        "requires_explicit_confirmation",
+        "no_silent_rerun",
+        "disposition_summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "action_class": { "$ref": "#/$defs/recovery_action_class" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "effect": { "$ref": "#/$defs/recovery_action_effect" },
+        "blast_radius": { "$ref": "#/$defs/blast_radius_class" },
+        "reruns_session": { "type": "boolean" },
+        "discards_state": { "type": "boolean" },
+        "requires_explicit_confirmation": { "type": "boolean" },
+        "no_silent_rerun": { "type": "boolean" },
+        "targets_change_ref": { "$ref": "#/$defs/non_empty_string" },
+        "disposition_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "intake_packet_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "prominence",
+        "enabled",
+        "selected",
+        "leaves_machine",
+        "redaction_posture",
+        "label",
+        "destination_ref"
+      ],
+      "properties": {
+        "mode": { "$ref": "#/$defs/intake_mode" },
+        "prominence": { "$ref": "#/$defs/path_prominence" },
+        "enabled": { "type": "boolean" },
+        "selected": { "type": "boolean" },
+        "leaves_machine": { "type": "boolean" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_export_posture" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "destination_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recent_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["change_id", "change_kind", "subject_ref", "display_label", "reversible"],
+      "properties": {
+        "change_id": { "$ref": "#/$defs/non_empty_string" },
+        "change_kind": { "$ref": "#/$defs/recent_change_kind" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "reversible": { "type": "boolean" }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screen_id",
+        "title",
+        "crash_envelope_id",
+        "exact_build_id",
+        "build_id_copyable",
+        "build_identity_fidelity",
+        "symbolication_fidelity",
+        "symbolication_report_ref",
+        "restore_provenance",
+        "install_advisory_state",
+        "redaction_export_posture",
+        "trigger_summary",
+        "strike_count",
+        "strike_budget",
+        "silent_restart_suppressed",
+        "selected_intake_mode",
+        "intake_status",
+        "presentation",
+        "claims_exact_build",
+        "claims_resolved_symbolication",
+        "local_save_first_class",
+        "blocked_before_send",
+        "destructive_action_offered",
+        "raw_material_excluded",
+        "recovery_actions",
+        "intake_modes",
+        "crash_envelope_ref",
+        "source_of_truth_ref",
+        "explain_entrypoint_ref",
+        "cli_object_ref",
+        "conformance_ref",
+        "evidence_ref",
+        "intake_receipt_ref",
+        "note"
+      ],
+      "properties": {
+        "screen_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "crash_envelope_id": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_id": { "$ref": "#/$defs/non_empty_string" },
+        "build_id_copyable": { "type": "boolean" },
+        "build_identity_fidelity": { "$ref": "#/$defs/build_identity_fidelity" },
+        "symbolication_fidelity": { "$ref": "#/$defs/symbolication_fidelity" },
+        "symbolication_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restore_provenance": { "$ref": "#/$defs/restore_provenance_class" },
+        "install_advisory_state": { "$ref": "#/$defs/install_advisory_state" },
+        "redaction_export_posture": { "$ref": "#/$defs/redaction_export_posture" },
+        "trigger_summary": { "$ref": "#/$defs/non_empty_string" },
+        "strike_count": { "type": "integer", "minimum": 0 },
+        "strike_budget": { "type": "integer", "minimum": 0 },
+        "silent_restart_suppressed": { "type": "boolean" },
+        "selected_intake_mode": { "$ref": "#/$defs/intake_mode" },
+        "intake_status": { "$ref": "#/$defs/intake_status" },
+        "presentation": { "$ref": "#/$defs/presentation" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "claims_exact_build": { "type": "boolean" },
+        "claims_resolved_symbolication": { "type": "boolean" },
+        "local_save_first_class": { "type": "boolean" },
+        "blocked_before_send": { "type": "boolean" },
+        "destructive_action_offered": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "intake_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/intake_packet_mode" }
+        },
+        "recent_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recent_change" }
+        },
+        "caveats": { "$ref": "#/$defs/string_array" },
+        "blockers": { "$ref": "#/$defs/string_array" },
+        "crash_envelope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_of_truth_ref": { "$ref": "#/$defs/non_empty_string" },
+        "explain_entrypoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cli_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "intake_receipt_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "packet_id_ref",
+        "ingests_registry",
+        "preserves_recovery_vocabulary",
+        "preserves_object_ids",
+        "preserves_exact_build_lineage",
+        "local_save_first_class",
+        "narrows_on_downgrade",
+        "raw_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_registry": { "type": "boolean" },
+        "preserves_recovery_vocabulary": { "type": "boolean" },
+        "preserves_object_ids": { "type": "boolean" },
+        "preserves_exact_build_lineage": { "type": "boolean" },
+        "local_save_first_class": { "type": "boolean" },
+        "narrows_on_downgrade": { "type": "boolean" },
+        "raw_material_excluded": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_screens",
+        "exact_ready_screens",
+        "narrowed_screens",
+        "send_blocked_screens",
+        "screens_with_fidelity_downgrade",
+        "screens_with_active_advisory",
+        "screens_with_recent_change_suspects",
+        "local_save_first_class_screens",
+        "total_recovery_actions",
+        "total_intake_modes"
+      ],
+      "properties": {
+        "total_screens": { "type": "integer", "minimum": 0 },
+        "exact_ready_screens": { "type": "integer", "minimum": 0 },
+        "narrowed_screens": { "type": "integer", "minimum": 0 },
+        "send_blocked_screens": { "type": "integer", "minimum": 0 },
+        "screens_with_fidelity_downgrade": { "type": "integer", "minimum": 0 },
+        "screens_with_active_advisory": { "type": "integer", "minimum": 0 },
+        "screens_with_recent_change_suspects": { "type": "integer", "minimum": 0 },
+        "local_save_first_class_screens": { "type": "integer", "minimum": 0 },
+        "total_recovery_actions": { "type": "integer", "minimum": 0 },
+        "total_intake_modes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
