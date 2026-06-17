@@ -116,6 +116,20 @@
 //! a committed disposition while any block reason still holds, and a failed or
 //! partial mutation leaves a durable [`reviewed_mutation_flows::RollbackReceipt`]
 //! rather than a transient toast.
+//!
+//! The module [`registry_auth_flows`] makes registry authentication a first-class
+//! package workflow rather than an undocumented prerequisite. One
+//! [`registry_auth_flows::RegistryAuthFlowRow`] carries the current profile, the
+//! provider or mirror it reaches, whether the credential comes from a
+//! browser/device-code sign-in or an OS-store or vault handle, the keyboard-
+//! complete retry/revoke/switch-account/rebind actions available, and the
+//! reachability truth that keeps mirror-stale, offline-snapshot, cache-only,
+//! auth-required, and policy-blocked states distinct from a generic no-results or
+//! connection-failed message. Secrets stay handle-only — a
+//! [`registry_auth_flows::SecretHandle`] never carries a token body, a private
+//! registry URL, or a full auth payload — and every row binds to the frozen
+//! matrix so desktop, CLI, and support/export surfaces express registry identity,
+//! auth posture, and degradation truth mechanically.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -129,6 +143,7 @@ pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
 pub mod package_state_descriptors;
+pub mod registry_auth_flows;
 pub mod reviewed_mutation_flows;
 
 pub use dependency_security_compliance_export_truth::{
@@ -267,6 +282,18 @@ pub use manifest_scope_and_source_review::{
 // `SurfaceParity`, and `RegistrySourceCue` are intentionally not re-exported
 // here: they collide with same-named types above. Reach them via
 // `reviewed_mutation_flows::{ReviewDisposition, ..}`.
+// `AuthMode`, `RegistrySourceAuthority`, `RetentionClass`, `PackageStateLabel`,
+// `PackageSurface`, and `SurfaceWriteAuthority` are reused from the frozen matrix
+// and are not re-exported again here.
+pub use registry_auth_flows::{
+    current_registry_auth_flows, AuthActionKind, AuthActionRow, AuthActionView, ContinuityState,
+    CredentialSourceClass, DegradationState, HandleState, RegistryAuthFlowExportRow,
+    RegistryAuthFlowRow, RegistryAuthFlowSurfaceProjection, RegistryAuthFlowView,
+    RegistryAuthFlows, RegistryAuthFlowsExportProjection, RegistryAuthFlowsSummary,
+    RegistryAuthFlowsViolation, RegistryProfile, RegistryStatusMessageClass, SecretHandle,
+    REGISTRY_AUTH_FLOWS_JSON, REGISTRY_AUTH_FLOWS_PATH, REGISTRY_AUTH_FLOWS_RECORD_KIND,
+    REGISTRY_AUTH_FLOWS_SCHEMA_VERSION,
+};
 pub use reviewed_mutation_flows::{
     current_reviewed_mutation_flows, LockfileBlastRadius, LockfileDiffClass, ManifestScopeTarget,
     MutationFlowClass, MutationReviewSheet, MutationReviewSheetSurfaceProjection, ProposalSource,

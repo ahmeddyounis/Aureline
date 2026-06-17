@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deps/registry-auth-flows.schema.json",
+  "title": "Aureline registry auth flows",
+  "description": "Schema for the registry_auth_flows packet. Each row is one registry authentication flow for the M5 package lane: the current profile, the provider or mirror it reaches, whether the credential comes from a browser/device-code sign-in or an OS-store or vault handle, the keyboard-complete retry/revoke/switch-account/rebind actions available, and the reachability truth that keeps mirror-stale, offline-snapshot, cache-only, auth-required, and policy-blocked states distinct from a generic no-results or connection-failed message. A credential is kept as a handle only: it carries an opaque handle ref, a redacted account label, and a lifecycle state, never a token body, a private registry URL, or a full auth payload, and stores_secret_body must stay false. references_matrix_id binds every row to the frozen package-state matrix. The model is metadata-only and carries no credential bodies, registry tokens, raw provider payloads, or private registry URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "references_matrix_id",
+    "credential_source_classes",
+    "handle_states",
+    "continuity_states",
+    "degradation_states",
+    "status_message_classes",
+    "auth_action_kinds",
+    "rows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "registry_auth_flows" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "references_matrix_id": { "$ref": "#/$defs/non_empty_string" },
+    "credential_source_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/credential_source_class" }
+    },
+    "handle_states": { "type": "array", "items": { "$ref": "#/$defs/handle_state" } },
+    "continuity_states": { "type": "array", "items": { "$ref": "#/$defs/continuity_state" } },
+    "degradation_states": { "type": "array", "items": { "$ref": "#/$defs/degradation_state" } },
+    "status_message_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/status_message_class" }
+    },
+    "auth_action_kinds": { "type": "array", "items": { "$ref": "#/$defs/auth_action_kind" } },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "redacted_string": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://" }
+    },
+    "registry_source_authority": {
+      "enum": ["public_registry", "private_registry", "enterprise_mirror", "local_cache", "offline_snapshot"]
+    },
+    "auth_mode": {
+      "enum": [
+        "anonymous",
+        "os_store_credential",
+        "token_credential",
+        "browser_or_device_sign_in",
+        "policy_inherited_credential",
+        "auth_required_unsatisfied"
+      ]
+    },
+    "retention_class": {
+      "enum": ["bounded_local_history", "broker_resolved_never_persisted", "redaction_required_export"]
+    },
+    "credential_source_class": {
+      "enum": [
+        "browser_interactive",
+        "device_code_continuity",
+        "os_keychain_handle",
+        "secret_vault_handle",
+        "policy_broker_handle",
+        "anonymous_access",
+        "auth_unsatisfied"
+      ]
+    },
+    "handle_state": {
+      "enum": ["active", "revoked", "expired"]
+    },
+    "continuity_state": {
+      "enum": [
+        "not_applicable",
+        "awaiting_browser_return",
+        "awaiting_device_code",
+        "established",
+        "expired",
+        "failed"
+      ]
+    },
+    "degradation_state": {
+      "enum": [
+        "reachable_fresh",
+        "no_results_authoritative",
+        "auth_required",
+        "mirror_stale",
+        "offline_snapshot_only",
+        "cache_only",
+        "policy_blocked"
+      ]
+    },
+    "status_message_class": {
+      "enum": [
+        "reachable_fresh_source",
+        "no_results_authoritative",
+        "auth_required_disclosure",
+        "mirror_stale_disclosure",
+        "offline_snapshot_disclosure",
+        "cache_only_disclosure",
+        "policy_blocked_disclosure",
+        "generic_no_results",
+        "generic_connection_failed"
+      ]
+    },
+    "auth_action_kind": {
+      "enum": [
+        "retry",
+        "sign_in_browser",
+        "sign_in_device_code",
+        "revoke",
+        "switch_account",
+        "rebind_handle",
+        "use_offline_snapshot",
+        "request_policy_exception"
+      ]
+    },
+    "registry_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "display_label", "is_current"],
+      "properties": {
+        "profile_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/redacted_string" },
+        "is_current": { "type": "boolean" }
+      }
+    },
+    "secret_handle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle_ref", "state", "retention", "redacted_account_label", "stores_secret_body"],
+      "properties": {
+        "handle_ref": { "$ref": "#/$defs/redacted_string" },
+        "state": { "$ref": "#/$defs/handle_state" },
+        "retention": { "const": "broker_resolved_never_persisted" },
+        "redacted_account_label": { "$ref": "#/$defs/redacted_string" },
+        "stores_secret_body": { "const": false }
+      }
+    },
+    "auth_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "command_id", "key_hint", "redacted_label"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/auth_action_kind" },
+        "command_id": { "$ref": "#/$defs/redacted_string" },
+        "key_hint": { "$ref": "#/$defs/non_empty_string" },
+        "redacted_label": { "$ref": "#/$defs/redacted_string" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "profile",
+        "source_class",
+        "redacted_source_label",
+        "credential_source",
+        "auth_mode",
+        "continuity",
+        "reachability",
+        "actions",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/registry_profile" },
+        "source_class": { "$ref": "#/$defs/registry_source_authority" },
+        "mirror_owner": { "$ref": "#/$defs/redacted_string" },
+        "redacted_source_label": { "$ref": "#/$defs/redacted_string" },
+        "credential_source": { "$ref": "#/$defs/credential_source_class" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode" },
+        "handle": { "$ref": "#/$defs/secret_handle" },
+        "continuity": { "$ref": "#/$defs/continuity_state" },
+        "reachability": { "$ref": "#/$defs/degradation_state" },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/auth_action_row" } },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "current_profile_rows",
+        "handle_backed_rows",
+        "browser_or_device_rows",
+        "device_code_rows",
+        "degraded_rows",
+        "auth_required_rows",
+        "trust_blocked_rows",
+        "mutation_ready_rows",
+        "revocable_rows"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "current_profile_rows": { "type": "integer", "minimum": 0 },
+        "handle_backed_rows": { "type": "integer", "minimum": 0 },
+        "browser_or_device_rows": { "type": "integer", "minimum": 0 },
+        "device_code_rows": { "type": "integer", "minimum": 0 },
+        "degraded_rows": { "type": "integer", "minimum": 0 },
+        "auth_required_rows": { "type": "integer", "minimum": 0 },
+        "trust_blocked_rows": { "type": "integer", "minimum": 0 },
+        "mutation_ready_rows": { "type": "integer", "minimum": 0 },
+        "revocable_rows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
