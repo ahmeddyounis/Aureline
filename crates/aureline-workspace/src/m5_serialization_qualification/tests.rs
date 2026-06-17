@@ -225,8 +225,7 @@ fn claim_publications_are_exhaustive() {
 #[test]
 fn deployment_modes_are_exhaustive() {
     let packet = packet();
-    let present: BTreeSet<DeploymentMode> =
-        packet.rows.iter().map(|r| r.deployment_mode).collect();
+    let present: BTreeSet<DeploymentMode> = packet.rows.iter().map(|r| r.deployment_mode).collect();
     for mode in DeploymentMode::ALL {
         assert!(
             present.contains(&mode),
@@ -520,12 +519,18 @@ fn validate_flags_summary_mismatch() {
 
 #[test]
 fn tokens_are_stable() {
-    assert_eq!(QualificationFamily::MigrationRemap.as_str(), "migration_remap");
+    assert_eq!(
+        QualificationFamily::MigrationRemap.as_str(),
+        "migration_remap"
+    );
     assert_eq!(
         QualificationFamily::MissingSurfaceContinuity.as_str(),
         "missing_surface_continuity"
     );
-    assert_eq!(DeploymentMode::CompanionBrowser.as_str(), "companion_browser");
+    assert_eq!(
+        DeploymentMode::CompanionBrowser.as_str(),
+        "companion_browser"
+    );
     assert_eq!(QualificationDrill::SchemaJump.as_str(), "schema_jump");
     assert_eq!(
         QualificationDrill::PlaceholderContinuity.as_str(),

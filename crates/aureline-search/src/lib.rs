@@ -140,6 +140,7 @@ pub mod results;
 pub mod saved_query_governance;
 pub mod scope;
 pub mod search_benchmark_corpus_truth;
+pub mod search_export_governance;
 pub mod session_ledger;
 
 pub use action_bindings::{
@@ -447,6 +448,19 @@ pub use search_benchmark_corpus_truth::{
     SEARCH_BENCHMARK_CORPUS_TRUTH_PACKET_RECORD_KIND, SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_REF,
     SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_VERSION,
     SEARCH_BENCHMARK_CORPUS_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use search_export_governance::{
+    current_search_export_governance_packet, seeded_redacted_search_export_packet,
+    seeded_search_export_governance_packet, ReplaySafetyDisclosure, SearchExportClass,
+    SearchExportConsumerClass, SearchExportConsumerProjection, SearchExportGovernanceArtifactError,
+    SearchExportGovernancePacket, SearchExportGovernanceSupportExport,
+    SearchExportGovernanceValidationFinding, SearchExportRow, ALL_CONSENT_CLASSES,
+    ALL_EXPORT_CLASSES, ALL_REDACTION_STATES, SEARCH_EXPORT_GOVERNANCE_ARTIFACT_REF,
+    SEARCH_EXPORT_GOVERNANCE_DOC_REF, SEARCH_EXPORT_GOVERNANCE_FIXTURE_DIR,
+    SEARCH_EXPORT_GOVERNANCE_PACKET_ID, SEARCH_EXPORT_GOVERNANCE_PACKET_RECORD_KIND,
+    SEARCH_EXPORT_GOVERNANCE_SCHEMA_REF, SEARCH_EXPORT_GOVERNANCE_SCHEMA_VERSION,
+    SEARCH_EXPORT_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use session_ledger::{

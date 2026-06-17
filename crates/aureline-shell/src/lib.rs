@@ -182,6 +182,7 @@ pub mod save_review;
 pub mod saved_query_governance;
 pub mod scope_truth;
 pub mod search;
+pub mod search_export_governance;
 pub mod secret_broker_beta;
 pub mod service_health;
 pub mod shell_safe_preview_stable;

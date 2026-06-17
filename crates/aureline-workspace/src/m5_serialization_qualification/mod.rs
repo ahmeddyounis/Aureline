@@ -1107,9 +1107,11 @@ impl M5SerializationQualification {
             );
         }
         if self.record_kind != M5_SERIALIZATION_QUALIFICATION_RECORD_KIND {
-            violations.push(M5SerializationQualificationViolation::UnsupportedRecordKind {
-                actual: self.record_kind.clone(),
-            });
+            violations.push(
+                M5SerializationQualificationViolation::UnsupportedRecordKind {
+                    actual: self.record_kind.clone(),
+                },
+            );
         }
         for (field, value) in [
             ("packet_id", &self.packet_id),
@@ -1126,12 +1128,17 @@ impl M5SerializationQualification {
             }
         }
         if self.matrix_packet_ref != M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF {
-            violations.push(M5SerializationQualificationViolation::MatrixPacketMismatch {
-                expected: M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF,
-            });
+            violations.push(
+                M5SerializationQualificationViolation::MatrixPacketMismatch {
+                    expected: M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF,
+                },
+            );
         }
         for (field, ok) in [
-            ("families", self.families == QualificationFamily::ALL.to_vec()),
+            (
+                "families",
+                self.families == QualificationFamily::ALL.to_vec(),
+            ),
             (
                 "deployment_modes",
                 self.deployment_modes == DeploymentMode::ALL.to_vec(),
@@ -1202,9 +1209,11 @@ impl M5SerializationQualification {
         // The row must qualify the canonical matrix packet, so a qualification never narrows from a
         // packet other than the matrix it claims to gate.
         if row.matrix_packet_ref != M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF {
-            violations.push(M5SerializationQualificationViolation::MatrixPacketMismatch {
-                expected: M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF,
-            });
+            violations.push(
+                M5SerializationQualificationViolation::MatrixPacketMismatch {
+                    expected: M5_SERIALIZATION_QUALIFICATION_MATRIX_PACKET_REF,
+                },
+            );
         }
 
         // The row must cover every required drill exactly once, so an incompletely drilled row is
@@ -1224,10 +1233,12 @@ impl M5SerializationQualification {
                 });
             }
             if !result.has_required_evidence() {
-                violations.push(M5SerializationQualificationViolation::DrillMissingEvidence {
-                    row_id: row.row_id.clone(),
-                    drill: result.drill.as_str(),
-                });
+                violations.push(
+                    M5SerializationQualificationViolation::DrillMissingEvidence {
+                        row_id: row.row_id.clone(),
+                        drill: result.drill.as_str(),
+                    },
+                );
             }
         }
 
@@ -1284,20 +1295,24 @@ impl M5SerializationQualification {
 
         let computed_path = row.computed_downgrade_path();
         if row.downgrade_path != computed_path {
-            violations.push(M5SerializationQualificationViolation::DowngradePathMismatch {
-                row_id: row.row_id.clone(),
-                declared: row.downgrade_path.as_str(),
-                required: computed_path.as_str(),
-            });
+            violations.push(
+                M5SerializationQualificationViolation::DowngradePathMismatch {
+                    row_id: row.row_id.clone(),
+                    declared: row.downgrade_path.as_str(),
+                    required: computed_path.as_str(),
+                },
+            );
         }
 
         // A narrowed or withheld row must offer a real recovery path, list a caveat, and name what
         // is stale, so a degraded row never drops its recovery semantics or hides why it narrowed.
         if row.claim_publication.is_narrowed() {
             if !row.downgrade_path.is_offered() {
-                violations.push(M5SerializationQualificationViolation::MissingDowngradePath {
-                    row_id: row.row_id.clone(),
-                });
+                violations.push(
+                    M5SerializationQualificationViolation::MissingDowngradePath {
+                        row_id: row.row_id.clone(),
+                    },
+                );
             }
             if row.caveats.is_empty() {
                 violations.push(M5SerializationQualificationViolation::EmptyField {
@@ -1334,9 +1349,11 @@ impl M5SerializationQualification {
                 || !row.stale_or_missing_fields.is_empty()
                 || row.downgrade_path.is_offered())
         {
-            violations.push(M5SerializationQualificationViolation::PublishedRowNotWhole {
-                row_id: row.row_id.clone(),
-            });
+            violations.push(
+                M5SerializationQualificationViolation::PublishedRowNotWhole {
+                    row_id: row.row_id.clone(),
+                },
+            );
         }
     }
 }

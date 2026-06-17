@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search-export-packet.schema.json",
+  "title": "Aureline search export packet, redaction default, replay-safety, and literal-query consent truth",
+  "description": "Boundary schema for the M5 search-export governance packet. It binds the canonical per-export search packet (query-session ref, selected and included result refs, loaded/hidden counts, redaction mode, snapshot truth, and evidence refs) to the export class it ships under and the literal-query consent gate that governs it. Support exports and incident packets default to hashes, scope summaries, result refs, omission counts, and reason summaries; literal query text is confined to consented local-only replay packets; every packet is a captured snapshot that never claims live current results; and desktop, CLI/headless, support export, and managed analytics consumers read the same packets under the same privacy rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "doc_ref",
+    "schema_ref",
+    "artifact_ref",
+    "source_spec_refs",
+    "supporting_contract_refs",
+    "covered_export_classes",
+    "covered_redaction_states",
+    "covered_consent_classes",
+    "export_rows",
+    "consumer_projections",
+    "export_safe_summary"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "search_export_governance_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "const": "search.m5.search_export_governance.v1" },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "doc_ref": { "type": "string", "minLength": 1 },
+    "schema_ref": { "type": "string", "minLength": 1 },
+    "artifact_ref": { "type": "string", "minLength": 1 },
+    "source_spec_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "supporting_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "covered_export_classes": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/export_class" }
+    },
+    "covered_redaction_states": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/redaction_state" }
+    },
+    "covered_consent_classes": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/consent_class" }
+    },
+    "export_rows": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/export_row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "export_safe_summary": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "export_class": {
+      "type": "string",
+      "enum": ["local_replay", "support_bundle", "incident_packet", "managed_analytics"]
+    },
+    "redaction_state": {
+      "type": "string",
+      "enum": ["raw_query_local_only", "query_hash_only", "query_material_omitted_by_policy"]
+    },
+    "consent_class": {
+      "type": "string",
+      "enum": ["metadata_only", "query_text_elevated"]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": ["desktop_shell", "cli_headless", "support_export", "managed_analytics"]
+    },
+    "surface": {
+      "type": "string",
+      "enum": ["quick_open", "file_search", "symbol_search", "docs_search"]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ]
+    },
+    "destination": {
+      "type": "string",
+      "enum": ["local_replay", "support_bundle", "docs_handoff"]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_private",
+        "workspace_shared_redacted",
+        "support_export_redacted",
+        "policy_withheld"
+      ]
+    },
+    "query_text_mode": {
+      "type": "string",
+      "enum": ["local_text", "hash_only", "omitted_by_policy"]
+    },
+    "snapshot_truth": {
+      "type": "string",
+      "enum": ["live_rerun", "captured_snapshot", "scope_changed_since_capture"]
+    },
+    "result_semantics": {
+      "type": "string",
+      "enum": [
+        "current_live_results",
+        "captured_snapshot",
+        "live_rerun_required",
+        "scope_changed_since_capture",
+        "empty_because_scope_changed"
+      ]
+    },
+    "scope_honesty_state": {
+      "type": "string",
+      "enum": [
+        "captured_scope_still_current",
+        "recipient_must_re_resolve",
+        "current_scope_wider_narrowed_to_captured",
+        "current_scope_narrower_disclosed",
+        "current_scope_changed_rebind_required"
+      ]
+    },
+    "count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_rows",
+        "selected_rows",
+        "included_rows",
+        "omitted_result_count",
+        "hidden_by_current_scope_rows",
+        "hidden_by_policy_rows",
+        "hidden_by_remote_cache_rows",
+        "count_is_partial"
+      ],
+      "properties": {
+        "visible_rows": { "type": "integer", "minimum": 0 },
+        "selected_rows": { "type": "integer", "minimum": 0 },
+        "included_rows": { "type": "integer", "minimum": 0 },
+        "omitted_result_count": { "type": "integer", "minimum": 0 },
+        "hidden_by_current_scope_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_policy_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_remote_cache_rows": { "type": "integer", "minimum": 0 },
+        "count_is_partial": { "type": "boolean" }
+      }
+    },
+    "search_export_packet": {
+      "type": "object",
+      "description": "Canonical per-export search packet reused verbatim from the session ledger.",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "destination",
+        "query_session_id_ref",
+        "result_set_id_ref",
+        "planner_pass_id_ref",
+        "surface",
+        "scope_class",
+        "scope_label",
+        "stable_scope_id",
+        "readiness_state",
+        "privacy_class",
+        "redaction_state",
+        "snapshot_truth",
+        "query_text_mode",
+        "selected_result_refs",
+        "included_result_refs",
+        "result_source_labels",
+        "partial_truth_causes",
+        "count_summary",
+        "omitted_or_truncated_flags",
+        "evidence_refs",
+        "exported_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "search_export_packet" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "destination": { "$ref": "#/$defs/destination" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_label": { "type": "string", "minLength": 1 },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "readiness_state": { "type": "string", "minLength": 1 },
+        "index_epoch": { "type": "string", "minLength": 1 },
+        "graph_epoch": { "type": "string", "minLength": 1 },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "redaction_state": { "$ref": "#/$defs/redaction_state" },
+        "snapshot_truth": { "$ref": "#/$defs/snapshot_truth" },
+        "query_text_mode": { "$ref": "#/$defs/query_text_mode" },
+        "query_text": { "type": "string", "minLength": 1 },
+        "query_hash": { "type": "string", "minLength": 1 },
+        "selected_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "included_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "result_source_labels": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "partial_truth_causes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "count_summary": { "$ref": "#/$defs/count_summary" },
+        "omitted_or_truncated_flags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "exported_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "replay_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_semantics",
+        "scope_honesty_state",
+        "snapshot_truth",
+        "rerun_required_for_current_truth",
+        "preserves_intent_and_provenance",
+        "claims_live_current_results",
+        "disclosure"
+      ],
+      "properties": {
+        "result_semantics": {
+          "$ref": "#/$defs/result_semantics",
+          "not": { "const": "current_live_results" }
+        },
+        "scope_honesty_state": { "$ref": "#/$defs/scope_honesty_state" },
+        "snapshot_truth": {
+          "$ref": "#/$defs/snapshot_truth",
+          "not": { "const": "live_rerun" }
+        },
+        "rerun_required_for_current_truth": { "type": "boolean" },
+        "preserves_intent_and_provenance": { "type": "boolean", "const": true },
+        "claims_live_current_results": { "type": "boolean", "const": false },
+        "disclosure": { "type": "string", "minLength": 1 }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "scenario",
+        "export_class",
+        "literal_query_consent",
+        "literal_query_text_included",
+        "higher_trust_export_class_required_for_literal",
+        "export_packet",
+        "replay_safety",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "export_class": { "$ref": "#/$defs/export_class" },
+        "literal_query_consent": { "$ref": "#/$defs/consent_class" },
+        "literal_query_text_included": { "type": "boolean" },
+        "higher_trust_export_class_required_for_literal": { "type": "boolean", "const": true },
+        "export_packet": { "$ref": "#/$defs/search_export_packet" },
+        "replay_safety": { "$ref": "#/$defs/replay_safety" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_ref",
+        "ingested_packet_id",
+        "preserves_redaction_mode",
+        "preserves_count_and_omission_disclosure",
+        "preserves_replay_safety",
+        "reuses_same_export_packets",
+        "literal_query_text_excluded",
+        "ambient_authority_excluded",
+        "summary"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer_class" },
+        "consumer_ref": { "type": "string", "minLength": 1 },
+        "ingested_packet_id": {
+          "type": "string",
+          "const": "search.m5.search_export_governance.v1"
+        },
+        "preserves_redaction_mode": { "type": "boolean", "const": true },
+        "preserves_count_and_omission_disclosure": { "type": "boolean", "const": true },
+        "preserves_replay_safety": { "type": "boolean", "const": true },
+        "reuses_same_export_packets": { "type": "boolean", "const": true },
+        "literal_query_text_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
