@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/stash-recovery.schema.json",
+  "title": "Aureline per-verb stash/recovery review sheets",
+  "description": "Export-safe packet of per-verb stash/recovery review sheets. Each sheet reviews one verb (stash apply, pop, drop, create-branch, reflog-restore, checkpoint-restore) with the exact repository-or-worktree target it would act on, the pre-execution gate states a user must see (stash availability, recovery-anchor expiry, dirty-worktree state, conflict-source state, provider-overlay state), the reflog/checkpoint restore surface (anchor kind, expiry, retention class, compare/open-diff actions), a checkpoint or reflog-only recovery path with its preserved caveats, the local-first actions kept available offline, and a derived allow/block/downgrade decision. The verbs stay distinct: apply/pop/drop/create-branch differ in whether they consume the stash entry, and reflog-restore/checkpoint-restore differ in durability. The decision is a deterministic function of the gate states, so a stored decision can be re-derived and verified. A provider or auth outage may only downgrade a sheet to local-only, never block it, so local preview, continue, abort, stash inspection, and checkpoint restore stay available. When only a reflog-based recovery exists, its caveats are preserved. Raw paths, raw patch/diff bodies, raw provider payloads, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "repo_ref",
+    "sheets",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_stash_recovery_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sheet" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "verb": {
+      "enum": [
+        "stash_apply",
+        "stash_pop",
+        "stash_drop",
+        "stash_create_branch",
+        "reflog_restore",
+        "checkpoint_restore"
+      ]
+    },
+    "target_kind": {
+      "enum": ["repository_root", "linked_worktree"]
+    },
+    "stash_availability_state": {
+      "enum": [
+        "not_applicable",
+        "stash_present",
+        "stash_already_applied_present",
+        "stash_missing_or_consumed"
+      ]
+    },
+    "anchor_expiry_state": {
+      "enum": ["not_applicable", "fresh_retained", "expiring_soon", "expired_unrecoverable"]
+    },
+    "dirty_worktree_state": {
+      "enum": [
+        "clean",
+        "untracked_present",
+        "dirty_tracked_changes",
+        "dirty_blocks_operation"
+      ]
+    },
+    "conflict_source_state": {
+      "enum": [
+        "no_conflicts",
+        "conflicts_resolved_ready_to_continue",
+        "conflicts_present_blocks_continue",
+        "conflict_source_unknown_requires_refresh"
+      ]
+    },
+    "provider_overlay_state": {
+      "enum": ["overlay_fresh", "overlay_stale", "overlay_unavailable_local_only"]
+    },
+    "anchor_kind": {
+      "enum": ["reflog", "checkpoint"]
+    },
+    "retention_class": {
+      "enum": [
+        "session_only",
+        "retained_default_window",
+        "retained_extended",
+        "pinned_no_expiry"
+      ]
+    },
+    "restore_caveat": {
+      "enum": [
+        "reflog_entry_may_expire",
+        "reflog_only_no_full_checkpoint",
+        "index_state_not_restored",
+        "untracked_files_not_restored",
+        "anchor_expiring_soon"
+      ]
+    },
+    "local_action": {
+      "enum": [
+        "preview",
+        "continue",
+        "abort",
+        "inspect_stash",
+        "restore_checkpoint",
+        "compare",
+        "open_diff"
+      ]
+    },
+    "decision_outcome": {
+      "enum": ["allowed", "downgraded", "blocked"]
+    },
+    "decision_reason": {
+      "enum": [
+        "allowed_with_recovery",
+        "blocked_stash_unavailable",
+        "blocked_recovery_anchor_expired",
+        "blocked_unresolved_conflict",
+        "blocked_dirty_worktree",
+        "blocked_no_recovery_path",
+        "downgraded_recovery_anchor_expiring",
+        "downgraded_dirty_autostash",
+        "downgraded_checkpoint_to_reflog_only",
+        "downgraded_provider_unavailable_local_only",
+        "downgraded_provider_overlay_stale"
+      ]
+    },
+    "recovery_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_kind",
+        "anchor_ref",
+        "expires_at",
+        "retention_class",
+        "compare_action_ref",
+        "open_diff_action_ref"
+      ],
+      "properties": {
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "compare_action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "open_diff_action_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "primary_reason",
+        "contributing_gates",
+        "recovery_visible",
+        "local_truth_available_offline",
+        "explanation"
+      ],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/decision_outcome" },
+        "primary_reason": { "$ref": "#/$defs/decision_reason" },
+        "contributing_gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "recovery_visible": { "type": "boolean" },
+        "local_truth_available_offline": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sheet_id",
+        "verb",
+        "repo_ref",
+        "worktree_ref",
+        "target_kind",
+        "primary_target_ref",
+        "stash_entry_ref",
+        "stash_index",
+        "new_branch_ref",
+        "recovery_anchor",
+        "stash_availability_state",
+        "anchor_expiry_state",
+        "dirty_worktree_state",
+        "conflict_source_state",
+        "provider_overlay_state",
+        "checkpoint_lineage_refs",
+        "reflog_only_fallback",
+        "restore_caveats",
+        "local_actions",
+        "decision",
+        "created_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_stash_recovery_sheet" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "verb": { "$ref": "#/$defs/verb" },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "primary_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stash_entry_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "stash_index": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "new_branch_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "recovery_anchor": {
+          "oneOf": [{ "$ref": "#/$defs/recovery_anchor" }, { "type": "null" }]
+        },
+        "stash_availability_state": { "$ref": "#/$defs/stash_availability_state" },
+        "anchor_expiry_state": { "$ref": "#/$defs/anchor_expiry_state" },
+        "dirty_worktree_state": { "$ref": "#/$defs/dirty_worktree_state" },
+        "conflict_source_state": { "$ref": "#/$defs/conflict_source_state" },
+        "provider_overlay_state": { "$ref": "#/$defs/provider_overlay_state" },
+        "checkpoint_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "reflog_only_fallback": { "type": "boolean" },
+        "restore_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_caveat" }
+        },
+        "local_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_action" }
+        },
+        "decision": { "$ref": "#/$defs/decision" },
+        "created_at": { "$ref": "#/$defs/non_empty_string" },
+        "updated_at": { "$ref": "#/$defs/non_empty_string" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "sheet_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_patch_bodies_redacted",
+        "raw_provider_payloads_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_stash_recovery_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_patch_bodies_redacted": { "const": true },
+        "raw_provider_payloads_redacted": { "const": true }
+      }
+    }
+  }
+}

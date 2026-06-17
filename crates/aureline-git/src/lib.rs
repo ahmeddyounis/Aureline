@@ -22,6 +22,7 @@ pub mod mutations;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
 pub mod stabilize_the_daily_git_loop_status_diff_stage;
+pub mod stash_recovery;
 pub mod status;
 pub mod topology;
 pub mod topology_actions;
@@ -209,6 +210,20 @@ pub use stabilize_the_daily_git_loop_status_diff_stage::{
     DAILY_LOOP_SNAPSHOT_RECORD_KIND, DAILY_LOOP_SUPPORT_EXPORT_RECORD_KIND,
     HISTORY_COMMIT_RECORD_KIND, STASH_COMMAND_CLASSES, STASH_SHELF_ENTRY_LIFECYCLE_STATES,
     STASH_SHELF_ENTRY_RECORD_KIND,
+};
+pub use stash_recovery::{
+    current_stash_recovery_sheets, RecoveryAnchor, StashRecoveryDecision, StashRecoveryError,
+    StashRecoveryOutcome, StashRecoveryPacket, StashRecoverySheet, StashRecoverySheetInput,
+    StashRecoverySupportExport, StashRecoveryValidationError, StashRecoveryVerb,
+    STASH_RECOVERY_ANCHOR_EXPIRY_STATES, STASH_RECOVERY_ANCHOR_KINDS,
+    STASH_RECOVERY_ARTIFACT_REF, STASH_RECOVERY_CONFLICT_SOURCE_STATES,
+    STASH_RECOVERY_DECISION_REASONS, STASH_RECOVERY_DIRTY_WORKTREE_STATES,
+    STASH_RECOVERY_FIXTURE_DIR, STASH_RECOVERY_LOCAL_ACTIONS, STASH_RECOVERY_PACKET_RECORD_KIND,
+    STASH_RECOVERY_PROVIDER_OVERLAY_STATES, STASH_RECOVERY_REQUIRED_LOCAL_ACTIONS,
+    STASH_RECOVERY_REQUIRED_RECONSTRUCTION_FIELDS, STASH_RECOVERY_RESTORE_CAVEATS,
+    STASH_RECOVERY_RETENTION_CLASSES, STASH_RECOVERY_SCHEMA_REF, STASH_RECOVERY_SCHEMA_VERSION,
+    STASH_RECOVERY_SHEET_RECORD_KIND, STASH_RECOVERY_STASH_AVAILABILITY_STATES,
+    STASH_RECOVERY_SUPPORT_EXPORT_RECORD_KIND, STASH_RECOVERY_TARGET_KINDS,
 };
 pub use topology::{
     current_git_topology_first_consumers_map, CheckoutFilterClass, DepthBoundary,
