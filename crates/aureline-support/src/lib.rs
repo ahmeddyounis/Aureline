@@ -241,6 +241,22 @@
 //!   any sharing module must reuse export consent. Desktop, CLI/headless,
 //!   Help/About, shiproom, and formal-support handoff each bind to this one
 //!   packet and narrow with it.
+//! - The [`m5_precedence_inspector`] registry — the canonical precedence-
+//!   inspection contract the Support Center matrix binds to. It carries one
+//!   inspector per resolver decision worth explaining across the toolchain,
+//!   setting, policy, credential, and route families, each showing the winning
+//!   value, the overshadowed candidates and why they lost, the source class,
+//!   the policy-lock state, the affected surfaces, the restart-or-reauth
+//!   posture, and the source-of-truth lineage projected by reference from the
+//!   effective-setting, execution-context, policy, credential, and route-origin
+//!   objects. A fail-closed precedence gate publishes the weaker of a
+//!   resolution ceiling (a fallback, override, drift, or conflict narrows the
+//!   inspector; a policy-lock block caps it at blocked) and a disclosure
+//!   ceiling (secret- or identity-bearing values are shown by class / health /
+//!   provenance only), so a silent fallback, a hidden override, or a raw secret
+//!   can never present as a clean "this value won" chip. Active surface,
+//!   Support Center, CLI/headless, support export, and issue-report packets
+//!   bind to this one registry and narrow with it.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -342,6 +358,7 @@ pub mod m5_host_failure_drills;
 pub mod m5_mutation_lineage;
 pub mod m5_offboarding_continuity;
 pub mod m5_pin_retention;
+pub mod m5_precedence_inspector;
 pub mod m5_records_policy_governance;
 pub mod m5_storage_certification;
 pub mod m5_storage_governance;
@@ -491,6 +508,20 @@ pub use m5_offboarding_continuity::{
     M5_OFFBOARDING_CONTINUITY_ROW_RECORD_KIND, M5_OFFBOARDING_CONTINUITY_SCHEMA_REF,
     M5_OFFBOARDING_CONTINUITY_SCHEMA_VERSION, M5_OFFBOARDING_CONTINUITY_SUPPORT_EXPORT_RECORD_KIND,
     M5_OFFBOARDING_CONTINUITY_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+pub use m5_precedence_inspector::{
+    current_m5_precedence_inspectors, AffectedSurface, CandidateDisposition,
+    InspectorConsumerBinding, InspectorConsumerSurface, InspectorDowngradeReason,
+    InspectorPresentation, M5PrecedenceInspectorExportProjection, M5PrecedenceInspectorExportRow,
+    M5PrecedenceInspectorSummary, M5PrecedenceInspectorSupportExport,
+    M5PrecedenceInspectorViolation, M5PrecedenceInspectors, PolicyLockState, PrecedenceCandidate,
+    PrecedenceFamily, PrecedenceInspector, PrecedenceResolutionPath, PrecedenceSource,
+    ResolutionClass, RestartReauthPosture, ValueDisclosure,
+    M5_PRECEDENCE_INSPECTOR_ARTIFACT_DOC_REF, M5_PRECEDENCE_INSPECTOR_DOC_REF,
+    M5_PRECEDENCE_INSPECTOR_FIXTURE_DIR, M5_PRECEDENCE_INSPECTOR_JSON,
+    M5_PRECEDENCE_INSPECTOR_PATH, M5_PRECEDENCE_INSPECTOR_RECORD_KIND,
+    M5_PRECEDENCE_INSPECTOR_REVIEW_PACKET_REF, M5_PRECEDENCE_INSPECTOR_SCHEMA_REF,
+    M5_PRECEDENCE_INSPECTOR_SCHEMA_VERSION, M5_PRECEDENCE_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_records_policy_governance::{
     M5RecordsPolicyGovernanceSupportExport, M5RecordsPolicyGovernanceViolation,
