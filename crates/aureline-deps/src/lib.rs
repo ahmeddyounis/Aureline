@@ -130,6 +130,22 @@
 //! registry URL, or a full auth payload — and every row binds to the frozen
 //! matrix so desktop, CLI, and support/export surfaces express registry identity,
 //! auth posture, and degradation truth mechanically.
+//!
+//! The module [`operation_history`] turns completed package mutations into
+//! durable, export-safe receipts rather than transient toasts or
+//! ecosystem-specific logs. One [`operation_history::OperationHistoryEntry`] is
+//! the record the desktop history surface, the CLI/headless listing, AI and
+//! recipe follow-ups, and support/export packets all render for an install,
+//! update, remove, or regenerate. Each receipt preserves the manifest scope, the
+//! origin and a precise result class, the manifest/lockfile identity before and
+//! after as redacted digests, the resolver state, the direct-versus-transitive
+//! impact chain, the validation outcome, and a rollback handle with
+//! revert/open-diff/export-patch recovery actions and evidence refs. Receipts are
+//! redaction-default and bound to the frozen matrix: a
+//! [`operation_history::RetentionPosture`] proves history retains neither raw
+//! credentials nor full manifest bodies, and every label binds to a frozen state
+//! row, so support can see what changed, which chain it affected, and how to
+//! revert it without reverse-engineering ecosystem logs.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -139,6 +155,7 @@ pub mod export_safe_dependency_reports;
 pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
 pub mod manifest_scope_and_source_review;
+pub mod operation_history;
 pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
@@ -303,4 +320,20 @@ pub use reviewed_mutation_flows::{
     RollbackReceipt, ScriptBuildLabel, ScriptBuildReview, REVIEWED_MUTATION_FLOWS_JSON,
     REVIEWED_MUTATION_FLOWS_PATH, REVIEWED_MUTATION_FLOWS_RECORD_KIND,
     REVIEWED_MUTATION_FLOWS_SCHEMA_VERSION,
+};
+// `ManifestScopeClass`, `RegistrySourceAuthority`, `AuthMode`, `LockfileAuthority`,
+// `ResolverIdentityClass`, `RollbackClass`, `RetentionSubject`, `RetentionClass`,
+// `PackageStateLabel`, `PackageSurface`, and `SurfaceWriteAuthority` are reused
+// from the frozen matrix, and `DependencyRelation`, `EcosystemKind`, and
+// `RequestedSourceKind` from the descriptors; none are re-exported again here.
+pub use operation_history::{
+    current_package_operation_history, EvidenceKind, HistorySurfaceParity, ImpactChainLink,
+    ImpactChangeKind, ManifestLockfileIdentity, ManifestScopeRecord, OperationEvidenceRef,
+    OperationHistoryEntry, OperationHistoryEntrySurfaceProjection,
+    OperationHistoryExportProjection, OperationHistoryExportRow, OperationHistorySummary,
+    OperationHistorySurfaceContract, OperationKind, OperationOrigin, OperationRegistrySource,
+    OperationResultClass, PackageOperationHistory, PackageOperationHistoryViolation,
+    RequestedOperationIdentity, ResolverState, RetentionPosture, RevertAction, RevertActionKind,
+    RollbackHandle, ValidationOutcomeRecord, ValidationResult, OPERATION_HISTORY_JSON,
+    OPERATION_HISTORY_PATH, OPERATION_HISTORY_RECORD_KIND, OPERATION_HISTORY_SCHEMA_VERSION,
 };
