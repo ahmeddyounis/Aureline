@@ -24,6 +24,7 @@ pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_matrix;
 pub mod freeze_the_m5_work_item_provider_link_acting_identity_and_publish_later_continuity_matrix;
+pub mod git_topology_review;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
@@ -246,6 +247,14 @@ pub use freeze_the_m5_review_workspace_merge_queue_and_pipeline_viewer_maturity_
     M5_REVIEW_CI_PREVIEW_MATRIX_REVIEW_WORKSPACE_CONTRACT_REF,
     M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_REF, M5_REVIEW_CI_PREVIEW_MATRIX_SCHEMA_VERSION,
     M5_REVIEW_CI_PREVIEW_MATRIX_SUMMARY_REF,
+};
+pub use git_topology_review::{
+    current_git_topology_review_packet, GitTopologyReviewError, GitTopologyReviewPacket,
+    GitTopologyReviewSupportExport, GitTopologyReviewValidationError, ScopeLimitLabel,
+    TopologyReviewLane, TopologyReviewSheetRow, GIT_TOPOLOGY_REVIEW_ARTIFACT_REF,
+    GIT_TOPOLOGY_REVIEW_PACKET_RECORD_KIND, GIT_TOPOLOGY_REVIEW_REQUIRED_RECONSTRUCTION_FIELDS,
+    GIT_TOPOLOGY_REVIEW_ROW_RECORD_KIND, GIT_TOPOLOGY_REVIEW_SCHEMA_REF,
+    GIT_TOPOLOGY_REVIEW_SCHEMA_VERSION, GIT_TOPOLOGY_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use harden_browser_handoff_and_in_product_review_boundaries::{
     project_review_boundary_hardening_packet, BoundaryFreshnessObservationInput,

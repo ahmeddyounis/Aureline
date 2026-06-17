@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/git_topology_review.schema.json",
+  "title": "Aureline topology-aware lane review packet",
+  "description": "Export-safe packet binding the search, review, blame, and AI lanes to the reviewed topology-remediation sheets they surface. Each row names an explicit scope-limit label instead of a generic empty or error state, and may recommend the sheet's widen/deepen/initialize/hydrate verb. Rows are advisory: every row keeps mutation_applied false and generic_state_suppressed true, so a lane never mutates state to widen scope implicitly. The embedded action sheets are the canonical topology-action objects, so the lanes recommend the same reviewed action the Git surfaces do. Raw paths, raw object bytes, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "action_sheets",
+    "rows",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_topology_review_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "action_sheets": {
+      "type": "array",
+      "items": {
+        "$ref": "https://aureline.dev/schemas/git/topology_action_review.schema.json#/$defs/action_sheet"
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/review_row" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "lane": {
+      "enum": ["search", "review", "blame", "ai"]
+    },
+    "action_kind": {
+      "enum": ["widen", "deepen", "initialize", "hydrate"]
+    },
+    "scope_limit_label": {
+      "enum": [
+        "omitted_outside_slice",
+        "unfetched",
+        "uninitialized",
+        "shallow_bounded",
+        "pointer_only",
+        "wrong_target_root",
+        "nested_boundary"
+      ]
+    },
+    "review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "lane",
+        "sheet_ref",
+        "scope_limit_label",
+        "recommended_action",
+        "mutation_applied",
+        "generic_state_suppressed"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_topology_review_sheet_row" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "lane": { "$ref": "#/$defs/lane" },
+        "sheet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_limit_label": { "$ref": "#/$defs/scope_limit_label" },
+        "recommended_action": {
+          "oneOf": [{ "$ref": "#/$defs/action_kind" }, { "type": "null" }]
+        },
+        "mutation_applied": { "const": false },
+        "generic_state_suppressed": { "const": true }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "row_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_object_bytes_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_topology_review_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_object_bytes_redacted": { "const": true }
+      }
+    }
+  }
+}

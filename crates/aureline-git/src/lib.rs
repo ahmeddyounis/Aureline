@@ -22,6 +22,7 @@ pub mod stabilize_repository_topology_truth;
 pub mod stabilize_the_daily_git_loop_status_diff_stage;
 pub mod status;
 pub mod topology;
+pub mod topology_actions;
 
 pub use branches::{
     GitBranchActivityRecord, GitBranchActorRef, GitBranchBackend, GitBranchBackendError,
@@ -193,6 +194,17 @@ pub use topology::{
     GIT_TOPOLOGY_REQUIRED_RECONSTRUCTION_FIELDS, GIT_TOPOLOGY_ROOT_DESCRIPTOR_RECORD_KIND,
     GIT_TOPOLOGY_SCHEMA_REF, GIT_TOPOLOGY_SCHEMA_VERSION, GIT_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND,
     GIT_TOPOLOGY_SURFACE_BINDING_RECORD_KIND,
+};
+pub use topology_actions::{
+    current_topology_action_review_packet, ActionTargetSelector, MultiRootPreview,
+    NetworkSideEffect, ObjectScopeDisclosure, ProviderAuthPosture, RecoveryDisclosure,
+    ReviewExportParity, TopologyActionError, TopologyActionKind, TopologyActionReviewPacket,
+    TopologyActionSheet, TopologyActionSupportExport, TopologyActionValidationError,
+    TopologyRecoveryClass, TopologyTargetKind, WrongRootGuard,
+    TOPOLOGY_ACTION_REQUIRED_RECONSTRUCTION_FIELDS, TOPOLOGY_ACTION_REVIEW_ARTIFACT_REF,
+    TOPOLOGY_ACTION_REVIEW_FIXTURE_DIR, TOPOLOGY_ACTION_REVIEW_PACKET_RECORD_KIND,
+    TOPOLOGY_ACTION_REVIEW_SCHEMA_REF, TOPOLOGY_ACTION_REVIEW_SCHEMA_VERSION,
+    TOPOLOGY_ACTION_SHEET_RECORD_KIND, TOPOLOGY_ACTION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use status::{
     BranchState, ChangeDiscovery, ChangeKind, ChangeSummary, ConsumerProjectionBundle,

@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/topology_action_review.schema.json",
+  "title": "Aureline topology action review packet",
+  "description": "Export-safe packet of reviewed topology-remediation sheets. Each sheet pairs exactly one of the distinct verbs (widen a sparse/workset slice, deepen shallow history, initialize a submodule child, hydrate pointer-only or unfetched objects) with a single-target selector and discloses object scope, network side effects, provider/auth posture, review/export parity, and recovery before it may mutate state. A network-bearing action always carries an approval posture and an egress reference, so remediation never becomes a silent background fetch. A target root other than the caller's active root is wrong-root guarded, and a broad action that touches more than one root carries an explicit multi-root preview. Raw paths, raw object bytes, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "sheets",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "topology_action_review_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "sheets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action_sheet" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "action_kind": {
+      "enum": ["widen", "deepen", "initialize", "hydrate"]
+    },
+    "action_class": {
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "initialize_submodule",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_child_repo_root",
+        "inspect_generated_lineage",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "target_kind": {
+      "enum": [
+        "parent_repo",
+        "child_repo",
+        "worktree",
+        "sparse_slice",
+        "shallow_history",
+        "promisor_remote",
+        "pointer_backed_asset"
+      ]
+    },
+    "topology_class": {
+      "enum": [
+        "current_repo_root",
+        "workset_root",
+        "sparse_checkout_root",
+        "worktree_root",
+        "partial_clone_promisor_root",
+        "shallow_history_root",
+        "submodule_root",
+        "nested_independent_repo_root",
+        "lfs_hydration_boundary",
+        "generated_vendor_root"
+      ]
+    },
+    "result_truth": {
+      "enum": [
+        "complete",
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "uninitialized",
+        "nested_root",
+        "pointer_only",
+        "generated_or_excluded",
+        "wrong_target_root",
+        "unavailable"
+      ]
+    },
+    "honesty_label": {
+      "enum": [
+        "outside_current_slice",
+        "not_fetched",
+        "shallow_boundary",
+        "submodule_not_initialized",
+        "nested_repo_boundary",
+        "pointer_only",
+        "wrong_target_root",
+        "dirty_state_unknown",
+        "unavailable",
+        "policy_excluded",
+        "generated_or_excluded"
+      ]
+    },
+    "operation_scope": {
+      "enum": [
+        "active_root_only",
+        "child_root_only",
+        "explicit_multi_root_preview_required",
+        "metadata_only",
+        "mutation_denied"
+      ]
+    },
+    "approval": {
+      "enum": [
+        "not_network_bearing",
+        "approval_required",
+        "approved",
+        "policy_blocked",
+        "no_command_available"
+      ]
+    },
+    "provider_auth": {
+      "enum": [
+        "no_auth_required",
+        "existing_credential_reused",
+        "auth_challenge_required",
+        "policy_blocked"
+      ]
+    },
+    "recovery_class": {
+      "enum": [
+        "no_mutation_reversible",
+        "remote_refetchable",
+        "submodule_deinitable",
+        "pointer_restorable"
+      ]
+    },
+    "wrong_root_guard": {
+      "enum": [
+        "target_matches_authoritative_root",
+        "retarget_required_wrong_root",
+        "blocked_nested_boundary"
+      ]
+    },
+    "selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_root_ref",
+        "worktree_ref",
+        "topology_class",
+        "scope_object_ref"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "type": ["string", "null"] },
+        "topology_class": { "$ref": "#/$defs/topology_class" },
+        "scope_object_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "object_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_summary_ref",
+        "affected_object_estimate",
+        "pre_action_truth",
+        "post_action_truth"
+      ],
+      "properties": {
+        "scope_summary_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_object_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "pre_action_truth": { "$ref": "#/$defs/result_truth" },
+        "post_action_truth": { "$ref": "#/$defs/result_truth" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reaches_network", "egress_ref", "estimated_transfer_bytes"],
+      "properties": {
+        "reaches_network": { "type": "boolean" },
+        "egress_ref": { "type": ["string", "null"] },
+        "estimated_transfer_bytes": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "review_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_visible",
+        "export_visible",
+        "body_export_allowed",
+        "parity_note_ref"
+      ],
+      "properties": {
+        "review_visible": { "type": "boolean" },
+        "export_visible": { "type": "boolean" },
+        "body_export_allowed": { "type": "boolean" },
+        "parity_note_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reversible", "recovery_class", "recovery_ref"],
+      "properties": {
+        "reversible": { "type": "boolean" },
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "recovery_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "multi_root_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["broadened", "additional_root_refs", "preview_ref"],
+      "properties": {
+        "broadened": { "type": "boolean" },
+        "additional_root_refs": { "$ref": "#/$defs/ref_array" },
+        "preview_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "action_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sheet_id",
+        "action_kind",
+        "action_class",
+        "selector",
+        "active_root_ref",
+        "object_scope",
+        "network",
+        "provider_auth",
+        "review_export",
+        "recovery",
+        "multi_root_preview",
+        "approval",
+        "safe_operation_scope",
+        "wrong_root_guard",
+        "honesty_labels"
+      ],
+      "properties": {
+        "record_kind": { "const": "topology_action_sheet" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "action_kind": { "$ref": "#/$defs/action_kind" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "active_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "object_scope": { "$ref": "#/$defs/object_scope" },
+        "network": { "$ref": "#/$defs/network" },
+        "provider_auth": { "$ref": "#/$defs/provider_auth" },
+        "review_export": { "$ref": "#/$defs/review_export" },
+        "recovery": { "$ref": "#/$defs/recovery" },
+        "multi_root_preview": { "$ref": "#/$defs/multi_root_preview" },
+        "approval": { "$ref": "#/$defs/approval" },
+        "safe_operation_scope": { "$ref": "#/$defs/operation_scope" },
+        "wrong_root_guard": { "$ref": "#/$defs/wrong_root_guard" },
+        "honesty_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/honesty_label" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "sheet_refs",
+        "action_kinds",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_object_bytes_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "topology_action_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_refs": { "$ref": "#/$defs/ref_array" },
+        "action_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_kind" }
+        },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_object_bytes_redacted": { "const": true }
+      }
+    }
+  }
+}
