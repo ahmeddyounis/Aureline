@@ -64,6 +64,22 @@
 //!   surface to a local-only query-text claim — and the product surface,
 //!   CLI/headless, docs/help, support export, shiproom, and release manifest all
 //!   ingest this one index by reference.
+//! - [`m5_search_navigation_certification::M5SearchNavigationCertificationPacket`]
+//!   sits above the qualification matrix and answers whether its proof is
+//!   *current*: it certifies the four search/docs/graph depth lanes
+//!   ([`CertificationLaneClass`](m5_search_navigation_certification::CertificationLaneClass) —
+//!   query-session identity, ranking explainability, saved-query privacy, and
+//!   navigation continuity), each citing its own evidence packet, schema,
+//!   fixture corpus, and record kind together with that evidence's freshness
+//!   ([`EvidenceFreshnessClass`](m5_search_navigation_certification::EvidenceFreshnessClass))
+//!   and a recheck deadline. The certification state
+//!   ([`CertificationStateClass`](m5_search_navigation_certification::CertificationStateClass))
+//!   is derived fail-closed — stale or schema-superseded evidence drops the lane
+//!   to `retest_pending`, a degraded source lane or a broken cross-surface parity
+//!   drops it to `limited`, and missing evidence or a missing consumer binding
+//!   drops it to `unsupported` — so Help/About, docs/help, support export, and
+//!   the claim-publication manifest stop overclaiming search/docs/graph behavior
+//!   the moment freshness or parity slips.
 //! - [`ranking_explainability::RankingExplainabilityPacket`] promotes ranking
 //!   reasons from debug-only metadata into user-visible `Why this result?`
 //!   explain sheets across palette, sidebars, docs results, graph-backed
@@ -122,6 +138,7 @@ pub mod hybrid_retrieval;
 pub mod index_scheduler;
 pub mod infrastructure_intelligence;
 pub mod lexical;
+pub mod m5_search_navigation_certification;
 pub mod m5_search_navigation_qualification;
 pub mod monorepo_hot_set_truth;
 pub mod navigation_continuity;
@@ -253,6 +270,25 @@ pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
+};
+
+pub use m5_search_navigation_certification::{
+    seeded_limited_m5_search_navigation_certification_packet,
+    seeded_m5_search_navigation_certification_packet,
+    seeded_retest_pending_m5_search_navigation_certification_packet,
+    seeded_unsupported_m5_search_navigation_certification_packet, CertificationConsumerBinding,
+    CertificationConsumerClass, CertificationDowngradeRuleRow, CertificationDowngradeTriggerClass,
+    CertificationLaneClass, CertificationParityAudit, CertificationStateClass,
+    CertificationStateCounts, CertificationSurfaceClass, EvidenceFreshnessClass, FreshnessPolicy,
+    FreshnessStateRow, LaneCertificationRow, M5SearchNavigationCertificationPacket,
+    M5SearchNavigationCertificationSupportExport, M5SearchNavigationCertificationViolation,
+    SurfaceParityRow, CERTIFICATION_RECHECK_WINDOW_DAYS,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_ARTIFACT_REF, M5_SEARCH_NAVIGATION_CERTIFICATION_DOC_REF,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_FIXTURE_DIR, M5_SEARCH_NAVIGATION_CERTIFICATION_PACKET_ID,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_PACKET_RECORD_KIND,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_SCHEMA_REF,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_SCHEMA_VERSION,
+    M5_SEARCH_NAVIGATION_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use m5_search_navigation_qualification::{
