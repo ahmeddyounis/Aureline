@@ -64,6 +64,17 @@
 //!   surface to a local-only query-text claim — and the product surface,
 //!   CLI/headless, docs/help, support export, shiproom, and release manifest all
 //!   ingest this one index by reference.
+//! - [`ranking_explainability::RankingExplainabilityPacket`] promotes ranking
+//!   reasons from debug-only metadata into user-visible `Why this result?`
+//!   explain sheets across palette, sidebars, docs results, graph-backed
+//!   results, and saved-query reopen, and makes withheld-latency, policy-hidden,
+//!   and partial-index candidates inspectable
+//!   ([`OmittedCandidateRow`](ranking_explainability::OmittedCandidateRow))
+//!   instead of silent. Each sheet reuses the canonical
+//!   [`RankingReason`](result_truth_packet::RankingReason) verbatim, so the
+//!   product UI, support export, and replay/debug consumers read one explanation
+//!   object; the packet stays metadata-safe and gates literal query text behind
+//!   elevated consent ([`ExportConsentClass`](ranking_explainability::ExportConsentClass)).
 //! - [`aureline_navigation::target_model`] is the shared semantic target
 //!   model for definitions, references, hierarchy edges, rename previews, and
 //!   continuity refs used when search rows promote into navigation.
@@ -91,6 +102,7 @@ pub mod query_artifacts;
 pub mod query_session;
 pub mod query_session_first_consumers;
 pub mod quick_open_latency_truth;
+pub mod ranking_explainability;
 pub mod ranking_reason;
 pub mod readiness;
 pub mod remap;
@@ -281,6 +293,19 @@ pub use query_artifacts::{
     SCOPE_PACK_BINDING_RECORD_KIND, SEARCH_COLLECTION_SNAPSHOT_RECORD_KIND,
     SEARCH_DEEP_LINK_RECORD_KIND, SEARCH_EXPORT_SNAPSHOT_SCHEMA_REF,
     SEARCH_QUERY_ARTIFACT_SCHEMA_VERSION,
+};
+
+pub use ranking_explainability::{
+    current_ranking_explainability_packet,
+    seeded_partial_index_stale_ranking_explainability_packet, seeded_ranking_explainability_packet,
+    ExplainStateClass, ExplainSurfaceClass, ExplainabilityConsumerClass,
+    ExplainabilityConsumerProjection, ExportConsentClass, OmittedCandidateRow, RankingExplainSheet,
+    RankingExplainabilityArtifactError, RankingExplainabilityPacket,
+    RankingExplainabilitySupportExport, RankingExplainabilityValidationFinding,
+    SearchExplainSurfaceRow, RANKING_EXPLAINABILITY_ARTIFACT_REF, RANKING_EXPLAINABILITY_DOC_REF,
+    RANKING_EXPLAINABILITY_FIXTURE_DIR, RANKING_EXPLAINABILITY_PACKET_ID,
+    RANKING_EXPLAINABILITY_PACKET_RECORD_KIND, RANKING_EXPLAINABILITY_SCHEMA_REF,
+    RANKING_EXPLAINABILITY_SCHEMA_VERSION, RANKING_EXPLAINABILITY_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use ranking_reason::{

@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/ranking-explainability.schema.json",
+  "title": "Aureline search ranking-explainability and withheld-candidate truth",
+  "description": "Boundary schema for the user-visible ranking-explainability packet. Ranking reasons are promoted from debug-only metadata into Why this result? explain sheets across the claimed M5 surfaces (palette, sidebar, docs results, graph-backed results, saved-query reopen), and withheld-latency, policy-hidden, and partial-index candidates are made inspectable as controlled states instead of silent omissions. Each visible sheet reuses the canonical RankingReason verbatim so the product UI, support export, and replay/debug consumers read one explanation object. The packet is metadata-only: sessions are referenced hash-only, omitted rows exclude literal query text, raw numeric score weights are excluded, and literal query text travels only under elevated consent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "doc_ref",
+    "schema_ref",
+    "artifact_ref",
+    "source_spec_refs",
+    "supporting_contract_refs",
+    "export_consent",
+    "literal_query_text_included",
+    "covered_surfaces",
+    "covered_states",
+    "covered_fact_labels",
+    "surfaces",
+    "consumer_projections",
+    "export_safe_summary"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "search_ranking_explainability_packet"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": {
+      "type": "string",
+      "const": "search.m5.ranking_explainability.v1"
+    },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "doc_ref": { "type": "string", "minLength": 1 },
+    "schema_ref": { "type": "string", "minLength": 1 },
+    "artifact_ref": { "type": "string", "minLength": 1 },
+    "source_spec_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "supporting_contract_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "export_consent": { "$ref": "#/$defs/export_consent" },
+    "literal_query_text_included": { "type": "boolean" },
+    "covered_surfaces": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/surface_kind" }
+    },
+    "covered_states": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/explain_state" }
+    },
+    "covered_fact_labels": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/fact_label" }
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/surface_row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "export_safe_summary": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "palette",
+        "sidebar",
+        "docs_results",
+        "graph_backed_results",
+        "saved_query_reopen"
+      ]
+    },
+    "explain_state": {
+      "type": "string",
+      "enum": [
+        "promoted",
+        "suppressed",
+        "tied",
+        "partial_index",
+        "withheld_latency",
+        "policy_hidden"
+      ]
+    },
+    "fact_label": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "context_promoted",
+        "semantic",
+        "partial_index",
+        "withheld_latency",
+        "policy_hidden"
+      ]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": ["product_ui", "support_export", "replay_debug"]
+    },
+    "export_consent": {
+      "type": "string",
+      "enum": ["metadata_only", "query_text_elevated"]
+    },
+    "source_stratum": {
+      "type": "string",
+      "enum": [
+        "lexical_filename",
+        "lexical_path",
+        "lexical_content",
+        "semantic_vector",
+        "structural_symbol",
+        "graph_entity",
+        "docs_index",
+        "command_registry",
+        "recent_targets",
+        "imported_cache"
+      ]
+    },
+    "ranking_signal": {
+      "type": "string",
+      "enum": [
+        "exact_name_match",
+        "lexical_prefix",
+        "lexical_substring",
+        "lexical_path",
+        "semantic_vector_similarity",
+        "graph_expansion",
+        "recency_or_hot_set",
+        "generated_artifact_deprioritization",
+        "canonical_source_tie_break",
+        "snapshot_fidelity_tie_break"
+      ]
+    },
+    "tie_break_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "canonical_source",
+        "snapshot_fidelity",
+        "recency",
+        "stable_id_order"
+      ]
+    },
+    "ranking_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_label",
+        "promoted_signals",
+        "suppressed_signals",
+        "tie_break_class"
+      ],
+      "properties": {
+        "fact_label": { "$ref": "#/$defs/fact_label" },
+        "promoted_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ranking_signal" }
+        },
+        "suppressed_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ranking_signal" }
+        },
+        "tie_break_class": { "$ref": "#/$defs/tie_break_class" },
+        "withheld_candidate_note": { "type": "string" },
+        "partiality_note": { "type": "string" }
+      }
+    },
+    "scope_counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_rows",
+        "loaded_rows",
+        "hidden_by_current_scope_rows",
+        "hidden_by_policy_rows",
+        "hidden_by_remote_cache_rows",
+        "omitted_by_latency_budget_rows"
+      ],
+      "properties": {
+        "visible_rows": { "type": "integer", "minimum": 0 },
+        "loaded_rows": { "type": "integer", "minimum": 0 },
+        "all_matching_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_current_scope_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_policy_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_remote_cache_rows": { "type": "integer", "minimum": 0 },
+        "omitted_by_latency_budget_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "explain_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explain_sheet_id",
+        "result_id",
+        "display_title",
+        "explain_state",
+        "ranking_reason",
+        "headline",
+        "reason_lines",
+        "raw_score_weights_excluded"
+      ],
+      "properties": {
+        "explain_sheet_id": { "type": "string", "minLength": 1 },
+        "result_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Durable, surface-independent result URN. Never a display label or transient list index."
+        },
+        "display_title": { "type": "string", "minLength": 1 },
+        "explain_state": { "$ref": "#/$defs/explain_state" },
+        "ranking_reason": { "$ref": "#/$defs/ranking_reason" },
+        "headline": { "type": "string", "minLength": 1 },
+        "reason_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "caveat_note": { "type": "string" },
+        "raw_score_weights_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "omitted_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omission_id",
+        "explain_state",
+        "fact_label",
+        "omitted_count",
+        "omission_reason",
+        "source_stratum",
+        "literal_query_text_excluded"
+      ],
+      "properties": {
+        "omission_id": { "type": "string", "minLength": 1 },
+        "explain_state": { "$ref": "#/$defs/explain_state" },
+        "fact_label": { "$ref": "#/$defs/fact_label" },
+        "omitted_count": { "type": "integer", "minimum": 1 },
+        "omission_reason": { "type": "string", "minLength": 1 },
+        "source_stratum": { "$ref": "#/$defs/source_stratum" },
+        "recovery_hint": { "type": "string" },
+        "literal_query_text_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "surface_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "surface_label",
+        "query_session_id_ref",
+        "query_hash",
+        "explain_sheets",
+        "omitted_candidates",
+        "scope_counters",
+        "summary"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_kind" },
+        "surface_label": { "type": "string", "minLength": 1 },
+        "query_session_id_ref": { "type": "string", "minLength": 1 },
+        "query_hash": { "type": "string", "minLength": 1 },
+        "explain_sheets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/explain_sheet" }
+        },
+        "omitted_candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omitted_candidate" }
+        },
+        "scope_counters": { "$ref": "#/$defs/scope_counters" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "consumer_ref",
+        "ingested_packet_id",
+        "preserves_explain_sheets",
+        "preserves_omitted_candidates",
+        "preserves_counts_and_hashes",
+        "includes_literal_query_text",
+        "raw_score_weights_excluded",
+        "ambient_authority_excluded",
+        "summary"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer_class" },
+        "consumer_ref": { "type": "string", "minLength": 1 },
+        "ingested_packet_id": {
+          "type": "string",
+          "const": "search.m5.ranking_explainability.v1"
+        },
+        "preserves_explain_sheets": { "type": "boolean", "const": true },
+        "preserves_omitted_candidates": { "type": "boolean", "const": true },
+        "preserves_counts_and_hashes": { "type": "boolean", "const": true },
+        "includes_literal_query_text": { "type": "boolean" },
+        "raw_score_weights_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
