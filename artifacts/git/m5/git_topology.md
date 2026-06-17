@@ -1,0 +1,81 @@
+# Repository Topology Descriptors and First Consumers
+
+- Map: `git-topology-first-consumers:0001`
+- Roots: 9 / Surface bindings: 62
+
+## Roots
+
+- **main** (parent_with_children): filter `full_checkout`, depth `full_history`, lfs `not_applicable`, scope `active_root_only`
+- **sparse** (standalone): filter `sparse_checkout_cone`, depth `full_history`, lfs `not_applicable`, scope `active_root_only`
+- **partial** (standalone): filter `partial_clone_blobless`, depth `full_history`, lfs `not_applicable`, scope `active_root_only`
+- **shallow** (standalone): filter `full_checkout`, depth `shallow_depth`, lfs `not_applicable`, scope `active_root_only`
+- **submodule** (submodule_child): filter `full_checkout`, depth `full_history`, lfs `not_applicable`, scope `mutation_denied`
+- **nested** (nested_independent): filter `full_checkout`, depth `full_history`, lfs `not_applicable`, scope `child_root_only`
+- **lfs** (standalone): filter `full_checkout`, depth `full_history`, lfs `pointer_only`, scope `metadata_only`
+- **generated** (standalone): filter `full_checkout`, depth `full_history`, lfs `not_applicable`, scope `mutation_denied`
+- **worktree** (standalone): filter `full_checkout`, depth `full_history`, lfs `not_applicable`, scope `active_root_only`
+
+## Surface bindings
+
+- **git_status** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **review** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **blame** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **search_scope** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **ai_context** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **support_export** → `main`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **git_status** → `sparse`: truth `outside_current_slice`, coverage `narrowed_by_topology`, mutation false
+- **review** → `sparse`: truth `outside_current_slice`, coverage `narrowed_by_topology`, mutation false
+- **blame** → `sparse`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **search_scope** → `sparse`: truth `outside_current_slice`, coverage `narrowed_by_topology`, mutation false
+- **ai_context** → `sparse`: truth `outside_current_slice`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `sparse`: truth `outside_current_slice`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **review** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **blame** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **search_scope** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **ai_context** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `partial`: truth `not_fetched`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `shallow`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **review** → `shallow`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **blame** → `shallow`: truth `shallow_boundary`, coverage `narrowed_by_topology`, mutation false
+- **search_scope** → `shallow`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **ai_context** → `shallow`: truth `shallow_boundary`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `shallow`: truth `shallow_boundary`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **review** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **blame** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **search_scope** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **ai_context** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `submodule`: truth `uninitialized`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **review** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **blame** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **search_scope** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **ai_context** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **support_export** → `nested`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **git_status** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **review** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **blame** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **search_scope** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **ai_context** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `lfs`: truth `pointer_only`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **review** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **blame** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **search_scope** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **ai_context** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **support_export** → `generated`: truth `generated_or_excluded`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **review** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation true
+- **blame** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **search_scope** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **ai_context** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **support_export** → `worktree`: truth `complete`, coverage `full_coverage_allowed`, mutation false
+- **git_status** → `submodule`: truth `wrong_target_root`, coverage `denied_wrong_root`, mutation false
+- **review** → `submodule`: truth `wrong_target_root`, coverage `denied_wrong_root`, mutation false
+- **ai_context** → `submodule`: truth `wrong_target_root`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `nested`: truth `nested_root`, coverage `denied_wrong_root`, mutation false
+- **review** → `nested`: truth `nested_root`, coverage `denied_wrong_root`, mutation false
+- **ai_context** → `nested`: truth `nested_root`, coverage `narrowed_by_topology`, mutation false
+- **git_status** → `worktree`: truth `wrong_target_root`, coverage `denied_wrong_root`, mutation false
+- **review** → `worktree`: truth `wrong_target_root`, coverage `denied_wrong_root`, mutation false

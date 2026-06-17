@@ -21,6 +21,7 @@ pub mod publish;
 pub mod stabilize_repository_topology_truth;
 pub mod stabilize_the_daily_git_loop_status_diff_stage;
 pub mod status;
+pub mod topology;
 
 pub use branches::{
     GitBranchActivityRecord, GitBranchActorRef, GitBranchBackend, GitBranchBackendError,
@@ -181,6 +182,17 @@ pub use stabilize_the_daily_git_loop_status_diff_stage::{
     DAILY_LOOP_SNAPSHOT_RECORD_KIND, DAILY_LOOP_SUPPORT_EXPORT_RECORD_KIND,
     HISTORY_COMMIT_RECORD_KIND, STASH_COMMAND_CLASSES, STASH_SHELF_ENTRY_LIFECYCLE_STATES,
     STASH_SHELF_ENTRY_RECORD_KIND,
+};
+pub use topology::{
+    current_git_topology_first_consumers_map, CheckoutFilterClass, DepthBoundary,
+    GeneratedVendorClass, GeneratedVendorOrigin, GitTopologyError, GitTopologyValidationError,
+    HistoryDepthClass, LfsObjectState, LfsState, ObjectAvailability, OmittedPathSet, RepoIdentity,
+    RepoIdentityKind, RepositoryTopologyMap, SurfaceTopologyBinding, TopologyConsumerSurface,
+    TopologyRootDescriptor, TopologySupportExport, WorktreeKind, WorktreeScope,
+    GIT_TOPOLOGY_ARTIFACT_REF, GIT_TOPOLOGY_FIXTURE_DIR, GIT_TOPOLOGY_MAP_RECORD_KIND,
+    GIT_TOPOLOGY_REQUIRED_RECONSTRUCTION_FIELDS, GIT_TOPOLOGY_ROOT_DESCRIPTOR_RECORD_KIND,
+    GIT_TOPOLOGY_SCHEMA_REF, GIT_TOPOLOGY_SCHEMA_VERSION, GIT_TOPOLOGY_SUPPORT_EXPORT_RECORD_KIND,
+    GIT_TOPOLOGY_SURFACE_BINDING_RECORD_KIND,
 };
 pub use status::{
     BranchState, ChangeDiscovery, ChangeKind, ChangeSummary, ConsumerProjectionBundle,
