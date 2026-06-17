@@ -348,6 +348,7 @@ pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
 pub mod m5_storage_pressure;
 pub mod m5_support_center_matrix;
+pub mod m5_support_center_ui;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -522,6 +523,20 @@ pub use m5_support_center_matrix::{
     M5_SUPPORT_CENTER_MATRIX_PATH, M5_SUPPORT_CENTER_MATRIX_RECORD_KIND,
     M5_SUPPORT_CENTER_MATRIX_REVIEW_PACKET_REF, M5_SUPPORT_CENTER_MATRIX_SCHEMA_REF,
     M5_SUPPORT_CENTER_MATRIX_SCHEMA_VERSION, M5_SUPPORT_CENTER_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_support_center_ui::{
+    current_m5_support_center_layout, AccessibilityGuarantee, CenterSurfaceKind, FacetAvailability,
+    InspectorFacet, InspectorFacetBinding, IntegrationSource, LayoutConsumerBinding,
+    LayoutConsumerSurface, LayoutRegion, M5SupportCenterLayout,
+    M5SupportCenterLayoutExportProjection, M5SupportCenterLayoutExportRow,
+    M5SupportCenterLayoutSummary, M5SupportCenterLayoutSupportExport,
+    M5SupportCenterLayoutViolation, NavEntry, NavSection, PresentationDecision,
+    PresentationDowngradeReason, PresentationRecoveryPath, RegionDescriptor, SharedInspector,
+    M5_SUPPORT_CENTER_UI_ARTIFACT_DOC_REF, M5_SUPPORT_CENTER_UI_DOC_REF,
+    M5_SUPPORT_CENTER_UI_FIXTURE_DIR, M5_SUPPORT_CENTER_UI_JSON, M5_SUPPORT_CENTER_UI_PATH,
+    M5_SUPPORT_CENTER_UI_RECORD_KIND, M5_SUPPORT_CENTER_UI_REVIEW_PACKET_REF,
+    M5_SUPPORT_CENTER_UI_SCHEMA_REF, M5_SUPPORT_CENTER_UI_SCHEMA_VERSION,
+    M5_SUPPORT_CENTER_UI_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
