@@ -39,6 +39,7 @@ pub mod m5_remembered_state_objects;
 pub mod m5_restore_provenance;
 pub mod m5_serialization_and_restore_matrix;
 pub mod m5_source_acquisition_review;
+pub mod m5_state_migration_and_topology_remap;
 pub mod m5_workflow_bundle_manifests;
 pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
@@ -361,6 +362,21 @@ pub use m5_restore_provenance::{
     M5_RESTORE_PROVENANCE_FIXTURE_DIR, M5_RESTORE_PROVENANCE_JSON, M5_RESTORE_PROVENANCE_PATH,
     M5_RESTORE_PROVENANCE_RECORD_KIND, M5_RESTORE_PROVENANCE_SCHEMA_REF,
     M5_RESTORE_PROVENANCE_SCHEMA_VERSION, M5_RESTORE_PROVENANCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_state_migration_and_topology_remap::{
+    current_m5_state_migration_and_topology_remap, ChannelMatch, DisplayTopologyRemapDetail,
+    ImportedPackageDetail, M5StateMigrationAndTopologyRemap, M5StateMigrationRemapSummary,
+    M5StateMigrationRemapSupportExport, M5StateMigrationRemapViolation, MigrationEventKind,
+    MigrationRemapAction, MigrationRemapActionKind, MigrationRemapConsumerBinding,
+    MigrationRemapConsumerSurface, MigrationRemapEvent, MigrationRemapView, MigrationRemapViewRow,
+    MigrationResultClass, PackageOriginClass, PathHandlingPosture, PriorArtifactAvailability,
+    RemapResolution, RemapTrigger, SchemaMigrationDetail,
+    M5_STATE_MIGRATION_REMAP_ARTIFACT_DOC_REF, M5_STATE_MIGRATION_REMAP_DOC_REF,
+    M5_STATE_MIGRATION_REMAP_FIXTURE_DIR, M5_STATE_MIGRATION_REMAP_JSON,
+    M5_STATE_MIGRATION_REMAP_PATH, M5_STATE_MIGRATION_REMAP_RECORD_KIND,
+    M5_STATE_MIGRATION_REMAP_SCHEMA_REF, M5_STATE_MIGRATION_REMAP_SCHEMA_VERSION,
+    M5_STATE_MIGRATION_REMAP_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{

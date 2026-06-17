@@ -1,0 +1,550 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-state-migration-and-topology-remap.schema.json",
+  "title": "Aureline M5 state-migration and display-topology-remap events",
+  "description": "Schema for the m5_state_migration_and_topology_remap packet: one migration/remap event per scenario in which remembered state became untrustworthy because the schema changed, a package came from another machine or org, or the display topology shifted enough to alter restored placement. Each event records its kind (schema_migration, imported_package_provenance, display_topology_remap), the matching detail (migration result class and schema-version jump; imported-package origin, channel match, path-handling posture, machine-local exclusion, and pre-restore disclosure; or remap triggers, materially-altered-placement flag, and resolution), whether the prior artifact is still reachable, the redaction class, and the resulting restore fidelity (exact_restore, compatible_restore, layout_only, manual_review). A fail-closed gate derives the published fidelity as the weakest ceiling implied by the declared fidelity and the schema/dependency/topology/evidence-freshness conditions; a forward migration must read as a schema drift, a mixed-channel import must not claim a clean schema match, a remapped or unresolved path must read as a missing dependency, a display-topology remap must read as a changed topology, the prior artifact is never discarded, a missing dependency never silently deletes layout, every event offers a read-only open-details action, and a narrowed event preserves the compare and recovery-next-step actions. The fidelity, artifact-class, condition, downgrade-reason, recovery-path, and redaction vocabularies are reused from the serialization-and-restore matrix rather than forked. The parity surfaces (exported diagnostics, support packet, crash-recovery packet, companion handoff) each bind to this one packet and preserve the same record so support can tell a platform remap apart from a generic restore failure. The Rust types in crates/aureline-workspace/src/m5_state_migration_and_topology_remap are the schema of record; this file is the cross-tool export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "restore_fidelity_classes",
+    "event_kinds",
+    "migration_result_classes",
+    "package_origin_classes",
+    "channel_matches",
+    "path_handling_postures",
+    "remap_triggers",
+    "remap_resolutions",
+    "prior_artifact_availabilities",
+    "artifact_classes",
+    "redaction_exclusions",
+    "schema_conditions",
+    "dependency_conditions",
+    "topology_conditions",
+    "evidence_freshness_states",
+    "missing_dependency_behaviors",
+    "downgrade_reasons",
+    "recovery_paths",
+    "action_kinds",
+    "consumer_surfaces",
+    "events",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "m5_state_migration_and_topology_remap" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "restore_fidelity_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restore_fidelity" }
+    },
+    "event_kinds": { "type": "array", "items": { "$ref": "#/$defs/event_kind" } },
+    "migration_result_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration_result_class" }
+    },
+    "package_origin_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/package_origin_class" }
+    },
+    "channel_matches": { "type": "array", "items": { "$ref": "#/$defs/channel_match" } },
+    "path_handling_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path_handling_posture" }
+    },
+    "remap_triggers": { "type": "array", "items": { "$ref": "#/$defs/remap_trigger" } },
+    "remap_resolutions": { "type": "array", "items": { "$ref": "#/$defs/remap_resolution" } },
+    "prior_artifact_availabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/prior_artifact_availability" }
+    },
+    "artifact_classes": { "type": "array", "items": { "$ref": "#/$defs/artifact_class" } },
+    "redaction_exclusions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_exclusion" }
+    },
+    "schema_conditions": { "type": "array", "items": { "$ref": "#/$defs/schema_condition" } },
+    "dependency_conditions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_condition" }
+    },
+    "topology_conditions": { "type": "array", "items": { "$ref": "#/$defs/topology_condition" } },
+    "evidence_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_freshness" }
+    },
+    "missing_dependency_behaviors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/missing_dependency_behavior" }
+    },
+    "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+    "recovery_paths": { "type": "array", "items": { "$ref": "#/$defs/recovery_path" } },
+    "action_kinds": { "type": "array", "items": { "$ref": "#/$defs/action_kind" } },
+    "consumer_surfaces": { "type": "array", "items": { "$ref": "#/$defs/consumer_surface" } },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "restore_fidelity": {
+      "type": "string",
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "manual_review"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": ["schema_migration", "imported_package_provenance", "display_topology_remap"]
+    },
+    "migration_result_class": {
+      "type": "string",
+      "enum": ["schema_unchanged", "forward_migrated", "unmigratable"]
+    },
+    "package_origin_class": {
+      "type": "string",
+      "enum": [
+        "same_machine",
+        "same_org_different_machine",
+        "foreign_machine",
+        "foreign_org"
+      ]
+    },
+    "channel_match": {
+      "type": "string",
+      "enum": ["same_channel", "mixed_channel"]
+    },
+    "path_handling_posture": {
+      "type": "string",
+      "enum": ["paths_portable_relative", "paths_remapped_to_local_roots", "paths_require_review"]
+    },
+    "remap_trigger": {
+      "type": "string",
+      "enum": [
+        "monitor_geometry",
+        "dpi_scale",
+        "fullscreen_snap_state",
+        "monitor_detached",
+        "monitor_reattached"
+      ]
+    },
+    "remap_resolution": {
+      "type": "string",
+      "enum": [
+        "placement_adapted_to_available_displays",
+        "layout_preserved_contents_reopened"
+      ]
+    },
+    "prior_artifact_availability": {
+      "type": "string",
+      "enum": ["prior_artifact_retained", "prior_artifact_archived", "prior_artifact_discarded"]
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authority_checkpoint",
+        "window_topology_snapshot",
+        "portable_state_package",
+        "restore_provenance_record",
+        "placeholder_card",
+        "compare_export_summary"
+      ]
+    },
+    "redaction_exclusion": {
+      "type": "string",
+      "enum": [
+        "excludes_secrets",
+        "excludes_live_authority",
+        "excludes_machine_local_anchors",
+        "excludes_raw_provider_payloads"
+      ]
+    },
+    "schema_condition": {
+      "type": "string",
+      "enum": ["schema_match", "schema_forward_migratable", "schema_unmigratable"]
+    },
+    "dependency_condition": {
+      "type": "string",
+      "enum": ["dependencies_present", "dependencies_partial_missing", "dependency_root_missing"]
+    },
+    "topology_condition": {
+      "type": "string",
+      "enum": ["topology_identical", "topology_adapted", "topology_incompatible"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["current", "aging", "expired", "missing"]
+    },
+    "missing_dependency_behavior": {
+      "type": "string",
+      "enum": ["placeholder_slot_preserved", "reopen_as_context", "silent_delete"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": ["schema_drift", "dependency_missing", "topology_changed", "evidence_stale"]
+    },
+    "recovery_path": {
+      "type": "string",
+      "enum": [
+        "restore_compatibly",
+        "relocate_dependency",
+        "reopen_as_context",
+        "refresh_evidence",
+        "manual_review",
+        "none"
+      ]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": ["open_details", "compare", "recovery_next_step"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "diagnostics_export",
+        "support_packet",
+        "crash_recovery_packet",
+        "companion_handoff"
+      ]
+    },
+    "schema_migration_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_class",
+        "from_schema_version",
+        "to_schema_version",
+        "migration_steps"
+      ],
+      "properties": {
+        "result_class": { "$ref": "#/$defs/migration_result_class" },
+        "from_schema_version": { "type": "integer", "minimum": 0 },
+        "to_schema_version": { "type": "integer", "minimum": 0 },
+        "migration_steps": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "imported_package_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "channel_match",
+        "path_handling",
+        "producer_ref",
+        "producer_version",
+        "build_ref",
+        "machine_local_excluded",
+        "disclosed_before_restore"
+      ],
+      "properties": {
+        "origin": { "$ref": "#/$defs/package_origin_class" },
+        "channel_match": { "$ref": "#/$defs/channel_match" },
+        "path_handling": { "$ref": "#/$defs/path_handling_posture" },
+        "producer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "producer_version": { "type": "integer", "minimum": 1 },
+        "build_ref": { "$ref": "#/$defs/non_empty_string" },
+        "machine_local_excluded": { "type": "boolean" },
+        "disclosed_before_restore": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "$comment": "A foreign origin must exclude machine-local anchors and disclose before restore.",
+          "if": {
+            "properties": { "origin": { "not": { "const": "same_machine" } } },
+            "required": ["origin"]
+          },
+          "then": {
+            "properties": {
+              "machine_local_excluded": { "const": true },
+              "disclosed_before_restore": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+    "display_topology_remap_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triggers", "materially_altered_placement", "resolution"],
+      "properties": {
+        "triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remap_trigger" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "materially_altered_placement": { "type": "boolean" },
+        "resolution": { "$ref": "#/$defs/remap_resolution" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "command_id",
+        "keyboard_shortcut",
+        "focus_order",
+        "accessible_label",
+        "scoped_to_event"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_kind" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_shortcut": { "$ref": "#/$defs/non_empty_string" },
+        "focus_order": { "type": "integer", "minimum": 0 },
+        "accessible_label": { "$ref": "#/$defs/non_empty_string" },
+        "scoped_to_event": { "const": true }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "scenario_id",
+        "event_kind",
+        "owner",
+        "affected_artifact_class",
+        "prior_artifact_availability",
+        "redaction_class",
+        "declared_resulting_fidelity",
+        "schema_condition",
+        "dependency_condition",
+        "topology_condition",
+        "evidence_freshness",
+        "missing_dependency_behavior",
+        "published_fidelity",
+        "downgrade_reasons",
+        "recovery_path",
+        "available_actions",
+        "caveats",
+        "narrowed_fields",
+        "evidence_ref",
+        "scope_snapshot_ref",
+        "note"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "affected_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "schema_migration": { "$ref": "#/$defs/schema_migration_detail" },
+        "imported_package": { "$ref": "#/$defs/imported_package_detail" },
+        "display_topology_remap": { "$ref": "#/$defs/display_topology_remap_detail" },
+        "prior_artifact_availability": {
+          "$ref": "#/$defs/prior_artifact_availability",
+          "not": { "const": "prior_artifact_discarded" }
+        },
+        "redaction_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_exclusion" },
+          "uniqueItems": true,
+          "minItems": 4
+        },
+        "declared_resulting_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "schema_condition": { "$ref": "#/$defs/schema_condition" },
+        "dependency_condition": { "$ref": "#/$defs/dependency_condition" },
+        "topology_condition": { "$ref": "#/$defs/topology_condition" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "missing_dependency_behavior": {
+          "$ref": "#/$defs/missing_dependency_behavior",
+          "not": { "const": "silent_delete" }
+        },
+        "published_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" },
+          "uniqueItems": true
+        },
+        "recovery_path": { "$ref": "#/$defs/recovery_path" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" },
+          "minItems": 1
+        },
+        "caveats": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "narrowed_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "A schema-migration event carries the schema-migration detail and no other detail block.",
+          "if": {
+            "properties": { "event_kind": { "const": "schema_migration" } },
+            "required": ["event_kind"]
+          },
+          "then": {
+            "required": ["schema_migration"],
+            "not": {
+              "anyOf": [
+                { "required": ["imported_package"] },
+                { "required": ["display_topology_remap"] }
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "An imported-package event carries the imported-package detail and no other detail block.",
+          "if": {
+            "properties": { "event_kind": { "const": "imported_package_provenance" } },
+            "required": ["event_kind"]
+          },
+          "then": {
+            "required": ["imported_package"],
+            "not": {
+              "anyOf": [
+                { "required": ["schema_migration"] },
+                { "required": ["display_topology_remap"] }
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "A display-topology-remap event carries the remap detail and no other detail block.",
+          "if": {
+            "properties": { "event_kind": { "const": "display_topology_remap" } },
+            "required": ["event_kind"]
+          },
+          "then": {
+            "required": ["display_topology_remap"],
+            "not": {
+              "anyOf": [
+                { "required": ["schema_migration"] },
+                { "required": ["imported_package"] }
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "An exact event is a clean no-migration baseline: pristine conditions, no downgrade reason, recovery none.",
+          "if": {
+            "properties": { "published_fidelity": { "const": "exact_restore" } },
+            "required": ["published_fidelity"]
+          },
+          "then": {
+            "properties": {
+              "event_kind": { "const": "schema_migration" },
+              "schema_condition": { "const": "schema_match" },
+              "dependency_condition": { "const": "dependencies_present" },
+              "topology_condition": { "const": "topology_identical" },
+              "evidence_freshness": { "const": "current" },
+              "downgrade_reasons": { "maxItems": 0 },
+              "caveats": { "maxItems": 0 },
+              "narrowed_fields": { "maxItems": 0 },
+              "recovery_path": { "const": "none" },
+              "schema_migration": {
+                "properties": { "result_class": { "const": "schema_unchanged" } }
+              }
+            }
+          }
+        },
+        {
+          "$comment": "A mixed-channel import can never read as a clean schema match.",
+          "if": {
+            "properties": {
+              "imported_package": {
+                "properties": { "channel_match": { "const": "mixed_channel" } },
+                "required": ["channel_match"]
+              }
+            },
+            "required": ["imported_package"]
+          },
+          "then": {
+            "properties": {
+              "schema_condition": { "not": { "const": "schema_match" } }
+            }
+          }
+        }
+      ]
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "record_packet_id_ref",
+        "scope_snapshot_ref",
+        "ingests_record",
+        "preserves_fidelity_labels",
+        "preserves_remap_labels",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "record_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_record": { "const": true },
+        "preserves_fidelity_labels": { "const": true },
+        "preserves_remap_labels": { "const": true },
+        "narrows_on_downgrade": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events",
+        "exact_events",
+        "compatible_events",
+        "layout_only_events",
+        "manual_review_events",
+        "downgraded_events",
+        "narrowed_events",
+        "schema_migration_events",
+        "imported_package_events",
+        "display_topology_remap_events",
+        "foreign_origin_events"
+      ],
+      "properties": {
+        "events": { "type": "integer", "minimum": 0 },
+        "exact_events": { "type": "integer", "minimum": 0 },
+        "compatible_events": { "type": "integer", "minimum": 0 },
+        "layout_only_events": { "type": "integer", "minimum": 0 },
+        "manual_review_events": { "type": "integer", "minimum": 0 },
+        "downgraded_events": { "type": "integer", "minimum": 0 },
+        "narrowed_events": { "type": "integer", "minimum": 0 },
+        "schema_migration_events": { "type": "integer", "minimum": 0 },
+        "imported_package_events": { "type": "integer", "minimum": 0 },
+        "display_topology_remap_events": { "type": "integer", "minimum": 0 },
+        "foreign_origin_events": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
