@@ -86,6 +86,21 @@
 //!   explicit, recoverable states — never a silent jump to a nearby declaration
 //!   or browser page — so the product UI, history/back-forward, and support
 //!   replay land on the same target semantics.
+//! - [`saved_query_governance::SavedQueryGovernancePacket`] freezes saved
+//!   queries, scope packs, query history, local-versus-synced retention, and
+//!   signed deep links into one delivery-grade governance packet. It binds the
+//!   canonical [`SavedQuery`](query_artifacts::SavedQuery),
+//!   [`QueryHistoryEntry`](query_artifacts::QueryHistoryEntry),
+//!   [`ScopePackBinding`](query_artifacts::ScopePackBinding), and
+//!   [`SearchDeepLink`](query_artifacts::SearchDeepLink) verbatim; proves saved
+//!   queries survive reopen, migration, and scope drift without silent semantic
+//!   breakage; wraps each deep link with a tamper-evident content signature that
+//!   discloses scope, freshness, and partiality while preserving a supportable
+//!   return path and never implying live current certainty; and certifies that
+//!   raw query text stays local-only by default
+//!   ([`LocalVersusSyncedRetentionRow`](saved_query_governance::LocalVersusSyncedRetentionRow)),
+//!   so the product UI, sync/portability, and support-export consumers reuse one
+//!   governed, redaction-safe model.
 //! - [`aureline_navigation::target_model`] is the shared semantic target
 //!   model for definitions, references, hierarchy edges, rename previews, and
 //!   continuity refs used when search rows promote into navigation.
@@ -121,6 +136,7 @@ pub mod remap;
 pub mod result_id;
 pub mod result_truth_packet;
 pub mod results;
+pub mod saved_query_governance;
 pub mod scope;
 pub mod search_benchmark_corpus_truth;
 pub mod session_ledger;
@@ -383,6 +399,19 @@ pub use result_truth_packet::{
 pub use results::{
     build_lexical_identity, derive_lexical_ranking_reasons, derive_partiality_class,
     project_lexical_partiality, RankingReasonClass, ResultIdentity, ResultPartialityClass,
+};
+
+pub use saved_query_governance::{
+    current_saved_query_governance_packet, seeded_redacted_export_packet,
+    seeded_saved_query_governance_packet, DeepLinkSignatureScheme, GovernanceConsumerClass,
+    GovernanceConsumerProjection, GovernedSavedQueryRow, LocalVersusSyncedRetentionRow,
+    QueryDataClass, SavedQueryGovernanceArtifactError, SavedQueryGovernancePacket,
+    SavedQueryGovernanceSupportExport, SavedQueryGovernanceValidationFinding, ScopeDriftDisclosure,
+    SignedSearchDeepLink, ALL_PRIVACY_CLASSES, ALL_REDACTION_PROFILES, ALL_RETENTION_MODES,
+    ALL_SYNC_CLASSES, SAVED_QUERY_GOVERNANCE_ARTIFACT_REF, SAVED_QUERY_GOVERNANCE_DOC_REF,
+    SAVED_QUERY_GOVERNANCE_FIXTURE_DIR, SAVED_QUERY_GOVERNANCE_PACKET_ID,
+    SAVED_QUERY_GOVERNANCE_PACKET_RECORD_KIND, SAVED_QUERY_GOVERNANCE_SCHEMA_REF,
+    SAVED_QUERY_GOVERNANCE_SCHEMA_VERSION, SAVED_QUERY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use scope::{

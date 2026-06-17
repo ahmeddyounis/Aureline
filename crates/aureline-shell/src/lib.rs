@@ -178,6 +178,7 @@ pub mod runtime_adaptation;
 pub mod runtime_efficiency_stable;
 pub mod safe_preview_card;
 pub mod save_review;
+pub mod saved_query_governance;
 pub mod scope_truth;
 pub mod search;
 pub mod secret_broker_beta;
