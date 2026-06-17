@@ -75,6 +75,17 @@
 //!   product UI, support export, and replay/debug consumers read one explanation
 //!   object; the packet stays metadata-safe and gates literal query text behind
 //!   elevated consent ([`ExportConsentClass`](ranking_explainability::ExportConsentClass)).
+//! - [`action_bindings::SearchActionBindingPacket`] binds preview, open-in-place,
+//!   split, peek, and external-handoff actions to canonical result refs and
+//!   navigation relation kinds across the search, docs, graph, history, and
+//!   support flows. It embeds the canonical
+//!   [`SearchActionBinding`](result_truth_packet::SearchActionBinding) and the
+//!   navigation [`RelationKind`](aureline_navigation::target_model::RelationKind)
+//!   verbatim, keeps definition and declaration distinguishable, and records
+//!   wrong-target-safe fallbacks ([`action_bindings::WrongTargetFallback`]) as
+//!   explicit, recoverable states — never a silent jump to a nearby declaration
+//!   or browser page — so the product UI, history/back-forward, and support
+//!   replay land on the same target semantics.
 //! - [`aureline_navigation::target_model`] is the shared semantic target
 //!   model for definitions, references, hierarchy edges, rename previews, and
 //!   continuity refs used when search rows promote into navigation.
@@ -85,6 +96,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
+pub mod action_bindings;
 pub mod collection_portability_truth;
 pub mod collections;
 pub mod counts;
@@ -112,6 +124,18 @@ pub mod results;
 pub mod scope;
 pub mod search_benchmark_corpus_truth;
 pub mod session_ledger;
+
+pub use action_bindings::{
+    current_search_action_binding_packet, seeded_scope_trust_narrowed_search_action_binding_packet,
+    seeded_search_action_binding_packet, ActionBindingConsumerProjection, ActionConsumerClass,
+    ActionFlowClass, ActionFlowRow, FallbackTriggerClass, ResolvedActionBinding,
+    SearchActionBindingArtifactError, SearchActionBindingPacket, SearchActionBindingSupportExport,
+    SearchActionBindingValidationFinding, SearchActionKind, WrongTargetFallback,
+    COVERED_RELATION_KINDS, SEARCH_ACTION_BINDING_ARTIFACT_REF, SEARCH_ACTION_BINDING_DOC_REF,
+    SEARCH_ACTION_BINDING_FIXTURE_DIR, SEARCH_ACTION_BINDING_PACKET_ID,
+    SEARCH_ACTION_BINDING_PACKET_RECORD_KIND, SEARCH_ACTION_BINDING_SCHEMA_REF,
+    SEARCH_ACTION_BINDING_SCHEMA_VERSION, SEARCH_ACTION_BINDING_SUPPORT_EXPORT_RECORD_KIND,
+};
 
 pub use collection_portability_truth::{
     current_stable_collection_portability_truth_packet, CollectionPortabilityColumnPreset,
