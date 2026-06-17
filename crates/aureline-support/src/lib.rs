@@ -226,6 +226,21 @@
 //!   on stale pin/retention proof downgrade automatically, and protected
 //!   families on managed-cloud profiles stay explicitly excluded from
 //!   managed-quota deletion.
+//! - The [`m5_support_center_matrix`] packet — the one authoritative Support
+//!   Center contract. It carries one row per Support Center module (Doctor,
+//!   Safe mode, Bisect, the performance / language / index / AI-usage / crash /
+//!   network / artifacts inspectors, issue-report / crash-intake, and the
+//!   support-bundle export preview), binding each module to the one canonical
+//!   inspector vocabulary (environment status, precedence inspection,
+//!   crash-intake, install/advisory state, credential state, export consent),
+//!   the export-risk data classes, a redaction default, and the
+//!   local-save / team-share / formal-support export modes it offers. A
+//!   fail-closed readiness gate narrows or withholds any module whose evidence
+//!   is stale, whose bound inspector is degraded or unavailable, or whose export
+//!   consent is ungranted or blocked; high-risk data must be excluded always and
+//!   any sharing module must reuse export consent. Desktop, CLI/headless,
+//!   Help/About, shiproom, and formal-support handoff each bind to this one
+//!   packet and narrow with it.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
@@ -332,6 +347,7 @@ pub mod m5_storage_certification;
 pub mod m5_storage_governance;
 pub mod m5_storage_inspector;
 pub mod m5_storage_pressure;
+pub mod m5_support_center_matrix;
 pub mod mutation_journal;
 pub mod policy_simulation;
 pub mod portable_bundle_handoff;
@@ -491,6 +507,21 @@ pub use m5_storage_certification::{
     M5_STORAGE_CERTIFICATION_FIXTURE_DIR, M5_STORAGE_CERTIFICATION_PACKET_ID,
     M5_STORAGE_CERTIFICATION_PACKET_RECORD_KIND, M5_STORAGE_CERTIFICATION_SCHEMA_REF,
     M5_STORAGE_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use m5_support_center_matrix::{
+    current_m5_support_center_matrix, ConsentState, DataClass,
+    EvidenceFreshness as SupportCenterEvidenceFreshness, ExportMode, ExportModeBinding, Inspector,
+    InspectorAvailability, InspectorBinding, M5SupportCenterMatrix,
+    M5SupportCenterMatrixExportProjection, M5SupportCenterMatrixExportRow,
+    M5SupportCenterMatrixSummary, M5SupportCenterMatrixSupportExport,
+    M5SupportCenterMatrixViolation, MatrixConsumerBinding, MatrixConsumerSurface,
+    ModulePublication, ModuleReadiness, RedactionDefault, SupportModule,
+    SupportModuleDowngradePath, SupportModuleDowngradeReason, SupportModuleRow,
+    M5_SUPPORT_CENTER_MATRIX_ARTIFACT_DOC_REF, M5_SUPPORT_CENTER_MATRIX_DOC_REF,
+    M5_SUPPORT_CENTER_MATRIX_FIXTURE_DIR, M5_SUPPORT_CENTER_MATRIX_JSON,
+    M5_SUPPORT_CENTER_MATRIX_PATH, M5_SUPPORT_CENTER_MATRIX_RECORD_KIND,
+    M5_SUPPORT_CENTER_MATRIX_REVIEW_PACKET_REF, M5_SUPPORT_CENTER_MATRIX_SCHEMA_REF,
+    M5_SUPPORT_CENTER_MATRIX_SCHEMA_VERSION, M5_SUPPORT_CENTER_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use recovery_review::{
     seeded_recovery_review_packet, CrashLoopReviewRow, QuarantineReviewRow, RecoveryContinuityRow,
