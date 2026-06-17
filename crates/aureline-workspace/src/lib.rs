@@ -33,6 +33,7 @@ pub mod m5_bundle_review_and_rollback;
 pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
+pub mod m5_missing_surface_placeholders;
 pub mod m5_open_save_reveal;
 pub mod m5_remembered_state_inspector;
 pub mod m5_remembered_state_objects;
@@ -377,6 +378,20 @@ pub use m5_state_migration_and_topology_remap::{
     M5_STATE_MIGRATION_REMAP_PATH, M5_STATE_MIGRATION_REMAP_RECORD_KIND,
     M5_STATE_MIGRATION_REMAP_SCHEMA_REF, M5_STATE_MIGRATION_REMAP_SCHEMA_VERSION,
     M5_STATE_MIGRATION_REMAP_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_missing_surface_placeholders::{
+    current_m5_missing_surface_placeholders, M5MissingSurfacePlaceholders,
+    M5MissingSurfacePlaceholdersSummary, M5MissingSurfacePlaceholdersSupportExport,
+    M5MissingSurfacePlaceholdersViolation, MissingDependencyClass, MissingSurfacePlaceholderCard,
+    PaneRole, PlaceholderActionKind, PlaceholderAffordance, PlaceholderClassCount,
+    PlaceholderConsumerBinding, PlaceholderConsumerSurface, PlaceholderDiagnosticsRow,
+    PlaceholderDiagnosticsView, PlaceholderNarration, PlaceholderProvenance, PlaceholderRoleCount,
+    M5_MISSING_SURFACE_PLACEHOLDERS_ARTIFACT_DOC_REF, M5_MISSING_SURFACE_PLACEHOLDERS_DOC_REF,
+    M5_MISSING_SURFACE_PLACEHOLDERS_FIXTURE_DIR, M5_MISSING_SURFACE_PLACEHOLDERS_JSON,
+    M5_MISSING_SURFACE_PLACEHOLDERS_PATH, M5_MISSING_SURFACE_PLACEHOLDERS_RECORD_KIND,
+    M5_MISSING_SURFACE_PLACEHOLDERS_SCHEMA_REF, M5_MISSING_SURFACE_PLACEHOLDERS_SCHEMA_VERSION,
+    M5_MISSING_SURFACE_PLACEHOLDERS_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{
