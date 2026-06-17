@@ -41,6 +41,7 @@ pub mod keybindings;
 pub mod locale_beta;
 pub mod m5_effective_settings;
 pub mod m5_portable_state_and_restore;
+pub mod m5_portable_state_review;
 pub mod m5_sync_and_device_review;
 pub mod repair_review;
 pub mod resolver;
@@ -135,6 +136,15 @@ pub use m5_portable_state_and_restore::{
     PortableRestoreQualification, PortableStateRestoreScenario, RestoreProvenanceCard,
     M5_PORTABLE_STATE_RESTORE_RECORD_KIND, M5_PORTABLE_STATE_RESTORE_SCHEMA_VERSION,
     M5_PORTABLE_STATE_RESTORE_SHARED_CONTRACT_REF,
+};
+pub use m5_portable_state_review::{
+    portable_state_review_corpus, ChangeCounts, ChecksumState, CompareSummary, DataClassLabel,
+    HostProvenanceClass, M5PortableStateReviewInput, M5PortableStateReviewSheet,
+    PortableStateReviewScenario, ProducerProvenance, RedactionManifestEntry, RedactionTechnique,
+    ReviewClassRow, ReviewConsumerSurface, ReviewDirection, ReviewNarrowingReason, ReviewPillars,
+    ReviewQualification, ReviewReadiness, ReviewSurfaceRow, SignatureState,
+    M5_PORTABLE_STATE_REVIEW_RECORD_KIND, M5_PORTABLE_STATE_REVIEW_SCHEMA_VERSION,
+    M5_PORTABLE_STATE_REVIEW_SHARED_CONTRACT_REF,
 };
 pub use m5_sync_and_device_review::{
     m5_sync_and_device_review_corpus, BundleSyncTrust, ConflictClass, ConflictDisposition,

@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/m5/m5-portable-state-review.schema.json",
+  "title": "Aureline M5 portable-state export/import review sheet",
+  "description": "Boundary schema for the governed portable-state review record shown before a package is exported or before its contents are restored. The record labels each selected artifact class as local-only, portable, shared, redacted, or machine-local with explicit exclusion reasons; carries a redaction manifest naming what was stripped and how; records producer/build provenance and schema versions; and — for an import — carries a compare-before-restore summary of added/removed/changed panes and surfaces, missing dependency classes, excluded secrets/handles, and path/host redaction. A fail-closed gate forbids secrets crossing as portable/shared, hidden exclusions, redacted classes without a manifest entry, and import reviews without a comparison.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "summary",
+    "direction",
+    "package_ref",
+    "provenance",
+    "class_rows",
+    "redaction_manifest",
+    "surfaces",
+    "data_class_coverage",
+    "redaction_technique_coverage",
+    "missing_dependency_coverage",
+    "total_estimated_size_bytes",
+    "crossing_estimated_size_bytes",
+    "pillars",
+    "qualification"
+  ],
+  "properties": {
+    "record_kind": { "const": "m5_portable_state_review_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "type": "string", "const": "settings:m5_portable_state_review:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "direction": { "$ref": "#/$defs/direction" },
+    "package_ref": { "$ref": "#/$defs/canonical_ref" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "class_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/class_row" }
+    },
+    "redaction_manifest": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_manifest_entry" }
+    },
+    "compare": { "$ref": "#/$defs/compare_summary" },
+    "surfaces": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/surface_row" }
+    },
+    "data_class_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/data_class" }
+    },
+    "redaction_technique_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_technique" }
+    },
+    "missing_dependency_coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/missing_dependency_kind" }
+    },
+    "total_estimated_size_bytes": { "type": "integer", "minimum": 0 },
+    "crossing_estimated_size_bytes": { "type": "integer", "minimum": 0 },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "qualification": { "$ref": "#/$defs/qualification" }
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "string",
+      "pattern": "^aureline://[^/]+/.+"
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "selected_settings",
+        "profiles",
+        "manifests",
+        "bundle_selections",
+        "docs_packs",
+        "evidence_references"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["export", "import"]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": ["local_only", "portable", "shared", "redacted", "machine_local"]
+    },
+    "exclusion_reason": {
+      "type": "string",
+      "enum": [
+        "secret_material",
+        "live_authority_handle",
+        "machine_unique_trust_anchor",
+        "volatile_machine_state"
+      ]
+    },
+    "redaction_technique": {
+      "type": "string",
+      "enum": [
+        "secret_omission",
+        "handle_omission",
+        "path_redaction",
+        "host_redaction",
+        "reference_only"
+      ]
+    },
+    "checksum_state": {
+      "type": "string",
+      "enum": ["verified", "present", "mismatch", "unavailable"]
+    },
+    "signature_state": {
+      "type": "string",
+      "enum": ["verified", "present", "untrusted", "unsigned", "unavailable"]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": ["same_machine", "managed_fleet", "foreign_machine", "unknown"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["export_review", "import_review", "diagnostics", "support_packet"]
+    },
+    "migration_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "recovered_drafts", "evidence_only"]
+    },
+    "missing_dependency_kind": {
+      "type": "string",
+      "enum": ["missing_extension", "missing_remote_target", "unsupported_client"]
+    },
+    "readiness": {
+      "type": "string",
+      "enum": ["reviewable", "review_required", "blocked"]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "provenance_incomplete",
+        "labels_not_preserved",
+        "review_not_structured",
+        "compare_unavailable",
+        "integrity_mismatch",
+        "material_restore_change",
+        "signature_untrusted",
+        "schema_version_mismatch"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product_build_label",
+        "build_commit_short",
+        "build_channel",
+        "build_dirty",
+        "package_schema_version",
+        "target_schema_version",
+        "host_class",
+        "platform"
+      ],
+      "properties": {
+        "product_build_label": { "type": "string", "minLength": 1 },
+        "build_commit_short": { "type": "string", "minLength": 1 },
+        "build_channel": { "type": "string", "minLength": 1 },
+        "build_dirty": { "type": "boolean" },
+        "package_schema_version": { "type": "string", "minLength": 1 },
+        "target_schema_version": { "type": "string", "minLength": 1 },
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "platform": { "type": "string", "minLength": 1 }
+      }
+    },
+    "class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "data_class",
+        "estimated_size_bytes",
+        "checksum_state",
+        "signature_state",
+        "content_ref",
+        "visible_in_review",
+        "rationale"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "data_class": { "$ref": "#/$defs/data_class" },
+        "exclusion_reason": { "$ref": "#/$defs/exclusion_reason" },
+        "estimated_size_bytes": { "type": "integer", "minimum": 0 },
+        "checksum_state": { "$ref": "#/$defs/checksum_state" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "content_ref": { "$ref": "#/$defs/canonical_ref" },
+        "visible_in_review": { "type": "boolean" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "redaction_manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "technique", "reason", "redacted_field_count", "detail"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "technique": { "$ref": "#/$defs/redaction_technique" },
+        "reason": { "$ref": "#/$defs/exclusion_reason" },
+        "redacted_field_count": { "type": "integer", "minimum": 0 },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "change_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "removed": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "compare_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_delta",
+        "surface_delta",
+        "missing_dependency_classes",
+        "excluded_secret_handle_count",
+        "excluded_exclusion_reasons",
+        "path_redaction_count",
+        "host_redaction_count",
+        "fidelity_ceiling"
+      ],
+      "properties": {
+        "pane_delta": { "$ref": "#/$defs/change_counts" },
+        "surface_delta": { "$ref": "#/$defs/change_counts" },
+        "missing_dependency_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/missing_dependency_kind" }
+        },
+        "excluded_secret_handle_count": { "type": "integer", "minimum": 0 },
+        "excluded_exclusion_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exclusion_reason" }
+        },
+        "path_redaction_count": { "type": "integer", "minimum": 0 },
+        "host_redaction_count": { "type": "integer", "minimum": 0 },
+        "fidelity_ceiling": { "$ref": "#/$defs/migration_label" }
+      }
+    },
+    "surface_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "consumes_shared_record",
+        "shows_data_class_labels",
+        "shows_redaction_manifest",
+        "shows_machine_local_exclusions",
+        "shows_provenance",
+        "shows_compare"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "consumes_shared_record": { "type": "boolean" },
+        "shows_data_class_labels": { "type": "boolean" },
+        "shows_redaction_manifest": { "type": "boolean" },
+        "shows_machine_local_exclusions": { "type": "boolean" },
+        "shows_provenance": { "type": "boolean" },
+        "shows_compare": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provenance_present",
+        "exclusions_visible",
+        "secret_boundary_held",
+        "integrity_reviewable",
+        "compare_available",
+        "labels_preserved",
+        "structured_review_present"
+      ],
+      "properties": {
+        "provenance_present": { "type": "boolean" },
+        "exclusions_visible": { "type": "boolean" },
+        "secret_boundary_held": { "type": "boolean" },
+        "integrity_reviewable": { "type": "boolean" },
+        "compare_available": { "type": "boolean" },
+        "labels_preserved": { "type": "boolean" },
+        "structured_review_present": { "type": "boolean" }
+      }
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readiness",
+        "schema_versions_match",
+        "materially_changes_restore",
+        "narrowing_reasons"
+      ],
+      "properties": {
+        "readiness": { "$ref": "#/$defs/readiness" },
+        "schema_versions_match": { "type": "boolean" },
+        "materially_changes_restore": { "type": "boolean" },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" }
+        }
+      }
+    }
+  }
+}
