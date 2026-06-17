@@ -57,6 +57,17 @@
 //! class, and review state stay stable across desktop reopen, browser handoff,
 //! and companion follow-up.
 //!
+//! The module
+//! [`freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix`]
+//! freezes the cross-ecosystem package-state vocabulary the whole mutation lane
+//! references. It pins the canonical package-state labels, the manifest-scope,
+//! registry-source, auth-mode, lockfile-authority, resolver-identity, and
+//! rollback-class control objects, and the privacy/retention rules for
+//! operation history, registry credentials, and support/export packets. Three
+//! recomputed invariants keep it honest: requested-versus-resolved truth stays
+//! separate, no state collapses into a generic not-found/install-failed message,
+//! and every claimed M5 package surface binds to the one shared matrix.
+//!
 //! The module [`ecosystem_qualification_certification`] owns the per-ecosystem
 //! certification matrix. It certifies, for every marketed ecosystem and every
 //! qualification lane — dependency intelligence, package review, code quality,
@@ -73,6 +84,7 @@
 pub mod dependency_security_compliance_export_truth;
 pub mod ecosystem_qualification_certification;
 pub mod export_safe_dependency_reports;
+pub mod freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix;
 pub mod grouped_update_and_rollback_review;
 pub mod package_mutation_and_registry_review;
 pub mod package_review_cross_surface_integration;
@@ -171,4 +183,14 @@ pub use ecosystem_qualification_certification::{
     QualificationLane, QualificationRow, ECOSYSTEM_QUALIFICATION_CERTIFICATION_JSON,
     ECOSYSTEM_QUALIFICATION_CERTIFICATION_PATH, ECOSYSTEM_QUALIFICATION_CERTIFICATION_RECORD_KIND,
     ECOSYSTEM_QUALIFICATION_CERTIFICATION_SCHEMA_VERSION,
+};
+pub use freeze_the_m5_package_state_manifest_scope_registry_auth_and_lockfile_authority_matrix::{
+    current_m5_package_state_matrix, AuthMode, IdentitySide, LockfileAuthority,
+    M5PackageStateMatrix, M5PackageStateMatrixExportProjection, M5PackageStateMatrixExportRow,
+    M5PackageStateMatrixSummary, M5PackageStateMatrixViolation, ManifestScopeClass,
+    PackageStateLabel, PackageStateMessageClass, PackageStateRow, PackageSurface,
+    RegistrySourceAuthority, RegistrySourceCell, ResolverIdentityClass, RetentionClass,
+    RetentionRule, RetentionSubject, RollbackClass, SurfaceBinding, SurfaceWriteAuthority,
+    M5_PACKAGE_STATE_MATRIX_JSON, M5_PACKAGE_STATE_MATRIX_PATH,
+    M5_PACKAGE_STATE_MATRIX_RECORD_KIND, M5_PACKAGE_STATE_MATRIX_SCHEMA_VERSION,
 };
