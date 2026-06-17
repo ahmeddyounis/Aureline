@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-remembered-state-inspector.schema.json",
+  "title": "Aureline M5 remembered-state inspector",
+  "description": "The user- and operator-facing projection of what the current windows and workspace will remember. One row per remembered-state artifact class exposes the artifact class, a plain-language title, the canonical state-object reference, the last-write time, the schema version, producer/build provenance, a portable/shared/local/machine-local ownership label, the restore fidelity it claims, and what it will and will not remember. Each row offers bounded inspect/export/compare/clear affordances: every action stays scoped to the selected class, excludes unrelated content and caches, and carries a command id, keyboard shortcut, focus order, and screen-reader label, so the flows are keyboard-complete and screen-reader-safe. A non-exportable class never offers export, and a clear is always confirmed and scoped — never a global reset. The packet reuses the artifact-class, ownership, and restore-fidelity vocabularies from the serialization-and-restore matrix rather than forking them. The Rust types in crates/aureline-workspace/src/m5_remembered_state_inspector are the schema of record; this file is the cross-tool export for diagnostics, crash recovery, companion handoff, and support export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "artifact_classes",
+    "ownership_classes",
+    "restore_fidelity_classes",
+    "action_kinds",
+    "action_boundaries",
+    "consumer_surfaces",
+    "rows",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "m5_remembered_state_inspector" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "status": { "type": "string", "minLength": 1 },
+    "overview_page": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "artifact_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_class" }
+    },
+    "ownership_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ownership_class" }
+    },
+    "restore_fidelity_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restore_fidelity_class" }
+    },
+    "action_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action_kind" }
+    },
+    "action_boundaries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action_boundary" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_surface" }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inspector_row" }
+    },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier. Raw paths, hosts, credentials, command lines, source content, and live authority handles never appear here."
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authority_checkpoint",
+        "window_topology_snapshot",
+        "portable_state_package",
+        "restore_provenance_record",
+        "placeholder_card",
+        "compare_export_summary"
+      ]
+    },
+    "ownership_class": {
+      "type": "string",
+      "enum": ["portable", "shared", "local", "machine_local"]
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "manual_review"]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": ["inspect", "export", "compare", "clear"]
+    },
+    "action_boundary": {
+      "type": "string",
+      "enum": ["selected_state_class_only", "global_reset"],
+      "description": "How far an action reaches. A persisted affordance must be selected_state_class_only; global_reset exists only so the gate can reject a clear that would look like a destructive global reset."
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "diagnostics",
+        "crash_recovery",
+        "browser_companion_handoff",
+        "support_export"
+      ]
+    },
+    "producer_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_ref", "build_ref"],
+      "properties": {
+        "producer_ref": { "$ref": "#/$defs/opaque_id" },
+        "build_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "action_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "command_id",
+        "keyboard_shortcut",
+        "focus_order",
+        "accessible_label",
+        "boundary",
+        "requires_confirmation",
+        "excludes_unrelated_content",
+        "excludes_caches"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_kind" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "keyboard_shortcut": { "type": "string", "minLength": 1 },
+        "focus_order": { "type": "integer", "minimum": 0 },
+        "accessible_label": { "type": "string", "minLength": 1 },
+        "boundary": { "$ref": "#/$defs/action_boundary" },
+        "requires_confirmation": { "type": "boolean" },
+        "excludes_unrelated_content": { "type": "boolean", "const": true },
+        "excludes_caches": { "type": "boolean", "const": true }
+      },
+      "description": "A keyboard-complete, screen-reader-safe affordance. Every action is bounded to the selected class and excludes unrelated content and caches."
+    },
+    "inspector_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "artifact_class",
+        "title",
+        "state_object_ref",
+        "last_write",
+        "schema_version",
+        "provenance",
+        "ownership",
+        "exportable",
+        "published_fidelity",
+        "what_is_remembered",
+        "what_is_not_remembered",
+        "available_actions",
+        "caveats"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "title": { "type": "string", "minLength": 1 },
+        "state_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "last_write": { "$ref": "#/$defs/opaque_id" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "provenance": { "$ref": "#/$defs/producer_provenance" },
+        "ownership": { "$ref": "#/$defs/ownership_class" },
+        "exportable": { "type": "boolean" },
+        "published_fidelity": { "$ref": "#/$defs/restore_fidelity_class" },
+        "what_is_remembered": { "type": "string", "minLength": 1 },
+        "what_is_not_remembered": { "type": "string", "minLength": 1 },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_affordance" }
+        },
+        "caveats": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "inspector_packet_id_ref",
+        "reuses_inspector_vocabulary",
+        "preserves_ownership_labels",
+        "preserves_fidelity_labels",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/opaque_id" },
+        "inspector_packet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reuses_inspector_vocabulary": { "type": "boolean", "const": true },
+        "preserves_ownership_labels": { "type": "boolean", "const": true },
+        "preserves_fidelity_labels": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "exportable_rows",
+        "local_only_rows",
+        "clearable_rows",
+        "comparable_rows"
+      ],
+      "properties": {
+        "rows": { "type": "integer", "minimum": 0 },
+        "exportable_rows": { "type": "integer", "minimum": 0 },
+        "local_only_rows": { "type": "integer", "minimum": 0 },
+        "clearable_rows": { "type": "integer", "minimum": 0 },
+        "comparable_rows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

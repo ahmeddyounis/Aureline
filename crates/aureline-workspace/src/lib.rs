@@ -34,6 +34,7 @@ pub mod m5_bundle_scorecards;
 pub mod m5_entry_and_bundle_certification;
 pub mod m5_entry_and_bundle_governance;
 pub mod m5_open_save_reveal;
+pub mod m5_remembered_state_inspector;
 pub mod m5_remembered_state_objects;
 pub mod m5_serialization_and_restore_matrix;
 pub mod m5_source_acquisition_review;
@@ -335,6 +336,19 @@ pub use m5_serialization_and_restore_matrix::{
     M5_SERIALIZATION_MATRIX_JSON, M5_SERIALIZATION_MATRIX_PATH,
     M5_SERIALIZATION_MATRIX_RECORD_KIND, M5_SERIALIZATION_MATRIX_SCHEMA_REF,
     M5_SERIALIZATION_MATRIX_SCHEMA_VERSION, M5_SERIALIZATION_MATRIX_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_remembered_state_inspector::{
+    current_m5_remembered_state_inspector, ActionAffordance, ActionBoundary,
+    ConsumerBinding as InspectorConsumerBinding, InspectorActionKind, InspectorConsumerSurface,
+    InspectorRow, InspectorView, InspectorViewRow, M5RememberedStateInspector,
+    M5RememberedStateInspectorSummary, M5RememberedStateInspectorSupportExport,
+    M5RememberedStateInspectorViolation, ProducerProvenance,
+    M5_REMEMBERED_STATE_INSPECTOR_ARTIFACT_DOC_REF, M5_REMEMBERED_STATE_INSPECTOR_DOC_REF,
+    M5_REMEMBERED_STATE_INSPECTOR_FIXTURE_DIR, M5_REMEMBERED_STATE_INSPECTOR_JSON,
+    M5_REMEMBERED_STATE_INSPECTOR_PATH, M5_REMEMBERED_STATE_INSPECTOR_RECORD_KIND,
+    M5_REMEMBERED_STATE_INSPECTOR_SCHEMA_REF, M5_REMEMBERED_STATE_INSPECTOR_SCHEMA_VERSION,
+    M5_REMEMBERED_STATE_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{
