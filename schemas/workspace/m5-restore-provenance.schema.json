@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/m5-restore-provenance.schema.json",
+  "title": "Aureline M5 restore-provenance cards",
+  "description": "Schema for the m5_restore_provenance packet: one restore-provenance card per M5 re-entry surface (desktop restore, portable-state import, crash recovery, support-packet replay, companion/browser re-entry) disclosing not just that something restored but how well it restored. Each card attaches the restore source (auto_checkpoint, manual_export, backup, sync, import, browser_companion_handoff), producer/version/build provenance, the restored schema version, the redaction class, and the resulting restore fidelity (exact_restore, compatible_restore, layout_only, manual_review). A fail-closed gate derives the published fidelity as the weakest ceiling implied by the declared fidelity, the source ceiling, and the schema/dependency/topology/evidence-freshness conditions, so a contextual handoff, a schema drift, a missing dependency, a changed topology, or stale evidence narrows the restore automatically; a browser/companion handoff can never imply a full restore; a missing dependency never silently deletes layout; every card offers a read-only open-details action; and a narrowed card preserves the compare and recovery-next-step actions. The fidelity, artifact-class, redaction, and condition vocabularies are reused from the serialization-and-restore matrix rather than forked. The parity surfaces (exported diagnostics, support packet, crash-recovery packet, companion handoff) each bind to this one packet and preserve the same record. The Rust types in crates/aureline-workspace/src/m5_restore_provenance are the schema of record; this file is the cross-tool export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "restore_fidelity_classes",
+    "restore_sources",
+    "reentry_surfaces",
+    "artifact_classes",
+    "redaction_exclusions",
+    "schema_conditions",
+    "dependency_conditions",
+    "topology_conditions",
+    "evidence_freshness_states",
+    "missing_dependency_behaviors",
+    "downgrade_reasons",
+    "recovery_paths",
+    "action_kinds",
+    "consumer_surfaces",
+    "cards",
+    "consumer_bindings",
+    "summary"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "m5_restore_provenance" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "restore_fidelity_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restore_fidelity" }
+    },
+    "restore_sources": { "type": "array", "items": { "$ref": "#/$defs/restore_source" } },
+    "reentry_surfaces": { "type": "array", "items": { "$ref": "#/$defs/reentry_surface" } },
+    "artifact_classes": { "type": "array", "items": { "$ref": "#/$defs/artifact_class" } },
+    "redaction_exclusions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/redaction_exclusion" }
+    },
+    "schema_conditions": { "type": "array", "items": { "$ref": "#/$defs/schema_condition" } },
+    "dependency_conditions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_condition" }
+    },
+    "topology_conditions": { "type": "array", "items": { "$ref": "#/$defs/topology_condition" } },
+    "evidence_freshness_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_freshness" }
+    },
+    "missing_dependency_behaviors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/missing_dependency_behavior" }
+    },
+    "downgrade_reasons": { "type": "array", "items": { "$ref": "#/$defs/downgrade_reason" } },
+    "recovery_paths": { "type": "array", "items": { "$ref": "#/$defs/recovery_path" } },
+    "action_kinds": { "type": "array", "items": { "$ref": "#/$defs/action_kind" } },
+    "consumer_surfaces": { "type": "array", "items": { "$ref": "#/$defs/consumer_surface" } },
+    "cards": { "type": "array", "items": { "$ref": "#/$defs/card" } },
+    "consumer_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_binding" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "restore_fidelity": {
+      "type": "string",
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "manual_review"]
+    },
+    "restore_source": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "manual_export",
+        "backup",
+        "sync",
+        "import",
+        "browser_companion_handoff"
+      ]
+    },
+    "reentry_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_restore",
+        "portable_state_import",
+        "crash_recovery",
+        "support_packet_replay",
+        "companion_browser_reentry"
+      ]
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authority_checkpoint",
+        "window_topology_snapshot",
+        "portable_state_package",
+        "restore_provenance_record",
+        "placeholder_card",
+        "compare_export_summary"
+      ]
+    },
+    "redaction_exclusion": {
+      "type": "string",
+      "enum": [
+        "excludes_secrets",
+        "excludes_live_authority",
+        "excludes_machine_local_anchors",
+        "excludes_raw_provider_payloads"
+      ]
+    },
+    "schema_condition": {
+      "type": "string",
+      "enum": ["schema_match", "schema_forward_migratable", "schema_unmigratable"]
+    },
+    "dependency_condition": {
+      "type": "string",
+      "enum": ["dependencies_present", "dependencies_partial_missing", "dependency_root_missing"]
+    },
+    "topology_condition": {
+      "type": "string",
+      "enum": ["topology_identical", "topology_adapted", "topology_incompatible"]
+    },
+    "evidence_freshness": {
+      "type": "string",
+      "enum": ["current", "aging", "expired", "missing"]
+    },
+    "missing_dependency_behavior": {
+      "type": "string",
+      "enum": ["placeholder_slot_preserved", "reopen_as_context", "silent_delete"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": ["schema_drift", "dependency_missing", "topology_changed", "evidence_stale"]
+    },
+    "recovery_path": {
+      "type": "string",
+      "enum": [
+        "restore_compatibly",
+        "relocate_dependency",
+        "reopen_as_context",
+        "refresh_evidence",
+        "manual_review",
+        "none"
+      ]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": ["open_details", "compare", "recovery_next_step"]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "diagnostics_export",
+        "support_packet",
+        "crash_recovery_packet",
+        "companion_handoff"
+      ]
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_ref", "producer_version", "build_ref"],
+      "properties": {
+        "producer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "producer_version": { "type": "integer", "minimum": 1 },
+        "build_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "command_id",
+        "keyboard_shortcut",
+        "focus_order",
+        "accessible_label",
+        "scoped_to_event"
+      ],
+      "properties": {
+        "action": { "$ref": "#/$defs/action_kind" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_shortcut": { "$ref": "#/$defs/non_empty_string" },
+        "focus_order": { "type": "integer", "minimum": 0 },
+        "accessible_label": { "$ref": "#/$defs/non_empty_string" },
+        "scoped_to_event": { "const": true }
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "card_id",
+        "reentry_surface",
+        "owner",
+        "restored_artifact_class",
+        "source",
+        "producer",
+        "restored_schema_version",
+        "redaction_class",
+        "declared_resulting_fidelity",
+        "schema_condition",
+        "dependency_condition",
+        "topology_condition",
+        "evidence_freshness",
+        "missing_dependency_behavior",
+        "published_fidelity",
+        "downgrade_reasons",
+        "recovery_path",
+        "available_actions",
+        "caveats",
+        "narrowed_fields",
+        "evidence_ref",
+        "scope_snapshot_ref",
+        "note"
+      ],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "reentry_surface": { "$ref": "#/$defs/reentry_surface" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "restored_artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "source": { "$ref": "#/$defs/restore_source" },
+        "producer": { "$ref": "#/$defs/producer" },
+        "restored_schema_version": { "type": "integer", "minimum": 1 },
+        "redaction_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_exclusion" },
+          "uniqueItems": true,
+          "minItems": 4
+        },
+        "declared_resulting_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "schema_condition": { "$ref": "#/$defs/schema_condition" },
+        "dependency_condition": { "$ref": "#/$defs/dependency_condition" },
+        "topology_condition": { "$ref": "#/$defs/topology_condition" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "missing_dependency_behavior": {
+          "$ref": "#/$defs/missing_dependency_behavior",
+          "not": { "const": "silent_delete" }
+        },
+        "published_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" },
+          "uniqueItems": true
+        },
+        "recovery_path": { "$ref": "#/$defs/recovery_path" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" },
+          "minItems": 1
+        },
+        "caveats": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "narrowed_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "An exact-restore card is clean: pristine conditions, a non-contextual source, no downgrade reason, recovery none.",
+          "if": {
+            "properties": { "published_fidelity": { "const": "exact_restore" } },
+            "required": ["published_fidelity"]
+          },
+          "then": {
+            "properties": {
+              "source": { "not": { "const": "browser_companion_handoff" } },
+              "schema_condition": { "const": "schema_match" },
+              "dependency_condition": { "const": "dependencies_present" },
+              "topology_condition": { "const": "topology_identical" },
+              "evidence_freshness": { "const": "current" },
+              "downgrade_reasons": { "maxItems": 0 },
+              "caveats": { "maxItems": 0 },
+              "narrowed_fields": { "maxItems": 0 },
+              "recovery_path": { "const": "none" }
+            }
+          }
+        },
+        {
+          "$comment": "A browser/companion handoff is a contextual reopen and can never publish a full (exact) restore.",
+          "if": {
+            "properties": { "source": { "const": "browser_companion_handoff" } },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {
+              "published_fidelity": {
+                "enum": ["compatible_restore", "layout_only", "manual_review"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "binding_ref",
+        "record_packet_id_ref",
+        "scope_snapshot_ref",
+        "ingests_record",
+        "preserves_fidelity_labels",
+        "preserves_source_labels",
+        "narrows_on_downgrade",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "record_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ingests_record": { "const": true },
+        "preserves_fidelity_labels": { "const": true },
+        "preserves_source_labels": { "const": true },
+        "narrows_on_downgrade": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cards",
+        "exact_restore_cards",
+        "compatible_restore_cards",
+        "layout_only_cards",
+        "manual_review_cards",
+        "downgraded_cards",
+        "narrowed_cards",
+        "handoff_cards"
+      ],
+      "properties": {
+        "cards": { "type": "integer", "minimum": 0 },
+        "exact_restore_cards": { "type": "integer", "minimum": 0 },
+        "compatible_restore_cards": { "type": "integer", "minimum": 0 },
+        "layout_only_cards": { "type": "integer", "minimum": 0 },
+        "manual_review_cards": { "type": "integer", "minimum": 0 },
+        "downgraded_cards": { "type": "integer", "minimum": 0 },
+        "narrowed_cards": { "type": "integer", "minimum": 0 },
+        "handoff_cards": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

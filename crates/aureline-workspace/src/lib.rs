@@ -36,6 +36,7 @@ pub mod m5_entry_and_bundle_governance;
 pub mod m5_open_save_reveal;
 pub mod m5_remembered_state_inspector;
 pub mod m5_remembered_state_objects;
+pub mod m5_restore_provenance;
 pub mod m5_serialization_and_restore_matrix;
 pub mod m5_source_acquisition_review;
 pub mod m5_workflow_bundle_manifests;
@@ -349,6 +350,17 @@ pub use m5_remembered_state_inspector::{
     M5_REMEMBERED_STATE_INSPECTOR_PATH, M5_REMEMBERED_STATE_INSPECTOR_RECORD_KIND,
     M5_REMEMBERED_STATE_INSPECTOR_SCHEMA_REF, M5_REMEMBERED_STATE_INSPECTOR_SCHEMA_VERSION,
     M5_REMEMBERED_STATE_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use m5_restore_provenance::{
+    current_m5_restore_provenance, M5RestoreProvenance, M5RestoreProvenanceSummary,
+    M5RestoreProvenanceSupportExport, M5RestoreProvenanceViolation, ProvenanceAction,
+    ProvenanceActionKind, ProvenanceConsumerBinding, ProvenanceConsumerSurface, ProvenanceView,
+    ProvenanceViewRow, ReentrySurface, RestoreProducer, RestoreProvenanceCard, RestoreSource,
+    M5_RESTORE_PROVENANCE_ARTIFACT_DOC_REF, M5_RESTORE_PROVENANCE_DOC_REF,
+    M5_RESTORE_PROVENANCE_FIXTURE_DIR, M5_RESTORE_PROVENANCE_JSON, M5_RESTORE_PROVENANCE_PATH,
+    M5_RESTORE_PROVENANCE_RECORD_KIND, M5_RESTORE_PROVENANCE_SCHEMA_REF,
+    M5_RESTORE_PROVENANCE_SCHEMA_VERSION, M5_RESTORE_PROVENANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use admission::{
