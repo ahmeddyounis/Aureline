@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/git_history_review.schema.json",
+  "title": "Aureline history-surgery decision rows",
+  "description": "Export-safe packet binding per-surface decision rows to the history-surgery review sheets they restate. Each row projects one Git history-surgery sheet onto one surface (review, CLI/headless, support export, provider overlay, AI context), restating why a risky mutation was allowed, blocked, or downgraded (the decision outcome, its primary reason, and the contributing gates) and whether the surface may execute the mutation. Only a mutation surface (review or CLI/headless) may execute, and only for an allowed decision; read-only surfaces restate the decision but never mark it executable. Each row is the deterministic projection of its sheet, and the embedded sheets are validated through the Git history-surgery contract, so a provider outage never blocks the local preview/abort/restore truth a row carries forward. Raw paths, raw patch/todo bodies, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "repo_ref",
+    "sheets",
+    "rows",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_history_review_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Embedded Git history-surgery review sheets; each must satisfy schemas/git/history-surgery-review.schema.json.",
+      "items": { "$ref": "https://aureline.dev/schemas/git/history-surgery-review.schema.json#/$defs/sheet" }
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface": {
+      "enum": ["review", "cli_headless", "support_export", "provider_overlay", "ai_context"]
+    },
+    "verb": {
+      "enum": ["rebase", "cherry_pick", "revert", "reset", "patch_apply", "force_push"]
+    },
+    "decision_outcome": {
+      "enum": ["allowed", "downgraded", "blocked"]
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_id",
+        "surface",
+        "sheet_ref",
+        "verb",
+        "outcome",
+        "primary_reason",
+        "contributing_gates",
+        "recovery_visible",
+        "local_truth_available_offline",
+        "execution_permitted",
+        "explanation"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_review_decision_row" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface" },
+        "sheet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "verb": { "$ref": "#/$defs/verb" },
+        "outcome": { "$ref": "#/$defs/decision_outcome" },
+        "primary_reason": { "$ref": "#/$defs/non_empty_string" },
+        "contributing_gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "recovery_visible": { "type": "boolean" },
+        "local_truth_available_offline": { "type": "boolean" },
+        "execution_permitted": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "row_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_patch_bodies_redacted",
+        "raw_provider_payloads_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_review_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_patch_bodies_redacted": { "const": true },
+        "raw_provider_payloads_redacted": { "const": true }
+      }
+    }
+  }
+}

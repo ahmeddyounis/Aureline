@@ -17,6 +17,7 @@ pub mod freeze_the_m5_repository_topology_worktree_scope_history_surgery_and_che
 pub mod harden_conflict_resolution_external_change_reconciliation_and_merge;
 pub mod history_rewrite;
 pub mod history_sessions;
+pub mod history_surgery_review;
 pub mod mutations;
 pub mod publish;
 pub mod stabilize_repository_topology_truth;
@@ -149,6 +150,20 @@ pub use history_sessions::{
     HISTORY_SESSION_MAP_RECORD_KIND, HISTORY_SESSION_REQUIRED_RECONSTRUCTION_FIELDS,
     HISTORY_SESSION_SCHEMA_REF, HISTORY_SESSION_SCHEMA_VERSION, HISTORY_SESSION_STASH_VERBS,
     HISTORY_SESSION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use history_surgery_review::{
+    current_history_surgery_review_sheets, HistorySurgeryReviewError, HistorySurgeryReviewPacket,
+    HistorySurgeryReviewSheet, HistorySurgeryReviewSheetInput, HistorySurgeryReviewSupportExport,
+    HistorySurgeryReviewValidationError, HistorySurgeryVerb, ReviewDecision,
+    ReviewDecisionOutcome, HISTORY_SURGERY_CONFLICT_SOURCE_STATES, HISTORY_SURGERY_DECISION_REASONS,
+    HISTORY_SURGERY_DIRTY_WORKTREE_STATES, HISTORY_SURGERY_LOCAL_ACTIONS,
+    HISTORY_SURGERY_MERGE_QUEUE_STATES, HISTORY_SURGERY_PROVIDER_OVERLAY_STATES,
+    HISTORY_SURGERY_REQUIRED_LOCAL_ACTIONS, HISTORY_SURGERY_RESET_MODES,
+    HISTORY_SURGERY_REVIEW_ARTIFACT_REF, HISTORY_SURGERY_REVIEW_FIXTURE_DIR,
+    HISTORY_SURGERY_REVIEW_PACKET_RECORD_KIND, HISTORY_SURGERY_REVIEW_REQUIRED_RECONSTRUCTION_FIELDS,
+    HISTORY_SURGERY_REVIEW_SCHEMA_REF, HISTORY_SURGERY_REVIEW_SCHEMA_VERSION,
+    HISTORY_SURGERY_REVIEW_SHEET_RECORD_KIND, HISTORY_SURGERY_REVIEW_SUPPORT_EXPORT_RECORD_KIND,
+    HISTORY_SURGERY_TARGET_KINDS,
 };
 pub use mutations::{
     GitMutationActivityRecord, GitMutationActorRef, GitMutationBackend, GitMutationBackendError,

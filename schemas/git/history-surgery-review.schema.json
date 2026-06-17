@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/history-surgery-review.schema.json",
+  "title": "Aureline per-verb history-surgery review sheets",
+  "description": "Export-safe packet of per-verb history-surgery review sheets. Each sheet reviews one risky verb (rebase, cherry-pick, revert, reset, patch-apply, force-push) with the exact repository-or-worktree target truth it would mutate, the pre-execution gate states a user must see before Continue/Skip/Publish (protected-branch posture, stale-review/approval state, merge-queue state, dirty-worktree state, conflict-source state, provider-overlay state), refs to the inspectable raw todo/patch text and the structured cards derived from it, a checkpoint or reflog-only recovery path, the local-first actions kept available offline, and a derived allow/block/downgrade decision. The verbs stay distinct: they are never collapsed into one generic rewrite-history sheet. The decision is a deterministic function of the gate states, so a stored decision can be re-derived and verified. A provider outage may only downgrade a sheet to local-only, never block it, so local preview/abort/restore truth stays available. Raw paths, raw patch/todo bodies, raw provider payloads, and credentials never cross this boundary; only redaction-safe refs do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "repo_ref",
+    "sheets",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "git_history_surgery_review_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sheet" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "verb": {
+      "enum": ["rebase", "cherry_pick", "revert", "reset", "patch_apply", "force_push"]
+    },
+    "target_kind": {
+      "enum": ["repository_root", "linked_worktree"]
+    },
+    "protected_branch_posture": {
+      "enum": [
+        "no_protected_refs",
+        "protected_branch_readonly",
+        "protected_branch_blocked",
+        "policy_lock_active"
+      ]
+    },
+    "stale_review_state": {
+      "enum": [
+        "approval_not_required",
+        "approval_required_outstanding",
+        "approved_current",
+        "approval_invalidated_by_changes"
+      ]
+    },
+    "merge_queue_state": {
+      "enum": [
+        "not_enqueued",
+        "queued_position_known",
+        "queued_invalidated_by_rewrite",
+        "queue_blocks_history_surgery"
+      ]
+    },
+    "dirty_worktree_state": {
+      "enum": [
+        "clean",
+        "untracked_present",
+        "dirty_tracked_changes",
+        "dirty_blocks_operation"
+      ]
+    },
+    "conflict_source_state": {
+      "enum": [
+        "no_conflicts",
+        "conflicts_resolved_ready_to_continue",
+        "conflicts_present_blocks_continue",
+        "conflict_source_unknown_requires_refresh"
+      ]
+    },
+    "provider_overlay_state": {
+      "enum": ["overlay_fresh", "overlay_stale", "overlay_unavailable_local_only"]
+    },
+    "reset_mode": {
+      "enum": ["soft", "mixed", "hard", "keep", "merge"]
+    },
+    "divergence_class": {
+      "enum": [
+        "no_divergence",
+        "local_ahead",
+        "remote_ahead",
+        "diverged_requires_rebase",
+        "diverged_requires_merge",
+        "unknown_requires_refresh"
+      ]
+    },
+    "local_action": {
+      "enum": [
+        "preview",
+        "continue",
+        "skip",
+        "abort",
+        "restore_checkpoint",
+        "inspect_raw_source"
+      ]
+    },
+    "decision_outcome": {
+      "enum": ["allowed", "downgraded", "blocked"]
+    },
+    "decision_reason": {
+      "enum": [
+        "allowed_with_recovery",
+        "blocked_unresolved_conflict",
+        "blocked_protected_branch",
+        "blocked_merge_queue",
+        "blocked_stale_review_invalidated",
+        "blocked_dirty_worktree",
+        "blocked_no_recovery_path",
+        "blocked_source_text_unavailable",
+        "downgraded_checkpoint_to_reflog_only",
+        "downgraded_raw_inspection_only",
+        "downgraded_merge_queue_drop",
+        "downgraded_dirty_autostash",
+        "downgraded_provider_unavailable_local_only",
+        "downgraded_provider_overlay_stale"
+      ]
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "primary_reason",
+        "contributing_gates",
+        "recovery_visible",
+        "local_truth_available_offline",
+        "explanation"
+      ],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/decision_outcome" },
+        "primary_reason": { "$ref": "#/$defs/decision_reason" },
+        "contributing_gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "recovery_visible": { "type": "boolean" },
+        "local_truth_available_offline": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sheet_id",
+        "verb",
+        "repo_ref",
+        "worktree_ref",
+        "target_kind",
+        "primary_target_ref",
+        "secondary_refs",
+        "reset_mode",
+        "force_lease_ref",
+        "divergence_class",
+        "protected_branch_posture",
+        "stale_review_state",
+        "merge_queue_state",
+        "dirty_worktree_state",
+        "conflict_source_state",
+        "provider_overlay_state",
+        "raw_source_text_ref",
+        "structured_cards_ref",
+        "checkpoint_lineage_refs",
+        "reflog_only_fallback",
+        "local_actions",
+        "decision",
+        "created_at",
+        "updated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_surgery_review_sheet" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "verb": { "$ref": "#/$defs/verb" },
+        "repo_ref": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "primary_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "secondary_refs": { "$ref": "#/$defs/ref_array" },
+        "reset_mode": {
+          "oneOf": [{ "$ref": "#/$defs/reset_mode" }, { "type": "null" }]
+        },
+        "force_lease_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "divergence_class": {
+          "oneOf": [{ "$ref": "#/$defs/divergence_class" }, { "type": "null" }]
+        },
+        "protected_branch_posture": { "$ref": "#/$defs/protected_branch_posture" },
+        "stale_review_state": { "$ref": "#/$defs/stale_review_state" },
+        "merge_queue_state": { "$ref": "#/$defs/merge_queue_state" },
+        "dirty_worktree_state": { "$ref": "#/$defs/dirty_worktree_state" },
+        "conflict_source_state": { "$ref": "#/$defs/conflict_source_state" },
+        "provider_overlay_state": { "$ref": "#/$defs/provider_overlay_state" },
+        "raw_source_text_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "structured_cards_ref": {
+          "oneOf": [{ "$ref": "#/$defs/non_empty_string" }, { "type": "null" }]
+        },
+        "checkpoint_lineage_refs": { "$ref": "#/$defs/ref_array" },
+        "reflog_only_fallback": { "type": "boolean" },
+        "local_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_action" }
+        },
+        "decision": { "$ref": "#/$defs/decision" },
+        "created_at": { "$ref": "#/$defs/non_empty_string" },
+        "updated_at": { "$ref": "#/$defs/non_empty_string" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "export_id",
+        "sheet_refs",
+        "reconstruction_fields",
+        "raw_paths_redacted",
+        "raw_patch_bodies_redacted",
+        "raw_provider_payloads_redacted"
+      ],
+      "properties": {
+        "record_kind": { "const": "git_history_surgery_review_support_export" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "sheet_refs": { "$ref": "#/$defs/ref_array" },
+        "reconstruction_fields": { "$ref": "#/$defs/ref_array" },
+        "raw_paths_redacted": { "const": true },
+        "raw_patch_bodies_redacted": { "const": true },
+        "raw_provider_payloads_redacted": { "const": true }
+      }
+    }
+  }
+}
