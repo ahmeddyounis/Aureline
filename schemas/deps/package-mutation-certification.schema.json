@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deps/package-mutation-certification.schema.json",
+  "title": "Aureline package-mutation certification",
+  "description": "Schema for the package_mutation_certification packet. The packet certifies the built-in package-manager mutation claim on every claimed ecosystem (cargo, node_pnpm, python_pip) and every deployment profile (direct_registry, registry_mirror, offline_snapshot), holding one row per (ecosystem, profile) cell. Each row certifies the four mutation-proof dimensions (package_state_truth, registry_auth_continuity, lockfile_safe_review, cross_surface_parity), each carrying a proof state of proven, degraded, stale, or unproven. The publication gate derives the claim a row may publish from its declared claim, evidence freshness, and dimension proofs and fails closed: a stale dimension or stale/unknown freshness narrows to retest_pending, a degraded dimension narrows to limited, and an unproven dimension or expired evidence withholds the row as unsupported. Cross-surface parity is recomputed from per-surface cells for product, CLI, docs/help, and support, so a row cannot read consistent while a surface diverges. The packet binds to the frozen package-state matrix through matrix_ref.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "matrix_ref",
+    "certified_ecosystems",
+    "deployment_profiles",
+    "proof_dimensions",
+    "dimension_proof_states",
+    "claim_classes",
+    "evidence_freshness_classes",
+    "narrowing_actions",
+    "parity_surfaces",
+    "parity_states",
+    "rows",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "const": "package_mutation_certification" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "matrix_ref": {
+      "const": "artifacts/deps/m5/freeze-the-m5-package-state-manifest-scope-registry-auth-and-lockfile-authority-matrix.json"
+    },
+    "certified_ecosystems": { "type": "array", "items": { "$ref": "#/$defs/ecosystem" } },
+    "deployment_profiles": { "type": "array", "items": { "$ref": "#/$defs/deployment_profile" } },
+    "proof_dimensions": { "type": "array", "items": { "$ref": "#/$defs/proof_dimension" } },
+    "dimension_proof_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dimension_proof_state" }
+    },
+    "claim_classes": { "type": "array", "items": { "$ref": "#/$defs/claim_class" } },
+    "evidence_freshness_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_freshness" }
+    },
+    "narrowing_actions": { "type": "array", "items": { "$ref": "#/$defs/narrowing_action" } },
+    "parity_surfaces": { "type": "array", "items": { "$ref": "#/$defs/parity_surface" } },
+    "parity_states": { "type": "array", "items": { "$ref": "#/$defs/parity_state" } },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "string_array": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+    "ecosystem": {
+      "enum": ["cargo", "node_pnpm", "python_pip"]
+    },
+    "deployment_profile": {
+      "enum": ["direct_registry", "registry_mirror", "offline_snapshot"]
+    },
+    "proof_dimension": {
+      "enum": [
+        "package_state_truth",
+        "registry_auth_continuity",
+        "lockfile_safe_review",
+        "cross_surface_parity"
+      ]
+    },
+    "dimension_proof_state": {
+      "enum": ["proven", "degraded", "stale", "unproven"]
+    },
+    "claim_class": {
+      "enum": ["certified", "limited", "retest_pending", "unsupported"]
+    },
+    "evidence_freshness": {
+      "enum": ["current", "stale", "expired", "unknown"]
+    },
+    "narrowing_action": {
+      "enum": [
+        "none",
+        "narrow_to_limited",
+        "narrow_to_retest_pending",
+        "withhold_as_unsupported"
+      ]
+    },
+    "parity_surface": {
+      "enum": ["product", "cli", "docs_help", "support_export"]
+    },
+    "parity_state": {
+      "enum": ["consistent", "divergent", "absent"]
+    },
+    "dimension_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "state", "evidence_ref"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/proof_dimension" },
+        "state": { "$ref": "#/$defs/dimension_proof_state" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_parity_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "state"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/parity_surface" },
+        "state": { "$ref": "#/$defs/parity_state" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "ecosystem",
+        "deployment_profile",
+        "declared_claim",
+        "published_claim",
+        "evidence_freshness",
+        "narrowing_action",
+        "dimension_proofs",
+        "surface_parity",
+        "qualification_packet_ref",
+        "corpus_ref",
+        "note"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "ecosystem": { "$ref": "#/$defs/ecosystem" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+        "declared_claim": { "$ref": "#/$defs/claim_class" },
+        "published_claim": { "$ref": "#/$defs/claim_class" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "narrowing_action": { "$ref": "#/$defs/narrowing_action" },
+        "dimension_proofs": { "type": "array", "items": { "$ref": "#/$defs/dimension_proof" } },
+        "surface_parity": { "type": "array", "items": { "$ref": "#/$defs/surface_parity_cell" } },
+        "qualification_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/string_array" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "ecosystem_count",
+        "deployment_profile_count",
+        "dimension_count",
+        "certified_rows",
+        "limited_rows",
+        "retest_pending_rows",
+        "unsupported_rows",
+        "promotable_rows",
+        "narrowed_rows",
+        "withheld_rows",
+        "current_freshness_rows",
+        "fully_proven_rows",
+        "rows_with_parity_break"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "ecosystem_count": { "type": "integer", "minimum": 0 },
+        "deployment_profile_count": { "type": "integer", "minimum": 0 },
+        "dimension_count": { "type": "integer", "minimum": 0 },
+        "certified_rows": { "type": "integer", "minimum": 0 },
+        "limited_rows": { "type": "integer", "minimum": 0 },
+        "retest_pending_rows": { "type": "integer", "minimum": 0 },
+        "unsupported_rows": { "type": "integer", "minimum": 0 },
+        "promotable_rows": { "type": "integer", "minimum": 0 },
+        "narrowed_rows": { "type": "integer", "minimum": 0 },
+        "withheld_rows": { "type": "integer", "minimum": 0 },
+        "current_freshness_rows": { "type": "integer", "minimum": 0 },
+        "fully_proven_rows": { "type": "integer", "minimum": 0 },
+        "rows_with_parity_break": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

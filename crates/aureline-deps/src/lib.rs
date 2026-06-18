@@ -161,6 +161,20 @@
 //! block reason and no unselected required validation; and the result packet
 //! and rollback handle read identically across the desktop, CLI, AI, and
 //! support/export surfaces so automation never becomes a bypass lane.
+//!
+//! The module [`package_mutation_certification`] certifies the package-mutation
+//! claim as release-grade truth on every claimed ecosystem and every deployment
+//! profile — a direct registry, a registry mirror, or an offline snapshot. One
+//! [`package_mutation_certification::MutationCertificationRow`] per (ecosystem,
+//! profile) cell certifies the four mutation-proof dimensions — package-state
+//! truth, registry-auth continuity, lockfile-safe review, and cross-surface
+//! parity — and a publication gate fails closed: a stale dimension or stale
+//! freshness narrows the published claim to retest-pending, a degraded
+//! (mirror/offline-only) dimension narrows to limited, and an unproven dimension
+//! or expired evidence withholds it as unsupported. Cross-surface parity is
+//! recomputed from per-surface cells for product, CLI, docs/help, and support so
+//! a row cannot read green while those surfaces disagree, and the packet binds to
+//! the frozen matrix so every claimed surface shares one vocabulary.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
@@ -173,6 +187,7 @@ pub mod grouped_update_and_rollback_review;
 pub mod manifest_scope_and_source_review;
 pub mod operation_history;
 pub mod package_mutation_and_registry_review;
+pub mod package_mutation_certification;
 pub mod package_review_cross_surface_integration;
 pub mod package_set_inventory_and_scope_truth;
 pub mod package_state_descriptors;
@@ -367,4 +382,17 @@ pub use automation_governance::{
     ReviewedSheetBinding, RollbackHandleRef, ValidationTaskKind, ValidationTaskRow,
     ValidationTaskSelection, AUTOMATION_GOVERNANCE_JSON, AUTOMATION_GOVERNANCE_PATH,
     AUTOMATION_GOVERNANCE_RECORD_KIND, AUTOMATION_GOVERNANCE_SCHEMA_VERSION,
+};
+// The package-mutation certification lane reuses the frozen-matrix path constant
+// (`M5_PACKAGE_STATE_MATRIX_PATH`, reached through the frozen matrix above) for
+// its `matrix_ref` binding; it is not re-exported again here.
+pub use package_mutation_certification::{
+    current_package_mutation_certification, CertifiedEcosystem, ClaimNarrowing, DeploymentProfile,
+    DimensionProof, DimensionProofState, DimensionStateExport, EvidenceFreshness,
+    MutationCertificationRow, MutationClaimClass, PackageMutationCertification,
+    PackageMutationCertificationExportProjection, PackageMutationCertificationExportRow,
+    PackageMutationCertificationSummary, PackageMutationCertificationViolation, ParityState,
+    ParitySurface, ProofDimension, SurfaceParityCell, SurfaceParityExport,
+    PACKAGE_MUTATION_CERTIFICATION_JSON, PACKAGE_MUTATION_CERTIFICATION_PATH,
+    PACKAGE_MUTATION_CERTIFICATION_RECORD_KIND, PACKAGE_MUTATION_CERTIFICATION_SCHEMA_VERSION,
 };
