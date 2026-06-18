@@ -87,6 +87,7 @@ pub mod detectors;
 pub mod diagnostics;
 pub mod discovery;
 pub mod drift_repair;
+pub mod dry_run_explain;
 pub mod durable_test_items_and_partial_discovery;
 pub mod env_inspect;
 pub mod execution_context;
@@ -317,6 +318,31 @@ pub use drift_repair::{
     RemoteDriftRepairDiagnosticsPacket, RemoteDriftRepairGuidance,
     REMOTE_DRIFT_REPAIR_BETA_DIAGNOSTICS_PACKET_RECORD_KIND,
     REMOTE_DRIFT_REPAIR_BETA_GUIDANCE_RECORD_KIND, REMOTE_DRIFT_REPAIR_BETA_SCHEMA_VERSION,
+};
+pub use dry_run_explain::{
+    canonical_reused_contract_refs as dry_run_explain_reused_contract_refs,
+    current_dry_run_explain_first_consumers_input, seeded_blocked_preview,
+    seeded_consumer_preview as seeded_dry_run_explain_consumer_preview,
+    seeded_dry_run_explain_export_roundtrip, seeded_dry_run_explain_first_consumers_packet,
+    validate_dry_run_explain_first_consumers_packet, ArtifactDestination, ArtifactDestinationClass,
+    BlockerClass, DryRunExplainConsumerBinding, DryRunExplainError, DryRunExplainExport,
+    DryRunExplainFinding, DryRunExplainFindingKind, DryRunExplainFindingSeverity,
+    DryRunExplainFirstConsumersCliHeadlessView, DryRunExplainFirstConsumersInput,
+    DryRunExplainFirstConsumersPacket, DryRunExplainFirstConsumersSupportExport,
+    DryRunExplainInvariantsBlock, DryRunExplainPreview, DryRunExplainSupportActionRow,
+    DryRunExplainSupportConsumerRow, DryRunPreviewRunHistoryRow, IdempotenceClass, PredictedWrite,
+    PreviewedAction, SideEffectClass as DryRunSideEffectClass, TrustPolicyBlocker, WriteKind,
+    APPROVAL_POSTURE_NONE, APPROVAL_POSTURE_REQUIRED, DRY_RUN_EXPLAIN_DOC_REF,
+    DRY_RUN_EXPLAIN_EXPORT_RECORD_KIND, DRY_RUN_EXPLAIN_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND, DRY_RUN_EXPLAIN_FIRST_CONSUMERS_ID,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_PACKET_ARTIFACT_REF,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_RECORD_KIND, DRY_RUN_EXPLAIN_FIRST_CONSUMERS_SCHEMA_REF,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_SCHEMA_VERSION,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    DRY_RUN_EXPLAIN_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND, DRY_RUN_EXPLAIN_FIXTURE_DIR,
+    DRY_RUN_EXPLAIN_PACKET_RECORD_KIND, DRY_RUN_EXPLAIN_PACKET_SCHEMA_REF,
+    DRY_RUN_PREVIEW_RUN_HISTORY_ROW_RECORD_KIND, PREVIEW_POSTURE_NO_SAFE_PREVIEW,
+    PREVIEW_POSTURE_SUPPORTED,
 };
 pub use env_inspect::{
     seeded_env_inspect_resolver, seeded_env_inspect_snapshot, seeded_env_inspect_support_export,

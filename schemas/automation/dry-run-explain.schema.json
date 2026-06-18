@@ -1,0 +1,691 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/dry-run-explain.schema.json",
+  "title": "Aureline dry-run/explain preview object and first-consumers contract",
+  "description": "Boundary schema for the live dry-run/explain preview object and the M5 automation families that first consume it. Each previewed action carries a side-effect class (read-only inspection, predicted write, process launch, network call, or remote mutation), the predicted writes it would make (each an opaque workspace-relative target, never a raw absolute path), the artifact destinations its output would land in, the trust/policy blockers in its way, and an idempotence hint. The aggregate dry-run outcome and the safety-label union are derived from the actions and posture, so a mutating action cannot read as safe by dropping its label. A dry_run_explain_export_record nests the whole preview plus its frozen packet projection and an attributable run-history row so the side-effect truth survives export, run history, and support. The m5_dry_run_explain_first_consumers_packet binds each first-consumer entrypoint (notebook, task/test/debug, request/API, package, incident, AI assistant) to a seeded preview and pins the freeze invariants; a dropped entrypoint, an undeclared predicted write, a mutating action mislabeled read-only, an inconsistent outcome or label projection, or a violated invariant blocks stable. The dry_run_outcome_class, safety-label, and promotion vocabularies are re-exported from recipe-builder.schema.json and automation-contract-baseline.schema.json; a raw path/URL/content value or a parallel outcome vocabulary is non-conforming.",
+  "oneOf": [
+    { "$ref": "#/$defs/dry_run_explain_first_consumers_packet" },
+    { "$ref": "#/$defs/dry_run_explain_first_consumers_support_export" },
+    { "$ref": "#/$defs/dry_run_explain_first_consumers_cli_headless" },
+    { "$ref": "#/$defs/dry_run_explain_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted canonical verb the step invokes."
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection",
+        "predicted_write",
+        "process_launch",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "The side-effect class of a previewed action. read_only_inspection mutates nothing; the other classes each project a frozen safety label."
+    },
+    "write_kind": {
+      "type": "string",
+      "enum": [
+        "create_file",
+        "modify_file",
+        "delete_file",
+        "append_file",
+        "buffer_edit",
+        "stage_vcs"
+      ],
+      "description": "The kind of a predicted write."
+    },
+    "artifact_destination_class": {
+      "type": "string",
+      "enum": [
+        "workspace_file",
+        "device_local_path",
+        "remote_target",
+        "network_endpoint",
+        "external_registry",
+        "support_bundle"
+      ],
+      "description": "Where an action's output artifact would land."
+    },
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "trust_gate",
+        "policy_gate",
+        "capability_gate",
+        "approval_required_gate",
+        "missing_credential_gate"
+      ],
+      "description": "The class of a trust or policy blocker in an action's way. Every class but approval_required_gate denies apply outright when blocking."
+    },
+    "idempotence_class": {
+      "type": "string",
+      "enum": ["idempotent", "idempotent_with_key", "not_idempotent", "unknown_idempotence"],
+      "description": "An idempotence hint for re-running a previewed action."
+    },
+    "dry_run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "would_apply",
+        "would_apply_under_approval",
+        "would_be_denied_at_gate",
+        "no_safe_preview"
+      ],
+      "description": "Re-exported aggregate dry-run outcome vocabulary from recipe-builder.schema.json."
+    },
+    "safety_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "Re-exported controlled-automation safety label from recipe-builder.schema.json."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "entrypoint": {
+      "type": "string",
+      "enum": ["notebook", "task_test_debug", "request_api", "package", "incident", "ai_assistant"],
+      "description": "A first-consumer automation family that explains side effects through the canonical preview."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_entrypoint",
+        "entrypoint_preview_empty",
+        "predicted_write_not_declared",
+        "mutating_action_mislabeled_read_only",
+        "outcome_projection_inconsistent",
+        "safety_label_projection_inconsistent",
+        "invariant_violated"
+      ]
+    },
+    "finding_severity": { "type": "string", "enum": ["blocker", "warning"] },
+    "predicted_write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["write_kind", "target_ref", "reversible", "summary"],
+      "properties": {
+        "write_kind": { "$ref": "#/$defs/write_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, workspace-relative target reference; never a raw absolute path."
+        },
+        "reversible": { "type": "boolean" },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable summary of the write; never the raw content."
+        }
+      },
+      "description": "One write a previewed action would make before apply."
+    },
+    "artifact_destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination_class", "destination_ref", "summary"],
+      "properties": {
+        "destination_class": { "$ref": "#/$defs/artifact_destination_class" },
+        "destination_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque destination reference; never a raw path, URL, or host."
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One destination an action's output artifact would land in."
+    },
+    "trust_policy_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_class", "blocking", "policy_ref", "summary"],
+      "properties": {
+        "blocker_class": { "$ref": "#/$defs/blocker_class" },
+        "blocking": { "type": "boolean" },
+        "policy_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque policy, ticket, or capability reference, or null."
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One trust or policy blocker an action discloses before apply."
+    },
+    "previewed_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "canonical_verb",
+        "explanation",
+        "side_effect_class",
+        "predicted_writes",
+        "artifact_destinations",
+        "trust_policy_blockers",
+        "idempotence_class",
+        "reversible",
+        "capability_declarations",
+        "blast_radius_summary"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "predicted_writes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/predicted_write" }
+        },
+        "artifact_destinations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_destination" }
+        },
+        "trust_policy_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_policy_blocker" }
+        },
+        "idempotence_class": { "$ref": "#/$defs/idempotence_class" },
+        "reversible": { "type": "boolean" },
+        "capability_declarations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "blast_radius_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One side-effect-bearing action in a dry-run/explain preview. A predicted_write side-effect class must declare at least one predicted_write; a read_only_inspection must declare none."
+    },
+    "dry_run_step_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "canonical_verb",
+        "explanation",
+        "capability_declarations",
+        "projected_safety_labels",
+        "reversible",
+        "blast_radius_summary"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" },
+        "capability_declarations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "reversible": { "type": "boolean" },
+        "blast_radius_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One explained step, identical to recipe-builder.schema.json#/$defs/dry_run_step_explanation."
+    },
+    "dry_run_explain_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "packet_id",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "dry_run_outcome_class",
+        "aggregate_safety_labels",
+        "step_explanations",
+        "preview_posture_class",
+        "approval_posture_class",
+        "run_record_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "dry_run_explain_packet_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_outcome_class": { "$ref": "#/$defs/dry_run_outcome_class" },
+        "aggregate_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "step_explanations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dry_run_step_explanation" }
+        },
+        "preview_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The frozen dry-run/explain preview packet the preview projects, re-used from recipe-builder.schema.json."
+    },
+    "dry_run_preview_run_history_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "recorded_at",
+        "preview_id",
+        "entrypoint",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "dry_run_outcome_class",
+        "aggregate_safety_labels",
+        "predicted_write_count",
+        "process_launch_count",
+        "network_call_count",
+        "remote_mutation_count",
+        "blocking_blocker_count",
+        "irreversible_action_count",
+        "preview_digest",
+        "run_record_schema_ref",
+        "run_history_row_schema_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "dry_run_preview_run_history_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_outcome_class": { "$ref": "#/$defs/dry_run_outcome_class" },
+        "aggregate_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "predicted_write_count": { "type": "integer", "minimum": 0 },
+        "process_launch_count": { "type": "integer", "minimum": 0 },
+        "network_call_count": { "type": "integer", "minimum": 0 },
+        "remote_mutation_count": { "type": "integer", "minimum": 0 },
+        "blocking_blocker_count": { "type": "integer", "minimum": 0 },
+        "irreversible_action_count": { "type": "integer", "minimum": 0 },
+        "preview_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_history_row_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "An attributable run-history row carrying a preview result so it survives after the dialog closes."
+    },
+    "dry_run_explain_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "entrypoint",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "title",
+        "summary",
+        "preview_posture_class",
+        "approval_posture_class",
+        "portability_labels",
+        "actions",
+        "minted_at"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "preview_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "portability_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/previewed_action" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The live, mutable dry-run/explain preview object preserved verbatim by an export."
+    },
+    "dry_run_explain_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_record",
+        "run_history_row",
+        "preview",
+        "export_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "dry_run_explain_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_record": { "$ref": "#/$defs/dry_run_explain_packet_record" },
+        "run_history_row": { "$ref": "#/$defs/dry_run_preview_run_history_row" },
+        "preview": { "$ref": "#/$defs/dry_run_explain_preview" },
+        "export_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "A preview exported for rerun review, sharing, or support bundles. The nested preview, frozen packet, and run-history row preserve every action's side-effect class, predicted writes, destinations, blockers, and idempotence hint; import reconstructs the identical preview."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_entrypoint_binds_a_preview",
+        "predicted_writes_are_explicit_before_apply",
+        "process_network_remote_actions_are_labeled",
+        "trust_and_policy_blockers_are_visible",
+        "artifact_destinations_are_named",
+        "idempotence_hints_are_present",
+        "outcome_and_labels_reuse_the_frozen_vocabulary",
+        "preview_survives_export_history_and_support"
+      ],
+      "properties": {
+        "every_entrypoint_binds_a_preview": { "type": "boolean" },
+        "predicted_writes_are_explicit_before_apply": { "type": "boolean" },
+        "process_network_remote_actions_are_labeled": { "type": "boolean" },
+        "trust_and_policy_blockers_are_visible": { "type": "boolean" },
+        "artifact_destinations_are_named": { "type": "boolean" },
+        "idempotence_hints_are_present": { "type": "boolean" },
+        "outcome_and_labels_reuse_the_frozen_vocabulary": { "type": "boolean" },
+        "preview_survives_export_history_and_support": { "type": "boolean" }
+      }
+    },
+    "dry_run_explain_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "type": ["string", "null"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "preview_id",
+        "builder_id",
+        "preview_posture_class",
+        "approval_posture_class",
+        "portability_labels",
+        "packet_record",
+        "previewed_actions",
+        "run_history_row",
+        "dry_run_outcome_class",
+        "aggregate_safety_labels",
+        "action_count",
+        "predicted_write_count",
+        "process_launch_count",
+        "network_call_count",
+        "remote_mutation_count",
+        "blocking_blocker_count",
+        "entry_summary"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "portability_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "packet_record": { "$ref": "#/$defs/dry_run_explain_packet_record" },
+        "previewed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/previewed_action" }
+        },
+        "run_history_row": { "$ref": "#/$defs/dry_run_preview_run_history_row" },
+        "dry_run_outcome_class": { "$ref": "#/$defs/dry_run_outcome_class" },
+        "aggregate_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "action_count": { "type": "integer", "minimum": 1 },
+        "predicted_write_count": { "type": "integer", "minimum": 0 },
+        "process_launch_count": { "type": "integer", "minimum": 0 },
+        "network_call_count": { "type": "integer", "minimum": 0 },
+        "remote_mutation_count": { "type": "integer", "minimum": 0 },
+        "blocking_blocker_count": { "type": "integer", "minimum": 0 },
+        "entry_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One first-consumer entrypoint bound to the seeded preview it explains."
+    },
+    "dry_run_explain_first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "packet_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "consumer_bindings",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_dry_run_explain_first_consumers_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dry_run_explain_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "Canonical first-consumers packet binding every automation family to a seeded preview and pinning the freeze invariants."
+    },
+    "support_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "canonical_verb",
+        "side_effect_class",
+        "idempotence_class",
+        "reversible",
+        "predicted_write_count",
+        "artifact_destination_classes",
+        "blocker_classes",
+        "has_blocking_blocker",
+        "projected_safety_labels"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "idempotence_class": { "$ref": "#/$defs/idempotence_class" },
+        "reversible": { "type": "boolean" },
+        "predicted_write_count": { "type": "integer", "minimum": 0 },
+        "artifact_destination_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_destination_class" }
+        },
+        "blocker_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocker_class" }
+        },
+        "has_blocking_blocker": { "type": "boolean" },
+        "projected_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        }
+      },
+      "description": "One redacted support-export action row; never carries a raw path, URL, or content."
+    },
+    "support_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "preview_id",
+        "dry_run_outcome_class",
+        "aggregate_safety_labels",
+        "action_count",
+        "predicted_write_count",
+        "process_launch_count",
+        "network_call_count",
+        "remote_mutation_count",
+        "blocking_blocker_count",
+        "action_rows"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_outcome_class": { "$ref": "#/$defs/dry_run_outcome_class" },
+        "aggregate_safety_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safety_label" }
+        },
+        "action_count": { "type": "integer", "minimum": 1 },
+        "predicted_write_count": { "type": "integer", "minimum": 0 },
+        "process_launch_count": { "type": "integer", "minimum": 0 },
+        "network_call_count": { "type": "integer", "minimum": 0 },
+        "remote_mutation_count": { "type": "integer", "minimum": 0 },
+        "blocking_blocker_count": { "type": "integer", "minimum": 0 },
+        "action_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_action_row" }
+        }
+      }
+    },
+    "dry_run_explain_first_consumers_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "consumer_rows",
+        "run_history_rows",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_dry_run_explain_first_consumers_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_consumer_row" }
+        },
+        "run_history_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dry_run_preview_run_history_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_kind" }
+        }
+      },
+      "description": "Redacted support-export projection of the first-consumers packet. Side effects appear only as classes and counts, and the attributable run-history rows ride along so the preview result survives support."
+    },
+    "dry_run_explain_first_consumers_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "consumer_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_dry_run_explain_first_consumers_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Compact CLI / headless projection of the first-consumers packet."
+    }
+  }
+}
