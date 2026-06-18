@@ -104,6 +104,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
+pub mod m5_automation_contract_baseline;
 pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
@@ -568,6 +569,33 @@ pub use m5_adapter_hierarchy_negotiation::{
     ADAPTER_NEGOTIATION_RECORD_KIND, ADAPTER_NEGOTIATION_SCHEMA_REF,
     ADAPTER_NEGOTIATION_SCHEMA_VERSION, ADAPTER_NEGOTIATION_SUPPORT_EXPORT_ID,
     ADAPTER_NEGOTIATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_automation_contract_baseline::{
+    canonical_safety_labels, current_automation_contract_baseline_input,
+    seeded_automation_contract_baseline_packet, seeded_dry_run_explain_packet,
+    seeded_macro_session_discarded, seeded_macro_session_stopped_promotable,
+    seeded_parameter_review_sheet, seeded_recipe_builder_session_blocked,
+    seeded_recipe_builder_session_preview_ready, validate_automation_contract_baseline_packet,
+    ArgumentInspectionKind, AutomationBaselinePromotionState,
+    AutomationContractBaselineCliHeadlessView, AutomationContractBaselineInput,
+    AutomationContractBaselinePacket, AutomationContractBaselineSupportExport,
+    AutomationObjectFamily, AutomationSafetyLabel, AutomationSafetyLabelId,
+    AutomationSafetyLabelManifest, BaselineFindingKind, BaselineFindingSeverity,
+    BaselineInvariantsBlock, BaselineValidationFinding, BuilderValidationFinding, ContentAddress,
+    DryRunExplainPacket, DryRunOutcomeClass, DryRunStepExplanation, MacroCaptureStep,
+    MacroPromotionAffordanceClass, MacroRecorderStateClass, MacroSession, ObjectFamilyBinding,
+    ParameterReviewRow, ParameterReviewSheet, ParameterReviewVerdictClass, RecipeBuilderSession,
+    RecipeBuilderStateClass, RecipeBuilderStepDraft, SafetyLabelKind, SupportExportFamilyRow,
+    AUTOMATION_CONTRACT_BASELINE_CLI_HEADLESS_ID,
+    AUTOMATION_CONTRACT_BASELINE_CLI_HEADLESS_RECORD_KIND, AUTOMATION_CONTRACT_BASELINE_DOC_REF,
+    AUTOMATION_CONTRACT_BASELINE_FIXTURE_ROOT, AUTOMATION_CONTRACT_BASELINE_ID,
+    AUTOMATION_CONTRACT_BASELINE_PACKET_ARTIFACT_REF, AUTOMATION_CONTRACT_BASELINE_RECORD_KIND,
+    AUTOMATION_CONTRACT_BASELINE_SCHEMA_REF, AUTOMATION_CONTRACT_BASELINE_SCHEMA_VERSION,
+    AUTOMATION_CONTRACT_BASELINE_SUPPORT_EXPORT_ID,
+    AUTOMATION_CONTRACT_BASELINE_SUPPORT_EXPORT_RECORD_KIND, AUTOMATION_SAFETY_LABEL_MANIFEST_ID,
+    AUTOMATION_SAFETY_LABEL_MANIFEST_RECORD_KIND, CONTROLLED_AUTOMATION_LABEL_SCHEMA_REF,
+    MACRO_SESSION_SCHEMA_REF, RECIPE_BUILDER_SCHEMA_REF, RECIPE_MANIFEST_SCHEMA_REF,
+    RUN_HISTORY_ROW_SCHEMA_REF, RUN_RECORD_SCHEMA_REF, RUN_SUMMARY_EXPORT_SCHEMA_REF,
 };
 pub use m5_cross_surface_event_reuse::{
     current_stable_cross_surface_event_reuse_input, seeded_cross_surface_event_reuse_packet,

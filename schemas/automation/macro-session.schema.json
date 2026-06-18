@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/macro-session.schema.json",
+  "title": "Aureline macro-recorder session contract",
+  "description": "Boundary schema for the M5 macro-recorder session frozen in docs/m5/recipe-builder-and-macro-contract.md. Every macro-recorder session a user records publishes exactly one macro_session_record. The recorder is deliberately narrow: every captured step is strictly constrained to UI or editor state drawn from the recorded_macro_surface_class vocabulary, the projected safety labels are limited to macro_safe and ui_only, ambient network / process / secret capture is forbidden mechanically, and the macro is never admissible on the managed-only channel. A stopped session mints a recorded_macro_manifest_record (recipe_manifest.schema.json); a discarded session mints none. Raw DOM, raw buffer bytes, raw shell commands, raw URLs, and raw credential material never cross this boundary; the record carries opaque ids, closed vocabulary, content-address digests, and reviewable sentences only. Adding a new recorder_state_class, recorded_macro_surface_class, replay_posture_class, or promotion_affordance_class is additive-minor and bumps macro_session_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/macro_session_record",
+  "$defs": {
+    "macro_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump it."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw paths, raw URLs, raw payloads, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for palette preview, CLI --describe output, docs pages, and support-bundle previews."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "controlled_automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "Re-exported controlled-automation-label vocabulary. A macro-recorder session may only project macro_safe and ui_only; the macro_session_record enforces that subset."
+    },
+    "recorder_state_class": {
+      "type": "string",
+      "enum": ["recording", "paused", "stopped", "discarded", "promoted_to_recipe"],
+      "description": "Frozen macro-recorder lifecycle vocabulary. recording is actively capturing; paused is suspended; stopped has captured the macro; discarded mints no macro; promoted_to_recipe has been re-authored as a declarative recipe."
+    },
+    "recorded_macro_surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_document_state",
+        "editor_selection_and_cursor_state",
+        "editor_multi_cursor_edits",
+        "editor_find_and_replace_state",
+        "command_palette_selection_state",
+        "ui_panel_open_close_state",
+        "ui_focus_move_state",
+        "ui_layout_reshape_state",
+        "keybinding_chord_replay_state"
+      ],
+      "description": "Re-exported recorded-macro surface vocabulary from recipe_manifest.schema.json. Every captured step MUST quote exactly one of these; minting a parallel surface (shell_command, network_fetch, credential_read) is non-conforming and the closed set is the schema's enforcement that recorded macros are constrained to explicit UI or editor state."
+    },
+    "macro_replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "replay_ui_or_editor_state_only",
+        "replay_keybinding_chord_only",
+        "replay_command_palette_selection_only"
+      ],
+      "description": "Frozen replay-posture for a captured macro step. Every step is strictly UI or editor state; invoking a command descriptor from a macro step is non-conforming."
+    },
+    "storage_scope_class": {
+      "type": "string",
+      "enum": [
+        "user_scope_local_only",
+        "workspace_scope_local_only",
+        "portable_profile_export_only",
+        "support_bundle_export_only"
+      ],
+      "description": "Re-exported storage-scope vocabulary, narrowed for recorded macros. organization_scope_managed_only_channel is non-conforming on a macro session; an organization-distributed recipe MUST be a declarative recipe."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-exported redaction class drawn from the capability lifecycle / secret broker contract."
+    },
+    "promotion_affordance_class": {
+      "type": "string",
+      "enum": [
+        "promotable_to_declarative_recipe",
+        "not_promotable_ui_only",
+        "promotion_blocked_by_policy"
+      ],
+      "description": "Frozen promotion-affordance vocabulary. A captured macro is re-authored as a declarative recipe via promotion; promotion is never a silent forward."
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex", "digest_size_bytes"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Content-address of the captured UI / editor state. The macro replayer MUST refuse to drift from the captured state without an explicit reconciliation step; raw DOM / raw buffer bytes never cross this boundary."
+    },
+    "macro_capture_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "surface_class", "state_digest", "replay_posture_class", "captured_at"],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/recorded_macro_surface_class" },
+        "state_digest": { "$ref": "#/$defs/content_address" },
+        "replay_posture_class": { "$ref": "#/$defs/macro_replay_posture_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One captured macro step, strictly constrained to UI or editor state."
+    },
+    "macro_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "macro_session_schema_version",
+        "session_id",
+        "title",
+        "summary",
+        "recorder_state_class",
+        "storage_scope_class",
+        "projected_safety_labels",
+        "captured_steps",
+        "redaction_class",
+        "promotion_affordance_class",
+        "resulting_macro_manifest_ref",
+        "manifest_target_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "macro_session_record" },
+        "macro_session_schema_version": { "$ref": "#/$defs/macro_session_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorder_state_class": { "$ref": "#/$defs/recorder_state_class" },
+        "storage_scope_class": { "$ref": "#/$defs/storage_scope_class" },
+        "projected_safety_labels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["macro_safe", "ui_only"]
+          },
+          "description": "A macro-recorder session may only project macro_safe and ui_only. Any other label is non-conforming; the closed subset is the schema's enforcement that recorded macros have no ambient effect."
+        },
+        "captured_steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_capture_step" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "promotion_affordance_class": { "$ref": "#/$defs/promotion_affordance_class" },
+        "resulting_macro_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the recorded_macro_manifest_record this session minted, or null when the session was discarded."
+        },
+        "manifest_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Schema the recorder mints a recorded-macro manifest against on stop. MUST be schemas/automation/recipe_manifest.schema.json."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A discarded session mints no macro manifest and is not promotable.",
+          "if": {
+            "properties": { "recorder_state_class": { "const": "discarded" } }
+          },
+          "then": {
+            "properties": {
+              "resulting_macro_manifest_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "A stopped or promoted session has a non-null resulting macro manifest ref.",
+          "if": {
+            "properties": {
+              "recorder_state_class": { "enum": ["stopped", "promoted_to_recipe"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "resulting_macro_manifest_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ],
+      "description": "Canonical macro-recorder session. Strictly constrained to UI or editor state; ambient network / process / secret capture is forbidden mechanically by the closed surface and label vocabularies."
+    }
+  }
+}

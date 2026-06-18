@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/automation-contract-baseline.schema.json",
+  "title": "Aureline M5 automation contract baseline packet",
+  "description": "Boundary schema for the canonical M5 automation contract baseline frozen in docs/m5/recipe-builder-and-macro-contract.md. The packet binds the six automation object families (recipe builder, parameter review, dry-run/explain, run history, macro recorder, and safety labels) to their boundary schemas, state vocabularies, evidence hooks, and consumer surfaces, carries the whole reused safety-label vocabulary, pins the freeze invariants as schema-level constants, and records the validation findings and promotion state the fail-closed gate enforces. A missing family, an incomplete or miscategorized safety-label set, a dropped reused-contract ref, or a violated invariant blocks stable. The typed Rust consumer mints the same packet, so the checked-in artifact is bit-for-bit derivable from the seed.",
+  "type": "object",
+  "$ref": "#/$defs/automation_contract_baseline_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "repo_relative_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path to a schema, doc, fixture, or artifact this baseline binds."
+    },
+    "object_family": {
+      "type": "string",
+      "enum": [
+        "recipe_builder",
+        "parameter_review",
+        "dry_run_explain",
+        "run_history",
+        "macro_recorder",
+        "safety_labels"
+      ],
+      "description": "Frozen automation object-family vocabulary. All six are bound in a conforming baseline."
+    },
+    "controlled_automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ]
+    },
+    "safety_label_kind": {
+      "type": "string",
+      "enum": ["admissibility_cue", "effect_disclosure"]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["blocker", "warning"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_object_family",
+        "family_missing_schema_ref",
+        "family_missing_evidence_hook",
+        "family_missing_consumer_surface",
+        "family_missing_state_vocabulary",
+        "safety_label_set_incomplete",
+        "safety_label_miscategorized",
+        "reused_contract_ref_missing",
+        "invariant_violated"
+      ],
+      "description": "Frozen baseline validation-finding vocabulary. A clean baseline has none."
+    },
+    "automation_safety_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_id", "display_token", "label_kind", "source_axis_ref", "meaning"],
+      "properties": {
+        "label_id": { "$ref": "#/$defs/controlled_automation_label" },
+        "display_token": { "$ref": "#/$defs/non_empty_string" },
+        "label_kind": { "$ref": "#/$defs/safety_label_kind" },
+        "source_axis_ref": { "$ref": "#/$defs/non_empty_string" },
+        "meaning": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "object_family_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "title",
+        "schema_ref",
+        "doc_anchor",
+        "state_vocabulary",
+        "evidence_hook_refs",
+        "consumer_surfaces",
+        "reused_from_refs"
+      ],
+      "properties": {
+        "family": { "$ref": "#/$defs/object_family" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/repo_relative_ref" },
+        "doc_anchor": { "$ref": "#/$defs/non_empty_string" },
+        "state_vocabulary": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "evidence_hook_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_relative_ref" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "reused_from_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_relative_ref" }
+        }
+      },
+      "description": "One family binding: which schema, doc anchor, state vocabulary, evidence hooks, and consumer surfaces a family freezes."
+    },
+    "baseline_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recipe_builder_emits_declarative_manifests_only",
+        "macro_recorder_constrained_to_ui_or_editor_state",
+        "dry_run_explain_required_before_irreversible_apply",
+        "parameter_review_resolves_provenance_before_apply",
+        "one_safety_label_vocabulary_reused_across_surfaces",
+        "safety_labels_project_from_existing_axes_not_minted",
+        "run_history_reuses_the_canonical_run_record",
+        "no_hidden_ui_shortcut_widens_automation_authority",
+        "reruns_reresolve_current_context_never_replay_stale_authority"
+      ],
+      "properties": {
+        "recipe_builder_emits_declarative_manifests_only": { "const": true },
+        "macro_recorder_constrained_to_ui_or_editor_state": { "const": true },
+        "dry_run_explain_required_before_irreversible_apply": { "const": true },
+        "parameter_review_resolves_provenance_before_apply": { "const": true },
+        "one_safety_label_vocabulary_reused_across_surfaces": { "const": true },
+        "safety_labels_project_from_existing_axes_not_minted": { "const": true },
+        "run_history_reuses_the_canonical_run_record": { "const": true },
+        "no_hidden_ui_shortcut_widens_automation_authority": { "const": true },
+        "reruns_reresolve_current_context_never_replay_stale_authority": { "const": true }
+      },
+      "description": "Freeze invariants pinned as schema-level constants. A false value is non-conforming; the block is how the contract freezes its MUST rules mechanically."
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "automation_contract_baseline_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "baseline_schema_ref",
+        "recipe_builder_schema_ref",
+        "macro_session_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "object_families",
+        "safety_labels",
+        "fixture_refs",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "baseline_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_automation_contract_baseline_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "baseline_schema_ref": { "$ref": "#/$defs/repo_relative_ref" },
+        "recipe_builder_schema_ref": { "$ref": "#/$defs/repo_relative_ref" },
+        "macro_session_schema_ref": { "$ref": "#/$defs/repo_relative_ref" },
+        "doc_ref": { "$ref": "#/$defs/repo_relative_ref" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_relative_ref" }
+        },
+        "object_families": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/object_family_binding" },
+          "description": "All six object-family bindings, present once each."
+        },
+        "safety_labels": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/automation_safety_label" },
+          "description": "The whole reused safety-label vocabulary."
+        },
+        "fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_relative_ref" }
+        },
+        "invariants": { "$ref": "#/$defs/baseline_invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "baseline_digest": {
+          "type": "string",
+          "pattern": "^fnv1a64:[0-9a-f]{16}$",
+          "description": "Order-invariant FNV-1a 64-bit digest over the frozen family and label tokens."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A stable baseline carries no validation findings.",
+          "if": {
+            "properties": { "promotion_state": { "const": "stable" } }
+          },
+          "then": {
+            "properties": {
+              "validation_findings": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      ],
+      "description": "Canonical M5 automation contract baseline packet."
+    }
+  }
+}

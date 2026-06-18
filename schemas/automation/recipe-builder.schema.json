@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/recipe-builder.schema.json",
+  "title": "Aureline recipe-builder, parameter-review, dry-run/explain, and safety-label contract",
+  "description": "Boundary schema for the M5 automation authoring and preview object families frozen in docs/m5/recipe-builder-and-macro-contract.md. A live recipe-builder authoring session publishes a recipe_builder_session_record; the pre-apply parameter-review sheet publishes a parameter_review_sheet_record; the dry-run/explain preview publishes a dry_run_explain_packet_record; and the reused controlled-automation-label vocabulary publishes an automation_safety_label_manifest_record. The builder emits declarative recipe manifests only (it cites command descriptors via command_id / command_revision_ref and never embeds raw shell, paths, URLs, prompt text, or credential material); the safety labels reuse the controlled_automation_label vocabulary frozen in automation-manifest.schema.json rather than minting parallel labels. Adding a new builder_state_class, parameter_review_verdict_class, dry_run_outcome_class, argument_inspection_kind, or safety_label_kind is additive-minor and bumps recipe_builder_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "oneOf": [
+    { "$ref": "#/$defs/recipe_builder_session_record" },
+    { "$ref": "#/$defs/parameter_review_sheet_record" },
+    { "$ref": "#/$defs/dry_run_explain_packet_record" },
+    { "$ref": "#/$defs/automation_safety_label_manifest_record" }
+  ],
+  "$defs": {
+    "recipe_builder_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump it."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw JSON payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for palette preview, CLI --describe output, docs pages, and support-bundle previews."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from the command descriptor without modification."
+    },
+    "controlled_automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "Re-exported controlled-automation-label vocabulary from schemas/automation/automation-manifest.schema.json#/$defs/controlled_automation_label. The first five are admissibility cues (where automation may run); the last four are effect disclosures (what automation does). Minting a parallel label is non-conforming."
+    },
+    "safety_label_kind": {
+      "type": "string",
+      "enum": ["admissibility_cue", "effect_disclosure"],
+      "description": "Whether a safety label states where automation may run (admissibility_cue) or what material effect it has (effect_disclosure)."
+    },
+    "builder_state_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "validation_failed",
+        "preview_ready",
+        "approval_required",
+        "blocked"
+      ],
+      "description": "Frozen recipe-builder authoring-state vocabulary. draft is the default; validation_failed has a blocking validation finding; preview_ready has validated and a dry-run/explain preview is available; approval_required is preview-ready but cannot apply without an approval ticket; blocked cannot apply by trust, policy, or a denied label."
+    },
+    "authoring_language_class": {
+      "type": "string",
+      "enum": [
+        "declarative_yaml_recipe",
+        "declarative_json_recipe",
+        "declarative_portable_profile_embedded_recipe"
+      ],
+      "description": "Re-exported declarative authoring-language vocabulary from recipe_manifest.schema.json. A 'shell script' recipe is non-conforming; the builder emits declarative manifests only."
+    },
+    "recipe_step_kind": {
+      "type": "string",
+      "enum": [
+        "invoke_descriptor_command",
+        "invoke_descriptor_command_under_approval",
+        "invoke_descriptor_command_under_dry_run",
+        "emit_deferred_intent_hook",
+        "emit_queued_action_hook",
+        "checkpoint_for_reconciliation",
+        "branch_on_previous_step_outcome",
+        "abort_on_gate_denial"
+      ],
+      "description": "Re-exported recipe-step-kind vocabulary from recipe_manifest.schema.json."
+    },
+    "argument_inspection_kind": {
+      "type": "string",
+      "enum": [
+        "typed_argument_slot_ref",
+        "policy_pinned_argument_ref",
+        "credential_handle_argument_ref",
+        "selection_backed_argument_ref",
+        "focused_context_backed_argument_ref",
+        "default_from_descriptor_argument_ref",
+        "ai_proposed_argument_ref",
+        "automation_recipe_supplied_argument_ref",
+        "extension_supplied_argument_ref"
+      ],
+      "description": "Re-exported argument-inspection kind from docs/commands/shareability_and_automation_contract.md without modification."
+    },
+    "parameter_review_verdict_class": {
+      "type": "string",
+      "enum": [
+        "resolved",
+        "needs_input",
+        "policy_pinned",
+        "sensitive_held_for_review",
+        "blocked"
+      ],
+      "description": "Frozen parameter-review verdict vocabulary. resolved is ready to apply; needs_input still needs user input; policy_pinned is fixed by admin policy; sensitive_held_for_review is held behind a broker handle; blocked cannot resolve."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-exported redaction class drawn from the capability lifecycle / secret broker contract."
+    },
+    "dry_run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "would_apply",
+        "would_apply_under_approval",
+        "would_be_denied_at_gate",
+        "no_safe_preview"
+      ],
+      "description": "Frozen aggregate dry-run outcome vocabulary."
+    },
+    "preview_posture_class": {
+      "type": "string",
+      "enum": [
+        "preview_required_before_apply",
+        "preview_supported",
+        "preview_not_applicable_read_only",
+        "preview_denial_no_safe_preview"
+      ],
+      "description": "Re-exported preview-posture vocabulary from recipe_manifest.schema.json."
+    },
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_required_once_per_run",
+        "approval_required_per_step",
+        "approval_required_on_every_high_blast_step",
+        "approval_required_on_every_irreversible_step",
+        "approval_denied_for_recipe"
+      ],
+      "description": "Re-exported approval-posture vocabulary from recipe_manifest.schema.json."
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["blocker", "warning"],
+      "description": "Whether a builder validation finding blocks apply or only warns."
+    },
+    "automation_safety_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_id", "display_token", "label_kind", "source_axis_ref", "meaning"],
+      "properties": {
+        "label_id": { "$ref": "#/$defs/controlled_automation_label" },
+        "display_token": { "$ref": "#/$defs/non_empty_string" },
+        "label_kind": { "$ref": "#/$defs/safety_label_kind" },
+        "source_axis_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The frozen vocabulary axis this label projects from. MUST reference schemas/automation/automation-manifest.schema.json#/$defs/controlled_automation_label; labels are reused, never minted."
+        },
+        "meaning": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One row of the reused safety-label vocabulary."
+    },
+    "recipe_builder_step_draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_kind",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "capability_declarations",
+        "projected_safety_labels"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_kind": { "$ref": "#/$defs/recipe_step_kind" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        }
+      },
+      "description": "One authored step draft. The step cites a command_id and revision resolvable against the command descriptor schema; raw shell / raw paths / raw URLs never appear."
+    },
+    "builder_validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "recipe_builder_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "title",
+        "summary",
+        "builder_state_class",
+        "authoring_language_class",
+        "step_drafts",
+        "projected_safety_labels",
+        "validation_findings",
+        "parameter_review_sheet_ref",
+        "dry_run_explain_packet_ref",
+        "manifest_target_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_builder_session_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/recipe_builder_schema_version" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "builder_state_class": { "$ref": "#/$defs/builder_state_class" },
+        "authoring_language_class": { "$ref": "#/$defs/authoring_language_class" },
+        "step_drafts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_builder_step_draft" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/builder_validation_finding" }
+        },
+        "parameter_review_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_explain_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Schema the builder emits a declarative recipe manifest against on save. MUST be schemas/automation/recipe_manifest.schema.json; the builder emits declarative manifests only."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A blocked or validation_failed session carries at least one blocking validation finding.",
+          "if": {
+            "properties": {
+              "builder_state_class": { "enum": ["blocked", "validation_failed"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "validation_findings": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": { "severity": { "const": "blocker" } }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical recipe-builder authoring session. Emits declarative manifests only and projects safety labels from the reused vocabulary."
+    },
+    "parameter_review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_name",
+        "inspection_kind",
+        "verdict_class",
+        "required",
+        "sensitivity_class",
+        "summary"
+      ],
+      "properties": {
+        "parameter_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "inspection_kind": { "$ref": "#/$defs/argument_inspection_kind" },
+        "verdict_class": { "$ref": "#/$defs/parameter_review_verdict_class" },
+        "required": { "type": "boolean" },
+        "sensitivity_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable summary of the parameter; never the raw value."
+        }
+      }
+    },
+    "parameter_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "sheet_id",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "rows",
+        "unresolved_required_count",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "parameter_review_sheet_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/recipe_builder_schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/parameter_review_row" }
+        },
+        "unresolved_required_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of required parameters still unresolved. Apply is blocked while this is greater than zero."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Canonical pre-apply parameter-review sheet. Resolves every argument's provenance before apply."
+    },
+    "dry_run_step_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "canonical_verb",
+        "explanation",
+        "capability_declarations",
+        "projected_safety_labels",
+        "reversible",
+        "blast_radius_summary"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "reversible": { "type": "boolean" },
+        "blast_radius_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "dry_run_explain_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "packet_id",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "dry_run_outcome_class",
+        "aggregate_safety_labels",
+        "step_explanations",
+        "preview_posture_class",
+        "approval_posture_class",
+        "run_record_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "dry_run_explain_packet_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/recipe_builder_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_outcome_class": { "$ref": "#/$defs/dry_run_outcome_class" },
+        "aggregate_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "step_explanations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dry_run_step_explanation" }
+        },
+        "preview_posture_class": { "$ref": "#/$defs/preview_posture_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "run_record_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Schema every dispatch of this recipe mints a run record against. MUST be schemas/automation/run_record.schema.json."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Canonical dry-run / explain preview packet. Explains each step before any apply."
+    },
+    "automation_safety_label_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "manifest_id",
+        "generated_at",
+        "source_axis_ref",
+        "labels"
+      ],
+      "properties": {
+        "record_kind": { "const": "automation_safety_label_manifest_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/recipe_builder_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_axis_ref": { "$ref": "#/$defs/non_empty_string" },
+        "labels": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/automation_safety_label" },
+          "description": "The whole reused safety-label vocabulary. All nine controlled-automation-label values are present exactly once."
+        }
+      },
+      "description": "Canonical safety-label manifest. The single reuse vocabulary every M5 surface reads."
+    }
+  }
+}
