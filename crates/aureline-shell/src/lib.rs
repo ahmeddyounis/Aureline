@@ -41,6 +41,7 @@ pub mod admin_audit_export_beta;
 pub mod ai_context_inspector;
 pub mod ai_truth_strip;
 pub mod app_frame;
+pub mod appearance_object_certification;
 pub mod appearance_session;
 pub mod artifact_save_truth;
 pub mod attention_router;

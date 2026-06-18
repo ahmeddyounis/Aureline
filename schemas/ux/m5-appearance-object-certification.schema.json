@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-appearance-object-certification.schema.json",
+  "title": "Aureline M5 appearance-object certification",
+  "description": "Boundary schema for the capstone appearance-object certification produced by crates/aureline-shell/src/appearance_object_certification/mod.rs. The report freezes one canonical appearance-object evidence index — theme package, appearance session, token overlay, imported-theme report, and extension appearance descriptor each name their canonical schema, owned vocabulary group, shared contract ref, and source report id / record kind — and then certifies every claimed M5 surface across all five families. Each surface carries one family certification per family with its qualification status, disclosed compatibility/downgrade posture, evidence freshness, backing source report, and a narrowing reason. The certified claim scope is the derived auto-narrowed value: a surface drops from certified_full to certified_narrowed the moment a family is honestly narrowed or carries a disclosed downgrade, and is blocked if any family hides a downgrade, is stale on a certified row, or claims appearance with no backing evidence. The surface, qualification, and freshness vocabulary (m5_appearance_surface_family, m5_qualification_status, m5_evidence_freshness) is re-exported by reference from the appearance-parity contract; this schema mints no parallel appearance vocabulary, only the certification-specific appearance_object_family, appearance_compatibility_state, certified_claim_scope, and surface_lifecycle. Raw token tables, raw screenshots, raw URLs, raw absolute paths, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only. This schema is the boundary contract for the JSON fixtures checked in under fixtures/ux/m5/appearance-object-certification/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/appearance_object_certification_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_appearance_object_certification_report_record" },
+    { "$ref": "#/$defs/m5_appearance_object_certification_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive optional fields and additive vocabulary do not bump it."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_appearance_object_certification:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe to log, safe on RPC, and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "appearance_object_family": {
+      "type": "string",
+      "enum": [
+        "theme_package",
+        "appearance_session",
+        "token_overlay",
+        "theme_import_report",
+        "extension_appearance_descriptor"
+      ],
+      "description": "One of the five canonical M5 appearance-object families. The token values match the frozen object_family vocabulary in the appearance-object matrix contract."
+    },
+    "m5_appearance_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_chrome",
+        "result_grid_row",
+        "profiler_panel",
+        "trace_panel",
+        "pipeline_card",
+        "preview_route_badge",
+        "docs_browser_pane",
+        "companion_surface",
+        "sync_status_surface",
+        "offboarding_surface"
+      ],
+      "description": "Re-exported from the appearance-parity contract."
+    },
+    "m5_qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_appearance",
+        "missing_evidence"
+      ],
+      "description": "Re-exported from the appearance-parity contract. Only `qualified` projects a certified family; `unqualified_local_appearance` and `missing_evidence` are blockers."
+    },
+    "m5_evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "appearance_compatibility_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_evidence",
+        "unsupported_slot",
+        "partial_inheritance",
+        "restart_or_reload_required"
+      ],
+      "description": "The disclosed compatibility / downgrade posture of one family certification. Any value other than `current` is honest only when downgrade_disclosed is true."
+    },
+    "certified_claim_scope": {
+      "type": "string",
+      "enum": ["certified_full", "certified_narrowed", "blocked"],
+      "description": "The derived appearance claim a certified surface may publish. Auto-narrowed from the family certifications; never asserted independently."
+    },
+    "surface_lifecycle": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "object_family_index_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_family",
+        "canonical_schema_ref",
+        "vocabulary_group",
+        "source_contract_ref",
+        "source_report_id",
+        "source_report_record_kind",
+        "published_report_ref",
+        "published_doc_ref"
+      ],
+      "properties": {
+        "object_family": { "$ref": "#/$defs/appearance_object_family" },
+        "canonical_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "vocabulary_group": { "$ref": "#/$defs/non_empty_string" },
+        "source_contract_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_report_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_report_record_kind": { "$ref": "#/$defs/opaque_ref" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "family_certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_family",
+        "certification_status",
+        "compatibility_state",
+        "downgrade_disclosed",
+        "evidence_freshness",
+        "source_report_id",
+        "evidence_refs",
+        "narrowing_reason"
+      ],
+      "properties": {
+        "object_family": { "$ref": "#/$defs/appearance_object_family" },
+        "certification_status": { "$ref": "#/$defs/m5_qualification_status" },
+        "compatibility_state": { "$ref": "#/$defs/appearance_compatibility_state" },
+        "downgrade_disclosed": { "type": "boolean" },
+        "evidence_freshness": { "$ref": "#/$defs/m5_evidence_freshness" },
+        "source_report_id": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "narrowing_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        }
+      }
+    },
+    "surface_certification_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "certification_id",
+        "title",
+        "surface_family",
+        "surface_lifecycle",
+        "family_certifications",
+        "certified_claim_scope",
+        "all_families_current",
+        "narrowing_reason",
+        "release_center_ref",
+        "help_about_ref",
+        "diagnostics_ref",
+        "support_export_ref",
+        "claim_publication_ref",
+        "docs_help_refs",
+        "narrative"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "shell_m5_appearance_object_certification_surface_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "certification_id": { "$ref": "#/$defs/opaque_ref" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "surface_family": { "$ref": "#/$defs/m5_appearance_surface_family" },
+        "surface_lifecycle": { "$ref": "#/$defs/surface_lifecycle" },
+        "family_certifications": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/family_certification" }
+        },
+        "certified_claim_scope": { "$ref": "#/$defs/certified_claim_scope" },
+        "all_families_current": { "type": "boolean" },
+        "narrowing_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "release_center_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_about_ref": { "$ref": "#/$defs/non_empty_string" },
+        "diagnostics_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_publication_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "narrative": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_findings", "index_findings", "total_blocking_findings"],
+      "properties": {
+        "surface_findings": { "type": "integer", "minimum": 0 },
+        "index_findings": { "type": "integer", "minimum": 0 },
+        "total_blocking_findings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": { "type": "string" },
+        "certification_id": { "type": "string" },
+        "family": { "type": "string" },
+        "surface_family": { "type": "string" }
+      }
+    },
+    "m5_appearance_object_certification_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "headline",
+        "build_identity_ref",
+        "release_channel_class",
+        "object_model_index",
+        "surfaces",
+        "covered_surface_families",
+        "surface_count",
+        "certified_full_surface_count",
+        "narrowed_surface_count",
+        "blocked_surface_count",
+        "all_surfaces_publishable",
+        "findings_summary",
+        "blocking_findings",
+        "report_clean",
+        "release_evidence_refs",
+        "extension_inspection_refs",
+        "sync_refs",
+        "docs_help_refs",
+        "support_export_refs",
+        "claim_publication_refs",
+        "published_report_ref",
+        "published_doc_ref",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "shell_m5_appearance_object_certification_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "release_channel_class": { "$ref": "#/$defs/non_empty_string" },
+        "object_model_index": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/object_family_index_entry" }
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_certification_record" }
+        },
+        "covered_surface_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/m5_appearance_surface_family" }
+        },
+        "surface_count": { "type": "integer", "minimum": 0 },
+        "certified_full_surface_count": { "type": "integer", "minimum": 0 },
+        "narrowed_surface_count": { "type": "integer", "minimum": 0 },
+        "blocked_surface_count": { "type": "integer", "minimum": 0 },
+        "all_surfaces_publishable": { "type": "boolean" },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "report_clean": { "type": "boolean" },
+        "release_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "extension_inspection_refs": { "$ref": "#/$defs/ref_array" },
+        "sync_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "claim_publication_refs": { "$ref": "#/$defs/ref_array" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_appearance_object_certification_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "shell_m5_appearance_object_certification_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/opaque_ref" },
+        "report": { "$ref": "#/$defs/m5_appearance_object_certification_report_record" },
+        "case_ids": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}
