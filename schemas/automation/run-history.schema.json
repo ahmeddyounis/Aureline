@@ -1,0 +1,738 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/run-history.schema.json",
+  "title": "Aureline run-history / evidence-panel object and first-consumers contract",
+  "description": "Boundary schema for the live run-history / evidence-panel object and the M5 automation families that first render it. A run_history_evidence_row is the canonical, attributable projection of one attempted dispatch: it carries the run identity (run_id, manifest_id, manifest_revision_ref, optional manifest_content_address), the automation layer, the underlying record schema version, the execution mode, the result class, the artifact links (each an opaque content-addressed ref, never a raw path or URL), the retention/redaction posture, the artifact-bundle state, the context observation classes, and the resolved rerun-under-current-policy action. The rerun action is derived from the layer, the imported state, and the current_policy_blockers observed now; an imported row always resolves to rerun_under_current_policy_blocked_imported_record, a recorded macro never resolves to an extension/external or imported rerun class, and rerun_under_current_policy_admissible_no_revalidation_required pairs with exactly [no_blocker_present]. A run_history_evidence_export_record nests the whole entry plus its evidence row and a fresh rerun resolution so identity and rerun truth survive export, history, and support. The m5_run_history_first_consumers_packet binds each first-consumer entrypoint (notebook, task/test/debug, request/API, package, incident, AI assistant) to a seeded panel and pins the freeze invariants; a dropped entrypoint, a rerun that implies cached approval, an imported row that offers rerun, a macro that offers external rerun, a laundered capability, a raw secret, an inconsistent evidence-row projection, or a violated invariant blocks stable. The promotion vocabulary is re-exported from automation-contract-baseline.schema.json; a raw path/URL/secret value or a parallel rerun vocabulary is non-conforming.",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_run_history_first_consumers_packet" },
+    { "$ref": "#/$defs/m5_run_history_first_consumers_support_export" },
+    { "$ref": "#/$defs/m5_run_history_first_consumers_cli_headless" },
+    { "$ref": "#/$defs/run_history_evidence_export_record" },
+    { "$ref": "#/$defs/run_history_evidence_row" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+      "description": "An opaque id, or null."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/monotonic_timestamp" }],
+      "description": "A monotonic timestamp, or null."
+    },
+    "automation_layer_class": {
+      "type": "string",
+      "enum": [
+        "recorded_macro_layer",
+        "declarative_recipe_layer",
+        "managed_only_template_layer",
+        "extension_or_external_automation_layer",
+        "headless_safe_run_layer"
+      ],
+      "description": "The automation layer a row was minted under. A recorded macro never offers extension/external rerun; an extension/external row never launders a capability into a declarative recipe."
+    },
+    "execution_mode_class": {
+      "type": "string",
+      "enum": [
+        "desktop_palette_dispatch",
+        "desktop_keybinding_dispatch",
+        "desktop_explicit_action_dispatch",
+        "ai_assistant_dispatch",
+        "headless_cli_explicit_dispatch",
+        "headless_cli_scripted_dispatch",
+        "headless_offline_replay_dispatch",
+        "queued_dispatch",
+        "managed_only_channel_dispatch",
+        "external_runner_dispatch",
+        "imported_provider_event"
+      ],
+      "description": "The surface and dispatch mode a run was attempted through."
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "partial_success",
+        "denied_at_gate",
+        "aborted",
+        "queued",
+        "dry_run_only"
+      ],
+      "description": "The result class a run record reports."
+    },
+    "artifact_link_class": {
+      "type": "string",
+      "enum": [
+        "run_log",
+        "result_artifact",
+        "evidence_bundle",
+        "diff_artifact",
+        "external_artifact"
+      ],
+      "description": "The class of an artifact a run produced."
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "retain_until_purged_by_user",
+        "retain_until_workspace_redaction_window",
+        "retain_until_organization_audit_window",
+        "retain_until_support_export_consumed",
+        "retain_until_replay_window_expires",
+        "retain_indefinitely_under_audit_lock",
+        "purged_by_retention_summary_only"
+      ],
+      "description": "The retention window a history row tracks. A windowed class carries a non-null retention_window_expires_at."
+    },
+    "redaction_mode_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles",
+        "operator_only_internal_preservation"
+      ],
+      "description": "The redaction mode a history row's safe summary carries."
+    },
+    "artifact_bundle_state_class": {
+      "type": "string",
+      "enum": [
+        "artifact_bundle_available",
+        "artifact_bundle_not_produced_denied_at_gate",
+        "artifact_bundle_not_produced_macro_state_replay",
+        "artifact_bundle_not_produced_external_authority",
+        "artifact_bundle_purged_by_retention_summary_only"
+      ],
+      "description": "The state of the artifact bundle a run produced. Only artifact_bundle_available carries a non-null artifact_bundle_ref."
+    },
+    "trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trusted",
+        "workspace_restricted",
+        "remote_trusted",
+        "remote_untrusted"
+      ],
+      "description": "The workspace-trust state a run observed."
+    },
+    "policy_observation_class": {
+      "type": "string",
+      "enum": ["policy_allowed", "policy_constrained", "policy_denied", "policy_unobserved"],
+      "description": "The admin-policy observation a run recorded."
+    },
+    "kill_switch_observation_class": {
+      "type": "string",
+      "enum": ["kill_switch_clear", "kill_switch_engaged", "kill_switch_unobserved"],
+      "description": "The kill-switch observation a run recorded."
+    },
+    "current_policy_blocker": {
+      "type": "string",
+      "enum": [
+        "no_blocker_present",
+        "environment_revalidation_required",
+        "fresh_approval_required",
+        "kill_switch_engaged",
+        "managed_only_channel_unresolved",
+        "publisher_revoked",
+        "capability_disabled_by_policy",
+        "managed_only_template_retired",
+        "recipe_revision_retired",
+        "replay_window_expired",
+        "descriptor_revision_retired",
+        "environment_capsule_drift_detected",
+        "macro_recording_only",
+        "extension_or_external_runner_unavailable",
+        "imported_record_no_dispatch_admissible"
+      ],
+      "description": "One blocker the rerun resolver observed at projection time. no_blocker_present is the only blocker that pairs with rerun_under_current_policy_admissible_no_revalidation_required."
+    },
+    "rerun_action_class": {
+      "type": "string",
+      "enum": [
+        "rerun_under_current_policy_admissible_no_revalidation_required",
+        "rerun_under_current_policy_admissible_after_environment_revalidation",
+        "rerun_under_current_policy_admissible_after_fresh_approval",
+        "rerun_under_current_policy_admissible_after_kill_switch_clear",
+        "rerun_under_current_policy_admissible_after_managed_channel_resolved",
+        "rerun_under_current_policy_blocked_publisher_revoked",
+        "rerun_under_current_policy_blocked_capability_disabled_by_policy",
+        "rerun_under_current_policy_blocked_managed_only_template_retired",
+        "rerun_under_current_policy_blocked_recipe_revision_retired",
+        "rerun_under_current_policy_blocked_replay_window_expired",
+        "rerun_under_current_policy_blocked_descriptor_revision_retired",
+        "rerun_under_current_policy_blocked_environment_capsule_drift_detected",
+        "rerun_under_current_policy_blocked_macro_recording_only",
+        "rerun_under_current_policy_blocked_extension_or_external_runner_unavailable",
+        "rerun_under_current_policy_blocked_imported_record"
+      ],
+      "description": "The resolved rerun-under-current-policy action, derived from the layer, imported state, and current_policy_blockers observed now. Never derived from a cached approval or a preserved environment capsule."
+    },
+    "open_as_recipe_action_class": {
+      "type": "string",
+      "enum": [
+        "open_as_recipe_admissible_macro_promotable_to_declarative_recipe",
+        "open_as_recipe_admissible_extension_or_external_authored_as_declarative_recipe",
+        "open_as_recipe_inadmissible_no_declarative_capability_path_admitted",
+        "open_as_recipe_inadmissible_already_declarative_recipe",
+        "open_as_recipe_inadmissible_already_managed_only_template",
+        "open_as_recipe_inadmissible_extension_or_external_authority_required"
+      ],
+      "description": "The open-as-recipe affordance a history row offers, coupled to the automation layer so a capability is never laundered into a recipe."
+    },
+    "entrypoint": {
+      "type": "string",
+      "enum": ["notebook", "task_test_debug", "request_api", "package", "incident", "ai_assistant"],
+      "description": "A first-consumer automation family that renders a run-history panel."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_entrypoint",
+        "entrypoint_panel_empty",
+        "rerun_implies_cached_approval",
+        "imported_row_offers_rerun",
+        "macro_offers_external_rerun",
+        "capability_laundered_into_recipe",
+        "raw_secret_material_in_history",
+        "evidence_row_projection_inconsistent",
+        "retention_posture_inconsistent",
+        "invariant_violated"
+      ]
+    },
+    "finding_severity": { "type": "string", "enum": ["blocker", "warning"] },
+    "fnv1a64_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+    "run_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "manifest_id", "manifest_revision_ref", "manifest_content_address"],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "manifest_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_content_address": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "The stable identity of one attempted dispatch."
+    },
+    "artifact_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["link_class", "artifact_ref", "summary"],
+      "properties": {
+        "link_class": { "$ref": "#/$defs/artifact_link_class" },
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, content-addressed artifact reference; never a raw path or URL."
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One artifact a run produced."
+    },
+    "context_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_capsule_ref",
+        "environment_capsule_ref",
+        "trust_state_class",
+        "policy_observation_class",
+        "kill_switch_observation_class",
+        "context_summary_sentence"
+      ],
+      "properties": {
+        "execution_context_capsule_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "policy_observation_class": { "$ref": "#/$defs/policy_observation_class" },
+        "kill_switch_observation_class": { "$ref": "#/$defs/kill_switch_observation_class" },
+        "context_summary_sentence": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "The context block describing where a run executed. Raw env-var values, raw paths, and raw URLs never appear here."
+    },
+    "run_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entrypoint",
+        "run_identity",
+        "automation_layer",
+        "record_schema_version",
+        "execution_mode",
+        "result_class",
+        "imported",
+        "artifact_links",
+        "secret_reference_refs",
+        "retention_class",
+        "retention_window_expires_at",
+        "redaction_mode",
+        "artifact_bundle_state",
+        "artifact_bundle_ref",
+        "context_summary",
+        "current_policy_blockers",
+        "open_as_recipe_action_class",
+        "title",
+        "summary",
+        "dispatched_at",
+        "completed_at"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "run_identity": { "$ref": "#/$defs/run_identity" },
+        "automation_layer": { "$ref": "#/$defs/automation_layer_class" },
+        "record_schema_version": { "type": "integer", "minimum": 0 },
+        "execution_mode": { "$ref": "#/$defs/execution_mode_class" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "imported": { "type": "boolean" },
+        "artifact_links": { "type": "array", "items": { "$ref": "#/$defs/artifact_link" } },
+        "secret_reference_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque secret-broker handles; never raw secret values."
+        },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_window_expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "redaction_mode": { "$ref": "#/$defs/redaction_mode_class" },
+        "artifact_bundle_state": { "$ref": "#/$defs/artifact_bundle_state_class" },
+        "artifact_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "context_summary": { "$ref": "#/$defs/context_summary" },
+        "current_policy_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_policy_blocker" }
+        },
+        "open_as_recipe_action_class": { "$ref": "#/$defs/open_as_recipe_action_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": { "$ref": "#/$defs/nullable_timestamp" }
+      },
+      "description": "One attributable run in a history / evidence panel. The rerun action is derived, never stored as authority."
+    },
+    "rerun_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "resolved_at",
+        "entry_id",
+        "run_id",
+        "rerun_action_class",
+        "current_policy_blockers",
+        "admissible",
+        "resolves_current_policy",
+        "reuses_cached_approval",
+        "reuses_stale_environment",
+        "secret_references_reresolved",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_history_rerun_resolution" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "current_policy_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_policy_blocker" }
+        },
+        "admissible": { "type": "boolean" },
+        "resolves_current_policy": { "const": true },
+        "reuses_cached_approval": { "const": false },
+        "reuses_stale_environment": { "const": false },
+        "secret_references_reresolved": { "const": true },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "An explicit rerun-under-current-policy resolution. The four assertions pin that rerun resolves fresh: it resolves current policy, reuses no cached approval, reuses no stale environment, and re-resolves every secret reference."
+    },
+    "run_history_evidence_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "recorded_at",
+        "entry_id",
+        "entrypoint",
+        "run_identity",
+        "automation_layer",
+        "record_schema_version",
+        "execution_mode",
+        "result_class",
+        "imported",
+        "rerun_action_class",
+        "rerun_admissible",
+        "current_policy_blockers",
+        "open_as_recipe_action_class",
+        "retention_class",
+        "retention_window_expires_at",
+        "redaction_mode",
+        "artifact_bundle_state",
+        "artifact_bundle_ref",
+        "trust_state_class",
+        "policy_observation_class",
+        "kill_switch_observation_class",
+        "artifact_link_count",
+        "secret_reference_count",
+        "entry_digest",
+        "run_record_schema_ref",
+        "run_history_row_schema_ref",
+        "run_summary_export_schema_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_history_evidence_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "run_identity": { "$ref": "#/$defs/run_identity" },
+        "automation_layer": { "$ref": "#/$defs/automation_layer_class" },
+        "record_schema_version": { "type": "integer", "minimum": 0 },
+        "execution_mode": { "$ref": "#/$defs/execution_mode_class" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "imported": { "type": "boolean" },
+        "rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "rerun_admissible": { "type": "boolean" },
+        "current_policy_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_policy_blocker" }
+        },
+        "open_as_recipe_action_class": { "$ref": "#/$defs/open_as_recipe_action_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_window_expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "redaction_mode": { "$ref": "#/$defs/redaction_mode_class" },
+        "artifact_bundle_state": { "$ref": "#/$defs/artifact_bundle_state_class" },
+        "artifact_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "policy_observation_class": { "$ref": "#/$defs/policy_observation_class" },
+        "kill_switch_observation_class": { "$ref": "#/$defs/kill_switch_observation_class" },
+        "artifact_link_count": { "type": "integer", "minimum": 0 },
+        "secret_reference_count": { "type": "integer", "minimum": 0 },
+        "entry_digest": { "$ref": "#/$defs/fnv1a64_digest" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_history_row_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_summary_export_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "An attributable run-history evidence row support packets, incident/runbook follow-up, AI evidence joins, and CLI/headless inspect surfaces ingest."
+    },
+    "run_history_evidence_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "evidence_row",
+        "rerun_resolution",
+        "entry",
+        "export_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_history_evidence_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "evidence_row": { "$ref": "#/$defs/run_history_evidence_row" },
+        "rerun_resolution": { "$ref": "#/$defs/rerun_resolution" },
+        "entry": { "$ref": "#/$defs/run_history_entry" },
+        "export_digest": { "$ref": "#/$defs/fnv1a64_digest" }
+      },
+      "description": "A run-history entry exported for rerun review, comparison, or support bundles. The nested entry, evidence row, and rerun resolution preserve identity and rerun truth; import reconstructs the identical entry."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_entrypoint_binds_a_panel",
+        "every_entry_resolves_run_identity_and_layer",
+        "rerun_resolves_current_policy_never_cached_approval",
+        "current_policy_blockers_are_authoritative",
+        "imported_records_never_offer_rerun",
+        "macro_rows_never_offer_external_rerun",
+        "open_as_recipe_never_launders_capability",
+        "raw_secrets_never_appear_in_history",
+        "history_reuses_canonical_run_record_and_row_schema"
+      ],
+      "properties": {
+        "every_entrypoint_binds_a_panel": { "type": "boolean" },
+        "every_entry_resolves_run_identity_and_layer": { "type": "boolean" },
+        "rerun_resolves_current_policy_never_cached_approval": { "type": "boolean" },
+        "current_policy_blockers_are_authoritative": { "type": "boolean" },
+        "imported_records_never_offer_rerun": { "type": "boolean" },
+        "macro_rows_never_offer_external_rerun": { "type": "boolean" },
+        "open_as_recipe_never_launders_capability": { "type": "boolean" },
+        "raw_secrets_never_appear_in_history": { "type": "boolean" },
+        "history_reuses_canonical_run_record_and_row_schema": { "type": "boolean" }
+      }
+    },
+    "run_history_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "type": ["string", "null"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "entries",
+        "evidence_rows",
+        "entry_count",
+        "admissible_rerun_count",
+        "blocked_rerun_count",
+        "imported_count",
+        "latest_run_id",
+        "latest_layer",
+        "latest_result_class",
+        "latest_rerun_action_class",
+        "entry_summary"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_history_entry" }
+        },
+        "evidence_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_history_evidence_row" }
+        },
+        "entry_count": { "type": "integer", "minimum": 1 },
+        "admissible_rerun_count": { "type": "integer", "minimum": 0 },
+        "blocked_rerun_count": { "type": "integer", "minimum": 0 },
+        "imported_count": { "type": "integer", "minimum": 0 },
+        "latest_run_id": { "$ref": "#/$defs/opaque_id" },
+        "latest_layer": { "$ref": "#/$defs/automation_layer_class" },
+        "latest_result_class": { "$ref": "#/$defs/result_class" },
+        "latest_rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "entry_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One first-consumer entrypoint bound to the seeded panel it renders."
+    },
+    "m5_run_history_first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "run_history_row_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "consumer_bindings",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_run_history_first_consumers_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_history_row_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_history_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "$ref": "#/$defs/fnv1a64_digest" }
+      },
+      "description": "Canonical first-consumers packet binding every automation family to a seeded run-history panel and pinning the freeze invariants."
+    },
+    "support_entry_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "run_id",
+        "automation_layer",
+        "execution_mode",
+        "result_class",
+        "rerun_action_class",
+        "rerun_admissible",
+        "open_as_recipe_action_class",
+        "retention_class",
+        "redaction_mode",
+        "artifact_bundle_state",
+        "current_policy_blockers",
+        "imported"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "automation_layer": { "$ref": "#/$defs/automation_layer_class" },
+        "execution_mode": { "$ref": "#/$defs/execution_mode_class" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "rerun_admissible": { "type": "boolean" },
+        "open_as_recipe_action_class": { "$ref": "#/$defs/open_as_recipe_action_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "redaction_mode": { "$ref": "#/$defs/redaction_mode_class" },
+        "artifact_bundle_state": { "$ref": "#/$defs/artifact_bundle_state_class" },
+        "current_policy_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_policy_blocker" }
+        },
+        "imported": { "type": "boolean" }
+      },
+      "description": "One redacted support-export entry row; never carries a raw path, URL, or secret."
+    },
+    "support_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "entry_count",
+        "latest_run_id",
+        "latest_layer",
+        "latest_result_class",
+        "latest_rerun_action_class",
+        "admissible_rerun_count",
+        "blocked_rerun_count",
+        "imported_count",
+        "entry_rows"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "entry_count": { "type": "integer", "minimum": 1 },
+        "latest_run_id": { "$ref": "#/$defs/opaque_id" },
+        "latest_layer": { "$ref": "#/$defs/automation_layer_class" },
+        "latest_result_class": { "$ref": "#/$defs/result_class" },
+        "latest_rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "admissible_rerun_count": { "type": "integer", "minimum": 0 },
+        "blocked_rerun_count": { "type": "integer", "minimum": 0 },
+        "imported_count": { "type": "integer", "minimum": 0 },
+        "entry_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_entry_row" }
+        }
+      }
+    },
+    "m5_run_history_first_consumers_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "consumer_rows",
+        "evidence_rows",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_run_history_first_consumers_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "$ref": "#/$defs/fnv1a64_digest" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_consumer_row" }
+        },
+        "evidence_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_history_evidence_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_kind" }
+        }
+      },
+      "description": "Redacted support-export projection of the first-consumers packet. The per-entry layer/mode/result/rerun/blocker classes and the attributable evidence rows ride along so the panel is reviewable and comparable in a support bundle."
+    },
+    "m5_run_history_first_consumers_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "consumer_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_run_history_first_consumers_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Compact CLI / headless projection of the first-consumers packet."
+    }
+  }
+}

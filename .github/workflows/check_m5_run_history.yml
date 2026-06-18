@@ -1,0 +1,71 @@
+# M5 run-history / evidence-panel first-consumers gate.
+#
+# Validates the checked-in run-history / evidence-panel object and its first
+# consumers: the canonical packet binds all six first-consumer entrypoints
+# (notebook, task/test/debug, request/API, package, incident, and the AI
+# assistant) to a seeded panel where every entry resolves its run identity and
+# layer, the rerun action recomputed from the layer, imported state, and observed
+# current-policy blockers matches the projected evidence row, an imported row
+# offers no rerun, a recorded macro offers no external rerun, open-as-recipe
+# launders no capability, and no raw secret appears; the support export carries the
+# attributable evidence rows; the CLI/headless view and compact projection stay
+# consistent; the worked-example export round-trip, imported row, and survival
+# demonstration exist; and every mutation fixture blocks stable. The typed Rust
+# consumer mints the same packet, so `cargo test -p aureline-runtime` enforces the
+# same invariants and that the fixtures and artifacts are bit-for-bit derivable
+# from the seed.
+
+name: check_m5_run_history
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_run_history.yml"
+      - "tools/ci/m5/run_history_check.py"
+      - "schemas/automation/run-history.schema.json"
+      - "schemas/automation/run_history_row.schema.json"
+      - "docs/m5/automation-run-history.md"
+      - "artifacts/m5/automation/run-history/**"
+      - "fixtures/automation/m5/run-history-evidence/**"
+      - "crates/aureline-runtime/src/run_history/**"
+      - "crates/aureline-runtime/examples/dump_m5_run_history.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_run_history.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-run-history-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_run_history:
+    name: M5 run-history first consumers
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 run-history first-consumers CI gate
+        run: |
+          python3 tools/ci/m5/run_history_check.py --repo-root .
+
+      - name: Run M5 run-history first-consumers contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_run_history

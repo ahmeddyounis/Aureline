@@ -132,6 +132,7 @@ pub mod request_workspace;
 pub mod request_workspace_contracts;
 pub mod rerun;
 pub mod resource_governor;
+pub mod run_history;
 pub mod run_lineage;
 pub mod runtime_continuity_surface_qualification;
 pub mod sandbox;
@@ -1059,6 +1060,29 @@ pub use resource_governor::{
     ResourceGovernorValidationReport, ResourceGovernorValidationViolation, VisibleHealthState,
     QUEUE_LANE_STATE_RECORD_KIND, RESOURCE_GOVERNOR_SCHEMA_VERSION,
     RESOURCE_GOVERNOR_SNAPSHOT_RECORD_KIND, RESOURCE_GOVERNOR_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use run_history::{
+    canonical_reused_contract_refs as run_history_reused_contract_refs,
+    current_run_history_first_consumers_input, seeded_consumer_entry as seeded_run_history_entry,
+    seeded_consumer_panel as seeded_run_history_panel, seeded_imported_entry,
+    seeded_run_history_export_roundtrip, seeded_run_history_first_consumers_packet,
+    validate_run_history_first_consumers_packet, ArtifactBundleStateClass, ArtifactLink,
+    ArtifactLinkClass, AutomationLayerClass, ContextSummary, CurrentPolicyBlocker,
+    ExecutionModeClass, KillSwitchObservationClass, OpenAsRecipeActionClass,
+    PolicyObservationClass, RedactionModeClass, RerunActionClass, RerunDisposition,
+    RerunResolution, RetentionClass, RunHistoryConsumerBinding, RunHistoryEntry, RunHistoryError,
+    RunHistoryEvidenceExport, RunHistoryEvidenceRow, RunHistoryFinding, RunHistoryFindingKind,
+    RunHistoryFindingSeverity, RunHistoryFirstConsumersCliHeadlessView,
+    RunHistoryFirstConsumersInput, RunHistoryFirstConsumersPacket,
+    RunHistoryFirstConsumersSupportExport, RunHistoryInvariantsBlock, RunHistorySupportConsumerRow,
+    RunHistorySupportEntryRow, RunIdentity, RunResultClass, TrustStateClass,
+    RERUN_RESOLUTION_RECORD_KIND, RUN_HISTORY_DOC_REF, RUN_HISTORY_EVIDENCE_EXPORT_RECORD_KIND,
+    RUN_HISTORY_EVIDENCE_ROW_RECORD_KIND, RUN_HISTORY_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    RUN_HISTORY_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND, RUN_HISTORY_FIRST_CONSUMERS_ID,
+    RUN_HISTORY_FIRST_CONSUMERS_PACKET_ARTIFACT_REF, RUN_HISTORY_FIRST_CONSUMERS_RECORD_KIND,
+    RUN_HISTORY_FIRST_CONSUMERS_SCHEMA_REF, RUN_HISTORY_FIRST_CONSUMERS_SCHEMA_VERSION,
+    RUN_HISTORY_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    RUN_HISTORY_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND, RUN_HISTORY_FIXTURE_DIR,
 };
 pub use run_lineage::{
     seeded_run_history_support_export, DurableJobRow, RerunReviewDriftField, RerunReviewDriftRow,
