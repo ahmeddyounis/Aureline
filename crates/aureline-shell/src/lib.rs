@@ -205,6 +205,7 @@ pub mod tasks_seed;
 pub mod teaching_session;
 pub mod terminal_pane;
 pub mod test_runner_beta;
+pub mod theme_import_reports;
 pub mod theme_packages;
 pub mod token_overlays;
 pub mod token_state_audit;

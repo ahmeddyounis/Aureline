@@ -1,0 +1,64 @@
+# M5 imported-theme mapping & rollback report gate.
+#
+# Validates the checked-in M5 imported-theme report: every imported theme
+# surfaces explicit mapping quality and an unresolved-slot count before users
+# trust the result, no row claims parity it cannot back, every imported visual
+# customization is reversible, and the migration-center, support/export,
+# compatibility, release/public-truth, and sync/import surfaces share the same
+# report object. The typed Rust consumer mints the same report, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and that
+# the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_theme_import_report
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_theme_import_report.yml"
+      - "tools/ci/m5/theme_import_report_check.py"
+      - "schemas/ux/m5-theme-import-report.schema.json"
+      - "docs/m5/theme-import-and-rollback.md"
+      - "artifacts/ux/m5/theme-import-reports/**"
+      - "fixtures/ux/m5/theme-import-corpus/**"
+      - "crates/aureline-shell/src/theme_import_reports/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_theme_import_reports.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_theme_import_reports_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-theme-import-report-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_theme_import_report:
+    name: M5 imported-theme report
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 imported-theme report CI gate
+        run: |
+          python3 tools/ci/m5/theme_import_report_check.py --repo-root .
+
+      - name: Run M5 imported-theme report contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_theme_import_reports_fixtures
