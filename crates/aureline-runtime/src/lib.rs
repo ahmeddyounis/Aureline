@@ -110,6 +110,7 @@ pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
 pub mod m5_event_interop_certification;
 pub mod m5_interop_conformance;
+pub mod m5_label_parity;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
@@ -700,6 +701,19 @@ pub use m5_interop_conformance::{
     INTEROP_CONFORMANCE_RECORD_KIND, INTEROP_CONFORMANCE_RELEASE_EVIDENCE_REF,
     INTEROP_CONFORMANCE_SCHEMA_REF, INTEROP_CONFORMANCE_SCHEMA_VERSION,
     INTEROP_CONFORMANCE_SUPPORT_EXPORT_ID, INTEROP_CONFORMANCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_label_parity::{
+    canonical_reused_contract_refs as label_parity_reused_contract_refs,
+    current_label_parity_input, seeded_command_rows as label_parity_seeded_command_rows,
+    seeded_label_parity_packet, validate_label_parity_packet, CommandLabelParityRow,
+    LabelParityCliHeadlessView, LabelParityFinding, LabelParityFindingKind,
+    LabelParityFindingSeverity, LabelParityInput, LabelParityInvariantsBlock, LabelParityPacket,
+    LabelParitySupportExport, LabelSurfaceClass, ProjectedLabel, SupportCommandRow,
+    SurfaceLabelProjection, LABEL_PARITY_CLI_HEADLESS_ID, LABEL_PARITY_CLI_HEADLESS_RECORD_KIND,
+    LABEL_PARITY_DOC_REF, LABEL_PARITY_FIXTURE_DIR, LABEL_PARITY_ID,
+    LABEL_PARITY_PACKET_ARTIFACT_REF, LABEL_PARITY_RECORD_KIND, LABEL_PARITY_SCHEMA_REF,
+    LABEL_PARITY_SCHEMA_VERSION, LABEL_PARITY_SUPPORT_EXPORT_ID,
+    LABEL_PARITY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_replay_bundles::{
     current_stable_replay_bundle_input, retention_ai_evidence_safe, retention_byte_bound,

@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/automation-labels.schema.json",
+  "title": "Aureline automation-label cross-surface parity contract",
+  "description": "Boundary schema for the automation safety-label parity packet and its projections. The controlled safety-label vocabulary (macro_safe, recipe_safe, headless_safe, ui_only, approval_required, writes_files, runs_process, network_call, remote_mutation) is frozen in automation-manifest.schema.json; this packet proves that, for every claimed M5 command, the same labels — with the same stable ids and the same canonical display tokens — are projected consistently across the command palette row, the recipe builder, the macro recorder, docs/help, CLI/headless inspect, the support/export packet, and the release/public-truth artifact. The m5_automation_label_parity_packet binds each command to one source label set and one projection per surface and pins the freeze invariants; a dropped surface, a drifted surface label set, a synonym display token, a drifted stable id, a dropped effect-disclosure (side-effect) label, a stable id that does not survive localization/export/downgrade, a label outside the vocabulary, or a violated invariant blocks stable. Surfaces never mint surface-local synonyms or omit the side-effect class; raw argv, paths, URLs, prompt text, and secrets never appear here.",
+  "oneOf": [
+    { "$ref": "#/$defs/automation_label_parity_packet" },
+    { "$ref": "#/$defs/automation_label_parity_support_export" },
+    { "$ref": "#/$defs/automation_label_parity_cli_headless" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from the command descriptor."
+    },
+    "controlled_automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "Re-exported controlled-automation-label vocabulary from automation-manifest.schema.json. Minting a parallel label is non-conforming."
+    },
+    "safety_label_kind": {
+      "type": "string",
+      "enum": ["admissibility_cue", "effect_disclosure"],
+      "description": "Whether a label states where automation may run (admissibility cue) or what material effect it has (effect disclosure / side-effect class)."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "label_surface": {
+      "type": "string",
+      "enum": [
+        "command_palette_row",
+        "recipe_builder",
+        "macro_recorder",
+        "docs_help",
+        "cli_headless_inspect",
+        "support_export",
+        "release_public_truth"
+      ],
+      "description": "An M5 surface that projects automation safety labels for a command."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_surface_projection",
+        "surface_label_set_drift",
+        "synonym_display_token",
+        "stable_id_token_drift",
+        "effect_disclosure_dropped",
+        "stable_id_not_preserved_across_states",
+        "label_outside_vocabulary",
+        "vocabulary_coverage_incomplete",
+        "invariant_violated"
+      ]
+    },
+    "finding_severity": { "type": "string", "enum": ["blocker", "warning"] },
+    "safety_label_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_id", "display_token", "label_kind", "source_axis_ref", "meaning"],
+      "properties": {
+        "label_id": { "$ref": "#/$defs/controlled_automation_label" },
+        "display_token": { "$ref": "#/$defs/non_empty_string" },
+        "label_kind": { "$ref": "#/$defs/safety_label_kind" },
+        "source_axis_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The frozen vocabulary axis this label projects from, never minted anew."
+        },
+        "meaning": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One row of the reused, closed safety-label vocabulary, identical to automation-contract-baseline.schema.json."
+    },
+    "projected_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_id", "stable_id_token", "display_token", "label_kind"],
+      "properties": {
+        "label_id": { "$ref": "#/$defs/controlled_automation_label" },
+        "stable_id_token": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The localization- and export-stable id token; MUST equal the label_id token."
+        },
+        "display_token": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The canonical, user-facing display token; a surface-local synonym is non-conforming."
+        },
+        "label_kind": { "$ref": "#/$defs/safety_label_kind" }
+      },
+      "description": "One safety label as a single surface renders it."
+    },
+    "surface_label_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "projected_labels",
+        "preserves_stable_ids_on_localization",
+        "preserves_stable_ids_on_export",
+        "preserves_stable_ids_on_downgrade"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/label_surface" },
+        "projected_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projected_label" }
+        },
+        "preserves_stable_ids_on_localization": { "type": "boolean" },
+        "preserves_stable_ids_on_export": { "type": "boolean" },
+        "preserves_stable_ids_on_downgrade": { "type": "boolean" }
+      },
+      "description": "How one surface projects a command's source label set."
+    },
+    "command_label_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "title",
+        "source_label_ref",
+        "source_labels",
+        "surface_projections"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_label_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Ref to the command-graph field that owns this command's label set."
+        },
+        "source_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/surface_label_projection" }
+        }
+      },
+      "description": "One claimed M5 command and the labels it projects across every surface."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_surfaces_project_from_one_label_source",
+        "no_surface_invents_synonyms",
+        "effect_disclosure_labels_never_dropped",
+        "stable_ids_survive_localization_export_downgrade",
+        "vocabulary_is_closed_and_frozen",
+        "every_claimed_command_projects_to_every_surface"
+      ],
+      "properties": {
+        "all_surfaces_project_from_one_label_source": { "type": "boolean" },
+        "no_surface_invents_synonyms": { "type": "boolean" },
+        "effect_disclosure_labels_never_dropped": { "type": "boolean" },
+        "stable_ids_survive_localization_export_downgrade": { "type": "boolean" },
+        "vocabulary_is_closed_and_frozen": { "type": "boolean" },
+        "every_claimed_command_projects_to_every_surface": { "type": "boolean" }
+      }
+    },
+    "label_parity_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "type": ["string", "null"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_command_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "canonical_verb",
+        "title",
+        "source_label_tokens",
+        "surface_count"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_label_tokens": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "surface_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "automation_label_parity_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "contract_baseline_schema_ref",
+        "label_vocabulary_axis_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "vocabulary",
+        "command_rows",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_automation_label_parity_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "contract_baseline_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "label_vocabulary_axis_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "vocabulary": {
+          "type": "array",
+          "minItems": 9,
+          "items": { "$ref": "#/$defs/safety_label_row" }
+        },
+        "command_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_label_parity_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/label_parity_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "Canonical cross-surface label-parity packet binding every claimed command to a source label set and a projection per surface, listing the closed vocabulary, and pinning the freeze invariants."
+    },
+    "automation_label_parity_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "vocabulary_tokens",
+        "command_rows",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_automation_label_parity_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "vocabulary_tokens": {
+          "type": "array",
+          "minItems": 9,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "command_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_command_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_kind" }
+        }
+      },
+      "description": "Redacted support-export projection of the label-parity packet."
+    },
+    "automation_label_parity_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "command_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_automation_label_parity_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "command_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Compact CLI / headless projection of the label-parity packet."
+    }
+  }
+}
