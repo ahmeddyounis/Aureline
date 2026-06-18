@@ -1,0 +1,64 @@
+# M5 task-event first-consumers gate.
+#
+# Validates the checked-in task-event first-consumers packet: the canonical
+# record history, the replay-stable trace summaries, and the seven consumer-
+# surface projections that keep every claimed M5 execution surface off log-only
+# event truth and let the support/export and CLI/headless surfaces explain event
+# source and confidence without bespoke parsing. The typed Rust consumer mints
+# the same packet, so `cargo test -p aureline-runtime` enforces the same
+# invariants and that the fixtures are bit-for-bit derivable from the seed.
+
+name: check_m5_task_event_envelope_bus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_task_event_envelope_bus.yml"
+      - "tools/ci/m5/task_event_envelope_bus_check.py"
+      - "schemas/tooling/task-event-first-consumers.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/task-event-envelope.md"
+      - "artifacts/m5/tooling/event-envelope-first-consumers/**"
+      - "fixtures/tooling/m5/event-envelope/**"
+      - "crates/aureline-runtime/src/m5_task_event_envelope_bus/**"
+      - "crates/aureline-runtime/examples/dump_m5_task_event_envelope_bus.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_task_event_envelope_bus.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-task-event-envelope-bus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_task_event_envelope_bus:
+    name: M5 task-event first-consumers
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 task-event first-consumers CI gate
+        run: |
+          python3 tools/ci/m5/task_event_envelope_bus_check.py --repo-root .
+
+      - name: Run M5 task-event first-consumers contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_task_event_envelope_bus

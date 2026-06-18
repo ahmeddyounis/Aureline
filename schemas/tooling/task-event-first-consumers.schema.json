@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/task-event-first-consumers.schema.json",
+  "title": "Aureline M5 task-event first-consumers packet",
+  "description": "Boundary schema for the canonical task-event first-consumers packet, its support export, and its CLI/headless view. The packet lands one canonical task/test/debug event record — carrying a stable event identity, trace correlation, producer lane, workspace and target identity, source kind, adapter-priority rank, confidence, payload class, execution context, retained raw-payload reference, producer provenance, and an explicit downgrade flag — and proves every claimed M5 execution surface (notebook runs, task center, test sessions, debug activity, pipeline overlays) plus the support/export and CLI/headless surfaces read that record instead of re-deriving execution truth from rendered logs. It reuses the source-kind, confidence, lifecycle, payload, retention-class, and provenance vocabulary frozen in schemas/tooling/task-event-envelope.schema.json and schemas/runtime/build-test-event-envelope.schema.json, and the adapter-priority ladder and downgrade vocabulary frozen in schemas/tooling/adapter-capability.schema.json. Raw event bodies never cross this boundary; records cite a retained raw-payload reference and a retention class.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/first_consumers_packet" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/cli_headless_view" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "TaskQueued",
+        "TargetGraphReady",
+        "TaskStarted",
+        "ProgressUpdated",
+        "DiagnosticEmitted",
+        "TestCaseStarted",
+        "TestCaseFinished",
+        "ArtifactPublished",
+        "TaskFinished"
+      ]
+    },
+    "payload_kind": {
+      "type": "string",
+      "enum": ["lifecycle", "progress", "diagnostic", "test", "artifact", "debug"]
+    },
+    "producer_lane": {
+      "type": "string",
+      "enum": ["notebook_run", "task_center", "test_session", "debug_session", "pipeline"]
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "notebook_run",
+        "task_center",
+        "test_session",
+        "debug_session",
+        "pipeline",
+        "support_export",
+        "cli_headless"
+      ]
+    },
+    "raw_payload_retention_class": {
+      "type": "string",
+      "enum": ["metadata_digest_only", "redacted_reference", "support_approval_required"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "partial_support",
+        "heuristic_fallback",
+        "replay_gap",
+        "unsupported_adapter_capability"
+      ]
+    },
+    "priority_rank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build_tool_name", "adapter_id", "adapter_version"],
+      "properties": {
+        "build_tool_name": { "$ref": "#/$defs/non_empty_string" },
+        "build_tool_version": { "type": "string" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_revision": { "type": "string" }
+      }
+    },
+    "task_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "sequence",
+        "producer_lane",
+        "workspace_id",
+        "target_id",
+        "event_kind",
+        "payload_kind",
+        "source_kind",
+        "priority_rank",
+        "confidence",
+        "captured_at",
+        "execution_context_id",
+        "raw_payload_ref",
+        "raw_payload_retention_class",
+        "provenance",
+        "downgraded"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "producer_lane": { "$ref": "#/$defs/producer_lane" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "$ref": "#/$defs/priority_rank" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" }
+      },
+      "allOf": [
+        {
+          "comment": "A downgraded record must name a reason; a non-downgraded record must not.",
+          "if": { "properties": { "downgraded": { "const": true } } },
+          "then": { "required": ["downgrade_reason"] },
+          "else": { "not": { "required": ["downgrade_reason"] } }
+        }
+      ]
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "projection_ref",
+        "reads_canonical_envelope",
+        "preserves_event_id",
+        "preserves_source_kind",
+        "preserves_priority_rank",
+        "preserves_confidence",
+        "preserves_payload_kind",
+        "preserves_downgrade_disclosure",
+        "preserves_raw_payload_ref",
+        "preserves_provenance",
+        "explains_source_and_confidence",
+        "observed_event_count"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reads_canonical_envelope": { "type": "boolean" },
+        "preserves_event_id": { "type": "boolean" },
+        "preserves_source_kind": { "type": "boolean" },
+        "preserves_priority_rank": { "type": "boolean" },
+        "preserves_confidence": { "type": "boolean" },
+        "preserves_payload_kind": { "type": "boolean" },
+        "preserves_downgrade_disclosure": { "type": "boolean" },
+        "preserves_raw_payload_ref": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" },
+        "explains_source_and_confidence": { "type": "boolean" },
+        "observed_event_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "trace_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trace_id",
+        "workspace_id",
+        "target_id",
+        "event_count",
+        "first_sequence",
+        "last_sequence",
+        "source_kinds",
+        "downgraded_event_count",
+        "replay_digest"
+      ],
+      "properties": {
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_count": { "type": "integer", "minimum": 0 },
+        "first_sequence": { "type": "integer", "minimum": 0 },
+        "last_sequence": { "type": "integer", "minimum": 0 },
+        "source_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_kind" }
+        },
+        "downgraded_event_count": { "type": "integer", "minimum": 0 },
+        "replay_digest": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "blocker"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "first_consumers_schema_ref",
+        "envelope_schema_ref",
+        "doc_ref",
+        "policy_baseline_ref",
+        "events",
+        "trace_summaries",
+        "surface_projections",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_task_event_first_consumers_packet" },
+        "schema_version": { "const": 1 },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "first_consumers_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_baseline_ref": { "$ref": "#/$defs/non_empty_string" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_event_record" }
+        },
+        "trace_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trace_summary" }
+        },
+        "surface_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id_ref",
+        "packet"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_task_event_first_consumers_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet": { "$ref": "#/$defs/first_consumers_packet" }
+      }
+    },
+    "cli_headless_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "sequence",
+        "producer_lane",
+        "event_kind",
+        "payload_kind",
+        "source_kind",
+        "priority_rank",
+        "confidence",
+        "downgraded",
+        "raw_payload_ref",
+        "raw_payload_retention_class",
+        "explanation"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "producer_lane": { "$ref": "#/$defs/producer_lane" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "$ref": "#/$defs/priority_rank" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cli_headless_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id_ref",
+        "replay_digest",
+        "rows",
+        "trace_summaries"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_task_event_first_consumers_cli_headless" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_digest": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cli_headless_row" }
+        },
+        "trace_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trace_summary" }
+        }
+      }
+    }
+  }
+}

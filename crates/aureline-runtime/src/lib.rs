@@ -104,6 +104,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_environment_status_strips;
 pub mod m5_task_event_adapter_policy;
+pub mod m5_task_event_envelope_bus;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
@@ -557,6 +558,21 @@ pub use m5_task_event_adapter_policy::{
     TASK_EVENT_ADAPTER_POLICY_SCHEMA_VERSION, TASK_EVENT_ADAPTER_POLICY_SEED_CONTRACT_REF,
     TASK_EVENT_ADAPTER_POLICY_SUPPORT_EXPORT_ID,
     TASK_EVENT_ADAPTER_POLICY_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_task_event_envelope_bus::{
+    canonical_payload_kind, current_stable_task_event_first_consumers_input,
+    seeded_task_event_first_consumers_packet, validate_task_event_first_consumers_packet,
+    EventBusFindingKind, EventBusValidationFinding, TaskEventCliHeadlessRow,
+    TaskEventCliHeadlessView, TaskEventFirstConsumersPacket, TaskEventFirstConsumersPacketInput,
+    TaskEventFirstConsumersSupportExport, TaskEventRecord, TaskEventSurface,
+    TaskEventSurfaceProjection, TaskEventTraceSummary, TASK_EVENT_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    TASK_EVENT_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND, TASK_EVENT_FIRST_CONSUMERS_DOC_REF,
+    TASK_EVENT_FIRST_CONSUMERS_ENVELOPE_SCHEMA_REF, TASK_EVENT_FIRST_CONSUMERS_FIXTURE_DIR,
+    TASK_EVENT_FIRST_CONSUMERS_PACKET_ARTIFACT_REF, TASK_EVENT_FIRST_CONSUMERS_PACKET_ID,
+    TASK_EVENT_FIRST_CONSUMERS_POLICY_BASELINE_REF, TASK_EVENT_FIRST_CONSUMERS_RECORD_KIND,
+    TASK_EVENT_FIRST_CONSUMERS_SCHEMA_REF, TASK_EVENT_FIRST_CONSUMERS_SCHEMA_VERSION,
+    TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,
