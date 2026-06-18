@@ -102,6 +102,7 @@ pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
+pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_environment_status_strips;
 pub mod m5_replay_bundles;
@@ -531,6 +532,24 @@ pub use log_metric_slice_and_incident_timeline_contract::{
     OPERATIONAL_EVIDENCE_CONTRACT_DOC_REF, OPERATIONAL_EVIDENCE_CONTRACT_FIXTURE_DIR,
     OPERATIONAL_EVIDENCE_CONTRACT_RECORD_KIND, OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_REF,
     OPERATIONAL_EVIDENCE_CONTRACT_SCHEMA_VERSION, OPERATIONAL_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_adapter_confidence_labels::{
+    current_stable_adapter_confidence_audit_input, seeded_adapter_confidence_audit,
+    validate_adapter_confidence_audit, AdapterConfidenceAiEvidenceView, AdapterConfidenceAudit,
+    AdapterConfidenceAuditInput, AdapterConfidenceAuditSupportExport,
+    AdapterConfidenceCliHeadlessRow, AdapterConfidenceCliHeadlessView, AiEvidenceClaimRow,
+    AiEvidenceSubjectRow, ClaimSubject, ClaimSubjectKind, ClaimSubjectResolution,
+    ClaimSubjectResolutionInput, ConfidenceAuditFindingKind, ConfidenceAuditValidationFinding,
+    ConfidenceClaim, ConfidenceLabel, ConfidenceLabelSurface, OverwriteDecision,
+    OverwriteDecisionRow, OverwriteReason, SourceQualityChange, SurfaceLabelBinding,
+    ADAPTER_CONFIDENCE_AUDIT_AI_EVIDENCE_ID, ADAPTER_CONFIDENCE_AUDIT_AI_EVIDENCE_RECORD_KIND,
+    ADAPTER_CONFIDENCE_AUDIT_CLI_HEADLESS_ID, ADAPTER_CONFIDENCE_AUDIT_CLI_HEADLESS_RECORD_KIND,
+    ADAPTER_CONFIDENCE_AUDIT_DOC_REF, ADAPTER_CONFIDENCE_AUDIT_ENVELOPE_SCHEMA_REF,
+    ADAPTER_CONFIDENCE_AUDIT_FIXTURE_DIR, ADAPTER_CONFIDENCE_AUDIT_ID,
+    ADAPTER_CONFIDENCE_AUDIT_PACKET_ARTIFACT_REF, ADAPTER_CONFIDENCE_AUDIT_POLICY_BASELINE_REF,
+    ADAPTER_CONFIDENCE_AUDIT_RECORD_KIND, ADAPTER_CONFIDENCE_AUDIT_SCHEMA_REF,
+    ADAPTER_CONFIDENCE_AUDIT_SCHEMA_VERSION, ADAPTER_CONFIDENCE_AUDIT_SUPPORT_EXPORT_ID,
+    ADAPTER_CONFIDENCE_AUDIT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_adapter_hierarchy_negotiation::{
     current_stable_adapter_hierarchy_negotiation_input, downgrade_reason_for_fallback,

@@ -1,0 +1,455 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/adapter-confidence-audit.schema.json",
+  "title": "Aureline M5 adapter-confidence audit",
+  "description": "Boundary schema for the adapter-confidence audit, its support export, its CLI/headless view, and its AI evidence view. The audit turns confidence preservation into a user-visible contract: it binds one confidence label (a source-class chip, a confidence chip, and a heuristic-fallback banner with its reason) to every claimed M5 surface, and it arbitrates the case where more than one source describes the same lifecycle slot or artifact so a weaker or imported emission may enrich context but can never silently overwrite native, BSP, or Bazel BEP/BES truth. It reuses the source-kind and confidence vocabulary and the heuristic-fallback downgrade reason frozen in schemas/tooling/task-event-envelope.schema.json, and adds two reusable vocabularies that desktop, CLI/headless, AI, and support flows all inspect: the overwrite decision (with its reason) recorded per challenger claim, and the source-quality change recorded per subject. Source class and confidence are never compressed into one badge or a generic 'partial' label, and every claim a subject saw is retained so lineage is never dropped to resolve a conflict.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/audit" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/cli_headless_view" },
+    { "$ref": "#/$defs/ai_evidence_view" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "TaskQueued",
+        "TargetGraphReady",
+        "TaskStarted",
+        "ProgressUpdated",
+        "DiagnosticEmitted",
+        "TestCaseStarted",
+        "TestCaseFinished",
+        "ArtifactPublished",
+        "TaskFinished"
+      ]
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": ["lifecycle_slot", "artifact"]
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "task_center",
+        "test_tree",
+        "coverage_flaky",
+        "pipeline_overlay",
+        "notebook_run_history",
+        "support_export",
+        "cli_headless",
+        "ai_evidence"
+      ]
+    },
+    "fallback_reason": {
+      "type": "string",
+      "enum": [
+        "partial_support",
+        "heuristic_fallback",
+        "replay_gap",
+        "unsupported_adapter_capability"
+      ]
+    },
+    "overwrite_decision": {
+      "type": "string",
+      "enum": [
+        "accepted_authoritative",
+        "enriched_context_only",
+        "blocked_lower_confidence"
+      ]
+    },
+    "overwrite_reason": {
+      "type": "string",
+      "enum": [
+        "weaker_source_class",
+        "lower_confidence_tier",
+        "never_claimed_authority"
+      ]
+    },
+    "source_quality_change": {
+      "type": "string",
+      "enum": [
+        "held_authoritative",
+        "upgraded_to_authoritative",
+        "downgraded_to_fallback",
+        "overwrite_blocked",
+        "enriched_without_overwrite"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "no_surface_bindings",
+        "surface_binding_missing",
+        "surface_collapses_source_and_confidence",
+        "surface_hides_fallback_banner",
+        "surface_drops_lineage",
+        "no_claim_subjects",
+        "subject_has_no_claims",
+        "claim_identity_incomplete",
+        "claim_priority_mismatch",
+        "claim_confidence_overclaim",
+        "label_banner_inconsistent",
+        "authoritative_claim_mismatch",
+        "lower_confidence_overwrite_accepted",
+        "overwrite_decision_inconsistent",
+        "source_quality_change_mismatch",
+        "lineage_dropped",
+        "promotion_state_mismatch"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocker"]
+    },
+    "label_digest": {
+      "type": "string",
+      "pattern": "^fnv1a64:[0-9a-f]{16}$"
+    },
+    "confidence_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "confidence", "heuristic_fallback_banner"],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "heuristic_fallback_banner": { "type": "boolean" },
+        "fallback_reason": { "$ref": "#/$defs/fallback_reason" }
+      }
+    },
+    "confidence_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "adapter_id",
+        "label",
+        "priority_rank",
+        "attempts_overwrite",
+        "observed_at",
+        "raw_payload_ref"
+      ],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/confidence_label" },
+        "priority_rank": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "attempts_overwrite": { "type": "boolean" },
+        "observed_at": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "claim_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_id", "workspace_id", "target_id", "event_kind", "subject_kind"],
+      "properties": {
+        "subject_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "prior_authoritative_source": { "$ref": "#/$defs/source_kind" }
+      }
+    },
+    "overwrite_decision_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "decision"],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "decision": { "$ref": "#/$defs/overwrite_decision" },
+        "reason": { "$ref": "#/$defs/overwrite_reason" }
+      }
+    },
+    "claim_subject_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "claims",
+        "authoritative_claim_id",
+        "current_authoritative_source",
+        "current_confidence",
+        "overwrite_decisions",
+        "source_quality_change"
+      ],
+      "properties": {
+        "subject": { "$ref": "#/$defs/claim_subject" },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/confidence_claim" }
+        },
+        "authoritative_claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "current_authoritative_source": { "$ref": "#/$defs/source_kind" },
+        "current_confidence": { "$ref": "#/$defs/confidence" },
+        "overwrite_decisions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/overwrite_decision_row" }
+        },
+        "source_quality_change": { "$ref": "#/$defs/source_quality_change" }
+      }
+    },
+    "surface_label_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "binding_ref",
+        "reads_canonical_label",
+        "shows_source_class_chip",
+        "shows_confidence_chip",
+        "keeps_source_and_confidence_distinct",
+        "shows_heuristic_fallback_banner",
+        "shows_fallback_reason",
+        "shows_overwrite_decision",
+        "keeps_lineage_inspectable",
+        "observed_label_count"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reads_canonical_label": { "type": "boolean" },
+        "shows_source_class_chip": { "type": "boolean" },
+        "shows_confidence_chip": { "type": "boolean" },
+        "keeps_source_and_confidence_distinct": { "type": "boolean" },
+        "shows_heuristic_fallback_banner": { "type": "boolean" },
+        "shows_fallback_reason": { "type": "boolean" },
+        "shows_overwrite_decision": { "type": "boolean" },
+        "keeps_lineage_inspectable": { "type": "boolean" },
+        "observed_label_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id",
+        "generated_at",
+        "audit_schema_ref",
+        "envelope_schema_ref",
+        "doc_ref",
+        "policy_baseline_ref",
+        "surface_bindings",
+        "subjects",
+        "label_digest",
+        "promotion_state",
+        "validation_findings"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_confidence_audit" },
+        "schema_version": { "const": 1 },
+        "audit_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "audit_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_baseline_ref": { "$ref": "#/$defs/non_empty_string" },
+        "surface_bindings": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/surface_label_binding" }
+        },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/claim_subject_resolution" }
+        },
+        "label_digest": { "$ref": "#/$defs/label_digest" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "audit_id_ref",
+        "label_digest",
+        "audit"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_confidence_audit_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "$ref": "#/$defs/non_empty_string" },
+        "audit_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "label_digest": { "$ref": "#/$defs/label_digest" },
+        "audit": { "$ref": "#/$defs/audit" }
+      }
+    },
+    "cli_headless_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_id",
+        "subject_kind",
+        "claim_id",
+        "source_kind",
+        "confidence",
+        "heuristic_fallback_banner",
+        "overwrite_decision",
+        "is_authoritative",
+        "source_quality_change",
+        "raw_payload_ref"
+      ],
+      "properties": {
+        "subject_id": { "$ref": "#/$defs/non_empty_string" },
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "heuristic_fallback_banner": { "type": "boolean" },
+        "fallback_reason": { "$ref": "#/$defs/fallback_reason" },
+        "overwrite_decision": { "$ref": "#/$defs/overwrite_decision" },
+        "overwrite_reason": { "$ref": "#/$defs/overwrite_reason" },
+        "is_authoritative": { "type": "boolean" },
+        "source_quality_change": { "$ref": "#/$defs/source_quality_change" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cli_headless_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "audit_id_ref",
+        "label_digest",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_confidence_audit_cli_headless" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "audit_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "label_digest": { "$ref": "#/$defs/label_digest" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/cli_headless_row" }
+        }
+      }
+    },
+    "ai_evidence_claim_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "source_kind",
+        "confidence",
+        "heuristic_fallback_banner",
+        "overwrite_decision",
+        "raw_payload_ref"
+      ],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "heuristic_fallback_banner": { "type": "boolean" },
+        "fallback_reason": { "$ref": "#/$defs/fallback_reason" },
+        "overwrite_decision": { "$ref": "#/$defs/overwrite_decision" },
+        "overwrite_reason": { "$ref": "#/$defs/overwrite_reason" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "ai_evidence_subject_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_id",
+        "subject_kind",
+        "authoritative_claim_id",
+        "authoritative_source",
+        "authoritative_confidence",
+        "source_quality_change",
+        "claims",
+        "explanation"
+      ],
+      "properties": {
+        "subject_id": { "$ref": "#/$defs/non_empty_string" },
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "authoritative_claim_id": { "$ref": "#/$defs/non_empty_string" },
+        "authoritative_source": { "$ref": "#/$defs/source_kind" },
+        "authoritative_confidence": { "$ref": "#/$defs/confidence" },
+        "source_quality_change": { "$ref": "#/$defs/source_quality_change" },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ai_evidence_claim_row" }
+        },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "ai_evidence_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "audit_id_ref",
+        "label_digest",
+        "subjects"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_adapter_confidence_audit_ai_evidence" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "audit_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "label_digest": { "$ref": "#/$defs/label_digest" },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ai_evidence_subject_row" }
+        }
+      }
+    }
+  }
+}

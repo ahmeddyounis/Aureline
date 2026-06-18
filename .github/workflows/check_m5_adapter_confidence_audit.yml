@@ -1,0 +1,67 @@
+# M5 adapter-confidence audit gate.
+#
+# Validates the checked-in adapter-confidence audit: every claimed surface binds
+# one confidence label that keeps the source class and confidence as distinct
+# chips, shows the heuristic-fallback banner and its reason, and keeps the
+# overwrite decision and claim lineage inspectable; each contested subject names
+# the authoritative claim the canonical arbitration picks and blocks every
+# weaker, overwrite-attempting re-report instead of letting it silently overwrite
+# stronger truth; and the support, CLI/headless, and AI evidence projections
+# preserve the label and the full lineage. The typed Rust consumer mints the same
+# audit, so `cargo test -p aureline-runtime` enforces the same invariants and that
+# the fixtures and artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_adapter_confidence_audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_adapter_confidence_audit.yml"
+      - "tools/ci/m5/adapter_confidence_audit_check.py"
+      - "schemas/tooling/adapter-confidence-audit.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/adapter-confidence-and-fallback.md"
+      - "artifacts/m5/tooling/adapter-confidence-audit/**"
+      - "fixtures/tooling/m5/confidence-preservation/**"
+      - "crates/aureline-runtime/src/m5_adapter_confidence_labels/**"
+      - "crates/aureline-runtime/examples/dump_m5_adapter_confidence_labels.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_adapter_confidence_labels.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-adapter-confidence-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_adapter_confidence_audit:
+    name: M5 adapter-confidence audit
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 adapter-confidence audit CI gate
+        run: |
+          python3 tools/ci/m5/adapter_confidence_audit_check.py --repo-root .
+
+      - name: Run M5 adapter-confidence audit contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_adapter_confidence_labels
