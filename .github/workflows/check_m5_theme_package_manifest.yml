@@ -1,0 +1,52 @@
+# M5 theme-package manifest gate.
+#
+# Validates the checked-in M5 theme-package manifest audit: every claimed M5
+# surface (notebook, result grid, profiler timeline, preview/browser pane,
+# docs/help pane, companion surface, extension-backed surface) declares its
+# active theme package and supported appearance modes through one shared,
+# versioned manifest shape; theme provenance, supported-mode metadata, token
+# sets, contrast metadata, and inheritance expectations survive into the
+# support-export wrapper; and a downgrade (an unsupported mode, a hidden
+# inheritance gap, an undisclosed disabled package, or stale evidence on a
+# marketed surface) is a blocker so release tooling can narrow the surface.
+
+name: check_m5_theme_package_manifest
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_theme_package_manifest.yml"
+      - "tools/ci/m5/theme_package_manifest_check.py"
+      - "schemas/ux/m5-theme-package-manifest.schema.json"
+      - "schemas/ux/theme_package_manifest.schema.json"
+      - "docs/m5/theme-package-manifests.md"
+      - "artifacts/ux/m5/theme-manifest-audit/**"
+      - "fixtures/ux/m5/theme-package-modes/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-theme-package-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_theme_package_manifest:
+    name: M5 theme package manifest
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run M5 theme-package manifest CI gate
+        run: |
+          python3 tools/ci/m5/theme_package_manifest_check.py --repo-root .
