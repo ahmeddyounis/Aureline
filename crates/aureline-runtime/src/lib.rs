@@ -106,6 +106,7 @@ pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
+pub mod m5_event_interop_certification;
 pub mod m5_interop_conformance;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
@@ -599,6 +600,30 @@ pub use m5_environment_status_strips::{
     M5_ENVIRONMENT_STATUS_STRIP_REVIEW_PACKET_REF, M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_REF,
     M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_VERSION,
     M5_ENVIRONMENT_STATUS_STRIP_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_event_interop_certification::{
+    current_stable_event_interop_certification_input, seeded_event_interop_certification_packet,
+    validate_event_interop_certification_packet, CertificationDimension,
+    CertificationEvidenceSurface, CertificationFindingKind, CertificationIndex,
+    CertificationValidationFinding, ConsumerTruthSource,
+    DimensionOutcome as CertificationDimensionOutcome, EventInteropCertificationCliHeadlessView,
+    EventInteropCertificationEvidenceJoinView, EventInteropCertificationPacket,
+    EventInteropCertificationPacketInput, EventInteropCertificationSupportExport,
+    EvidenceFreshnessState as CertificationEvidenceFreshnessState, ProfileCertificationRow,
+    ProfileClaimState, ToolingProfile, ToolingProfileCertification,
+    EVENT_INTEROP_CERTIFICATION_AI_EVIDENCE_ID, EVENT_INTEROP_CERTIFICATION_CLI_HEADLESS_ID,
+    EVENT_INTEROP_CERTIFICATION_CLI_HEADLESS_RECORD_KIND,
+    EVENT_INTEROP_CERTIFICATION_CONFORMANCE_PACKET_REF, EVENT_INTEROP_CERTIFICATION_DOC_REF,
+    EVENT_INTEROP_CERTIFICATION_ENVELOPE_SCHEMA_REF,
+    EVENT_INTEROP_CERTIFICATION_EVIDENCE_JOIN_RECORD_KIND,
+    EVENT_INTEROP_CERTIFICATION_EVIDENCE_REFS, EVENT_INTEROP_CERTIFICATION_ID,
+    EVENT_INTEROP_CERTIFICATION_INCIDENT_PACKET_ID, EVENT_INTEROP_CERTIFICATION_INDEX_REF,
+    EVENT_INTEROP_CERTIFICATION_INTEROP_PACKET_REF,
+    EVENT_INTEROP_CERTIFICATION_PACKET_ARTIFACT_REF,
+    EVENT_INTEROP_CERTIFICATION_POLICY_BASELINE_REF, EVENT_INTEROP_CERTIFICATION_RECORD_KIND,
+    EVENT_INTEROP_CERTIFICATION_SCHEMA_REF, EVENT_INTEROP_CERTIFICATION_SCHEMA_VERSION,
+    EVENT_INTEROP_CERTIFICATION_SUPPORT_EXPORT_ID,
+    EVENT_INTEROP_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_interop_conformance::{
     archetypes_for_family, current_stable_interop_conformance_input,

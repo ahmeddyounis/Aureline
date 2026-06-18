@@ -1,0 +1,66 @@
+# M5 event-interop tooling-profile certification gate.
+#
+# Validates the checked-in event-interop certification packet: every claimed M5
+# run/test/debug/pipeline/notebook/coverage profile, present once and reading the
+# canonical event envelope, certified across the eight certification dimensions
+# (event-envelope reuse, adapter hierarchy, fallback reason, confidence
+# preservation, raw-payload retention, replay stability, degraded-state
+# disclosure, and export parity), the freshness/stale-narrowing roll-up, and the
+# certification index. The typed Rust consumer mints the same packet, so
+# `cargo test -p aureline-runtime` enforces the same invariants and that the
+# fixtures and artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_event_interop_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_event_interop_certification.yml"
+      - "tools/ci/m5/event_interop_certification_check.py"
+      - "schemas/tooling/m5-event-interop-certification.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/event-interop-certification.md"
+      - "artifacts/m5/tooling/event-interop-certification/**"
+      - "fixtures/tooling/m5/event-interop-certification/**"
+      - "crates/aureline-runtime/src/m5_event_interop_certification/**"
+      - "crates/aureline-runtime/examples/dump_m5_event_interop_certification.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_event_interop_certification.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-event-interop-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_event_interop_certification:
+    name: M5 event-interop certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 event-interop certification CI gate
+        run: |
+          python3 tools/ci/m5/event_interop_certification_check.py --repo-root .
+
+      - name: Run M5 event-interop certification contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_event_interop_certification
