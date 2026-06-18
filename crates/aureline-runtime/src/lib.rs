@@ -123,6 +123,7 @@ pub mod publish_execution_plane_certification_packets_for_local_remote;
 pub mod quality;
 pub mod queue_governor_and_admission_control;
 pub mod queue_session_terminal_governance;
+pub mod recipe_builder;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
@@ -925,6 +926,28 @@ pub use queue_session_terminal_governance::{
     QUEUE_SESSION_TERMINAL_SHARED_CONTROL_AUDIT_ROW_RECORD_KIND,
     QUEUE_SESSION_TERMINAL_SHARED_CONTROL_ROW_RECORD_KIND,
     QUEUE_SESSION_TERMINAL_TRANSCRIPT_EXPORT_ROW_RECORD_KIND, REPLICATION_BUDGET_DOMAIN_REF,
+};
+pub use recipe_builder::{
+    canonical_reused_contract_refs as recipe_builder_reused_contract_refs, copy_cli_for_verb,
+    current_recipe_builder_first_consumers_input, open_docs_for_verb,
+    seeded_blocked_recipe_builder, seeded_consumer_builder, seeded_recipe_builder_export_roundtrip,
+    seeded_recipe_builder_first_consumers_packet, slugify_canonical_verb, step_parity_holds,
+    validate_recipe_builder_first_consumers_packet, FirstConsumersFinding,
+    FirstConsumersFindingKind, FirstConsumersFindingSeverity, RecipeBuilder,
+    RecipeBuilderConsumerBinding, RecipeBuilderEntrypoint, RecipeBuilderError, RecipeBuilderExport,
+    RecipeBuilderFirstConsumersCliHeadlessView, RecipeBuilderFirstConsumersInput,
+    RecipeBuilderFirstConsumersPacket, RecipeBuilderFirstConsumersSupportExport,
+    RecipeBuilderInvariantsBlock, RecipeBuilderStep, ReorderEvent, ReorderGesture,
+    ReorderGestureKind, StepBlockReason, SupportExportConsumerRow, RECIPE_BUILDER_CLI_BINARY,
+    RECIPE_BUILDER_COMMAND_DOCS_BASE, RECIPE_BUILDER_DEFAULT_AUTHORING_LANGUAGE,
+    RECIPE_BUILDER_EXPORT_RECORD_KIND, RECIPE_BUILDER_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    RECIPE_BUILDER_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND,
+    RECIPE_BUILDER_FIRST_CONSUMERS_DOC_REF, RECIPE_BUILDER_FIRST_CONSUMERS_FIXTURE_DIR,
+    RECIPE_BUILDER_FIRST_CONSUMERS_ID, RECIPE_BUILDER_FIRST_CONSUMERS_PACKET_ARTIFACT_REF,
+    RECIPE_BUILDER_FIRST_CONSUMERS_RECORD_KIND, RECIPE_BUILDER_FIRST_CONSUMERS_SCHEMA_REF,
+    RECIPE_BUILDER_FIRST_CONSUMERS_SCHEMA_VERSION,
+    RECIPE_BUILDER_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    RECIPE_BUILDER_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND, RECIPE_BUILDER_SESSION_RECORD_KIND,
 };
 pub use recipes::{
     RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,

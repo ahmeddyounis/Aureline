@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/recipe-builder-first-consumers.schema.json",
+  "title": "Aureline recipe-builder object and first-consumers contract",
+  "description": "Boundary schema for the live recipe-builder object and the M5 surfaces that first consume it. The canonical builder authors a recipe as ordered, declarative step objects citing stable command identities; it reorders steps by drag or keyboard through one canonical operation; it keeps unresolved and blocked steps visible; and it exposes a copy-CLI string and an open-docs anchor that cite the same command. A recipe_builder_export_record nests the whole builder so step order, command provenance, unresolved/blocked state, and the reorder log survive export/import. The m5_recipe_builder_first_consumers_packet binds each first-consumer entrypoint (notebook, task/test/debug, request/API, package, incident, AI assistant) to a seeded builder and pins the freeze invariants; a dropped entrypoint, a non-declarative manifest target, an unblocked UI-only step, broken copy-CLI/open-docs parity, or a violated invariant blocks stable. The builder emits declarative recipe manifests only and reuses the controlled-automation-label safety vocabulary frozen in automation-manifest.schema.json; it never mints parallel labels or embeds raw shell, paths, URLs, prompt text, or credential material.",
+  "oneOf": [
+    { "$ref": "#/$defs/recipe_builder_first_consumers_packet" },
+    { "$ref": "#/$defs/recipe_builder_first_consumers_support_export" },
+    { "$ref": "#/$defs/recipe_builder_first_consumers_cli_headless" },
+    { "$ref": "#/$defs/recipe_builder_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from the command descriptor."
+    },
+    "controlled_automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required",
+        "writes_files",
+        "runs_process",
+        "network_call",
+        "remote_mutation"
+      ],
+      "description": "Re-exported controlled-automation-label vocabulary from automation-manifest.schema.json. Minting a parallel label is non-conforming."
+    },
+    "builder_state_class": {
+      "type": "string",
+      "enum": ["draft", "validation_failed", "preview_ready", "approval_required", "blocked"],
+      "description": "Re-exported recipe-builder authoring-state vocabulary from recipe-builder.schema.json."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "entrypoint": {
+      "type": "string",
+      "enum": ["notebook", "task_test_debug", "request_api", "package", "incident", "ai_assistant"],
+      "description": "A first-consumer surface that authors or saves recipes through the canonical builder."
+    },
+    "reorder_gesture_kind": {
+      "type": "string",
+      "enum": ["drag_to_index", "keyboard_move_up", "keyboard_move_down"],
+      "description": "The kind of reorder gesture, drag or keyboard, recorded for one move."
+    },
+    "step_block_reason": {
+      "type": "string",
+      "enum": ["ui_only_command_not_recipe_safe", "denied_by_policy", "trust_gate_denied"],
+      "description": "Why a step cannot be admitted to a declarative recipe."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_entrypoint",
+        "entrypoint_builder_empty",
+        "step_missing_command_identity",
+        "non_declarative_manifest_target",
+        "ui_only_step_not_blocked",
+        "cli_docs_parity_broken",
+        "invariant_violated"
+      ]
+    },
+    "finding_severity": { "type": "string", "enum": ["blocker", "warning"] },
+    "step_draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_kind",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "capability_declarations",
+        "projected_safety_labels"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_kind": { "$ref": "#/$defs/non_empty_string" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        }
+      },
+      "description": "One reused command-truth step draft, identical to recipe-builder.schema.json#/$defs/recipe_builder_step_draft."
+    },
+    "builder_validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recipe_builder_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_builder_schema_version",
+        "builder_id",
+        "draft_recipe_revision_ref",
+        "title",
+        "summary",
+        "builder_state_class",
+        "authoring_language_class",
+        "step_drafts",
+        "projected_safety_labels",
+        "validation_findings",
+        "parameter_review_sheet_ref",
+        "dry_run_explain_packet_ref",
+        "manifest_target_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_builder_session_record" },
+        "recipe_builder_schema_version": { "$ref": "#/$defs/schema_version" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "builder_state_class": { "$ref": "#/$defs/builder_state_class" },
+        "authoring_language_class": { "$ref": "#/$defs/non_empty_string" },
+        "step_drafts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_draft" }
+        },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/builder_validation_finding" }
+        },
+        "parameter_review_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_explain_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "MUST be schemas/automation/recipe_manifest.schema.json; the builder emits declarative manifests only."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The frozen authoring-session record the builder projects, re-used from recipe-builder.schema.json."
+    },
+    "recipe_builder_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["draft", "unresolved_argument_slots", "block_reason", "copy_cli", "open_docs"],
+      "properties": {
+        "draft": { "$ref": "#/$defs/step_draft" },
+        "unresolved_argument_slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Reviewable names of required argument slots still needing input."
+        },
+        "block_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/step_block_reason" }],
+          "description": "Why the step is blocked from a declarative recipe, or null."
+        },
+        "copy_cli": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewable headless invocation citing the step's canonical verb; never raw argv or secrets."
+        },
+        "open_docs": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Docs anchor whose fragment is the slugified canonical verb; copy-CLI/open-docs parity."
+        }
+      }
+    },
+    "reorder_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "gesture_kind", "from_index", "to_index"],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "gesture_kind": { "$ref": "#/$defs/reorder_gesture_kind" },
+        "from_index": { "type": "integer", "minimum": 0 },
+        "to_index": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recipe_builder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "builder_id",
+        "entrypoint",
+        "draft_recipe_revision_ref",
+        "title",
+        "summary",
+        "authoring_language_class",
+        "steps",
+        "reorder_log",
+        "parameter_review_sheet_ref",
+        "dry_run_explain_packet_ref",
+        "manifest_target_schema_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "draft_recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "authoring_language_class": { "$ref": "#/$defs/non_empty_string" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_builder_step" }
+        },
+        "reorder_log": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reorder_event" }
+        },
+        "parameter_review_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "dry_run_explain_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_target_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The live, mutable recipe-builder object preserved verbatim by an export."
+    },
+    "recipe_builder_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "builder_state_class",
+        "session_record",
+        "builder",
+        "export_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_builder_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "builder_state_class": { "$ref": "#/$defs/builder_state_class" },
+        "session_record": { "$ref": "#/$defs/recipe_builder_session_record" },
+        "builder": { "$ref": "#/$defs/recipe_builder" },
+        "export_digest": {
+          "type": "string",
+          "pattern": "^fnv1a64:[0-9a-f]{16}$"
+        }
+      },
+      "description": "A builder exported for sharing, support bundles, or rerun review. The nested builder preserves step order, command provenance, unresolved/blocked state, and the reorder log; import reconstructs the identical builder."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "builder_reuses_command_truth_not_private_form_state",
+        "every_entrypoint_binds_the_canonical_builder",
+        "steps_are_ordered_and_reorder_preserves_identity",
+        "blocked_or_unresolved_steps_remain_visible",
+        "copy_cli_and_open_docs_cite_the_same_command",
+        "builder_emits_declarative_manifests_only",
+        "builder_state_survives_export_import"
+      ],
+      "properties": {
+        "builder_reuses_command_truth_not_private_form_state": { "type": "boolean" },
+        "every_entrypoint_binds_the_canonical_builder": { "type": "boolean" },
+        "steps_are_ordered_and_reorder_preserves_identity": { "type": "boolean" },
+        "blocked_or_unresolved_steps_remain_visible": { "type": "boolean" },
+        "copy_cli_and_open_docs_cite_the_same_command": { "type": "boolean" },
+        "builder_emits_declarative_manifests_only": { "type": "boolean" },
+        "builder_state_survives_export_import": { "type": "boolean" }
+      }
+    },
+    "first_consumers_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "type": ["string", "null"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "builder_id",
+        "builder_state_class",
+        "session_record",
+        "step_count",
+        "projected_safety_labels",
+        "copy_cli_lines",
+        "open_docs_anchors",
+        "unresolved_required_count",
+        "entry_summary"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_state_class": { "$ref": "#/$defs/builder_state_class" },
+        "session_record": { "$ref": "#/$defs/recipe_builder_session_record" },
+        "step_count": { "type": "integer", "minimum": 1 },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        },
+        "copy_cli_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "open_docs_anchors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "unresolved_required_count": { "type": "integer", "minimum": 0 },
+        "entry_summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "One first-consumer entrypoint bound to the seeded builder it authored."
+    },
+    "recipe_builder_first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "session_schema_ref",
+        "recipe_manifest_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "consumer_bindings",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_recipe_builder_first_consumers_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "session_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recipe_manifest_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/first_consumers_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" }
+      },
+      "description": "Canonical first-consumers packet binding every entrypoint to a seeded builder and pinning the freeze invariants."
+    },
+    "support_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "builder_id",
+        "builder_state_class",
+        "step_count",
+        "unresolved_required_count",
+        "projected_safety_labels"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "builder_id": { "$ref": "#/$defs/opaque_id" },
+        "builder_state_class": { "$ref": "#/$defs/builder_state_class" },
+        "step_count": { "type": "integer", "minimum": 1 },
+        "unresolved_required_count": { "type": "integer", "minimum": 0 },
+        "projected_safety_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/controlled_automation_label" }
+        }
+      }
+    },
+    "recipe_builder_first_consumers_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "consumer_rows",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_recipe_builder_first_consumers_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_consumer_row" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_kind" }
+        }
+      },
+      "description": "Redacted support-export projection of the first-consumers packet."
+    },
+    "recipe_builder_first_consumers_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "consumer_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_recipe_builder_first_consumers_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      },
+      "description": "Compact CLI / headless projection of the first-consumers packet."
+    }
+  }
+}
