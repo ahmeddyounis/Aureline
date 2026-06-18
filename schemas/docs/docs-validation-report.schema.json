@@ -1,0 +1,719 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs-validation-report.schema.json",
+  "title": "Aureline docs validation report packet",
+  "description": "Export-safe packet for the M5 docs example/link validation report. The packet carries one or more typed validation rows across the code_example / shell_example / config_example / link / anchor_link subject kinds. Each row names a concrete subject (doc ref plus optional snippet/link anchor, display path, and label), one validation mode (rendered / syntax_checked / executed_local / executed_remote / skipped / stale / unsupported / broken_link), an outcome that must agree with that mode (executed_pass / executed_fail / passed_with_warnings / rendered_preview_only / syntax_valid / syntax_invalid / link_broken / not_run), an explicit last_checked_at time and an environment/version scope (environment label, toolchain ref, target version ref, version match), the producing validator and execution context (rendered_preview_engine / syntax_checker / local_example_harness / remote_example_runner / link_checker / manual_reviewer), a freshness/version/locality chip set, one evidence provenance disclosure (first_party_verified / local_only_unverified / imported / mirrored / stale / derived_heuristic), a source/evidence trace, the full action set (open-snippet, open-failing-source, compare-current-source, suppress, rerun, plus a preserves-producer flag), and a durable suppression (active / suppressed / reopened). A non-executed row that claims an executed result, a mode/outcome mismatch, a missing last-checked time or scope, a misattributed or unpreserved producer, an untraced failing/broken/stale/unsupported finding, a collapsed result/version truth, an uncited unverified source, or a suppressed row that is not attributable, previewable, and reopenable blocks the claim. An export preserves mode, outcome, last-checked time, environment/version scope, freshness, provenance, the producing validator, action parity, and suppression per row. Packet-level degradations narrow or block the claim. The promotion state (stable / narrowed_below_stable / blocks_stable) is computed from validation findings and degradation severities. Raw document bodies, raw source files, raw URLs, rendered HTML, execution logs, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "report_label",
+    "report_digest_ref",
+    "rows",
+    "export",
+    "report_degradations",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "docs_validation_report"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "report_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "report_digest_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "report_degradations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/report_degradation"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "promotion_state": {
+      "$ref": "#/$defs/promotion_state"
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validation_finding"
+      }
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "code_example",
+        "shell_example",
+        "config_example",
+        "link",
+        "anchor_link"
+      ]
+    },
+    "validation_mode": {
+      "type": "string",
+      "enum": [
+        "rendered",
+        "syntax_checked",
+        "executed_local",
+        "executed_remote",
+        "skipped",
+        "stale",
+        "unsupported",
+        "broken_link"
+      ]
+    },
+    "validation_outcome": {
+      "type": "string",
+      "enum": [
+        "executed_pass",
+        "executed_fail",
+        "passed_with_warnings",
+        "rendered_preview_only",
+        "syntax_valid",
+        "syntax_invalid",
+        "link_broken",
+        "not_run"
+      ]
+    },
+    "validator_kind": {
+      "type": "string",
+      "enum": [
+        "rendered_preview_engine",
+        "syntax_checker",
+        "local_example_harness",
+        "remote_example_runner",
+        "link_checker",
+        "manual_reviewer"
+      ]
+    },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "first_party_verified",
+        "local_only_unverified",
+        "imported",
+        "mirrored",
+        "stale",
+        "derived_heuristic"
+      ]
+    },
+    "version_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "locality": {
+      "type": "string",
+      "enum": [
+        "local",
+        "imported_pack",
+        "mirrored_pack",
+        "managed"
+      ]
+    },
+    "suppression_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suppressed",
+        "reopened"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": [
+        "blocking",
+        "narrowing",
+        "advisory"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "docs_validation_report",
+        "docs_authoring_surface",
+        "docs_review_panel",
+        "docs_browser_shell",
+        "release_center",
+        "ai_context_inspector",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "degradation_class": {
+      "type": "string",
+      "enum": [
+        "mirror_offline_snapshot",
+        "example_harness_unavailable",
+        "remote_runner_unavailable",
+        "link_checker_offline",
+        "render_engine_degraded",
+        "scope_narrowed_rerun",
+        "report_narrowed",
+        "quarantined_source"
+      ]
+    },
+    "export_scope": {
+      "type": "string",
+      "enum": [
+        "all_rows",
+        "failing_only",
+        "attention_only",
+        "suppressed_only"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "narrowed_below_stable",
+        "blocks_stable"
+      ]
+    },
+    "validation_finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_identity",
+        "rows_empty",
+        "duplicate_row_id",
+        "required_subject_kind_missing",
+        "required_mode_coverage_missing",
+        "subject_identity_missing",
+        "detail_missing",
+        "last_checked_missing",
+        "environment_scope_missing",
+        "producer_context_missing",
+        "producer_validator_mode_mismatch",
+        "execution_claim_without_run",
+        "mode_outcome_inconsistent",
+        "provenance_disclosure_missing",
+        "result_truth_collapsed",
+        "version_truth_collapsed",
+        "row_not_cited",
+        "finding_not_traced",
+        "action_parity_incomplete",
+        "producer_not_preserved",
+        "suppression_not_attributable",
+        "suppression_not_reopenable",
+        "export_drops_preservation",
+        "export_row_orphan",
+        "export_coverage_missing",
+        "export_mode_mismatch",
+        "export_outcome_mismatch",
+        "export_last_checked_mismatch",
+        "export_scope_mismatch",
+        "export_freshness_mismatch",
+        "export_provenance_mismatch",
+        "export_producer_mismatch",
+        "export_suppression_mismatch",
+        "export_action_parity_mismatch",
+        "export_cited_mismatch",
+        "degradation_incomplete",
+        "degradation_orphan",
+        "consumer_projection_drift",
+        "consumer_projection_packet_id_mismatch",
+        "required_surface_coverage_missing",
+        "raw_boundary_material_present"
+      ]
+    },
+    "chip_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness",
+        "version_match",
+        "locality"
+      ],
+      "properties": {
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "locality": {
+          "$ref": "#/$defs/locality"
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_kind",
+        "doc_ref",
+        "display_path",
+        "label"
+      ],
+      "properties": {
+        "subject_kind": {
+          "$ref": "#/$defs/subject_kind"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "snippet_anchor": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "label": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_label",
+        "toolchain_ref",
+        "target_version_ref",
+        "version_match"
+      ],
+      "properties": {
+        "environment_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "toolchain_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_version_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validator",
+        "execution_context_ref",
+        "detail"
+      ],
+      "properties": {
+        "validator": {
+          "$ref": "#/$defs/validator_kind"
+        },
+        "execution_context_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "action_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_snippet_ref",
+        "open_failing_source_ref",
+        "compare_current_source_ref",
+        "suppress_available",
+        "rerun_available",
+        "preserves_producer"
+      ],
+      "properties": {
+        "open_snippet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_failing_source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "compare_current_source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "suppress_available": {
+          "type": "boolean"
+        },
+        "rerun_available": {
+          "type": "boolean"
+        },
+        "preserves_producer": {
+          "type": "boolean"
+        }
+      }
+    },
+    "suppression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "previewable",
+        "reopenable",
+        "note"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/suppression_state"
+        },
+        "attributed_to_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "history_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "previewable": {
+          "type": "boolean"
+        },
+        "reopenable": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "subject",
+        "mode",
+        "outcome",
+        "last_checked_at",
+        "scope",
+        "produced_by",
+        "chips",
+        "provenance",
+        "provenance_disclosure_note",
+        "source_trace_ref",
+        "actions",
+        "suppression",
+        "detail",
+        "cited"
+      ],
+      "properties": {
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "mode": {
+          "$ref": "#/$defs/validation_mode"
+        },
+        "outcome": {
+          "$ref": "#/$defs/validation_outcome"
+        },
+        "last_checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "produced_by": {
+          "$ref": "#/$defs/producer"
+        },
+        "chips": {
+          "$ref": "#/$defs/chip_set"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "provenance_disclosure_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_trace_ref": {
+          "type": "string"
+        },
+        "actions": {
+          "$ref": "#/$defs/action_set"
+        },
+        "suppression": {
+          "$ref": "#/$defs/suppression"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "citation_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id_ref",
+        "subject_kind",
+        "mode",
+        "outcome",
+        "last_checked_at",
+        "environment_label",
+        "version_match",
+        "freshness",
+        "provenance",
+        "produced_by",
+        "suppression_state",
+        "action_parity_complete",
+        "cited"
+      ],
+      "properties": {
+        "row_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "subject_kind": {
+          "$ref": "#/$defs/subject_kind"
+        },
+        "mode": {
+          "$ref": "#/$defs/validation_mode"
+        },
+        "outcome": {
+          "$ref": "#/$defs/validation_outcome"
+        },
+        "last_checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "environment_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "produced_by": {
+          "$ref": "#/$defs/validator_kind"
+        },
+        "suppression_state": {
+          "$ref": "#/$defs/suppression_state"
+        },
+        "action_parity_complete": {
+          "type": "boolean"
+        },
+        "cited": {
+          "type": "boolean"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "preserves_mode",
+        "preserves_outcome",
+        "preserves_last_checked",
+        "preserves_scope",
+        "preserves_freshness",
+        "preserves_provenance",
+        "preserves_producer",
+        "preserves_action_parity",
+        "preserves_suppression",
+        "rows"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/export_scope"
+        },
+        "preserves_mode": {
+          "type": "boolean"
+        },
+        "preserves_outcome": {
+          "type": "boolean"
+        },
+        "preserves_last_checked": {
+          "type": "boolean"
+        },
+        "preserves_scope": {
+          "type": "boolean"
+        },
+        "preserves_freshness": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_producer": {
+          "type": "boolean"
+        },
+        "preserves_action_parity": {
+          "type": "boolean"
+        },
+        "preserves_suppression": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_row"
+          }
+        }
+      }
+    },
+    "report_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation_class",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "degradation_class": {
+          "$ref": "#/$defs/degradation_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "row_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_modes",
+        "preserves_outcomes",
+        "preserves_last_checked",
+        "preserves_scope",
+        "preserves_chips",
+        "preserves_provenance",
+        "preserves_producer",
+        "preserves_action_parity",
+        "preserves_suppression"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/consumer_surface"
+        },
+        "packet_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_modes": {
+          "type": "boolean"
+        },
+        "preserves_outcomes": {
+          "type": "boolean"
+        },
+        "preserves_last_checked": {
+          "type": "boolean"
+        },
+        "preserves_scope": {
+          "type": "boolean"
+        },
+        "preserves_chips": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_producer": {
+          "type": "boolean"
+        },
+        "preserves_action_parity": {
+          "type": "boolean"
+        },
+        "preserves_suppression": {
+          "type": "boolean"
+        }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_kind",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "finding_kind": {
+          "$ref": "#/$defs/validation_finding_kind"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

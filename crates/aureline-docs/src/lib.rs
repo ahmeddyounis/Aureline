@@ -98,6 +98,24 @@ pub use authoring::suggestion_panel::{
     DOCS_SUGGESTION_PANEL_SCHEMA_REF, DOCS_SUGGESTION_PANEL_SCHEMA_VERSION,
     DOCS_SUGGESTION_PANEL_SUMMARY_REF, DOCS_SUGGESTION_PANEL_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use authoring::validation_report::{
+    current_stable_docs_validation_report_export,
+    packet_to_input as docs_validation_report_packet_to_input,
+    seeded_stable_docs_validation_report_input, DocsValidationReportArtifactError,
+    DocsValidationReportExport, DocsValidationReportPacket, DocsValidationReportPacketInput,
+    DocsValidationReportSupportExport, ValidationActionSet, ValidationChipSet,
+    ValidationConsumerProjection, ValidationConsumerSurface, ValidationDegradation,
+    ValidationDegradationClass, ValidationEvidenceProvenance, ValidationExportScope,
+    ValidationFinding, ValidationFindingKind, ValidationFindingSeverity, ValidationFreshness,
+    ValidationLocality, ValidationMode, ValidationOutcome, ValidationProducer,
+    ValidationPromotionState, ValidationReportExportRow, ValidationReportRow, ValidationScope,
+    ValidationSubject, ValidationSubjectKind, ValidationSuppression, ValidationSuppressionState,
+    ValidationVersionMatch, ValidatorKind, DOCS_VALIDATION_REPORT_ARTIFACT_REF,
+    DOCS_VALIDATION_REPORT_DOC_REF, DOCS_VALIDATION_REPORT_FIXTURE_DIR,
+    DOCS_VALIDATION_REPORT_RECORD_KIND, DOCS_VALIDATION_REPORT_SCHEMA_REF,
+    DOCS_VALIDATION_REPORT_SCHEMA_VERSION, DOCS_VALIDATION_REPORT_SUMMARY_REF,
+    DOCS_VALIDATION_REPORT_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface::{
     current_stable_certification_export, seeded_stable_certification_input,
     CertificationArtifactError, CertificationCompatibilityReport, CertificationConsumerProjection,
