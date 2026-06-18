@@ -1,0 +1,65 @@
+# M5 replay-bundle raw-payload lineage gate.
+#
+# Validates the checked-in replay bundle: the normalized history joined to the
+# typed, bounded raw-payload lineage, the replay / support / incident / AI
+# evidence joins that gate approval-only payloads instead of leaking them, and
+# the replay robustness drills that keep the dual-retention history stable under
+# truncation, duplicate delivery, adapter drift, and export/import round-trip.
+# The typed Rust consumer mints the same bundle, so `cargo test -p
+# aureline-runtime` enforces the same invariants and that the fixtures and
+# artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_replay_bundle_lineage
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_replay_bundle_lineage.yml"
+      - "tools/ci/m5/replay_bundle_lineage_check.py"
+      - "schemas/tooling/replay-bundle.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/replay-and-raw-payload-lineage.md"
+      - "artifacts/m5/tooling/raw-plus-normalized-replay/**"
+      - "fixtures/tooling/m5/replay-bundles/**"
+      - "crates/aureline-runtime/src/m5_replay_bundles/**"
+      - "crates/aureline-runtime/examples/dump_m5_replay_bundles.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_replay_bundles.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-replay-bundle-lineage-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_replay_bundle_lineage:
+    name: M5 replay-bundle lineage
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 replay-bundle lineage CI gate
+        run: |
+          python3 tools/ci/m5/replay_bundle_lineage_check.py --repo-root .
+
+      - name: Run M5 replay-bundle contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_replay_bundles

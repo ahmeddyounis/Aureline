@@ -104,6 +104,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_environment_status_strips;
+pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
 pub mod managed_alpha;
@@ -559,6 +560,22 @@ pub use m5_environment_status_strips::{
     M5_ENVIRONMENT_STATUS_STRIP_REVIEW_PACKET_REF, M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_REF,
     M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_VERSION,
     M5_ENVIRONMENT_STATUS_STRIP_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_replay_bundles::{
+    current_stable_replay_bundle_input, retention_ai_evidence_safe, retention_byte_bound,
+    retention_replay_safe, retention_support_export_safe, seeded_replay_bundle,
+    validate_replay_bundle, LineageJoinProjection, NormalizedReplayRow, RawLineageEvidenceRow,
+    RawPayloadLineageEntry, ReplayBundle, ReplayBundleCliHeadlessRow, ReplayBundleCliHeadlessView,
+    ReplayBundleFindingKind, ReplayBundleInput, ReplayBundleSupportExport,
+    ReplayBundleValidationFinding, ReplayEvidenceJoinView, ReplayFailureMode, ReplayJoinSurface,
+    ReplayRecoveryPosture, ReplayRobustnessCase, REPLAY_BUNDLE_AI_EVIDENCE_ID,
+    REPLAY_BUNDLE_CLI_HEADLESS_ID, REPLAY_BUNDLE_CLI_HEADLESS_RECORD_KIND, REPLAY_BUNDLE_DOC_REF,
+    REPLAY_BUNDLE_ENVELOPE_SCHEMA_REF, REPLAY_BUNDLE_EVIDENCE_JOIN_RECORD_KIND,
+    REPLAY_BUNDLE_FIRST_CONSUMERS_PACKET_REF, REPLAY_BUNDLE_FIXTURE_DIR, REPLAY_BUNDLE_ID,
+    REPLAY_BUNDLE_INCIDENT_PACKET_ID, REPLAY_BUNDLE_PACKET_ARTIFACT_REF,
+    REPLAY_BUNDLE_POLICY_BASELINE_REF, REPLAY_BUNDLE_RECORD_KIND, REPLAY_BUNDLE_SCHEMA_REF,
+    REPLAY_BUNDLE_SCHEMA_VERSION, REPLAY_BUNDLE_SUPPORT_EXPORT_ID,
+    REPLAY_BUNDLE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_task_event_adapter_policy::{
     canonical_confidence_ceiling, canonical_priority_rank,
