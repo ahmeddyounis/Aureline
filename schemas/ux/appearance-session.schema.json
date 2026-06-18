@@ -1,0 +1,672 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/appearance-session.schema.json",
+  "title": "Aureline M5 appearance-session runtime audit",
+  "description": "Boundary schema for the M5 appearance-session runtime audit emitted by the aureline-shell appearance_session module. The audit carries one live appearance-session object describing what is active right now (the active theme-package and revision refs, the follow-system posture, the resolved theme class, the contrast mode, the accent source, the density, the text scale, and the reduced-motion posture and source), the checkpoint ledger every appearance change flows through, the transition ledger of the checkpoint-aware state machine (open-preview, preflight-passed, commit, cancel, validation-failed, revert, and OS-signal-applied), and the per-surface bindings (notebook, data/result surface, preview/browser pane, docs/help pane, companion surface, extension-hosted surface) that consume the shared session. The session, checkpoint, and apply vocabulary is a re-export projection of the canonical appearance_session_record and appearance_checkpoint_record frozen in schemas/ux/appearance_checkpoint.schema.json; this lane mints no parallel appearance vocabulary. Acceptance: every transition MUST flow through exactly one checkpoint that resolves in the ledger and MUST be a legal edge of the state machine (no half-updated state, and a validation failure MUST auto-revert); every change a surface cannot apply live MUST disclose its restart-or-reload posture; every checkpoint MUST be reversible from a single checkpoint with a rollback path that restores its changed axes; the live session MUST be self-consistent; and every registered surface MUST ride the shared session with a canonical appearance anchor and a non-empty accessibility note. Raw token tables, raw rendered screenshots, raw URLs, raw absolute paths, and raw user content never cross this boundary; this schema carries opaque ids, typed vocabulary, small counts, and short privacy-safe labels only. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m5/live-appearance-change/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/appearance_session_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/appearance_session_runtime_report_record" },
+    { "$ref": "#/$defs/appearance_session_runtime_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the M5 appearance-session contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_appearance_session:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support bundles. Raw URLs, raw paths, and raw user content never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe label or note text."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "canonical_record_schema_ref": {
+      "type": "string",
+      "const": "schemas/ux/appearance_checkpoint.schema.json",
+      "description": "The canonical appearance-session / checkpoint record schema this lane re-exports its vocabulary from."
+    },
+    "theme_class": {
+      "type": "string",
+      "enum": ["dark_reference", "light_parity", "high_contrast_dark", "high_contrast_light"],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json theme_class without modification."
+    },
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json density_class without modification."
+    },
+    "motion_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json accessibility_posture_class without modification."
+    },
+    "follow_system_posture": {
+      "type": "string",
+      "enum": [
+        "follow_system",
+        "manual_override",
+        "managed_policy_override",
+        "unavailable_platform_signal"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json follow_system_posture without modification."
+    },
+    "contrast_mode": {
+      "type": "string",
+      "enum": ["contrast_standard", "contrast_high", "contrast_forced_colors"],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json contrast_mode without modification."
+    },
+    "accent_source_class": {
+      "type": "string",
+      "enum": [
+        "system_accent",
+        "theme_package_accent",
+        "user_selected_accent",
+        "policy_locked_accent",
+        "not_applicable"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json accent_source_class without modification."
+    },
+    "reduced_motion_source": {
+      "type": "string",
+      "enum": [
+        "os_signal",
+        "user_setting",
+        "policy_cap",
+        "power_saver_signal",
+        "critical_hot_path",
+        "not_applicable"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json reduced_motion_source without modification."
+    },
+    "text_scale_source": {
+      "type": "string",
+      "enum": ["system", "user", "profile", "workspace", "policy"]
+    },
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "not_previewing",
+        "preview_pending_validation",
+        "preview_live",
+        "preview_failed_reverted",
+        "preview_committed",
+        "rollback_applied"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json preview_state without modification."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "appearance_preview_checkpoint",
+        "appearance_import_checkpoint",
+        "appearance_overlay_checkpoint",
+        "appearance_os_signal_checkpoint",
+        "appearance_policy_checkpoint"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json checkpoint_class without modification."
+    },
+    "checkpoint_scope_class": {
+      "type": "string",
+      "enum": [
+        "global_appearance",
+        "profile_appearance",
+        "workspace_appearance",
+        "extension_surface_appearance",
+        "preview_only"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json checkpoint_scope_class without modification."
+    },
+    "appearance_axis": {
+      "type": "string",
+      "enum": [
+        "theme_package",
+        "follow_system",
+        "contrast",
+        "accent",
+        "density",
+        "text_scale",
+        "reduced_motion",
+        "token_overlay",
+        "import_mapping",
+        "extension_surface_claim"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json appearance_axis without modification."
+    },
+    "appearance_apply_state": {
+      "type": "string",
+      "enum": [
+        "checkpoint_created",
+        "preflight_failed",
+        "preview_live",
+        "committed",
+        "reverted",
+        "rollback_required",
+        "rollback_failed_blocked"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json appearance_apply_state without modification."
+    },
+    "atomicity_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_atomic",
+        "surface_reload_from_single_checkpoint",
+        "full_restart_from_single_checkpoint"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json atomicity_class without modification."
+    },
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_revert",
+        "surface_reload_then_revert",
+        "full_restart_then_revert"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json rollback_path_class without modification."
+    },
+    "preflight_check_class": {
+      "type": "string",
+      "enum": [
+        "contrast_targets",
+        "protected_cue_preservation",
+        "import_mapping_report_present",
+        "syntax_coverage_present",
+        "extension_inheritance_disclosed",
+        "rollback_path_present"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json preflight_check_class without modification."
+    },
+    "check_result_state": {
+      "type": "string",
+      "enum": ["passed", "warning", "failed_blocked"],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json check_result_state without modification."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/ux/appearance_checkpoint.schema.json redaction_class without modification."
+    },
+    "transition_op": {
+      "type": "string",
+      "enum": [
+        "open_preview",
+        "preflight_passed",
+        "commit_preview",
+        "cancel_preview",
+        "validation_failed",
+        "revert_committed",
+        "os_signal_applied"
+      ],
+      "description": "One edge of the checkpoint-aware appearance state machine."
+    },
+    "transition_trigger": {
+      "type": "string",
+      "enum": ["user_action", "os_signal", "managed_policy", "sync_import"]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook",
+        "data_result_surface",
+        "preview_browser_pane",
+        "docs_help_pane",
+        "companion_surface",
+        "extension_hosted_surface"
+      ]
+    },
+    "live_apply_capability": {
+      "type": "string",
+      "enum": [
+        "applies_live",
+        "requires_surface_reload",
+        "requires_app_restart",
+        "platform_signal_unavailable"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "text_scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale_percent", "source", "locked_by_policy"],
+      "properties": {
+        "scale_percent": { "type": "integer", "minimum": 75, "maximum": 200 },
+        "source": { "$ref": "#/$defs/text_scale_source" },
+        "locked_by_policy": { "type": "boolean" }
+      }
+    },
+    "rollback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_path_class",
+        "rollback_ref",
+        "user_visible_action_id",
+        "restores_axes",
+        "requires_restart"
+      ],
+      "properties": {
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_id" },
+        "user_visible_action_id": { "$ref": "#/$defs/opaque_id" },
+        "restores_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "requires_restart": { "type": "boolean" }
+      }
+    },
+    "preflight_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_class", "result_state"],
+      "properties": {
+        "check_class": { "$ref": "#/$defs/preflight_check_class" },
+        "result_state": { "$ref": "#/$defs/check_result_state" },
+        "finding_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "surface_not_on_session",
+            "surface_missing_appearance_anchor",
+            "surface_missing_accessibility_note",
+            "surface_session_ref_mismatch",
+            "surface_restart_reload_undisclosed",
+            "surface_unknown_checkpoint",
+            "transition_illegal_state",
+            "transition_without_checkpoint",
+            "transition_unknown_checkpoint",
+            "validation_failure_not_reverted",
+            "transition_restart_reload_undisclosed",
+            "transition_atomicity_mismatch",
+            "transition_non_reversible",
+            "checkpoint_non_reversible",
+            "checkpoint_missing_rollback_path",
+            "checkpoint_restart_reload_undisclosed",
+            "session_preview_without_checkpoint",
+            "session_rollback_without_ref",
+            "session_unknown_current_checkpoint"
+          ]
+        }
+      }
+    },
+    "appearance_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "canonical_record_schema_ref",
+        "session_ref",
+        "active_theme_package_ref",
+        "active_theme_revision_ref",
+        "follow_system_posture",
+        "resolved_theme_class",
+        "contrast_mode",
+        "accent_source",
+        "density_class",
+        "text_scale",
+        "reduced_motion_posture",
+        "reduced_motion_source",
+        "os_signal_refs",
+        "preview_state",
+        "active_import_report_refs",
+        "active_token_overlay_report_refs",
+        "extension_surface_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_appearance_session_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "canonical_record_schema_ref": { "$ref": "#/$defs/canonical_record_schema_ref" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_theme_package_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_theme_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "follow_system_posture": { "$ref": "#/$defs/follow_system_posture" },
+        "resolved_theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_mode": { "$ref": "#/$defs/contrast_mode" },
+        "accent_source": { "$ref": "#/$defs/accent_source_class" },
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "text_scale": { "$ref": "#/$defs/text_scale" },
+        "reduced_motion_posture": { "$ref": "#/$defs/motion_posture_class" },
+        "reduced_motion_source": { "$ref": "#/$defs/reduced_motion_source" },
+        "os_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "preview_state": { "$ref": "#/$defs/preview_state" },
+        "current_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_import_report_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "active_token_overlay_report_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "extension_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "appearance_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "canonical_record_schema_ref",
+        "checkpoint_ref",
+        "session_ref",
+        "checkpoint_class",
+        "checkpoint_scope",
+        "pre_change_snapshot_ref",
+        "changed_axes",
+        "atomicity_class",
+        "reversible_from_single_checkpoint",
+        "rollback_path",
+        "preflight_checks",
+        "apply_state",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_appearance_session_checkpoint_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "canonical_record_schema_ref": { "$ref": "#/$defs/canonical_record_schema_ref" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_scope": { "$ref": "#/$defs/checkpoint_scope_class" },
+        "pre_change_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_preview_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "changed_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "atomicity_class": { "$ref": "#/$defs/atomicity_class" },
+        "reversible_from_single_checkpoint": { "type": "boolean", "const": true },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "preflight_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preflight_check" }
+        },
+        "apply_state": { "$ref": "#/$defs/appearance_apply_state" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "appearance_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "transition_ref",
+        "session_ref",
+        "sequence_index",
+        "op",
+        "trigger",
+        "checkpoint_ref",
+        "from_preview_state",
+        "to_preview_state",
+        "resulting_apply_state",
+        "changed_axes",
+        "atomicity_class",
+        "requires_restart_or_reload",
+        "reversible_from_single_checkpoint",
+        "summary",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_appearance_session_transition_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "transition_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "sequence_index": { "type": "integer", "minimum": 0 },
+        "op": { "$ref": "#/$defs/transition_op" },
+        "trigger": { "$ref": "#/$defs/transition_trigger" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "from_preview_state": { "$ref": "#/$defs/preview_state" },
+        "to_preview_state": { "$ref": "#/$defs/preview_state" },
+        "resulting_apply_state": { "$ref": "#/$defs/appearance_apply_state" },
+        "changed_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_axis" },
+          "uniqueItems": true
+        },
+        "atomicity_class": { "$ref": "#/$defs/atomicity_class" },
+        "requires_restart_or_reload": { "type": "boolean" },
+        "reversible_from_single_checkpoint": { "type": "boolean", "const": true },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "appearance_surface_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "surface_id",
+        "surface_family",
+        "descriptor_revision_ref",
+        "appearance_anchor_ref",
+        "accessibility_note",
+        "consumes_session_ref",
+        "registered_on_session",
+        "live_apply_capability",
+        "restart_or_reload_disclosed",
+        "marketed",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_appearance_session_surface_binding_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "appearance_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "accessibility_note": { "$ref": "#/$defs/short_text" },
+        "consumes_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "registered_on_session": { "type": "boolean" },
+        "live_apply_capability": { "$ref": "#/$defs/live_apply_capability" },
+        "restart_or_reload_disclosed": { "type": "boolean" },
+        "last_observed_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "marketed": { "type": "boolean" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        }
+      }
+    },
+    "finding_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "surface_findings",
+        "transition_findings",
+        "checkpoint_findings",
+        "session_findings"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "surface_findings": { "type": "integer", "minimum": 0 },
+        "transition_findings": { "type": "integer", "minimum": 0 },
+        "checkpoint_findings": { "type": "integer", "minimum": 0 },
+        "session_findings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "appearance_session_runtime_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "canonical_record_schema_ref",
+        "session",
+        "checkpoints",
+        "transitions",
+        "surfaces",
+        "findings_summary",
+        "blocking_findings",
+        "registered_surface_count",
+        "marketed_surface_count",
+        "restart_or_reload_surface_count",
+        "live_change_demonstrated",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "shell_m5_appearance_session_runtime_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/opaque_id" },
+        "source_schema_ref": { "type": "string", "minLength": 1 },
+        "canonical_record_schema_ref": { "$ref": "#/$defs/canonical_record_schema_ref" },
+        "session": { "$ref": "#/$defs/appearance_session_record" },
+        "checkpoints": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_checkpoint_record" }
+        },
+        "transitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_transition_record" }
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_surface_binding_record" }
+        },
+        "findings_summary": { "$ref": "#/$defs/finding_summary" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "registered_surface_count": { "type": "integer", "minimum": 0 },
+        "marketed_surface_count": { "type": "integer", "minimum": 0 },
+        "restart_or_reload_surface_count": { "type": "integer", "minimum": 0 },
+        "live_change_demonstrated": { "type": "boolean" },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "type": "string", "minLength": 1 },
+        "published_doc_ref": { "type": "string", "minLength": 1 },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "appearance_session_runtime_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "shell_m5_appearance_session_runtime_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "report": { "$ref": "#/$defs/appearance_session_runtime_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    }
+  }
+}

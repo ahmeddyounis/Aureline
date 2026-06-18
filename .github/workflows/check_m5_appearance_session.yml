@@ -1,0 +1,70 @@
+# M5 appearance-session runtime gate.
+#
+# Validates the checked-in M5 appearance-session runtime audit: one live
+# appearance-session object records what is active right now (theme package,
+# follow-system posture, resolved mode, contrast, accent, density, text scale,
+# reduced-motion posture), every appearance change flows through one explicit
+# checkpoint, the preview / apply / cancel / validation-failure / revert /
+# OS-signal transitions are legal edges of one checkpoint-aware state machine
+# with no half-updated state, every change a surface cannot apply live discloses
+# its restart-or-reload posture, and every claimed M5 surface (notebook,
+# data/result surface, preview/browser pane, docs/help pane, companion surface,
+# extension-hosted surface) rides the shared session instead of painting its own
+# appearance. The typed Rust consumer mints the same audit, so
+# `cargo test -p aureline-shell` enforces the same structural invariants and
+# that the fixtures are bit-for-bit equal to the seed.
+
+name: check_m5_appearance_session
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_appearance_session.yml"
+      - "tools/ci/m5/appearance_session_check.py"
+      - "schemas/ux/appearance-session.schema.json"
+      - "schemas/ux/appearance_checkpoint.schema.json"
+      - "docs/m5/appearance-session-runtime.md"
+      - "artifacts/ux/m5/appearance-session-checkpoints/**"
+      - "fixtures/ux/m5/live-appearance-change/**"
+      - "crates/aureline-shell/src/appearance_session/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_m5_appearance_session.rs"
+      - "crates/aureline-shell/src/lib.rs"
+      - "crates/aureline-shell/tests/m5_appearance_session_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-appearance-session-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_appearance_session:
+    name: M5 appearance session
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 appearance-session CI gate
+        run: |
+          python3 tools/ci/m5/appearance_session_check.py --repo-root .
+
+      - name: Run M5 appearance-session contract tests
+        run: |
+          cargo test -p aureline-shell --test m5_appearance_session_fixtures
