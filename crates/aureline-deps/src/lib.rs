@@ -146,9 +146,25 @@
 //! credentials nor full manifest bodies, and every label binds to a frozen state
 //! row, so support can see what changed, which chain it affected, and how to
 //! revert it without reverse-engineering ecosystem logs.
+//!
+//! The module [`automation_governance`] binds package mutation into the
+//! command/automation/AI governance model. One
+//! [`automation_governance::GovernedMutationProposal`] is the object an
+//! AI-generated proposal, a recipe step, a CLI/headless invocation, and the
+//! desktop baseline all produce, reusing the canonical
+//! [`reviewed_mutation_flows`] preview and the frozen matrix. Each proposal
+//! pins a manifest/lockfile impact preview, a selected validation-task set, and
+//! an ecosystem-capability posture, and proves three governance invariants: a
+//! proposal whose ecosystem cannot deliver the promised review, resolver,
+//! rollback, or validation execution narrows to inspect-only, export, or a
+//! browser/CLI handoff instead of executing; a committed result carries no live
+//! block reason and no unselected required validation; and the result packet
+//! and rollback handle read identically across the desktop, CLI, AI, and
+//! support/export surfaces so automation never becomes a bypass lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-deps/0.0.0")]
 
+pub mod automation_governance;
 pub mod dependency_security_compliance_export_truth;
 pub mod ecosystem_qualification_certification;
 pub mod export_safe_dependency_reports;
@@ -336,4 +352,19 @@ pub use operation_history::{
     RequestedOperationIdentity, ResolverState, RetentionPosture, RevertAction, RevertActionKind,
     RollbackHandle, ValidationOutcomeRecord, ValidationResult, OPERATION_HISTORY_JSON,
     OPERATION_HISTORY_PATH, OPERATION_HISTORY_RECORD_KIND, OPERATION_HISTORY_SCHEMA_VERSION,
+};
+// The automation-governance lane reuses the frozen-matrix, descriptor, and
+// reviewed-mutation vocabularies (`ProposalSource`, `MutationFlowClass`,
+// `ScriptBuildLabel`, `LockfileDiffClass`, `RecoveryActionKind`, `EcosystemKind`,
+// and the matrix control enums); those are reached through their owning modules
+// and are not re-exported again here.
+pub use automation_governance::{
+    current_automation_governance, AutomationGovernance, AutomationGovernanceExportProjection,
+    AutomationGovernanceExportRow, AutomationGovernanceSummary,
+    AutomationGovernanceSurfaceContract, AutomationGovernanceViolation, EcosystemCapabilityPosture,
+    ExecutionDecision, GovernanceSurfaceParity, GovernedMutationProposal,
+    GovernedProposalSurfaceProjection, GovernedResultClass, ParityAttestation,
+    ReviewedSheetBinding, RollbackHandleRef, ValidationTaskKind, ValidationTaskRow,
+    ValidationTaskSelection, AUTOMATION_GOVERNANCE_JSON, AUTOMATION_GOVERNANCE_PATH,
+    AUTOMATION_GOVERNANCE_RECORD_KIND, AUTOMATION_GOVERNANCE_SCHEMA_VERSION,
 };

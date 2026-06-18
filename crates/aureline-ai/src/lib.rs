@@ -354,6 +354,7 @@ pub mod implement_spend_and_route_receipts_budget_band_preflights_cumulative_bra
 pub mod implement_turn_thread_workspace_or_org_memory_classes_prompt_result_cache_objects_and_deletion_export_retention_truth;
 pub mod materialize_the_provider_and_model_registry_local_or_byok_or_managed_mode_disclosure_and_route_inspectors;
 pub mod memory;
+pub mod package_mutation_review;
 pub mod prompt_composer;
 pub mod publish_stable_ai_graduation_packets;
 pub mod qualify_background_branch_agent_lifecycle;
@@ -968,4 +969,15 @@ pub use topology_context::{
     AI_TOPOLOGY_CONTEXT_PACKET_RECORD_KIND, AI_TOPOLOGY_CONTEXT_REQUIRED_RECONSTRUCTION_FIELDS,
     AI_TOPOLOGY_CONTEXT_ROW_RECORD_KIND, AI_TOPOLOGY_CONTEXT_SCHEMA_REF,
     AI_TOPOLOGY_CONTEXT_SCHEMA_VERSION, AI_TOPOLOGY_CONTEXT_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use package_mutation_review::{
+    current_ai_package_mutation_review_packet, AiEcosystem, AiMutationIntent,
+    AiMutationProposalRow, AiPackageMutationReviewExportProjection,
+    AiPackageMutationReviewExportRow, AiPackageMutationReviewPacket,
+    AiPackageMutationReviewSummary, AiPackageMutationReviewViolation, AiResultClass,
+    AiValidationKind, AiWriteAuthority, SafeFallbackClass, AI_PACKAGE_MUTATION_REVIEW_AI_DOC_REF,
+    AI_PACKAGE_MUTATION_REVIEW_ARTIFACT_REF, AI_PACKAGE_MUTATION_REVIEW_FIXTURE_DIR,
+    AI_PACKAGE_MUTATION_REVIEW_GOVERNANCE_CONTRACT_REF, AI_PACKAGE_MUTATION_REVIEW_RECORD_KIND,
+    AI_PACKAGE_MUTATION_REVIEW_SCHEMA_REF, AI_PACKAGE_MUTATION_REVIEW_SCHEMA_VERSION,
 };
