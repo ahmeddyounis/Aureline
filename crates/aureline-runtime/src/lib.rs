@@ -103,6 +103,7 @@ pub mod language_hosts;
 pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_environment_status_strips;
+pub mod m5_task_event_adapter_policy;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
@@ -541,6 +542,21 @@ pub use m5_environment_status_strips::{
     M5_ENVIRONMENT_STATUS_STRIP_REVIEW_PACKET_REF, M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_REF,
     M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_VERSION,
     M5_ENVIRONMENT_STATUS_STRIP_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_task_event_adapter_policy::{
+    canonical_confidence_ceiling, canonical_priority_rank,
+    current_stable_task_event_adapter_policy_input, seeded_task_event_adapter_policy_baseline,
+    source_is_authoritative, validate_task_event_adapter_policy_baseline, AdapterArbitrationRow,
+    AdapterPriorityRung, DowngradeReason, DowngradeVocabularyEntry, PolicyFindingKind,
+    PolicyValidationFinding, RawPayloadRetentionCell, TaskEventAdapterPolicyBaseline,
+    TaskEventAdapterPolicyBaselineInput, TaskEventAdapterPolicySupportExport, TaskEventConsumer,
+    TaskEventConsumerBinding, TaskEventEnvelope, TASK_EVENT_ADAPTER_POLICY_BASELINE_ARTIFACT_REF,
+    TASK_EVENT_ADAPTER_POLICY_BASELINE_ID, TASK_EVENT_ADAPTER_POLICY_CAPABILITY_SCHEMA_REF,
+    TASK_EVENT_ADAPTER_POLICY_DOC_REF, TASK_EVENT_ADAPTER_POLICY_ENVELOPE_SCHEMA_REF,
+    TASK_EVENT_ADAPTER_POLICY_FIXTURE_DIR, TASK_EVENT_ADAPTER_POLICY_RECORD_KIND,
+    TASK_EVENT_ADAPTER_POLICY_SCHEMA_VERSION, TASK_EVENT_ADAPTER_POLICY_SEED_CONTRACT_REF,
+    TASK_EVENT_ADAPTER_POLICY_SUPPORT_EXPORT_ID,
+    TASK_EVENT_ADAPTER_POLICY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,

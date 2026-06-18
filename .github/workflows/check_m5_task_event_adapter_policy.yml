@@ -1,0 +1,64 @@
+# M5 task-event adapter-policy gate.
+#
+# Validates the checked-in task-event adapter-policy baseline: the native-first
+# adapter-priority ladder, the raw-payload-retention matrix, the closed downgrade
+# vocabulary, the six M5 consumer bindings, and the arbitration rows that keep a
+# lower-priority adapter from masquerading as native/BSP/BEP truth. The typed Rust
+# consumer mints the same baseline, so `cargo test -p aureline-runtime` enforces
+# the same invariants and that the fixtures are bit-for-bit derivable from the
+# seed.
+
+name: check_m5_task_event_adapter_policy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_task_event_adapter_policy.yml"
+      - "tools/ci/m5/task_event_adapter_policy_check.py"
+      - "schemas/tooling/adapter-capability.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/task-event-and-adapter-policy.md"
+      - "artifacts/m5/tooling/event-interop-baseline/**"
+      - "fixtures/tooling/m5/bsp-bep-native/**"
+      - "crates/aureline-runtime/src/m5_task_event_adapter_policy/**"
+      - "crates/aureline-runtime/examples/dump_m5_task_event_adapter_policy.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_task_event_adapter_policy.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-task-event-adapter-policy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_task_event_adapter_policy:
+    name: M5 task-event adapter-policy
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 task-event adapter-policy CI gate
+        run: |
+          python3 tools/ci/m5/task_event_adapter_policy_check.py --repo-root .
+
+      - name: Run M5 task-event adapter-policy contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_task_event_adapter_policy

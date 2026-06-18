@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/adapter-capability.schema.json",
+  "title": "Aureline M5 task-event adapter-policy baseline",
+  "description": "Boundary schema for the frozen task-event adapter-policy baseline: the native-first adapter-priority ladder, the per-source raw-payload-retention matrix, the closed downgrade vocabulary, the six M5 consumer bindings, and arbitration rows that keep the highest-priority adapter authoritative while every shadowing emission stays visibly downgraded. Reuses the build/test interoperability source-kind, confidence, retention-class, severity, and promotion vocabulary; the per-event envelope shape it references is frozen in schemas/tooling/task-event-envelope.schema.json.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task_event_adapter_policy_baseline" },
+    { "$ref": "#/$defs/task_event_adapter_policy_support_export" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "TaskQueued",
+        "TargetGraphReady",
+        "TaskStarted",
+        "ProgressUpdated",
+        "DiagnosticEmitted",
+        "TestCaseStarted",
+        "TestCaseFinished",
+        "ArtifactPublished",
+        "TaskFinished"
+      ]
+    },
+    "raw_payload_retention_class": {
+      "type": "string",
+      "enum": ["metadata_digest_only", "redacted_reference", "support_approval_required"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "partial_support",
+        "heuristic_fallback",
+        "replay_gap",
+        "unsupported_adapter_capability"
+      ]
+    },
+    "consumer": {
+      "type": "string",
+      "enum": [
+        "pipeline",
+        "coverage",
+        "snapshot_flaky",
+        "notebook_run",
+        "cli_headless",
+        "support_export"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocker"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "priority_ladder_incomplete",
+        "priority_rank_mismatch",
+        "confidence_ceiling_mismatch",
+        "authority_mismatch",
+        "masquerade_not_blocked",
+        "retention_matrix_incomplete",
+        "retention_default_invalid",
+        "retention_approval_mismatch",
+        "downgrade_vocabulary_drift",
+        "consumer_binding_missing",
+        "consumer_binding_drops_truth",
+        "envelope_priority_mismatch",
+        "envelope_confidence_overclaim",
+        "envelope_downgrade_inconsistent",
+        "arbitration_winner_not_highest_priority",
+        "arbitration_shadow_not_downgraded",
+        "arbitration_correlation_mismatch",
+        "promotion_state_mismatch"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build_tool_name", "adapter_id", "adapter_version"],
+      "properties": {
+        "build_tool_name": { "$ref": "#/$defs/non_empty_string" },
+        "build_tool_version": { "type": "string" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_revision": { "type": "string" }
+      }
+    },
+    "task_event_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "workspace_id",
+        "target_id",
+        "event_kind",
+        "source_kind",
+        "priority_rank",
+        "confidence",
+        "execution_context_id",
+        "raw_payload_ref",
+        "raw_payload_retention_class",
+        "provenance",
+        "downgraded"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" }
+      }
+    },
+    "adapter_priority_rung": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "priority_rank",
+        "confidence_ceiling",
+        "authoritative",
+        "masquerade_blocked",
+        "note"
+      ],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "confidence_ceiling": { "$ref": "#/$defs/confidence" },
+        "authoritative": { "type": "boolean" },
+        "masquerade_blocked": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "raw_payload_retention_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "retention_class",
+        "allowed",
+        "is_default",
+        "approval_required",
+        "note"
+      ],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "allowed": { "type": "boolean" },
+        "is_default": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_vocabulary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "summary", "forces_visible_downgrade", "max_confidence"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/downgrade_reason" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "forces_visible_downgrade": { "type": "boolean" },
+        "max_confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "binding_ref",
+        "reads_canonical_envelope",
+        "preserves_source_kind",
+        "preserves_priority_rank",
+        "preserves_confidence",
+        "preserves_downgrade_reason",
+        "preserves_raw_payload_ref"
+      ],
+      "properties": {
+        "consumer": { "$ref": "#/$defs/consumer" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reads_canonical_envelope": { "type": "boolean" },
+        "preserves_source_kind": { "type": "boolean" },
+        "preserves_priority_rank": { "type": "boolean" },
+        "preserves_confidence": { "type": "boolean" },
+        "preserves_downgrade_reason": { "type": "boolean" },
+        "preserves_raw_payload_ref": { "type": "boolean" }
+      }
+    },
+    "arbitration_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arbitration_id", "target_id", "event_kind", "trace_id", "winning_event"],
+      "properties": {
+        "arbitration_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "winning_event": { "$ref": "#/$defs/task_event_envelope" },
+        "shadow_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_event_envelope" }
+        }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "task_event_adapter_policy_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "baseline_id",
+        "generated_at",
+        "envelope_schema_ref",
+        "adapter_capability_schema_ref",
+        "doc_ref",
+        "seed_contract_ref",
+        "priority_ladder",
+        "retention_matrix",
+        "downgrade_vocabulary",
+        "consumer_bindings",
+        "arbitration_rows",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_task_event_adapter_policy_baseline" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "baseline_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_capability_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "seed_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "priority_ladder": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/adapter_priority_rung" }
+        },
+        "retention_matrix": {
+          "type": "array",
+          "minItems": 15,
+          "items": { "$ref": "#/$defs/raw_payload_retention_cell" }
+        },
+        "downgrade_vocabulary": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/downgrade_vocabulary_entry" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "arbitration_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/arbitration_row" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "task_event_adapter_policy_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "baseline_id_ref",
+        "baseline"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_task_event_adapter_policy_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "type": "string", "format": "date-time" },
+        "baseline_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "baseline": { "$ref": "#/$defs/task_event_adapter_policy_baseline" }
+      }
+    }
+  }
+}
