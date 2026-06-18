@@ -105,6 +105,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
+pub mod m5_automation_certification;
 pub mod m5_automation_contract_baseline;
 pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
@@ -600,6 +601,30 @@ pub use m5_adapter_hierarchy_negotiation::{
     ADAPTER_NEGOTIATION_RECORD_KIND, ADAPTER_NEGOTIATION_SCHEMA_REF,
     ADAPTER_NEGOTIATION_SCHEMA_VERSION, ADAPTER_NEGOTIATION_SUPPORT_EXPORT_ID,
     ADAPTER_NEGOTIATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_automation_certification::{
+    current_stable_automation_certification_input, seeded_automation_certification_packet,
+    validate_automation_certification_packet, AutomationAuthoringPath,
+    AutomationCertificationCliHeadlessView, AutomationCertificationDimension,
+    AutomationCertificationEvidenceJoinView, AutomationCertificationIndex,
+    AutomationCertificationPacket, AutomationCertificationPacketInput,
+    AutomationCertificationSupportExport,
+    AutomationDimensionOutcome as AutomationCertificationDimensionOutcome, AutomationSurface,
+    AutomationSurfaceCertification,
+    CertificationEvidenceSurface as AutomationCertificationEvidenceSurface,
+    CertificationFindingKind as AutomationCertificationFindingKind,
+    CertificationFreshnessState as AutomationCertificationFreshnessState,
+    CertificationValidationFinding as AutomationCertificationValidationFinding,
+    SurfaceCertificationRow, SurfaceClaimState, AUTOMATION_CERTIFICATION_AI_EVIDENCE_ID,
+    AUTOMATION_CERTIFICATION_CLI_HEADLESS_ID, AUTOMATION_CERTIFICATION_CLI_HEADLESS_RECORD_KIND,
+    AUTOMATION_CERTIFICATION_CONTRACT_BASELINE_SCHEMA_REF, AUTOMATION_CERTIFICATION_DOC_REF,
+    AUTOMATION_CERTIFICATION_EVIDENCE_JOIN_RECORD_KIND, AUTOMATION_CERTIFICATION_EVIDENCE_REFS,
+    AUTOMATION_CERTIFICATION_FIXTURE_DIR, AUTOMATION_CERTIFICATION_ID,
+    AUTOMATION_CERTIFICATION_INCIDENT_PACKET_ID, AUTOMATION_CERTIFICATION_INDEX_REF,
+    AUTOMATION_CERTIFICATION_PACKET_ARTIFACT_REF, AUTOMATION_CERTIFICATION_RECORD_KIND,
+    AUTOMATION_CERTIFICATION_SCHEMA_REF, AUTOMATION_CERTIFICATION_SCHEMA_VERSION,
+    AUTOMATION_CERTIFICATION_SUPPORT_EXPORT_ID,
+    AUTOMATION_CERTIFICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_automation_contract_baseline::{
     canonical_safety_labels, current_automation_contract_baseline_input,

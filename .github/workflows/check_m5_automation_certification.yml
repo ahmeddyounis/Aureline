@@ -1,0 +1,66 @@
+# M5 automation surface certification gate.
+#
+# Validates the checked-in automation certification packet: every claimed M5
+# notebook/request-API/package/test-debug/incident/AI automation surface, present
+# once and authoring through the declarative recipe builder, certified across the
+# six certification dimensions (builder parity, parameter review, dry-run/explain
+# coverage, run-history integrity, macro-scope safety, and label reuse), the
+# freshness/stale-narrowing roll-up, the shareable-claim guardrail, and the
+# certification index. The typed Rust consumer mints the same packet, so
+# `cargo test -p aureline-runtime` enforces the same invariants and that the
+# fixtures and artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_automation_certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_automation_certification.yml"
+      - "tools/ci/m5/automation_certification_check.py"
+      - "schemas/automation/m5-automation-certification.schema.json"
+      - "schemas/automation/automation-contract-baseline.schema.json"
+      - "docs/m5/automation-certification.md"
+      - "artifacts/m5/automation/automation-certification/**"
+      - "fixtures/automation/m5/automation-certification/**"
+      - "crates/aureline-runtime/src/m5_automation_certification/**"
+      - "crates/aureline-runtime/examples/dump_m5_automation_certification.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_automation_certification.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-automation-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_automation_certification:
+    name: M5 automation certification
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 automation certification CI gate
+        run: |
+          python3 tools/ci/m5/automation_certification_check.py --repo-root .
+
+      - name: Run M5 automation certification contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_automation_certification
