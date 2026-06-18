@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/cross-surface-event-reuse.schema.json",
+  "title": "Aureline M5 cross-surface event reuse",
+  "description": "Boundary schema for the cross-surface event-reuse packet, its support export, its evidence joins, and its CLI/headless view. The packet binds one shared task/test/debug execution history to every major M5 consumer (task center, test trees, coverage/flaky/snapshot intelligence, pipeline overlays, notebook runs, incident runbooks, and the CLI/headless and support exports) and proves the reopen / export / rerun-review / evidence-link flows all point back to the same authoritative event objects with stable ids and provenance preserved. It reuses the source-kind, confidence, lifecycle, payload, retention-class, and provenance vocabulary frozen in schemas/tooling/task-event-envelope.schema.json. A consumer that reconstructs its own history from rendered logs, forks a private history, rewrites stable ids, or drops provenance blocks stable; so does a flow that fails to resolve to a shared authoritative object.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/reuse_packet" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/evidence_join_view" },
+    { "$ref": "#/$defs/cli_headless_view" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "TaskQueued",
+        "TargetGraphReady",
+        "TaskStarted",
+        "ProgressUpdated",
+        "DiagnosticEmitted",
+        "TestCaseStarted",
+        "TestCaseFinished",
+        "ArtifactPublished",
+        "TaskFinished"
+      ]
+    },
+    "payload_kind": {
+      "type": "string",
+      "enum": ["lifecycle", "progress", "diagnostic", "test", "artifact", "debug"]
+    },
+    "producer_lane": {
+      "type": "string",
+      "enum": ["notebook_run", "task_center", "test_session", "debug_session", "pipeline"]
+    },
+    "raw_payload_retention_class": {
+      "type": "string",
+      "enum": ["metadata_digest_only", "redacted_reference", "support_approval_required"]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "partial_support",
+        "heuristic_fallback",
+        "replay_gap",
+        "unsupported_adapter_capability"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "task_center",
+        "test_tree",
+        "coverage_flaky_snapshot",
+        "pipeline_overlay",
+        "notebook_run",
+        "incident_runbook",
+        "cli_headless_export",
+        "support_export"
+      ]
+    },
+    "flow_kind": {
+      "type": "string",
+      "enum": ["reopen", "export", "rerun_review", "evidence_link"]
+    },
+    "evidence_surface": {
+      "type": "string",
+      "enum": ["support_bundle", "incident_packet", "ai_evidence"]
+    },
+    "priority_rank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build_tool_name", "adapter_id", "adapter_version"],
+      "properties": {
+        "build_tool_name": { "$ref": "#/$defs/non_empty_string" },
+        "build_tool_version": { "type": "string" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_revision": { "type": "string" }
+      }
+    },
+    "task_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "sequence",
+        "producer_lane",
+        "workspace_id",
+        "target_id",
+        "event_kind",
+        "payload_kind",
+        "source_kind",
+        "priority_rank",
+        "confidence",
+        "captured_at",
+        "execution_context_id",
+        "raw_payload_ref",
+        "raw_payload_retention_class",
+        "provenance",
+        "downgraded"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "producer_lane": { "$ref": "#/$defs/producer_lane" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "target_id": { "$ref": "#/$defs/non_empty_string" },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "priority_rank": { "$ref": "#/$defs/priority_rank" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_payload_retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "downgraded": { "type": "boolean" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" }
+      },
+      "allOf": [
+        {
+          "comment": "A downgraded record must name a reason; a non-downgraded record must not.",
+          "if": { "properties": { "downgraded": { "const": true } } },
+          "then": { "required": ["downgrade_reason"] },
+          "else": { "not": { "required": ["downgrade_reason"] } }
+        }
+      ]
+    },
+    "consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "binding_ref",
+        "bound_trace_ids",
+        "reads_shared_history",
+        "reconstructs_from_logs",
+        "preserves_stable_ids",
+        "preserves_provenance",
+        "preserves_source_and_confidence",
+        "observed_event_count"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_trace_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "reads_shared_history": { "type": "boolean" },
+        "reconstructs_from_logs": { "type": "boolean" },
+        "preserves_stable_ids": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" },
+        "preserves_source_and_confidence": { "type": "boolean" },
+        "observed_event_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cross_surface_flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_kind",
+        "flow_ref",
+        "origin_surface",
+        "target_surface",
+        "authoritative_trace_id",
+        "authoritative_event_id",
+        "preserves_stable_ids",
+        "preserves_provenance"
+      ],
+      "properties": {
+        "flow_kind": { "$ref": "#/$defs/flow_kind" },
+        "flow_ref": { "$ref": "#/$defs/non_empty_string" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "target_surface": { "$ref": "#/$defs/consumer_surface" },
+        "authoritative_trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "authoritative_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_stable_ids": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "blocker"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "reuse_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "reuse_schema_ref",
+        "envelope_schema_ref",
+        "doc_ref",
+        "policy_baseline_ref",
+        "first_consumers_packet_ref",
+        "events",
+        "shared_history_digest",
+        "consumer_bindings",
+        "cross_surface_flows",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_cross_surface_event_reuse_packet" },
+        "schema_version": { "const": 1 },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "reuse_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_baseline_ref": { "$ref": "#/$defs/non_empty_string" },
+        "first_consumers_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_event_record" }
+        },
+        "shared_history_digest": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_binding" }
+        },
+        "cross_surface_flows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cross_surface_flow" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id_ref",
+        "packet"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_cross_surface_event_reuse_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet": { "$ref": "#/$defs/reuse_packet" }
+      }
+    },
+    "shared_event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "trace_id",
+        "sequence",
+        "producer_lane",
+        "source_kind",
+        "confidence",
+        "downgraded",
+        "adapter_id",
+        "explanation"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "producer_lane": { "$ref": "#/$defs/producer_lane" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "downgraded": { "type": "boolean" },
+        "adapter_id": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cross_surface_flow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_kind",
+        "flow_ref",
+        "origin_surface",
+        "target_surface",
+        "authoritative_trace_id",
+        "authoritative_event_id",
+        "resolves_to_shared_object",
+        "preserves_stable_ids",
+        "preserves_provenance",
+        "note"
+      ],
+      "properties": {
+        "flow_kind": { "$ref": "#/$defs/flow_kind" },
+        "flow_ref": { "$ref": "#/$defs/non_empty_string" },
+        "origin_surface": { "$ref": "#/$defs/consumer_surface" },
+        "target_surface": { "$ref": "#/$defs/consumer_surface" },
+        "authoritative_trace_id": { "$ref": "#/$defs/non_empty_string" },
+        "authoritative_event_id": { "$ref": "#/$defs/non_empty_string" },
+        "resolves_to_shared_object": { "type": "boolean" },
+        "preserves_stable_ids": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_join_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "surface",
+        "generated_at",
+        "packet_id_ref",
+        "shared_history_digest",
+        "shared_event_rows",
+        "flow_rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_cross_surface_event_reuse_evidence_join" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/evidence_surface" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_history_digest": { "$ref": "#/$defs/non_empty_string" },
+        "shared_event_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shared_event_row" }
+        },
+        "flow_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cross_surface_flow_row" }
+        }
+      }
+    },
+    "consumer_binding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "binding_ref",
+        "bound_trace_ids",
+        "observed_event_count",
+        "reads_shared_history",
+        "preserves_stable_ids",
+        "preserves_provenance",
+        "explanation"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/consumer_surface" },
+        "binding_ref": { "$ref": "#/$defs/non_empty_string" },
+        "bound_trace_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "observed_event_count": { "type": "integer", "minimum": 0 },
+        "reads_shared_history": { "type": "boolean" },
+        "preserves_stable_ids": { "type": "boolean" },
+        "preserves_provenance": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "cli_headless_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id_ref",
+        "shared_history_digest",
+        "binding_rows",
+        "flow_rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_cross_surface_event_reuse_cli_headless" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_history_digest": { "$ref": "#/$defs/non_empty_string" },
+        "binding_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_binding_row" }
+        },
+        "flow_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cross_surface_flow_row" }
+        }
+      }
+    }
+  }
+}

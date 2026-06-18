@@ -1,0 +1,67 @@
+# M5 cross-surface event-reuse gate.
+#
+# Validates the checked-in cross-surface event-reuse packet: one shared
+# task/test/debug execution history bound to every major M5 consumer (task
+# center, test trees, coverage/flaky/snapshot intelligence, pipeline overlays,
+# notebook runs, incident runbooks, and the CLI/headless and support exports),
+# the consumer bindings that prove each surface reuses it instead of forking or
+# log-reconstructing a private history, and the reopen / export / rerun-review /
+# evidence-link flows that point each surface back to the same authoritative
+# event objects. The typed Rust consumer mints the same packet, so `cargo test -p
+# aureline-runtime` enforces the same invariants and that the fixtures and
+# artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_cross_surface_event_reuse
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_cross_surface_event_reuse.yml"
+      - "tools/ci/m5/cross_surface_event_reuse_check.py"
+      - "schemas/tooling/cross-surface-event-reuse.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/cross-surface-event-reuse.md"
+      - "artifacts/m5/tooling/cross-surface-event-reuse/**"
+      - "fixtures/tooling/m5/consumer-parity/**"
+      - "crates/aureline-runtime/src/m5_cross_surface_event_reuse/**"
+      - "crates/aureline-runtime/examples/dump_m5_cross_surface_event_reuse.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_cross_surface_event_reuse.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-cross-surface-event-reuse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_cross_surface_event_reuse:
+    name: M5 cross-surface event reuse
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 cross-surface event-reuse CI gate
+        run: |
+          python3 tools/ci/m5/cross_surface_event_reuse_check.py --repo-root .
+
+      - name: Run M5 cross-surface event-reuse contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_cross_surface_event_reuse

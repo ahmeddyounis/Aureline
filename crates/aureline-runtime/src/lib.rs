@@ -104,6 +104,7 @@ pub mod launch_profiles;
 pub mod log_metric_slice_and_incident_timeline_contract;
 pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
+pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
@@ -565,6 +566,24 @@ pub use m5_adapter_hierarchy_negotiation::{
     ADAPTER_NEGOTIATION_RECORD_KIND, ADAPTER_NEGOTIATION_SCHEMA_REF,
     ADAPTER_NEGOTIATION_SCHEMA_VERSION, ADAPTER_NEGOTIATION_SUPPORT_EXPORT_ID,
     ADAPTER_NEGOTIATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_cross_surface_event_reuse::{
+    current_stable_cross_surface_event_reuse_input, seeded_cross_surface_event_reuse_packet,
+    validate_cross_surface_event_reuse_packet, ConsumerBinding, ConsumerBindingRow,
+    ConsumerSurface, CrossSurfaceCliHeadlessView, CrossSurfaceEventReusePacket,
+    CrossSurfaceEventReusePacketInput, CrossSurfaceEventReuseSupportExport,
+    CrossSurfaceEvidenceJoinView, CrossSurfaceFindingKind, CrossSurfaceFlow, CrossSurfaceFlowKind,
+    CrossSurfaceFlowRow, CrossSurfaceValidationFinding, ReuseEvidenceSurface, SharedEventRow,
+    CROSS_SURFACE_EVENT_REUSE_AI_EVIDENCE_ID, CROSS_SURFACE_EVENT_REUSE_CLI_HEADLESS_ID,
+    CROSS_SURFACE_EVENT_REUSE_CLI_HEADLESS_RECORD_KIND, CROSS_SURFACE_EVENT_REUSE_DOC_REF,
+    CROSS_SURFACE_EVENT_REUSE_ENVELOPE_SCHEMA_REF,
+    CROSS_SURFACE_EVENT_REUSE_EVIDENCE_JOIN_RECORD_KIND,
+    CROSS_SURFACE_EVENT_REUSE_FIRST_CONSUMERS_PACKET_REF, CROSS_SURFACE_EVENT_REUSE_FIXTURE_DIR,
+    CROSS_SURFACE_EVENT_REUSE_ID, CROSS_SURFACE_EVENT_REUSE_INCIDENT_PACKET_ID,
+    CROSS_SURFACE_EVENT_REUSE_PACKET_ARTIFACT_REF, CROSS_SURFACE_EVENT_REUSE_POLICY_BASELINE_REF,
+    CROSS_SURFACE_EVENT_REUSE_RECORD_KIND, CROSS_SURFACE_EVENT_REUSE_SCHEMA_REF,
+    CROSS_SURFACE_EVENT_REUSE_SCHEMA_VERSION, CROSS_SURFACE_EVENT_REUSE_SUPPORT_EXPORT_ID,
+    CROSS_SURFACE_EVENT_REUSE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_environment_status_strips::{
     current_m5_environment_status_strips, ContextFacet, ContextFreshness, ContextResolutionPath,
