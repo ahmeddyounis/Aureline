@@ -113,6 +113,7 @@ pub mod m5_interop_conformance;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
+pub mod macro_sessions;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod materialize_artifact_family_quality_governance;
@@ -745,6 +746,30 @@ pub use m5_task_event_envelope_bus::{
     TASK_EVENT_FIRST_CONSUMERS_SCHEMA_REF, TASK_EVENT_FIRST_CONSUMERS_SCHEMA_VERSION,
     TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
     TASK_EVENT_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use macro_sessions::{
+    canonical_reused_contract_refs as macro_recorder_reused_contract_refs,
+    current_macro_recorder_first_consumers_input,
+    seeded_consumer_panel as seeded_macro_recorder_panel, seeded_cross_scope_promotion_session,
+    seeded_macro_recorder_first_consumers_packet, seeded_macro_recorder_session,
+    seeded_macro_session_export_roundtrip, seeded_unsupported_command_session,
+    validate_macro_recorder_first_consumers_packet, ActiveRecordingStrip, CapturedCommand,
+    CapturedCommandReview, CapturedCommandReviewRow, CapturedCommandSupportClass,
+    MacroRecorderConsumerBinding, MacroRecorderFinding, MacroRecorderFindingKind,
+    MacroRecorderFindingSeverity, MacroRecorderFirstConsumersCliHeadlessView,
+    MacroRecorderFirstConsumersInput, MacroRecorderFirstConsumersPacket,
+    MacroRecorderFirstConsumersSupportExport, MacroRecorderInvariantsBlock, MacroRecorderSession,
+    MacroRecorderSupportConsumerRow, MacroRecorderSupportSessionRow, MacroRedactionClass,
+    MacroReplayActionClass, MacroReplayBlocker, MacroReplayDisposition, MacroReplayResolution,
+    MacroSessionExport, MacroStorageScopeClass, RecordedSurfaceClass, ReplayPostureClass,
+    SessionDispositionClass, TargetScopeClass, UnsupportedCommandWarning, MACRO_RECORDER_DOC_REF,
+    MACRO_RECORDER_FIRST_CONSUMERS_CLI_HEADLESS_ID,
+    MACRO_RECORDER_FIRST_CONSUMERS_CLI_HEADLESS_RECORD_KIND, MACRO_RECORDER_FIRST_CONSUMERS_ID,
+    MACRO_RECORDER_FIRST_CONSUMERS_PACKET_ARTIFACT_REF, MACRO_RECORDER_FIRST_CONSUMERS_RECORD_KIND,
+    MACRO_RECORDER_FIRST_CONSUMERS_SCHEMA_REF, MACRO_RECORDER_FIRST_CONSUMERS_SCHEMA_VERSION,
+    MACRO_RECORDER_FIRST_CONSUMERS_SUPPORT_EXPORT_ID,
+    MACRO_RECORDER_FIRST_CONSUMERS_SUPPORT_EXPORT_RECORD_KIND, MACRO_RECORDER_FIXTURE_DIR,
+    MACRO_REPLAY_RESOLUTION_RECORD_KIND, MACRO_SESSION_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,

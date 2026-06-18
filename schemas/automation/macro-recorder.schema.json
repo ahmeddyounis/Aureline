@@ -1,0 +1,638 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/macro-recorder.schema.json",
+  "title": "Aureline macro-recorder session and replay object and first-consumers contract",
+  "description": "Boundary schema for the live macro-recorder session and replay object and the M5 automation families that first render it. A macro_recorder_session captures one editing flow as a reviewable, profile-local macro: it carries the captured commands (each strictly UI or editor state, named by a content-address digest, never a raw buffer, DOM, shell command, or secret), the declared target scope, the profile-local storage scope, the safety labels it projects (always macro_safe / ui_only), its promotion affordance, its replay count, and the save-or-discard disposition. The replay action is derived from the repository-import state and the current_replay_blockers observed now, never from the scope the macro was captured under; a recorded macro fails closed when the active context, the declared target scope, or the supported-command set no longer matches. A macro that crosses files carries macro_replay_blocked_promotion_required_crosses_scope and must be promoted to a declarative recipe; an imported recording always resolves to macro_replay_blocked_imported_from_repository_content so repository content can never silently define an executable macro. A macro_session_export_record nests the whole session plus its frozen macro-session record, a fresh replay resolution, and the captured-command review so replay and scope truth survive export, history, and support. The m5_macro_recorder_first_consumers_packet binds each first-consumer entrypoint (notebook, task/test/debug, request/API, package, incident, AI assistant) to a seeded panel and pins the freeze invariants; a dropped entrypoint, an empty panel, a replay that implies stale context, an unsupported command that does not block save, a repository-imported macro, a non-explicit cross-scope promotion, an ambient or managed-only capture, an inconsistent replay projection, or a violated invariant blocks stable. The frozen macro-session record shape is reused from macro-session.schema.json; the promotion vocabulary is re-exported from automation-contract-baseline.schema.json. A raw path/URL/secret value, the managed-only channel, or a parallel replay vocabulary is non-conforming.",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_macro_recorder_first_consumers_packet" },
+    { "$ref": "#/$defs/m5_macro_recorder_first_consumers_support_export" },
+    { "$ref": "#/$defs/m5_macro_recorder_first_consumers_cli_headless" },
+    { "$ref": "#/$defs/macro_session_export_record" },
+    { "$ref": "#/$defs/macro_recorder_session" },
+    { "$ref": "#/$defs/macro_replay_resolution" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw argv, raw paths, raw URLs, raw payloads, raw buffer bytes, and raw secrets never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+      "description": "An opaque id, or null."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for palette preview, CLI --describe output, docs pages, and support-bundle previews."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/monotonic_timestamp" }],
+      "description": "A monotonic timestamp, or null."
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex", "digest_size_bytes"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": { "type": "string", "pattern": "^[0-9a-f]+$", "minLength": 32 },
+        "digest_size_bytes": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Content-address of the captured UI / editor state. Raw DOM / raw buffer bytes never cross this boundary."
+    },
+    "entrypoint_class": {
+      "type": "string",
+      "enum": ["notebook", "task_test_debug", "request_api", "package", "incident", "ai_assistant"],
+      "description": "Re-exported recipe-builder first-consumer entrypoint vocabulary."
+    },
+    "recorder_state_class": {
+      "type": "string",
+      "enum": ["recording", "paused", "stopped", "discarded", "promoted_to_recipe"],
+      "description": "Re-exported macro-recorder lifecycle vocabulary from macro-session.schema.json."
+    },
+    "macro_promotion_affordance_class": {
+      "type": "string",
+      "enum": [
+        "promotable_to_declarative_recipe",
+        "not_promotable_ui_only",
+        "promotion_blocked_by_policy"
+      ],
+      "description": "Re-exported promotion-affordance vocabulary from macro-session.schema.json."
+    },
+    "macro_safety_label": {
+      "type": "string",
+      "enum": ["macro_safe", "ui_only"],
+      "description": "A macro session may only project macro_safe and ui_only; any other label is non-conforming."
+    },
+    "recorded_surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_document_state",
+        "editor_selection_and_cursor_state",
+        "editor_multi_cursor_edits",
+        "editor_find_and_replace_state",
+        "command_palette_selection_state",
+        "ui_panel_open_close_state",
+        "ui_focus_move_state",
+        "ui_layout_reshape_state",
+        "keybinding_chord_replay_state"
+      ],
+      "description": "Re-exported recorded-macro surface vocabulary from macro-session.schema.json. Minting a parallel surface (shell_command, network_fetch, credential_read) is non-conforming."
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "replay_ui_or_editor_state_only",
+        "replay_keybinding_chord_only",
+        "replay_command_palette_selection_only"
+      ],
+      "description": "Re-exported macro replay-posture vocabulary. Invoking a command descriptor from a macro step is non-conforming."
+    },
+    "captured_command_support_class": {
+      "type": "string",
+      "enum": [
+        "supported_ui_or_editor_state",
+        "unsupported_runs_process",
+        "unsupported_network_call",
+        "unsupported_remote_mutation",
+        "unsupported_writes_files",
+        "unsupported_secret_read",
+        "unsupported_requires_approval",
+        "unsupported_external_runner"
+      ],
+      "description": "Whether a captured command is supported as a macro step. Only supported_ui_or_editor_state is recordable; every other value is an unsupported-command warning that blocks save."
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "active_document_scope",
+        "active_selection_scope",
+        "active_editor_group_scope",
+        "single_file_scope",
+        "multi_file_scope",
+        "workspace_scope"
+      ],
+      "description": "The scope a macro declares it replays against. multi_file_scope and workspace_scope cross files and require explicit recipe promotion."
+    },
+    "macro_storage_scope_class": {
+      "type": "string",
+      "enum": [
+        "user_scope_local_only",
+        "workspace_scope_local_only",
+        "portable_profile_export_only",
+        "support_bundle_export_only"
+      ],
+      "description": "Where a recorded macro is stored. The default is profile-local (user / workspace). The organization / managed-only channel is non-conforming on a macro."
+    },
+    "macro_redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe_default", "redaction_required_on_export"]
+    },
+    "session_disposition_class": {
+      "type": "string",
+      "enum": [
+        "still_recording",
+        "saved_as_profile_local_macro",
+        "saved_and_promoted_to_recipe",
+        "discarded_no_macro_minted"
+      ],
+      "description": "The save-or-discard disposition a session resolved to. A discarded session mints no manifest; a saved or promoted session mints one."
+    },
+    "macro_replay_blocker": {
+      "type": "string",
+      "enum": [
+        "no_blocker_present",
+        "active_context_reconcilable",
+        "target_scope_no_longer_matches",
+        "active_document_or_selection_drift",
+        "supported_command_set_changed",
+        "unsupported_command_captured",
+        "profile_scope_mismatch",
+        "promotion_required_crosses_scope",
+        "kill_switch_engaged",
+        "replay_disabled_by_policy",
+        "macro_revision_retired",
+        "imported_from_repository_content"
+      ],
+      "description": "The authoritative reason a macro would not replay today. no_blocker_present is the only blocker that pairs with macro_replay_admissible_in_declared_scope."
+    },
+    "macro_replay_action_class": {
+      "type": "string",
+      "enum": [
+        "macro_replay_admissible_in_declared_scope",
+        "macro_replay_admissible_after_scope_reconciliation",
+        "macro_replay_blocked_target_scope_mismatch",
+        "macro_replay_blocked_active_context_drift",
+        "macro_replay_blocked_supported_command_set_changed",
+        "macro_replay_blocked_unsupported_command_captured",
+        "macro_replay_blocked_profile_scope_mismatch",
+        "macro_replay_blocked_promotion_required_crosses_scope",
+        "macro_replay_blocked_kill_switch_engaged",
+        "macro_replay_blocked_disabled_by_policy",
+        "macro_replay_blocked_revision_retired",
+        "macro_replay_blocked_imported_from_repository_content"
+      ],
+      "description": "The resolved replay-under-current-context action. Derived from the import state and the observed blockers; every blocked class refuses replay (fails closed)."
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"],
+      "description": "Re-exported promotion vocabulary from automation-contract-baseline.schema.json."
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": ["blocker", "warning"]
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_entrypoint",
+        "entrypoint_panel_empty",
+        "replay_implies_stale_context",
+        "replay_not_fail_closed_on_context_mismatch",
+        "unsupported_command_not_blocked",
+        "repository_content_defines_macro",
+        "promotion_not_explicit_for_cross_scope",
+        "ambient_or_managed_only_capture",
+        "replay_resolution_projection_inconsistent",
+        "profile_local_default_violated",
+        "raw_secret_material_in_session",
+        "invariant_violated"
+      ]
+    },
+    "fnv1a64_digest": {
+      "type": "string",
+      "pattern": "^fnv1a64:[0-9a-f]{16}$",
+      "description": "Order-stable FNV-1a 64-bit digest token."
+    },
+    "captured_command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "surface_class",
+        "support_class",
+        "replay_posture_class",
+        "state_digest",
+        "captured_at",
+        "label"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/recorded_surface_class" },
+        "support_class": { "$ref": "#/$defs/captured_command_support_class" },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "state_digest": { "$ref": "#/$defs/content_address" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One captured command, strictly constrained to UI or editor state."
+    },
+    "active_recording_strip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recorder_state_class",
+        "is_capturing",
+        "captured_command_count",
+        "supported_command_count",
+        "unsupported_command_count",
+        "target_scope_class",
+        "strip_summary"
+      ],
+      "properties": {
+        "recorder_state_class": { "$ref": "#/$defs/recorder_state_class" },
+        "is_capturing": { "type": "boolean" },
+        "captured_command_count": { "type": "integer", "minimum": 0 },
+        "supported_command_count": { "type": "integer", "minimum": 0 },
+        "unsupported_command_count": { "type": "integer", "minimum": 0 },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "strip_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "unsupported_command_warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "support_class", "warning"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "support_class": { "$ref": "#/$defs/captured_command_support_class" },
+        "warning": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "captured_command_review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "surface_class", "support_class", "supported", "label"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/recorded_surface_class" },
+        "support_class": { "$ref": "#/$defs/captured_command_support_class" },
+        "supported": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "captured_command_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_rows",
+        "unsupported_command_warnings",
+        "supported_command_count",
+        "unsupported_command_count",
+        "has_unsupported_command",
+        "save_admissible",
+        "review_summary"
+      ],
+      "properties": {
+        "command_rows": { "type": "array", "items": { "$ref": "#/$defs/captured_command_review_row" } },
+        "unsupported_command_warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_command_warning" }
+        },
+        "supported_command_count": { "type": "integer", "minimum": 0 },
+        "unsupported_command_count": { "type": "integer", "minimum": 0 },
+        "has_unsupported_command": { "type": "boolean" },
+        "save_admissible": { "type": "boolean" },
+        "review_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "The review a user inspects before saving or discarding. save_admissible is false when any captured command is unsupported."
+    },
+    "macro_replay_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "resolved_at",
+        "session_id",
+        "macro_manifest_ref",
+        "declared_target_scope_class",
+        "replay_action_class",
+        "current_replay_blockers",
+        "admissible",
+        "fails_closed",
+        "declares_target_scope",
+        "refuses_on_context_mismatch",
+        "reresolves_supported_command_set",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "macro_replay_resolution" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "macro_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "declared_target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "replay_action_class": { "$ref": "#/$defs/macro_replay_action_class" },
+        "current_replay_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_replay_blocker" }
+        },
+        "admissible": { "type": "boolean" },
+        "fails_closed": { "type": "boolean" },
+        "declares_target_scope": { "const": true },
+        "refuses_on_context_mismatch": { "const": true },
+        "reresolves_supported_command_set": { "const": true },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "An explicit replay-under-current-context resolution. The replay declares its target scope, refuses unsafe reuse on a context mismatch, and re-resolves the supported-command set every time."
+    },
+    "macro_recorder_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "entrypoint",
+        "macro_session_schema_version",
+        "title",
+        "summary",
+        "recorder_state_class",
+        "disposition_class",
+        "captured_commands",
+        "declared_target_scope_class",
+        "storage_scope_class",
+        "projected_safety_labels",
+        "promotion_affordance_class",
+        "replay_count",
+        "current_replay_blockers",
+        "imported_from_repository_content",
+        "redaction_class",
+        "resulting_macro_manifest_ref",
+        "manifest_target_schema_ref",
+        "recorded_at",
+        "last_replayed_at"
+      ],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "entrypoint": { "$ref": "#/$defs/entrypoint_class" },
+        "macro_session_schema_version": { "$ref": "#/$defs/schema_version" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "recorder_state_class": { "$ref": "#/$defs/recorder_state_class" },
+        "disposition_class": { "$ref": "#/$defs/session_disposition_class" },
+        "captured_commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/captured_command" }
+        },
+        "declared_target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "storage_scope_class": { "$ref": "#/$defs/macro_storage_scope_class" },
+        "projected_safety_labels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/macro_safety_label" }
+        },
+        "promotion_affordance_class": { "$ref": "#/$defs/macro_promotion_affordance_class" },
+        "replay_count": { "type": "integer", "minimum": 0 },
+        "current_replay_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_replay_blocker" }
+        },
+        "imported_from_repository_content": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/macro_redaction_class" },
+        "resulting_macro_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "manifest_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Schema the recorder mints a recorded-macro manifest against on save. MUST be schemas/automation/recipe_manifest.schema.json."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_replayed_at": { "$ref": "#/$defs/nullable_timestamp" }
+      },
+      "description": "One macro-recorder session: a recorded editing flow captured as a profile-local macro. The replay action is derived, never stored as authority."
+    },
+    "macro_session_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "session_record",
+        "replay_resolution",
+        "captured_command_review",
+        "session",
+        "export_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "macro_session_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "session_record": {
+          "type": "object",
+          "description": "The frozen macro-session record, conforming to schemas/automation/macro-session.schema.json."
+        },
+        "replay_resolution": { "$ref": "#/$defs/macro_replay_resolution" },
+        "captured_command_review": { "$ref": "#/$defs/captured_command_review" },
+        "session": { "$ref": "#/$defs/macro_recorder_session" },
+        "export_digest": { "$ref": "#/$defs/fnv1a64_digest" }
+      },
+      "description": "A macro session exported for replay review, comparison, or support bundles. The export nests the whole session verbatim so a re-import reconstructs the identical session."
+    },
+    "macro_recorder_consumer_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "title",
+        "sessions",
+        "replay_resolutions",
+        "session_count",
+        "replayable_count",
+        "blocked_replay_count",
+        "promotable_count",
+        "unsupported_command_session_count",
+        "latest_session_id",
+        "latest_state_class",
+        "latest_replay_action_class",
+        "binding_summary"
+      ],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/entrypoint_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "sessions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_recorder_session" }
+        },
+        "replay_resolutions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_replay_resolution" }
+        },
+        "session_count": { "type": "integer", "minimum": 1 },
+        "replayable_count": { "type": "integer", "minimum": 0 },
+        "blocked_replay_count": { "type": "integer", "minimum": 0 },
+        "promotable_count": { "type": "integer", "minimum": 0 },
+        "unsupported_command_session_count": { "type": "integer", "minimum": 0 },
+        "latest_session_id": { "$ref": "#/$defs/opaque_id" },
+        "latest_state_class": { "$ref": "#/$defs/recorder_state_class" },
+        "latest_replay_action_class": { "$ref": "#/$defs/macro_replay_action_class" },
+        "binding_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One entrypoint binding: the seeded macro-recorder panel a consumer renders, newest session first, with one replay resolution per session."
+    },
+    "invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_entrypoint_binds_a_session_panel",
+        "every_session_declares_target_and_storage_scope",
+        "recorded_macros_are_profile_local_by_default",
+        "unsupported_commands_are_flagged_and_block_save",
+        "replay_fails_closed_when_context_or_scope_no_longer_matches",
+        "repository_content_never_defines_an_executable_macro",
+        "promotion_to_recipe_is_explicit_when_macro_crosses_scope",
+        "macro_sessions_capture_ui_or_editor_state_only",
+        "macro_sessions_never_use_the_managed_only_channel"
+      ],
+      "properties": {
+        "every_entrypoint_binds_a_session_panel": { "type": "boolean" },
+        "every_session_declares_target_and_storage_scope": { "type": "boolean" },
+        "recorded_macros_are_profile_local_by_default": { "type": "boolean" },
+        "unsupported_commands_are_flagged_and_block_save": { "type": "boolean" },
+        "replay_fails_closed_when_context_or_scope_no_longer_matches": { "type": "boolean" },
+        "repository_content_never_defines_an_executable_macro": { "type": "boolean" },
+        "promotion_to_recipe_is_explicit_when_macro_crosses_scope": { "type": "boolean" },
+        "macro_sessions_capture_ui_or_editor_state_only": { "type": "boolean" },
+        "macro_sessions_never_use_the_managed_only_channel": { "type": "boolean" }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "subject", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "subject": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }] },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "m5_macro_recorder_first_consumers_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "schema_ref",
+        "macro_session_schema_ref",
+        "doc_ref",
+        "reused_contract_refs",
+        "consumer_bindings",
+        "invariants",
+        "validation_findings",
+        "promotion_state",
+        "packet_digest"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_macro_recorder_first_consumers_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "macro_session_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reused_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "consumer_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_recorder_consumer_binding" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "packet_digest": { "$ref": "#/$defs/fnv1a64_digest" }
+      },
+      "description": "Canonical M5 macro-recorder first-consumers packet. A dropped entrypoint, an empty panel, a replay that implies stale context, an unsupported command that does not block save, a repository-imported macro, a non-explicit cross-scope promotion, an ambient or managed-only capture, an inconsistent replay projection, or a violated invariant blocks stable."
+    },
+    "m5_macro_recorder_first_consumers_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id",
+        "packet_digest",
+        "promotion_state",
+        "consumer_rows",
+        "replay_resolutions",
+        "invariants",
+        "finding_kinds"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_macro_recorder_first_consumers_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_digest": { "$ref": "#/$defs/fnv1a64_digest" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_rows": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+        "replay_resolutions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/macro_replay_resolution" }
+        },
+        "invariants": { "$ref": "#/$defs/invariants_block" },
+        "finding_kinds": { "type": "array", "items": { "$ref": "#/$defs/finding_kind" } }
+      },
+      "description": "Redacted support-export projection. Carries the per-session scope, state, replay action, and blocker classes plus the resolved replay resolutions; no raw path, URL, or secret crosses the boundary."
+    },
+    "m5_macro_recorder_first_consumers_cli_headless": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id",
+        "promotion_state",
+        "consumer_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_macro_recorder_first_consumers_cli_headless" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "consumer_lines": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } }
+      },
+      "description": "Compact CLI / headless projection: one line per consumer entrypoint."
+    }
+  }
+}
