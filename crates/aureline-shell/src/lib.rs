@@ -110,6 +110,7 @@ pub mod layout;
 pub mod learnability_glossary_stable;
 pub mod learning_mode;
 pub mod learning_tour_alpha;
+pub mod live_appearance_evidence;
 pub mod locale_pack_beta;
 pub mod m5_activity_objects;
 pub mod m5_appearance_parity;

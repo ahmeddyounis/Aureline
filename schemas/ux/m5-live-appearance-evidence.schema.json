@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/m5-live-appearance-evidence.schema.json",
+  "title": "Aureline M5 live-appearance change & evidence-linkage report",
+  "description": "Boundary schema for the live-appearance evidence report produced by crates/aureline-shell/src/live_appearance_evidence/mod.rs. Every live OS theme, contrast, accent, or text-scale change is projected as one row that binds a single platform-lab capture to the exact build, theme package, appearance session, checkpoint, platform, and OS signal that produced it, declares whether the change applies live or carries an explicit restart/reload posture, and records whether the trust, severity, lifecycle, and focus cues survived the transition. A row claims the change qualified only when its screenshot/golden capture is attributable to the report's exact build, its golden capture matches a baseline, and its high-salience cues stay present; a marketed appearance axis must be proven on at least two platforms and with a live-transition capture, never a single platform or a static happy-path screenshot. Raw screenshots, raw pixel data, raw URLs, raw absolute paths, and raw user content never cross this boundary; records carry opaque refs, closed vocabulary, counts, and short privacy-safe labels only. The closed appearance vocabulary (appearance_axis, live_apply_capability, atomicity_class, rollback_path_class, transition_trigger, desktop_platform, m5_appearance_row, m5_appearance_surface_family, m5_semantic_salience, m5_state_semantics, m5_focus_visibility, m5_layout_integrity, m5_boundary_cue, m5_qualification_status, m5_evidence_freshness) is re-exported by reference from the already-frozen appearance-session and appearance-parity contracts; this schema mints no parallel appearance vocabulary, only the live-change-specific os_appearance_signal, evidence_capture_kind, and golden_match_state. This schema is the boundary contract for the JSON fixtures checked in under fixtures/ux/m5/os-appearance-contrast-accent/ and the support-export wrapper consumed by the CI gate at tools/ci/m5/live_appearance_evidence_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/m5_live_appearance_evidence_report_record" },
+    { "$ref": "#/$defs/m5_live_appearance_evidence_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive optional fields and additive vocabulary do not bump it."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:m5_live_appearance_evidence:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable ref safe to log, safe on RPC, and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "desktop_platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux"],
+      "description": "Re-exported from the desktop-qualification contract."
+    },
+    "os_appearance_signal": {
+      "type": "string",
+      "enum": [
+        "system_theme_flip",
+        "contrast_increased",
+        "forced_colors_enabled",
+        "accent_color_changed",
+        "text_scale_increased",
+        "reduced_motion_enabled"
+      ],
+      "description": "The platform-specific OS appearance event that drove the change."
+    },
+    "appearance_axis": {
+      "type": "string",
+      "enum": [
+        "theme_package",
+        "follow_system",
+        "contrast",
+        "accent",
+        "density",
+        "text_scale",
+        "reduced_motion",
+        "token_overlay",
+        "import_mapping",
+        "extension_surface_claim"
+      ],
+      "description": "Re-exported from the appearance-session contract."
+    },
+    "transition_trigger": {
+      "type": "string",
+      "enum": ["user_action", "os_signal", "managed_policy", "sync_import"]
+    },
+    "live_apply_capability": {
+      "type": "string",
+      "enum": [
+        "applies_live",
+        "requires_surface_reload",
+        "requires_app_restart",
+        "platform_signal_unavailable"
+      ],
+      "description": "The apply posture: live, or an explicit reload/restart, or an unavailable platform signal."
+    },
+    "atomicity_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_atomic",
+        "surface_reload_from_single_checkpoint",
+        "full_restart_from_single_checkpoint"
+      ]
+    },
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "single_checkpoint_revert",
+        "surface_reload_then_revert",
+        "full_restart_then_revert"
+      ]
+    },
+    "m5_appearance_row": {
+      "type": "string",
+      "enum": [
+        "theme_dark",
+        "theme_light",
+        "theme_high_contrast",
+        "density_compact",
+        "density_standard",
+        "density_comfortable",
+        "reduced_motion",
+        "live_appearance_change"
+      ],
+      "description": "Re-exported from the appearance-parity contract."
+    },
+    "m5_appearance_surface_family": {
+      "type": "string",
+      "enum": [
+        "notebook_cell_chrome",
+        "result_grid_row",
+        "profiler_panel",
+        "trace_panel",
+        "pipeline_card",
+        "preview_route_badge",
+        "docs_browser_pane",
+        "companion_surface",
+        "sync_status_surface",
+        "offboarding_surface"
+      ]
+    },
+    "m5_semantic_salience": {
+      "type": "string",
+      "enum": [
+        "decorative_only",
+        "informational",
+        "lifecycle_bearing",
+        "trust_bearing",
+        "severity_bearing"
+      ]
+    },
+    "m5_qualification_status": {
+      "type": "string",
+      "enum": [
+        "qualified",
+        "explicitly_narrowed",
+        "not_applicable",
+        "platform_omitted",
+        "declared_capture_gap",
+        "unqualified_local_appearance",
+        "missing_evidence"
+      ]
+    },
+    "m5_boundary_cue": {
+      "type": "string",
+      "enum": ["present", "hidden", "not_applicable"]
+    },
+    "m5_focus_visibility": {
+      "type": "string",
+      "enum": ["visible_focus_ring", "not_visible"]
+    },
+    "m5_state_semantics": {
+      "type": "string",
+      "enum": ["preserved", "lost"]
+    },
+    "m5_layout_integrity": {
+      "type": "string",
+      "enum": ["intact", "corrupted"]
+    },
+    "m5_evidence_freshness": {
+      "type": "string",
+      "enum": ["fresh", "stale"]
+    },
+    "evidence_capture_kind": {
+      "type": "string",
+      "enum": ["live_transition", "steady_state"]
+    },
+    "golden_match_state": {
+      "type": "string",
+      "enum": ["matched", "diff_within_tolerance", "mismatch", "no_baseline"]
+    },
+    "capture_attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_identity_ref",
+        "release_channel_class",
+        "theme_package_ref",
+        "theme_revision_ref",
+        "appearance_session_ref",
+        "checkpoint_ref",
+        "platform",
+        "os_signal",
+        "captured_at"
+      ],
+      "properties": {
+        "build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "release_channel_class": { "$ref": "#/$defs/non_empty_string" },
+        "theme_package_ref": { "$ref": "#/$defs/opaque_ref" },
+        "theme_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "platform": { "$ref": "#/$defs/desktop_platform" },
+        "os_signal": { "$ref": "#/$defs/os_appearance_signal" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "evidence_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_id",
+        "capture_kind",
+        "screenshot_ref",
+        "screenshot_digest",
+        "golden_baseline_ref",
+        "golden_match",
+        "freshness",
+        "attribution"
+      ],
+      "properties": {
+        "capture_id": { "$ref": "#/$defs/opaque_ref" },
+        "capture_kind": { "$ref": "#/$defs/evidence_capture_kind" },
+        "screenshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "screenshot_digest": { "$ref": "#/$defs/opaque_ref" },
+        "golden_baseline_ref": { "$ref": "#/$defs/opaque_ref" },
+        "golden_match": { "$ref": "#/$defs/golden_match_state" },
+        "freshness": { "$ref": "#/$defs/m5_evidence_freshness" },
+        "attribution": { "$ref": "#/$defs/capture_attribution" }
+      }
+    },
+    "cue_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_cue",
+        "severity_cue",
+        "lifecycle_cue",
+        "focus_cue",
+        "state_semantics",
+        "layout_integrity"
+      ],
+      "properties": {
+        "trust_cue": { "$ref": "#/$defs/m5_boundary_cue" },
+        "severity_cue": { "$ref": "#/$defs/m5_boundary_cue" },
+        "lifecycle_cue": { "$ref": "#/$defs/m5_boundary_cue" },
+        "focus_cue": { "$ref": "#/$defs/m5_focus_visibility" },
+        "state_semantics": { "$ref": "#/$defs/m5_state_semantics" },
+        "layout_integrity": { "$ref": "#/$defs/m5_layout_integrity" }
+      }
+    },
+    "live_appearance_evidence_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "title",
+        "platform",
+        "os_signal",
+        "changed_axis",
+        "qualifies_rows",
+        "surface_family",
+        "semantic_salience",
+        "transition_trigger",
+        "from_value",
+        "to_value",
+        "apply_posture",
+        "restart_or_reload_disclosed",
+        "atomicity_class",
+        "rollback_path_class",
+        "theme_package_ref",
+        "theme_revision_ref",
+        "appearance_session_ref",
+        "checkpoint_ref",
+        "qualification_status",
+        "narrowing_reason",
+        "cue_preservation",
+        "evidence",
+        "docs_help_refs",
+        "narrative"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_live_appearance_evidence_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/opaque_ref" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "platform": { "$ref": "#/$defs/desktop_platform" },
+        "os_signal": { "$ref": "#/$defs/os_appearance_signal" },
+        "changed_axis": { "$ref": "#/$defs/appearance_axis" },
+        "qualifies_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/m5_appearance_row" }
+        },
+        "surface_family": { "$ref": "#/$defs/m5_appearance_surface_family" },
+        "semantic_salience": { "$ref": "#/$defs/m5_semantic_salience" },
+        "transition_trigger": { "$ref": "#/$defs/transition_trigger" },
+        "from_value": { "$ref": "#/$defs/non_empty_string" },
+        "to_value": { "$ref": "#/$defs/non_empty_string" },
+        "apply_posture": { "$ref": "#/$defs/live_apply_capability" },
+        "restart_or_reload_disclosed": { "type": "boolean" },
+        "atomicity_class": { "$ref": "#/$defs/atomicity_class" },
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "theme_package_ref": { "$ref": "#/$defs/opaque_ref" },
+        "theme_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "appearance_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "qualification_status": { "$ref": "#/$defs/m5_qualification_status" },
+        "narrowing_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "cue_preservation": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/cue_preservation" }]
+        },
+        "evidence": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/evidence_capture" }]
+        },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "narrative": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "axis_platform_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "platforms"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/appearance_axis" },
+        "platforms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/desktop_platform" }
+        }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_findings", "coverage_findings", "total_blocking_findings"],
+      "properties": {
+        "row_findings": { "type": "integer", "minimum": 0 },
+        "coverage_findings": { "type": "integer", "minimum": 0 },
+        "total_blocking_findings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": { "type": "string" },
+        "row_id": { "type": "string" },
+        "field": { "type": "string" },
+        "cue": { "type": "string" },
+        "axis": { "type": "string" },
+        "surface_family": { "type": "string" }
+      }
+    },
+    "m5_live_appearance_evidence_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_schema_ref",
+        "headline",
+        "build_identity_ref",
+        "release_channel_class",
+        "rows",
+        "axis_platform_coverage",
+        "covered_surface_families",
+        "os_signal_coverage",
+        "row_count",
+        "marketed_row_count",
+        "restart_or_reload_row_count",
+        "live_change_demonstrated",
+        "all_captures_build_attributed",
+        "findings_summary",
+        "blocking_findings",
+        "report_clean",
+        "release_evidence_refs",
+        "extension_inspection_refs",
+        "sync_refs",
+        "docs_help_refs",
+        "support_export_refs",
+        "published_report_ref",
+        "published_doc_ref",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_live_appearance_evidence_report_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "headline": { "$ref": "#/$defs/non_empty_string" },
+        "build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "release_channel_class": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/live_appearance_evidence_row_record" }
+        },
+        "axis_platform_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/axis_platform_coverage" }
+        },
+        "covered_surface_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/m5_appearance_surface_family" }
+        },
+        "os_signal_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/os_appearance_signal" }
+        },
+        "row_count": { "type": "integer", "minimum": 0 },
+        "marketed_row_count": { "type": "integer", "minimum": 0 },
+        "restart_or_reload_row_count": { "type": "integer", "minimum": 0 },
+        "live_change_demonstrated": { "type": "boolean" },
+        "all_captures_build_attributed": { "type": "boolean" },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "report_clean": { "type": "boolean" },
+        "release_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "extension_inspection_refs": { "$ref": "#/$defs/ref_array" },
+        "sync_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "m5_live_appearance_evidence_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_m5_live_appearance_evidence_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/opaque_ref" },
+        "report": { "$ref": "#/$defs/m5_live_appearance_evidence_report_record" },
+        "case_ids": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}
