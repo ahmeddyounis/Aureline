@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/interop-conformance.schema.json",
+  "title": "Aureline M5 build/test interop conformance",
+  "description": "Boundary schema for the build/test interop conformance packet, its support export, its evidence joins, and its CLI/headless view. The packet runs four named corpora (BSP discovery, Bazel BEP/BES, structured-output JUnit/SARIF, and problem-matcher/heuristic fallbacks) across every claimed M5 archetype, grades each case on seven conformance dimensions (capability negotiation, fallback reason, confidence preservation, raw-payload retention, replay stability, degraded-state behavior, and export parity), narrows below stable on aged proof, and binds the corpus results into release evidence. It reuses the source-kind, confidence, capability-state, retention-class, promotion-state, and finding-severity vocabulary frozen in schemas/runtime/build-test-event-envelope.schema.json. A case that overclaims confidence, loses its raw payload, drops a fallback reason, hides a degraded state, breaks replay, or breaks export parity blocks stable; a corpus whose proof has aged past its freshness window narrows below stable.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/conformance_packet" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/evidence_join_view" },
+    { "$ref": "#/$defs/cli_headless_view" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["native", "bsp", "bazel-bep", "structured-output", "heuristic-parser"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium-high", "medium", "low"]
+    },
+    "capability_state": {
+      "type": "string",
+      "enum": ["negotiated", "degraded", "unsupported"]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": ["metadata_digest_only", "redacted_reference", "support_approval_required"]
+    },
+    "corpus_family": {
+      "type": "string",
+      "enum": [
+        "bsp_discovery",
+        "bazel_bep_bes",
+        "structured_output_junit_sarif",
+        "problem_matcher_heuristic"
+      ]
+    },
+    "archetype": {
+      "type": "string",
+      "enum": [
+        "rust_cargo",
+        "node_workspace",
+        "python_pytest",
+        "jvm_build_server",
+        "bazel_monorepo",
+        "polyglot_ci"
+      ]
+    },
+    "dimension": {
+      "type": "string",
+      "enum": [
+        "capability_negotiation",
+        "fallback_reason",
+        "confidence_preservation",
+        "raw_payload_retention",
+        "replay_stability",
+        "degraded_state_behavior",
+        "export_parity"
+      ]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["current", "stale"]
+    },
+    "evidence_surface": {
+      "type": "string",
+      "enum": ["support_bundle", "incident_packet", "ai_evidence"]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "blocker"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "dimension_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "passed", "detail"],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/dimension" },
+        "passed": { "type": "boolean" },
+        "detail": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "conformance_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "family",
+        "archetype",
+        "source_kind",
+        "scenario",
+        "negotiated_capability",
+        "capability_packet_ref",
+        "observed_confidence",
+        "raw_payload_ref",
+        "payload_digest",
+        "raw_payload_retention",
+        "raw_private_material_excluded",
+        "replay_stable",
+        "export_parity_preserved",
+        "degraded_state_disclosed",
+        "dimension_outcomes",
+        "conforms"
+      ],
+      "properties": {
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "family": { "$ref": "#/$defs/corpus_family" },
+        "archetype": { "$ref": "#/$defs/archetype" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "negotiated_capability": { "$ref": "#/$defs/capability_state" },
+        "capability_packet_ref": { "type": "string" },
+        "fallback_reason": { "$ref": "#/$defs/non_empty_string" },
+        "observed_confidence": { "$ref": "#/$defs/confidence" },
+        "raw_payload_ref": { "type": "string" },
+        "payload_digest": { "type": "string" },
+        "raw_payload_retention": { "$ref": "#/$defs/retention_class" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "replay_stable": { "type": "boolean" },
+        "export_parity_preserved": { "type": "boolean" },
+        "degraded_state_disclosed": { "type": "boolean" },
+        "dimension_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension_outcome" }
+        },
+        "conforms": { "type": "boolean" }
+      }
+    },
+    "interop_corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "source_kind",
+        "fixture_dir",
+        "last_run_at",
+        "proof_age_days",
+        "freshness_window_days",
+        "freshness_state",
+        "cases",
+        "all_cases_conform"
+      ],
+      "properties": {
+        "family": { "$ref": "#/$defs/corpus_family" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "fixture_dir": { "$ref": "#/$defs/non_empty_string" },
+        "last_run_at": { "$ref": "#/$defs/non_empty_string" },
+        "proof_age_days": { "type": "integer", "minimum": 0 },
+        "freshness_window_days": { "type": "integer", "minimum": 0 },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "cases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conformance_case" }
+        },
+        "all_cases_conform": { "type": "boolean" }
+      }
+    },
+    "release_evidence_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_evidence_ref",
+        "all_corpora_current",
+        "all_cases_conform",
+        "narrowed_families",
+        "conformance_summary"
+      ],
+      "properties": {
+        "release_evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "all_corpora_current": { "type": "boolean" },
+        "all_cases_conform": { "type": "boolean" },
+        "narrowed_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/corpus_family" }
+        },
+        "conformance_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "corpus_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "source_kind",
+        "fixture_dir",
+        "freshness_state",
+        "proof_age_days",
+        "freshness_window_days",
+        "case_count",
+        "all_cases_conform",
+        "release_ready",
+        "explanation"
+      ],
+      "properties": {
+        "family": { "$ref": "#/$defs/corpus_family" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "fixture_dir": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "proof_age_days": { "type": "integer", "minimum": 0 },
+        "freshness_window_days": { "type": "integer", "minimum": 0 },
+        "case_count": { "type": "integer", "minimum": 0 },
+        "all_cases_conform": { "type": "boolean" },
+        "release_ready": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "case_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "family",
+        "archetype",
+        "source_kind",
+        "capability_state",
+        "confidence",
+        "conforms",
+        "failed_dimensions",
+        "explanation"
+      ],
+      "properties": {
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "family": { "$ref": "#/$defs/corpus_family" },
+        "archetype": { "$ref": "#/$defs/archetype" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "capability_state": { "$ref": "#/$defs/capability_state" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "fallback_reason": { "$ref": "#/$defs/non_empty_string" },
+        "conforms": { "type": "boolean" },
+        "failed_dimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dimension" }
+        },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "conformance_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "conformance_schema_ref",
+        "envelope_schema_ref",
+        "doc_ref",
+        "policy_baseline_ref",
+        "interop_packet_ref",
+        "corpora",
+        "corpus_digest",
+        "release_evidence",
+        "promotion_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_interop_conformance_packet" },
+        "schema_version": { "const": 1 },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_baseline_ref": { "$ref": "#/$defs/non_empty_string" },
+        "interop_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpora": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/interop_corpus" }
+        },
+        "corpus_digest": { "$ref": "#/$defs/non_empty_string" },
+        "release_evidence": { "$ref": "#/$defs/release_evidence_binding" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "exported_at",
+        "packet_id_ref",
+        "packet"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_interop_conformance_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "packet": { "$ref": "#/$defs/conformance_packet" }
+      }
+    },
+    "evidence_join_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "surface",
+        "generated_at",
+        "packet_id_ref",
+        "corpus_digest",
+        "release_evidence",
+        "corpus_rows",
+        "case_rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_interop_conformance_evidence_join" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/evidence_surface" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_digest": { "$ref": "#/$defs/non_empty_string" },
+        "release_evidence": { "$ref": "#/$defs/release_evidence_binding" },
+        "corpus_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/corpus_row" }
+        },
+        "case_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_row" }
+        }
+      }
+    },
+    "cli_headless_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "view_id",
+        "generated_at",
+        "packet_id_ref",
+        "corpus_digest",
+        "promotion_state",
+        "release_evidence",
+        "corpus_rows",
+        "case_rows"
+      ],
+      "properties": {
+        "record_kind": { "const": "m5_interop_conformance_cli_headless" },
+        "schema_version": { "const": 1 },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_digest": { "$ref": "#/$defs/non_empty_string" },
+        "promotion_state": { "$ref": "#/$defs/promotion_state" },
+        "release_evidence": { "$ref": "#/$defs/release_evidence_binding" },
+        "corpus_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/corpus_row" }
+        },
+        "case_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_row" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+# M5 build/test interop conformance gate.
+#
+# Validates the checked-in interop conformance packet: the four named corpora
+# (BSP discovery, Bazel BEP/BES, structured-output JUnit/SARIF, and
+# problem-matcher/heuristic fallbacks), each present once and run across every
+# claimed M5 archetype that depends on them, with every case graded on the seven
+# conformance dimensions (capability negotiation, fallback reason, confidence
+# preservation, raw-payload retention, replay stability, degraded-state behavior,
+# and export parity), the freshness/stale-narrowing roll-up, and the
+# release-evidence binding. The typed Rust consumer mints the same packet, so
+# `cargo test -p aureline-runtime` enforces the same invariants and that the
+# fixtures and artifacts are bit-for-bit derivable from the seed.
+
+name: check_m5_interop_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m5_interop_conformance.yml"
+      - "tools/ci/m5/interop_conformance_check.py"
+      - "schemas/tooling/interop-conformance.schema.json"
+      - "schemas/tooling/task-event-envelope.schema.json"
+      - "docs/m5/build-test-interop-corpora.md"
+      - "artifacts/m5/tooling/interop-conformance/**"
+      - "fixtures/tooling/m5/bsp-discovery/**"
+      - "fixtures/tooling/m5/bazel-bep-bes/**"
+      - "fixtures/tooling/m5/structured-output-junit-sarif/**"
+      - "fixtures/tooling/m5/problem-matcher-heuristic/**"
+      - "crates/aureline-runtime/src/m5_interop_conformance/**"
+      - "crates/aureline-runtime/examples/dump_m5_interop_conformance.rs"
+      - "crates/aureline-runtime/src/lib.rs"
+      - "crates/aureline-runtime/tests/m5_interop_conformance.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m5-interop-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  m5_interop_conformance:
+    name: M5 interop conformance
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run M5 interop conformance CI gate
+        run: |
+          python3 tools/ci/m5/interop_conformance_check.py --repo-root .
+
+      - name: Run M5 interop conformance contract tests
+        run: |
+          cargo test -p aureline-runtime --test m5_interop_conformance

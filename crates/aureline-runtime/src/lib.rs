@@ -106,6 +106,7 @@ pub mod m5_adapter_confidence_labels;
 pub mod m5_adapter_hierarchy_negotiation;
 pub mod m5_cross_surface_event_reuse;
 pub mod m5_environment_status_strips;
+pub mod m5_interop_conformance;
 pub mod m5_replay_bundles;
 pub mod m5_task_event_adapter_policy;
 pub mod m5_task_event_envelope_bus;
@@ -598,6 +599,24 @@ pub use m5_environment_status_strips::{
     M5_ENVIRONMENT_STATUS_STRIP_REVIEW_PACKET_REF, M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_REF,
     M5_ENVIRONMENT_STATUS_STRIP_SCHEMA_VERSION,
     M5_ENVIRONMENT_STATUS_STRIP_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use m5_interop_conformance::{
+    archetypes_for_family, current_stable_interop_conformance_input,
+    seeded_interop_conformance_packet, validate_interop_conformance_packet, ConformanceCase,
+    ConformanceCaseRow, ConformanceDimension, ConformanceEvidenceSurface, CorpusFamily,
+    DimensionOutcome, EvidenceFreshnessState as InteropEvidenceFreshnessState, InteropArchetype,
+    InteropConformanceCliHeadlessView, InteropConformanceEvidenceJoinView,
+    InteropConformanceFindingKind, InteropConformancePacket, InteropConformancePacketInput,
+    InteropConformanceSupportExport, InteropConformanceValidationFinding, InteropCorpus,
+    InteropCorpusRow, ReleaseEvidenceBinding, INTEROP_CONFORMANCE_AI_EVIDENCE_ID,
+    INTEROP_CONFORMANCE_CLI_HEADLESS_ID, INTEROP_CONFORMANCE_CLI_HEADLESS_RECORD_KIND,
+    INTEROP_CONFORMANCE_DOC_REF, INTEROP_CONFORMANCE_ENVELOPE_SCHEMA_REF,
+    INTEROP_CONFORMANCE_EVIDENCE_JOIN_RECORD_KIND, INTEROP_CONFORMANCE_ID,
+    INTEROP_CONFORMANCE_INCIDENT_PACKET_ID, INTEROP_CONFORMANCE_INTEROP_PACKET_REF,
+    INTEROP_CONFORMANCE_PACKET_ARTIFACT_REF, INTEROP_CONFORMANCE_POLICY_BASELINE_REF,
+    INTEROP_CONFORMANCE_RECORD_KIND, INTEROP_CONFORMANCE_RELEASE_EVIDENCE_REF,
+    INTEROP_CONFORMANCE_SCHEMA_REF, INTEROP_CONFORMANCE_SCHEMA_VERSION,
+    INTEROP_CONFORMANCE_SUPPORT_EXPORT_ID, INTEROP_CONFORMANCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use m5_replay_bundles::{
     current_stable_replay_bundle_input, retention_ai_evidence_safe, retention_byte_bound,
