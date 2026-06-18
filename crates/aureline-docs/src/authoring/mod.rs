@@ -1,7 +1,14 @@
-//! Markdown authoring workspace records.
+//! Docs authoring workspace and suggestion-panel records.
 //!
-//! This module owns the runtime truth packet for the governed Markdown
-//! authoring workspace: the source/split/rendered modes a workspace exposes,
+//! This module groups the governed docs-authoring truth packets:
+//! [`markdown_workspace`] owns the Markdown authoring workspace, and
+//! [`suggestion_panel`] owns the diff-first docs suggestion panel that proposes
+//! prose edits to README/changelog/help/tutorial docs and ties each proposal
+//! back to the code, schema, or release change that raised it.
+//!
+//! The [`markdown_workspace`] module owns the runtime truth packet for the
+//! governed Markdown authoring workspace: the source/split/rendered modes a
+//! workspace exposes,
 //! the stable command ids and keyboard parity that drive them, the remembered
 //! mode preference, the always-available recovery back to raw source, the
 //! CommonMark baseline and enabled-extension disclosure, the rendered-preview
@@ -15,3 +22,4 @@
 //! cross this boundary.
 
 pub mod markdown_workspace;
+pub mod suggestion_panel;

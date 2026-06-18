@@ -82,6 +82,22 @@ pub use authoring::markdown_workspace::{
     MARKDOWN_WORKSPACE_SCHEMA_VERSION, MARKDOWN_WORKSPACE_SUMMARY_REF, MODE_RENDERED_COMMAND_ID,
     MODE_SOURCE_COMMAND_ID, MODE_SPLIT_COMMAND_ID, RECOVER_SOURCE_COMMAND_ID,
 };
+pub use authoring::suggestion_panel::{
+    current_stable_docs_suggestion_panel_export, packet_to_input as docs_suggestion_panel_packet_to_input,
+    seeded_stable_docs_suggestion_panel_input, DocsSuggestionPanelArtifactError,
+    DocsSuggestionPanelExport, DocsSuggestionPanelPacket, DocsSuggestionPanelPacketInput,
+    DocsSuggestionPanelSupportExport, PanelActionSet, PanelApplyPosture, PanelChipSet,
+    PanelConfidence, PanelConsumerProjection, PanelConsumerSurface, PanelDegradation,
+    PanelDegradationClass, PanelDisposition, PanelDispositionState, PanelEvidenceProvenance,
+    PanelExportScope, PanelFindingKind, PanelFindingSeverity, PanelFreshness, PanelLocality,
+    PanelProposal, PanelProposalKind, PanelPromotionState, PanelSuggestion,
+    PanelSuggestionExportRow, PanelSuggestionTarget, PanelTargetKind, PanelTrigger,
+    PanelTriggerSource, PanelValidationFinding, PanelVersionMatch,
+    DOCS_SUGGESTION_PANEL_ARTIFACT_REF, DOCS_SUGGESTION_PANEL_DOC_REF,
+    DOCS_SUGGESTION_PANEL_FIXTURE_DIR, DOCS_SUGGESTION_PANEL_RECORD_KIND,
+    DOCS_SUGGESTION_PANEL_SCHEMA_REF, DOCS_SUGGESTION_PANEL_SCHEMA_VERSION,
+    DOCS_SUGGESTION_PANEL_SUMMARY_REF, DOCS_SUGGESTION_PANEL_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use certify_docs_browser_semantic_recall_and_codebase_understanding_rows_and_narrow_any_underqualified_surface::{
     current_stable_certification_export, seeded_stable_certification_input,
     CertificationArtifactError, CertificationCompatibilityReport, CertificationConsumerProjection,

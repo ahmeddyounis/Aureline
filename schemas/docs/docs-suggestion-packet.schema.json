@@ -1,0 +1,687 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs-suggestion-packet.schema.json",
+  "title": "Aureline docs suggestion panel packet",
+  "description": "Export-safe packet for the M5 docs suggestion panel. The packet carries one or more diff-first docs suggestions across the README / changelog / help / tutorial (and guide / api_reference) target kinds. Each suggestion names a concrete target (file ref plus optional section anchor and display path), a concrete trigger source (code_diff / symbol_rename / api_contract_change / failing_example / broken_link / release_metadata_change / manual_authoring) with a non-empty detail and triggering-evidence ref, a confidence/freshness/version/locality chip set, one evidence provenance disclosure (first_party_verified / local_only_unverified / imported / mirrored / stale / derived_heuristic), a diff-based proposal (never a prose-only card), the full action set (apply posture plus open-evidence, open-source, dismiss, and save-for-later parity), and a durable disposition (pending / applied / dismissed / saved_for_later / superseded). A missing target, an unattributed trigger, a prose-only or zero-hunk proposal, incomplete action parity, an unverified one-click apply, a collapsed provenance/version truth, an uncited unverified source, or a resolved disposition that is not attributable, previewable, and reopenable blocks the claim. An export preserves target, trigger source, confidence, freshness, apply posture, provenance, action parity, and disposition per suggestion. Packet-level degradations narrow or block the claim. The promotion state (stable / narrowed_below_stable / blocks_stable) is computed from validation findings and degradation severities. Raw document bodies, raw source files, raw URLs, diff bodies, raw provider payloads, and credentials never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "panel_label",
+    "panel_digest_ref",
+    "suggestions",
+    "export",
+    "panel_degradations",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings",
+    "redaction_class_token",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "docs_suggestion_panel"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "panel_label": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "panel_digest_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "suggestions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/suggestion"
+      }
+    },
+    "export": {
+      "$ref": "#/$defs/export"
+    },
+    "panel_degradations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/panel_degradation"
+      }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/consumer_projection"
+      }
+    },
+    "promotion_state": {
+      "$ref": "#/$defs/promotion_state"
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validation_finding"
+      }
+    },
+    "redaction_class_token": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "minted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "readme",
+        "changelog",
+        "help",
+        "tutorial",
+        "guide",
+        "api_reference"
+      ]
+    },
+    "trigger_source": {
+      "type": "string",
+      "enum": [
+        "code_diff",
+        "symbol_rename",
+        "api_contract_change",
+        "failing_example",
+        "broken_link",
+        "release_metadata_change",
+        "manual_authoring"
+      ]
+    },
+    "apply_posture": {
+      "type": "string",
+      "enum": [
+        "preview_required",
+        "apply_available",
+        "apply_blocked_by_policy",
+        "apply_unavailable_disclosed"
+      ]
+    },
+    "proposal_kind": {
+      "type": "string",
+      "enum": [
+        "diff_hunks",
+        "new_section_diff",
+        "link_repoint_diff",
+        "example_replace_diff",
+        "prose_only_card"
+      ]
+    },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "first_party_verified",
+        "local_only_unverified",
+        "imported",
+        "mirrored",
+        "stale",
+        "derived_heuristic"
+      ]
+    },
+    "version_match": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "refresh_pending"
+      ]
+    },
+    "locality": {
+      "type": "string",
+      "enum": [
+        "local",
+        "imported_pack",
+        "mirrored_pack",
+        "managed"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "heuristic"
+      ]
+    },
+    "disposition_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "applied",
+        "dismissed",
+        "saved_for_later",
+        "superseded"
+      ]
+    },
+    "finding_severity": {
+      "type": "string",
+      "enum": [
+        "blocking",
+        "narrowing",
+        "advisory"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "docs_suggestion_panel",
+        "docs_authoring_surface",
+        "docs_review_panel",
+        "docs_browser_shell",
+        "release_center",
+        "ai_context_inspector",
+        "cli_headless",
+        "support_export",
+        "diagnostics",
+        "help_about"
+      ]
+    },
+    "degradation_class": {
+      "type": "string",
+      "enum": [
+        "mirror_offline_snapshot",
+        "example_harness_unavailable",
+        "link_checker_offline",
+        "diff_engine_degraded",
+        "suggestion_engine_degraded",
+        "scope_narrowed_rerun",
+        "panel_narrowed",
+        "quarantined_source"
+      ]
+    },
+    "export_scope": {
+      "type": "string",
+      "enum": [
+        "all_suggestions",
+        "pending_only",
+        "resolved_only",
+        "applied_only"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "narrowed_below_stable",
+        "blocks_stable"
+      ]
+    },
+    "validation_finding_kind": {
+      "type": "string",
+      "enum": [
+        "missing_identity",
+        "suggestions_empty",
+        "duplicate_suggestion_id",
+        "required_target_kind_missing",
+        "target_identity_missing",
+        "trigger_source_detail_missing",
+        "title_or_detail_missing",
+        "provenance_disclosure_missing",
+        "provenance_truth_collapsed",
+        "suggestion_not_cited",
+        "version_truth_collapsed",
+        "proposal_not_diff_based",
+        "proposal_summary_missing",
+        "action_parity_incomplete",
+        "unverified_apply_offered",
+        "disposition_not_attributable",
+        "disposition_not_reopenable",
+        "export_drops_preservation",
+        "export_row_orphan",
+        "export_coverage_missing",
+        "export_target_kind_mismatch",
+        "export_trigger_source_mismatch",
+        "export_confidence_mismatch",
+        "export_freshness_mismatch",
+        "export_apply_posture_mismatch",
+        "export_provenance_mismatch",
+        "export_disposition_mismatch",
+        "export_cited_mismatch",
+        "degradation_incomplete",
+        "degradation_orphan",
+        "consumer_projection_drift",
+        "consumer_projection_packet_id_mismatch",
+        "required_surface_coverage_missing",
+        "raw_boundary_material_present"
+      ]
+    },
+    "chip_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "freshness",
+        "version_match",
+        "locality"
+      ],
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "version_match": {
+          "$ref": "#/$defs/version_match"
+        },
+        "locality": {
+          "$ref": "#/$defs/locality"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "file_ref",
+        "display_path"
+      ],
+      "properties": {
+        "target_kind": {
+          "$ref": "#/$defs/target_kind"
+        },
+        "file_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "section_anchor": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_path": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "detail",
+        "evidence_ref"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/trigger_source"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_kind",
+        "hunk_count",
+        "added_lines",
+        "removed_lines",
+        "summary",
+        "preview_ref"
+      ],
+      "properties": {
+        "proposal_kind": {
+          "$ref": "#/$defs/proposal_kind"
+        },
+        "hunk_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "added_lines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed_lines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preview_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "action_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apply_posture",
+        "open_evidence_ref",
+        "open_source_ref",
+        "dismiss_available",
+        "save_for_later_available"
+      ],
+      "properties": {
+        "apply_posture": {
+          "$ref": "#/$defs/apply_posture"
+        },
+        "open_evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "open_source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "dismiss_available": {
+          "type": "boolean"
+        },
+        "save_for_later_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "previewable",
+        "reopenable",
+        "note"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/disposition_state"
+        },
+        "attributed_to_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "history_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "previewable": {
+          "type": "boolean"
+        },
+        "reopenable": {
+          "type": "boolean"
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suggestion_id",
+        "target",
+        "trigger",
+        "title",
+        "detail",
+        "chips",
+        "provenance",
+        "provenance_disclosure_note",
+        "proposal",
+        "actions",
+        "disposition",
+        "cited"
+      ],
+      "properties": {
+        "suggestion_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "trigger": {
+          "$ref": "#/$defs/trigger"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "detail": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "chips": {
+          "$ref": "#/$defs/chip_set"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "provenance_disclosure_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "proposal": {
+          "$ref": "#/$defs/proposal"
+        },
+        "actions": {
+          "$ref": "#/$defs/action_set"
+        },
+        "disposition": {
+          "$ref": "#/$defs/disposition"
+        },
+        "cited": {
+          "type": "boolean"
+        },
+        "citation_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suggestion_id_ref",
+        "target_kind",
+        "trigger_source",
+        "confidence",
+        "freshness",
+        "apply_posture",
+        "provenance",
+        "disposition_state",
+        "action_parity_complete",
+        "cited"
+      ],
+      "properties": {
+        "suggestion_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_kind": {
+          "$ref": "#/$defs/target_kind"
+        },
+        "trigger_source": {
+          "$ref": "#/$defs/trigger_source"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "apply_posture": {
+          "$ref": "#/$defs/apply_posture"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "disposition_state": {
+          "$ref": "#/$defs/disposition_state"
+        },
+        "action_parity_complete": {
+          "type": "boolean"
+        },
+        "cited": {
+          "type": "boolean"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "preserves_target",
+        "preserves_trigger_source",
+        "preserves_confidence",
+        "preserves_freshness",
+        "preserves_apply_posture",
+        "preserves_provenance",
+        "preserves_action_parity",
+        "preserves_disposition",
+        "rows"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/export_scope"
+        },
+        "preserves_target": {
+          "type": "boolean"
+        },
+        "preserves_trigger_source": {
+          "type": "boolean"
+        },
+        "preserves_confidence": {
+          "type": "boolean"
+        },
+        "preserves_freshness": {
+          "type": "boolean"
+        },
+        "preserves_apply_posture": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_action_parity": {
+          "type": "boolean"
+        },
+        "preserves_disposition": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_row"
+          }
+        }
+      }
+    },
+    "panel_degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degradation_class",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "degradation_class": {
+          "$ref": "#/$defs/degradation_class"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "suggestion_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "packet_id_ref",
+        "preserves_targets",
+        "preserves_trigger_sources",
+        "preserves_chips",
+        "preserves_apply_posture",
+        "preserves_action_parity",
+        "preserves_provenance",
+        "preserves_disposition"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/consumer_surface"
+        },
+        "packet_id_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "preserves_targets": {
+          "type": "boolean"
+        },
+        "preserves_trigger_sources": {
+          "type": "boolean"
+        },
+        "preserves_chips": {
+          "type": "boolean"
+        },
+        "preserves_apply_posture": {
+          "type": "boolean"
+        },
+        "preserves_action_parity": {
+          "type": "boolean"
+        },
+        "preserves_provenance": {
+          "type": "boolean"
+        },
+        "preserves_disposition": {
+          "type": "boolean"
+        }
+      }
+    },
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_kind",
+        "severity",
+        "summary"
+      ],
+      "properties": {
+        "finding_kind": {
+          "$ref": "#/$defs/validation_finding_kind"
+        },
+        "severity": {
+          "$ref": "#/$defs/finding_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}
