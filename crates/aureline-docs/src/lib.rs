@@ -18,6 +18,7 @@ pub mod docs_maintenance_and_stale_example_governance;
 pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retrieval_debug_contract;
+pub mod freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_evidence_handoff_matrix;
 pub mod implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export;
 pub mod implement_docs_authoring_suggestions_stale_link_or_stale_example_review_and_open_raw_or_open_source_escapes;
 pub mod implement_mirrored_docs_pack_recall_source_or_version_or_freshness_chips_and_stale_example_findings;
@@ -164,6 +165,21 @@ pub use freeze_the_m5_docs_and_code_recall_matrix_browser_surface_scope_and_retr
     M5_DOCS_RECALL_MATRIX_RECORD_KIND, M5_DOCS_RECALL_MATRIX_RETRIEVAL_DEBUG_CONTRACT_REF,
     M5_DOCS_RECALL_MATRIX_SCHEMA_REF, M5_DOCS_RECALL_MATRIX_SCHEMA_VERSION,
     M5_DOCS_RECALL_MATRIX_SUMMARY_REF,
+};
+pub use freeze_the_m5_markdown_authoring_safe_preview_docs_maintenance_and_docs_evidence_handoff_matrix::{
+    current_stable_m5_markdown_authoring_matrix_export, M5AuthoringConsumerSurface,
+    M5AuthoringDowngradeTrigger, M5AuthoringEvidenceHandoffScope, M5AuthoringEvidenceRequirement,
+    M5AuthoringMatrixArtifactError, M5AuthoringMatrixConsumerProjection, M5AuthoringMatrixLaneRow,
+    M5AuthoringMatrixPacket, M5AuthoringMatrixPacketInput, M5AuthoringMatrixProofFreshness,
+    M5AuthoringMatrixReleasePosture, M5AuthoringMatrixTrustReview, M5AuthoringMatrixViolation,
+    M5AuthoringPreviewSafetyClass, M5AuthoringQualificationClass, M5AuthoringRollbackPosture,
+    M5AuthoringSuggestionTrigger, M5AuthoringSurface, M5AuthoringValidationState,
+    M5AuthoringWorkspaceMode, M5_AUTHORING_MATRIX_ARTIFACT_REF,
+    M5_AUTHORING_MATRIX_BROWSER_HANDOFF_CONTRACT_REF, M5_AUTHORING_MATRIX_DOCS_PACK_CONTRACT_REF,
+    M5_AUTHORING_MATRIX_DOC_REF, M5_AUTHORING_MATRIX_FIXTURE_DIR,
+    M5_AUTHORING_MATRIX_MAINTENANCE_CONTRACT_REF, M5_AUTHORING_MATRIX_RECORD_KIND,
+    M5_AUTHORING_MATRIX_SCHEMA_REF, M5_AUTHORING_MATRIX_SCHEMA_VERSION,
+    M5_AUTHORING_MATRIX_SUGGESTION_CONTRACT_REF, M5_AUTHORING_MATRIX_SUMMARY_REF,
 };
 pub use implement_docs_and_code_semantic_recall_with_query_session_ledger_ranking_reasons_and_provenance_export::{
     current_stable_semantic_recall_ledger_export,
